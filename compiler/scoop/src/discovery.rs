@@ -64,7 +64,7 @@ impl BuildGraphRequest {
             diagnostics,
             limits,
         } = self.into_parts();
-        let mut meter = SlibClosureDecodeMeterV1::new(limits.slib_closure().limits());
+        let mut meter = SlibClosureDecodeMeterV1::new(limits.slib_closure_limits());
         let search_root_count = u64::try_from(artifact_search_roots.len()).map_err(|_| {
             LoadBuildRootError::Resource(SlibClosureResourceErrorV1::Overflow {
                 resource: scoop_slib::SlibClosureResourceKindV1::ArtifactSearchRoots,
@@ -1049,7 +1049,8 @@ mod tests {
     use scoop_protocol::TargetSelectionRequestV1;
     use scoop_slib::{
         ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-        IdentityFoundationArtifactInput, ProducerRecord,
+        IdentityFoundationArtifactInput, ProducerRecord, SlibClosureDecodeLimitsV1,
+        SlibClosureResourceErrorV1, SlibClosureResourceKindV1,
     };
 
     fn write_manifest(root: &std::path::Path, name: &str, dependencies: &str) {
@@ -1078,6 +1079,20 @@ mod tests {
         sysroot: &std::path::Path,
         search_roots: Vec<ArtifactSearchRoot>,
     ) -> BuildGraphRequest {
+        request_with_limits(
+            root,
+            sysroot,
+            search_roots,
+            BuildLimitsProfileV1::M23_DEFAULT,
+        )
+    }
+
+    fn request_with_limits(
+        root: &std::path::Path,
+        sysroot: &std::path::Path,
+        search_roots: Vec<ArtifactSearchRoot>,
+        limits: BuildLimitsProfileV1,
+    ) -> BuildGraphRequest {
         BuildGraphRequest::new(
             crate::BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
             search_roots,
@@ -1086,9 +1101,18 @@ mod tests {
             TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
             PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
             DiagnosticsPolicy::Structured,
-            BuildLimitsProfileV1::M23_DEFAULT,
+            limits,
         )
         .unwrap()
+    }
+
+    fn candidate_limits(limit: u64) -> BuildLimitsProfileV1 {
+        let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
+        values.locator_candidates = limit;
+        BuildLimitsProfileV1::for_test(
+            SlibClosureDecodeLimitsV1::new(values).unwrap(),
+            scoop_wire::DecodeLimits::M23_DEFAULT,
+        )
     }
 
     fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
@@ -1108,6 +1132,42 @@ mod tests {
         .unwrap()
         .as_bytes()
         .to_vec()
+    }
+
+    #[test]
+    fn locator_candidate_limit_is_charged_before_candidate_io() {
+        let temp = tempfile::tempdir().unwrap();
+        let sysroot = temp.path().join("sysroot");
+        let root = temp.path().join("root");
+        write_core(&sysroot);
+        write_manifest(
+            &root,
+            "root",
+            "[dependencies]\n\"test:missing\" = \"1.0.0\"\n",
+        );
+        let search_roots = [temp.path().join("first"), temp.path().join("second")]
+            .map(|path| ArtifactSearchRoot::new(path).unwrap())
+            .to_vec();
+
+        let error = request_with_limits(&root, &sysroot, search_roots, candidate_limits(1))
+            .load_root()
+            .unwrap()
+            .discover()
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            BuildGraphDiscoveryError::Locator(source)
+                if matches!(
+                    source.as_ref(),
+                    DependencyLocatorError::Resource(
+                        SlibClosureResourceErrorV1::LimitExceeded {
+                            resource: SlibClosureResourceKindV1::LocatorCandidates,
+                            limit: 1,
+                            observed: 2,
+                        }
+                    )
+                )
+        ));
     }
 
     #[test]

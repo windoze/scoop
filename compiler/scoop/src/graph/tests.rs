@@ -8,7 +8,8 @@ use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
+    IdentityFoundationArtifactInput, ProducerRecord, SlibClosureDecodeLimitsV1,
+    SlibClosureResourceErrorV1, SlibClosureResourceKindV1, probe_prebuilt_manifest_summary,
 };
 use scoop_wire::DecodeLimits;
 
@@ -41,6 +42,14 @@ fn write_core(sysroot: &Path) {
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
+    request_with_limits(root, sysroot, BuildLimitsProfileV1::M23_DEFAULT)
+}
+
+fn request_with_limits(
+    root: &Path,
+    sysroot: &Path,
+    limits: BuildLimitsProfileV1,
+) -> BuildGraphRequest {
     BuildGraphRequest::new(
         BuildRootInput::manifest(ManifestRootLocator::cone_directory(root)).unwrap(),
         vec![],
@@ -49,9 +58,20 @@ fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
         TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
         PairedScoopcLocator::new(sysroot.join("bin/scoopc")).unwrap(),
         DiagnosticsPolicy::Structured,
-        BuildLimitsProfileV1::M23_DEFAULT,
+        limits,
     )
     .unwrap()
+}
+
+fn limits_with(
+    update: impl FnOnce(&mut scoop_slib::SlibClosureDecodeLimitValuesV1),
+) -> BuildLimitsProfileV1 {
+    let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
+    update(&mut values);
+    BuildLimitsProfileV1::for_test(
+        SlibClosureDecodeLimitsV1::new(values).unwrap(),
+        DecodeLimits::M23_DEFAULT,
+    )
 }
 
 fn coordinate(name: &str, version: &str) -> ConeCoordinate {
@@ -110,6 +130,95 @@ fn identities_as_coordinates(graph: &ResolvedBuildGraph, values: &[ConeIdentity]
         .iter()
         .map(|identity| graph.node_coordinate(*identity).unwrap().to_string())
         .collect()
+}
+
+#[test]
+fn graph_node_edge_and_depth_limits_have_inclusive_boundaries() {
+    let temp = tempfile::tempdir().unwrap();
+    let sysroot = temp.path().join("sysroot");
+    let root = temp.path().join("root");
+    let dependency = temp.path().join("dependency");
+    write_core(&sysroot);
+    write_manifest(&dependency, "dependency", "1.0.0", "library", "");
+    write_manifest(
+        &root,
+        "root",
+        "1.0.0",
+        "library",
+        "[dependencies]\n\"test:dependency\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
+    );
+
+    let node_error =
+        request_with_limits(&root, &sysroot, limits_with(|values| values.cone_nodes = 2))
+            .load_root()
+            .unwrap()
+            .discover()
+            .unwrap_err();
+    assert!(matches!(
+        node_error,
+        crate::BuildGraphDiscoveryError::Resource(SlibClosureResourceErrorV1::LimitExceeded {
+            resource: SlibClosureResourceKindV1::ConeNodes,
+            limit: 2,
+            observed: 3,
+        })
+    ));
+
+    let edge_error = request_with_limits(
+        &root,
+        &sysroot,
+        limits_with(|values| values.dependency_edges = 2),
+    )
+    .load_root()
+    .unwrap()
+    .discover()
+    .unwrap_err();
+    assert!(matches!(
+        edge_error,
+        crate::BuildGraphDiscoveryError::Resource(SlibClosureResourceErrorV1::LimitExceeded {
+            resource: SlibClosureResourceKindV1::DependencyEdges,
+            limit: 2,
+            observed: 3,
+        })
+    ));
+
+    let depth_error = request_with_limits(
+        &root,
+        &sysroot,
+        limits_with(|values| values.graph_depth = 2),
+    )
+    .load_root()
+    .unwrap()
+    .discover()
+    .unwrap()
+    .resolve()
+    .unwrap_err();
+    assert!(matches!(
+        depth_error,
+        ResolveBuildGraphError::Resource(SlibClosureResourceErrorV1::LimitExceeded {
+            resource: SlibClosureResourceKindV1::GraphDepth,
+            limit: 2,
+            observed: 3,
+        })
+    ));
+
+    let graph = request_with_limits(
+        &root,
+        &sysroot,
+        limits_with(|values| {
+            values.cone_nodes = 3;
+            values.dependency_edges = 3;
+            values.graph_depth = 3;
+        }),
+    )
+    .load_root()
+    .unwrap()
+    .discover()
+    .unwrap()
+    .resolve()
+    .unwrap();
+    assert_eq!(graph.node_count(), 3);
+    assert_eq!(graph.edge_count(), 3);
+    assert_eq!(graph.decode_usage().graph_depth, 3);
 }
 
 #[test]

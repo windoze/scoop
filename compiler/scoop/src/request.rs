@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::TargetSelectionRequestV1;
+use scoop_slib::SlibClosureDecodeLimitsV1;
 use scoop_toolchain::{ResolvedSlibClosureLimitsV1, ResolvedTargetProfile, ToolchainError};
 use scoop_wire::DecodeLimits;
 
@@ -187,12 +188,14 @@ pub enum DiagnosticsPolicy {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BuildLimitsProfileV1 {
     slib_closure: ResolvedSlibClosureLimitsV1,
+    slib_closure_limits: SlibClosureDecodeLimitsV1,
     artifact_decode: DecodeLimits,
 }
 
 impl BuildLimitsProfileV1 {
     pub const M23_DEFAULT: Self = Self {
         slib_closure: ResolvedSlibClosureLimitsV1::M23_DEFAULT,
+        slib_closure_limits: ResolvedSlibClosureLimitsV1::M23_DEFAULT.limits(),
         artifact_decode: DecodeLimits::M23_DEFAULT,
     };
 
@@ -200,8 +203,24 @@ impl BuildLimitsProfileV1 {
         self.slib_closure
     }
 
+    pub(crate) const fn slib_closure_limits(self) -> SlibClosureDecodeLimitsV1 {
+        self.slib_closure_limits
+    }
+
     pub const fn artifact_decode(self) -> DecodeLimits {
         self.artifact_decode
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(
+        slib_closure_limits: SlibClosureDecodeLimitsV1,
+        artifact_decode: DecodeLimits,
+    ) -> Self {
+        Self {
+            slib_closure: ResolvedSlibClosureLimitsV1::M23_DEFAULT,
+            slib_closure_limits,
+            artifact_decode,
+        }
     }
 }
 
@@ -240,11 +259,7 @@ impl BuildGraphRequest {
         diagnostics: DiagnosticsPolicy,
         limits: BuildLimitsProfileV1,
     ) -> Result<Self, BuildGraphRequestError> {
-        let search_root_limit = limits
-            .slib_closure()
-            .limits()
-            .values()
-            .artifact_search_roots;
+        let search_root_limit = limits.slib_closure_limits().values().artifact_search_roots;
         let actual_search_roots = u64::try_from(artifact_search_roots.len()).map_err(|_| {
             BuildGraphRequestError::TooManyArtifactSearchRoots {
                 limit: search_root_limit,
