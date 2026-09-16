@@ -423,7 +423,7 @@ HIR section使用封闭typed record，不复制实现body：
 ```text
 NominalInterfaceRecordV1 {
     declaration: SourceNominalId,         // field 1
-    kind: Struct | Enum | Class | Interface | Object, // field 2
+    kind: PublicNominalKindV1,             // field 2
     type_parameters: CanonicalBinderList, // field 3
     exact_supertypes: CanonicalVec<SignatureTypeKey>,  // field 4
     constructors: CanonicalVec<PersistentConstructorId>, // field 5
@@ -434,7 +434,7 @@ NominalInterfaceRecordV1 {
 
 CallableInterfaceRecordV1 {
     declaration: CallableDeclarationId,   // field 1
-    owner: TopLevel | Nominal(SourceNominalId) | Extension, // field 2
+    owner: PublicDeclarationOwnerV1,       // field 2
     type_parameters: CanonicalBinderList, // field 3
     receiver: None | SignatureTypeKey,    // field 4
     parameters: CanonicalVec<SourceParameterShapeV1>, // field 5
@@ -446,7 +446,7 @@ CallableInterfaceRecordV1 {
 
 PropertyInterfaceRecordV1 {
     declaration: PropertyDeclarationId,   // field 1
-    owner: TopLevel | Nominal(SourceNominalId) | Extension, // field 2
+    owner: PublicDeclarationOwnerV1,       // field 2
     type_parameters: CanonicalBinderList, // field 3
     receiver: None | SignatureTypeKey,    // field 4
     value_type: SignatureTypeKey,          // field 5
@@ -457,6 +457,24 @@ PropertyInterfaceRecordV1 {
     access: PropertyPublicAccessV1,        // field 10
 }
 ```
+
+其中两个公共闭合类型的wire固定为：
+
+```text
+PublicNominalKindV1 =
+    Class      // unsigned 1
+  | Interface  // unsigned 2
+  | Struct     // unsigned 3
+  | Enum       // unsigned 4
+  | Object     // unsigned 5
+
+PublicDeclarationOwnerV1 =
+    TopLevel                         // { 0: 1 }
+  | Nominal(SourceNominalId)         // { 0: 2, 1: owner }
+  | Extension                        // { 0: 3 }
+```
+
+`PublicNominalKindV1`逐值复用`SourceDeclarationKind`中五种当前可声明nominal的tag；M23-1已排除尚未开放的自定义`annotation class`，因此它没有可伪造的第六种public surface variant。`PublicDeclarationOwnerV1::Nominal`必须解析为同一closure中存在的nominal interface；reader按sum tag精确检查map长度，不能用缺失owner id猜测`TopLevel`或`Extension`。closure validator必须进一步证明：nominal record的kind与其canonical source declaration key完全一致，callable/property的owner variant及nominal id与canonical declaration owner chain一致；constructor只能是`Nominal`，extension declaration只能是`Extension`，其余无owner声明只能是`TopLevel`。
 
 声明引用复用M23-2 identity wire的既有typed id，不再包一层无语义的digest：
 
