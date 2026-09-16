@@ -472,7 +472,7 @@ CallableSourceEffectsV1 {
     gc_effect: GcEffect,                       // field 3
     implementation: CallableImplementationV1, // field 4
     operator_role: CallableOperatorRoleV1,     // field 5
-    infix: bool,                               // field 6
+    infix: CallableInfixV1,                    // field 6
 }
 
 CallableSafetyV1 =
@@ -522,6 +522,10 @@ PropertyDelegateOperatorV1 =
   | GetValue        // unsigned 2
   | SetValue        // unsigned 3
 
+CallableInfixV1 =
+    Ordinary // unsigned 1
+  | Infix    // unsigned 2
+
 CallableModalityV1 =
     Final            // unsigned 1
   | Open             // unsigned 2
@@ -537,7 +541,7 @@ PublicLookupAccessV1 =
 
 `CallableImplementationV1::Scoop`同时覆盖普通源码body、compiler生成但具有普通Scoop调用语义的derived body以及无body的abstract declaration；是否必须/禁止body由modality和定义方Export HIR交叉验证。`Intrinsic`必须命中typed intrinsic registry；两个`SourceExtern*`只保存名称解析与能力诊断所需的ABI类别，完整native contract仍来自M23-2独立typed contract，v1唯一calling convention `cdecl`不在这里重复编码。ordinary dependency的`Intrinsic`与`SourceExtern*`都不能取得本阶段的param-free executable capability。
 
-`CallableOperatorRoleV1`把ordinary language operator与M21 property-delegate protocol保持为不相交的typed role；`None`不是缺字段。`infix`独立保存，因为它与operator role正交。reader逐variant检查map长度，`Component.index`不能为0，也不能按source name恢复operator role。
+`CallableOperatorRoleV1`把ordinary language operator与M21 property-delegate protocol保持为不相交的typed role；`None`不是缺字段。`infix`独立保存，因为它与operator role正交；它使用显式两值枚举而不是Wire CBOR v1禁止的native boolean。reader逐variant检查map长度，`Component.index`不能为0，也不能按source name恢复operator role。
 
 `PublicLookupAccessV1`只是一种已经收窄到foreign public surface的证明，不是通用visibility枚举：两种variant都要求declaration显式public且owner effective lookup domain为universal；`PublicSlot`额外声明该callable承担public slot contract，因而可区分普通final callable与final override。`Open`、`Abstract`和`InterfaceDefault`必须使用`PublicSlot`；top-level、extension、constructor及variant constructor必须是`Final + DirectOnly`。protected/internal/private没有variant，也不能用`PublicSlot`冒充M23-6 inheritance authority。
 
