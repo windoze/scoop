@@ -5,6 +5,7 @@ use scoop_lir::ValidatedLirTargetSelection;
 const CORE_SOURCE_RELATIVE_PATH: &str = "lib/scoop.core";
 const CORE_ARTIFACTS_RELATIVE_PATH: &str = "artifacts";
 const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
+const CORE_LOCK_FILE_NAME: &str = "scoop.core.lock";
 
 /// Pure target-qualified sysroot layout shared by the orchestration parent and
 /// the paired single-Cone compiler. This type grants no filesystem authority.
@@ -13,6 +14,7 @@ pub struct TrustedCoreSlotLayoutV1 {
     source_root: PathBuf,
     artifact_root: PathBuf,
     artifact: PathBuf,
+    lock: PathBuf,
 }
 
 impl TrustedCoreSlotLayoutV1 {
@@ -23,6 +25,7 @@ impl TrustedCoreSlotLayoutV1 {
         Self {
             source_root: sysroot.join(CORE_SOURCE_RELATIVE_PATH),
             artifact: artifact_root.join(CORE_ARTIFACT_FILE_NAME),
+            lock: artifact_root.join(CORE_LOCK_FILE_NAME),
             artifact_root,
         }
     }
@@ -37,6 +40,10 @@ impl TrustedCoreSlotLayoutV1 {
 
     pub fn artifact(&self) -> &Path {
         &self.artifact
+    }
+
+    pub fn lock(&self) -> &Path {
+        &self.lock
     }
 }
 
@@ -58,6 +65,10 @@ mod tests {
         assert_eq!(
             layout.artifact(),
             Path::new("/opt/scoop/artifacts/darwin-aarch64/scoop.core.slib")
+        );
+        assert_eq!(
+            layout.lock(),
+            Path::new("/opt/scoop/artifacts/darwin-aarch64/scoop.core.lock")
         );
     }
 }
