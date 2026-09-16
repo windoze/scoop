@@ -36,7 +36,7 @@
 | M23-1 | source `package`/`import`/`public import`/alias/star语法、parser与当前编译单元lookup（[详细设计](stage1/DESIGN.md)） | AST表面、当前单元名称语义与诊断 |
 | M23-2 | persistent typed identity与`.slib` wire基础（[详细设计](stage2/DESIGN.md)） | identity（含callable application与ODR group/member key）、mangler、container/member envelope与schema演进规则 |
 | M23-3 | single-Cone artifact与core分离（[详细设计](stage3/DESIGN.md)） | `scoopc`请求、strong-only image/digest与基础Compile/Link view |
-| M23-4 | resolved build graph与调度 | locator、DAG、artifact cache与child orchestration |
+| M23-4 | resolved build graph与调度（[详细设计](stage4/DESIGN.md)） | locator、DAG、artifact cache与child orchestration |
 | M23-5 | 多Cone名称语义 | cross-Cone semantic world、import/re-export与access provenance |
 | M23-6 | 跨Cone layout、typed ABI与ZST | layout/scan/ABI section与运行时表示 |
 | M23-7 | 跨Cone generic、ODR与generic delegated extension | 完整ODR member closure、ABI/definition proof、materialization与跨Cone等价验证 |
@@ -1663,7 +1663,7 @@ core prelude是其typed metadata的一部分，至少能表示package star与`Op
 
 M23固定三层工具边界。面向用户的umbrella binary是`scoop`；`scoopc`是可直接调用的低层single-Cone compiler；program-link是独立library/stage，由`scoop build`、`scoop run`和`scoop link`共用，M23不再提供“最后一次`scoopc`顺带链接”的第二条生产路径：
 
-workspace中的实现映射也固定下来：现有`compiler/driver` package继续产出`scoopc` bin/lib，但lib只暴露single-Cone请求；新增`compiler/scoop` package产出薄`scoop` bin与可单测的build orchestration lib；新增`compiler/linker` package承载artifact-only program-link；新增`compiler/runtime-build`只消费`lir_target + c_bridge_toolchain + runtime_build`三项validated projection，把它们指定的受信任runtime source set构建成`ValidatedRuntimeArtifact`；`compiler/manifest`与`compiler/protocol`分别承载两端共享的manifest projection和版本化子进程消息。`scoop`可以依赖manifest/protocol/slib/linker/runtime-build，但不得依赖`scoopc` lib、parser/lower/codegen implementation crate；`scoopc`不得依赖`scoop`、runtime-build或program-link。这个Cargo dependency方向把“每个Cone必须跨进程、跨`.slib`边界”变成可审计的结构约束，而非调用习惯。
+workspace中的实现映射也固定下来：现有`compiler/driver` package继续产出`scoopc` bin/lib，但lib只暴露single-Cone请求；新增`compiler/scoop` package产出薄`scoop` bin与可单测的build orchestration lib；新增`compiler/linker` package承载artifact-only program-link；新增`compiler/runtime-build`只消费`lir_target + c_bridge_toolchain + runtime_build`三项validated projection，把它们指定的受信任runtime source set构建成`ValidatedRuntimeArtifact`；新增leaf `compiler/toolchain` package承载唯一target/toolchain registry、不可部分构造的`ResolvedTargetProfile`与配套`scoopc` tool identity，不依赖任何parser/lower/codegen实现；各projection的data type仍由对应IR/meta或专用共享crate拥有，producer只接收自己的typed projection，不反向依赖registry；`compiler/manifest`与`compiler/protocol`分别承载两端共享的manifest projection和版本化子进程消息。`scoop`可以依赖manifest/protocol/slib/toolchain/linker/runtime-build，但不得依赖`scoopc` lib、parser/lower/codegen implementation crate；`scoopc` driver可以依赖toolchain完成请求解析，各stage implementation不得为此新增对toolchain的依赖；`scoopc`不得依赖`scoop`、runtime-build或program-link。这个Cargo dependency方向把“每个Cone必须跨进程、跨`.slib`边界”变成可审计的结构约束，而非调用习惯。
 
 ```text
 scoop build <root-input> [--cone-path <root> ...]
@@ -2523,6 +2523,8 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 完成门：core bootstrap、core-only library和core-only executable均产生可重复、双view有效的`.slib`；空/非空registration table、strong/image digest、跨member owner及extern requirement任一被篡改都会使Link view失败。library无`main`，executable的entry metadata非可选；普通`scoopc`不再把core source与用户AST拼接，也不读取runtime或最终链接。缺core、上游artifact错配或尚未开放的非core语义只稳定失败，不搜索、递归或重建。stage snapshot可通过typed single-file request取得，但M23-11前旧executable fixture driver只能作为明确标记的迁移路径保留，不得被新component调用或当作artifact协议的备用实现。
 
 ### M23-4：resolved build graph与调度
+
+详细设计见`docs/milestone23/stage4/DESIGN.md`。
 
 依赖M23-3。只实现第1.4与5.5节的构建侧：exact locator、manifest/prebuilt summary、resolved DAG、dependency-first顺序、per-Cone artifact cache和版本化child orchestration。`compiler/scoop` orchestration library在本阶段落地，以recording/fake compiler runner与M23-3的core-only真实节点验证调度；它可以规划含普通dependency的图，但在M23-5前不得把这些artifact暴露成源码候选。所有cache/prebuilt/source节点继续走M23-3已有的Compile/Link双view门禁。
 
