@@ -16,8 +16,13 @@ use crate::{
 };
 
 mod errors;
+mod semantics;
 
 pub use errors::{CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError};
+pub use semantics::{
+    CallableDeclarationIdentityShapeV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableInterfaceRecordV1 {

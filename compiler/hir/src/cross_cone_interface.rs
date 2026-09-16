@@ -24,10 +24,11 @@ pub use binders::{
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
 };
 pub use callable_interfaces::{
-    CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordBuildError,
-    CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
-    CallableInterfaceRecordV1, CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1,
-    CallableSafetyV1, CallableSourceEffectsBuildError, CallableSourceEffectsV1,
+    CallableDeclarationIdentityShapeV1, CallableImplementationV1, CallableInfixV1,
+    CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError,
+    CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError, CallableModalityV1, CallableOperatorRoleV1,
+    CallableOperatorV1, CallableSafetyV1, CallableSourceEffectsBuildError, CallableSourceEffectsV1,
     CanonicalSourceParameterShapesV1, DecodedCallableInterfaceRecordV1,
     DecodedCallableSourceEffectsV1, DecodedCanonicalSourceParameterShapesV1,
     DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,

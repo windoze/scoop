@@ -11,6 +11,8 @@ pub use common::{
     SourceParameterShapeV1,
 };
 pub use record::{
-    CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError,
-    CallableInterfaceRecordResolver, CallableInterfaceRecordV1, DecodedCallableInterfaceRecordV1,
+    CallableDeclarationIdentityShapeV1, CallableInterfaceRecordBuildError,
+    CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
+    CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError, DecodedCallableInterfaceRecordV1,
 };
