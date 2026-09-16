@@ -7,6 +7,7 @@ mod binder_uses;
 mod locals;
 mod receiver;
 mod roots;
+mod value_parameters;
 
 pub use binder_uses::{
     BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
@@ -28,6 +29,14 @@ pub use receiver::{
 pub use roots::{
     DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
     PersistentLexicalRootV1,
+};
+pub use value_parameters::{
+    CanonicalTemplateValueParametersV1, DecodedCanonicalTemplateValueParametersV1,
+    DecodedTemplateValueParameterV1, IndexedCanonicalTemplateValueParametersV1,
+    IndexedTemplateValueParameterV1, TemplateValueParameterBuildError,
+    TemplateValueParameterIndexError, TemplateValueParameterListBuildError,
+    TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
+    TemplateValueParameterResolutionError, TemplateValueParameterV1,
 };
 
 /// Section-local identity of one exported default template.
