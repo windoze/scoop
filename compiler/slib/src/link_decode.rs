@@ -2110,6 +2110,10 @@ impl ValidatedSingleConeStrongLinkArtifact<'_> {
         self.graph.target_selection()
     }
 
+    pub fn direct_dependencies(&self) -> &[crate::DependencyRecord] {
+        self.graph.direct_dependencies()
+    }
+
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
     }

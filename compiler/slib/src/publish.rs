@@ -30,6 +30,16 @@ pub struct CompileViewSummaryV1 {
 }
 
 impl CompileViewSummaryV1 {
+    pub(crate) const fn new(
+        semantic_fingerprints: SemanticFingerprintRecord,
+        decode_usage: DecodeUsage,
+    ) -> Self {
+        Self {
+            semantic_fingerprints,
+            decode_usage,
+        }
+    }
+
     pub const fn semantic_fingerprints(self) -> SemanticFingerprintRecord {
         self.semantic_fingerprints
     }
@@ -85,6 +95,7 @@ pub struct PublishableSingleConeArtifact {
     kind: ConeKind,
     source_form: ConeSourceForm,
     target_selection: ValidatedLirTargetSelection,
+    profile: scoop_identity::ArtifactCapabilityProfileId,
     direct_dependencies: Vec<DependencyRecord>,
     compile_summary: CompileViewSummaryV1,
     link_summary: LinkViewSummaryV1,
@@ -152,6 +163,7 @@ impl PublishableSingleConeArtifact {
             kind: compile.kind(),
             source_form: compile.source_form(),
             target_selection: compile.target_selection(),
+            profile: compile.compatibility().artifact_profile().clone(),
             direct_dependencies: compile.direct_dependencies().to_vec(),
             compile_summary: CompileViewSummaryV1 {
                 semantic_fingerprints: compile_semantic,
@@ -190,6 +202,10 @@ impl PublishableSingleConeArtifact {
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
         self.target_selection
+    }
+
+    pub const fn profile(&self) -> &scoop_identity::ArtifactCapabilityProfileId {
+        &self.profile
     }
 
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
@@ -265,6 +281,31 @@ pub fn validate_self_describing_publishable_single_cone_artifact(
     core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
+    let (compile, link) = validate_self_describing_single_cone_strong_views(
+        final_bytes,
+        limits,
+        target_selection,
+        core_owners,
+        c_bridge_profile,
+    )?;
+
+    PublishableSingleConeArtifact::from_validated_views(&compile, &link)
+        .map_err(PublishableArtifactValidationError::ViewMismatch)
+}
+
+pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
+    final_bytes: &'input [u8],
+    limits: DecodeLimits,
+    target_selection: ValidatedLirTargetSelection,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<
+    (
+        ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
+        ValidatedSingleConeStrongLinkArtifact<'input>,
+    ),
+    PublishableArtifactValidationError,
+> {
     let compile_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
         .map_err(|error| PublishableArtifactValidationError::CompileEnvelope(Box::new(error)))?
         .validate_graph()
@@ -285,8 +326,7 @@ pub fn validate_self_describing_publishable_single_cone_artifact(
     )
     .map_err(|error| PublishableArtifactValidationError::Link(Box::new(error)))?;
 
-    PublishableSingleConeArtifact::from_validated_views(&compile, &link)
-        .map_err(PublishableArtifactValidationError::ViewMismatch)
+    Ok((compile, link))
 }
 
 /// Atomically publish exact final archive bytes after a closed-write,

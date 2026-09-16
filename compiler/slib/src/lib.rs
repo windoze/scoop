@@ -30,6 +30,9 @@ pub use prebuilt_summary::*;
 mod closure_limits;
 pub use closure_limits::*;
 
+mod dual_artifact;
+pub use dual_artifact::*;
+
 mod compile_decode;
 pub use compile_decode::*;
 
