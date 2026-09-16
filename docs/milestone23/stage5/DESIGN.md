@@ -379,7 +379,9 @@ CrossConeHirInterfaceSectionV1 {
 }
 ```
 
-十张顶层table均按各record声明的typed primary key严格递增并拒绝重复；producer输入乱序由writer排序，reader绝不排序修复。record内部标为`CanonicalVec`/`CanonicalSet`的集合也按其元素typed key或canonical wire bytes严格递增；标为declaration/source order的序列保持源码语义顺序，以隐含的zero-based `u32` position作identity，reader不得排序。payload只保存canonical semantic interface，不直接serde `ExportHir` arena，不保存arena id、import文本、host path、failed candidate或body-local display name。
+十张顶层table均按各record声明的typed primary key严格递增并拒绝重复；`definition_sources`是唯一没有声明identity主键的闭包表，按`(source ConeIdentity bytes, normalized source path UTF-8 bytes, span start, span end, context id bytes)`严格递增并拒绝重复。producer输入乱序由writer排序，reader绝不排序修复。record内部标为`CanonicalVec`/`CanonicalSet`的集合也按其元素typed key或canonical wire bytes严格递增；标为declaration/source order的序列保持源码语义顺序，以隐含的zero-based `u32` position作identity，reader不得排序。payload只保存canonical semantic interface，不直接serde `ExportHir` arena，不保存arena id、import文本、host path、failed candidate或body-local display name。
+
+`ExportDefinitionSourceV1`是与M23-2 `DefinitionOrigin`不同的Rust语义类型，但wire逐byte复用后者已经冻结的三字段map：`1=SourceIdentity, 2=SourceSpan, 3=PersistentSourceContextId`，不增加wrapper tag或外层field。它只表示定义方位置，不能转换为`EvaluationOrigin`或consumer位置。reader必须在同artifact已验证的HIR foundation中解析source/context，要求source Cone等于当前artifact、context的source完全相同，并要求span两个端点均存在于该`SourceRecord`的canonical point table。顶层`definition_sources`精确等于fields 1～8中所有内联`ExportDefinitionSourceV1`（包括default body节点）的规范去重集合；缺项和多余项都拒绝。foundation field 29已经按typed subject保存的声明origin不因本表而删除或放宽，内联到alias/const/default根的origin必须与对应foundation subject的origin逐字段相等。
 
 ### 5.2 public binding与route
 
@@ -735,15 +737,23 @@ ExportConstValueV1 {
 
 TypeAliasInterfaceRecordV1 {
     alias: PersistentTypeAliasId,   // field 1
-    target: SignatureTypeKey,       // field 2
+    target: TypeAliasTargetV1,      // field 2
     access: PublicLookupAccessV1,   // field 3
     definition_origin: ExportDefinitionSourceV1, // field 4
 }
+
+TypeAliasTargetV1 =
+    Signature { target: SignatureTypeKey } // { 0: 1, 1: target }
+  | Alias { alias: PersistentTypeAliasId } // { 0: 2, 1: alias }
 ```
 
 const table精确覆盖public const property，不含ordinary property storage/initializer。consumer内联value并使用当前usage evaluation origin；String等需要本地materialization的常量由当前Cone按既有literal规则拥有，不引用provider storage。
 
-alias target允许指向direct dependency public type/alias。closure-wide expander以`PersistentTypeAliasId`作memo key，沿typed target展开，执行checked node/depth/text budget并报告完整alias chain。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终target；diagnostic可保留alias spelling作decorator。
+alias在M23-5仍只允许top-level、non-generic声明，因此record的`access`必须是`DirectOnly`；`PublicSlot`、nested/local identity、非`ConeWide` declaration scope或target中的`Binder`一律拒绝。`alias`必须解析为当前artifact foundation中的canonical `TypeAlias` source declaration，`definition_origin`必须逐字段等于同foundation `DefinitionOriginSubject::TypeAlias(alias)`的记录；仅凭raw digest或来自另一Cone的origin不能构造记录。
+
+源码target若最外层直接命中另一个typealias，producer保留为`TypeAliasTargetV1::Alias`；其余target先递归展开内部alias，再写成alias-free的`Signature`。这样`typealias A = B`链保留每条alias edge，而`Container<B>`之类复合target没有第二套递归type wire，内部`B`按透明语义写入其最终target。`Alias`可以指向当前artifact的public alias，或经direct dependency public binding/完整re-export route授权的foreign public alias；不能按FQN、名称或support artifact枚举取得。`Signature`使用空binder scope完成全部nominal kind/application arity验证。
+
+closure-wide expander以`PersistentTypeAliasId`作memo key，沿`Alias` edge展开，执行checked node/depth/text budget并报告包含首尾重复节点的完整alias chain。由于正常resolved dependency graph无环，跨Cone环也属于artifact损坏而不是允许的递归类型；同artifact自环/多节点环同样拒绝。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终`SignatureTypeKey`；diagnostic可保留alias spelling作decorator。alias table按`alias` raw id严格递增并拒绝重复；reader不得排序修复。
 
 ### 5.6 external reference closure
 
