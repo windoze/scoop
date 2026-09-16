@@ -1306,6 +1306,43 @@ fn trusted_core_child_plan_is_the_closed_bootstrap_request() {
 }
 
 #[test]
+fn child_request_id_changes_only_the_protocol_envelope() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path();
+    let sysroot = workspace.join("sysroot");
+    let root = workspace.join("root");
+    write_core(&sysroot);
+    write_manifest(&root, "root", "");
+    write_fake_compiler(&workspace.join("bin/scoopc"));
+    let prepared = prepare(&root, workspace).unwrap();
+    let key_before = prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
+
+    let first = prepared
+        .child_invocation_plan(
+            ConeIdentity::CORE,
+            RequestCorrelationId::from_array([40; 16]),
+            &[],
+        )
+        .unwrap();
+    let second = prepared
+        .child_invocation_plan(
+            ConeIdentity::CORE,
+            RequestCorrelationId::from_array([41; 16]),
+            &[],
+        )
+        .unwrap();
+
+    assert_ne!(first.request().request_id(), second.request().request_id());
+    assert_eq!(first.request().build(), second.request().build());
+    assert_eq!(first.output_path(), second.output_path());
+    assert_eq!(first.io(), second.io());
+    assert_eq!(
+        key_before,
+        prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
+    );
+}
+
+#[test]
 fn ordinary_child_plan_cannot_precede_trusted_core_completion() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
