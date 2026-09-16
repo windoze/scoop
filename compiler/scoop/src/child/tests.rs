@@ -75,11 +75,20 @@ fn shell_bytes(bytes: &[u8]) -> String {
 }
 
 fn fake_compiler(path: &Path, response: &[u8], exit: i32, stderr: &str) {
+    let response = shell_bytes(response);
+    fake_compiler_body(
+        path,
+        &format!(
+            "/bin/cat >/dev/null\nprintf '{response}'\nprintf '%s' '{stderr}' >&2\nexit {exit}"
+        ),
+    );
+}
+
+fn fake_compiler_body(path: &Path, body: &str) {
     let capability = scoop_toolchain::paired_compiler_machine_capability().unwrap();
     let capability = shell_bytes(&encode_machine_capability_frame(&capability).unwrap());
-    let response = shell_bytes(response);
     let script = format!(
-        "#!/bin/sh\nif [ \"$1\" = \"__machine-capability\" ]; then\n  printf '{capability}'\n  exit 0\nfi\n/bin/cat >/dev/null\nprintf '{response}'\nprintf '%s' '{stderr}' >&2\nexit {exit}\n"
+        "#!/bin/sh\nif [ \"$1\" = \"__machine-capability\" ]; then\n  printf '{capability}'\n  exit 0\nfi\n{body}\n"
     );
     std::fs::write(path, script).unwrap();
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).unwrap();
@@ -186,5 +195,94 @@ fn production_runner_rejects_wrong_id_exit_stderr_and_trailing_frame() {
     assert!(matches!(
         ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
         Err(ChildTransportError::Response { .. })
+    ));
+}
+
+#[test]
+fn production_runner_rejects_failure_with_zero_exit_and_human_stdout() {
+    let directory = tempfile::tempdir().unwrap();
+    let compiler = directory.path().join("scoopc");
+    let request = request([8; 16]);
+    let io = ChildIoPlan::new(directory.path().to_path_buf());
+
+    fake_compiler(
+        &compiler,
+        &encode_response_frame(&failure([8; 16])).unwrap(),
+        0,
+        "",
+    );
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::ExitMismatch {
+            response: ChildResponseKind::Failure,
+            ..
+        })
+    ));
+
+    fake_compiler(&compiler, b"human compiler output\n", 0, "");
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::Response { .. })
+    ));
+}
+
+#[test]
+fn production_runner_rejects_signal_and_compiler_mutation() {
+    let directory = tempfile::tempdir().unwrap();
+    let compiler = directory.path().join("scoopc");
+    let request = request([8; 16]);
+    let io = ChildIoPlan::new(directory.path().to_path_buf());
+
+    fake_compiler_body(&compiler, "/bin/cat >/dev/null\nkill -TERM $$");
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::Signal)
+    ));
+
+    let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
+    fake_compiler_body(
+        &compiler,
+        &format!(
+            "/bin/cat >/dev/null\nprintf '\n# changed during invocation\n' >> \"$0\"\nprintf '{response}'\nexit 0"
+        ),
+    );
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::CompilerChanged(_))
+    ));
+}
+
+#[test]
+fn production_runner_bounds_both_child_output_streams() {
+    let directory = tempfile::tempdir().unwrap();
+    let compiler = directory.path().join("scoopc");
+    let request = request([8; 16]);
+    let io = ChildIoPlan::new(directory.path().to_path_buf());
+
+    fake_compiler_body(
+        &compiler,
+        "/bin/cat >/dev/null\n/bin/dd if=/dev/zero bs=1048576 count=17 2>/dev/null",
+    );
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::StreamTooLarge { name: "stdout", .. })
+    ));
+
+    let response = shell_bytes(&encode_response_frame(&success([8; 16])).unwrap());
+    fake_compiler_body(
+        &compiler,
+        &format!(
+            "/bin/cat >/dev/null\nprintf '{response}'\n/bin/dd if=/dev/zero bs=65537 count=1 >&2"
+        ),
+    );
+    let tool = resolve_fake(&compiler);
+    assert!(matches!(
+        ProductionSingleConeCompilerRunner.invoke(&tool, &request, &io),
+        Err(ChildTransportError::StreamTooLarge { name: "stderr", .. })
     ));
 }

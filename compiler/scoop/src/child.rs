@@ -109,6 +109,9 @@ impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
         write_result?;
         tool.revalidate_executable()
             .map_err(ChildTransportError::CompilerChanged)?;
+        if status.code().is_none() {
+            return Err(ChildTransportError::Signal);
+        }
         let response =
             decode_response_frame(&stdout).map_err(|source| ChildTransportError::Response {
                 status,
