@@ -928,6 +928,13 @@ CurrentConeSemanticProjectionV1 =
         2: trusted_bootstrap_profile_id,
     }
 
+RequestedConeKindV1 = Library unsigned(1) | Executable unsigned(2)
+
+TrustedCoreBootstrapProfileIdV1 = map(2) {
+    1: magic (= "scoop-trusted-core-bootstrap"),
+    2: schema (= 1),
+}
+
 PairedCompilerFingerprintV1 = map(3) {
     1: scoopc_executable_sha256,
     2: toolchain_distribution_id,

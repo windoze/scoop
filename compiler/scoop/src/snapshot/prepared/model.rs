@@ -21,6 +21,8 @@ use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
+mod cache_key;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceSnapshot {
     identity: SourceIdentity,

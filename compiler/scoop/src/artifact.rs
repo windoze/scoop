@@ -196,6 +196,19 @@ impl ArtifactClosurePlan {
         artifact: &DualValidatedArtifactHandle,
         artifacts: &BTreeMap<ConeIdentity, Arc<DualValidatedArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
+        self.validate_artifact_shape(identity, artifact)?;
+        self.validate_dependencies(
+            identity,
+            artifact.publication().direct_dependencies(),
+            artifacts,
+        )
+    }
+
+    pub(crate) fn validate_artifact_shape(
+        &self,
+        identity: ConeIdentity,
+        artifact: &DualValidatedArtifactHandle,
+    ) -> Result<(), ArtifactClosureValidationError> {
         let plan = &self.nodes[&identity];
         let actual = artifact.publication();
         if actual.identity() != identity {
@@ -251,7 +264,7 @@ impl ArtifactClosurePlan {
                 },
             );
         }
-        self.validate_dependencies(identity, actual.direct_dependencies(), artifacts)
+        Ok(())
     }
 
     fn validate_dependencies(

@@ -7,7 +7,7 @@ use scoop_protocol::{
     ProtocolReadError, ScoopcMachineCapabilityV1, ScoopcProtocolCapabilityV1,
     decode_machine_capability_frame,
 };
-use scoop_wire::{Digest256, HashError};
+use scoop_wire::{Digest256, Encoder, HashError, WireEncode};
 
 use crate::{ImmutableInputSnapshot, PairedScoopcLocator, SnapshotFileError};
 
@@ -23,6 +23,18 @@ pub struct PairedCompilerFingerprintV1 {
 }
 
 impl PairedCompilerFingerprintV1 {
+    pub(crate) const fn from_parts(
+        executable_sha256: Digest256,
+        toolchain_distribution_id: Digest256,
+        compiler_build_identity: Digest256,
+    ) -> Self {
+        Self {
+            executable_sha256,
+            toolchain_distribution_id,
+            compiler_build_identity,
+        }
+    }
+
     pub const fn executable_sha256(self) -> Digest256 {
         self.executable_sha256
     }
@@ -33,6 +45,18 @@ impl PairedCompilerFingerprintV1 {
 
     pub const fn compiler_build_identity(self) -> Digest256 {
         self.compiler_build_identity
+    }
+}
+
+impl WireEncode for PairedCompilerFingerprintV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        encoder.field(1)?;
+        self.executable_sha256.encode(encoder)?;
+        encoder.field(2)?;
+        self.toolchain_distribution_id.encode(encoder)?;
+        encoder.field(3)?;
+        self.compiler_build_identity.encode(encoder)
     }
 }
 
@@ -79,11 +103,11 @@ impl ResolvedPairedScoopc {
                 actual: Box::new(capability),
             });
         }
-        let fingerprint = PairedCompilerFingerprintV1 {
-            executable_sha256: executable.digest(),
-            toolchain_distribution_id: capability.toolchain_distribution_id(),
-            compiler_build_identity: capability.compiler_build_identity(),
-        };
+        let fingerprint = PairedCompilerFingerprintV1::from_parts(
+            executable.digest(),
+            capability.toolchain_distribution_id(),
+            capability.compiler_build_identity(),
+        );
         Ok(Self {
             executable,
             fingerprint,

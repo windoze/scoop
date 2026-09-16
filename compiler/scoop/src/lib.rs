@@ -5,6 +5,7 @@
 //! implementation pipeline.
 
 mod artifact;
+mod cache;
 mod compiler;
 mod discovery;
 mod graph;
@@ -13,6 +14,7 @@ mod request;
 mod snapshot;
 
 pub use artifact::*;
+pub use cache::*;
 pub use compiler::*;
 pub use discovery::*;
 pub use graph::*;
