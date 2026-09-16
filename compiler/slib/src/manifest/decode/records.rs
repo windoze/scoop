@@ -17,7 +17,9 @@ use super::super::{
 use crate::{ArtifactCapabilityProfile, FingerprintAvailabilityRequirement, MemberPurposeSet};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct DecodedConeRecord {
+/// Untrusted wire projection of a Cone record. Call [`Self::validate`] before
+/// treating its identity as semantic authority.
+pub struct DecodedConeRecord {
     coordinate: DecodedConeCoordinate,
     identity: DecodedPersistentId<ConeIdentity>,
     kind: u32,
@@ -25,7 +27,7 @@ pub(super) struct DecodedConeRecord {
 }
 
 impl DecodedConeRecord {
-    pub(super) fn validate(
+    pub fn validate(
         self,
         meter: &mut BudgetMeter,
         path: &WirePath,
@@ -117,7 +119,9 @@ impl fmt::Display for ConeRecordValidationError {
 impl std::error::Error for ConeRecordValidationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct DecodedDependencyRecord {
+/// Untrusted wire projection of a dependency record. Call [`Self::validate`]
+/// before comparing it with an artifact dependency proof.
+pub struct DecodedDependencyRecord {
     coordinate: DecodedConeCoordinate,
     identity: DecodedPersistentId<ConeIdentity>,
     hir_fingerprint: Digest256,
@@ -126,7 +130,7 @@ pub(super) struct DecodedDependencyRecord {
 }
 
 impl DecodedDependencyRecord {
-    pub(super) fn validate(
+    pub fn validate(
         self,
         meter: &mut BudgetMeter,
         path: &WirePath,

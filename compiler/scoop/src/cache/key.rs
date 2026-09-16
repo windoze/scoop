@@ -24,6 +24,10 @@ impl ConeCompileCacheKeyV1 {
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
     }
+
+    pub(crate) const fn from_digest(digest: scoop_wire::Digest256) -> Self {
+        Self(*digest.as_array())
+    }
 }
 
 impl WireEncode for ConeCompileCacheKeyV1 {

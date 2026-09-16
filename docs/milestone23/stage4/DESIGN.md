@@ -1012,9 +1012,14 @@ CacheReceiptBodyV1 = map(9) {
     8: artifact_profile,
     9: structured_warnings,
 }
+
+CacheTargetSelectionV1 = map(2) {
+    1: lir_target_tag (= 1 for Darwin/AArch64),
+    2: backend_tag (= 1 for LLVM 22.1),
+}
 ```
 
-dependency records和warnings分别按其canonical key严格排序且唯一；warning相同key而payload不同是receipt corruption，不按读取顺序任选。
+dependency records和warnings分别按其canonical key严格排序且唯一。warning key是`map(2) { 1: code, 2: origin }`的canonical Wire CBOR bytes；同key而payload不同是receipt corruption，不按读取顺序任选。receipt只接受`Warning` severity，warning及note origin只允许`None`或`SemanticSourceSpan`；`HostPathSpan`和带host locator的`ArtifactPath`必须由父进程先转换为semantic origin，否则该warning不可写入cache。
 
 receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字段的独立body重算上述digest；不是把自身slot归零。它不是`.slib` member，不改变artifact bytes。receipt只能由父进程在child output已经双视图验证、plan match成功后生成。warning origin只保存semantic source path/wire path，cache hit时用当前snapshot display map装饰；不保存临时snapshot path。
 

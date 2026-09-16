@@ -263,6 +263,14 @@ impl WireEncode for StructuredDiagnosticV1 {
     }
 }
 
+impl WireDecode for StructuredDiagnosticV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        DecodedStructuredDiagnosticV1::decode(decoder)?
+            .validate()
+            .map_err(|error| diagnostic_validation_error(decoder, error))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedDiagnosticOriginV1 {
     None,
@@ -520,9 +528,47 @@ fn valid_text(text: &str) -> bool {
     !text.is_empty() && text.len() <= MAX_DIAGNOSTIC_TEXT_BYTES
 }
 
+fn diagnostic_validation_error(
+    decoder: &Decoder<'_, '_>,
+    error: ProtocolValidationError,
+) -> WireError {
+    let kind = match error {
+        ProtocolValidationError::TooManyDiagnosticNotes(actual) => {
+            scoop_wire::WireErrorKind::InvalidLength {
+                expected: MAX_DIAGNOSTIC_NOTES as u64,
+                actual: actual as u64,
+            }
+        }
+        _ => scoop_wire::WireErrorKind::UnknownTag { tag: u64::MAX },
+    };
+    WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn structured_diagnostic_wire_decode_validates_and_round_trips() {
+        let diagnostic = StructuredDiagnosticV1::new(
+            DiagnosticSeverityV1::Warning,
+            "SCOOPC_TEST_WARNING".to_owned(),
+            "bounded warning".to_owned(),
+            DiagnosticOriginV1::None,
+            Vec::new(),
+        )
+        .unwrap();
+        let encoded = scoop_wire::encode(&diagnostic).unwrap();
+
+        assert_eq!(
+            scoop_wire::decode_canonical::<StructuredDiagnosticV1>(
+                &encoded,
+                scoop_wire::DecodeLimits::M23_DEFAULT,
+            )
+            .unwrap(),
+            diagnostic
+        );
+    }
 
     #[test]
     fn diagnostic_constructor_rejects_invalid_code_span_and_notes() {

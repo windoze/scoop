@@ -6,12 +6,10 @@ pub use compatibility::{
 
 mod records;
 pub use records::{
-    ConeRecordValidationError, DependencyRecordValidationError, SemanticFingerprintValidationError,
+    ConeRecordValidationError, DecodedConeRecord, DecodedDependencyRecord,
+    DependencyRecordValidationError, SemanticFingerprintValidationError,
 };
-use records::{
-    DecodedConeRecord, DecodedDependencyRecord, DecodedManifestSection,
-    DecodedSemanticFingerprintRecord,
-};
+use records::{DecodedManifestSection, DecodedSemanticFingerprintRecord};
 
 use std::fmt;
 
