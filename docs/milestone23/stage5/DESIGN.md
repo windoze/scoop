@@ -753,7 +753,13 @@ alias在M23-5仍只允许top-level、non-generic声明，因此record的`access`
 
 源码target若最外层直接命中另一个typealias，producer保留为`TypeAliasTargetV1::Alias`；其余target先递归展开内部alias，再写成alias-free的`Signature`。这样`typealias A = B`链保留每条alias edge，而`Container<B>`之类复合target没有第二套递归type wire，内部`B`按透明语义写入其最终target。`Alias`可以指向当前artifact的public alias，或经direct dependency public binding/完整re-export route授权的foreign public alias；不能按FQN、名称或support artifact枚举取得。`Signature`使用空binder scope完成全部nominal kind/application arity验证。
 
-closure-wide expander以`PersistentTypeAliasId`作memo key，沿`Alias` edge展开，执行checked node/depth/text budget并报告包含首尾重复节点的完整alias chain。由于正常resolved dependency graph无环，跨Cone环也属于artifact损坏而不是允许的递归类型；同artifact自环/多节点环同样拒绝。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终`SignatureTypeKey`；diagnostic可保留alias spelling作decorator。alias table按`alias` raw id严格递增并拒绝重复；reader不得排序修复。
+closure-wide expander以`PersistentTypeAliasId`作memo key，沿`Alias` edge展开；authority只可返回已经完成单record语义验证的alias interface，并对每条`(source alias, target alias)`分别证明：同Cone target确实位于该Cone public alias table，或foreign target具有从source Cone出发的direct public binding/完整re-export route。不能用“target record存在”替代可达性证明，也不能从FQN、名称或support artifact枚举取得target。展开器按当前alias table的canonical顺序启动root，成功输出同顺序的`alias -> final SignatureTypeKey` typed map；transitive foreign alias只进入共享memo而不凭遍历副作用加入当前table输出。
+
+展开入口必须接收closure共用的`BudgetMeter`与调用方提供的`WirePath`，不得创建或重置私有meter。资源计量固定如下：每个首次访问且尚未memo的distinct alias扣一个decoded logical node和一个validation work unit；每条实际跟随的`Alias` edge扣一个decoded edge和一个validation work unit；root记semantic depth 1，每跟随一条非cycle edge加1并在lookup前调用`check_semantic_depth`。root输出vector、memo map、active-position map、显式DFS stack与cycle chain都必须在分配前使用meter的collection/map reserve API预扣logical heap；实现必须使用显式stack，不能让untrusted chain消耗Rust调用栈。已memo节点不重复扣node/edge/work，其final target以共享只读值复用，不能按入边数量深拷贝完整type tree。
+
+发现active target时，cycle错误保存从该target首次进入active stack的位置起、直到当前source、再追加一次该target的完整typed id链；例如`A -> B -> C -> A`必须报告`[A, B, C, A]`，不能只报告首节点或截断前缀。构造该链前先checked计算其canonical diagnostic文本上界`64 * id_count + 4 * (id_count - 1)` bytes（每个id为64位小写hex，分隔符为` -> `），并用`check_semantic_leaf`核对；错误本身保存typed ids、按需格式化，不保存来自artifact的任意文本。单边失败次序固定为：先扣edge/work并验证访问授权，再检查active cycle，随后检查下一depth并查找target record；因此未授权edge不会泄漏target是否存在，资源上限也不能通过cycle诊断绕过。任何checked算术、meter或fallible allocation失败均返回原`WireError`和传入path，且不提交alias expansion cache。
+
+由于正常resolved dependency graph无环，跨Cone环也属于artifact损坏而不是允许的递归类型；同artifact自环/多节点环同样拒绝。使用点`as` alias和import local name不是typealias identity，不进入该图。展开完成后所有type equality、overload signature和persistent application都使用最终`SignatureTypeKey`；diagnostic可保留alias spelling作decorator。alias table按`alias` raw id严格递增并拒绝重复；reader不得排序修复。
 
 ### 5.6 external reference closure
 
