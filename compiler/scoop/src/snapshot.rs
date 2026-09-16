@@ -41,6 +41,21 @@ impl ImmutableInputSnapshot {
         })
     }
 
+    pub(crate) fn capture_no_follow(
+        source_locator: &Path,
+        byte_limit: u64,
+    ) -> Result<Self, SnapshotFileError> {
+        let captured = io::read_stable_regular_file_no_follow(source_locator, byte_limit)?;
+        let bytes: Arc<[u8]> = captured.bytes.into();
+        let digest = sha256(&bytes);
+        Ok(Self {
+            source_locator: source_locator.to_path_buf(),
+            resolved_path: captured.resolved_path,
+            bytes,
+            digest,
+        })
+    }
+
     pub fn source_locator(&self) -> &Path {
         &self.source_locator
     }
@@ -108,6 +123,23 @@ mod tests {
         assert!(matches!(
             ImmutableInputSnapshot::capture(directory.path(), u64::MAX),
             Err(SnapshotFileError::NotRegularFile(_))
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn no_follow_snapshot_rejects_a_direct_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        let target = directory.path().join("target.bin");
+        let alias = directory.path().join("alias.bin");
+        std::fs::write(&target, b"target").unwrap();
+        symlink(&target, &alias).unwrap();
+
+        assert!(matches!(
+            ImmutableInputSnapshot::capture_no_follow(&alias, 6),
+            Err(SnapshotFileError::NotRegularFile(path)) if path == alias
         ));
     }
 }

@@ -968,7 +968,7 @@ compile-v1/<full-cache-key-hex>/
     receipt.cbor
 ```
 
-目录名必须使用完整32-byte key的64个hex字符，不允许缩写成为实际路径key。cache root path不进入key。
+`compile-v1/.locks/<full-cache-key-hex>.lock`保存per-key advisory lock inode，`compile-v1/.staging/entry-*`保存尚未发布的private entry directory；两个点前缀目录都是namespace保留实现目录，不能被当作entry。目录名必须使用完整32-byte key的64个hex字符，不允许缩写成为实际路径key。cache root path不进入key。已发布entry目录只允许上述两个regular file，缺失、额外entry或任何symlink都算corruption。
 
 `CacheReceiptV1`至少包含：
 
@@ -1052,7 +1052,7 @@ miss后：
 4. 在cache root同filesystem创建private entry directory；
 5. create-new写`artifact.slib` snapshot与`receipt.cbor`，flush/sync并关闭；
 6. 从private目录再次lookup式验证；
-7. sync目录后以atomic rename把整个目录发布为key目录；
+7. sync目录后以平台的atomic no-replace rename把整个目录发布为key目录；不允许先检查不存在再调用可覆盖destination的普通rename；
 8. 若destination已由竞争者产生，验证winner。winner与本次artifact/receipt一致则使用winner；不一致报告`NondeterministicCacheProduction`，绝不覆盖；
 9. 失败依靠private-dir guard清理，不改变已有entry。
 

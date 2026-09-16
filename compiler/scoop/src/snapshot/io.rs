@@ -102,6 +102,116 @@ pub(super) fn read_stable_regular_file(
     })
 }
 
+pub(super) fn read_stable_regular_file_no_follow(
+    locator: &Path,
+    byte_limit: u64,
+) -> Result<StableFileBytes, SnapshotFileError> {
+    let before_path =
+        std::fs::symlink_metadata(locator).map_err(|source| SnapshotFileError::Io {
+            operation: SnapshotIoOperation::Inspect,
+            path: locator.to_path_buf(),
+            source,
+        })?;
+    if !before_path.file_type().is_file() {
+        return Err(SnapshotFileError::NotRegularFile(locator.to_path_buf()));
+    }
+    let mut file = open_no_follow(locator).map_err(|source| SnapshotFileError::Io {
+        operation: SnapshotIoOperation::Open,
+        path: locator.to_path_buf(),
+        source,
+    })?;
+    let before = file.metadata().map_err(|source| SnapshotFileError::Io {
+        operation: SnapshotIoOperation::Inspect,
+        path: locator.to_path_buf(),
+        source,
+    })?;
+    let observation = FileObservation::new(&before);
+    if !before.is_file() || FileObservation::new(&before_path) != observation {
+        return Err(SnapshotFileError::Changed {
+            locator: locator.to_path_buf(),
+            before: locator.to_path_buf(),
+            after: locator.to_path_buf(),
+        });
+    }
+    if observation.len > byte_limit {
+        return Err(SnapshotFileError::TooLarge {
+            path: locator.to_path_buf(),
+            limit: byte_limit,
+            observed: observation.len,
+        });
+    }
+    let capacity =
+        usize::try_from(observation.len).map_err(|_| SnapshotFileError::LengthOverflow {
+            path: locator.to_path_buf(),
+        })?;
+    let mut bytes = Vec::new();
+    bytes
+        .try_reserve_exact(capacity)
+        .map_err(|_| SnapshotFileError::Allocation {
+            path: locator.to_path_buf(),
+            requested_bytes: observation.len,
+        })?;
+    let read_limit =
+        observation
+            .len
+            .checked_add(1)
+            .ok_or_else(|| SnapshotFileError::LengthOverflow {
+                path: locator.to_path_buf(),
+            })?;
+    file.by_ref()
+        .take(read_limit)
+        .read_to_end(&mut bytes)
+        .map_err(|source| SnapshotFileError::Io {
+            operation: SnapshotIoOperation::Read,
+            path: locator.to_path_buf(),
+            source,
+        })?;
+    let after = file.metadata().map_err(|source| SnapshotFileError::Io {
+        operation: SnapshotIoOperation::Inspect,
+        path: locator.to_path_buf(),
+        source,
+    })?;
+    let after_path =
+        std::fs::symlink_metadata(locator).map_err(|source| SnapshotFileError::Io {
+            operation: SnapshotIoOperation::Inspect,
+            path: locator.to_path_buf(),
+            source,
+        })?;
+    if !after_path.file_type().is_file()
+        || FileObservation::new(&after) != observation
+        || FileObservation::new(&after_path) != observation
+        || u64::try_from(bytes.len()).ok() != Some(observation.len)
+    {
+        return Err(SnapshotFileError::Changed {
+            locator: locator.to_path_buf(),
+            before: locator.to_path_buf(),
+            after: locator.to_path_buf(),
+        });
+    }
+    Ok(StableFileBytes {
+        resolved_path: locator.to_path_buf(),
+        bytes,
+    })
+}
+
+#[cfg(unix)]
+fn open_no_follow(path: &Path) -> std::io::Result<File> {
+    use rustix::fs::{Mode, OFlags};
+
+    rustix::fs::open(
+        path,
+        OFlags::RDONLY | OFlags::CLOEXEC | OFlags::NOFOLLOW,
+        Mode::empty(),
+    )
+    .map(File::from)
+    .map_err(std::io::Error::from)
+}
+
+#[cfg(not(unix))]
+fn open_no_follow(path: &Path) -> std::io::Result<File> {
+    File::open(path)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileObservation {
     len: u64,

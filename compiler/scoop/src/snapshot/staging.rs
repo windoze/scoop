@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 
 use scoop_wire::Digest256;
 
+use crate::cache::COMPILE_CACHE_NAMESPACE;
 use crate::{ArtifactCacheRoot, ImmutableInputSnapshot};
 
-const CACHE_NAMESPACE: &str = "compile-v1";
 const STAGING_DIRECTORY: &str = ".staging";
 
 #[derive(Debug)]
@@ -22,9 +22,12 @@ pub(super) struct PreparedStaging {
 
 impl PreparedStaging {
     pub(super) fn create(cache_root: &ArtifactCacheRoot) -> Result<Self, StagingError> {
-        let namespace = cache_root.as_path().join(CACHE_NAMESPACE);
+        let namespace = cache_root.as_path().join(COMPILE_CACHE_NAMESPACE);
         let staging_parent = namespace.join(STAGING_DIRECTORY);
-        create_directory(&staging_parent)?;
+        create_directory(cache_root.as_path())?;
+        validate_directory(cache_root.as_path())?;
+        ensure_private_directory(&namespace)?;
+        ensure_private_directory(&staging_parent)?;
         let root = tempfile::Builder::new()
             .prefix("build-")
             .tempdir_in(&staging_parent)
@@ -180,6 +183,34 @@ fn create_directory(path: &Path) -> Result<(), StagingError> {
         path: path.to_path_buf(),
         source,
     })
+}
+
+fn ensure_private_directory(path: &Path) -> Result<(), StagingError> {
+    match std::fs::create_dir(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(source) => {
+            return Err(StagingError::Io {
+                operation: StagingIoOperation::CreateDirectory,
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    }
+    validate_directory(path)?;
+    set_private_directory_permissions(path)
+}
+
+fn validate_directory(path: &Path) -> Result<(), StagingError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|source| StagingError::Io {
+        operation: StagingIoOperation::Inspect,
+        path: path.to_path_buf(),
+        source,
+    })?;
+    if !metadata.file_type().is_dir() {
+        return Err(StagingError::UnexpectedFileType(path.to_path_buf()));
+    }
+    Ok(())
 }
 
 fn seal_tree(path: &Path) -> Result<(), StagingError> {
@@ -399,5 +430,28 @@ impl std::error::Error for StagingError {
             Self::Verify(error) => Some(error),
             _ => None,
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::os::unix::fs::symlink;
+
+    use super::*;
+
+    #[test]
+    fn prepared_staging_rejects_a_symlinked_cache_namespace() {
+        let temp = tempfile::tempdir().unwrap();
+        let cache_root = temp.path().join("cache");
+        let outside = temp.path().join("outside");
+        std::fs::create_dir(&cache_root).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        symlink(&outside, cache_root.join(COMPILE_CACHE_NAMESPACE)).unwrap();
+
+        assert!(matches!(
+            PreparedStaging::create(&ArtifactCacheRoot::new(cache_root).unwrap()),
+            Err(StagingError::UnexpectedFileType(path))
+                if path.ends_with(COMPILE_CACHE_NAMESPACE)
+        ));
     }
 }
