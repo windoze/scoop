@@ -1,6 +1,7 @@
 //! Canonical public semantic interface shared across Cone boundaries.
 
 mod binders;
+mod canonical_ids;
 mod declaration_common;
 mod declaration_references;
 mod public_bindings;
@@ -18,6 +19,10 @@ pub use binders::{
     TypeParameterBinderScopeValidationError, TypeParameterBinderSemanticValidationError,
     TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsBuildError,
     TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
+};
+pub use canonical_ids::{
+    CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
+    CanonicalPersistentIdsV1, DecodedCanonicalPersistentIdsV1,
 };
 pub use declaration_common::{
     DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,
