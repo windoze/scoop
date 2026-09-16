@@ -3,6 +3,7 @@
 mod binders;
 mod callable_interfaces;
 mod canonical_ids;
+mod const_values;
 mod declaration_common;
 mod declaration_references;
 mod definition_sources;
@@ -45,6 +46,7 @@ pub use canonical_ids::{
     CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
     CanonicalPersistentIdsV1, DecodedCanonicalPersistentIdsV1,
 };
+pub use const_values::{CanonicalBooleanV1, CanonicalConstValueV1, CanonicalIntegerConstantV1};
 pub use declaration_common::{
     DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,
     UnsupportedPublicNominalKind,
