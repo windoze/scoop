@@ -1,5 +1,6 @@
 mod common;
 mod record;
+mod table;
 
 pub use common::{
     DecodedPropertyCapabilityV1, PropertyCapabilityBuildError, PropertyCapabilityResolutionError,
@@ -12,4 +13,9 @@ pub use record::{
     PropertyInterfaceRecordResolutionError, PropertyInterfaceRecordResolver,
     PropertyInterfaceRecordV1, PropertyInterfaceSemanticAuthority,
     PropertyInterfaceSemanticValidationError,
+};
+pub use table::{
+    CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,
+    PropertyInterfaceSetBuildError, PropertyInterfaceSetSemanticValidationError,
+    PropertyInterfaceSetValidationError,
 };

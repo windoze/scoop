@@ -74,13 +74,15 @@ pub use nominal_shapes::{
     StructSourceFieldSemanticError, StructSourceFieldV1, StructSourceShapeV1,
 };
 pub use property_interfaces::{
+    CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,
     DecodedPropertyCapabilityV1, DecodedPropertyInterfaceRecordV1, PropertyCapabilityBuildError,
     PropertyCapabilityResolutionError, PropertyCapabilityV1, PropertyDeclarationIdentityShapeV1,
     PropertyDeclarationSourceShapeV1, PropertyInterfaceRecordBuildError,
     PropertyInterfaceRecordResolutionError, PropertyInterfaceRecordResolver,
     PropertyInterfaceRecordV1, PropertyInterfaceSemanticAuthority,
-    PropertyInterfaceSemanticValidationError, PropertyPublicAccessV1, PropertyRepresentationV1,
-    PropertySetterPublicAccessV1,
+    PropertyInterfaceSemanticValidationError, PropertyInterfaceSetBuildError,
+    PropertyInterfaceSetSemanticValidationError, PropertyInterfaceSetValidationError,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
 };
 pub use public_bindings::{
     CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
