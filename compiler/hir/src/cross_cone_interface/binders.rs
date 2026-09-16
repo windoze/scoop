@@ -22,8 +22,9 @@ pub use scope::{
     TypeParameterBoundLocation,
 };
 pub use semantics::{
-    NominalBoundSemanticError, NominalInterfaceShapeAuthority, PublicNominalShapeV1,
-    SignatureTypeFormV1, SignatureTypeSemanticError, TypeParameterBinderSemanticValidationError,
+    NominalBoundSemanticError, NominalInterfaceShapeAuthority, NominalSignatureSemanticError,
+    PublicNominalShapeV1, SignatureTypeFormV1, SignatureTypeSemanticError,
+    TypeParameterBinderSemanticValidationError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]

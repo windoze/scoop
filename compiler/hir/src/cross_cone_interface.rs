@@ -14,13 +14,13 @@ pub use binders::{
     DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
     DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
     DecodedTypeParameterBoundsV1, NominalBoundSemanticError, NominalInterfaceShapeAuthority,
-    NominalTypeParameterBoundsV1, PublicNominalShapeV1, SignatureBinderScopeError,
-    SignatureBinderScopeV1, SignatureTypeFormV1, SignatureTypeReferenceResolver,
-    SignatureTypeSemanticError, SignatureTypeSetBuildError, SignatureTypeSetValidationError,
-    TypeParameterBinderBuildError, TypeParameterBinderResolutionError,
-    TypeParameterBinderScopeValidationError, TypeParameterBinderSemanticValidationError,
-    TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsBuildError,
-    TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
+    NominalSignatureSemanticError, NominalTypeParameterBoundsV1, PublicNominalShapeV1,
+    SignatureBinderScopeError, SignatureBinderScopeV1, SignatureTypeFormV1,
+    SignatureTypeReferenceResolver, SignatureTypeSemanticError, SignatureTypeSetBuildError,
+    SignatureTypeSetValidationError, TypeParameterBinderBuildError,
+    TypeParameterBinderResolutionError, TypeParameterBinderScopeValidationError,
+    TypeParameterBinderSemanticValidationError, TypeParameterBinderV1, TypeParameterBoundLocation,
+    TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
 };
 pub use canonical_ids::{
     CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
@@ -38,9 +38,10 @@ pub use declaration_references::{
     SourceNominalIdResolver,
 };
 pub use nominal_interfaces::{
-    DecodedNominalInterfaceRecordV1, NominalInterfaceRecordBuildError,
+    DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError, NominalInterfaceRecordBuildError,
     NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
-    NominalInterfaceRecordV1,
+    NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
+    NominalInterfaceSemanticValidationError,
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,

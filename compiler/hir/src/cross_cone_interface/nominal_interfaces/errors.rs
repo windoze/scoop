@@ -14,6 +14,7 @@ pub enum NominalInterfaceRecordBuildError {
         expected: PublicNominalKindV1,
         actual: PublicNominalKindV1,
     },
+    ConstructorsNotAllowed(PublicNominalKindV1),
     ConstructorMember(PersistentConstructorId),
     VariantConstructorMember(PersistentEnumVariantId),
 }
@@ -25,6 +26,9 @@ impl fmt::Display for NominalInterfaceRecordBuildError {
                 formatter,
                 "source shape kind {actual:?} does not match nominal kind {expected:?}"
             ),
+            Self::ConstructorsNotAllowed(kind) => {
+                write!(formatter, "{kind:?} cannot declare source constructors")
+            }
             Self::ConstructorMember(constructor) => write!(
                 formatter,
                 "source constructor {constructor} must not appear in the ordinary member set"

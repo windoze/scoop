@@ -80,6 +80,30 @@ impl SignatureBinderScopeV1 {
         }
     }
 
+    pub fn validate_nominal_signature_semantics<A, E>(
+        &self,
+        signature: &SignatureTypeKey,
+        authority: &mut A,
+    ) -> Result<PublicNominalShapeV1, NominalSignatureSemanticError<E>>
+    where
+        A: NominalInterfaceShapeAuthority<E>,
+    {
+        match signature {
+            SignatureTypeKey::Nominal(declaration) => {
+                validate_concrete_nominal(*declaration, authority)
+            }
+            SignatureTypeKey::NominalApplication { origin, arguments } => {
+                validate_generic_nominal(*origin, arguments.as_slice(), self, authority)
+            }
+            signature => {
+                return Err(NominalSignatureSemanticError::NonNominal {
+                    actual: SignatureTypeFormV1::of(signature),
+                });
+            }
+        }
+        .map_err(NominalSignatureSemanticError::Signature)
+    }
+
     fn validate_sequence_semantics<A, E>(
         &self,
         signatures: &[SignatureTypeKey],
@@ -144,20 +168,16 @@ fn validate_nominal_bound<A, E>(
 where
     A: NominalInterfaceShapeAuthority<E>,
 {
-    let shape = match signature {
-        SignatureTypeKey::Nominal(declaration) => {
-            validate_concrete_nominal(*declaration, authority)
-        }
-        SignatureTypeKey::NominalApplication { origin, arguments } => {
-            validate_generic_nominal(*origin, arguments.as_slice(), scope, authority)
-        }
-        signature => {
-            return Err(NominalBoundSemanticError::NonNominal {
-                actual: SignatureTypeFormV1::of(signature),
-            });
-        }
-    }
-    .map_err(NominalBoundSemanticError::Signature)?;
+    let shape = scope
+        .validate_nominal_signature_semantics(signature, authority)
+        .map_err(|error| match error {
+            NominalSignatureSemanticError::NonNominal { actual } => {
+                NominalBoundSemanticError::NonNominal { actual }
+            }
+            NominalSignatureSemanticError::Signature(error) => {
+                NominalBoundSemanticError::Signature(error)
+            }
+        })?;
 
     if shape.kind() != expected {
         return Err(NominalBoundSemanticError::Kind {
@@ -222,7 +242,7 @@ pub enum SignatureTypeFormV1 {
 }
 
 impl SignatureTypeFormV1 {
-    const fn of(signature: &SignatureTypeKey) -> Self {
+    pub const fn of(signature: &SignatureTypeKey) -> Self {
         match signature {
             SignatureTypeKey::Nominal(_) => Self::Nominal,
             SignatureTypeKey::NominalApplication { .. } => Self::NominalApplication,
@@ -234,6 +254,25 @@ impl SignatureTypeFormV1 {
         }
     }
 }
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum NominalSignatureSemanticError<E> {
+    NonNominal { actual: SignatureTypeFormV1 },
+    Signature(SignatureTypeSemanticError<E>),
+}
+
+impl<E: fmt::Display> fmt::Display for NominalSignatureSemanticError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonNominal { actual } => {
+                write!(formatter, "expected a nominal signature, found {actual:?}")
+            }
+            Self::Signature(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for NominalSignatureSemanticError<E> {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SignatureTypeSemanticError<E> {

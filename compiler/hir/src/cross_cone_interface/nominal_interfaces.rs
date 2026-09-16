@@ -16,8 +16,13 @@ use super::{
 use crate::BinderListValidationError;
 
 mod errors;
+mod semantics;
 
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
+pub use semantics::{
+    ExactSupertypeSemanticError, NominalInterfaceSemanticAuthority,
+    NominalInterfaceSemanticValidationError,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalInterfaceRecordV1 {
@@ -48,6 +53,16 @@ impl NominalInterfaceRecordV1 {
                 expected: kind,
                 actual: source_shape.kind(),
             });
+        }
+        if !constructors.is_empty()
+            && !matches!(
+                kind,
+                PublicNominalKindV1::Class | PublicNominalKindV1::Struct
+            )
+        {
+            return Err(NominalInterfaceRecordBuildError::ConstructorsNotAllowed(
+                kind,
+            ));
         }
         validate_member_partition(&members)?;
         Ok(Self {

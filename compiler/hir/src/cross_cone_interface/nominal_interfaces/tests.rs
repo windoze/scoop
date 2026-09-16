@@ -80,6 +80,22 @@ fn producer_rejects_shape_kind_and_member_partition_violations() {
         })
     );
 
+    assert_eq!(
+        NominalInterfaceRecordV1::try_new(
+            scoop_identity::NominalDeclarationOwner::GenericTemplate(fixture.owner.id()),
+            PublicNominalKindV1::Interface,
+            CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+            CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+            CanonicalPersistentIdsV1::try_new(vec![fixture.constructor.id()]).unwrap(),
+            CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
+            CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+            NominalSourceShapeV1::Interface,
+        ),
+        Err(NominalInterfaceRecordBuildError::ConstructorsNotAllowed(
+            PublicNominalKindV1::Interface
+        ))
+    );
+
     let constructor = PublicMemberRefV1::Callable(CallableTemplateOrigin::Constructor(
         fixture.constructor.id(),
     ));
