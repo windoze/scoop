@@ -7,6 +7,7 @@ mod declaration_common;
 mod declaration_references;
 mod nominal_interfaces;
 mod nominal_shapes;
+mod property_interfaces;
 mod public_bindings;
 mod route_closure;
 
@@ -71,6 +72,11 @@ pub use nominal_shapes::{
     NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError, NominalSourceShapeV1,
     ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceFieldResolutionError,
     StructSourceFieldSemanticError, StructSourceFieldV1, StructSourceShapeV1,
+};
+pub use property_interfaces::{
+    DecodedPropertyCapabilityV1, PropertyCapabilityBuildError, PropertyCapabilityResolutionError,
+    PropertyCapabilityV1, PropertyPublicAccessV1, PropertyRepresentationV1,
+    PropertySetterPublicAccessV1,
 };
 pub use public_bindings::{
     CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
