@@ -1,7 +1,8 @@
 use std::fmt;
 
 use scoop_wire::{
-    DecodeLimits, Decoder, WireError, WireErrorKind, decode_canonical, encode, encoded_length,
+    BudgetMeter, DecodeLimits, DecodeUsage, Decoder, WireError, WireErrorKind,
+    decode_canonical_with_meter, encode, encoded_length,
 };
 
 use crate::request::DecodedScoopcRequestEnvelopeV1;
@@ -111,19 +112,35 @@ pub fn encode_response_frame(
 }
 
 pub fn decode_request_frame(frame: &[u8]) -> Result<ScoopcRequestEnvelopeV1, ProtocolReadError> {
+    decode_request_frame_with_usage(frame).map(|(request, _)| request)
+}
+
+pub fn decode_request_frame_with_usage(
+    frame: &[u8],
+) -> Result<(ScoopcRequestEnvelopeV1, DecodeUsage), ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    decode_canonical::<DecodedScoopcRequestEnvelopeV1>(payload, protocol_decode_limits())
-        .map_err(ProtocolReadError::Wire)?
-        .validate()
-        .map_err(ProtocolReadError::Validation)
+    let mut meter = BudgetMeter::new(protocol_decode_limits());
+    let decoded =
+        decode_canonical_with_meter::<DecodedScoopcRequestEnvelopeV1>(payload, &mut meter)
+            .map_err(ProtocolReadError::Wire)?;
+    let request = decoded.validate().map_err(ProtocolReadError::Validation)?;
+    Ok((request, meter.usage()))
 }
 
 pub fn decode_response_frame(frame: &[u8]) -> Result<ScoopcResponseEnvelopeV1, ProtocolReadError> {
+    decode_response_frame_with_usage(frame).map(|(response, _)| response)
+}
+
+pub fn decode_response_frame_with_usage(
+    frame: &[u8],
+) -> Result<(ScoopcResponseEnvelopeV1, DecodeUsage), ProtocolReadError> {
     let payload = decode_frame_payload(frame).map_err(ProtocolReadError::Frame)?;
-    decode_canonical::<DecodedScoopcResponseEnvelopeV1>(payload, protocol_decode_limits())
-        .map_err(ProtocolReadError::Wire)?
-        .validate()
-        .map_err(ProtocolReadError::Validation)
+    let mut meter = BudgetMeter::new(protocol_decode_limits());
+    let decoded =
+        decode_canonical_with_meter::<DecodedScoopcResponseEnvelopeV1>(payload, &mut meter)
+            .map_err(ProtocolReadError::Wire)?;
+    let response = decoded.validate().map_err(ProtocolReadError::Validation)?;
+    Ok((response, meter.usage()))
 }
 
 pub(crate) fn encode_frame(
@@ -306,6 +323,29 @@ mod tests {
         let failure = ScoopcResponseEnvelopeV1::failure(request_id, vec![error()]).unwrap();
         let frame = encode_response_frame(&failure).unwrap();
         assert_eq!(decode_response_frame(&frame).unwrap(), failure);
+    }
+
+    #[test]
+    fn metered_frame_decode_reports_each_canonical_document() {
+        let request = request();
+        let request_frame = encode_request_frame(&request).unwrap();
+        let (decoded_request, request_usage) =
+            decode_request_frame_with_usage(&request_frame).unwrap();
+        assert_eq!(decoded_request, request);
+        assert!(request_usage.decoded_nodes > 0);
+        assert!(request_usage.validation_work_units > 0);
+
+        let response = ScoopcResponseEnvelopeV1::failure(
+            RequestCorrelationId::from_array([7; 16]),
+            vec![error()],
+        )
+        .unwrap();
+        let response_frame = encode_response_frame(&response).unwrap();
+        let (decoded_response, response_usage) =
+            decode_response_frame_with_usage(&response_frame).unwrap();
+        assert_eq!(decoded_response, response);
+        assert!(response_usage.decoded_nodes > 0);
+        assert!(response_usage.validation_work_units > 0);
     }
 
     #[test]

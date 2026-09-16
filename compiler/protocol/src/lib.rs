@@ -16,7 +16,8 @@ pub use diagnostic::{
 };
 pub use framing::{
     PROTOCOL_MAX_FRAME_BYTES, ProtocolFrameError, ProtocolReadError, ProtocolWriteError,
-    decode_request_frame, decode_response_frame, encode_request_frame, encode_response_frame,
+    decode_request_frame, decode_request_frame_with_usage, decode_response_frame,
+    decode_response_frame_with_usage, encode_request_frame, encode_response_frame,
 };
 pub use path::{HostPathCarrier, HostPathEncoding, HostPathError};
 pub use request::{
