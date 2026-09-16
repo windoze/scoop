@@ -389,7 +389,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             CoreOnlyRequestValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
-            ExplicitDependencyValidationError::Artifact { .. }
+            ExplicitDependencyValidationError::Summary { .. }
         )
     ));
     assert!(!current.join("src").exists());
