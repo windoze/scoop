@@ -75,7 +75,8 @@ pub use nominal_shapes::{
 };
 pub use property_interfaces::{
     CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,
-    DecodedPropertyCapabilityV1, DecodedPropertyInterfaceRecordV1, PropertyCapabilityBuildError,
+    DecodedPropertyCapabilityV1, DecodedPropertyInterfaceRecordV1,
+    PropertyAccessorClosureValidationError, PropertyCapabilityBuildError,
     PropertyCapabilityResolutionError, PropertyCapabilityV1, PropertyDeclarationIdentityShapeV1,
     PropertyDeclarationSourceShapeV1, PropertyInterfaceRecordBuildError,
     PropertyInterfaceRecordResolutionError, PropertyInterfaceRecordResolver,

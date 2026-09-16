@@ -1,7 +1,9 @@
+mod accessor_closure;
 mod common;
 mod record;
 mod table;
 
+pub use accessor_closure::PropertyAccessorClosureValidationError;
 pub use common::{
     DecodedPropertyCapabilityV1, PropertyCapabilityBuildError, PropertyCapabilityResolutionError,
     PropertyCapabilityV1, PropertyPublicAccessV1, PropertyRepresentationV1,
