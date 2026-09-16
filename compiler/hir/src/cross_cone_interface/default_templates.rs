@@ -4,11 +4,19 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use crate::CallableDeclarationIdResolver;
 
 mod binder_uses;
+mod locals;
 mod roots;
 
 pub use binder_uses::{
     BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
     DecodedCanonicalBinderUseListV1,
+};
+pub use locals::{
+    CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,
+    DecodedTemplateLocalDefinitionV1, DecodedTemplateLocalRecordV1, TemplateLocalDefinitionV1,
+    TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError, TemplateLocalRecordV1,
+    TemplateLocalReferenceResolver, TemplateLocalTableBuildError,
+    TemplateLocalTableValidationError,
 };
 pub use roots::{
     DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,

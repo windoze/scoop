@@ -87,9 +87,13 @@ pub use declaration_references::{
 };
 pub use default_templates::{
     BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
-    DecodedCanonicalBinderUseListV1, DecodedExportDefaultTemplateKeyV1,
-    DecodedPersistentLexicalRootV1, ExportDefaultTemplateKeyV1, PersistentLexicalRootBuildError,
-    PersistentLexicalRootResolver, PersistentLexicalRootV1,
+    CanonicalTemplateLocalTableV1, DecodedCanonicalBinderUseListV1,
+    DecodedCanonicalTemplateLocalTableV1, DecodedExportDefaultTemplateKeyV1,
+    DecodedPersistentLexicalRootV1, DecodedTemplateLocalDefinitionV1, DecodedTemplateLocalRecordV1,
+    ExportDefaultTemplateKeyV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
+    PersistentLexicalRootV1, TemplateLocalDefinitionV1, TemplateLocalRecordBuildError,
+    TemplateLocalRecordResolutionError, TemplateLocalRecordV1, TemplateLocalReferenceResolver,
+    TemplateLocalTableBuildError, TemplateLocalTableValidationError,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
