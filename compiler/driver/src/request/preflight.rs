@@ -1163,8 +1163,7 @@ mod tests {
         let (key, coordinate) = manifest
             .parsed()
             .semantic()
-            .dependencies()
-            .iter()
+            .dependency_iter()
             .next()
             .unwrap();
         let declaration = manifest

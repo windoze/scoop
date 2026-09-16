@@ -1,6 +1,9 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_wire::HashError;
+
 use crate::{
     ManifestParseError, ParsedConeManifest, parse_cone_manifest, parse_trusted_core_manifest,
 };
@@ -60,6 +63,8 @@ impl ManifestRootLocator {
 pub struct LoadedConeManifest {
     real_root: PathBuf,
     manifest_path: PathBuf,
+    source: String,
+    identity: ConeIdentity,
     parsed: ParsedConeManifest,
 }
 
@@ -70,6 +75,24 @@ impl LoadedConeManifest {
 
     pub fn manifest_path(&self) -> &Path {
         &self.manifest_path
+    }
+
+    /// Returns the exact UTF-8 text read from `Cone.toml`.
+    pub fn source_text(&self) -> &str {
+        &self.source
+    }
+
+    /// Returns the exact original manifest bytes used to produce all spans.
+    pub fn source_bytes(&self) -> &[u8] {
+        self.source.as_bytes()
+    }
+
+    pub fn coordinate(&self) -> &ConeCoordinate {
+        self.parsed.semantic().coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.identity
     }
 
     pub fn parsed(&self) -> &ParsedConeManifest {
@@ -133,6 +156,7 @@ pub enum ManifestRootErrorKind {
         source: std::io::Error,
     },
     InvalidUtf8,
+    Identity(HashError),
     Parse(ManifestParseError),
 }
 
@@ -162,6 +186,9 @@ impl fmt::Display for ManifestRootError {
             ManifestRootErrorKind::InvalidUtf8 => {
                 formatter.write_str("Cone.toml is not valid UTF-8")
             }
+            ManifestRootErrorKind::Identity(error) => {
+                write!(formatter, "cannot derive Cone identity: {error}")
+            }
             ManifestRootErrorKind::Parse(error) => error.fmt(formatter),
         }
     }
@@ -171,6 +198,7 @@ impl std::error::Error for ManifestRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.kind {
             ManifestRootErrorKind::Io { source, .. } => Some(source),
+            ManifestRootErrorKind::Identity(error) => Some(error),
             ManifestRootErrorKind::Parse(error) => Some(error),
             _ => None,
         }
@@ -256,10 +284,18 @@ fn load_manifest(
     let parsed = parse(&source).map_err(|error| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::Parse(error))
     })?;
+    let identity = parsed.semantic().coordinate().identity().map_err(|error| {
+        ManifestRootError::new(
+            manifest_path.clone(),
+            ManifestRootErrorKind::Identity(error),
+        )
+    })?;
 
     Ok(LoadedConeManifest {
         real_root,
         manifest_path,
+        source,
+        identity,
         parsed,
     })
 }
@@ -331,6 +367,20 @@ mod tests {
         assert_eq!(
             from_directory.parsed().semantic(),
             from_file.parsed().semantic()
+        );
+        assert_eq!(from_directory.source_bytes(), from_file.source_bytes());
+        assert_eq!(
+            from_directory.source_bytes(),
+            std::fs::read(directory.manifest()).unwrap()
+        );
+        assert_eq!(
+            from_directory.source_text().as_bytes(),
+            from_directory.source_bytes()
+        );
+        assert_eq!(from_directory.coordinate(), from_file.coordinate());
+        assert_eq!(
+            from_directory.identity(),
+            from_directory.coordinate().identity().unwrap()
         );
     }
 

@@ -509,6 +509,7 @@ name = "scoop-manifest"
 version = "0.0.0"
 dependencies = [
  "scoop-identity",
+ "scoop-wire",
  "serde",
  "toml",
  "toml_edit",

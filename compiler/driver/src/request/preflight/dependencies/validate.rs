@@ -185,7 +185,13 @@ fn validate_manifest_direct_set(
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
     for coordinate in manifest
-        .map(|manifest| manifest.parsed().semantic().dependencies().values())
+        .map(|manifest| {
+            manifest
+                .parsed()
+                .semantic()
+                .dependency_iter()
+                .map(|(_, coordinate)| coordinate)
+        })
         .into_iter()
         .flatten()
     {
@@ -359,7 +365,7 @@ fn validate_support_closure(
 fn manifest_capability_input(
     manifest: &LoadedConeManifest,
 ) -> DependencyValidationResult<Option<NonCoreDependencyInput>> {
-    let Some((key, coordinate)) = manifest.parsed().semantic().dependencies().iter().next() else {
+    let Some((key, coordinate)) = manifest.parsed().semantic().dependency_iter().next() else {
         return Ok(None);
     };
     let declaration = manifest

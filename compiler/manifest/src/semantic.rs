@@ -45,8 +45,20 @@ impl ConeManifestSemantic {
         self.requested_kind
     }
 
-    pub fn dependencies(&self) -> &BTreeMap<DependencyCoordinateKey, ConeCoordinate> {
-        &self.dependencies
+    /// Iterates exact dependency coordinates in canonical key order without
+    /// exposing a mutable or representation-specific map API.
+    pub fn dependency_iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (&DependencyCoordinateKey, &ConeCoordinate)> {
+        self.dependencies.iter()
+    }
+
+    pub fn dependency_count(&self) -> usize {
+        self.dependencies.len()
+    }
+
+    pub fn is_dependency_free(&self) -> bool {
+        self.dependencies.is_empty()
     }
 }
 
@@ -71,6 +83,26 @@ pub enum DependencyLocator {
     SearchRoots,
     SourcePath(HostPathLocator),
     ArtifactPath(HostPathLocator),
+}
+
+impl DependencyLocator {
+    pub const fn uses_search_roots(&self) -> bool {
+        matches!(self, Self::SearchRoots)
+    }
+
+    pub const fn source_path(&self) -> Option<&HostPathLocator> {
+        match self {
+            Self::SourcePath(path) => Some(path),
+            Self::SearchRoots | Self::ArtifactPath(_) => None,
+        }
+    }
+
+    pub const fn artifact_path(&self) -> Option<&HostPathLocator> {
+        match self {
+            Self::ArtifactPath(path) => Some(path),
+            Self::SearchRoots | Self::SourcePath(_) => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -182,6 +214,12 @@ impl ManifestDiagnosticSpans {
 
     pub fn dependency(&self, key: &DependencyCoordinateKey) -> Option<&DependencyManifestSpans> {
         self.dependencies.get(key)
+    }
+
+    pub fn dependency_iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (&DependencyCoordinateKey, &DependencyManifestSpans)> {
+        self.dependencies.iter()
     }
 }
 
@@ -604,7 +642,7 @@ kind = "library"
             parsed.semantic().requested_kind(),
             RequestedConeKind::Library
         );
-        assert!(parsed.semantic().dependencies().is_empty());
+        assert!(parsed.semantic().is_dependency_free());
         assert!(parsed.locators().is_empty());
         assert_eq!(
             &MINIMAL[parsed.diagnostic_spans().cone_fields().name().range()],
@@ -623,30 +661,39 @@ kind = "library"
         let parsed = parse_cone_manifest(&source).unwrap();
         let keys = parsed
             .semantic()
-            .dependencies()
-            .keys()
-            .map(ToString::to_string)
+            .dependency_iter()
+            .map(|(key, _)| key.to_string())
             .collect::<Vec<_>>();
 
         assert_eq!(keys, ["org.acme:util", "org.foo:bar", "org.other:log"]);
-        for key in parsed.semantic().dependencies().keys() {
+        assert_eq!(parsed.semantic().dependency_count(), 3);
+        assert_eq!(
+            parsed
+                .semantic()
+                .dependency_iter()
+                .map(|(key, _)| key.to_string())
+                .collect::<Vec<_>>(),
+            keys
+        );
+        for (key, _) in parsed.semantic().dependency_iter() {
             match key.to_string().as_str() {
                 "org.foo:bar" => {
-                    assert!(matches!(
-                        parsed.locators().get(key),
-                        Some(DependencyLocator::SourcePath(path)) if path.as_path() == Path::new("../bar")
-                    ));
+                    let locator = parsed.locators().get(key).unwrap();
+                    assert_eq!(
+                        locator.source_path().unwrap().as_path(),
+                        Path::new("../bar")
+                    );
+                    assert!(locator.artifact_path().is_none());
                     let spans = parsed.diagnostic_spans().dependency(key).unwrap();
                     assert_eq!(&source[spans.path().unwrap().range()], "\"../bar\"");
                 }
                 "org.acme:util" => assert!(matches!(
-                    parsed.locators().get(key),
-                    Some(DependencyLocator::ArtifactPath(path)) if path.as_path() == Path::new("../util.slib")
+                    parsed.locators().get(key).unwrap().artifact_path(),
+                    Some(path) if path.as_path() == Path::new("../util.slib")
                 )),
-                "org.other:log" => assert_eq!(
-                    parsed.locators().get(key),
-                    Some(&DependencyLocator::SearchRoots)
-                ),
+                "org.other:log" => {
+                    assert!(parsed.locators().get(key).unwrap().uses_search_roots());
+                }
                 other => panic!("unexpected dependency {other}"),
             }
             let spans = parsed.diagnostic_spans().dependency(key).unwrap();
@@ -660,6 +707,7 @@ kind = "library"
                 }
             );
         }
+        assert_eq!(parsed.diagnostic_spans().dependency_iter().count(), 3);
     }
 
     #[test]
@@ -752,7 +800,7 @@ kind = "library"
             parsed.semantic().requested_kind(),
             RequestedConeKind::Library
         );
-        assert!(parsed.semantic().dependencies().is_empty());
+        assert!(parsed.semantic().is_dependency_free());
         assert_eq!(
             *parse_cone_manifest(&core).unwrap_err().kind(),
             ManifestParseErrorKind::ReservedConeCoordinate
