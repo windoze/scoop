@@ -696,7 +696,43 @@ binder list长度必须可表示为`u32`，name必须canonical且在同一list�
 
 ### 5.4 source interface与default
 
-`CallableSourceInterfaceV1`完整编码M17参数协议：owner、声明顺序、source name、value type，以及`Required | Default(template) | VarargEmpty | VarargDefault(template)`封闭sum。owner和parameter position必须与`CallableInterfaceRecordV1`逐项对应。
+source-call protocol使用以下canonical语义结构；parameter position是`parameters`中隐含的zero-based `u32`下标，不再写一份可能不一致的position field：
+
+```text
+CallableSourceInterfaceV1 {
+    owner: CallableDeclarationId,                          // field 1
+    parameters: SourceOrderVec<CallableSourceParameterV1>, // field 2
+}
+
+CallableSourceParameterV1 {
+    name: CanonicalIdentifier,                    // field 1
+    value_type: SignatureTypeKey,                 // field 2
+    calling: CallableParameterCallingV1,          // field 3
+    definition_origin: ExportDefinitionSourceV1,  // field 4
+}
+
+CallableParameterCallingV1 =
+    Required                                         // tag 1
+  | Default { template: ExportDefaultTemplateKeyV1 } // tag 2
+  | VarargEmpty { element_type: SignatureTypeKey }   // tag 3
+  | VarargDefault {                                  // tag 4
+        element_type: SignatureTypeKey,
+        template: ExportDefaultTemplateKeyV1,
+    }
+
+ExportDefaultTemplateKeyV1 {
+    owner: CallableDeclarationId, // field 1
+    parameter_position: u32,      // field 2
+}
+```
+
+wire中`CallableParameterCallingV1`使用精确map：`Required={0:1}`、`Default={0:2,1:template_index}`、`VarargEmpty={0:3,1:element_type}`、`VarargDefault={0:4,1:element_type,2:template_index}`。`template_index`是canonical `default_templates`表的zero-based unsigned `u32`下标，不是任何compiler arena id。decoded wire type在顶层section尚未闭合前暂存该index；只有当index可表示为`u32`、在表内，且目标record的key精确等于`(source owner, parameter position)`时，才解析为canonical语义类型中的`ExportDefaultTemplateKeyV1`。writer反向以key查canonical table index；不允许将raw index混入已解析HIR。
+
+`source_interfaces`按owner的`(tag, raw id bytes)`严格递增。当前artifact的public `Function`、`GenericFunction`、`Constructor`和`EnumVariantConstructor`每个都必须恰有一条record，即使无参也保留空`parameters`；`PropertyAccessor`不使用源码call-argument protocol，因此不得出现。每个parameter的name与value type必须按位置逐项等于同owner的`CallableInterfaceRecordV1.parameters`，列表长度必须可表示为`u32`；这一对照同时锁定参数名唯一性和binder scope，consumer不得用名字重新建立position。
+
+一个parameter list最多只能有一个`VarargEmpty`/`VarargDefault`。vararg的`value_type`必须由trusted core type authority证明为精确`Array<element_type>`application，不能按显示名或用户同形nominal猜测；普通`Required`/`Default`的`value_type`就是callee实际参数类型。只有`Default`和`VarargDefault`可以引用template，且`default_templates`必须与这些引用形成双向精确闭包：每个引用恰命中一条同key record，每条template record也恰被对应owner/position引用，不接受orphan或共享不同key的index。override继承的default以当前override owner/position建立新key并保存已实例化的type-argument mapping；template内的definition root、path和origin仍指向真实provider，不复制源码也不冒充当前override定义。
+
+parameter的`definition_origin`是当前artifact的定义方位置，必须通过与其他inline origin相同的source/context/point校验，并进入顶层`definition_sources`精确闭包。它不是调用方evaluation origin。
 
 `ExportDefaultTemplateV1`保存：
 
@@ -717,7 +753,7 @@ ExportDefaultTemplateV1 {
 }
 ```
 
-`ExportDefaultTemplateKeyV1`只是本section内按`(kind-specific owner, parameter position)`排序和引用的canonical key，不产生新的persistent id，也不进入M23-2 identity foundation。wire内对template的引用使用经范围验证的table index；跨artifact稳定语义由owner persistent identity、parameter position与完整template payload共同确定。
+`default_templates`按`ExportDefaultTemplateKeyV1`的`(owner tag, owner raw id bytes, parameter position)`严格递增并拒绝重复。`ExportDefaultTemplateKeyV1`只是本section内排序和引用的canonical key，不产生新的persistent id，也不进入M23-2 identity foundation。wire内对template的引用使用上述经范围与key验证的table index；跨artifact稳定语义由owner persistent identity、parameter position与完整template payload共同确定。
 
 `ExportDefaultBodyV1`是M17已typed的statement/expression tree之canonical wire：节点按结构递归编码，statement和expression使用不同closed sum；local/type/callable/constructor/global/singleton/field引用分别使用不同typed ref；每个expression非可选地保存result type与definition origin。它覆盖当前语言已允许的完整default表达式，不把未解析name、import path、candidate set、arena index或调用方span写入wire。
 
@@ -771,7 +807,7 @@ CanonicalBooleanV1 = False // unsigned 1
 
 signed integer payload继续保存对应宽度的二进制补码raw bits；reader必须在构造variant前检查payload可由对应`u8/u16/u32/u64`表示，不能截断、符号扩展或按数值大小改写variant。String是解码后拥有的有效UTF-8字节序列，保持源码求值结果的byte identity，不做Unicode normalization、NUL过滤或host编码转换，并服从semantic-leaf与owned-byte累计budget。Wire CBOR v1不接受native boolean，因此boolean payload必须使用上述显式unsigned枚举。当前尚未开放的`Char`与floating const没有保留的伪variant；开放对应语言能力前必须显式修订该versioned schema与profile。
 
-const table精确覆盖public const property，不含ordinary property storage/initializer。每条record的property必须是当前artifact foundation中的canonical ordinary property，且同id的property interface必须为`Const + ReadOnly + DirectOnly`；`value_type`逐结构等于property interface的类型。definition origin逐字段等于foundation中`DefinitionOriginSubject::Property(property)`，并属于当前Cone。value/type一致性由trusted core const-type authority证明：八种integer variant分别只匹配其canonical fixed-width有/无符号core nominal，Boolean与String只匹配各自canonical non-generic core nominal；不能按显示名称、bit width或同布局用户类型接受。const table按property raw id严格递增、拒绝重复，并与property interface中全部且仅有的`Const`记录形成双向精确闭包。
+const table精确覆盖public const property，不含ordinary property storage/initializer。每条record的property必须是当前artifact foundation中的canonical、`ConeWide`的ordinary property，且同id的property interface必须为`Const + ReadOnly + DirectOnly`；`value_type`逐结构等于property interface的类型。definition origin逐字段等于foundation中`DefinitionOriginSubject::Property(property)`，并属于当前Cone。value/type一致性由trusted core const-type authority证明：八种integer variant分别只匹配其canonical fixed-width有/无符号core nominal，Boolean与String只匹配各自canonical non-generic core nominal；不能按显示名称、bit width或同布局用户类型接受。const table按property raw id严格递增、拒绝重复，并与property interface中全部且仅有的`Const`记录形成双向精确闭包。
 
 consumer内联value并使用当前usage evaluation origin；String等需要本地materialization的常量由当前Cone按既有literal规则拥有，不引用provider storage。
 
