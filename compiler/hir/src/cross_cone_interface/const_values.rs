@@ -2,12 +2,20 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{ConstPropertyValue, HirIntegerConstant, IntegerKind};
 
+mod property_closure;
 mod record;
+mod table;
 
+pub use property_closure::ExportConstValueClosureValidationError;
 pub use record::{
     ConstPropertyDeclarationSourceV1, DecodedExportConstValueV1, ExportConstValueResolutionError,
     ExportConstValueResolver, ExportConstValueSemanticAuthority,
     ExportConstValueSemanticValidationError, ExportConstValueV1,
+};
+pub use table::{
+    CanonicalExportConstValuesV1, DecodedCanonicalExportConstValuesV1,
+    ExportConstValueSetBuildError, ExportConstValueSetSemanticValidationError,
+    ExportConstValueSetValidationError,
 };
 
 /// A width-exact integer constant in the cross-Cone interface.
