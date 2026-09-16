@@ -10,6 +10,7 @@ use super::SourceNominalIdResolver;
 
 mod errors;
 mod scope;
+mod semantics;
 
 pub use errors::{
     BinderListValidationError, SignatureTypeSetBuildError, SignatureTypeSetValidationError,
@@ -19,6 +20,10 @@ pub use errors::{
 pub use scope::{
     SignatureBinderScopeError, SignatureBinderScopeV1, TypeParameterBinderScopeValidationError,
     TypeParameterBoundLocation,
+};
+pub use semantics::{
+    NominalBoundSemanticError, NominalInterfaceShapeAuthority, PublicNominalShapeV1,
+    SignatureTypeFormV1, SignatureTypeSemanticError, TypeParameterBinderSemanticValidationError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
