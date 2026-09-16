@@ -86,8 +86,10 @@ pub use declaration_references::{
     PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
 };
 pub use default_templates::{
-    DecodedExportDefaultTemplateKeyV1, DecodedPersistentLexicalRootV1, ExportDefaultTemplateKeyV1,
-    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+    BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
+    DecodedCanonicalBinderUseListV1, DecodedExportDefaultTemplateKeyV1,
+    DecodedPersistentLexicalRootV1, ExportDefaultTemplateKeyV1, PersistentLexicalRootBuildError,
+    PersistentLexicalRootResolver, PersistentLexicalRootV1,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,

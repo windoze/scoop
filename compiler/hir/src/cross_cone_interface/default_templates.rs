@@ -3,8 +3,13 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::CallableDeclarationIdResolver;
 
+mod binder_uses;
 mod roots;
 
+pub use binder_uses::{
+    BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
+    DecodedCanonicalBinderUseListV1,
+};
 pub use roots::{
     DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
     PersistentLexicalRootV1,
