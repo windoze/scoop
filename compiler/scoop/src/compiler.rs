@@ -130,6 +130,23 @@ impl ResolvedPairedScoopc {
     pub const fn executable_snapshot(&self) -> &ImmutableInputSnapshot {
         &self.executable
     }
+
+    pub(crate) fn revalidate_executable(&self) -> Result<(), PairedCompilerError> {
+        let after = ImmutableInputSnapshot::capture(
+            self.executable.source_locator(),
+            MAX_PAIRED_COMPILER_BYTES,
+        )
+        .map_err(PairedCompilerError::Snapshot)?;
+        if self.executable.resolved_path() != after.resolved_path()
+            || self.executable.digest() != after.digest()
+        {
+            return Err(PairedCompilerError::Changed {
+                before: self.executable.digest(),
+                after: after.digest(),
+            });
+        }
+        ensure_executable(after.resolved_path())
+    }
 }
 
 fn ensure_executable(path: &Path) -> Result<(), PairedCompilerError> {

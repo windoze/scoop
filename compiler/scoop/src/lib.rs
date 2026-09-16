@@ -6,6 +6,7 @@
 
 mod artifact;
 mod cache;
+mod child;
 mod compiler;
 mod discovery;
 mod graph;
@@ -15,6 +16,7 @@ mod snapshot;
 
 pub use artifact::*;
 pub use cache::*;
+pub use child::*;
 pub use compiler::*;
 pub use discovery::*;
 pub use graph::*;
