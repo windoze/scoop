@@ -421,6 +421,14 @@ impl<'input> DecodedArchive<'input> {
         self.members.iter().map(|(id, _)| *id)
     }
 
+    pub(crate) fn manifest_length(&self) -> usize {
+        self.manifest.len()
+    }
+
+    pub(crate) fn archive_length(&self) -> usize {
+        self.input.len()
+    }
+
     pub(crate) fn member(&self, id: SlibMemberId) -> Option<&'input [u8]> {
         let index = self
             .members

@@ -7,7 +7,10 @@
 use std::fmt;
 
 mod c_bridge;
+mod closure_limits;
 mod registry;
+
+pub use closure_limits::{ResolvedSlibClosureLimitsV1, SlibClosureLimitProfileIdV1};
 
 pub use registry::{
     ResolvedTargetProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,

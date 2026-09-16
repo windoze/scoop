@@ -553,6 +553,7 @@ version = "0.0.0"
 dependencies = [
  "object",
  "scoop-lir",
+ "scoop-slib",
  "tempfile",
 ]
 

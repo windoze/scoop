@@ -24,6 +24,12 @@ pub use envelope::*;
 mod graph;
 pub use graph::*;
 
+mod prebuilt_summary;
+pub use prebuilt_summary::*;
+
+mod closure_limits;
+pub use closure_limits::*;
+
 mod compile_decode;
 pub use compile_decode::*;
 
