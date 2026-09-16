@@ -31,7 +31,8 @@ pub use response::{
     ScoopcSuccessV1,
 };
 
-pub(crate) const PROTOCOL_VERSION: u32 = 1;
+/// Version selected by the unique `scoopc` machine transport entrypoint.
+pub const PROTOCOL_VERSION: u32 = 1;
 pub(crate) const MAX_INPUT_ARTIFACTS: usize = 4_096;
 pub(crate) const MAX_DIAGNOSTICS: usize = 4_096;
 pub(crate) const MAX_DIAGNOSTIC_NOTES: usize = 64;

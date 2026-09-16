@@ -6,6 +6,8 @@ use std::{io, io::Write};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+mod child_protocol;
+
 #[derive(Parser)]
 #[command(name = "scoopc", version, about = "The Scoop compiler")]
 struct Cli {
@@ -35,6 +37,9 @@ enum Command {
     /// Report the exact machine protocol understood by this compiler.
     #[command(name = "__machine-capability", hide = true)]
     MachineCapability,
+    /// Compile exactly one request from the versioned machine transport.
+    #[command(name = "__child-protocol", hide = true)]
+    ChildProtocol { version: u32 },
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -56,6 +61,7 @@ fn main() -> ExitCode {
             emit,
         } => build(input, direct_slibs, support_slibs, out_slib, emit),
         Command::MachineCapability => write_machine_capability(),
+        Command::ChildProtocol { version } => child_protocol::run(version),
     }
 }
 
@@ -199,5 +205,13 @@ mod tests {
         let cli = Cli::try_parse_from(["scoopc", "__machine-capability"]).unwrap();
         assert!(matches!(cli.command, Command::MachineCapability));
         assert!(Cli::try_parse_from(["scoopc", "__machine-capability", "unexpected"]).is_err());
+    }
+
+    #[test]
+    fn child_protocol_is_a_unique_versioned_hidden_command() {
+        let cli = Cli::try_parse_from(["scoopc", "__child-protocol", "1"]).unwrap();
+        assert!(matches!(cli.command, Command::ChildProtocol { version: 1 }));
+        assert!(Cli::try_parse_from(["scoopc", "__child-protocol"]).is_err());
+        assert!(Cli::try_parse_from(["scoopc", "__child-protocol", "1", "extra"]).is_err());
     }
 }
