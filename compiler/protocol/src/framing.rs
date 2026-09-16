@@ -126,7 +126,9 @@ pub fn decode_response_frame(frame: &[u8]) -> Result<ScoopcResponseEnvelopeV1, P
         .map_err(ProtocolReadError::Validation)
 }
 
-fn encode_frame(value: &impl scoop_wire::WireEncode) -> Result<Vec<u8>, ProtocolWriteError> {
+pub(crate) fn encode_frame(
+    value: &impl scoop_wire::WireEncode,
+) -> Result<Vec<u8>, ProtocolWriteError> {
     let payload_length = encoded_length(value).map_err(ProtocolWriteError::Wire)?;
     if payload_length > u64::try_from(PROTOCOL_MAX_FRAME_BYTES).unwrap_or(u64::MAX) {
         return Err(ProtocolWriteError::Frame(
@@ -148,7 +150,7 @@ fn encode_frame(value: &impl scoop_wire::WireEncode) -> Result<Vec<u8>, Protocol
     Ok(frame)
 }
 
-fn decode_frame_payload(frame: &[u8]) -> Result<&[u8], ProtocolFrameError> {
+pub(crate) fn decode_frame_payload(frame: &[u8]) -> Result<&[u8], ProtocolFrameError> {
     let length_bytes = frame
         .get(..FRAME_LENGTH_BYTES)
         .ok_or(ProtocolFrameError::MissingLength)?;

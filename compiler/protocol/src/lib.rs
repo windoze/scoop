@@ -3,6 +3,7 @@
 //! Host paths are opaque transport values. They never become persistent
 //! semantic identities or artifact fingerprint inputs.
 
+mod capability;
 mod diagnostic;
 mod framing;
 mod path;
@@ -39,6 +40,7 @@ pub(crate) const MAX_EMITTED_DUMPS: usize = 1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProtocolValidationError {
+    InvalidCapabilityMagic,
     InvalidRequestMagic,
     InvalidResponseMagic,
     UnsupportedVersion(u32),
@@ -67,6 +69,7 @@ pub enum ProtocolValidationError {
 impl std::fmt::Display for ProtocolValidationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidCapabilityMagic => formatter.write_str("invalid scoopc capability magic"),
             Self::InvalidRequestMagic => formatter.write_str("invalid scoopc request magic"),
             Self::InvalidResponseMagic => formatter.write_str("invalid scoopc response magic"),
             Self::UnsupportedVersion(version) => {
@@ -150,3 +153,7 @@ impl std::error::Error for ProtocolValidationError {
         }
     }
 }
+pub use capability::{
+    MachineTransportCapabilityV1, ScoopcProtocolCapabilityV1, decode_capability_frame,
+    encode_capability_frame,
+};
