@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
+use scoop_protocol::StructuredDiagnosticV1;
 use scoop_slib::{
     ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1, CompileArtifactPurpose,
     DependencyRecord, DualValidatedArtifactError, DualValidatedArtifactHandle,
@@ -52,6 +53,7 @@ pub struct CompletedNode {
     compile_closure: ValidatedArtifactClosure<CompileArtifactPurpose>,
     link_closure: ValidatedArtifactClosure<LinkArtifactPurpose>,
     materialized_child_path: PrivateArtifactPath,
+    warnings: Vec<StructuredDiagnosticV1>,
 }
 
 impl CompletedNode {
@@ -79,8 +81,31 @@ impl CompletedNode {
         &self.materialized_child_path
     }
 
+    pub fn warnings(&self) -> &[StructuredDiagnosticV1] {
+        &self.warnings
+    }
+
     pub(crate) fn shared_artifact(&self) -> Arc<DualValidatedArtifactHandle> {
         Arc::clone(&self.artifact)
+    }
+
+    pub(crate) fn from_cache_hit(
+        cone: ConeIdentity,
+        artifact: Arc<DualValidatedArtifactHandle>,
+        closures: ValidatedDualArtifactClosure,
+        materialized_child_path: PathBuf,
+        warnings: Vec<StructuredDiagnosticV1>,
+    ) -> Self {
+        let (compile_closure, link_closure) = closures.into_parts();
+        Self {
+            cone,
+            origin: CompletedNodeOrigin::CacheHit,
+            artifact,
+            compile_closure,
+            link_closure,
+            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
+            warnings,
+        }
     }
 }
 
@@ -305,5 +330,6 @@ pub(crate) fn complete_prebuilt_candidates(
         compile_closure,
         link_closure,
         materialized_child_path: PrivateArtifactPath::new(selected.materialized_path),
+        warnings: Vec::new(),
     })
 }

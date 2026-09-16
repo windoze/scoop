@@ -27,8 +27,9 @@ mod model;
 pub use error::{CoreLockOperation, PrepareBuildGraphError};
 
 pub use model::{
-    CoreBootstrapReason, ManifestSourceSnapshot, PreparedArtifactCandidate, PreparedBuildGraph,
-    PreparedNodeRepresentation, SingleFileSourceSnapshot, SourceSnapshot, TrustedCorePreparation,
+    CompileCacheKeyError, CoreBootstrapReason, ManifestSourceSnapshot, PreparedArtifactCandidate,
+    PreparedBuildGraph, PreparedNodeRepresentation, SingleFileSourceSnapshot, SourceSnapshot,
+    TrustedCorePreparation,
 };
 
 use model::{

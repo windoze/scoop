@@ -129,6 +129,20 @@ impl PreparedStaging {
         Ok(path)
     }
 
+    pub(super) fn materialize_cache_artifact(
+        &self,
+        cone_directory: &str,
+        bytes: &[u8],
+        digest: Digest256,
+    ) -> Result<PathBuf, StagingError> {
+        let root = self.artifact_root.join(cone_directory);
+        create_directory(&root)?;
+        set_private_directory_permissions(&root)?;
+        let path = root.join("cache.slib");
+        write_verified_file(&path, bytes, digest)?;
+        Ok(path)
+    }
+
     pub(super) fn seal_inputs(&mut self) -> Result<(), StagingError> {
         seal_tree(&self.input_root)?;
         self.sealed = true;
