@@ -429,7 +429,7 @@ NominalInterfaceRecordV1 {
     constructors: CanonicalVec<PersistentConstructorId>, // field 5
     members: CanonicalVec<PublicMemberRefV1>,            // field 6
     nested_bindings: CanonicalVec<PersistentExportBindingId>, // field 7
-    value_shape: NominalSourceShapeV1,     // field 8
+    source_shape: NominalSourceShapeV1,    // field 8
 }
 
 CallableInterfaceRecordV1 {
@@ -476,6 +476,41 @@ PublicDeclarationOwnerV1 =
 
 `PublicNominalKindV1`逐值复用`SourceDeclarationKind`中五种当前可声明nominal的tag；M23-1已排除尚未开放的自定义`annotation class`，因此它没有可伪造的第六种public surface variant。`PublicDeclarationOwnerV1::Nominal`必须解析为同一closure中存在的nominal interface；reader按sum tag精确检查map长度，不能用缺失owner id猜测`TopLevel`或`Extension`。closure validator必须进一步证明：nominal record的kind与其canonical source declaration key完全一致，callable/property的owner variant及nominal id与canonical declaration owner chain一致；constructor只能是`Nominal`，extension declaration只能是`Extension`，其余无owner声明只能是`TopLevel`。
 
+nominal的源码形状是与kind一一对应的封闭sum：
+
+```text
+NominalSourceShapeV1 =
+    Class                                      // { 0: 1 }
+  | Interface                                  // { 0: 2 }
+  | Struct { fields: [StructSourceFieldV1] }   // { 0: 3, 1: fields }
+  | Enum { variants: [EnumSourceVariantV1] }   // { 0: 4, 1: variants }
+  | Object { value: PersistentObjectValueId }  // { 0: 5, 1: value }
+
+StructSourceFieldV1 {
+    field: PersistentFieldId,       // field 1
+    value_type: SignatureTypeKey,   // field 2
+}
+
+EnumSourceVariantV1 {
+    variant: PersistentEnumVariantId, // field 1
+    style: EnumSourceVariantStyleV1,  // field 2
+    fields: [EnumSourceFieldV1],      // field 3
+}
+
+EnumSourceVariantStyleV1 =
+    Unit         // unsigned 1
+  | Positional   // unsigned 2
+  | Named        // unsigned 3
+  | Constructor  // unsigned 4
+
+EnumSourceFieldV1 {
+    field: PersistentEnumVariantFieldId, // field 1
+    value_type: SignatureTypeKey,        // field 2
+}
+```
+
+`NominalSourceShapeV1`的tag逐值等于`PublicNominalKindV1`；nominal record constructor和reader都必须拒绝`kind/source_shape`不一致。field、variant与variant-field数组保留源码声明顺序，长度必须可表示为`u32`，同一直接owner内的typed id不得重复；`Unit` variant的fields必须为空。identity foundation中相应canonical key必须证明struct field owner、enum variant owner，以及variant field owner/selector；positional selector的`declaration_index`必须等于数组位置，named/constructor selector必须保持其canonical source name。每个field的`value_type`使用该nominal自己的binder list作为唯一depth 0 scope。`Object.value`必须是由同一object source declaration key产生的`PersistentObjectValueId`；class/interface的源码形状没有nullable payload，constructor与public member分别由record的field 5、6关联。
+
 声明引用复用M23-2 identity wire的既有typed id，不再包一层无语义的digest：
 
 ```text
@@ -499,12 +534,12 @@ PublicMemberRefV1 =
   | Property(PropertyDeclarationId)                    // tag 2
 ```
 
-前三个sum分别逐byte等同既有`NominalDeclarationOwner`、`CallableTemplateOrigin`和`PropertyOwner`编码，reader复用其decoded type与canonical identity resolver；不得重新分配tag，也不得把它们退化成`{ kind: integer, digest: bytes }`。`PublicMemberRefV1`是新增的外层kind sum。source constructor在nominal的`constructors`列出并另有callable/source interface，enum variant在`value_shape`列出且其payload constructor另有callable/source interface，nested nominal/value通过`nested_bindings`授权；这些实体都不得再重复出现在`members`。
+前三个sum分别逐byte等同既有`NominalDeclarationOwner`、`CallableTemplateOrigin`和`PropertyOwner`编码，reader复用其decoded type与canonical identity resolver；不得重新分配tag，也不得把它们退化成`{ kind: integer, digest: bytes }`。`PublicMemberRefV1`是新增的外层kind sum。source constructor在nominal的`constructors`列出并另有callable/source interface，enum variant在`source_shape`列出且其payload constructor另有callable/source interface，nested nominal/value通过`nested_bindings`授权；这些实体都不得再重复出现在`members`。
 
 四类table主键与内部集合顺序固定为：
 
 - nominal table按`SourceNominalId`的`(tag, raw id bytes)`，callable table按`CallableDeclarationId`，property table按`PropertyDeclarationId`严格递增；
-- `exact_supertypes`按完整`SignatureTypeKey` canonical bytes排序去重；`constructors`与`nested_bindings`按raw id bytes排序去重；`members`按`PublicMemberRefV1`的`(tag, nested tag, raw id bytes)`排序去重；
+- `exact_supertypes`与binder interface bounds都按完整`SignatureTypeKey`结构序排序去重：先比较variant wire tag，再按该variant的wire field顺序递归比较；id比较raw bytes，数字/leaf enum比较wire数值，序列作逐元素字典序比较且相同前缀下较短者在前。`constructors`与`nested_bindings`按raw id bytes排序去重；`members`按`PublicMemberRefV1`的`(tag, nested tag, raw id bytes)`排序去重；
 - binder、callable parameter、struct field、enum variant及variant field是declaration-order序列，不按名称或类型排序；其数量和position必须可表示为`u32`，同一owner内的source name遵守各自语言重复声明规则；
 - 每个member/constructor/nested binding必须由当前nominal直接拥有；每个callable/property的`owner`必须与其canonical declaration key及nominal record一致。consumer不能扫描FQN、其他table或arena ordinal猜测owner。
 
