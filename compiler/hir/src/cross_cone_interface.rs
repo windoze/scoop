@@ -2,6 +2,7 @@
 
 mod binders;
 mod callable_interfaces;
+mod callable_source_interfaces;
 mod canonical_ids;
 mod const_values;
 mod declaration_common;
@@ -42,6 +43,17 @@ pub use callable_interfaces::{
     PropertyDelegateOperatorV1, PublicLookupAccessV1, SourceParameterListBuildError,
     SourceParameterListValidationError, SourceParameterShapeResolutionError,
     SourceParameterShapeV1,
+};
+pub use callable_source_interfaces::{
+    CallableParameterCallingResolutionError, CallableParameterCallingV1,
+    CallableSourceInterfaceBuildError, CallableSourceInterfaceIndexError,
+    CallableSourceInterfaceResolutionError, CallableSourceInterfaceV1,
+    CallableSourceParameterListBuildError, CallableSourceParameterListResolutionError,
+    CallableSourceParameterResolutionError, CallableSourceParameterV1,
+    CanonicalCallableSourceParametersV1, DecodedCallableParameterCallingV1,
+    DecodedCallableSourceInterfaceV1, DecodedCallableSourceParameterV1,
+    DecodedCanonicalCallableSourceParametersV1, ExportDefaultTemplateIndexResolver,
+    ExportDefaultTemplateKeyResolver, IndexedCallableSourceInterfaceV1,
 };
 pub use canonical_ids::{
     CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
