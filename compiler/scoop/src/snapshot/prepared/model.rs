@@ -8,14 +8,16 @@ use scoop_identity::{
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ConeManifestSemantic, DiscoveredSource, SourceDisplayLocator};
 use scoop_slib::{
-    ArtifactFingerprint, ArtifactSnapshot, PrebuiltManifestSummaryV1, SlibClosureDecodeMeterV1,
-    SlibClosureDecodeUsageV1,
+    ArtifactFingerprint, ArtifactSnapshot, ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1,
+    SlibClosureDecodeMeterV1, SlibClosureDecodeUsageV1,
 };
 use scoop_wire::Digest256;
 
 use super::super::staging::PreparedStaging;
 use super::CoreSlotLock;
 use crate::ResolvedPairedScoopc;
+use crate::artifact::{ArtifactClosurePlan, PlannedArtifactEdge, PlannedArtifactNode};
+use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_candidates};
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
@@ -396,5 +398,93 @@ impl PreparedBuildGraph {
 
     pub const fn diagnostics(&self) -> crate::DiagnosticsPolicy {
         self.context.diagnostics
+    }
+
+    /// Freezes the exact graph shape used by the dual-view artifact completion
+    /// gate. The returned plan contains no artifact authority.
+    pub fn artifact_closure_plan(&self) -> ArtifactClosurePlan {
+        let nodes = self
+            .nodes
+            .iter()
+            .map(|(identity, node)| {
+                let planned = match node {
+                    PreparedGraphNode::ManifestSource(node) => PlannedArtifactNode::new(
+                        node.snapshot.coordinate.clone(),
+                        cone_kind(node.snapshot.requested_kind),
+                        ConeSourceForm::Manifest,
+                        None,
+                    ),
+                    PreparedGraphNode::PrebuiltArtifact(node) => PlannedArtifactNode::new(
+                        node.coordinate.clone(),
+                        ConeKind::Library,
+                        ConeSourceForm::Manifest,
+                        Some(node.artifact_fingerprint),
+                    ),
+                    PreparedGraphNode::TrustedCore(node) => PlannedArtifactNode::new(
+                        node.snapshot.coordinate.clone(),
+                        ConeKind::Library,
+                        ConeSourceForm::Manifest,
+                        None,
+                    ),
+                    PreparedGraphNode::SingleFile(_) => PlannedArtifactNode::new(
+                        ConeCoordinate::reserved_single_file(),
+                        ConeKind::Executable,
+                        ConeSourceForm::SingleFile,
+                        None,
+                    ),
+                };
+                (*identity, planned)
+            })
+            .collect();
+        let edges = self.edges.values().map(|edge| {
+            PlannedArtifactEdge::new(
+                edge.dependent(),
+                edge.dependency(),
+                edge.expected_semantic().cloned(),
+            )
+        });
+        ArtifactClosurePlan::new(
+            self.root,
+            self.target_selection,
+            self.dependency_first.clone(),
+            nodes,
+            edges,
+        )
+    }
+
+    /// Fully validates every immutable candidate for one prebuilt node after
+    /// its transitive dependencies have completed. The scheduler may commit
+    /// the returned node only after this method succeeds.
+    pub fn complete_prebuilt_node(
+        &mut self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+    ) -> Result<CompletedNode, PrebuiltCompletionError> {
+        let candidates: Vec<_> = match self.nodes.get(&identity) {
+            Some(PreparedGraphNode::PrebuiltArtifact(node)) => {
+                node.candidates.iter().cloned().collect()
+            }
+            _ => return Err(PrebuiltCompletionError::NotPrebuilt(identity)),
+        };
+        let plan = self.artifact_closure_plan();
+        let limits = self.context.limits.artifact_decode();
+        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
+        complete_prebuilt_candidates(
+            &plan,
+            identity,
+            candidates,
+            completed,
+            limits,
+            self.target_selection,
+            &c_bridge_profile,
+            &mut self.meter,
+        )
+    }
+}
+
+const fn cone_kind(kind: RequestedConeKind) -> ConeKind {
+    match kind {
+        RequestedConeKind::Library => ConeKind::Library,
+        RequestedConeKind::Executable => ConeKind::Executable,
     }
 }

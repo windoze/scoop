@@ -20,6 +20,10 @@ use crate::{
     validate_self_describing_single_cone_strong_views,
 };
 
+mod purpose;
+
+pub use purpose::*;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactSnapshot {
     bytes: Arc<[u8]>,
