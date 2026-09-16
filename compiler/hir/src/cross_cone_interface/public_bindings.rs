@@ -85,6 +85,13 @@ impl CanonicalPublicExportBindingsV1 {
     pub fn records(&self) -> &[PublicExportBindingRecordV1] {
         &self.records
     }
+
+    pub fn get(&self, binding: PersistentExportBindingId) -> Option<&PublicExportBindingRecordV1> {
+        self.records
+            .binary_search_by_key(&binding, PublicExportBindingRecordV1::binding)
+            .ok()
+            .map(|index| &self.records[index])
+    }
 }
 
 impl WireEncode for CanonicalPublicExportBindingsV1 {
