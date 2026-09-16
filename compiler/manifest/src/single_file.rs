@@ -1,5 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt;
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use scoop_identity::SourceIdentity;
@@ -103,6 +105,14 @@ pub enum SingleFileInputErrorKind {
     NotRegularFile,
     InvalidUtf8,
     SourceChangedDuringRead,
+    ByteLimitExceeded {
+        limit: u64,
+        observed: u64,
+    },
+    LengthOverflow,
+    Allocation {
+        requested_bytes: u64,
+    },
     Io {
         operation: SingleFileInputIoOperation,
         source: std::io::Error,
@@ -129,6 +139,17 @@ impl fmt::Display for SingleFileInputError {
             SingleFileInputErrorKind::SourceChangedDuringRead => {
                 formatter.write_str("source target changed while it was read")
             }
+            SingleFileInputErrorKind::ByteLimitExceeded { limit, observed } => write!(
+                formatter,
+                "source bytes exceed limit {limit}: observed {observed}"
+            ),
+            SingleFileInputErrorKind::LengthOverflow => {
+                formatter.write_str("source length does not fit the bounded reader")
+            }
+            SingleFileInputErrorKind::Allocation { requested_bytes } => write!(
+                formatter,
+                "cannot allocate {requested_bytes} bytes for single-file source"
+            ),
             SingleFileInputErrorKind::Io { operation, source } => {
                 write!(formatter, "cannot {operation}: {source}")
             }
@@ -148,9 +169,77 @@ impl std::error::Error for SingleFileInputError {
 pub fn load_single_file_source(
     locator: &SingleFileLocator,
 ) -> Result<DiscoveredSource, SingleFileInputError> {
-    let bytes = std::fs::read(locator.resolved_path()).map_err(|error| {
+    load_single_file_source_with_limit(locator, u64::MAX)
+}
+
+pub fn load_single_file_source_with_limit(
+    locator: &SingleFileLocator,
+    byte_limit: u64,
+) -> Result<DiscoveredSource, SingleFileInputError> {
+    let mut file = File::open(locator.resolved_path()).map_err(|error| {
         SingleFileInputError::io(
             SingleFileInputIoOperation::Read,
+            locator.display_path.clone(),
+            error,
+        )
+    })?;
+    let before = file.metadata().map_err(|error| {
+        SingleFileInputError::io(
+            SingleFileInputIoOperation::Inspect,
+            locator.display_path.clone(),
+            error,
+        )
+    })?;
+    if !before.is_file() {
+        return Err(SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::SourceChangedDuringRead,
+        ));
+    }
+    let expected_length = before.len();
+    if expected_length > byte_limit {
+        return Err(SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::ByteLimitExceeded {
+                limit: byte_limit,
+                observed: expected_length,
+            },
+        ));
+    }
+    let capacity = usize::try_from(expected_length).map_err(|_| {
+        SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::LengthOverflow,
+        )
+    })?;
+    let mut bytes = Vec::new();
+    bytes.try_reserve_exact(capacity).map_err(|_| {
+        SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::Allocation {
+                requested_bytes: expected_length,
+            },
+        )
+    })?;
+    let read_limit = expected_length.checked_add(1).ok_or_else(|| {
+        SingleFileInputError::new(
+            locator.display_path.clone(),
+            SingleFileInputErrorKind::LengthOverflow,
+        )
+    })?;
+    file.by_ref()
+        .take(read_limit)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            SingleFileInputError::io(
+                SingleFileInputIoOperation::Read,
+                locator.display_path.clone(),
+                error,
+            )
+        })?;
+    let after_file = file.metadata().map_err(|error| {
+        SingleFileInputError::io(
+            SingleFileInputIoOperation::Inspect,
             locator.display_path.clone(),
             error,
         )
@@ -169,7 +258,12 @@ pub fn load_single_file_source(
             error,
         )
     })?;
-    if locator.resolved_path != after_read || !after_read_metadata.is_file() {
+    if locator.resolved_path != after_read
+        || !after_read_metadata.is_file()
+        || !after_file.is_file()
+        || after_file.len() != expected_length
+        || u64::try_from(bytes.len()).ok() != Some(expected_length)
+    {
         return Err(SingleFileInputError::new(
             locator.display_path.clone(),
             SingleFileInputErrorKind::SourceChangedDuringRead,
@@ -239,6 +333,30 @@ mod tests {
         assert!(matches!(
             SingleFileLocator::from_path(&path).unwrap_err().kind(),
             SingleFileInputErrorKind::InvalidExtension
+        ));
+    }
+
+    #[test]
+    fn bounded_single_file_read_has_inclusive_byte_limit() {
+        let directory = TempDirectory::new();
+        let path = directory.0.join("main.scoop");
+        std::fs::write(&path, "abc").unwrap();
+        let locator = SingleFileLocator::from_path(&path).unwrap();
+
+        assert_eq!(
+            load_single_file_source_with_limit(&locator, 3)
+                .unwrap()
+                .source_text(),
+            "abc"
+        );
+        assert!(matches!(
+            load_single_file_source_with_limit(&locator, 2)
+                .unwrap_err()
+                .kind(),
+            SingleFileInputErrorKind::ByteLimitExceeded {
+                limit: 2,
+                observed: 3
+            }
         ));
     }
 }

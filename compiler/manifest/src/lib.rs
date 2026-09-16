@@ -11,7 +11,8 @@ mod single_file;
 
 pub use discovery::{
     DiscoveredManifestSources, DiscoveredSource, DiscoveryIoOperation, SourceDiscoveryError,
-    SourceDiscoveryErrorKind, SourceDisplayLocator, discover_manifest_sources,
+    SourceDiscoveryErrorKind, SourceDiscoveryLimits, SourceDiscoveryUsage, SourceDisplayLocator,
+    discover_manifest_sources, discover_manifest_sources_with_limits,
 };
 pub use root::{
     LoadedConeManifest, ManifestRootError, ManifestRootErrorKind, ManifestRootIoOperation,
@@ -26,5 +27,5 @@ pub use semantic::{
 };
 pub use single_file::{
     SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
-    load_single_file_source,
+    load_single_file_source, load_single_file_source_with_limit,
 };
