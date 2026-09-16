@@ -338,6 +338,17 @@ impl SlibClosureDecodeMeterV1 {
         if self.decoded_artifacts.contains(&key) {
             return Ok(());
         }
+        self.charge_decode_usage(usage)?;
+        self.decoded_artifacts.insert(key);
+        Ok(())
+    }
+
+    /// Charges a non-artifact canonical decoder, such as a protocol frame or
+    /// cache receipt, against the same build-wide cumulative resources.
+    pub fn charge_decode_usage(
+        &mut self,
+        usage: DecodeUsage,
+    ) -> Result<(), SlibClosureResourceErrorV1> {
         self.charge(
             SlibClosureResourceKindV1::LogicalHeapBytes,
             usage.logical_heap_bytes,
@@ -349,7 +360,6 @@ impl SlibClosureDecodeMeterV1 {
             SlibClosureResourceKindV1::ValidationWorkUnits,
             usage.validation_work_units,
         )?;
-        self.decoded_artifacts.insert(key);
         Ok(())
     }
 
@@ -599,6 +609,28 @@ mod tests {
                 resource: SlibClosureResourceKindV1::ChildRequests,
                 limit: 1,
                 observed: 2,
+            }
+        );
+    }
+
+    #[test]
+    fn non_artifact_decode_usage_accumulates_without_deduplication() {
+        let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
+        values.decoded_nodes = 3;
+        let limits = SlibClosureDecodeLimitsV1::new(values).unwrap();
+        let mut meter = SlibClosureDecodeMeterV1::new(limits);
+        let usage = DecodeUsage {
+            decoded_nodes: 2,
+            ..DecodeUsage::default()
+        };
+
+        meter.charge_decode_usage(usage).unwrap();
+        assert_eq!(
+            meter.charge_decode_usage(usage).unwrap_err(),
+            SlibClosureResourceErrorV1::LimitExceeded {
+                resource: SlibClosureResourceKindV1::DecodedNodes,
+                limit: 3,
+                observed: 4,
             }
         );
     }
