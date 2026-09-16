@@ -4,6 +4,7 @@ mod binders;
 mod canonical_ids;
 mod declaration_common;
 mod declaration_references;
+mod nominal_shapes;
 mod public_bindings;
 mod route_closure;
 
@@ -34,6 +35,15 @@ pub use declaration_references::{
     DecodedSourceNominalId, PropertyDeclarationId, PublicMemberRefBuildError,
     PublicMemberRefResolver, PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId,
     SourceNominalIdResolver,
+};
+pub use nominal_shapes::{
+    DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,
+    DecodedStructSourceFieldV1, EnumSourceFieldResolutionError, EnumSourceFieldV1,
+    EnumSourceShapeV1, EnumSourceVariantBuildError, EnumSourceVariantResolutionError,
+    EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceShapeBuildError,
+    NominalSourceShapeResolutionError, NominalSourceShapeResolver, NominalSourceShapeV1,
+    ObjectSourceShapeV1, StructSourceFieldResolutionError, StructSourceFieldV1,
+    StructSourceShapeV1,
 };
 pub use public_bindings::{
     CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
