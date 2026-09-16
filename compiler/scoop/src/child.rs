@@ -263,40 +263,74 @@ pub(crate) fn validate_child_success_artifact(
 ) -> Result<(), ChildSuccessArtifactMismatch> {
     let publication = artifact.publication();
     let semantic = publication.compile_summary().semantic_fingerprints();
+    validate_child_success_fields(
+        success,
+        ExpectedChildSuccessArtifact {
+            artifact_fingerprint: *publication.artifact_fingerprint().as_array(),
+            cone_identity: *publication.identity().as_array(),
+            hir_fingerprint: *semantic.hir().as_array(),
+            mir_fingerprint: *semantic.mir().as_array(),
+            lir_fingerprint: *semantic.lir().as_array(),
+            code_fingerprint: available_fingerprint(semantic.code(), |value| *value.as_array()),
+            runtime_image_fingerprint: available_fingerprint(semantic.runtime_image(), |value| {
+                *value.as_array()
+            }),
+        },
+    )
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ExpectedChildSuccessArtifact {
+    artifact_fingerprint: [u8; 32],
+    cone_identity: [u8; 32],
+    hir_fingerprint: [u8; 32],
+    mir_fingerprint: [u8; 32],
+    lir_fingerprint: [u8; 32],
+    code_fingerprint: Option<[u8; 32]>,
+    runtime_image_fingerprint: Option<[u8; 32]>,
+}
+
+fn available_fingerprint<T>(
+    availability: FingerprintAvailability<T>,
+    to_array: impl FnOnce(T) -> [u8; 32],
+) -> Option<[u8; 32]> {
+    match availability {
+        FingerprintAvailability::Unavailable => None,
+        FingerprintAvailability::Available(value) => Some(to_array(value)),
+    }
+}
+
+fn validate_child_success_fields(
+    success: &ScoopcSuccessV1,
+    expected: ExpectedChildSuccessArtifact,
+) -> Result<(), ChildSuccessArtifactMismatch> {
     check_child_field(
-        success.artifact_fingerprint().as_array() == publication.artifact_fingerprint().as_array(),
+        success.artifact_fingerprint().as_array() == &expected.artifact_fingerprint,
         ChildSuccessArtifactField::ArtifactFingerprint,
     )?;
     check_child_field(
-        success.cone_identity().as_array() == publication.identity().as_array(),
+        success.cone_identity().as_array() == &expected.cone_identity,
         ChildSuccessArtifactField::ConeIdentity,
     )?;
     check_child_field(
-        success.hir_fingerprint().as_array() == semantic.hir().as_array(),
+        success.hir_fingerprint().as_array() == &expected.hir_fingerprint,
         ChildSuccessArtifactField::HirFingerprint,
     )?;
     check_child_field(
-        success.mir_fingerprint().as_array() == semantic.mir().as_array(),
+        success.mir_fingerprint().as_array() == &expected.mir_fingerprint,
         ChildSuccessArtifactField::MirFingerprint,
     )?;
     check_child_field(
-        success.lir_fingerprint().as_array() == semantic.lir().as_array(),
+        success.lir_fingerprint().as_array() == &expected.lir_fingerprint,
         ChildSuccessArtifactField::LirFingerprint,
     )?;
     check_child_field(
-        matches!(
-            semantic.code(),
-            FingerprintAvailability::Available(value)
-                if success.code_fingerprint().as_array() == value.as_array()
-        ),
+        expected.code_fingerprint.as_ref() == Some(success.code_fingerprint().as_array()),
         ChildSuccessArtifactField::CodeFingerprint,
     )?;
     check_child_field(
-        matches!(
-            semantic.runtime_image(),
-            FingerprintAvailability::Available(value)
-                if success.runtime_image_fingerprint().as_array() == value.as_array()
-        ),
+        expected.runtime_image_fingerprint.as_ref()
+            == Some(success.runtime_image_fingerprint().as_array()),
         ChildSuccessArtifactField::RuntimeImageFingerprint,
     )?;
     check_child_field(

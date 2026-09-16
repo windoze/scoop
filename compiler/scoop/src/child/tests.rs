@@ -3,12 +3,13 @@ use std::path::Path;
 
 use scoop_protocol::{
     CurrentConeRequestV1, DiagnosticOriginV1, DiagnosticOutputPolicyV1, DiagnosticSeverityV1,
-    HostPathCarrier, ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
-    ProtocolHirFingerprint, ProtocolLirFingerprint, ProtocolMirFingerprint,
-    ProtocolRuntimeImageFingerprint, RequestCorrelationId, ScoopcBuildRequestV1,
-    ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1, StageDumpPolicyV1,
-    StructuredDiagnosticV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
-    encode_machine_capability_frame, encode_response_frame,
+    EmittedDumpDescriptorV1, EmittedDumpDestinationV1, HostPathCarrier,
+    ProtocolArtifactFingerprint, ProtocolCodeFingerprint, ProtocolConeIdentity,
+    ProtocolDumpContentDigest, ProtocolHirFingerprint, ProtocolLirFingerprint,
+    ProtocolMirFingerprint, ProtocolRuntimeImageFingerprint, RequestCorrelationId,
+    ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
+    StageDumpKindV1, StageDumpPolicyV1, StructuredDiagnosticV1, TargetSelectionRequestV1,
+    TrustedCoreRequestV1, encode_machine_capability_frame, encode_response_frame,
 };
 
 use super::*;
@@ -68,6 +69,68 @@ fn failure(id: [u8; 16]) -> ScoopcResponseEnvelopeV1 {
     .unwrap();
     ScoopcResponseEnvelopeV1::failure(RequestCorrelationId::from_array(id), vec![diagnostic])
         .unwrap()
+}
+
+fn expected_success_artifact() -> ExpectedChildSuccessArtifact {
+    ExpectedChildSuccessArtifact {
+        artifact_fingerprint: [1; 32],
+        cone_identity: [2; 32],
+        hir_fingerprint: [3; 32],
+        mir_fingerprint: [4; 32],
+        lir_fingerprint: [5; 32],
+        code_fingerprint: Some([6; 32]),
+        runtime_image_fingerprint: Some([7; 32]),
+    }
+}
+
+fn success_payload_with_mismatch(field: ChildSuccessArtifactField) -> ScoopcSuccessV1 {
+    let replacement = [9; 32];
+    let value = |candidate, expected| {
+        if field == candidate {
+            replacement
+        } else {
+            expected
+        }
+    };
+    let emitted_dumps = if field == ChildSuccessArtifactField::EmittedDumpDescriptors {
+        vec![EmittedDumpDescriptorV1::new(
+            StageDumpKindV1::Hir,
+            EmittedDumpDestinationV1::Stdout,
+            ProtocolDumpContentDigest::from_array([8; 32]),
+        )]
+    } else {
+        Vec::new()
+    };
+    ScoopcSuccessV1::new(
+        ProtocolArtifactFingerprint::from_array(value(
+            ChildSuccessArtifactField::ArtifactFingerprint,
+            [1; 32],
+        )),
+        ProtocolConeIdentity::from_array(value(ChildSuccessArtifactField::ConeIdentity, [2; 32])),
+        ProtocolHirFingerprint::from_array(value(
+            ChildSuccessArtifactField::HirFingerprint,
+            [3; 32],
+        )),
+        ProtocolMirFingerprint::from_array(value(
+            ChildSuccessArtifactField::MirFingerprint,
+            [4; 32],
+        )),
+        ProtocolLirFingerprint::from_array(value(
+            ChildSuccessArtifactField::LirFingerprint,
+            [5; 32],
+        )),
+        ProtocolCodeFingerprint::from_array(value(
+            ChildSuccessArtifactField::CodeFingerprint,
+            [6; 32],
+        )),
+        ProtocolRuntimeImageFingerprint::from_array(value(
+            ChildSuccessArtifactField::RuntimeImageFingerprint,
+            [7; 32],
+        )),
+        Vec::new(),
+        emitted_dumps,
+    )
+    .unwrap()
 }
 
 fn shell_bytes(bytes: &[u8]) -> String {
@@ -140,6 +203,56 @@ fn protocol_accounting_round_trips_request_and_both_response_kinds() {
     assert!(success_usage.decoded_nodes > 0);
     assert!(failure_usage.decoded_nodes > 0);
     assert!(failure_usage.owned_bytes > 0);
+}
+
+#[test]
+fn child_success_artifact_validation_rejects_every_mismatched_field() {
+    let expected = expected_success_artifact();
+    for field in [
+        ChildSuccessArtifactField::ArtifactFingerprint,
+        ChildSuccessArtifactField::ConeIdentity,
+        ChildSuccessArtifactField::HirFingerprint,
+        ChildSuccessArtifactField::MirFingerprint,
+        ChildSuccessArtifactField::LirFingerprint,
+        ChildSuccessArtifactField::CodeFingerprint,
+        ChildSuccessArtifactField::RuntimeImageFingerprint,
+        ChildSuccessArtifactField::EmittedDumpDescriptors,
+    ] {
+        let error = validate_child_success_fields(&success_payload_with_mismatch(field), expected)
+            .unwrap_err();
+        assert_eq!(error.field(), field);
+    }
+
+    let matching = match success([8; 16]) {
+        ScoopcResponseEnvelopeV1::Success { result, .. } => *result,
+        ScoopcResponseEnvelopeV1::Failure { .. } => unreachable!(),
+    };
+    validate_child_success_fields(&matching, expected).unwrap();
+}
+
+#[test]
+fn child_success_artifact_validation_requires_available_backend_fingerprints() {
+    let matching = match success([8; 16]) {
+        ScoopcResponseEnvelopeV1::Success { result, .. } => *result,
+        ScoopcResponseEnvelopeV1::Failure { .. } => unreachable!(),
+    };
+    let mut expected = expected_success_artifact();
+    expected.code_fingerprint = None;
+    assert_eq!(
+        validate_child_success_fields(&matching, expected)
+            .unwrap_err()
+            .field(),
+        ChildSuccessArtifactField::CodeFingerprint
+    );
+
+    expected = expected_success_artifact();
+    expected.runtime_image_fingerprint = None;
+    assert_eq!(
+        validate_child_success_fields(&matching, expected)
+            .unwrap_err()
+            .field(),
+        ChildSuccessArtifactField::RuntimeImageFingerprint
+    );
 }
 
 #[test]
