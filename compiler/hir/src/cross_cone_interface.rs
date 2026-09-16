@@ -74,8 +74,10 @@ pub use nominal_shapes::{
     StructSourceFieldSemanticError, StructSourceFieldV1, StructSourceShapeV1,
 };
 pub use property_interfaces::{
-    DecodedPropertyCapabilityV1, PropertyCapabilityBuildError, PropertyCapabilityResolutionError,
-    PropertyCapabilityV1, PropertyPublicAccessV1, PropertyRepresentationV1,
+    DecodedPropertyCapabilityV1, DecodedPropertyInterfaceRecordV1, PropertyCapabilityBuildError,
+    PropertyCapabilityResolutionError, PropertyCapabilityV1, PropertyInterfaceRecordBuildError,
+    PropertyInterfaceRecordResolutionError, PropertyInterfaceRecordResolver,
+    PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
     PropertySetterPublicAccessV1,
 };
 pub use public_bindings::{
