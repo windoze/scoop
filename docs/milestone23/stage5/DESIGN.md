@@ -379,7 +379,7 @@ CrossConeHirInterfaceSectionV1 {
 }
 ```
 
-所有array均按各record声明的typed primary key严格递增并拒绝重复；producer输入乱序由writer排序，reader绝不排序修复。payload只保存canonical semantic interface，不直接serde `ExportHir` arena，不保存arena id、import文本、host path、failed candidate或body-local display name。
+十张顶层table均按各record声明的typed primary key严格递增并拒绝重复；producer输入乱序由writer排序，reader绝不排序修复。record内部标为`CanonicalVec`/`CanonicalSet`的集合也按其元素typed key或canonical wire bytes严格递增；标为declaration/source order的序列保持源码语义顺序，以隐含的zero-based `u32` position作identity，reader不得排序。payload只保存canonical semantic interface，不直接serde `ExportHir` arena，不保存arena id、import文本、host path、failed candidate或body-local display name。
 
 ### 5.2 public binding与route
 
@@ -457,7 +457,39 @@ PropertyInterfaceRecordV1 {
 }
 ```
 
-`SourceNominalId`、`CallableDeclarationId`、`PropertyDeclarationId`和`PublicMemberRefV1`都是kind-specific closed sum，不能用裸digest union。struct/enum的declaration-order fields/variants、class constructor source shape、object type/value relation、operator/infix标志、property accessor effect及annotation的语义部分通过各自closed constituent进入上述record；它们只支撑HIR lookup/type checking，不授权layout或dispatch。
+声明引用复用M23-2 identity wire的既有typed id，不再包一层无语义的digest：
+
+```text
+SourceNominalId =
+    Concrete(PersistentTypeId)                         // tag 1
+  | GenericTemplate(PersistentGenericTypeId)           // tag 2
+
+CallableDeclarationId =
+    Function(PersistentFunctionId)                     // tag 1
+  | GenericFunction(PersistentGenericFunctionId)       // tag 2
+  | Constructor(PersistentConstructorId)               // tag 3
+  | PropertyAccessor(PersistentPropertyAccessorId)     // tag 4
+  | EnumVariantConstructor(PersistentEnumVariantId)    // tag 5
+
+PropertyDeclarationId =
+    Property(PersistentPropertyId)                     // tag 1
+  | ExtensionProperty(PersistentExtensionPropertyId)   // tag 2
+
+PublicMemberRefV1 =
+    Callable(CallableDeclarationId)                    // tag 1
+  | Property(PropertyDeclarationId)                    // tag 2
+```
+
+前三个sum分别逐byte等同既有`NominalDeclarationOwner`、`CallableTemplateOrigin`和`PropertyOwner`编码，reader复用其decoded type与canonical identity resolver；不得重新分配tag，也不得把它们退化成`{ kind: integer, digest: bytes }`。`PublicMemberRefV1`是新增的外层kind sum。source constructor在nominal的`constructors`列出并另有callable/source interface，enum variant在`value_shape`列出且其payload constructor另有callable/source interface，nested nominal/value通过`nested_bindings`授权；这些实体都不得再重复出现在`members`。
+
+四类table主键与内部集合顺序固定为：
+
+- nominal table按`SourceNominalId`的`(tag, raw id bytes)`，callable table按`CallableDeclarationId`，property table按`PropertyDeclarationId`严格递增；
+- `exact_supertypes`按完整`SignatureTypeKey` canonical bytes排序去重；`constructors`与`nested_bindings`按raw id bytes排序去重；`members`按`PublicMemberRefV1`的`(tag, nested tag, raw id bytes)`排序去重；
+- binder、callable parameter、struct field、enum variant及variant field是declaration-order序列，不按名称或类型排序；其数量和position必须可表示为`u32`，同一owner内的source name遵守各自语言重复声明规则；
+- 每个member/constructor/nested binding必须由当前nominal直接拥有；每个callable/property的`owner`必须与其canonical declaration key及nominal record一致。consumer不能扫描FQN、其他table或arena ordinal猜测owner。
+
+`SourceNominalId`、`CallableDeclarationId`、`PropertyDeclarationId`和`PublicMemberRefV1`因此都是kind-specific closed sum，不能用裸digest union。struct/enum的declaration-order fields/variants、class constructor source shape、object type/value relation、operator/infix标志、property accessor effect及annotation的语义部分通过各自closed constituent进入上述record；它们只支撑HIR lookup/type checking，不授权layout或dispatch。
 
 只有public lookup surface中的声明写入这些表。public owner所需的protected inheritance/slot内容不塞入nullable字段；M23-6以独立required capability加入。generic declaration可在这里提供name、binder、bound和source signature，但没有template body/hidden support；任何application由M23-7 gate拒绝。
 
