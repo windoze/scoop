@@ -102,5 +102,8 @@ pub use route_closure::{
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
 };
 pub use type_alias_interfaces::{
-    DecodedTypeAliasTargetV1, TypeAliasTargetResolutionError, TypeAliasTargetV1,
+    DecodedTypeAliasInterfaceRecordV1, DecodedTypeAliasTargetV1,
+    TypeAliasInterfaceRecordBuildError, TypeAliasInterfaceRecordResolutionError,
+    TypeAliasInterfaceRecordResolver, TypeAliasInterfaceRecordV1, TypeAliasTargetResolutionError,
+    TypeAliasTargetV1,
 };
