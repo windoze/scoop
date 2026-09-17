@@ -17,7 +17,7 @@ pub use errors::{
     TemplateLocalLookupError, TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError,
     TemplateLocalTableBuildError, TemplateLocalTableValidationError,
 };
-pub use semantics::TemplateLocalScopeValidationError;
+pub use semantics::{TemplateLocalScopeValidationError, TemplateLocalTypeSemanticValidationError};
 
 /// Resolves one canonical wire-local table index to its semantic selector.
 pub trait TemplateLocalSelectorResolver {

@@ -3,6 +3,9 @@ use std::fmt;
 use scoop_identity::{LocalValueSelector, StructuralDefinitionPath, StructuralDefinitionSiteRole};
 
 use super::CanonicalTemplateLocalTableV1;
+use crate::{
+    DefaultTemplateProviderShapeV1, NominalInterfaceShapeAuthority, SignatureTypeSemanticError,
+};
 
 impl CanonicalTemplateLocalTableV1 {
     pub fn validate_definition_path(
@@ -39,6 +42,27 @@ impl CanonicalTemplateLocalTableV1 {
         }
         Ok(())
     }
+
+    pub fn validate_type_semantics<A, E>(
+        &self,
+        provider: DefaultTemplateProviderShapeV1,
+        authority: &mut A,
+    ) -> Result<(), TemplateLocalTypeSemanticValidationError<E>>
+    where
+        A: NominalInterfaceShapeAuthority<E>,
+    {
+        let scope = provider.signature_scope();
+        for (index, record) in self.records().iter().enumerate() {
+            scope
+                .validate_signature_semantics(record.value_type(), authority)
+                .map_err(|error| TemplateLocalTypeSemanticValidationError {
+                    index,
+                    selector: record.selector().clone(),
+                    error,
+                })?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -72,6 +96,28 @@ impl fmt::Display for TemplateLocalScopeValidationError {
 }
 
 impl std::error::Error for TemplateLocalScopeValidationError {}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct TemplateLocalTypeSemanticValidationError<E> {
+    pub index: usize,
+    pub selector: LocalValueSelector,
+    pub error: SignatureTypeSemanticError<E>,
+}
+
+impl<E: fmt::Display> fmt::Display for TemplateLocalTypeSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "default-template local {:?} at index {} has an invalid provider-scope type: {}",
+            self.selector, self.index, self.error
+        )
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for TemplateLocalTypeSemanticValidationError<E>
+{
+}
 
 fn selector_path(selector: &LocalValueSelector) -> Option<&StructuralDefinitionPath> {
     match selector {

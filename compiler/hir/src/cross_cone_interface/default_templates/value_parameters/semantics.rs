@@ -4,8 +4,9 @@ use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKe
 
 use super::CanonicalTemplateValueParametersV1;
 use crate::{
-    CallableSourceInterfaceV1, CanonicalBooleanV1, CanonicalTemplateLocalTableV1,
-    ExportDefaultTemplateKeyV1,
+    CallableSourceInterfaceV1, CanonicalBinderUseListV1, CanonicalBooleanV1,
+    CanonicalTemplateLocalTableV1, DefaultTemplateProviderShapeV1,
+    DefaultTemplateTypeSubstitutionError, ExportDefaultTemplateKeyV1,
 };
 
 impl CanonicalTemplateValueParametersV1 {
@@ -14,6 +15,8 @@ impl CanonicalTemplateValueParametersV1 {
         key: ExportDefaultTemplateKeyV1,
         source: &CallableSourceInterfaceV1,
         locals: &CanonicalTemplateLocalTableV1,
+        provider: DefaultTemplateProviderShapeV1,
+        type_parameters: &CanonicalBinderUseListV1,
     ) -> Result<(), TemplateValueParameterSemanticValidationError> {
         if source.owner() != key.owner() {
             return Err(TemplateValueParameterSemanticValidationError::SourceOwner {
@@ -70,11 +73,19 @@ impl CanonicalTemplateValueParametersV1 {
                     TemplateValueParameterSemanticValidationError::MutableLocal { position },
                 );
             }
-            if local.value_type() != source_parameter.value_type() {
+            let mapped_type = type_parameters
+                .substitute_provider_type(provider, local.value_type())
+                .map_err(|error| {
+                    TemplateValueParameterSemanticValidationError::TypeSubstitution {
+                        position,
+                        error,
+                    }
+                })?;
+            if &mapped_type != source_parameter.value_type() {
                 return Err(TemplateValueParameterSemanticValidationError::LocalType {
                     position,
                     expected: Box::new(source_parameter.value_type().clone()),
-                    actual: Box::new(local.value_type().clone()),
+                    actual: Box::new(mapped_type),
                 });
             }
         }
@@ -107,6 +118,10 @@ pub enum TemplateValueParameterSemanticValidationError {
     },
     MutableLocal {
         position: u32,
+    },
+    TypeSubstitution {
+        position: u32,
+        error: DefaultTemplateTypeSubstitutionError,
     },
     LocalType {
         position: u32,
@@ -146,13 +161,17 @@ impl fmt::Display for TemplateValueParameterSemanticValidationError {
                 formatter,
                 "default-template value parameter {position} local must be immutable"
             ),
+            Self::TypeSubstitution { position, error } => write!(
+                formatter,
+                "cannot map default-template value parameter {position} type into owner scope: {error}"
+            ),
             Self::LocalType {
                 position,
                 expected,
                 actual,
             } => write!(
                 formatter,
-                "default-template value parameter {position} local has type {actual:?}, expected {expected:?}"
+                "mapped default-template value parameter {position} local has type {actual:?}, expected {expected:?}"
             ),
         }
     }

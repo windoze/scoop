@@ -8,8 +8,9 @@ use scoop_identity::{
 use super::*;
 use crate::{
     CallableParameterCallingV1, CallableSourceInterfaceV1, CallableSourceParameterV1,
-    CanonicalBooleanV1, CanonicalCallableSourceParametersV1, ExportDefinitionSourceV1,
-    TemplateLocalDefinitionV1, TemplateLocalRecordV1, TemplateValueParameterV1,
+    CanonicalBinderUseListV1, CanonicalBooleanV1, CanonicalCallableSourceParametersV1,
+    DefaultTemplateProviderShapeV1, ExportDefinitionSourceV1, TemplateLocalDefinitionV1,
+    TemplateLocalRecordV1, TemplateValueParameterV1,
 };
 
 #[test]
@@ -24,7 +25,7 @@ fn validates_the_exact_preceding_parameter_prefix() {
         (1, binder(1), CanonicalBooleanV1::False),
     ]);
 
-    assert_eq!(parameters.validate_semantics(key, &source, &locals), Ok(()));
+    assert_eq!(validate(&parameters, key, &source, &locals), Ok(()));
 }
 
 #[test]
@@ -35,7 +36,8 @@ fn validates_source_owner_parameter_and_template_reference() {
     let parameters = value_parameters(1);
 
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             key,
             &source_interface(other, &[binder(0), binder(1)], Some(1)),
             &local_table(&[(0, binder(0), CanonicalBooleanV1::False)]),
@@ -48,7 +50,8 @@ fn validates_source_owner_parameter_and_template_reference() {
 
     let out_of_range = ExportDefaultTemplateKeyV1::new(owner, 2);
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             out_of_range,
             &source_interface(owner, &[binder(0), binder(1)], None),
             &local_table(&[(0, binder(0), CanonicalBooleanV1::False)]),
@@ -62,7 +65,8 @@ fn validates_source_owner_parameter_and_template_reference() {
     );
 
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             key,
             &source_interface(owner, &[binder(0), binder(1)], None),
             &local_table(&[(0, binder(0), CanonicalBooleanV1::False)]),
@@ -84,7 +88,8 @@ fn validates_prefix_arity() {
     let source = source_interface(owner, &[binder(0), binder(1), binder(2)], Some(2));
 
     assert_eq!(
-        value_parameters(1).validate_semantics(
+        validate(
+            &value_parameters(1),
             key,
             &source,
             &local_table(&[(0, binder(0), CanonicalBooleanV1::False)]),
@@ -104,7 +109,8 @@ fn validates_each_parameter_local_record() {
     let parameters = value_parameters(2);
 
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             key,
             &source,
             &local_table(&[(0, binder(0), CanonicalBooleanV1::False)]),
@@ -117,7 +123,8 @@ fn validates_each_parameter_local_record() {
         )
     );
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             key,
             &source,
             &local_table(&[
@@ -128,7 +135,8 @@ fn validates_each_parameter_local_record() {
         Err(TemplateValueParameterSemanticValidationError::MutableLocal { position: 0 })
     );
     assert_eq!(
-        parameters.validate_semantics(
+        validate(
+            &parameters,
             key,
             &source,
             &local_table(&[
@@ -142,6 +150,84 @@ fn validates_each_parameter_local_record() {
             actual: Box::new(binder(9)),
         })
     );
+}
+
+#[test]
+fn parameter_types_are_mapped_from_both_provider_frames() {
+    let owner = CallableTemplateOrigin::Function(function("inherited").id());
+    let key = ExportDefaultTemplateKeyV1::new(owner, 2);
+    let mapped_owner = binder(4);
+    let mapped_callable = binder(3);
+    let source = source_interface(
+        owner,
+        &[mapped_owner.clone(), mapped_callable.clone(), binder(2)],
+        Some(2),
+    );
+    let parameters = value_parameters(2);
+    let locals = local_table(&[
+        (
+            0,
+            SignatureTypeKey::Binder { depth: 1, index: 0 },
+            CanonicalBooleanV1::False,
+        ),
+        (
+            1,
+            SignatureTypeKey::Binder { depth: 0, index: 0 },
+            CanonicalBooleanV1::False,
+        ),
+    ]);
+    let provider = DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap();
+    let type_parameters =
+        CanonicalBinderUseListV1::try_new(vec![mapped_owner, mapped_callable]).unwrap();
+
+    assert_eq!(
+        parameters.validate_semantics(key, &source, &locals, provider, &type_parameters),
+        Ok(())
+    );
+}
+
+#[test]
+fn parameter_type_substitution_failure_reports_the_position() {
+    let owner = CallableTemplateOrigin::Function(function("invalidMapping").id());
+    let key = ExportDefaultTemplateKeyV1::new(owner, 1);
+    let source = source_interface(owner, &[binder(0), binder(1)], Some(1));
+    let parameters = value_parameters(1);
+    let invalid = SignatureTypeKey::Binder { depth: 2, index: 0 };
+    let locals = local_table(&[(0, invalid, CanonicalBooleanV1::False)]);
+    let provider = DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap();
+    let type_parameters = CanonicalBinderUseListV1::try_new(vec![binder(0), binder(1)]).unwrap();
+
+    assert_eq!(
+        parameters.validate_semantics(key, &source, &locals, provider, &type_parameters),
+        Err(
+            TemplateValueParameterSemanticValidationError::TypeSubstitution {
+                position: 0,
+                error: DefaultTemplateTypeSubstitutionError::ProviderBinder(
+                    crate::SignatureBinderScopeError::DepthOutOfRange {
+                        depth: 2,
+                        available_depths: 2,
+                    }
+                ),
+            }
+        )
+    );
+}
+
+fn validate(
+    parameters: &CanonicalTemplateValueParametersV1,
+    key: ExportDefaultTemplateKeyV1,
+    source: &CallableSourceInterfaceV1,
+    locals: &CanonicalTemplateLocalTableV1,
+) -> Result<(), TemplateValueParameterSemanticValidationError> {
+    parameters.validate_semantics(key, source, locals, provider(), &identity_mapping())
+}
+
+fn provider() -> DefaultTemplateProviderShapeV1 {
+    DefaultTemplateProviderShapeV1::try_new(0, 10).unwrap()
+}
+
+fn identity_mapping() -> CanonicalBinderUseListV1 {
+    CanonicalBinderUseListV1::try_new((0..10).map(binder).collect()).unwrap()
 }
 
 fn value_parameters(count: u32) -> CanonicalTemplateValueParametersV1 {

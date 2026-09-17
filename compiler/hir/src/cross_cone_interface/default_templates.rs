@@ -107,7 +107,7 @@ pub use locals::{
     TemplateLocalIndexResolver, TemplateLocalLookupError, TemplateLocalRecordBuildError,
     TemplateLocalRecordResolutionError, TemplateLocalRecordV1, TemplateLocalReferenceResolver,
     TemplateLocalScopeValidationError, TemplateLocalSelectorResolver, TemplateLocalTableBuildError,
-    TemplateLocalTableValidationError,
+    TemplateLocalTableValidationError, TemplateLocalTypeSemanticValidationError,
 };
 pub use receiver::{
     DecodedOptionalTemplateReceiverV1, DecodedTemplateReceiverV1,

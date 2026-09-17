@@ -3,13 +3,19 @@ use std::fmt;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
 use super::OptionalTemplateReceiverV1;
-use crate::{CallableInterfaceRecordV1, CanonicalBooleanV1, CanonicalTemplateLocalTableV1};
+use crate::{
+    CallableInterfaceRecordV1, CanonicalBinderUseListV1, CanonicalBooleanV1,
+    CanonicalTemplateLocalTableV1, DefaultTemplateProviderShapeV1,
+    DefaultTemplateTypeSubstitutionError,
+};
 
 impl OptionalTemplateReceiverV1 {
     pub fn validate_semantics(
         &self,
         callable: &CallableInterfaceRecordV1,
         locals: &CanonicalTemplateLocalTableV1,
+        provider: DefaultTemplateProviderShapeV1,
+        type_parameters: &CanonicalBinderUseListV1,
     ) -> Result<(), TemplateReceiverSemanticValidationError> {
         let (receiver, expected_type) = match (self, callable.receiver()) {
             (Self::Absent, None) => return Ok(()),
@@ -38,10 +44,13 @@ impl OptionalTemplateReceiverV1 {
                 actual: Box::new(local.value_type().clone()),
             });
         }
-        if receiver.value_type() != expected_type {
+        let mapped_type = type_parameters
+            .substitute_provider_type(provider, receiver.value_type())
+            .map_err(TemplateReceiverSemanticValidationError::TypeSubstitution)?;
+        if &mapped_type != expected_type {
             return Err(TemplateReceiverSemanticValidationError::CallableType {
                 expected: Box::new(expected_type.clone()),
-                actual: Box::new(receiver.value_type().clone()),
+                actual: Box::new(mapped_type),
             });
         }
         Ok(())
@@ -62,6 +71,7 @@ pub enum TemplateReceiverSemanticValidationError {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
+    TypeSubstitution(DefaultTemplateTypeSubstitutionError),
     CallableType {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
@@ -90,9 +100,13 @@ impl fmt::Display for TemplateReceiverSemanticValidationError {
                 formatter,
                 "default-template receiver local has type {actual:?}, expected {expected:?}"
             ),
+            Self::TypeSubstitution(error) => write!(
+                formatter,
+                "cannot map default-template receiver type into owner scope: {error}"
+            ),
             Self::CallableType { expected, actual } => write!(
                 formatter,
-                "default-template receiver has type {actual:?}, callable interface requires {expected:?}"
+                "mapped default-template receiver has type {actual:?}, callable interface requires {expected:?}"
             ),
         }
     }
