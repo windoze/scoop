@@ -313,8 +313,9 @@ pub use section::{
     CrossConeHirInterfaceResolver, CrossConeHirInterfaceSectionV1,
     CrossConeHirInternalClosureValidationError, DecodedCrossConeHirInterfaceSectionV1,
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
-    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
-    ExternalHirSignatureUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
+    ExternalHirConstTypeClosureValidationError, ExternalHirSignatureClosureValidationError,
+    ExternalHirSignatureOriginMismatch, ExternalHirSignatureUseSiteV1,
+    IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,

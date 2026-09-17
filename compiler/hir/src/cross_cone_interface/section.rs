@@ -26,11 +26,13 @@ use super::{
     TypeAliasInterfaceSetValidationError,
 };
 
+mod const_type_reference_closure;
 mod definition_source_closure;
 mod internal_closures;
 mod signature_nominal_walk;
 mod signature_reference_closure;
 
+pub use const_type_reference_closure::ExternalHirConstTypeClosureValidationError;
 pub use definition_source_closure::{
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
 };
