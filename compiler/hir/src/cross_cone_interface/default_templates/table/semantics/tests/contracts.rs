@@ -1,10 +1,10 @@
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOrigin,
-    DefinitionOwnerChain, Effect, GcEffect, OptionalSignatureType, PackagePath,
-    PersistentFunctionId, PersistentGenericTypeId, PersistentObjectValueId, PersistentPropertyId,
-    PersistentTypeId, SignatureTypeKey, SourceContextKey, SourceDeclarationKey,
-    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionOwnerChain, Effect, GcEffect, LocalValueSelector, OptionalSignatureType, PackagePath,
+    PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
+    PersistentPropertyId, PersistentTypeId, SignatureTypeKey, SourceContextKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
 
@@ -19,18 +19,21 @@ use crate::{
     CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
     DefaultBodyProviderTypeSiteV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
     DefaultConstructorRefV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1,
-    DefaultReferenceSemanticAuthority, DefaultStatementKindV1, DefaultStatementV1,
-    DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
+    DefaultLocalDataFlowLocalError, DefaultLocalDataFlowSemanticAuthority,
+    DefaultLocalDataFlowSiteV1, DefaultReferenceSemanticAuthority, DefaultStatementKindV1,
+    DefaultStatementV1, DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
     ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
-    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceKindV1,
-    ExportDefaultReferenceOccurrenceSiteV1, ExportDefaultReferenceSetSemanticValidationError,
-    ExportDefaultReferenceSetV1, ExportDefaultReferenceV1, ExportDefaultReferenceValidationError,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateOriginSemanticValidationError,
-    ExportDefaultTemplateV1, ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
+    ExportDefaultLocalDataFlowValidationError, ExportDefaultReferenceClosureValidationError,
+    ExportDefaultReferenceKindV1, ExportDefaultReferenceOccurrenceSiteV1,
+    ExportDefaultReferenceSetSemanticValidationError, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1, ExportDefaultReferenceValidationError, ExportDefaultTemplateKeyV1,
+    ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateV1,
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
     NominalInterfaceShapeAuthority, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
     PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1,
     SignatureBinderScopeError, SignatureTypeSemanticError, SourceParameterShapeV1,
+    TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 #[test]
@@ -239,6 +242,66 @@ fn routes_reference_closure_failures_with_table_identity() {
                     ),
                     insertion_index: 0,
                     definition_origin: Box::new(fixture.origin.clone()),
+                }),
+            }
+        )
+    );
+}
+
+#[test]
+fn routes_local_data_flow_failures_with_table_identity() {
+    let fixture = Fixture::new();
+    let selector = LocalValueSelector::LocalDeclaration {
+        path: StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::DefaultValue, 0),
+            [StructuralPathSegment::new(
+                StructuralDefinitionSiteRole::LocalDeclaration,
+                0,
+            )],
+        ),
+    };
+    let locals = CanonicalTemplateLocalTableV1::try_new(vec![
+        TemplateLocalRecordV1::try_new(
+            selector.clone(),
+            fixture.value_type.clone(),
+            CanonicalBooleanV1::False,
+            TemplateLocalDefinitionV1::Source(fixture.origin.clone()),
+        )
+        .unwrap(),
+    ])
+    .unwrap();
+    let body = ExportDefaultBodyV1::try_new(
+        Vec::new(),
+        DefaultExpressionV1::try_new(
+            DefaultExpressionKindV1::Local(selector.clone()),
+            fixture.value_type.clone(),
+            fixture.origin.clone(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let templates = fixture.templates_with_locals_body_and_references(
+        locals,
+        body,
+        CanonicalBooleanV1::False,
+        fixture.value_type_references(),
+    );
+
+    assert_eq!(
+        validate_envelopes(
+            &templates,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::LocalDataFlow {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(ExportDefaultLocalDataFlowValidationError::Local {
+                    site: DefaultLocalDataFlowSiteV1::Expression,
+                    selector: Box::new(selector),
+                    error: DefaultLocalDataFlowLocalError::UseBeforeDefinition,
                 }),
             }
         )
@@ -530,11 +593,26 @@ impl Fixture {
         allows_suspend: CanonicalBooleanV1,
         references: ExportDefaultReferenceSetV1,
     ) -> CanonicalExportDefaultTemplatesV1 {
+        self.templates_with_locals_body_and_references(
+            CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
+            body,
+            allows_suspend,
+            references,
+        )
+    }
+
+    fn templates_with_locals_body_and_references(
+        &self,
+        locals: CanonicalTemplateLocalTableV1,
+        body: ExportDefaultBodyV1,
+        allows_suspend: CanonicalBooleanV1,
+        references: ExportDefaultReferenceSetV1,
+    ) -> CanonicalExportDefaultTemplatesV1 {
         let template = ExportDefaultTemplateV1::try_new(
             self.key,
             PersistentLexicalRootV1::Function(self.function),
             self.definition_path.clone(),
-            CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
+            locals,
             body,
             self.value_type.clone(),
             allows_suspend,
@@ -685,13 +763,31 @@ impl DefaultTemplateOriginSemanticAuthority<AuthorityError> for Authority {
 
     fn validate_default_template_local_origin(
         &mut self,
-        _key: ExportDefaultTemplateKeyV1,
-        _root: PersistentLexicalRootV1,
-        _path: &StructuralDefinitionPath,
+        key: ExportDefaultTemplateKeyV1,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
         _selector: &scoop_identity::LocalValueSelector,
         _origin: &ExportDefinitionSourceV1,
     ) -> Result<(), AuthorityError> {
-        Err(AuthorityError::UnexpectedLocalOrigin)
+        if key.owner() == self.owner
+            && root.declaration() == self.owner
+            && path == &self.definition_path
+        {
+            Ok(())
+        } else {
+            Err(AuthorityError::UnexpectedLocalOrigin)
+        }
+    }
+}
+
+impl DefaultLocalDataFlowSemanticAuthority<AuthorityError> for Authority {
+    fn default_binding_struct_field_index(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        declaration: PersistentFieldId,
+        _owner_type: &SignatureTypeKey,
+    ) -> Result<u32, AuthorityError> {
+        Err(AuthorityError::UnexpectedBindingStructField(declaration))
     }
 }
 
@@ -772,6 +868,7 @@ enum AuthorityError {
     UnexpectedInheritedProvider,
     TemplateOrigin,
     UnexpectedLocalOrigin,
+    UnexpectedBindingStructField(PersistentFieldId),
     ReferenceTarget,
     UnexpectedReferenceTarget(ExportDefaultReferenceKindV1),
 }

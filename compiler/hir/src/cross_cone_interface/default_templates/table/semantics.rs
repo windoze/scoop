@@ -7,8 +7,9 @@ use super::CanonicalExportDefaultTemplatesV1;
 use crate::{
     CallableInterfaceSemanticAuthority, CanonicalCallableInterfacesV1,
     CanonicalCallableSourceInterfacesV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultReferenceSemanticAuthority, DefaultTemplateOriginSemanticAuthority,
-    DefaultTemplateRootSemanticAuthority, ExportDefaultReferenceClosureValidationError,
+    DefaultLocalDataFlowSemanticAuthority, DefaultReferenceSemanticAuthority,
+    DefaultTemplateOriginSemanticAuthority, DefaultTemplateRootSemanticAuthority,
+    ExportDefaultLocalDataFlowValidationError, ExportDefaultReferenceClosureValidationError,
     ExportDefaultReferenceSetSemanticValidationError,
     ExportDefaultTemplateContractSemanticValidationError, ExportDefaultTemplateKeyV1,
     ExportDefaultTemplateOriginSemanticValidationError,
@@ -18,9 +19,9 @@ impl CanonicalExportDefaultTemplatesV1 {
     /// Validates every template envelope against callable/source tables that
     /// have already passed their own semantic validators, then proves the
     /// provider envelope of every body and declared reference set, then proves
-    /// the exact body-reference and bidirectional source-template closures.
-    /// Operation typing, local data flow, and nested callable ABI remain
-    /// separate passes.
+    /// local data flow, the exact body-reference closure, and the
+    /// bidirectional source-template closure. Operation typing and nested
+    /// callable ABI remain separate passes.
     pub fn validate_envelope_semantics<A, E>(
         &self,
         callables: &CanonicalCallableInterfacesV1,
@@ -33,6 +34,7 @@ impl CanonicalExportDefaultTemplatesV1 {
         A: CallableInterfaceSemanticAuthority<E>
             + DefaultTemplateRootSemanticAuthority<E>
             + DefaultTemplateOriginSemanticAuthority<E>
+            + DefaultLocalDataFlowSemanticAuthority<E>
             + DefaultReferenceSemanticAuthority<E>,
     {
         for (index, template) in self.records().iter().enumerate() {
@@ -72,6 +74,15 @@ impl CanonicalExportDefaultTemplatesV1 {
                 .validate_origin_semantics(authority)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::Origin {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    }
+                })?;
+            template
+                .validate_local_data_flow_semantics(authority, meter, path)
+                .map_err(|error| {
+                    ExportDefaultTemplateSetEnvelopeSemanticValidationError::LocalDataFlow {
                         index,
                         key,
                         error: Box::new(error),
@@ -247,6 +258,11 @@ pub enum ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
         key: ExportDefaultTemplateKeyV1,
         error: Box<DefaultBodyProviderEnvelopeSemanticValidationError<E>>,
     },
+    LocalDataFlow {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<ExportDefaultLocalDataFlowValidationError<E>>,
+    },
     References {
         index: usize,
         key: ExportDefaultTemplateKeyV1,
@@ -282,6 +298,10 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateSetEnvelopeSemanticV
             Self::Body { index, key, error } => write!(
                 formatter,
                 "invalid export default template {key:?} body at index {index}: {error}"
+            ),
+            Self::LocalDataFlow { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} local data flow at index {index}: {error}"
             ),
             Self::References { index, key, error } => write!(
                 formatter,
