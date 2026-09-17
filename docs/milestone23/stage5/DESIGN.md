@@ -983,11 +983,15 @@ DefaultCallableReferenceV1 {
 }
 ```
 
-descriptor内的path必须是template `definition_path`的严格后代，并与相应persistent key中的
-parent/role/path逐字节一致。capture sequence是provider hidden ABI的唯一顺序；每个source必须命中
-canonical local table中的不可变local，`value_type`逐结构等于local类型。`BindingId`、capture name和
-provider `FunctionId`不进入wire。同一persistent nested body可在表达式树中出现多次；每次都是
-独立closure创建，因此descriptor内联而不建立另一张以body id去重的arena表。
+descriptor内的path必须与相应persistent key或source declaration key中的parent/role/path逐字节一致。
+直接在本template源码中创建的nested entity，其identity root必须等于template的terminal provider root，
+且path必须是template `definition_path`的严格后代；由另一个default展开而移入本template的descriptor
+保留原terminal provider的identity与path，不能重写为调用方path。后一种情况只有在validated default
+dependency closure证明当前template可达原default及其nested entity时才合法；仅因目标位于已加载的
+support artifact或同一Cone不能获得该权限。capture sequence是provider hidden ABI的唯一顺序；每个
+source必须命中canonical local table中的不可变local，`value_type`逐结构等于local类型。`BindingId`、
+capture name和provider `FunctionId`不进入wire。同一persistent nested body可在表达式树中出现多次；
+每次都是独立closure创建，因此descriptor内联而不建立另一张以body id去重的arena表。
 
 statement kind的tag和payload固定为：
 
@@ -1315,6 +1319,34 @@ validation work，嵌套control-flow/expression/pattern深度使用同一`WirePa
 关系；constructor/call/field/protocol的类型关系仍由operation-typing pass证明，nested descriptor本身的
 identity/path/signature/capture顺序仍由nested-callable ABI pass证明。
 
+nested-callable ABI pass对`LocalFunction` statement、`Lambda`、`AnonymousFunction`和
+`CallableReference` expression的每一次descriptor occurrence独立重放provider ABI。它使用typed identity
+调用authority；authority必须从已验证的provider HIR/foundation及default-dependency closure返回非wire的
+结构化projection，至少包含exact definition path、当前template provider scope中的function type、hidden
+capture type sequence、owner type-parameter count，以及lambda/anonymous body binder的期望模式与arity。
+local function identity必须解析为lexical-scoped Function或GenericFunction declaration；三个generated identity
+必须分别解析为`Lexical/LambdaBody`、`Lexical/AnonymousFunctionBody`和
+`CallableReferenceInvoke`，不能用同为generated callable的其他role替代。authority同时区分
+`TemplateLexical`与`DefaultDependency` provenance：前者必须由validator再次检查strict-descendant关系，
+后者必须已经证明经合法default展开从当前template可达，不能用普通public lookup或reference-set membership
+冒充。
+
+validator负责逐字段比较descriptor与projection，不能把整条检查下放为无结构的
+`validate_whole_nested_callable`布尔结果。definition path、function type、owner count、capture数量及每个
+capture的`value_type`都必须exact相等；capture source的definite-definition、不可变性和与local table的类型
+一致性仍只由local data-flow pass负责，`first_use_origin`仍由provider-envelope pass负责。lambda与anonymous
+的`Lexical` body arguments只允许authority证明body与当前template共享同一flattened provider binder
+namespace时使用；经另一个default展开或其他需要重映射的body必须使用`Explicit`，参数数量等于provider body
+binder arity。每个explicit argument已由provider-envelope pass证明处于当前template scope；authority用该有序
+substitution投影function/capture ABI后，validator再比较projection，不能只检查arity。callable-reference target
+的callee/receiver operation由operation-typing pass证明；本pass证明其invoke identity/path及生成wrapper的
+function/capture ABI，避免把同签名但不同generated role或lexical site混为一体。
+
+nested-callable ABI pass与其他body pass一样使用显式work stack完整覆盖control-flow、pattern literal、assign
+target、for/binding plan及callable-reference内联receiver；每个node、edge、authority lookup、capture/argument
+比较和stack reserve都使用调用方同一个`BudgetMeter`/`WirePath`。它必须在operation typing之后、reference
+closure之前成功，任何authority、shape、arity、provenance或resource错误都阻止template进入canonical table。
+
 operation-typing pass把每个expression的**principal type**与wire保存的`result_type`分开。principal type是该
 operation在发生任何上下文适配前必然产生的类型：例如local table中的local类型、field declaration的value
 type、constructor的owner application或callable的result。多数node要求二者exact相等；只有operation本身不从
@@ -1468,8 +1500,8 @@ wire据此使用两个refined leaf type，而不序列化含本地arena id的M21
 `Universal`由target public interface或同template lexical ownership重算。这个收窄不是省略证明：
 reader必须逐条核对witness owner等于template key owner、owner callable access精确映射到
 `call_domain`，并从target种类重建`target_domain`及调用域包含关系。foreign internal/private target、
-缺失`DefaultDependency` external route、generated key与template root/path/role不一致、普通`Export*Id`
-冒充refined ref均拒绝。
+缺失`DefaultDependency` external route、generated key与nested-callable authority证明的direct-template或
+default-dependency root/path/role不一致、普通`Export*Id`冒充refined ref均拒绝。
 
 reference set必须与template locals及body在优化、const folding和desugaring前直接绑定的typed引用按
 上述record identity形成双向精确闭包：缺项、多余项或错误definition origin均拒绝。body traversal
