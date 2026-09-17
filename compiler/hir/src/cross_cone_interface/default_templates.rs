@@ -4,6 +4,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use crate::CallableDeclarationIdResolver;
 
 mod binder_uses;
+mod body;
 mod locals;
 mod receiver;
 mod roots;
@@ -12,6 +13,15 @@ mod value_parameters;
 pub use binder_uses::{
     BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
     CanonicalBinderUseListV1, DecodedCanonicalBinderUseListV1,
+};
+pub use body::{
+    DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
+    DecodedDefaultCallableDeclarationV1, DecodedDefaultCallableRefV1, DecodedDefaultMethodCalleeV1,
+    DefaultBinderRefV1, DefaultBoundCallableRefResolutionError, DefaultBoundCallableRefV1,
+    DefaultBoundCallableSourceResolutionError, DefaultBoundCallableSourceV1,
+    DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
+    DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
+    DefaultMethodCalleeV1,
 };
 pub use locals::{
     CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,
