@@ -1375,6 +1375,14 @@ callback registration和initialization unit是相应template operation的identit
 reference domain。reader从目标public interface重算domain包含关系；reference set与body实际typed
 引用的规范去重集合必须完全相等，无多余项。
 
+闭包中的`definition_origin`取发生直接绑定的source site：expression内的绑定使用该expression的origin，
+statement/pattern/assign target内的绑定使用其所属statement或arm的origin，binding action与iterator
+protocol descriptor使用各自显式origin；local record若为`Source`则使用该local的source origin，若为
+`Synthetic`则使用template的definition origin。一个带lexical wrapper的callable operation只产生与body
+中显式target variant一致的一条callable reference（例如callable-reference expression产生
+`CallableReference`，bound method产生`Bound`）；为验证其provider-scope shape而内嵌的底层callable不再
+额外形成direct callable reference，但其中显式出现的owner/type argument仍按type domain收集。
+
 consumer只在winner与完整type arguments确定后实例化。template的definition origin保持provider source；新concrete expression的evaluation origin取当前call expression。若展开后的任一operation需要M23-6/7/10能力，则该candidate在applicability阶段失败并记录结构化原因；不能先commit winner再让MIR失败。
 
 ### 5.5 const与typealias
