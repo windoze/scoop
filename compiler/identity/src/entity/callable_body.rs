@@ -9,10 +9,10 @@ use scoop_wire::{
 use super::CallableOdrMemberId;
 use crate::ids::derive_runtime_persistent_id;
 use crate::{
-    CborIdentityRecord, ConeIdentity, DeclarationName, DecodedPersistentId, DuplicateSignatureKey,
-    ExactOrdinaryNoArgUnitSignature, OdrMemberId, OdrMemberIdentityError, OdrMemberKey,
-    OptionalSignatureType, PersistentCallableBodyId, PersistentConstructorId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentId, PersistentIdResolver,
+    CallableOwner, CborIdentityRecord, ConeIdentity, DeclarationName, DecodedPersistentId,
+    DuplicateSignatureKey, ExactOrdinaryNoArgUnitSignature, OdrMemberId, OdrMemberIdentityError,
+    OdrMemberKey, OptionalSignatureType, PersistentCallableBodyId, PersistentConstructorId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentId, PersistentIdResolver,
     PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
     SourceDeclarationKey, SourceDeclarationKind, SourceSignatureFingerprint,
 };
@@ -23,6 +23,17 @@ pub enum StrongCallableDefinitionOwner {
     Constructor(PersistentConstructorId),
     PropertyAccessor(PersistentPropertyAccessorId),
     GeneratedCallable(PersistentGeneratedCallableId),
+}
+
+impl StrongCallableDefinitionOwner {
+    pub const fn callable_owner(self) -> CallableOwner {
+        match self {
+            Self::Function(id) => CallableOwner::Function(id),
+            Self::Constructor(id) => CallableOwner::Constructor(id),
+            Self::PropertyAccessor(id) => CallableOwner::Accessor(id),
+            Self::GeneratedCallable(id) => CallableOwner::Generated(id),
+        }
+    }
 }
 
 impl RuntimeEncode for StrongCallableDefinitionOwner {
@@ -118,6 +129,31 @@ pub enum DecodedStrongCallableDefinitionOwner {
     GeneratedCallable(DecodedPersistentId<PersistentGeneratedCallableId>),
 }
 
+impl DecodedStrongCallableDefinitionOwner {
+    pub fn resolve<R, E>(self, resolver: &mut R) -> Result<StrongCallableDefinitionOwner, E>
+    where
+        R: PersistentIdResolver<PersistentFunctionId, Error = E>
+            + PersistentIdResolver<PersistentConstructorId, Error = E>
+            + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
+            + PersistentIdResolver<PersistentGeneratedCallableId, Error = E>,
+    {
+        match self {
+            Self::Function(id) => resolver
+                .resolve(id)
+                .map(StrongCallableDefinitionOwner::Function),
+            Self::Constructor(id) => resolver
+                .resolve(id)
+                .map(StrongCallableDefinitionOwner::Constructor),
+            Self::PropertyAccessor(id) => resolver
+                .resolve(id)
+                .map(StrongCallableDefinitionOwner::PropertyAccessor),
+            Self::GeneratedCallable(id) => resolver
+                .resolve(id)
+                .map(StrongCallableDefinitionOwner::GeneratedCallable),
+        }
+    }
+}
+
 impl RuntimeEncode for DecodedStrongCallableDefinitionOwner {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         match self {
@@ -211,21 +247,9 @@ impl DecodedCallableBodyKey {
     {
         match self.0 {
             DecodedCallableBodyKeyKind::Strong(owner) => {
-                let owner = match owner {
-                    DecodedStrongCallableDefinitionOwner::Function(id) => resolver
-                        .resolve(id)
-                        .map(StrongCallableDefinitionOwner::Function),
-                    DecodedStrongCallableDefinitionOwner::Constructor(id) => resolver
-                        .resolve(id)
-                        .map(StrongCallableDefinitionOwner::Constructor),
-                    DecodedStrongCallableDefinitionOwner::PropertyAccessor(id) => resolver
-                        .resolve(id)
-                        .map(StrongCallableDefinitionOwner::PropertyAccessor),
-                    DecodedStrongCallableDefinitionOwner::GeneratedCallable(id) => resolver
-                        .resolve(id)
-                        .map(StrongCallableDefinitionOwner::GeneratedCallable),
-                }
-                .map_err(CallableBodyResolutionError::Reference)?;
+                let owner = owner
+                    .resolve(resolver)
+                    .map_err(CallableBodyResolutionError::Reference)?;
                 Ok(CallableBodyKey::strong(owner))
             }
             DecodedCallableBodyKeyKind::Odr(member) => {

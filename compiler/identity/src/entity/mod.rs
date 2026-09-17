@@ -6,6 +6,7 @@ mod callable_body;
 mod callback;
 mod core_builtin;
 mod core_native;
+mod dependency_callable;
 mod digest;
 mod dispatch;
 mod enum_variant;
@@ -74,6 +75,9 @@ pub use callback::{
 };
 pub use core_builtin::{CoreBuiltinNominal, CoreImportedCallableKind};
 pub use core_native::CoreNativeBoundaryNominal;
+pub use dependency_callable::{
+    DecodedDependencyCallableDeclarationId, DependencyCallableDeclarationId,
+};
 pub use digest::{
     DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,
     DigestNodeKey, DigestNodeKeyError, DigestNodeKeyResolutionError, DigestOwnerAndRoleKey,

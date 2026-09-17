@@ -44,9 +44,10 @@ pub use entity::{
     DecodedCallableInstantiationOwner, DecodedCallableMaterialization,
     DecodedCallableMaterializationContext, DecodedCallableTemplateOrigin,
     DecodedCallableTemplateOwner, DecodedCallbackApplicationKey, DecodedCallbackRegistrationKey,
-    DecodedExecutableSourceEntryIdentity, DecodedExportBindingKey, DecodedLocalBindingKey,
-    DecodedPropertyAccessorKey, DecodedSignatureCallableShape,
-    DecodedStrongCallableDefinitionOwner, ExecutableSourceEntryIdentity,
+    DecodedDependencyCallableDeclarationId, DecodedExecutableSourceEntryIdentity,
+    DecodedExportBindingKey, DecodedLocalBindingKey, DecodedPropertyAccessorKey,
+    DecodedSignatureCallableShape, DecodedStrongCallableDefinitionOwner,
+    DependencyCallableDeclarationId, ExecutableSourceEntryIdentity,
     ExecutableSourceEntryIdentityError, ExportBindingKey, LocalBindingKey, LocalBindingRole,
     MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
 };
