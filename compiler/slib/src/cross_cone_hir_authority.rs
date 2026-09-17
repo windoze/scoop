@@ -1,6 +1,7 @@
 //! Canonical identity authority used while validating cross-Cone HIR surfaces.
 
 mod callable;
+mod property;
 
 use std::fmt;
 
@@ -16,7 +17,7 @@ use scoop_identity::{
     PersistentEnumVariantId, PersistentExportBindingId, PersistentExtensionPropertyId,
     PersistentFieldId, PersistentFunctionId, PersistentGenericFunctionId, PersistentGenericTypeId,
     PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey, PropertyOwner,
+    PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey, PropertyOwner, SignatureTypeKey,
     SourceDeclarationKey, ValidatedIdentityGraph,
 };
 
@@ -180,6 +181,18 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         };
         let key = self.source_nominal_key(owner)?;
         self.require_current(entity, key.origin())
+    }
+
+    fn declaration_owner_arity(
+        &self,
+        owner: PublicDeclarationOwnerV1,
+    ) -> Result<u32, CrossConeHirNominalAuthorityError> {
+        match owner {
+            PublicDeclarationOwnerV1::Nominal(declaration) => self
+                .nominal_shape(declaration)
+                .map(|shape| shape.type_parameter_arity()),
+            PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => Ok(0),
+        }
     }
 
     fn function_key(
@@ -742,5 +755,12 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             | Self::NominalSourceShapeNotEnum { .. }
             | Self::MissingEnumVariant { .. } => None,
         }
+    }
+}
+
+fn optional_signature(value: &scoop_identity::OptionalSignatureType) -> Option<SignatureTypeKey> {
+    match value {
+        scoop_identity::OptionalSignatureType::Absent => None,
+        scoop_identity::OptionalSignatureType::Present(value) => Some(value.as_ref().clone()),
     }
 }

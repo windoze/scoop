@@ -6,6 +6,7 @@ use scoop_hir::{
     CrossConeHirInterfaceSectionV1, DecodedCoreBootstrapInterfaceSectionV1,
     DecodedCrossConeHirInterfaceSectionV1, DecodedHirFoundation,
     NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
+    PropertyInterfaceSetSemanticValidationError,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
@@ -107,8 +108,21 @@ pub struct NominalValidatedCrossConeHirFrontSections<'input> {
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
-/// One cross-Cone provider whose public nominal and callable tables have
-/// both been replayed against canonical typed identities. Property, alias,
+/// One cross-Cone provider whose public nominal and property tables have
+/// both been replayed against canonical typed identities. Callable, alias,
+/// source/default/const, route, and bridge semantics remain pending.
+pub struct PropertyValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose public nominal, property, and callable
+/// tables have been replayed against canonical typed identities. Alias,
 /// source/default/const, route, and bridge semantics remain pending.
 pub struct CallableValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
@@ -604,8 +618,102 @@ impl NominalValidatedCrossConeHirFrontSections<'_> {
 }
 
 impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
+    /// Validates each property identity, signature scope, and accessor key
+    /// against canonical authority and already validated nominal surfaces.
+    pub(crate) fn validate_property_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<PropertyValidatedCrossConeHirFrontSections<'input>, CrossConeHirPropertySurfaceError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        } = self;
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            graph.identity(),
+            &identities,
+            &hir_interface,
+            dependencies,
+        );
+        hir_interface
+            .property_interfaces()
+            .validate_semantics(&mut authority)
+            .map_err(|error| {
+                CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
+            })?;
+        Ok(PropertyValidatedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl PropertyValidatedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
+    }
+
+    pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
+        ValidatedNominalProviderView {
+            identity: self.graph.identity(),
+            interface: &self.hir_interface,
+        }
+    }
+}
+
+impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
     /// Validates each callable identity shape against its canonical
-    /// kind-specific key and the already nominal-validated dependency view.
+    /// kind-specific key and the already property-validated adjacent record.
     pub(crate) fn validate_callable_surface<'dependency>(
         self,
         dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
@@ -709,6 +817,29 @@ pub enum CrossConeHirCallableSurfaceError {
     CallableInterfaces(
         Box<CallableInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
+}
+
+#[derive(Debug)]
+pub enum CrossConeHirPropertySurfaceError {
+    PropertyInterfaces(
+        Box<PropertyInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
+    ),
+}
+
+impl std::fmt::Display for CrossConeHirPropertySurfaceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PropertyInterfaces(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirPropertySurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::PropertyInterfaces(error) => Some(error),
+        }
+    }
 }
 
 impl std::fmt::Display for CrossConeHirCallableSurfaceError {

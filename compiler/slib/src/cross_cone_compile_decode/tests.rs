@@ -10,21 +10,23 @@ use scoop_hir::{
     CanonicalSourceParameterShapesV1, CanonicalTypeAliasInterfacesV1,
     CrossConeHirInterfaceSectionV1, EnumSourceShapeV1, EnumSourceVariantStyleV1,
     EnumSourceVariantV1, NominalInterfaceRecordV1, NominalInterfaceSemanticValidationError,
-    NominalSourceShapeV1, PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
-    PropertyRepresentationV1, PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicMemberRefV1,
-    PublicNominalKindV1, SourceNominalId, SourceParameterShapeV1, StructSourceFieldV1,
-    StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
+    NominalSourceShapeV1, PropertyCapabilityV1, PropertyInterfaceRecordV1,
+    PropertyInterfaceSemanticValidationError, PropertyInterfaceSetSemanticValidationError,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
+    PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicMemberRefV1, PublicNominalKindV1,
+    SourceNominalId, SourceParameterShapeV1, StructSourceFieldV1, StructSourceShapeV1,
+    TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 use scoop_identity::{
     AccessorRole, ArtifactCapabilityProfileId, CallableTemplateOrigin, CanonicalIdentifier,
     CborIdentityRecord, CoreBuiltinNominal, DeclarationScope, DefinitionOrigin,
     DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerAtom, DefinitionOwnerChain,
     Effect, EnumVariantIdentityKey, FieldIdentityKey, GcEffect, NormalizedSourcePath, PackagePath,
-    PersistentConstructorId, PersistentEnumVariantId, PersistentFieldId, PersistentFunctionId,
-    PersistentGenericFunctionId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentSourceContextId, PersistentTypeId, PropertyAccessorKey, PropertyOwner,
-    SignatureTypeKey, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
-    SourceIdentity, SourceNominalKind, SourceSpan,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+    PersistentFieldId, PersistentFunctionId, PersistentGenericFunctionId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentSourceContextId,
+    PersistentTypeId, PropertyAccessorKey, PropertyOwner, SignatureTypeKey, SourceContextKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::encode;
 
@@ -154,7 +156,8 @@ fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
 #[test]
 fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
     let cone = cone();
-    let (foundation, hir_interface, nominal, _, _, _) = nominal_surface(cone.identity(), true);
+    let (foundation, hir_interface, nominal, _, _, _, _, _) =
+        nominal_surface(cone.identity(), true, true);
     let bytes = cross_cone_artifact_for_with_hir_foundation(
         cone.clone(),
         Vec::new(),
@@ -188,10 +191,10 @@ fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
 }
 
 #[test]
-fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
+fn cross_cone_hir_front_validates_a_canonical_property_surface() {
     let cone = cone();
-    let (foundation, hir_interface, _, callable, constructor, getter) =
-        nominal_surface(cone.identity(), true);
+    let (foundation, hir_interface, _, _, _, property, extension_property, _) =
+        nominal_surface(cone.identity(), true, true);
     let bytes = cross_cone_artifact_for_with_hir_foundation(
         cone.clone(),
         Vec::new(),
@@ -212,6 +215,53 @@ fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
         .validate_hir_production()
         .unwrap()
         .validate_nominal_surface(Vec::new())
+        .unwrap()
+        .validate_property_surface(Vec::new())
+        .unwrap();
+
+    assert!(
+        validated
+            .hir_interface()
+            .property_interfaces()
+            .get(PropertyOwner::Property(property))
+            .is_some()
+    );
+    assert!(
+        validated
+            .hir_interface()
+            .property_interfaces()
+            .get(PropertyOwner::ExtensionProperty(extension_property))
+            .is_some()
+    );
+}
+
+#[test]
+fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
+    let cone = cone();
+    let (foundation, hir_interface, _, callable, constructor, _, _, getter) =
+        nominal_surface(cone.identity(), true, true);
+    let bytes = cross_cone_artifact_for_with_hir_foundation(
+        cone.clone(),
+        Vec::new(),
+        &foundation,
+        hir_interface,
+    );
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let validated = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap()
+        .validate_nominal_surface(Vec::new())
+        .unwrap()
+        .validate_property_surface(Vec::new())
         .unwrap()
         .validate_callable_surface(Vec::new())
         .unwrap();
@@ -271,6 +321,8 @@ fn cross_cone_hir_front_validates_an_enum_variant_constructor_surface() {
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
+        .validate_property_surface(Vec::new())
+        .unwrap()
         .validate_callable_surface(Vec::new())
         .unwrap();
 
@@ -286,7 +338,8 @@ fn cross_cone_hir_front_validates_an_enum_variant_constructor_surface() {
 #[test]
 fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
     let cone = cone();
-    let (foundation, hir_interface, nominal, _, _, _) = nominal_surface(cone.identity(), false);
+    let (foundation, hir_interface, nominal, _, _, _, _, _) =
+        nominal_surface(cone.identity(), false, true);
     let bytes =
         cross_cone_artifact_for_with_hir_foundation(cone, Vec::new(), &foundation, hir_interface);
     let mut decoded = open_graph(&bytes)
@@ -303,6 +356,8 @@ fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
         .validate_hir_production()
         .unwrap()
         .validate_nominal_surface(Vec::new())
+        .unwrap()
+        .validate_property_surface(Vec::new())
         .unwrap();
 
     let Err(CrossConeHirCallableSurfaceError::CallableInterfaces(error)) =
@@ -322,6 +377,46 @@ fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
         } if expected.as_ref() == &SignatureTypeKey::Nominal(nominal)
             && actual.as_ref()
                 == &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id())
+    ));
+}
+
+#[test]
+fn cross_cone_hir_front_rejects_a_property_owner_identity_mismatch() {
+    let cone = cone();
+    let (foundation, hir_interface, nominal, _, _, _, _, _) =
+        nominal_surface(cone.identity(), true, false);
+    let bytes =
+        cross_cone_artifact_for_with_hir_foundation(cone, Vec::new(), &foundation, hir_interface);
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let front = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap()
+        .validate_nominal_surface(Vec::new())
+        .unwrap();
+
+    let Err(CrossConeHirPropertySurfaceError::PropertyInterfaces(error)) =
+        front.validate_property_surface(Vec::new())
+    else {
+        panic!("a property owner mismatch must fail semantic validation");
+    };
+    assert!(matches!(
+        error.as_ref(),
+        PropertyInterfaceSetSemanticValidationError::Record {
+            error: PropertyInterfaceSemanticValidationError::Owner {
+                expected: PublicDeclarationOwnerV1::TopLevel,
+                actual: PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(actual)),
+            },
+            ..
+        } if *actual == nominal
     ));
 }
 
@@ -521,12 +616,15 @@ pub(crate) fn empty_cross_cone_hir_interface() -> Vec<u8> {
 fn nominal_surface(
     cone: scoop_identity::ConeIdentity,
     matching_callable_parameter: bool,
+    matching_property_owner: bool,
 ) -> (
     CanonicalHirFoundation,
     Vec<u8>,
     PersistentTypeId,
     PersistentFunctionId,
     PersistentConstructorId,
+    PersistentPropertyId,
+    PersistentExtensionPropertyId,
     PersistentPropertyAccessorId,
 ) {
     let source =
@@ -591,7 +689,7 @@ fn nominal_surface(
     .unwrap();
     let property =
         CborIdentityRecord::<PersistentPropertyId, _>::from_key(SourceDeclarationKey::property(
-            top_level_site,
+            top_level_site.clone(),
             CanonicalIdentifier::new("current").unwrap(),
         ))
         .unwrap();
@@ -599,6 +697,27 @@ fn nominal_surface(
         PropertyAccessorKey::new(PropertyOwner::Property(property.id()), AccessorRole::Getter),
     )
     .unwrap();
+    let extension_property = CborIdentityRecord::<PersistentExtensionPropertyId, _>::from_key(
+        SourceDeclarationKey::extension_property(
+            top_level_site,
+            CanonicalIdentifier::new("mapped").unwrap(),
+            1,
+            SignatureTypeKey::Nominal(nominal.id()),
+        ),
+    )
+    .unwrap();
+    let extension_getter =
+        CborIdentityRecord::<PersistentPropertyAccessorId, _>::from_key(PropertyAccessorKey::new(
+            PropertyOwner::ExtensionProperty(extension_property.id()),
+            AccessorRole::Getter,
+        ))
+        .unwrap();
+    let extension_setter =
+        CborIdentityRecord::<PersistentPropertyAccessorId, _>::from_key(PropertyAccessorKey::new(
+            PropertyOwner::ExtensionProperty(extension_property.id()),
+            AccessorRole::Setter,
+        ))
+        .unwrap();
     let field = CborIdentityRecord::<PersistentFieldId, _>::from_key(
         FieldIdentityKey::source_declared(
             nominal.key(),
@@ -641,6 +760,18 @@ fn nominal_surface(
                 DefinitionOriginSubject::PropertyAccessor(getter.id()),
                 origin.clone(),
             ),
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::ExtensionProperty(extension_property.id()),
+                origin.clone(),
+            ),
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::PropertyAccessor(extension_getter.id()),
+                origin.clone(),
+            ),
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::PropertyAccessor(extension_setter.id()),
+                origin.clone(),
+            ),
             DefinitionOriginRecord::new(DefinitionOriginSubject::Field(field.id()), origin),
         ])
         .unwrap();
@@ -660,7 +791,14 @@ fn nominal_surface(
         .unwrap();
     foundation.set_properties(vec![property.clone()]).unwrap();
     foundation
-        .set_property_accessors(vec![getter.clone()])
+        .set_extension_properties(vec![extension_property.clone()])
+        .unwrap();
+    foundation
+        .set_property_accessors(vec![
+            getter.clone(),
+            extension_getter.clone(),
+            extension_setter.clone(),
+        ])
         .unwrap();
     foundation.set_fields(vec![field.clone()]).unwrap();
 
@@ -749,13 +887,50 @@ fn nominal_surface(
         PublicLookupAccessV1::DirectOnly,
     )
     .unwrap();
+    let extension_getter_callable = CallableInterfaceRecordV1::try_new(
+        CallableTemplateOrigin::Accessor(extension_getter.id()),
+        PublicDeclarationOwnerV1::Extension,
+        CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+        Some(SignatureTypeKey::Nominal(nominal.id())),
+        CanonicalSourceParameterShapesV1::try_new(Vec::new()).unwrap(),
+        SignatureTypeKey::Binder { depth: 0, index: 0 },
+        scoop_effects(),
+        CallableModalityV1::Final,
+        PublicLookupAccessV1::DirectOnly,
+    )
+    .unwrap();
+    let property_owner = if matching_property_owner {
+        PublicDeclarationOwnerV1::TopLevel
+    } else {
+        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(nominal.id()))
+    };
     let property_record = PropertyInterfaceRecordV1::try_new(
         PropertyOwner::Property(property.id()),
-        PublicDeclarationOwnerV1::TopLevel,
+        property_owner,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         SignatureTypeKey::Nominal(nominal.id()),
         PropertyCapabilityV1::read_only(getter.id()),
+        PropertyRepresentationV1::RuntimeAccessor,
+        PropertyPublicAccessV1::DirectOnly,
+    )
+    .unwrap();
+    let extension_property_record = PropertyInterfaceRecordV1::try_new(
+        PropertyOwner::ExtensionProperty(extension_property.id()),
+        PublicDeclarationOwnerV1::Extension,
+        CanonicalBinderListV1::try_new(vec![TypeParameterBinderV1::new(
+            CanonicalIdentifier::new("T").unwrap(),
+            TypeParameterBoundsV1::Unconstrained,
+        )])
+        .unwrap(),
+        Some(SignatureTypeKey::Nominal(nominal.id())),
+        SignatureTypeKey::Binder { depth: 0, index: 0 },
+        PropertyCapabilityV1::try_read_write(
+            extension_getter.id(),
+            extension_setter.id(),
+            PropertySetterPublicAccessV1::Restricted,
+        )
+        .unwrap(),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
     )
@@ -769,12 +944,15 @@ fn nominal_surface(
                 constructor_callable,
                 extension_callable,
                 getter_callable,
+                extension_getter_callable,
             ],
-            vec![property_record],
+            vec![property_record, extension_property_record],
         ),
         nominal.id(),
         member.id(),
         constructor.id(),
+        property.id(),
+        extension_property.id(),
         getter.id(),
     )
 }

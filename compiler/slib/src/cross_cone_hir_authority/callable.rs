@@ -3,25 +3,15 @@ use scoop_hir::{
     NominalSourceShapeV1, PublicDeclarationOwnerV1,
 };
 use scoop_identity::{
-    AccessorRole, CallableTemplateOrigin, DuplicateSignatureKey, OptionalSignatureType,
-    PersistentEnumVariantId, PropertyOwner, SignatureTypeKey, SourceDeclarationKind,
+    AccessorRole, CallableTemplateOrigin, DuplicateSignatureKey, PersistentEnumVariantId,
+    PropertyOwner, SourceDeclarationKind,
 };
 
-use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError};
+use super::{
+    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError, optional_signature,
+};
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
-    fn callable_owner_arity(
-        &self,
-        owner: PublicDeclarationOwnerV1,
-    ) -> Result<u32, CrossConeHirNominalAuthorityError> {
-        match owner {
-            PublicDeclarationOwnerV1::Nominal(declaration) => self
-                .nominal_shape(declaration)
-                .map(|shape| shape.type_parameter_arity()),
-            PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => Ok(0),
-        }
-    }
-
     fn function_identity_shape(
         &self,
         declaration: CallableTemplateOrigin,
@@ -86,7 +76,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 },
             );
         }
-        let outer_arity = self.callable_owner_arity(owner)?;
+        let outer_arity = self.declaration_owner_arity(owner)?;
         Ok(CallableDeclarationIdentityShapeV1::new(
             owner,
             own_arity,
@@ -146,7 +136,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         };
         let outer_arity = match owner {
             PublicDeclarationOwnerV1::Extension => property_arity,
-            PublicDeclarationOwnerV1::Nominal(_) => self.callable_owner_arity(owner)?,
+            PublicDeclarationOwnerV1::Nominal(_) => self.declaration_owner_arity(owner)?,
             PublicDeclarationOwnerV1::TopLevel => 0,
         };
         Ok(CallableDeclarationIdentityShapeV1::new(
@@ -229,12 +219,5 @@ impl CallableInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
                 self.variant_constructor_identity_shape(variant)
             }
         }
-    }
-}
-
-fn optional_signature(value: &OptionalSignatureType) -> Option<SignatureTypeKey> {
-    match value {
-        OptionalSignatureType::Absent => None,
-        OptionalSignatureType::Present(value) => Some(value.as_ref().clone()),
     }
 }

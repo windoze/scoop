@@ -89,6 +89,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .unwrap()
         .validate_nominal_surfaces()
         .unwrap()
+        .validate_property_surfaces()
+        .unwrap()
         .validate_callable_surfaces()
         .unwrap();
     assert_eq!(validated.current(), ConeIdentity::CORE);
