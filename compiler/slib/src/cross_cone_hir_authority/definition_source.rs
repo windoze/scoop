@@ -7,15 +7,9 @@ use scoop_identity::{ConeIdentity, PersistentSourceContextId};
 
 use super::CanonicalCrossConeHirSurfaceAuthority;
 
-impl ExportDefinitionSourceSemanticAuthority<CrossConeHirDefinitionSourceAuthorityError>
-    for CanonicalCrossConeHirSurfaceAuthority<'_>
-{
-    fn current_cone(&self) -> ConeIdentity {
-        self.current
-    }
-
-    fn validate_export_definition_source(
-        &mut self,
+impl CanonicalCrossConeHirSurfaceAuthority<'_> {
+    pub(super) fn validate_current_definition_source(
+        &self,
         source: &ExportDefinitionSourceV1,
     ) -> Result<(), CrossConeHirDefinitionSourceAuthorityError> {
         let origin = source.origin();
@@ -52,6 +46,21 @@ impl ExportDefinitionSourceSemanticAuthority<CrossConeHirDefinitionSourceAuthori
                     byte_offset: error.byte_offset,
                 },
             )
+    }
+}
+
+impl ExportDefinitionSourceSemanticAuthority<CrossConeHirDefinitionSourceAuthorityError>
+    for CanonicalCrossConeHirSurfaceAuthority<'_>
+{
+    fn current_cone(&self) -> ConeIdentity {
+        self.current
+    }
+
+    fn validate_export_definition_source(
+        &mut self,
+        source: &ExportDefinitionSourceV1,
+    ) -> Result<(), CrossConeHirDefinitionSourceAuthorityError> {
+        self.validate_current_definition_source(source)
     }
 }
 

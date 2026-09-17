@@ -44,6 +44,7 @@ use crate::{
     },
 };
 
+mod source_interface;
 mod type_alias;
 
 #[test]

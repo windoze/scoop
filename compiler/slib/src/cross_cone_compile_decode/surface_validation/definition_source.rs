@@ -33,6 +33,7 @@ impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
+            &hir_core_production,
             &hir_interface,
             Vec::new(),
         );

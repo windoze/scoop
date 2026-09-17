@@ -23,6 +23,18 @@ fn compiler_protocol_surface_is_a_closed_nine_field_product() {
 }
 
 #[test]
+fn array_source_type_comes_from_the_fixed_generic_protocol_role() {
+    let (surface, _) = test_support::standalone();
+    let CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(expected)) =
+        surface.fundamental_types().entries()[11]
+    else {
+        panic!("the validated Array role must contain a generic nominal identity");
+    };
+
+    assert_eq!(surface.array_source_type(), expected);
+}
+
+#[test]
 fn compiler_protocol_surface_rejects_wrong_callable_kinds_and_missing_operations() {
     let (mut surface, foundation) = test_support::standalone();
     surface.exception_protocol.0.entries[1] = CoreProtocolEntryV1::Callable(

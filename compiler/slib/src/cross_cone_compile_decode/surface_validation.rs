@@ -19,9 +19,11 @@ use crate::{
 
 mod definition_source;
 mod errors;
+mod source_interface;
 
 pub use definition_source::*;
 pub use errors::*;
+pub use source_interface::*;
 
 /// Storage shared by the declaration-surface proof states. Each public
 /// wrapper below is a distinct, consuming type-state gate over this carrier.
@@ -109,8 +111,9 @@ impl_surface_front_accessors!(NominalValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(PropertyValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(CallableValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(TypeAliasValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(SourceInterfaceValidatedCrossConeHirFrontSections);
 
-impl TypeAliasValidatedCrossConeHirFrontSections<'_> {
+impl SourceInterfaceValidatedCrossConeHirFrontSections<'_> {
     pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.0.identities
     }
@@ -138,6 +141,7 @@ macro_rules! impl_nominal_provider_view {
             pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
                 ValidatedNominalProviderView {
                     identity: self.0.graph.identity(),
+                    core: &self.0.hir_core_production,
                     interface: &self.0.hir_interface,
                 }
             }
@@ -149,6 +153,7 @@ impl_nominal_provider_view!(NominalValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(PropertyValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(CallableValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(TypeAliasValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(SourceInterfaceValidatedCrossConeHirFrontSections);
 
 impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
     /// Closes every relationship reconstructible from this HIR section and
@@ -208,6 +213,7 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
+            &hir_core_production,
             &hir_interface,
             dependencies,
         );
@@ -249,6 +255,7 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
+            &hir_core_production,
             &hir_interface,
             dependencies,
         );
@@ -293,6 +300,7 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
+            &hir_core_production,
             &hir_interface,
             dependencies,
         );
@@ -339,6 +347,7 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
+            &hir_core_production,
             &hir_interface,
             dependencies,
         );

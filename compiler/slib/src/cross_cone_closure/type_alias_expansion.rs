@@ -20,7 +20,7 @@ use super::{
     },
     surface_validation::transitive_dependency_positions,
 };
-use crate::TypeAliasValidatedCrossConeHirFrontSections;
+use crate::SourceInterfaceValidatedCrossConeHirFrontSections;
 
 type AuthorizedAliasEdge = (PersistentTypeAliasId, PersistentTypeAliasId);
 
@@ -47,14 +47,14 @@ impl TypeAliasExpandedCrossConeHirClosure<'_> {
 
     pub fn dependency_first(
         &self,
-    ) -> impl ExactSizeIterator<Item = &TypeAliasValidatedCrossConeHirFrontSections<'_>> {
+    ) -> impl ExactSizeIterator<Item = &SourceInterfaceValidatedCrossConeHirFrontSections<'_>> {
         self.routes.dependency_first()
     }
 
     pub fn artifact(
         &self,
         identity: ConeIdentity,
-    ) -> Option<&TypeAliasValidatedCrossConeHirFrontSections<'_>> {
+    ) -> Option<&SourceInterfaceValidatedCrossConeHirFrontSections<'_>> {
         self.routes.artifact(identity)
     }
 

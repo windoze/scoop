@@ -16,15 +16,15 @@ use scoop_identity::{
 use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{
-    CrossConeProviderRole, TypeAliasValidatedCrossConeHirClosure,
+    CrossConeProviderRole, SourceInterfaceValidatedCrossConeHirClosure,
     surface_validation::transitive_dependency_positions,
 };
-use crate::TypeAliasValidatedCrossConeHirFrontSections;
+use crate::SourceInterfaceValidatedCrossConeHirFrontSections;
 
 /// A closure whose public binding routes have been checked against each
 /// provider's exact direct and transitive dependency graph.
 pub struct PublicRouteValidatedCrossConeHirClosure<'input> {
-    surfaces: TypeAliasValidatedCrossConeHirClosure<'input>,
+    surfaces: SourceInterfaceValidatedCrossConeHirClosure<'input>,
 }
 
 impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
@@ -42,14 +42,14 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 
     pub fn dependency_first(
         &self,
-    ) -> impl ExactSizeIterator<Item = &TypeAliasValidatedCrossConeHirFrontSections<'_>> {
+    ) -> impl ExactSizeIterator<Item = &SourceInterfaceValidatedCrossConeHirFrontSections<'_>> {
         self.surfaces.dependency_first()
     }
 
     pub fn artifact(
         &self,
         identity: ConeIdentity,
-    ) -> Option<&TypeAliasValidatedCrossConeHirFrontSections<'_>> {
+    ) -> Option<&SourceInterfaceValidatedCrossConeHirFrontSections<'_>> {
         self.surfaces.artifact(identity)
     }
 
@@ -61,12 +61,14 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
         self.surfaces.dependency_count(identity)
     }
 
-    pub(super) fn surfaces_mut(&mut self) -> &mut TypeAliasValidatedCrossConeHirClosure<'input> {
+    pub(super) fn surfaces_mut(
+        &mut self,
+    ) -> &mut SourceInterfaceValidatedCrossConeHirClosure<'input> {
         &mut self.surfaces
     }
 }
 
-impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
+impl<'input> SourceInterfaceValidatedCrossConeHirClosure<'input> {
     /// Validates every provider route using only that provider's own direct
     /// edges and transitive support closure.
     pub fn validate_public_binding_routes(

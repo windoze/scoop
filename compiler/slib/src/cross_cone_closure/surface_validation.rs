@@ -9,14 +9,17 @@ use super::{CrossConeProviderRole, HirProductionValidatedCrossConeHirClosure};
 use crate::{
     CallableValidatedCrossConeHirFrontSections, DefinitionSourceValidatedCrossConeHirFrontSections,
     InternallyClosedCrossConeHirFrontSections, NominalValidatedCrossConeHirFrontSections,
-    PropertyValidatedCrossConeHirFrontSections, TypeAliasValidatedCrossConeHirFrontSections,
+    PropertyValidatedCrossConeHirFrontSections, SourceInterfaceValidatedCrossConeHirFrontSections,
+    TypeAliasValidatedCrossConeHirFrontSections,
 };
 
 mod definition_source;
 mod errors;
+mod source_interface;
 
 pub use definition_source::*;
 pub use errors::*;
+pub use source_interface::*;
 
 /// Shared graph carrier behind each consuming surface-validation state.
 struct ValidatedSurfaceClosure<T> {
@@ -124,12 +127,16 @@ impl_surface_closure_accessors!(
     TypeAliasValidatedCrossConeHirClosure,
     TypeAliasValidatedCrossConeHirFrontSections
 );
+impl_surface_closure_accessors!(
+    SourceInterfaceValidatedCrossConeHirClosure,
+    SourceInterfaceValidatedCrossConeHirFrontSections
+);
 
-impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
+impl<'input> SourceInterfaceValidatedCrossConeHirClosure<'input> {
     pub(super) fn route_validation_parts(
         &self,
     ) -> (
-        &[TypeAliasValidatedCrossConeHirFrontSections<'input>],
+        &[SourceInterfaceValidatedCrossConeHirFrontSections<'input>],
         &[Vec<usize>],
     ) {
         (&self.0.dependency_first, &self.0.dependency_positions)
@@ -138,7 +145,7 @@ impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
     pub(super) fn hir_semantic_validation_parts(
         &mut self,
     ) -> (
-        &mut [TypeAliasValidatedCrossConeHirFrontSections<'input>],
+        &mut [SourceInterfaceValidatedCrossConeHirFrontSections<'input>],
         &[Vec<usize>],
     ) {
         (&mut self.0.dependency_first, &self.0.dependency_positions)
@@ -425,6 +432,14 @@ impl NominalProviderFront for CallableValidatedCrossConeHirFrontSections<'_> {
 }
 
 impl NominalProviderFront for TypeAliasValidatedCrossConeHirFrontSections<'_> {
+    fn nominal_provider_view(
+        &self,
+    ) -> crate::cross_cone_hir_authority::ValidatedNominalProviderView<'_> {
+        self.nominal_provider_view()
+    }
+}
+
+impl NominalProviderFront for SourceInterfaceValidatedCrossConeHirFrontSections<'_> {
     fn nominal_provider_view(
         &self,
     ) -> crate::cross_cone_hir_authority::ValidatedNominalProviderView<'_> {
