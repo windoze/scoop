@@ -96,7 +96,7 @@ impl std::error::Error for DefaultTemplateProviderShapeBuildError {}
 /// Supplies source-declaration facts for a default template's true provider.
 pub trait DefaultTemplateRootSemanticAuthority<E> {
     /// Verifies that `path` identifies one default expression under `root`
-    /// and returns the provider's flattened binder arity.
+    /// and returns the provider's exact binder-frame shape.
     fn default_template_provider_shape(
         &mut self,
         root: PersistentLexicalRootV1,

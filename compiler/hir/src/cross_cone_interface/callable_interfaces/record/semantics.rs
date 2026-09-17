@@ -78,10 +78,7 @@ impl CallableInterfaceRecordV1 {
     where
         A: CallableInterfaceSemanticAuthority<E>,
     {
-        let identity = authority
-            .callable_declaration_identity_shape(self.declaration)
-            .map_err(CallableInterfaceSemanticValidationError::Declaration)?;
-        self.validate_identity_shape(&identity)?;
+        let identity = self.validate_identity_semantics(authority)?;
 
         let outer_arity = (identity.outer_type_parameter_arity != 0)
             .then_some(identity.outer_type_parameter_arity);
@@ -104,6 +101,20 @@ impl CallableInterfaceRecordV1 {
         scope
             .validate_signature_semantics(&self.result, authority)
             .map_err(CallableInterfaceSemanticValidationError::Result)
+    }
+
+    pub(crate) fn validate_identity_semantics<A, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<CallableDeclarationIdentityShapeV1, CallableInterfaceSemanticValidationError<E>>
+    where
+        A: CallableInterfaceSemanticAuthority<E>,
+    {
+        let identity = authority
+            .callable_declaration_identity_shape(self.declaration)
+            .map_err(CallableInterfaceSemanticValidationError::Declaration)?;
+        self.validate_identity_shape(&identity)?;
+        Ok(identity)
     }
 
     fn validate_identity_shape<E>(

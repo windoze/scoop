@@ -145,8 +145,9 @@ pub use table::{
 };
 pub use template::{
     DecodedExportDefaultTemplateV1, ExportDefaultTemplateBuildError,
-    ExportDefaultTemplateIndexError, ExportDefaultTemplateLocalIndexError,
-    ExportDefaultTemplateResolutionError, ExportDefaultTemplateV1, IndexedExportDefaultTemplateV1,
+    ExportDefaultTemplateContractSemanticValidationError, ExportDefaultTemplateIndexError,
+    ExportDefaultTemplateLocalIndexError, ExportDefaultTemplateResolutionError,
+    ExportDefaultTemplateV1, IndexedExportDefaultTemplateV1,
 };
 pub use value_parameters::{
     CanonicalTemplateValueParametersV1, DecodedCanonicalTemplateValueParametersV1,
