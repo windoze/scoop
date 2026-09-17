@@ -1,4 +1,5 @@
 mod callables;
+mod nested;
 mod references;
 
 pub use callables::{
@@ -9,6 +10,12 @@ pub use callables::{
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
     DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
     DefaultMethodCalleeV1,
+};
+pub use nested::{
+    DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCaptureV1,
+    DefaultCallableBodyTypeArgumentsBuildError, DefaultCallableBodyTypeArgumentsResolutionError,
+    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureIndexError, DefaultCaptureResolutionError,
+    DefaultCaptureV1, IndexedDefaultCaptureV1,
 };
 pub use references::{
     DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
