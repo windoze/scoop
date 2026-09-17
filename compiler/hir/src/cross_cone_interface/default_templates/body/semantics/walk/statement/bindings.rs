@@ -5,15 +5,12 @@ use crate::{
     DefaultIteratorConformanceV1, DefaultIteratorNextV1, ExportDefinitionSourceV1,
 };
 
-use super::super::{BodyEnvelopeAuthority, BodyNode, Validator, WorkItem};
-use crate::{
-    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
-};
+use super::super::{BodyNode, BodyWalkMode, Validator, WorkItem};
+use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
-impl<A, E> Validator<'_, A, E>
+impl<M> Validator<'_, M>
 where
-    A: BodyEnvelopeAuthority<E>,
+    M: BodyWalkMode,
 {
     pub(in super::super) fn process_for<'body>(
         &mut self,
@@ -21,7 +18,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_statements(pending, depth, plan.body())?;
         self.push_child(
             pending,
@@ -57,7 +54,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for action in plan.actions().iter().rev() {
             self.push_child(pending, depth, BodyNode::BindingAction(action))?;
         }
@@ -84,7 +81,7 @@ where
         action: &'body DefaultBindingActionV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match action.view() {
             DefaultBindingActionViewV1::Project {
                 source,
@@ -177,7 +174,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         depth: u64,
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(
             pending,
             depth,
@@ -194,7 +191,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match shape.view() {
             DefaultBindingShapeViewV1::Binding(leaf) => self.push_child(
                 pending,
@@ -256,7 +253,7 @@ where
         depth: u64,
         shapes: &'body [DefaultBindingShapeV1],
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for shape in shapes.iter().rev() {
             self.push_child(
                 pending,
@@ -275,7 +272,7 @@ where
         projection: &'body DefaultBindingProjectionV1,
         definition_origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match projection.view() {
             DefaultBindingProjectionViewV1::TupleIndex(_) => Ok(()),
             DefaultBindingProjectionViewV1::StructField { owner_type, .. } => self.push_type(
@@ -292,7 +289,7 @@ where
         conformance: &'body DefaultIteratorConformanceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_type(
             pending,
             conformance.interface_type(),
@@ -330,7 +327,7 @@ where
         next: &'body DefaultIteratorNextV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(
             pending,
             depth,
@@ -379,7 +376,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(
             pending,
             depth,

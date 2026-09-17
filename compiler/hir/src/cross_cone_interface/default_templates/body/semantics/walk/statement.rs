@@ -3,25 +3,22 @@ use crate::{
     DefaultStatementV1, ExportDefinitionSourceV1, OptionalDefaultStatementListViewV1,
 };
 
-use super::{BodyEnvelopeAuthority, BodyNode, Validator, WorkItem};
-use crate::{
-    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
-};
+use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
+use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
 mod bindings;
 mod control_flow;
 
-impl<A, E> Validator<'_, A, E>
+impl<M> Validator<'_, M>
 where
-    A: BodyEnvelopeAuthority<E>,
+    M: BodyWalkMode,
 {
     pub(super) fn process_statement<'body>(
         &mut self,
         statement: &'body DefaultStatementV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.process_statement_kind(
             statement.kind(),
             statement.definition_origin(),
@@ -44,7 +41,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match kind {
             DefaultStatementKindV1::Expr(expression)
             | DefaultStatementKindV1::Throw(expression) => {
@@ -142,7 +139,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match pattern.view() {
             DefaultPatternViewV1::Binding { .. } | DefaultPatternViewV1::Wildcard => Ok(()),
             DefaultPatternViewV1::Literal {
@@ -215,7 +212,7 @@ where
         depth: u64,
         patterns: &'body [DefaultPatternV1],
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for pattern in patterns.iter().rev() {
             self.push_child(
                 pending,
@@ -235,7 +232,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match target {
             DefaultAssignTargetV1::Local { .. } | DefaultAssignTargetV1::Global { .. } => Ok(()),
             DefaultAssignTargetV1::Index { array, index } => {
@@ -261,7 +258,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         depth: u64,
         statements: &'body [DefaultStatementV1],
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for statement in statements.iter().rev() {
             self.push_child(pending, depth, BodyNode::Statement(statement))?;
         }

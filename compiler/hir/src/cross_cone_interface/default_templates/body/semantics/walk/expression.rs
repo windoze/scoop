@@ -3,22 +3,19 @@ use crate::{
     DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationV1,
 };
 
-use super::{BodyEnvelopeAuthority, BodyNode, Validator, WorkItem};
-use crate::{
-    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
-};
+use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
+use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
-impl<A, E> Validator<'_, A, E>
+impl<M> Validator<'_, M>
 where
-    A: BodyEnvelopeAuthority<E>,
+    M: BodyWalkMode,
 {
     pub(super) fn process_expression<'body>(
         &mut self,
         expression: &'body DefaultExpressionV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.process_expression_kind(
             expression.kind(),
             expression.definition_origin(),
@@ -47,7 +44,7 @@ where
         definition_origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match kind {
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
@@ -367,7 +364,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         depth: u64,
         expression: Option<&'body DefaultExpressionV1>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match expression {
             Some(expression) => self.push_child(pending, depth, BodyNode::Expression(expression)),
             None => Ok(()),
@@ -379,7 +376,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         depth: u64,
         expressions: &'body [DefaultExpressionV1],
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for expression in expressions.iter().rev() {
             self.push_child(pending, depth, BodyNode::Expression(expression))?;
         }
@@ -392,7 +389,7 @@ where
         definition_origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_type(
             pending,
             assembly.result_type(),
@@ -420,7 +417,7 @@ where
         definition_origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         let target = match operation {
             DefaultIntegerOperationV1::NoGc { target, .. }
             | DefaultIntegerOperationV1::Managed { target, .. } => target,
@@ -440,7 +437,7 @@ where
         arguments: &'body DefaultIntegerArgumentsV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match arguments {
             DefaultIntegerArgumentsV1::Unary(operand) => {
                 self.push_child(pending, depth, BodyNode::Expression(operand))

@@ -4,15 +4,12 @@ use crate::{
     OptionalDefaultStatementListViewV1,
 };
 
-use super::super::{BodyEnvelopeAuthority, BodyNode, Validator, WorkItem};
-use crate::{
-    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
-};
+use super::super::{BodyNode, BodyWalkMode, Validator, WorkItem};
+use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
-impl<A, E> Validator<'_, A, E>
+impl<M> Validator<'_, M>
 where
-    A: BodyEnvelopeAuthority<E>,
+    M: BodyWalkMode,
 {
     pub(in super::super) fn process_when<'body>(
         &mut self,
@@ -20,7 +17,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(
             pending,
             depth,
@@ -40,7 +37,7 @@ where
         arm: &'body DefaultWhenArmV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_statements(pending, depth, arm.body())?;
         if let Some(guard) = arm.guard().as_ref() {
             self.push_child(
@@ -76,7 +73,7 @@ where
         _definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(pending, depth, BodyNode::Expression(guard.condition()))?;
         self.push_statements(pending, depth, guard.setup())
     }
@@ -87,7 +84,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match fallback.view() {
             DefaultWhenFallbackViewV1::Else(statements) => {
                 self.push_statements(pending, depth, statements)
@@ -125,7 +122,7 @@ where
         _definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         if let OptionalDefaultStatementListViewV1::Present(statements) = value.finally_body().view()
         {
             self.push_statements(pending, depth, statements)?;
@@ -141,7 +138,7 @@ where
         catch: &'body DefaultCatchV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_statements(pending, depth, catch.body())?;
         self.push_type(
             pending,

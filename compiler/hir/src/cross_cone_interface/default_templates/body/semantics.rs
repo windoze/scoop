@@ -27,6 +27,17 @@ impl ExportDefaultBodyV1 {
     {
         walk::validate(self, provider, authority, meter, path)
     }
+
+    /// Visits every inline definition source using the same complete,
+    /// resource-bounded traversal as provider-envelope validation.
+    pub(crate) fn visit_definition_sources(
+        &self,
+        visitor: &mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        walk::visit_definition_sources(self, visitor, meter, path)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

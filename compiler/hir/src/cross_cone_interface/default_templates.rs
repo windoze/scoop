@@ -13,6 +13,9 @@ mod table;
 mod template;
 mod value_parameters;
 
+#[cfg(test)]
+pub(crate) use body::expression_test_support;
+
 pub use binder_uses::{
     BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
     CanonicalBinderUseListV1, DecodedCanonicalBinderUseListV1,

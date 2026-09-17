@@ -26,6 +26,12 @@ use super::{
     TypeAliasInterfaceSetValidationError,
 };
 
+mod definition_source_closure;
+
+pub use definition_source_closure::{
+    ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
+};
+
 /// The complete canonical HIR interface exported across a Cone boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeHirInterfaceSectionV1 {

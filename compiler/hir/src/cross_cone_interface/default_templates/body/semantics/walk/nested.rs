@@ -8,15 +8,12 @@ use crate::{
     ExportDefinitionSourceV1,
 };
 
-use super::{BodyEnvelopeAuthority, BodyNode, Validator, WorkItem};
-use crate::{
-    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
-};
+use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
+use crate::{DefaultBodyOriginSiteV1, DefaultBodyProviderTypeSiteV1};
 
-impl<A, E> Validator<'_, A, E>
+impl<M> Validator<'_, M>
 where
-    A: BodyEnvelopeAuthority<E>,
+    M: BodyWalkMode,
 {
     pub(super) fn process_local_function<'body>(
         &mut self,
@@ -24,7 +21,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_captures(pending, depth, function.captures())?;
         self.push_type(
             pending,
@@ -40,7 +37,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.process_lexical_callable(
             lambda.function_type(),
             lambda.body_type_arguments(),
@@ -57,7 +54,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.process_lexical_callable(
             function.function_type(),
             function.body_type_arguments(),
@@ -76,7 +73,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_captures(pending, depth, captures)?;
         if let Some(arguments) = body_type_arguments.explicit_arguments() {
             for (index, argument) in arguments.iter().enumerate().rev() {
@@ -102,7 +99,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_captures(pending, depth, reference.captures())?;
         self.push_callable_reference_target(pending, depth, reference.target(), definition_origin)?;
         self.push_type(
@@ -119,7 +116,7 @@ where
         depth: u64,
         target: &'body DefaultCallableReferenceTargetV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match target {
             DefaultCallableReferenceTargetV1::Named(callable)
             | DefaultCallableReferenceTargetV1::Local {
@@ -162,7 +159,7 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         depth: u64,
         captures: &'body [DefaultCaptureV1],
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for capture in captures.iter().rev() {
             self.push_child(pending, depth, BodyNode::Capture(capture))?;
         }
@@ -174,7 +171,7 @@ where
         capture: &'body DefaultCaptureV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_type(
             pending,
             capture.value_type(),
@@ -196,7 +193,7 @@ where
         callable: &'body DefaultCallableRefV1,
         definition_origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         for (index, argument) in callable.type_arguments().iter().enumerate().rev() {
             self.push_type(
                 pending,
@@ -222,7 +219,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_type(
             pending,
             callable.instantiated_signature(),
@@ -253,7 +250,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match source {
             DefaultBoundCallableSourceV1::Class { bound, callable } => {
                 self.push_child(
@@ -286,7 +283,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match callee {
             DefaultMethodCalleeV1::Callable(callable) => self.push_child(
                 pending,
@@ -318,7 +315,7 @@ where
         field: &'body DefaultFieldRefV1,
         definition_origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match field {
             DefaultFieldRefV1::Struct { owner_type, .. }
             | DefaultFieldRefV1::Class { owner_type, .. } => self.push_type(
@@ -337,7 +334,7 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         let target = match equality {
             DefaultLiteralEqualityV1::Integer { target, .. }
             | DefaultLiteralEqualityV1::Ordinary { target } => target,

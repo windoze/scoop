@@ -37,46 +37,195 @@ pub(super) fn validate<A, E>(
 where
     A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
 {
-    Validator::<A, E> {
-        scope: provider.signature_scope(),
-        authority,
+    Validator {
+        mode: SemanticValidation::<A, E> {
+            scope: provider.signature_scope(),
+            authority,
+            error: PhantomData,
+        },
         meter,
         path,
-        error: PhantomData,
     }
     .run(body)
 }
 
-pub(super) trait BodyEnvelopeAuthority<E>:
-    NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>
-{
+pub(super) fn visit_definition_sources(
+    body: &ExportDefaultBodyV1,
+    visitor: &mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<(), WireError> {
+    Validator {
+        mode: DefinitionSourceVisitor { visitor },
+        meter,
+        path,
+    }
+    .run(body)
 }
 
-impl<A, E> BodyEnvelopeAuthority<E> for A where
-    A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>
-{
+pub(super) trait BodyWalkMode {
+    type Error;
+
+    fn resource(error: WireError) -> Self::Error;
+
+    fn validate_type(
+        &mut self,
+        signature: &SignatureTypeKey,
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: &ExportDefinitionSourceV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), Self::Error>;
+
+    fn validate_binder(
+        &mut self,
+        depth: u32,
+        index: u32,
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), Self::Error>;
+
+    fn visit_origin(
+        &mut self,
+        source: &ExportDefinitionSourceV1,
+        site: DefaultBodyOriginSiteV1,
+    ) -> Result<(), Self::Error>;
 }
 
-pub(super) struct Validator<'a, A, E> {
+struct SemanticValidation<'a, A, E> {
     scope: crate::SignatureBinderScopeV1,
     authority: &'a mut A,
-    meter: &'a mut BudgetMeter,
-    path: &'a WirePath,
     error: PhantomData<fn() -> E>,
 }
 
-impl<A, E> Validator<'_, A, E>
+impl<A, E> BodyWalkMode for SemanticValidation<'_, A, E>
 where
-    A: BodyEnvelopeAuthority<E>,
+    A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
 {
-    fn run(
+    type Error = DefaultBodyProviderEnvelopeSemanticValidationError<E>;
+
+    fn resource(error: WireError) -> Self::Error {
+        DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error)
+    }
+
+    fn validate_type(
         &mut self,
-        body: &ExportDefaultBodyV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+        signature: &SignatureTypeKey,
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: &ExportDefinitionSourceV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), Self::Error> {
+        match self.scope.validate_signature_semantics_metered(
+            signature,
+            self.authority,
+            meter,
+            path,
+        ) {
+            Ok(()) => Ok(()),
+            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => {
+                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Type {
+                    site,
+                    definition_origin: Box::new(definition_origin.clone()),
+                    error: Box::new(error),
+                })
+            }
+            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
+                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error))
+            }
+        }
+    }
+
+    fn validate_binder(
+        &mut self,
+        depth: u32,
+        index: u32,
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), Self::Error> {
+        self.scope
+            .validate(&SignatureTypeKey::Binder { depth, index })
+            .map_err(
+                |error| DefaultBodyProviderEnvelopeSemanticValidationError::Binder {
+                    site,
+                    definition_origin: Box::new(definition_origin.clone()),
+                    error,
+                },
+            )
+    }
+
+    fn visit_origin(
+        &mut self,
+        source: &ExportDefinitionSourceV1,
+        site: DefaultBodyOriginSiteV1,
+    ) -> Result<(), Self::Error> {
+        source.validate_semantics(self.authority).map_err(|error| {
+            DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
+                site,
+                definition_origin: Box::new(source.clone()),
+                error: Box::new(error),
+            }
+        })
+    }
+}
+
+struct DefinitionSourceVisitor<'a> {
+    visitor: &'a mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
+}
+
+impl BodyWalkMode for DefinitionSourceVisitor<'_> {
+    type Error = WireError;
+
+    fn resource(error: WireError) -> Self::Error {
+        error
+    }
+
+    fn validate_type(
+        &mut self,
+        _: &SignatureTypeKey,
+        _: DefaultBodyProviderTypeSiteV1,
+        _: &ExportDefinitionSourceV1,
+        _: &mut BudgetMeter,
+        _: &WirePath,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn validate_binder(
+        &mut self,
+        _: u32,
+        _: u32,
+        _: DefaultBodyProviderTypeSiteV1,
+        _: &ExportDefinitionSourceV1,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn visit_origin(
+        &mut self,
+        source: &ExportDefinitionSourceV1,
+        site: DefaultBodyOriginSiteV1,
+    ) -> Result<(), Self::Error> {
+        (self.visitor)(source, site);
+        Ok(())
+    }
+}
+
+pub(super) struct Validator<'a, M> {
+    mode: M,
+    meter: &'a mut BudgetMeter,
+    path: &'a WirePath,
+}
+
+impl<M> Validator<'_, M>
+where
+    M: BodyWalkMode,
+{
+    fn run(&mut self, body: &ExportDefaultBodyV1) -> Result<(), M::Error> {
         let mut pending = Vec::new();
         self.meter
             .try_reserve_collection_slots(&mut pending, 1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
+            .map_err(M::resource)?;
         pending.push(WorkItem::Body {
             node: BodyNode::Body(body),
             depth: 1,
@@ -98,19 +247,12 @@ where
         Ok(())
     }
 
-    fn enter_node(
-        &mut self,
-        depth: u64,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    fn enter_node(&mut self, depth: u64) -> Result<(), M::Error> {
         self.meter
             .check_semantic_depth(depth, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
-        self.meter
-            .charge_nodes(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)
+            .map_err(M::resource)?;
+        self.meter.charge_nodes(1, self.path).map_err(M::resource)?;
+        self.meter.charge_work(1, self.path).map_err(M::resource)
     }
 
     pub(super) fn push_child<'body>(
@@ -118,15 +260,13 @@ where
         pending: &mut Vec<WorkItem<'body>>,
         parent_depth: u64,
         node: BodyNode<'body>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
-        let depth = parent_depth.checked_add(1).ok_or_else(|| {
-            DefaultBodyProviderEnvelopeSemanticValidationError::Resource(integer_out_of_range(
-                self.path,
-            ))
-        })?;
+    ) -> Result<(), M::Error> {
+        let depth = parent_depth
+            .checked_add(1)
+            .ok_or_else(|| M::resource(integer_out_of_range(self.path)))?;
         self.meter
             .check_semantic_depth(depth, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
+            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
         pending.push(WorkItem::Body { node, depth });
         Ok(())
@@ -138,10 +278,10 @@ where
         signature: &'body SignatureTypeKey,
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.meter
             .check_semantic_depth(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
+            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
         pending.push(WorkItem::Type {
             signature,
@@ -158,10 +298,10 @@ where
         index: u32,
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.meter
             .check_semantic_depth(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
+            .map_err(M::resource)?;
         self.reserve_edge(pending)?;
         pending.push(WorkItem::Body {
             node: BodyNode::Binder {
@@ -175,19 +315,12 @@ where
         Ok(())
     }
 
-    fn reserve_edge<T>(
-        &mut self,
-        pending: &mut Vec<T>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)?;
+    fn reserve_edge<T>(&mut self, pending: &mut Vec<T>) -> Result<(), M::Error> {
+        self.meter.charge_edges(1, self.path).map_err(M::resource)?;
+        self.meter.charge_work(1, self.path).map_err(M::resource)?;
         self.meter
             .try_reserve_collection_slots(pending, 1, self.path)
-            .map_err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource)
+            .map_err(M::resource)
     }
 
     fn validate_type(
@@ -195,25 +328,9 @@ where
         signature: &SignatureTypeKey,
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: &ExportDefinitionSourceV1,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
-        match self.scope.validate_signature_semantics_metered(
-            signature,
-            self.authority,
-            self.meter,
-            self.path,
-        ) {
-            Ok(()) => Ok(()),
-            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => {
-                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Type {
-                    site,
-                    definition_origin: Box::new(definition_origin.clone()),
-                    error: Box::new(error),
-                })
-            }
-            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
-                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error))
-            }
-        }
+    ) -> Result<(), M::Error> {
+        self.mode
+            .validate_type(signature, site, definition_origin, self.meter, self.path)
     }
 
     fn process_node<'body>(
@@ -221,7 +338,7 @@ where
         node: BodyNode<'body>,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         match node {
             BodyNode::Body(body) => self.process_body(body, depth, pending),
             BodyNode::Statement(statement) => self.process_statement(statement, depth, pending),
@@ -374,33 +491,15 @@ where
             BodyNode::IntegerArguments(arguments) => {
                 self.process_integer_arguments(arguments, depth, pending)
             }
-            BodyNode::Origin { source, site } => {
-                source.validate_semantics(self.authority).map_err(|error| {
-                    DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
-                        site,
-                        definition_origin: Box::new(source.clone()),
-                        error: Box::new(error),
-                    }
-                })
-            }
+            BodyNode::Origin { source, site } => self.mode.visit_origin(source, site),
             BodyNode::Binder {
                 depth: binder_depth,
                 index,
                 site,
                 definition_origin,
             } => self
-                .scope
-                .validate(&SignatureTypeKey::Binder {
-                    depth: binder_depth,
-                    index,
-                })
-                .map_err(
-                    |error| DefaultBodyProviderEnvelopeSemanticValidationError::Binder {
-                        site,
-                        definition_origin: Box::new(definition_origin.clone()),
-                        error,
-                    },
-                ),
+                .mode
+                .validate_binder(binder_depth, index, site, definition_origin),
         }
     }
 
@@ -409,7 +508,7 @@ where
         body: &'body ExportDefaultBodyV1,
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    ) -> Result<(), M::Error> {
         self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
         for statement in body.statements().iter().rev() {
             self.push_child(pending, depth, BodyNode::Statement(statement))?;
