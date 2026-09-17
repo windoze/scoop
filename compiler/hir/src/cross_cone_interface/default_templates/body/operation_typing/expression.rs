@@ -37,7 +37,7 @@ impl crate::DefaultExpressionV1 {
             path,
             error: std::marker::PhantomData,
         }
-        .run_expression(self)
+        .run_expression_at(self, 1)
     }
 }
 
@@ -45,18 +45,16 @@ impl<A, E> Validator<'_, A, E>
 where
     A: DefaultOperationTypingSemanticAuthority<E>,
 {
-    fn run_expression(
+    pub(super) fn run_expression_at(
         &mut self,
         expression: &crate::DefaultExpressionV1,
+        depth: u64,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         let mut pending = Vec::new();
         self.meter
             .try_reserve_collection_slots(&mut pending, 1, self.path)
             .map_err(ExportDefaultOperationTypingValidationError::Resource)?;
-        pending.push(ExpressionWork {
-            expression,
-            depth: 1,
-        });
+        pending.push(ExpressionWork { expression, depth });
         while let Some(work) = pending.pop() {
             self.enter_node(work.depth)?;
             self.process_expression(work.expression, work.depth, &mut pending)?;

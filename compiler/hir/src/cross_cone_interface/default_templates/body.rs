@@ -74,15 +74,18 @@ pub use nested::{
     IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
 };
 pub use operation_typing::{
-    DefaultAggregateOperationShapeV1, DefaultCallableOperationShapeV1,
-    DefaultCallbackOperationShapeV1, DefaultCoreApplicationV1, DefaultExpressionOperationV1,
-    DefaultFieldOperationKindV1, DefaultFieldOperationShapeV1, DefaultOperationCoreTypeV1,
-    DefaultOperationEntityShapeKindV1, DefaultOperationEntityShapeV1, DefaultOperationEntityV1,
-    DefaultOperationExpectedTypeShapeV1, DefaultOperationIntrinsicV1,
-    DefaultOperationTypeRelationV1, DefaultOperationTypingProblemV1,
+    DefaultAggregateOperationShapeV1, DefaultAssignmentOperationV1,
+    DefaultBindingActionOperationV1, DefaultBindingShapeOperationV1,
+    DefaultBodyOperationTypingProblemV1, DefaultBodyOperationTypingSiteV1, DefaultBodyOperationV1,
+    DefaultCallableOperationShapeV1, DefaultCallbackOperationShapeV1, DefaultCoreApplicationV1,
+    DefaultExpressionOperationV1, DefaultFieldOperationKindV1, DefaultFieldOperationShapeV1,
+    DefaultForOperationV1, DefaultOperationCoreTypeV1, DefaultOperationEntityShapeKindV1,
+    DefaultOperationEntityShapeV1, DefaultOperationEntityV1, DefaultOperationExpectedTypeShapeV1,
+    DefaultOperationIntrinsicV1, DefaultOperationTypeRelationV1, DefaultOperationTypingProblemV1,
     DefaultOperationTypingSemanticAuthority, DefaultOperationTypingSiteV1,
-    DefaultOperationValueRoleV1, DefaultValueOperationShapeV1, DefaultVariantFieldOperationShapeV1,
-    ExportDefaultOperationTypingValidationError,
+    DefaultOperationValueRoleV1, DefaultPatternOperationV1, DefaultStatementOperationV1,
+    DefaultValueOperationShapeV1, DefaultVariantFieldOperationShapeV1,
+    ExportDefaultBodyOperationTypingValidationError, ExportDefaultOperationTypingValidationError,
 };
 pub use operators::{
     DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultForeignCallbackOperationV1,

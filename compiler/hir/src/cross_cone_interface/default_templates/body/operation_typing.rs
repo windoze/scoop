@@ -10,11 +10,19 @@ use crate::{
     CanonicalBooleanV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
     DefaultConstructorRefV1, DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1,
     DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1, DefaultIntegerKindV1,
-    DefaultIntegerOperationV1, DefaultLiteralEqualityV1, DefaultMethodCalleeV1,
-    ExportDefaultTemplateV1,
+    DefaultIntegerOperationV1, DefaultIteratorConformanceV1, DefaultIteratorNextV1,
+    DefaultLiteralEqualityV1, DefaultMethodCalleeV1, ExportDefaultTemplateV1,
 };
 
+mod body;
 mod expression;
+
+pub use body::{
+    DefaultAssignmentOperationV1, DefaultBindingActionOperationV1, DefaultBindingShapeOperationV1,
+    DefaultBodyOperationTypingProblemV1, DefaultBodyOperationTypingSiteV1, DefaultBodyOperationV1,
+    DefaultForOperationV1, DefaultPatternOperationV1, DefaultStatementOperationV1,
+    ExportDefaultBodyOperationTypingValidationError,
+};
 
 #[cfg(test)]
 mod tests;
@@ -171,6 +179,7 @@ pub enum DefaultFieldOperationKindV1 {
 pub struct DefaultFieldOperationShapeV1 {
     kind: DefaultFieldOperationKindV1,
     owner_type: SignatureTypeKey,
+    declaration_index: u32,
     value_type: SignatureTypeKey,
     mutable: CanonicalBooleanV1,
 }
@@ -179,12 +188,14 @@ impl DefaultFieldOperationShapeV1 {
     pub const fn new(
         kind: DefaultFieldOperationKindV1,
         owner_type: SignatureTypeKey,
+        declaration_index: u32,
         value_type: SignatureTypeKey,
         mutable: CanonicalBooleanV1,
     ) -> Self {
         Self {
             kind,
             owner_type,
+            declaration_index,
             value_type,
             mutable,
         }
@@ -196,6 +207,10 @@ impl DefaultFieldOperationShapeV1 {
 
     pub const fn owner_type(&self) -> &SignatureTypeKey {
         &self.owner_type
+    }
+
+    pub const fn declaration_index(&self) -> u32 {
+        self.declaration_index
     }
 
     pub const fn value_type(&self) -> &SignatureTypeKey {
@@ -260,6 +275,8 @@ pub enum DefaultOperationEntityV1<'a> {
     MethodCallee(&'a DefaultMethodCalleeV1),
     Constructor(&'a DefaultConstructorRefV1),
     Struct(&'a SignatureTypeKey),
+    Class(&'a SignatureTypeKey),
+    Enum(&'a SignatureTypeKey),
     Variant(&'a DefaultEnumVariantRefV1),
     VariantField(&'a DefaultEnumVariantFieldRefV1),
     Global(PersistentPropertyId),
@@ -323,6 +340,7 @@ pub enum DefaultOperationTypeRelationV1 {
     RuntimeTypeCheck,
     ReferenceIdentity,
     ConcreteGcFreeValue,
+    IteratorConformance,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -337,6 +355,15 @@ pub enum DefaultOperationIntrinsicV1<'a> {
     LiteralEquality {
         equality: &'a DefaultLiteralEqualityV1,
         subject_type: &'a SignatureTypeKey,
+    },
+    IteratorNext {
+        conformance: &'a DefaultIteratorConformanceV1,
+        next: &'a DefaultIteratorNextV1,
+    },
+    BindingComponent {
+        source_type: &'a SignatureTypeKey,
+        index: std::num::NonZeroU32,
+        call: &'a DefaultExpressionV1,
     },
 }
 
@@ -441,6 +468,13 @@ pub enum DefaultOperationValueRoleV1 {
     Operand,
     Source,
     Target,
+    Initializer,
+    Subject,
+    Condition,
+    ReturnValue,
+    Local,
+    Interface,
+    Element,
     Pointer,
     Offset,
     Value,
