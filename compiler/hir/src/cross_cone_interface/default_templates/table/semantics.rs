@@ -7,7 +7,8 @@ use super::CanonicalExportDefaultTemplatesV1;
 use crate::{
     CallableInterfaceSemanticAuthority, CanonicalCallableInterfacesV1,
     CanonicalCallableSourceInterfacesV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultLocalDataFlowSemanticAuthority, DefaultOperationTypingSemanticAuthority,
+    DefaultLocalDataFlowSemanticAuthority, DefaultNestedCallableAbiValidationError,
+    DefaultNestedCallableSemanticAuthority, DefaultOperationTypingSemanticAuthority,
     DefaultReferenceSemanticAuthority, DefaultTemplateOriginSemanticAuthority,
     DefaultTemplateRootSemanticAuthority, ExportDefaultBodyOperationTypingValidationError,
     ExportDefaultLocalDataFlowValidationError, ExportDefaultReferenceClosureValidationError,
@@ -20,9 +21,9 @@ impl CanonicalExportDefaultTemplatesV1 {
     /// Validates every template envelope against callable/source tables that
     /// have already passed their own semantic validators, then proves the
     /// provider envelope of every body and declared reference set, then proves
-    /// local data flow, complete operation typing, the exact body-reference
-    /// closure, and the bidirectional source-template closure. Nested callable
-    /// ABI remains a separate pass.
+    /// local data flow, complete operation typing, nested-callable ABI, the
+    /// exact body-reference closure, and the bidirectional source-template
+    /// closure.
     pub fn validate_envelope_semantics<A, E>(
         &self,
         callables: &CanonicalCallableInterfacesV1,
@@ -37,6 +38,7 @@ impl CanonicalExportDefaultTemplatesV1 {
             + DefaultTemplateOriginSemanticAuthority<E>
             + DefaultLocalDataFlowSemanticAuthority<E>
             + DefaultOperationTypingSemanticAuthority<E>
+            + DefaultNestedCallableSemanticAuthority<E>
             + DefaultReferenceSemanticAuthority<E>,
     {
         for (index, template) in self.records().iter().enumerate() {
@@ -95,6 +97,16 @@ impl CanonicalExportDefaultTemplatesV1 {
                 .validate_operation_typing_semantics(template, authority, meter, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::OperationTyping {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    }
+                })?;
+            template
+                .body()
+                .validate_nested_callable_abi_semantics(template, authority, meter, path)
+                .map_err(|error| {
+                    ExportDefaultTemplateSetEnvelopeSemanticValidationError::NestedCallableAbi {
                         index,
                         key,
                         error: Box::new(error),
@@ -280,6 +292,11 @@ pub enum ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
         key: ExportDefaultTemplateKeyV1,
         error: Box<ExportDefaultBodyOperationTypingValidationError<E>>,
     },
+    NestedCallableAbi {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<DefaultNestedCallableAbiValidationError<E>>,
+    },
     References {
         index: usize,
         key: ExportDefaultTemplateKeyV1,
@@ -323,6 +340,10 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateSetEnvelopeSemanticV
             Self::OperationTyping { index, key, error } => write!(
                 formatter,
                 "invalid export default template {key:?} operation typing at index {index}: {error}"
+            ),
+            Self::NestedCallableAbi { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} nested callable ABI at index {index}: {error}"
             ),
             Self::References { index, key, error } => write!(
                 formatter,

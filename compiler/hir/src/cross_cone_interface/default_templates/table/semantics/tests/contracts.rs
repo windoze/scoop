@@ -1,10 +1,11 @@
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOrigin,
-    DefinitionOwnerChain, Effect, GcEffect, LocalValueSelector, OptionalSignatureType, PackagePath,
-    PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
-    PersistentPropertyId, PersistentTypeId, SignatureTypeKey, SourceContextKey,
-    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionOwnerChain, Effect, GcEffect, GeneratedCallableKey, LexicalCallableParent,
+    LexicalCallableRole, LocalValueSelector, OptionalSignatureType, PackagePath, PersistentFieldId,
+    PersistentFunctionId, PersistentGenericTypeId, PersistentObjectValueId, PersistentPropertyId,
+    PersistentTypeId, SignatureTypeKey, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
 
@@ -17,10 +18,15 @@ use crate::{
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalCallableSourceParametersV1, CanonicalSourceParameterShapesV1,
     CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1, DefaultBodyOperationV1,
-    DefaultBodyProviderTypeSiteV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
-    DefaultConstructorRefV1, DefaultCoreApplicationV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultFieldRefV1, DefaultLocalDataFlowLocalError,
-    DefaultLocalDataFlowSemanticAuthority, DefaultLocalDataFlowSiteV1, DefaultOperationCoreTypeV1,
+    DefaultBodyProviderTypeSiteV1, DefaultCallableBodyTypeArgumentsV1,
+    DefaultCallableDeclarationV1, DefaultCallableRefV1, DefaultConstructorRefV1,
+    DefaultCoreApplicationV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1,
+    DefaultLambdaV1, DefaultLocalDataFlowLocalError, DefaultLocalDataFlowSemanticAuthority,
+    DefaultLocalDataFlowSiteV1, DefaultNestedCallableAbiShapeV1,
+    DefaultNestedCallableAbiValidationError, DefaultNestedCallableAuthorityQueryV1,
+    DefaultNestedCallableBodyArgumentsV1, DefaultNestedCallableIdentityShapeV1,
+    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1,
+    DefaultNestedCallableSemanticAuthority, DefaultOperationCoreTypeV1,
     DefaultOperationEntityShapeV1, DefaultOperationEntityV1, DefaultOperationIntrinsicV1,
     DefaultOperationTypeRelationV1, DefaultOperationTypingSemanticAuthority,
     DefaultOperationValueRoleV1, DefaultReferenceSemanticAuthority, DefaultStatementKindV1,
@@ -391,6 +397,88 @@ fn routes_operation_typing_failures_with_table_identity() {
                         && site.role() == DefaultOperationValueRoleV1::Condition
             )
     ));
+}
+
+#[test]
+fn routes_nested_callable_abi_failures_before_reference_validation() {
+    let fixture = Fixture::new();
+    let lambda_path = StructuralDefinitionPath::new(
+        fixture
+            .definition_path
+            .segments()
+            .iter()
+            .copied()
+            .chain([StructuralPathSegment::new(
+                StructuralDefinitionSiteRole::Lambda,
+                0,
+            )])
+            .collect(),
+    )
+    .unwrap();
+    let lambda_body =
+        scoop_identity::PersistentGeneratedCallableId::from_key(&GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(fixture.function),
+            role: LexicalCallableRole::LambdaBody,
+            path: lambda_path.clone(),
+        })
+        .unwrap();
+    let function_type = SignatureTypeKey::Function {
+        effect: Effect::Ordinary,
+        parameters: Vec::new(),
+        result: Box::new(fixture.value_type.clone()),
+    };
+    let lambda = DefaultLambdaV1::try_new(
+        lambda_body,
+        lambda_path,
+        function_type.clone(),
+        DefaultCallableBodyTypeArgumentsV1::lexical(),
+        Vec::new(),
+        0,
+    )
+    .unwrap();
+    let statement = DefaultStatementV1::try_new(
+        DefaultStatementKindV1::Expr(Box::new(
+            DefaultExpressionV1::try_new(
+                DefaultExpressionKindV1::Lambda(lambda),
+                function_type,
+                fixture.origin.clone(),
+            )
+            .unwrap(),
+        )),
+        fixture.origin.clone(),
+    )
+    .unwrap();
+    let body = ExportDefaultBodyV1::try_new(
+        vec![statement],
+        DefaultExpressionV1::try_new(
+            DefaultExpressionKindV1::UnitLiteral,
+            fixture.value_type.clone(),
+            fixture.origin.clone(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let templates = fixture.templates_with_body(body, CanonicalBooleanV1::False);
+
+    assert_eq!(
+        validate_envelopes(
+            &templates,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::NestedCallableAbi {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(DefaultNestedCallableAbiValidationError::Authority {
+                    kind: DefaultNestedCallableKindV1::Lambda,
+                    query: DefaultNestedCallableAuthorityQueryV1::Identity,
+                    error: AuthorityError::NestedCallable,
+                }),
+            }
+        )
+    );
 }
 
 #[test]
@@ -901,6 +989,25 @@ impl DefaultOperationTypingSemanticAuthority<AuthorityError> for Authority {
     }
 }
 
+impl DefaultNestedCallableSemanticAuthority<AuthorityError> for Authority {
+    fn default_nested_callable_identity_shape(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _identity: DefaultNestedCallableIdentityV1,
+    ) -> Result<DefaultNestedCallableIdentityShapeV1, AuthorityError> {
+        Err(AuthorityError::NestedCallable)
+    }
+
+    fn default_nested_callable_abi_shape(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _identity: DefaultNestedCallableIdentityV1,
+        _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
+    ) -> Result<DefaultNestedCallableAbiShapeV1, AuthorityError> {
+        Err(AuthorityError::NestedCallable)
+    }
+}
+
 impl DefaultReferenceSemanticAuthority<AuthorityError> for Authority {
     fn validate_default_callable_reference_target(
         &mut self,
@@ -980,6 +1087,7 @@ enum AuthorityError {
     UnexpectedLocalOrigin,
     UnexpectedBindingStructField(PersistentFieldId),
     UnexpectedOperation,
+    NestedCallable,
     ReferenceTarget,
     UnexpectedReferenceTarget(ExportDefaultReferenceKindV1),
 }
