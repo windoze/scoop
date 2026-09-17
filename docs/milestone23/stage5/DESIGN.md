@@ -1281,6 +1281,15 @@ singleton和field引用都与`references`的规范去重闭包精确相等。解
 `BudgetMeter`；每个node、edge、owned byte、collection reserve和semantic depth均在分配/下潜前扣费，
 不另起无限制递归或私有budget。
 
+实现可以把上述检查拆成名称明确且边界互斥的pass，但reader接受template前必须运行完整组合。其中
+provider-envelope pass遍历整棵body（包括control-flow、binding plan、pattern、嵌套callable descriptor与
+capture），验证每个内联`SignatureTypeKey`都处于definition root的provider binder scope，并验证每个内联
+`ExportDefinitionSourceV1`都属于当前Cone且命中foundation source/context/point；它不代替operation类型关系、
+local数据流、nested callable ABI或reference精确闭包检查。body/type根的semantic depth均为1；每个首次访问
+的logical node扣一个decoded node和一个validation work unit，每条实际下潜的edge扣一个decoded edge和一个
+validation work unit。显式work stack在压入前用同一个meter预留collection slots，类型子树与body树接收同一个
+调用方`WirePath`，任何resource failure立即终止当前template验证且不得提交部分结果。
+
 default reference closure沿用M17的六个互不兼容的typed domain，不把target压成无类型entity id：
 
 ```text
