@@ -7,7 +7,7 @@ use crate::SignatureTypeReferenceResolver;
 
 mod semantics;
 
-pub use semantics::BinderUseListSemanticValidationError;
+pub use semantics::{BinderUseListSemanticValidationError, DefaultTemplateTypeSubstitutionError};
 
 /// Declaration-order mapping from a default provider's binder slots to the
 /// callable interface that publishes this template.

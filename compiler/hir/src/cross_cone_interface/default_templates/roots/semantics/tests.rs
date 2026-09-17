@@ -14,11 +14,11 @@ fn direct_provider_uses_typed_identity_equality() {
     let root = PersistentLexicalRootV1::Function(function.id());
     let key = ExportDefaultTemplateKeyV1::new(root.declaration(), 1);
     let path = default_path(0);
-    let mut authority = Authority::new(3);
+    let mut authority = Authority::new(1, 2);
 
     assert_eq!(
         root.validate_semantics(key, &path, &mut authority),
-        Ok(DefaultTemplateProviderShapeV1::new(3))
+        Ok(DefaultTemplateProviderShapeV1::try_new(1, 2).unwrap())
     );
     assert_eq!(authority.provider_calls, vec![(root, path)]);
     assert!(authority.inherited_calls.is_empty());
@@ -32,18 +32,18 @@ fn inherited_provider_requires_an_explicit_relation() {
         0,
     );
     let path = default_path(1);
-    let mut accepted = Authority::new(2);
+    let mut accepted = Authority::new(1, 1);
 
     assert_eq!(
         provider.validate_semantics(key, &path, &mut accepted),
-        Ok(DefaultTemplateProviderShapeV1::new(2))
+        Ok(DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap())
     );
     assert_eq!(
         accepted.inherited_calls,
         vec![(key, provider, path.clone())]
     );
 
-    let mut rejected = Authority::new(2);
+    let mut rejected = Authority::new(1, 1);
     rejected.fail_relation = true;
     assert_eq!(
         provider.validate_semantics(key, &path, &mut rejected),
@@ -62,7 +62,7 @@ fn provider_authority_and_definition_path_fail_closed() {
         StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, 0),
         [],
     );
-    let mut authority = Authority::new(0);
+    let mut authority = Authority::new(0, 0);
 
     assert_eq!(
         root.validate_semantics(key, &invalid_path, &mut authority),
@@ -87,7 +87,7 @@ fn provider_authority_and_definition_path_fail_closed() {
 fn property_accessor_cannot_own_a_template() {
     let root = PersistentLexicalRootV1::Function(function("provider").id());
     let key = ExportDefaultTemplateKeyV1::new(CallableTemplateOrigin::Accessor(accessor()), 0);
-    let mut authority = Authority::new(0);
+    let mut authority = Authority::new(0, 0);
 
     assert_eq!(
         root.validate_semantics(key, &default_path(0), &mut authority),
@@ -96,8 +96,28 @@ fn property_accessor_cannot_own_a_template() {
     assert!(authority.provider_calls.is_empty());
 }
 
+#[test]
+fn provider_shape_preserves_frames_and_rejects_total_overflow() {
+    let shape = DefaultTemplateProviderShapeV1::try_new(2, 3).unwrap();
+    assert_eq!(shape.nominal_owner_binder_arity(), 2);
+    assert_eq!(shape.callable_own_binder_arity(), 3);
+    assert_eq!(shape.binder_arity(), 5);
+    assert_eq!(shape.signature_scope().arity_at_depth(0), Some(3));
+    assert_eq!(shape.signature_scope().arity_at_depth(1), Some(2));
+
+    assert_eq!(
+        DefaultTemplateProviderShapeV1::try_new(u32::MAX, 1),
+        Err(
+            DefaultTemplateProviderShapeBuildError::BinderArityOverflow {
+                nominal_owner: u32::MAX,
+                callable_own: 1,
+            }
+        )
+    );
+}
+
 struct Authority {
-    binder_arity: u32,
+    shape: DefaultTemplateProviderShapeV1,
     fail_provider: bool,
     fail_relation: bool,
     provider_calls: Vec<(PersistentLexicalRootV1, StructuralDefinitionPath)>,
@@ -109,9 +129,13 @@ struct Authority {
 }
 
 impl Authority {
-    const fn new(binder_arity: u32) -> Self {
+    fn new(nominal_owner_binder_arity: u32, callable_own_binder_arity: u32) -> Self {
         Self {
-            binder_arity,
+            shape: DefaultTemplateProviderShapeV1::try_new(
+                nominal_owner_binder_arity,
+                callable_own_binder_arity,
+            )
+            .unwrap(),
             fail_provider: false,
             fail_relation: false,
             provider_calls: Vec::new(),
@@ -130,7 +154,7 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
         if self.fail_provider {
             Err(AuthorityError::Provider)
         } else {
-            Ok(DefaultTemplateProviderShapeV1::new(self.binder_arity))
+            Ok(self.shape)
         }
     }
 

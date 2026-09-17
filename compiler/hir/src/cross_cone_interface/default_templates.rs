@@ -16,6 +16,7 @@ mod value_parameters;
 pub use binder_uses::{
     BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
     CanonicalBinderUseListV1, DecodedCanonicalBinderUseListV1,
+    DefaultTemplateTypeSubstitutionError,
 };
 pub use body::{
     DecodedDefaultAnonymousFunctionV1, DecodedDefaultAppliedOptionV1,
@@ -131,9 +132,10 @@ pub use references::{
     ExportDefaultTypeReferenceV1,
 };
 pub use roots::{
-    DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeV1,
-    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
-    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+    DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeBuildError,
+    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority,
+    DefaultTemplateRootSemanticValidationError, PersistentLexicalRootBuildError,
+    PersistentLexicalRootResolver, PersistentLexicalRootV1,
 };
 pub use table::{
     CanonicalExportDefaultTemplatesV1, DecodedCanonicalExportDefaultTemplatesV1,

@@ -10,8 +10,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 mod semantics;
 
 pub use semantics::{
-    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority,
-    DefaultTemplateRootSemanticValidationError,
+    DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,
+    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
 };
 
 /// Persistent source root for one exported default template.
