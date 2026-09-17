@@ -1372,4 +1372,4 @@ impl std::error::Error for StrongCompileArtifactValidationError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

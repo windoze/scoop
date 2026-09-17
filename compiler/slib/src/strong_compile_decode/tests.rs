@@ -381,7 +381,7 @@ fn compile_section_decode_rejects_semantic_fingerprint_mismatch() {
     ));
 }
 
-fn required_sections() -> (
+pub(crate) fn required_sections() -> (
     Vec<MetadataSection>,
     Vec<MetadataSection>,
     Vec<MetadataSection>,
@@ -493,7 +493,7 @@ fn sections_with_lir_odr_symbol() -> (
     (hir, mir, lir)
 }
 
-fn section(
+pub(crate) fn section(
     location: MetadataLocation,
     capability: CapabilityId,
     purpose: MemberPurposeSet,
@@ -507,7 +507,14 @@ fn artifact(
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(cone(), hir_sections, mir_sections, lir_sections, false)
+    build_artifact_for_profile(
+        cone(),
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        hir_sections,
+        mir_sections,
+        lir_sections,
+        false,
+    )
 }
 
 fn artifact_with_semantic_mismatch(
@@ -515,7 +522,14 @@ fn artifact_with_semantic_mismatch(
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(cone(), hir_sections, mir_sections, lir_sections, true)
+    build_artifact_for_profile(
+        cone(),
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        hir_sections,
+        mir_sections,
+        lir_sections,
+        true,
+    )
 }
 
 fn artifact_for_cone(
@@ -524,20 +538,26 @@ fn artifact_for_cone(
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
 ) -> Vec<u8> {
-    build_artifact(cone, hir_sections, mir_sections, lir_sections, false)
+    build_artifact_for_profile(
+        cone,
+        ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+        hir_sections,
+        mir_sections,
+        lir_sections,
+        false,
+    )
 }
 
-fn build_artifact(
+pub(crate) fn build_artifact_for_profile(
     cone: ConeRecord,
+    profile: ArtifactCapabilityProfile,
     hir_sections: Vec<MetadataSection>,
     mir_sections: Vec<MetadataSection>,
     lir_sections: Vec<MetadataSection>,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
     let producer = cone.identity();
-    let compatibility =
-        CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
-            .unwrap();
+    let compatibility = CompatibilityRecord::new(selection(), profile).unwrap();
     let known_hir = known_sections(&hir_sections);
     let known_mir = known_sections(&mir_sections);
     let known_lir = known_sections(&lir_sections);
@@ -626,7 +646,7 @@ fn metadata_member(
     SlibMember::new(producer, stable_key, role, encode(&envelope).unwrap()).unwrap()
 }
 
-fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
+pub(crate) fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
     crate::DecodedSlibEnvelope::open(bytes, DecodeLimits::default(), selection())
         .unwrap()
         .validate_graph()
@@ -639,7 +659,7 @@ fn empty_not_core_library_section() -> Vec<u8> {
     ]
 }
 
-fn cone() -> ConeRecord {
+pub(crate) fn cone() -> ConeRecord {
     ConeRecord::new(
         ConeCoordinate::new("test", "strong-compile", "0.0.0").unwrap(),
         ConeKind::Library,
