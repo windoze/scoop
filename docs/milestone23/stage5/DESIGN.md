@@ -804,7 +804,460 @@ body、receiver、value-parameter和后续嵌套template-owned entity在wire中�
 
 `CanonicalTemplateValueParametersV1`是按`position`严格递增的array，record wire为`{1:position,2:local_index}`。对key中`parameter_position = p`的template，它必须精确包含`0..p`的全部前置参数且不含当前/后置参数；每条local必须命中不可变的`Parameter { declaration_index: position }`，其类型逐结构等于同owner source interface该位置的`value_type`。这张表按position建立hygienic替换，consumer绝不重新解析参数名。`mutable`、`allows_suspend`及本default wire中的其他布尔语义一律复用`CanonicalBooleanV1`的unsigned `False=1`、`True=2`编码，不接受CBOR native boolean。
 
-`ExportDefaultBodyV1`是M17已typed的statement/expression tree之canonical wire：节点按结构递归编码，statement和expression使用不同closed sum；local/type/callable/constructor/global/singleton/field引用分别使用不同typed ref；每个expression非可选地保存result type与definition origin。它覆盖当前语言已允许的完整default表达式，不把未解析name、import path、candidate set、arena index或调用方span写入wire。
+`ExportDefaultBodyV1`是M17已typed的statement/expression closure之canonical wire。它不是对`ExportHir`
+arena的serde投影：每个跨Cone实体都使用persistent identity，template local只使用上述
+canonical local table下标，循环目标由语法嵌套表示。根product固定为：
+
+```text
+ExportDefaultBodyV1 {
+    statements: SourceOrderVec<DefaultStatementV1>, // field 1
+    value: DefaultExpressionV1,                     // field 2
+}
+
+DefaultStatementV1 {
+    kind: DefaultStatementKindV1,                   // field 1
+    definition_origin: ExportDefinitionSourceV1,    // field 2
+}
+
+DefaultExpressionV1 {
+    kind: DefaultExpressionKindV1,                  // field 1
+    result_type: SignatureTypeKey,                  // field 2
+    definition_origin: ExportDefinitionSourceV1,    // field 3
+}
+```
+
+所有sequence长度必须可表示为`u32`。标为`SourceOrderVec`的sequence严格保留语义顺序，
+writer和reader都不排序。所有optional都用`Absent={0:1}` / `Present={0:2,1:value}`
+显式sum，不用CBOR null；所有boolean都用`CanonicalBooleanV1`。`definition_origin`
+只能是definition-side source；consumer实例化时以调用点构造evaluation origin，不改写wire中的
+definition origin。Export HIR中另有独立span的statement、when arm、catch、binding action、
+iterator conformance与next step都各自保存`ExportDefinitionSourceV1`；不再并行保存裸`Span`。
+
+body使用以下portable typed reference：
+
+```text
+DefaultCallableDeclarationV1 =
+    Function(PersistentFunctionId)                   // tag 1
+  | GenericFunction(PersistentGenericFunctionId)     // tag 2
+  | PropertyAccessor(PersistentPropertyAccessorId)   // tag 3
+  | Generated(PersistentGeneratedCallableId)         // tag 4
+
+DefaultCallableRefV1 {
+    declaration: DefaultCallableDeclarationV1,       // field 1
+    owner: OptionalSignatureType,                    // field 2
+    type_arguments: SourceOrderVec<SignatureTypeKey>,// field 3
+}
+
+DefaultBinderRefV1 { depth: u32, index: u32 }         // fields 1, 2
+
+DefaultBoundCallableSourceV1 =
+    Class { bound: SignatureTypeKey,
+            callable: DefaultCallableRefV1 }          // tag 1, fields 1, 2
+  | Interface { bound: SignatureTypeKey,
+                member: CallableDeclarationId }       // tag 2, fields 1, 2
+
+DefaultBoundCallableRefV1 {
+    receiver_parameter: DefaultBinderRefV1,           // field 1
+    source: DefaultBoundCallableSourceV1,              // field 2
+    instantiated_signature: SignatureTypeKey,          // field 3; Function
+}
+
+DefaultMethodCalleeV1 =
+    Callable(DefaultCallableRefV1)                     // tag 1
+  | Bound(DefaultBoundCallableRefV1)                   // tag 2
+  | DerivedEquality { owner_type: SignatureTypeKey }   // tag 3, field 1
+
+DefaultConstructorRefV1 =
+    Struct { declaration: PersistentConstructorId,
+             owner_type: SignatureTypeKey }            // tag 1, fields 1, 2
+  | Class { declaration: DefaultClassConstructorIdV1,
+            owner_type: SignatureTypeKey }              // tag 2, fields 1, 2
+  | Variant { declaration: PersistentEnumVariantId,
+              owner_type: SignatureTypeKey }            // tag 3, fields 1, 2
+
+DefaultClassConstructorIdV1 =
+    Source(PersistentConstructorId)                     // tag 1
+  | Generated(PersistentGeneratedCallableId)            // tag 2
+
+DefaultEnumVariantRefV1 {
+    declaration: PersistentEnumVariantId,               // field 1
+    owner_type: SignatureTypeKey,                        // field 2; Enum application
+}
+
+DefaultEnumVariantFieldRefV1 {
+    declaration: PersistentEnumVariantFieldId,          // field 1
+    owner_type: SignatureTypeKey,                        // field 2; Enum application
+}
+
+DefaultFieldRefV1 =
+    Struct { declaration: PersistentFieldId,
+             owner_type: SignatureTypeKey }             // tag 1, fields 1, 2
+  | Tuple { declaration_index: u32 }                    // tag 2, field 1
+  | Class { declaration: PersistentFieldId,
+            owner_type: SignatureTypeKey }              // tag 3, fields 1, 2
+
+DefaultPlaceV1 =
+    Local { local: LocalValueSelector }                 // tag 1; wire field 1=local_index
+  | Global { property: PersistentPropertyId }           // tag 2, field 1
+```
+
+`DefaultCallableRefV1.owner`是声明方法所属的完整nominal application；top-level、extension、
+local和generated callable必须`Absent`。`type_arguments`只保存callable own binder的声明顺序实参；
+owner binder已在`owner`中。reader根据foundation与callable interface重放declaration kind、owner kind、
+binder arity、function effect和精确signature，不允许通过缺省owner或空type arguments猜测。
+`DefaultBoundCallableRefV1.receiver_parameter`必须在provider binder scope内，`bound`与
+`instantiated_signature`也使用同一scope。`DerivedEquality`刻意以开放`SignatureTypeKey`表示；只有winner
+的完整类型代换完成后才产生exact generated callable identity。
+
+`DefaultConstructorRefV1`的`owner_type`必须分别是对应struct/class/enum声明的完整类型；
+`DefaultFieldRefV1`同理。field和variant field使用persistent declaration id，不使用应用arena的
+`local_index`。global读写使用`PersistentPropertyId`，singleton value使用
+`PersistentObjectValueId`，initialization ensure使用`PersistentInitializationUnitId`，callback conversion
+使用`PersistentCallbackRegistrationId`。这些identity都必须在同artifact foundation或已验证dependency
+foundation中解析，不从显示名、symbol或arena ordinal回退。
+
+嵌套callable的普通body仍由其terminal provider拥有，default template不复制该body。template只保存
+创建closure/直接调用所需的下列descriptor：
+
+```text
+DefaultCaptureV1 {
+    source: LocalValueSelector,                  // field 1; wire为local_index
+    value_type: SignatureTypeKey,                // field 2
+    first_use_origin: ExportDefinitionSourceV1,  // field 3
+}
+
+DefaultCallableBodyTypeArgumentsV1 =
+    Lexical                                      // tag 1
+  | Explicit(SourceOrderVec<SignatureTypeKey>)   // tag 2, field 1
+
+DefaultLocalFunctionV1 {
+    declaration: CallableDeclarationId,          // field 1; only Function/GenericFunction
+    definition_path: StructuralDefinitionPath,   // field 2
+    function_type: SignatureTypeKey,              // field 3; Function
+    captures: SourceOrderVec<DefaultCaptureV1>,   // field 4; hidden ABI order
+    owner_type_parameter_count: u32,              // field 5
+}
+
+DefaultLambdaV1 {
+    body: PersistentGeneratedCallableId,          // field 1; Lexical/LambdaBody
+    definition_path: StructuralDefinitionPath,    // field 2
+    function_type: SignatureTypeKey,              // field 3; Function
+    body_type_arguments: DefaultCallableBodyTypeArgumentsV1, // field 4
+    captures: SourceOrderVec<DefaultCaptureV1>,   // field 5
+    owner_type_parameter_count: u32,              // field 6
+}
+
+DefaultAnonymousFunctionV1 {                      // fields identical to DefaultLambdaV1
+    body: PersistentGeneratedCallableId,          // field 1; Lexical/AnonymousFunctionBody
+    definition_path: StructuralDefinitionPath,    // field 2
+    function_type: SignatureTypeKey,              // field 3
+    body_type_arguments: DefaultCallableBodyTypeArgumentsV1, // field 4
+    captures: SourceOrderVec<DefaultCaptureV1>,   // field 5
+    owner_type_parameter_count: u32,              // field 6
+}
+
+DefaultCallableReferenceTargetV1 =
+    Named(DefaultCallableRefV1)                    // tag 1
+  | Local { declaration: CallableDeclarationId,
+            callee: DefaultCallableRefV1 }         // tag 2, fields 1, 2
+  | BoundMember { receiver: DefaultExpressionV1,
+                  callee: DefaultMethodCalleeV1 }  // tag 3, fields 1, 2
+  | BoundExtension { receiver: DefaultExpressionV1,
+                     callee: DefaultCallableRefV1 }// tag 4, fields 1, 2
+
+DefaultCallableReferenceV1 {
+    invoke: PersistentGeneratedCallableId,         // field 1; CallableReferenceInvoke
+    definition_path: StructuralDefinitionPath,     // field 2
+    target: DefaultCallableReferenceTargetV1,      // field 3
+    function_type: SignatureTypeKey,               // field 4; Function
+    captures: SourceOrderVec<DefaultCaptureV1>,    // field 5
+    owner_type_parameter_count: u32,               // field 6
+}
+```
+
+descriptor内的path必须是template `definition_path`的严格后代，并与相应persistent key中的
+parent/role/path逐字节一致。capture sequence是provider hidden ABI的唯一顺序；每个source必须命中
+canonical local table中的不可变local，`value_type`逐结构等于local类型。`BindingId`、capture name和
+provider `FunctionId`不进入wire。同一persistent nested body可在表达式树中出现多次；每次都是
+独立closure创建，因此descriptor内联而不建立另一张以body id去重的arena表。
+
+statement kind的tag和payload固定为：
+
+| tag | variant | payload fields |
+|---:|---|---|
+| 1 | `Expr` | `1=value` |
+| 2 | `InitializationEnsure` | `1=PersistentInitializationUnitId` |
+| 3 | `LocalFunction` | `1=DefaultLocalFunctionV1` |
+| 4 | `Return` | `1=OptionalDefaultExpressionV1` |
+| 5 | `ValDecl` | `1=pattern, 2=init` |
+| 6 | `Assign` | `1=target, 2=value` |
+| 7 | `If` | `1=condition, 2=then statements, 3=OptionalDefaultStatementListV1` |
+| 8 | `While` | `1=condition setup, 2=condition, 3=body` |
+| 9 | `For` | `1=DefaultForIterationPlanV1` |
+| 10 | `Break` | no payload |
+| 11 | `Continue` | no payload |
+| 12 | `When` | `1=DefaultWhenV1` |
+| 13 | `Try` | `1=DefaultTryV1` |
+| 14 | `Throw` | `1=value` |
+
+`while`/`for`自身即引入一个结构化loop scope，`Break`和`Continue`只能出现在非空loop
+stack中且总是指向最内层；所以wire不保存`LoopId`。未来若增加labeled break，必须升级schema，
+不能把当前无payload tag重解释为ordinal。
+
+pattern和assign target为：
+
+```text
+DefaultPatternV1 =
+    Binding { local }                              // tag 1; field 1=local_index
+  | Wildcard                                       // tag 2
+  | Literal { value, equality, subject_type }       // tag 3; fields 1..3
+  | Variant { variant, fields }                    // tag 4; fields 1,2
+  | Tuple { elements }                             // tag 5; field 1
+  | Struct { owner_type, fields }                  // tag 6; fields 1,2
+
+DefaultPatternFieldV1 { declaration_index: u32, pattern: DefaultPatternV1 } // fields 1,2
+
+DefaultLiteralEqualityV1 =
+    Integer { kind: DefaultIntegerKindV1,
+              target: DefaultCallableRefV1 }       // tag 1, fields 1,2
+  | Ordinary { target: DefaultCallableRefV1 }       // tag 2, field 1
+
+DefaultAssignTargetV1 =
+    Local { local }                                 // tag 1; field 1=local_index
+  | Global { property: PersistentPropertyId }       // tag 2, field 1
+  | Index { array, index }                          // tag 3, fields 1,2
+  | Field { receiver, field: DefaultFieldRefV1 }    // tag 4, fields 1,2
+```
+
+pattern field sequence按declaration index严格递增且拒绝重复；tuple element与pattern tree保留源顺序。
+`SingletonPublishedRoot`与`InitializingClassField`是initializer-only capability，不属于default的
+`DefaultAssignTargetV1`。producer若从Export HIR default观察到它们必须拒绝构造artifact，reader的closed sum
+也没有可以表示它们的tag。
+
+control-flow product固定为：
+
+```text
+DefaultWhenV1 {
+    subject: DefaultExpressionV1,                  // field 1
+    arms: SourceOrderVec<DefaultWhenArmV1>,        // field 2
+    fallback: DefaultWhenFallbackV1,               // field 3
+}
+
+DefaultWhenArmV1 {
+    pattern: DefaultPatternV1,                     // field 1
+    guard: OptionalDefaultWhenGuardV1,             // field 2
+    body: SourceOrderVec<DefaultStatementV1>,      // field 3
+    definition_origin: ExportDefinitionSourceV1,  // field 4
+}
+
+DefaultWhenGuardV1 {
+    setup: SourceOrderVec<DefaultStatementV1>,     // field 1
+    condition: DefaultExpressionV1,                // field 2
+}
+
+DefaultWhenFallbackV1 =
+    Else(SourceOrderVec<DefaultStatementV1>)       // tag 1, field 1
+  | IrrefutableArm { subject_type }                // tag 2, field 1
+  | PatternMatrix { subject_type }                 // tag 3, field 1
+  | EnumPatternMatrix { subject_type, owner_type } // tag 4, fields 1,2
+
+DefaultTryV1 {
+    body: SourceOrderVec<DefaultStatementV1>,      // field 1
+    catches: SourceOrderVec<DefaultCatchV1>,       // field 2
+    finally_body: OptionalDefaultStatementListV1,  // field 3
+}
+
+DefaultCatchV1 {
+    local: LocalValueSelector,                     // field 1; wire为local_index
+    value_type: SignatureTypeKey,                  // field 2
+    body: SourceOrderVec<DefaultStatementV1>,      // field 3
+    definition_origin: ExportDefinitionSourceV1,  // field 4
+}
+```
+
+`DefaultExpressionKindV1`的tag与完整payload如下。表中的`expressions`/`arguments`/`fields`均为
+`SourceOrderVec<DefaultExpressionV1>`；`optional offset`使用显式optional sum：
+
+| tag | variant | payload fields |
+|---:|---|---|
+| 1 | `StringLiteral` | `1=utf8 text, 2=DefaultStringOwnerV1` |
+| 2 | `IntegerLiteral` | `1=CanonicalIntegerConstantV1` |
+| 3 | `BooleanLiteral` | `1=CanonicalBooleanV1` |
+| 4 | `UnitLiteral` | no payload |
+| 5 | `TupleLiteral` | `1=elements` |
+| 6 | `StructInit` | `1=DefaultConstructorRefV1::Struct, 2=arguments` |
+| 7 | `StructConstruct` | `1=owner type, 2=fields` |
+| 8 | `ClassInit` | `1=DefaultConstructorRefV1::Class, 2=arguments` |
+| 9 | `VariantConstruct` | `1=DefaultEnumVariantRefV1, 2=arguments` |
+| 10 | `VariantTest` | `1=operand, 2=DefaultEnumVariantRefV1` |
+| 11 | `VariantPayloadProject` | `1=operand, 2=DefaultEnumVariantFieldRefV1` |
+| 12 | `Local` | `1=local_index` |
+| 13 | `GlobalRead` | `1=PersistentPropertyId` |
+| 14 | `SingletonValue` | `1=PersistentObjectValueId` |
+| 15 | `Lambda` | `1=DefaultLambdaV1` |
+| 16 | `AnonymousFunction` | `1=DefaultAnonymousFunctionV1` |
+| 17 | `CallableReference` | `1=DefaultCallableReferenceV1` |
+| 18 | `FunctionCoercion` | `1=source, 2=source function type, 3=target function type` |
+| 19 | `PtrFromNonZeroULong` | `1=operand` |
+| 20 | `PtrToULong` | `1=operand` |
+| 21 | `PtrCast` | `1=operand` |
+| 22 | `PtrLoad` | `1=pointer, 2=optional offset` |
+| 23 | `PtrStore` | `1=pointer, 2=optional offset, 3=value` |
+| 24 | `PtrOffset` | `1=pointer, 2=offset, 3=subtract` |
+| 25 | `AddressOf` | `1=DefaultPlaceV1` |
+| 26 | `SizeOf` | `1=queried type` |
+| 27 | `AlignOf` | `1=queried type` |
+| 28 | `FunctionAddress` | `1=DefaultCallableDeclarationV1` |
+| 29 | `ForeignCallbackRegister` | `1=PersistentCallbackRegistrationId, 2=closure` |
+| 30 | `ForeignCallbackOperation` | `1=DefaultForeignCallbackOperationV1, 2=callback` |
+| 31 | `FieldAccess` | `1=receiver, 2=DefaultFieldRefV1` |
+| 32 | `MethodCall` | `1=receiver, 2=DefaultMethodCalleeV1, 3=arguments` |
+| 33 | `DirectSuperMethodCall` | `1=receiver, 2=DefaultMethodCalleeV1, 3=arguments` |
+| 34 | `Box` | `1=operand` |
+| 35 | `Unbox` | `1=operand` |
+| 36 | `IsInstance` | `1=operand, 2=checked type` |
+| 37 | `Cast` | `1=operand, 2=optional` |
+| 38 | `ArrayLiteral` | `1=elements` |
+| 39 | `ArrayAssembly` | `1=DefaultArrayAssemblyV1` |
+| 40 | `Index` | `1=DefaultArrayAccessKindV1, 2=receiver, 3=index` |
+| 41 | `ArraySet` | `1=DefaultArrayAccessKindV1, 2=receiver, 3=index, 4=value` |
+| 42 | `ArrayLen` | `1=operand` |
+| 43 | `ArrayClone` | `1=operand` |
+| 44 | `Call` | `1=DefaultCallableRefV1, 2=arguments` |
+| 45 | `LocalFunctionCall` | `1=local declaration, 2=callee, 3=captures, 4=arguments` |
+| 46 | `CallableCall` | `1=callee expression, 2=function type, 3=arguments` |
+| 47 | `PrimitiveBinary` | `1=DefaultPrimitiveBinaryKindV1, 2=lhs, 3=rhs` |
+| 48 | `PrimitiveUnary` | `1=DefaultPrimitiveUnaryKindV1, 2=operand` |
+| 49 | `IntegerOperation` | `1=DefaultIntegerOperationV1, 2=DefaultIntegerArgumentsV1` |
+| 50 | `IntegerConversion` | `1=source kind, 2=target kind, 3=target callable, 4=operand` |
+| 51 | `Binary` | `1=DefaultBinaryOperatorV1, 2=lhs, 3=rhs` |
+| 52 | `Unary` | `1=DefaultUnaryOperatorV1, 2=operand` |
+| 53 | `SomeWrap` | `1=operand` |
+| 54 | `NoneLiteral` | no payload |
+| 55 | `IsSome` | `1=operand` |
+| 56 | `Unwrap` | `1=operand, 2=trap_on_none` |
+
+Export HIR的`ImportedCoreCall`在此正规化为tag 44 `Call`，因为portable callable identity已表达其
+terminal origin，process-local imported arena不是语义。`ConstructorParam`、`Capture`、
+`InitializingClassFieldAccess`和`InitializingStructFieldAccess`只属于constructor/nested-callable body；
+exported default的独立scope不能产生它们，v1 expression sum不为它们分配tag。nested callable
+body中的`Capture`仍留在provider body，不进入default wire。
+
+其余expression辅助结构固定为：
+
+```text
+DefaultStringOwnerV1 =
+    CurrentInstantiation                            // tag 1
+  | Property(PersistentPropertyId)                  // tag 2, field 1
+
+DefaultArrayAssemblyV1 {
+    element_type: SignatureTypeKey,                 // field 1
+    parts: SourceOrderVec<DefaultArrayAssemblyPartV1>, // field 2
+    result_type: SignatureTypeKey,                  // field 3; Array application
+}
+
+DefaultArrayAssemblyPartV1 =
+    Element(DefaultExpressionV1)                    // tag 1, field 1
+  | CopyArray(DefaultExpressionV1)                  // tag 2, field 1
+
+DefaultIntegerOperationV1 =
+    NoGc { kind: DefaultIntegerKindV1,
+           operation: DefaultNoGcIntegerOperationV1,
+           target: DefaultCallableRefV1 }           // tag 1, fields 1..3
+  | Managed { kind: DefaultIntegerKindV1,
+              operation: DefaultIntegerDivRemV1,
+              target: DefaultCallableRefV1 }        // tag 2, fields 1..3
+
+DefaultIntegerArgumentsV1 =
+    Unary(DefaultExpressionV1)                      // tag 1, field 1
+  | Binary { lhs: DefaultExpressionV1,
+             rhs: DefaultExpressionV1 }             // tag 2, fields 1,2
+```
+
+leaf enum的unsigned tag固定为：
+
+- `DefaultIntegerKindV1`: `Signed8=1, Signed16=2, Signed32=3, Signed64=4, Unsigned8=5, Unsigned16=6, Unsigned32=7, Unsigned64=8`；
+- `DefaultNoGcIntegerOperationV1`: `UnaryPlus=1, UnaryMinus=2, Inc=3, Dec=4, Add=5, Sub=6, Mul=7, CompareTo=8, Equals=9, And=10, Or=11, Xor=12, Inv=13, Shl=14, Shr=15, Ushr=16`；
+- `DefaultIntegerDivRemV1`: `Div=1, Rem=2`；
+- `DefaultPrimitiveBinaryKindV1`: `StringConcat=1, StringCompareTo=2`；`DefaultPrimitiveUnaryKindV1`: `BooleanNot=1`；
+- `DefaultArrayAccessKindV1`: `ImmutableGet=1, MutableGet=2, MutableSet=3`；
+- `DefaultForeignCallbackOperationV1`: `Retain=1, Release=2, State=3, Failure=4`；
+- `DefaultBinaryOperatorV1`: `Lt=1, Le=2, Gt=3, Ge=4, RefEq=5, RefNe=6, And=7, Or=8`；`DefaultUnaryOperatorV1`: `Not=1`。
+
+`DefaultForIterationPlanV1`与binding plan的wire是：
+
+```text
+DefaultBindingTemporaryV1 { local, value_type }     // fields 1,2; local wire为local_index
+DefaultBindingLeafV1 { local, value_type, mutable } // fields 1..3
+
+DefaultBindingShapeV1 =
+    Binding(DefaultBindingLeafV1)                   // tag 1, field 1
+  | Wildcard                                        // tag 2
+  | Tuple(SourceOrderVec<DefaultBindingShapeV1>)    // tag 3, field 1
+  | Struct { owner_type, fields }                   // tag 4, fields 1,2
+  | Class { owner_type, components }                // tag 5, fields 1,2
+
+DefaultBindingProjectionV1 =
+    TupleIndex(u32)                                 // tag 1, field 1
+  | StructField(DefaultFieldRefV1::Struct)          // tag 2, field 1
+
+DefaultBindingActionV1 =
+    Project { source, result, projection,
+              definition_origin }                  // tag 1, fields 1..4
+  | Component { source, index: NonZeroU32, result,
+                setup, call, definition_origin }   // tag 2, fields 1..6
+  | Bind { source, target, definition_origin }      // tag 3, fields 1..3
+
+DefaultBindingPlanV1 {
+    subject: DefaultBindingTemporaryV1,             // field 1
+    shape: DefaultBindingShapeV1,                   // field 2
+    actions: SourceOrderVec<DefaultBindingActionV1>,// field 3
+}
+
+DefaultIteratorConformanceV1 {
+    source: DefaultBindingTemporaryV1,              // field 1
+    iterator: DefaultBindingTemporaryV1,            // field 2
+    interface_type: SignatureTypeKey,               // field 3
+    definition_origin: ExportDefinitionSourceV1,    // field 4
+}
+
+DefaultAppliedOptionV1 {
+    some_payload: DefaultEnumVariantFieldRefV1,     // field 1
+    none: DefaultEnumVariantRefV1,                  // field 2
+}
+
+DefaultIteratorNextV1 {
+    callable: DefaultCallableRefV1,                 // field 1
+    result: DefaultBindingTemporaryV1,              // field 2
+    option: DefaultAppliedOptionV1,                 // field 3
+    element: DefaultBindingTemporaryV1,             // field 4
+    definition_origin: ExportDefinitionSourceV1,    // field 5
+}
+
+DefaultForIterationPlanV1 {
+    source_setup: SourceOrderVec<DefaultStatementV1>, // field 1
+    source: DefaultBindingTemporaryV1,                // field 2
+    source_init: DefaultExpressionV1,                 // field 3
+    iterator_setup: SourceOrderVec<DefaultStatementV1>, // field 4
+    iterator_call: DefaultExpressionV1,               // field 5
+    conformance: DefaultIteratorConformanceV1,         // field 6
+    next: DefaultIteratorNextV1,                       // field 7
+    binding: DefaultBindingPlanV1,                     // field 8
+    body: SourceOrderVec<DefaultStatementV1>,          // field 9
+}
+```
+
+struct binding fields按field declaration index严格递增，class component sequence保留source order且不得重复
+`NonZeroU32` index。所有temporary/leaf/local read/place/capture的类型和mutability都必须与canonical local
+table中同selector record一致。iterator interface、next callable和Option variant relation由trusted core protocol
+authority重放，不按名称`Iterator`/`next`/`Some`/`None`认定。
+
+body semantic validation还必须检查：所有expression result type和operation期望类型一致；局部声明的
+definition-before-use、可变性、pattern/action完整性与循环嵌套成立；嵌套callable descriptor的
+identity/path/role/signature/capture ABI与provider foundation一致；任何callable、constructor、type、global、
+singleton和field引用都与`references`的规范去重闭包精确相等。解码和这些递归检查共用顶层
+`BudgetMeter`；每个node、edge、owned byte、collection reserve和semantic depth均在分配/下潜前扣费，
+不另起无限制递归或私有budget。
 
 每个`ExportDefaultReferenceSetV1` constituent携带目标kind-specific persistent id、definition origin与`ExportDefaultAccessWitnessV1 { owner, call_domain, target_domain }`。reader从目标public interface重算domain包含关系；foreign internal/private target、缺失route、普通`Export*Id`冒充refined ref或body引用未列入reference set均拒绝。reference set必须与body实际typed引用的规范去重集合完全相等，无多余项。
 
