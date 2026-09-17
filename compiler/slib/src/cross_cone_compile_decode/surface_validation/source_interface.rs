@@ -28,6 +28,7 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -50,6 +51,7 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))

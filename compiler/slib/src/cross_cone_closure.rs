@@ -34,6 +34,10 @@ mod type_alias_expansion;
 
 pub use type_alias_expansion::*;
 
+mod mir_bridge_validation;
+
+pub use mir_bridge_validation::*;
+
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
 pub struct DecodedCrossConeClosure<'input> {

@@ -880,7 +880,7 @@ fn validate_strong_profile_local_production(
     Ok(StrongProfileLocalProductionSet { hir, mir })
 }
 
-fn validate_strong_profile_relations(
+pub(crate) fn validate_strong_profile_relations(
     kind: ConeKind,
     hir: &CoreBootstrapInterfaceSectionV1,
     mir: &CoreBootstrapBridgeSectionV1,

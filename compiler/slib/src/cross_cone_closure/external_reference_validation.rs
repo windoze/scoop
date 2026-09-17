@@ -59,6 +59,10 @@ impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
     pub(super) fn surfaces_mut(&mut self) -> &mut ConstValidatedCrossConeHirClosure<'input> {
         self.routes.surfaces_mut()
     }
+
+    pub(super) fn into_routes(self) -> PublicRouteValidatedCrossConeHirClosure<'input> {
+        self.routes
+    }
 }
 
 impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {

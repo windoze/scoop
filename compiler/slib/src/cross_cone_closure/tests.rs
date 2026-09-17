@@ -108,6 +108,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .validate_external_hir_references()
         .unwrap()
         .validate_and_expand_type_aliases()
+        .unwrap()
+        .validate_mir_bridges()
         .unwrap();
     assert_eq!(validated.current(), ConeIdentity::CORE);
     assert_eq!(validated.dependency_first().count(), 0);

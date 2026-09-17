@@ -11,7 +11,10 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
-use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
+use scoop_mir::{
+    DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, DecodedMirFoundation,
+    OdrFreeMirFoundation,
+};
 use scoop_wire::DecodeUsage;
 
 use crate::{
@@ -23,7 +26,7 @@ use crate::{
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_strong_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_identity_foundation_capability,
+    mir_cross_cone_param_free_bridge_capability, mir_identity_foundation_capability,
     strong_compile_decode::{
         OdrFreeStrongFoundationSet, StrongProfileFoundationError,
         validate_strong_profile_foundations,
@@ -37,10 +40,10 @@ pub use surface_validation::*;
 /// Canonically decoded identity, legacy production, and general HIR payloads
 /// from one exact `cross-cone-semantics-strong/1` Compile view.
 ///
-/// The new MIR/LIR bridge payloads are intentionally not promoted by this
-/// state. They remain obligations of the later bridge-validation phase, so
-/// this type is neither a complete per-artifact Compile proof nor a semantic
-/// closure proof.
+/// The MIR dependency bridge is decoded but remains untrusted until the later
+/// closure bridge phase. The LIR bridge is still outside this HIR-front state,
+/// so this type is neither a complete per-artifact Compile proof nor a
+/// semantic closure proof.
 #[derive(Debug)]
 pub struct DecodedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
@@ -49,6 +52,7 @@ pub struct DecodedCrossConeHirFrontSections<'input> {
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     mir_foundation: DecodedMirFoundation,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
@@ -63,6 +67,7 @@ pub struct FoundationValidatedCrossConeHirFrontSections<'input> {
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
@@ -76,6 +81,7 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
@@ -89,6 +95,7 @@ pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
@@ -133,6 +140,12 @@ impl<'input> ValidatedGraphArtifact<'input> {
             MetadataLocation::Mir,
             mir_core_bootstrap_bridge_capability(),
         )?;
+        let mir_cross_cone_bridge = decode_compile_section(
+            &mut self,
+            &metadata,
+            MetadataLocation::Mir,
+            mir_cross_cone_param_free_bridge_capability(),
+        )?;
         let lir_foundation = decode_compile_section(
             &mut self,
             &metadata,
@@ -155,6 +168,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
             hir_interface,
             mir_foundation,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_foundation,
             lir_strong_production,
         })
@@ -229,6 +243,10 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
         &self.mir_core_production
     }
 
+    pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+        &self.mir_cross_cone_bridge
+    }
+
     pub const fn lir_foundation_wire(&self) -> &DecodedLirFoundation {
         &self.lir_foundation
     }
@@ -264,6 +282,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             hir_interface,
             mir_foundation,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_foundation,
             lir_strong_production,
         } = self;
@@ -281,6 +300,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         })
     }
@@ -327,6 +347,10 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
         &self.mir_core_production
     }
 
+    pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+        &self.mir_cross_cone_bridge
+    }
+
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_strong_production
     }
@@ -344,6 +368,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self;
         let hir_interface = hir_interface.resolve(&mut identities)?;
@@ -354,6 +379,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         })
     }
@@ -400,6 +426,10 @@ impl<'input> ResolvedCrossConeHirFrontSections<'input> {
         &self.mir_core_production
     }
 
+    pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+        &self.mir_cross_cone_bridge
+    }
+
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_strong_production
     }
@@ -420,6 +450,7 @@ impl<'input> ResolvedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self;
         let hir_core_production = hir_core_production
@@ -431,6 +462,7 @@ impl<'input> ResolvedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         })
     }
@@ -475,6 +507,10 @@ impl HirProductionValidatedCrossConeHirFrontSections<'_> {
 
     pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
         &self.mir_core_production
+    }
+
+    pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+        &self.mir_cross_cone_bridge
     }
 
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {

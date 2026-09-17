@@ -5,7 +5,9 @@ use scoop_hir::{
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
-use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, OdrFreeMirFoundation};
+use scoop_mir::{
+    DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
+};
 use scoop_wire::{BudgetMeter, WirePath};
 
 use super::HirProductionValidatedCrossConeHirFrontSections;
@@ -20,11 +22,13 @@ use crate::{
 mod const_value;
 mod definition_source;
 mod errors;
+mod mir_bridge;
 mod source_interface;
 
 pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
+pub use mir_bridge::*;
 pub use source_interface::*;
 
 /// Storage shared by the declaration-surface proof states. Each public
@@ -36,6 +40,7 @@ struct ValidatedSurfaceFront<'input> {
     hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
@@ -98,6 +103,10 @@ macro_rules! impl_surface_front_accessors {
 
             pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
                 &self.0.mir_core_production
+            }
+
+            pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+                &self.0.mir_cross_cone_bridge
             }
 
             pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
@@ -173,6 +182,7 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self;
         hir_interface
@@ -190,6 +200,7 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))
@@ -211,6 +222,7 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -233,6 +245,7 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))
@@ -253,6 +266,7 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -277,6 +291,7 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))
@@ -298,6 +313,7 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -322,6 +338,7 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))
@@ -345,6 +362,7 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
             hir_core_production,
             hir_interface,
             mir_core_production,
+            mir_cross_cone_bridge,
             lir_strong_production,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
@@ -369,6 +387,7 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
                 hir_core_production,
                 hir_interface,
                 mir_core_production,
+                mir_cross_cone_bridge,
                 lir_strong_production,
             },
         ))

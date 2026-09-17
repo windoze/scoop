@@ -30,7 +30,7 @@ pub struct TypeAliasExpandedCrossConeHirClosure<'input> {
     expansions: Vec<CanonicalTypeAliasExpansionsV1>,
 }
 
-impl TypeAliasExpandedCrossConeHirClosure<'_> {
+impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
     pub const fn current(&self) -> ConeIdentity {
         self.references.current()
     }
@@ -72,6 +72,15 @@ impl TypeAliasExpandedCrossConeHirClosure<'_> {
             .dependency_first()
             .position(|artifact| artifact.identity() == identity)
             .map(|position| &self.expansions[position])
+    }
+
+    pub(super) fn into_mir_bridge_parts(
+        self,
+    ) -> (
+        ExternalReferenceValidatedCrossConeHirClosure<'input>,
+        Vec<CanonicalTypeAliasExpansionsV1>,
+    ) {
+        (self.references, self.expansions)
     }
 }
 

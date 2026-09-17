@@ -38,6 +38,15 @@ struct ValidatedSurfaceClosure<T> {
     dependency_positions: Vec<Vec<usize>>,
 }
 
+pub(super) struct ConstValidatedClosureParts<'input> {
+    pub(super) current: ConeIdentity,
+    pub(super) target: ValidatedLirTargetSelection,
+    pub(super) direct: Vec<ConeIdentity>,
+    pub(super) dependency_first: Vec<ConstValidatedCrossConeHirFrontSections<'input>>,
+    pub(super) positions: BTreeMap<ConeIdentity, usize>,
+    pub(super) dependency_positions: Vec<Vec<usize>>,
+}
+
 /// Providers whose internal general-HIR relations are exact.
 pub struct InternallyClosedCrossConeHirClosure<'input>(
     ValidatedSurfaceClosure<InternallyClosedCrossConeHirFrontSections<'input>>,
@@ -160,6 +169,25 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
         &[Vec<usize>],
     ) {
         (&mut self.0.dependency_first, &self.0.dependency_positions)
+    }
+
+    pub(super) fn into_mir_bridge_parts(self) -> ConstValidatedClosureParts<'input> {
+        let ValidatedSurfaceClosure {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = self.0;
+        ConstValidatedClosureParts {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        }
     }
 }
 

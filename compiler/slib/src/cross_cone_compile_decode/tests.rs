@@ -45,6 +45,7 @@ use crate::{
 };
 
 mod const_value;
+mod mir_bridge;
 mod source_interface;
 mod type_alias;
 
@@ -62,6 +63,7 @@ fn cross_cone_profile_decodes_the_complete_hir_front() {
     let _ = front.hir_interface_wire();
     let _ = front.mir_foundation_wire();
     let _ = front.mir_core_production_wire();
+    let _ = front.mir_cross_cone_bridge_wire();
     let _ = front.lir_foundation_wire();
     let _ = front.lir_strong_production_wire();
 }
@@ -654,7 +656,7 @@ fn add_cross_cone_bridge_sections(
         MetadataLocation::Mir,
         mir_cross_cone_param_free_bridge_capability(),
         MemberPurposeSet::COMPILE,
-        vec![0x80],
+        vec![0xa2, 0x01, 0x80, 0x02, 0x80],
     ));
     lir.push(section(
         MetadataLocation::Lir,
