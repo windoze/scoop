@@ -96,6 +96,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .validate_callable_surfaces()
         .unwrap()
         .validate_type_alias_surfaces()
+        .unwrap()
+        .validate_public_binding_routes()
         .unwrap();
     assert_eq!(validated.current(), ConeIdentity::CORE);
     assert_eq!(validated.dependency_first().count(), 0);

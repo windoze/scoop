@@ -107,6 +107,12 @@ impl_surface_front_accessors!(PropertyValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(CallableValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(TypeAliasValidatedCrossConeHirFrontSections);
 
+impl TypeAliasValidatedCrossConeHirFrontSections<'_> {
+    pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
+        &self.0.identities
+    }
+}
+
 macro_rules! impl_nominal_provider_view {
     ($state:ident) => {
         impl $state<'_> {

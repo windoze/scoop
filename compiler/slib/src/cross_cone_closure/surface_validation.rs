@@ -118,6 +118,17 @@ impl_surface_closure_accessors!(
     TypeAliasValidatedCrossConeHirFrontSections
 );
 
+impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
+    pub(super) fn route_validation_parts(
+        &self,
+    ) -> (
+        &[TypeAliasValidatedCrossConeHirFrontSections<'input>],
+        &[Vec<usize>],
+    ) {
+        (&self.0.dependency_first, &self.0.dependency_positions)
+    }
+}
+
 impl<'input> HirProductionValidatedCrossConeHirClosure<'input> {
     /// Validates every provider's exact section-internal HIR relations before
     /// any table is exposed as cross-provider semantic authority.
@@ -423,7 +434,7 @@ fn nominal_dependencies<'a, T: NominalProviderFront>(
     Ok(dependencies)
 }
 
-fn transitive_dependency_positions(
+pub(super) fn transitive_dependency_positions(
     position: usize,
     dependency_positions: &[Vec<usize>],
 ) -> Vec<usize> {

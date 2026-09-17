@@ -20,6 +20,10 @@ mod surface_validation;
 
 pub use surface_validation::*;
 
+mod route_validation;
+
+pub use route_validation::*;
+
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
 pub struct DecodedCrossConeClosure<'input> {
