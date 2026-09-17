@@ -1,4 +1,5 @@
 mod callables;
+mod references;
 
 pub use callables::{
     DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
@@ -8,4 +9,14 @@ pub use callables::{
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
     DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
     DefaultMethodCalleeV1,
+};
+pub use references::{
+    DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
+    DecodedDefaultEnumVariantFieldRefV1, DecodedDefaultEnumVariantRefV1, DecodedDefaultFieldRefV1,
+    DecodedDefaultPlaceV1, DefaultClassConstructorIdResolver, DefaultClassConstructorIdV1,
+    DefaultConstructorRefResolutionError, DefaultConstructorRefV1,
+    DefaultConstructorReferenceResolver, DefaultEnumVariantFieldRefResolutionError,
+    DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefResolutionError, DefaultEnumVariantRefV1,
+    DefaultFieldRefResolutionError, DefaultFieldRefV1, DefaultFieldReferenceResolver,
+    DefaultPlaceIndexError, DefaultPlaceResolutionError, DefaultPlaceV1, IndexedDefaultPlaceV1,
 };

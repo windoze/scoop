@@ -16,12 +16,20 @@ pub use binder_uses::{
 };
 pub use body::{
     DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
-    DecodedDefaultCallableDeclarationV1, DecodedDefaultCallableRefV1, DecodedDefaultMethodCalleeV1,
-    DefaultBinderRefV1, DefaultBoundCallableRefResolutionError, DefaultBoundCallableRefV1,
+    DecodedDefaultCallableDeclarationV1, DecodedDefaultCallableRefV1,
+    DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
+    DecodedDefaultEnumVariantFieldRefV1, DecodedDefaultEnumVariantRefV1, DecodedDefaultFieldRefV1,
+    DecodedDefaultMethodCalleeV1, DecodedDefaultPlaceV1, DefaultBinderRefV1,
+    DefaultBoundCallableRefResolutionError, DefaultBoundCallableRefV1,
     DefaultBoundCallableSourceResolutionError, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
-    DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
-    DefaultMethodCalleeV1,
+    DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultClassConstructorIdResolver,
+    DefaultClassConstructorIdV1, DefaultConstructorRefResolutionError, DefaultConstructorRefV1,
+    DefaultConstructorReferenceResolver, DefaultEnumVariantFieldRefResolutionError,
+    DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefResolutionError, DefaultEnumVariantRefV1,
+    DefaultFieldRefResolutionError, DefaultFieldRefV1, DefaultFieldReferenceResolver,
+    DefaultMethodCalleeResolutionError, DefaultMethodCalleeV1, DefaultPlaceIndexError,
+    DefaultPlaceResolutionError, DefaultPlaceV1, IndexedDefaultPlaceV1,
 };
 pub use locals::{
     CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,
