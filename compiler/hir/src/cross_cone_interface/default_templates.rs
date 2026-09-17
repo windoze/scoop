@@ -9,6 +9,7 @@ mod locals;
 mod receiver;
 mod references;
 mod roots;
+mod table;
 mod template;
 mod value_parameters;
 
@@ -133,6 +134,12 @@ pub use roots::{
     DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
     PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+};
+pub use table::{
+    CanonicalExportDefaultTemplatesV1, DecodedCanonicalExportDefaultTemplatesV1,
+    ExportDefaultTemplateLookupError, ExportDefaultTemplateSetBuildError,
+    ExportDefaultTemplateSetIndexError, ExportDefaultTemplateSetValidationError,
+    IndexedCanonicalExportDefaultTemplatesV1,
 };
 pub use template::{
     DecodedExportDefaultTemplateV1, ExportDefaultTemplateBuildError,
