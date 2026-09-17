@@ -41,6 +41,11 @@ pub use calls::*;
 mod core_external;
 pub use core_external::*;
 
+mod dependency_external;
+pub use dependency_external::*;
+
+mod external_callable_abi;
+
 mod module;
 pub use module::*;
 

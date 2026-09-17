@@ -341,6 +341,19 @@ fn core_external_destinations_are_effect_refined() {
 }
 
 #[test]
+fn dependency_external_destinations_are_effect_refined() {
+    let callable = super::DependencyExternalCallableId::from_raw(0_u32.into());
+    assert!(matches!(
+        ManagedCallDestination::dependency_external(callable).view(),
+        CallDestination::DependencyExternal(id) if id == callable
+    ));
+    assert!(matches!(
+        super::NoGcCallDestination::dependency_external(callable).view(),
+        CallDestination::DependencyExternal(id) if id == callable
+    ));
+}
+
+#[test]
 fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
     let mut targets = CallTargets::default();
     let void_signature = targets

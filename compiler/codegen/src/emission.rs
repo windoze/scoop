@@ -727,6 +727,16 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             callable,
         )?;
     }
+    for (_, callable) in module.meta.dependency_external_callables.iter() {
+        declare_dependency_external_callable(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            managed_address_space,
+            callable,
+        )?;
+    }
     for (_, callback) in module.callback_bridges.iter() {
         declare_callback_trampoline(
             context,
@@ -786,6 +796,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         enums: &module.enums,
         extern_functions: &module.extern_functions,
         core_external_callables: &module.meta.core_external_callables,
+        dependency_external_callables: &module.meta.dependency_external_callables,
         native_globals: &module.native_globals,
         native_global_bridges: &module.native_global_bridges,
         callback_bridges: &module.callback_bridges,

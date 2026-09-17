@@ -7,13 +7,14 @@ use scoop_identity::{
     CallableBodyKey, CanonicalScoopAbiFunctionSignature, GcEffect as CanonicalGcEffect,
     LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     PersistentCallableBodyId, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, ScoopAbiArgument as CanonicalAbiArgument,
-    ScoopAbiReturn as CanonicalAbiReturn, StrongCallableDefinitionOwner, StrongDefinitionEntity,
+    PersistentSymbolRequest, StrongCallableDefinitionOwner, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use crate::{AbiArgument, AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
+use crate::{CallingConvention, GcEffect, ScoopAbiSignature};
+
+use crate::external_callable_abi::{CanonicalScoopAbiMismatch, validate_canonical_scoop_abi};
 
 /// The caller-side root protocol inseparably paired with a core callable's
 /// GC effect. A managed call must be emitted as a statepoint; a no-GC call has
@@ -77,25 +78,17 @@ impl CoreExternalCallable {
         signature: ScoopAbiSignature,
         root_plan: CoreExternalCallableRootPlan,
     ) -> Result<Self, CoreExternalBuildError> {
-        if signature.logical_argument_count() != canonical_signature.arguments().len() {
-            return Err(CoreExternalBuildError::AbiArgumentCount {
-                expected: canonical_signature.arguments().len(),
-                actual: signature.logical_argument_count(),
-            });
-        }
-        for (index, (canonical, physical)) in canonical_signature
-            .arguments()
-            .iter()
-            .zip(signature.arguments())
-            .enumerate()
-        {
-            if !abi_argument_matches(*canonical, physical) {
-                return Err(CoreExternalBuildError::AbiArgumentMismatch { index });
-            }
-        }
-        if !abi_return_matches(canonical_signature.result(), signature.result()) {
-            return Err(CoreExternalBuildError::AbiResultMismatch);
-        }
+        validate_canonical_scoop_abi(&canonical_signature, &signature).map_err(
+            |error| match error {
+                CanonicalScoopAbiMismatch::ArgumentCount { expected, actual } => {
+                    CoreExternalBuildError::AbiArgumentCount { expected, actual }
+                }
+                CanonicalScoopAbiMismatch::Argument { index } => {
+                    CoreExternalBuildError::AbiArgumentMismatch { index }
+                }
+                CanonicalScoopAbiMismatch::Result => CoreExternalBuildError::AbiResultMismatch,
+            },
+        )?;
         let expected_effect = match canonical_signature.gc_effect() {
             CanonicalGcEffect::Managed => GcEffect::Managed,
             CanonicalGcEffect::NoGc => GcEffect::NoGc,
@@ -230,37 +223,6 @@ pub(crate) fn core_type_descriptor_link_contract(
         StrongDefinitionRole::TypeDescriptor,
     )?;
     Ok((expected_symbol, required_definition))
-}
-
-fn abi_argument_matches(canonical: CanonicalAbiArgument, physical: &AbiArgument) -> bool {
-    match (canonical, physical) {
-        (CanonicalAbiArgument::ElidedZst(expected), AbiArgument::ElidedZst(actual)) => {
-            expected.byte_size() == actual.layout().size()
-                && expected.alignment() == actual.layout().alignment()
-        }
-        (CanonicalAbiArgument::Direct(expected), AbiArgument::Direct(actual))
-        | (CanonicalAbiArgument::Indirect(expected), AbiArgument::Indirect(actual)) => {
-            expected.byte_size() == actual.layout().size().get()
-                && expected.alignment() == actual.layout().alignment()
-        }
-        _ => false,
-    }
-}
-
-fn abi_return_matches(canonical: CanonicalAbiReturn, physical: &AbiReturn) -> bool {
-    match (canonical, physical) {
-        (CanonicalAbiReturn::UnitVoid, AbiReturn::UnitVoid) => true,
-        (CanonicalAbiReturn::ElidedZst(expected), AbiReturn::ElidedZst(actual)) => {
-            expected.byte_size() == actual.layout().size()
-                && expected.alignment() == actual.layout().alignment()
-        }
-        (CanonicalAbiReturn::Direct(expected), AbiReturn::Direct(actual))
-        | (CanonicalAbiReturn::Indirect(expected), AbiReturn::Indirect(actual)) => {
-            expected.byte_size() == actual.layout().size().get()
-                && expected.alignment() == actual.layout().alignment()
-        }
-        _ => false,
-    }
 }
 
 #[derive(Debug)]

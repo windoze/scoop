@@ -22,6 +22,7 @@ pub type LayoutId = Idx<Layout>;
 pub type TypeDescriptorId = Idx<TypeDescriptor>;
 pub type CoreExternalTypeDescriptorId = Idx<CoreExternalTypeDescriptor>;
 pub type CoreExternalCallableId = Idx<CoreExternalCallable>;
+pub type DependencyExternalCallableId = Idx<DependencyExternalCallable>;
 
 /// Typed index into `Module::functions`. Functions remain in emission order,
 /// while call destinations no longer use their symbols as semantic identity.

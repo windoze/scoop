@@ -66,6 +66,36 @@ pub(crate) fn declare_core_external_callable<'ctx>(
     Ok(())
 }
 
+/// Declare one ordinary dependency callable from its selected semantic
+/// bridge. It remains an external declaration; no local body or runtime
+/// registration is emitted for it.
+pub(crate) fn declare_dependency_external_callable<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
+    managed_address_space: ManagedAddressSpace,
+    callable: &scoop_lir::DependencyExternalCallable,
+) -> Result<(), CodegenError> {
+    let symbol = callable.expected_symbol().symbol();
+    if llvm.get_function(symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "dependency external callable `{symbol}` collides with an existing declaration"
+        )));
+    }
+    let declaration = abi::declare_or_get(
+        context,
+        llvm,
+        structs,
+        enums,
+        managed_address_space,
+        symbol.as_str(),
+        callable.signature(),
+    )?;
+    declaration.set_linkage(inkwell::module::Linkage::External);
+    Ok(())
+}
+
 fn apply_persistent_function_linkage(
     function: inkwell::values::FunctionValue<'_>,
     request: scoop_lir::PersistentSymbolRequest,

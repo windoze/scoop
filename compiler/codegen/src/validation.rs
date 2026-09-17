@@ -16,6 +16,7 @@ use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
     validate_core_external_metadata(module)?;
+    validate_dependency_external_metadata(module)?;
     validate_type_descriptor_symbols(module)?;
     validate_array_metadata(module)?;
     validate_output(module)?;
@@ -90,6 +91,60 @@ fn validate_core_external_metadata(module: &Module) -> Result<(), CodegenError> 
             return Err(CodegenError(format!(
                 "core external TypeDescriptor target {} is also defined locally",
                 descriptor.target()
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_dependency_external_metadata(module: &Module) -> Result<(), CodegenError> {
+    let mut declarations = HashSet::new();
+    let mut bodies = HashSet::new();
+    for (_, callable) in module.meta.dependency_external_callables.iter() {
+        if callable.provider() == scoop_lir::ConeIdentity::CORE {
+            return Err(CodegenError(
+                "ordinary dependency external callable cannot use trusted-core authority"
+                    .to_string(),
+            ));
+        }
+        if callable.provider() == module.cone {
+            return Err(CodegenError(format!(
+                "dependency external callable {:?} names the current Cone as provider",
+                callable.declaration()
+            )));
+        }
+        if !declarations.insert((callable.provider(), callable.declaration())) {
+            return Err(CodegenError(format!(
+                "duplicate dependency external callable {}:{:?}",
+                callable.provider(),
+                callable.declaration()
+            )));
+        }
+        if !bodies.insert(callable.body()) {
+            return Err(CodegenError(format!(
+                "duplicate dependency external callable body {}",
+                callable.body()
+            )));
+        }
+        if module
+            .functions
+            .iter()
+            .any(|local| local.callable_body.id() == callable.body())
+        {
+            return Err(CodegenError(format!(
+                "dependency external callable body {} is also defined locally",
+                callable.body()
+            )));
+        }
+        if module
+            .meta
+            .core_external_callables
+            .iter()
+            .any(|(_, core)| core.body() == callable.body())
+        {
+            return Err(CodegenError(format!(
+                "dependency external callable body {} also uses trusted-core authority",
+                callable.body()
             )));
         }
     }

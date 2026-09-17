@@ -216,6 +216,11 @@ pub(super) fn call_symbol(module: &lir::Module, destination: lir::CallDestinatio
             .expected_symbol()
             .symbol()
             .to_string(),
+        lir::CallDestination::DependencyExternal(id) => module.meta.dependency_external_callables
+            [id]
+            .expected_symbol()
+            .symbol()
+            .to_string(),
         lir::CallDestination::Runtime(runtime) => runtime.symbol().to_string(),
         lir::CallDestination::Extern(id) => module.extern_functions[id].native_symbol.clone(),
         lir::CallDestination::Dispatch { .. } => panic!("dispatch calls have no symbol"),

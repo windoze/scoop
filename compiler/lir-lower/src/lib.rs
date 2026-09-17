@@ -414,6 +414,7 @@ pub fn lower(
             type_descriptors,
             core_external_type_descriptors,
             core_external_callables,
+            dependency_external_callables: Arena::new(),
         },
     };
     lir::SingleConeStrongLirOutput::try_new(

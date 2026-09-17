@@ -91,6 +91,9 @@ pub(super) fn call_destination_name(function: &Function, destination: CallDestin
         CallDestination::CoreExternal(id) => {
             format!("core-external-fn{}", id.into_raw())
         }
+        CallDestination::DependencyExternal(id) => {
+            format!("dependency-external-fn{}", id.into_raw())
+        }
         CallDestination::Runtime(runtime) => format!("runtime @{}", runtime.symbol()),
         CallDestination::Extern(id) => format!("extern{}", id.into_raw()),
         CallDestination::Dispatch { table, slot } => {

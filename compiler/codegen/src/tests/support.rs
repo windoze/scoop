@@ -935,6 +935,7 @@ pub(super) fn string_metadata() -> LirMeta {
         type_descriptors,
         core_external_type_descriptors: Arena::new(),
         core_external_callables: Arena::new(),
+        dependency_external_callables: Arena::new(),
     }
 }
 
@@ -1256,6 +1257,14 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         function.set_linkage(inkwell::module::Linkage::External);
     }
     for (_, callable) in module.meta.core_external_callables.iter() {
+        let function = llvm.add_function(
+            callable.expected_symbol().symbol().as_str(),
+            placeholder_function_type,
+            None,
+        );
+        function.set_linkage(inkwell::module::Linkage::External);
+    }
+    for (_, callable) in module.meta.dependency_external_callables.iter() {
         let function = llvm.add_function(
             callable.expected_symbol().symbol().as_str(),
             placeholder_function_type,

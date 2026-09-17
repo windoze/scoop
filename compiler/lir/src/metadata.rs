@@ -276,6 +276,10 @@ pub struct LirMeta {
     pub core_external_type_descriptors: Arena<CoreExternalTypeDescriptor>,
     /// Cross-Cone callables referenced from local dispatch tables.
     pub core_external_callables: Arena<CoreExternalCallable>,
+    /// Ordinary dependency callables referenced only by direct typed calls.
+    /// They are external declarations and never enter local Strong ownership,
+    /// dispatch tables, registrations, or image plans.
+    pub dependency_external_callables: Arena<DependencyExternalCallable>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

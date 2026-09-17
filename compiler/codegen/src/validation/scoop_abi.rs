@@ -1336,6 +1336,40 @@ fn validate_destination(
                 ),
             )
         }
+        scoop_lir::CallDestination::DependencyExternal(id) => {
+            let index = arena_index(id);
+            if index >= module.meta.dependency_external_callables.len() {
+                return Err(call_error(
+                    function,
+                    format!("references invalid dependency external callable {index}"),
+                ));
+            }
+            let declaration = &module.meta.dependency_external_callables[id];
+            let expected_protocol = match declaration.gc_effect() {
+                scoop_lir::GcEffect::Managed => CallProtocol::Managed,
+                scoop_lir::GcEffect::NoGc => CallProtocol::NoGc,
+            };
+            if protocol != expected_protocol {
+                return Err(call_error(
+                    function,
+                    format!(
+                        "{} protocol does not match dependency external `{}`'s {:?} effect",
+                        protocol.name(),
+                        declaration.expected_symbol().symbol(),
+                        declaration.gc_effect()
+                    ),
+                ));
+            }
+            require_scoop_signature(
+                function,
+                call,
+                declaration.signature(),
+                &format!(
+                    "typed dependency external call to `{}`",
+                    declaration.expected_symbol().symbol()
+                ),
+            )
+        }
         scoop_lir::CallDestination::Extern(id) => {
             let declaration = extern_declaration(module, function, id)?;
             match &declaration.kind {
@@ -1776,6 +1810,7 @@ mod tests {
                 type_descriptors: Arena::new(),
                 core_external_type_descriptors: Arena::new(),
                 core_external_callables: Arena::new(),
+                dependency_external_callables: Arena::new(),
             },
         }
     }

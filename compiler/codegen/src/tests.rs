@@ -44,6 +44,7 @@ mod c_bridge_objects;
 mod c_layout;
 mod closures;
 mod constants;
+mod dependency_external;
 mod enums;
 mod exceptions;
 mod initialization;

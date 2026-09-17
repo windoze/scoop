@@ -1277,6 +1277,43 @@ fn scoop_abi_validation_rejects_an_unknown_core_external_call_target() {
 }
 
 #[test]
+fn scoop_abi_validation_rejects_an_unknown_dependency_external_call_target() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let signature = function
+        .call_targets
+        .void_signatures
+        .alloc(VoidCallSignature::new(
+            Vec::new(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    let external = scoop_lir::DependencyExternalCallableId::from_raw(0_u32.into());
+    let target = function
+        .call_targets
+        .managed_targets
+        .void
+        .alloc(scoop_lir::CallTarget {
+            destination: scoop_lir::ManagedCallDestination::dependency_external(external),
+            signature,
+        });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::Call {
+            site: scoop_lir::CallSite::Managed(scoop_lir::ManagedCallSite {
+                call: scoop_lir::TypedCall::Void {
+                    target,
+                    args: Vec::new(),
+                },
+                safepoint: test_safepoint(705),
+                live: scoop_lir::StatepointLiveSet::default(),
+            }),
+        });
+    refresh_module_safepoints(&mut module);
+
+    assert_module_validation_error(&module, "references invalid dependency external callable 0");
+}
+
+#[test]
 fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
     let mut module = managed_poll_test_module();
     let function = &mut module.functions[0];

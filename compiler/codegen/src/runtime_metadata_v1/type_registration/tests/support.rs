@@ -258,6 +258,7 @@ fn type_semantics(types: &[TypeArtifacts]) -> StrongTypeDescriptorSemanticPlanSe
             type_descriptors,
             core_external_type_descriptors: Arena::new(),
             core_external_callables: Arena::new(),
+            dependency_external_callables: Arena::new(),
         },
     };
     StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap()

@@ -234,6 +234,7 @@ impl<Destination> Default for ProtocolCallTargets<Destination> {
 pub enum CallDestination {
     Local(LocalFunctionId),
     CoreExternal(CoreExternalCallableId),
+    DependencyExternal(DependencyExternalCallableId),
     Runtime(RuntimeFunction),
     Extern(ExternFunctionId),
     Dispatch { table: Value, slot: DispatchSlotId },
@@ -309,6 +310,7 @@ impl LocalFunctionIdentities {
 pub enum ManagedCallDestination {
     Local(ManagedLocalFunctionRef),
     CoreExternal(CoreExternalCallableId),
+    DependencyExternal(DependencyExternalCallableId),
     Runtime(ManagedRuntimeFunction),
     Dispatch {
         table: Value,
@@ -325,6 +327,10 @@ impl ManagedCallDestination {
         Self::CoreExternal(function)
     }
 
+    pub fn dependency_external(function: DependencyExternalCallableId) -> Self {
+        Self::DependencyExternal(function)
+    }
+
     pub fn runtime(function: ManagedRuntimeFunction) -> Self {
         Self::Runtime(function)
     }
@@ -337,6 +343,7 @@ impl ManagedCallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
             Self::CoreExternal(function) => CallDestination::CoreExternal(function),
+            Self::DependencyExternal(function) => CallDestination::DependencyExternal(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::Managed(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,
@@ -351,6 +358,7 @@ impl ManagedCallDestination {
 pub enum NoGcCallDestination {
     Local(NoGcLocalFunctionRef),
     CoreExternal(CoreExternalCallableId),
+    DependencyExternal(DependencyExternalCallableId),
     Runtime(NoGcRuntimeFunction),
     Dispatch {
         table: Value,
@@ -367,6 +375,10 @@ impl NoGcCallDestination {
         Self::CoreExternal(function)
     }
 
+    pub fn dependency_external(function: DependencyExternalCallableId) -> Self {
+        Self::DependencyExternal(function)
+    }
+
     pub fn runtime(function: NoGcRuntimeFunction) -> Self {
         Self::Runtime(function)
     }
@@ -379,6 +391,7 @@ impl NoGcCallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
             Self::CoreExternal(function) => CallDestination::CoreExternal(function),
+            Self::DependencyExternal(function) => CallDestination::DependencyExternal(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::NoGc(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,
