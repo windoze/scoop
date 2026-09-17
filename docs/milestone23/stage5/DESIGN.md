@@ -1281,6 +1281,35 @@ singleton和field引用都与`references`的规范去重闭包精确相等。解
 `BudgetMeter`；每个node、edge、owned byte、collection reserve和semantic depth均在分配/下潜前扣费，
 不另起无限制递归或私有budget。
 
+local data-flow pass以canonical local table的record index建立definite-definition bitset；初始集合只能包含
+`receiver`与`value_parameters`显式列出的local。可达路径上的`Local` expression、local `AddressOf`、nested
+callable capture以及callable-reference内联receiver都必须在使用点已经定义；local assignment target必须命中
+table，descriptor携带的local type必须逐结构等于table record。对local的每次赋值都要求record为mutable，尚未
+定义的mutable local允许由第一次赋值建立merge definition；`ValDecl`固定先检查initializer、再原子引入pattern
+内的binding。catch local进入且只进入对应catch body，且必须是与catch type一致的immutable record。
+
+控制流按normal edge交集计算definite definition：`if`包含缺省else的incoming edge；`when`先检查subject，
+每个arm只在自己的pattern/guard/body中拥有pattern binding，无guard的irrefutable arm截断后续可达arm；
+`try`的body与各catch从同一incoming集合开始，`finally`观察所有仍可能到达的completion；`return`、`throw`、
+`break`与`continue`分别携带abrupt outcome。不可达语法仍登记definition ownership并接受结构检查，但其local
+read不产生可观察的future-use错误，也不能恢复normal edge。wire不携带loop id，因此`break`/`continue`只能
+消费当前最内层active `while`/`for`，在loop外出现即为corruption；loop内部产生的definition不会流出loop。
+
+每个`for` plan的`source`、conformance source/iterator、next result/element五个temporary必须两两不同，
+都是与table type一致的immutable record，并按source setup → source init → iterator setup → iterator call →
+conformance/next → binding actions → body的顺序建立可用性；`binding.subject`必须逐字段等于next element。
+binding action按wire顺序执行，source必须已定义，Project/Component result与Bind target只能在对应位置首次定义；
+for binding leaf必须immutable。binding shape随后作为独立证明精确消费这些action：Binding匹配唯一同source/target
+的Bind，Tuple/Struct的每个非Wildcard子shape匹配唯一对应Project，Class component index必须从1连续且匹配
+唯一Component；一个action不能被复用，也不能游离于shape之外。不同for plan的私有temporary/setup/action
+definition、普通region definition与其他plan两两不重叠，防止同一local借由另一控制流区域获得定义。
+
+local data-flow pass的bitset、branch snapshot、definition-owner集合、shape-consumption表与显式work stack都在
+分配前向调用方`BudgetMeter`计费；每次状态转移、local lookup、merge比较与shape/action匹配均扣
+validation work，嵌套control-flow/expression/pattern深度使用同一`WirePath`检查。该pass只证明local与控制流
+关系；constructor/call/field/protocol的类型关系仍由operation-typing pass证明，nested descriptor本身的
+identity/path/signature/capture顺序仍由nested-callable ABI pass证明。
+
 实现可以把上述检查拆成名称明确且边界互斥的pass，但reader接受template前必须运行完整组合。其中
 provider-envelope pass遍历整棵body（包括control-flow、binding plan、pattern、嵌套callable descriptor与
 capture），验证每个内联`SignatureTypeKey`都处于definition root的provider binder scope，并验证每个内联
