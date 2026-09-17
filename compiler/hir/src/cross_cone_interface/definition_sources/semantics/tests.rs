@@ -4,6 +4,7 @@ use scoop_identity::{
 };
 
 use super::*;
+use crate::{CanonicalExportDefinitionSourcesV1, ExportDefinitionSourceSetSemanticValidationError};
 
 #[test]
 fn validates_current_cone_source_context_and_points() {
@@ -55,6 +56,44 @@ fn reports_foundation_source_validation_failure() {
     assert_eq!(authority.validations, 1);
 }
 
+#[test]
+fn table_validates_every_source_in_canonical_order() {
+    let sources = CanonicalExportDefinitionSourcesV1::try_new(vec![
+        definition_source_with_span(ConeIdentity::CORE, 3, 4),
+        definition_source_with_span(ConeIdentity::CORE, 1, 2),
+    ])
+    .unwrap();
+    let mut authority = Authority {
+        cone: ConeIdentity::CORE,
+        reject: false,
+        validations: 0,
+    };
+
+    assert_eq!(sources.validate_semantics(&mut authority), Ok(()));
+    assert_eq!(authority.validations, 2);
+}
+
+#[test]
+fn table_reports_the_failing_source_index() {
+    let sources =
+        CanonicalExportDefinitionSourcesV1::try_new(vec![definition_source(ConeIdentity::CORE)])
+            .unwrap();
+    let mut authority = Authority {
+        cone: ConeIdentity::CORE,
+        reject: true,
+        validations: 0,
+    };
+
+    assert_eq!(
+        sources.validate_semantics(&mut authority),
+        Err(ExportDefinitionSourceSetSemanticValidationError::Source {
+            index: 0,
+            error: ExportDefinitionSourceSemanticValidationError::Foundation(SourceError),
+        })
+    );
+    assert_eq!(authority.validations, 1);
+}
+
 struct Authority {
     cone: ConeIdentity,
     reject: bool,
@@ -91,6 +130,14 @@ impl std::fmt::Display for SourceError {
 impl std::error::Error for SourceError {}
 
 fn definition_source(cone: ConeIdentity) -> ExportDefinitionSourceV1 {
+    definition_source_with_span(cone, 1, 2)
+}
+
+fn definition_source_with_span(
+    cone: ConeIdentity,
+    start: u64,
+    end: u64,
+) -> ExportDefinitionSourceV1 {
     let source = SourceIdentity::new(
         cone,
         NormalizedSourcePath::new("src/default.scoop").unwrap(),
@@ -100,6 +147,6 @@ fn definition_source(cone: ConeIdentity) -> ExportDefinitionSourceV1 {
         source: source.clone(),
     };
     ExportDefinitionSourceV1::new(
-        DefinitionOrigin::new(source, SourceSpan::new(1, 2).unwrap(), &context).unwrap(),
+        DefinitionOrigin::new(source, SourceSpan::new(start, end).unwrap(), &context).unwrap(),
     )
 }

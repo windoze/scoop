@@ -101,6 +101,21 @@ impl CanonicalExportDefinitionSourcesV1 {
     pub fn is_empty(&self) -> bool {
         self.sources.is_empty()
     }
+
+    pub fn validate_semantics<A, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), ExportDefinitionSourceSetSemanticValidationError<E>>
+    where
+        A: ExportDefinitionSourceSemanticAuthority<E>,
+    {
+        for (index, source) in self.sources.iter().enumerate() {
+            source.validate_semantics(authority).map_err(|error| {
+                ExportDefinitionSourceSetSemanticValidationError::Source { index, error }
+            })?;
+        }
+        Ok(())
+    }
 }
 
 impl WireEncode for CanonicalExportDefinitionSourcesV1 {
@@ -225,6 +240,30 @@ impl<E: fmt::Display> fmt::Display for ExportDefinitionSourceSetValidationError<
 
 impl<E: std::error::Error + 'static> std::error::Error
     for ExportDefinitionSourceSetValidationError<E>
+{
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExportDefinitionSourceSetSemanticValidationError<E> {
+    Source {
+        index: usize,
+        error: ExportDefinitionSourceSemanticValidationError<E>,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for ExportDefinitionSourceSetSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Source { index, error } => write!(
+                formatter,
+                "invalid export definition source semantics at index {index}: {error}"
+            ),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for ExportDefinitionSourceSetSemanticValidationError<E>
 {
 }
 
