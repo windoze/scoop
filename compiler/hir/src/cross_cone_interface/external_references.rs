@@ -1,6 +1,7 @@
 //! Exact foreign-reference closure carried by the cross-Cone HIR interface.
 
 mod record;
+mod reexport_closure;
 mod roles;
 mod table;
 mod target;
@@ -12,6 +13,7 @@ pub use record::{
     ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
     ExternalHirReferenceV1,
 };
+pub use reexport_closure::ExternalHirReexportClosureValidationError;
 pub use roles::{
     CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
     ExternalHirReferenceRoleSetBuildError, ExternalHirReferenceRoleSetValidationError,

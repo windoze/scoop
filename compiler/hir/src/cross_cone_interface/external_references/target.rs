@@ -1,13 +1,14 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, DecodedCallableTemplateOrigin, DecodedNominalDeclarationOwner,
-    DecodedPersistentId, DecodedPropertyOwner, NominalDeclarationOwner, PersistentConstructorId,
-    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExtensionPropertyId,
-    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentIdResolver,
-    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
-    PersistentTypeAliasId, PersistentTypeId, PropertyOwner,
+    BindableEntity, CallableTemplateOrigin, DecodedCallableTemplateOrigin,
+    DecodedNominalDeclarationOwner, DecodedPersistentId, DecodedPropertyOwner,
+    NominalDeclarationOwner, PersistentConstructorId, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentExtensionPropertyId, PersistentFieldId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentIdResolver, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
+    PropertyOwner,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -23,6 +24,34 @@ pub enum ExternalHirTargetV1 {
     Field(PersistentFieldId),
     EnumVariantField(PersistentEnumVariantFieldId),
     GeneratedCallable(PersistentGeneratedCallableId),
+}
+
+impl From<BindableEntity> for ExternalHirTargetV1 {
+    fn from(target: BindableEntity) -> Self {
+        match target {
+            BindableEntity::Type(target) => {
+                Self::Nominal(NominalDeclarationOwner::Concrete(target))
+            }
+            BindableEntity::GenericType(target) => {
+                Self::Nominal(NominalDeclarationOwner::GenericTemplate(target))
+            }
+            BindableEntity::ObjectValue(target) => Self::ObjectValue(target),
+            BindableEntity::Function(target) => {
+                Self::Callable(CallableTemplateOrigin::Function(target))
+            }
+            BindableEntity::GenericFunction(target) => {
+                Self::Callable(CallableTemplateOrigin::GenericFunction(target))
+            }
+            BindableEntity::Property(target) => Self::Property(PropertyOwner::Property(target)),
+            BindableEntity::ExtensionProperty(target) => {
+                Self::Property(PropertyOwner::ExtensionProperty(target))
+            }
+            BindableEntity::TypeAlias(target) => Self::TypeAlias(target),
+            BindableEntity::EnumVariant(target) => {
+                Self::Callable(CallableTemplateOrigin::VariantConstructor(target))
+            }
+        }
+    }
 }
 
 impl WireEncode for ExternalHirTargetV1 {
