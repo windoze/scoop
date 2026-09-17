@@ -12,15 +12,74 @@ use crate::cross_cone_interface::default_templates::expression_test_support::Fix
 use crate::{
     CallableParameterCallingV1, CallableSourceInterfaceV1, CallableSourceParameterV1,
     CanonicalBinderUseListV1, CanonicalBooleanV1, CanonicalCallableSourceParametersV1,
-    CanonicalConstValueV1, CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
-    DefaultBodyOriginSiteV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultStatementKindV1,
-    DefaultStatementV1, ExportConstValueV1, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
-    ExportDefaultCallDomainV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
-    ExportDefaultReferenceV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ExportDefinitionSourceV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
-    PublicLookupAccessV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
-    TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
+    CanonicalConstValueV1, CanonicalDirectPublicSurfaceV1, CanonicalTemplateLocalTableV1,
+    CanonicalTemplateValueParametersV1, DefaultBodyOriginSiteV1, DefaultExpressionKindV1,
+    DefaultExpressionV1, DefaultStatementKindV1, DefaultStatementV1, ExportConstValueV1,
+    ExportDefaultAccessWitnessV1, ExportDefaultBodyV1, ExportDefaultCallDomainV1,
+    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1,
+    OptionalTemplateReceiverV1, PersistentLexicalRootV1,
+    PublicExportBindingDirectSurfaceValidationError, PublicLookupAccessV1,
+    TemplateLocalDefinitionV1, TemplateLocalRecordV1, TypeAliasInterfaceRecordV1,
+    TypeAliasTargetV1,
 };
+
+#[test]
+fn internal_closure_validator_accepts_an_empty_section() {
+    assert_eq!(
+        empty_section().validate_internal_closures(
+            &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
+            &mut BudgetMeter::new(DecodeLimits::default()),
+            &WirePath::root(),
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn internal_closure_validator_preserves_relation_errors() {
+    let fixture = crate::cross_cone_interface::public_bindings::direct_fixture(
+        ConeIdentity::SINGLE_FILE,
+        "entry",
+    );
+    let binding = fixture.binding.id();
+    let direct = CanonicalDirectPublicSurfaceV1::try_new(vec![binding]).unwrap();
+
+    assert_eq!(
+        empty_section().validate_internal_closures(
+            &direct,
+            &mut BudgetMeter::new(DecodeLimits::default()),
+            &WirePath::root(),
+        ),
+        Err(CrossConeHirInternalClosureValidationError::DirectSurface(
+            PublicExportBindingDirectSurfaceValidationError::MissingDeclaredCurrent {
+                surface_index: 0,
+                insertion_index: 0,
+                binding,
+            }
+        ))
+    );
+
+    let mut section = empty_section();
+    let extra = origin(99);
+    section.definition_sources =
+        CanonicalExportDefinitionSourcesV1::try_new(vec![extra.clone()]).unwrap();
+    assert_eq!(
+        section.validate_internal_closures(
+            &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
+            &mut BudgetMeter::new(DecodeLimits::default()),
+            &WirePath::root(),
+        ),
+        Err(
+            CrossConeHirInternalClosureValidationError::DefinitionSources(
+                ExportDefinitionSourceClosureValidationError::Extra {
+                    index: 0,
+                    source: Box::new(extra),
+                },
+            )
+        )
+    );
+}
 
 #[test]
 fn definition_source_closure_accepts_every_inline_source_category() {

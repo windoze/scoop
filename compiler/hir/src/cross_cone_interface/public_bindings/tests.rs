@@ -266,13 +266,13 @@ fn reader_rejects_duplicate_and_noncanonical_record_order() {
     );
 }
 
-struct DirectFixture {
-    function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    binding: CborIdentityRecord<PersistentExportBindingId, ExportBindingKey>,
-    public: PublicExportBindingRecordV1,
+pub(crate) struct DirectFixture {
+    pub(crate) function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
+    pub(crate) binding: CborIdentityRecord<PersistentExportBindingId, ExportBindingKey>,
+    pub(crate) public: PublicExportBindingRecordV1,
 }
 
-fn direct_fixture(exporter: ConeIdentity, name: &str) -> DirectFixture {
+pub(crate) fn direct_fixture(exporter: ConeIdentity, name: &str) -> DirectFixture {
     let function = function(exporter, name);
     let binding = binding(exporter, name, &function);
     let public = PublicExportBindingRecordV1::new(

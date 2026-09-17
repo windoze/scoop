@@ -404,3 +404,6 @@ impl<E: std::error::Error + 'static> std::error::Error
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+pub(crate) use tests::direct_fixture;

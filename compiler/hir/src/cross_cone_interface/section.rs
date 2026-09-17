@@ -27,10 +27,12 @@ use super::{
 };
 
 mod definition_source_closure;
+mod internal_closures;
 
 pub use definition_source_closure::{
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
 };
+pub use internal_closures::CrossConeHirInternalClosureValidationError;
 
 /// The complete canonical HIR interface exported across a Cone boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]

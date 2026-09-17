@@ -311,8 +311,9 @@ pub use route_closure::{
 pub use section::{
     CrossConeHirInterfaceIndexError, CrossConeHirInterfaceResolutionError,
     CrossConeHirInterfaceResolver, CrossConeHirInterfaceSectionV1,
-    DecodedCrossConeHirInterfaceSectionV1, ExportDefinitionSourceClosureValidationError,
-    ExportDefinitionSourceUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
+    CrossConeHirInternalClosureValidationError, DecodedCrossConeHirInterfaceSectionV1,
+    ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
+    IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
