@@ -1273,7 +1273,90 @@ singleton和field引用都与`references`的规范去重闭包精确相等。解
 `BudgetMeter`；每个node、edge、owned byte、collection reserve和semantic depth均在分配/下潜前扣费，
 不另起无限制递归或私有budget。
 
-每个`ExportDefaultReferenceSetV1` constituent携带目标kind-specific persistent id、definition origin与`ExportDefaultAccessWitnessV1 { owner, call_domain, target_domain }`。reader从目标public interface重算domain包含关系；foreign internal/private target、缺失route、普通`Export*Id`冒充refined ref或body引用未列入reference set均拒绝。reference set必须与body实际typed引用的规范去重集合完全相等，无多余项。
+default reference closure沿用M17的六个互不兼容的typed domain，不把target压成无类型entity id：
+
+```text
+ExportDefaultReferenceSetV1 {
+    callables: CanonicalSet<ExportDefaultCallableReferenceV1>,       // field 1
+    constructors: CanonicalSet<ExportDefaultConstructorReferenceV1>,// field 2
+    types: CanonicalSet<ExportDefaultTypeReferenceV1>,               // field 3
+    globals: CanonicalSet<ExportDefaultGlobalReferenceV1>,           // field 4
+    singleton_values: CanonicalSet<ExportDefaultSingletonReferenceV1>,// field 5
+    fields: CanonicalSet<ExportDefaultFieldReferenceV1>,             // field 6
+}
+
+ExportDefaultCallableReferenceV1 = ExportDefaultReferenceV1<ExportDefaultCallableTargetV1>
+ExportDefaultConstructorReferenceV1 = ExportDefaultReferenceV1<DefaultConstructorRefV1>
+ExportDefaultTypeReferenceV1 = ExportDefaultReferenceV1<SignatureTypeKey>
+ExportDefaultGlobalReferenceV1 = ExportDefaultReferenceV1<PersistentPropertyId>
+ExportDefaultSingletonReferenceV1 = ExportDefaultReferenceV1<PersistentObjectValueId>
+ExportDefaultFieldReferenceV1 = ExportDefaultReferenceV1<DefaultFieldRefV1>
+
+ExportDefaultReferenceV1<T> {
+    target: T,                                      // field 1
+    definition_origin: ExportDefinitionSourceV1,   // field 2
+    witness: ExportDefaultAccessWitnessV1,          // field 3
+}
+
+ExportDefaultCallableTargetV1 =
+    Callable(DefaultCallableRefV1)                  // tag 1, field 1
+  | Bound(DefaultBoundCallableRefV1)                // tag 2, field 1
+  | DerivedEquality { owner_type: SignatureTypeKey }// tag 3, field 1
+  | LocalFunction { declaration: CallableDeclarationId } // tag 4, field 1
+  | Lambda { body: PersistentGeneratedCallableId } // tag 5, field 1
+  | AnonymousFunction { body: PersistentGeneratedCallableId } // tag 6, field 1
+  | CallableReference { invoke: PersistentGeneratedCallableId } // tag 7, field 1
+  | FunctionAddress { declaration: DefaultCallableDeclarationV1 } // tag 8, field 1
+
+ExportDefaultAccessWitnessV1 {
+    owner: CallableDeclarationId,                  // field 1
+    call_domain: ExportDefaultCallDomainV1,        // field 2
+    target_domain: ExportDefaultTargetDomainV1,    // field 3
+}
+
+ExportDefaultCallDomainV1 =
+    DirectPublic                                   // unsigned 1
+  | DirectAndPublicSlot                            // unsigned 2
+
+ExportDefaultTargetDomainV1 =
+    Universal                                      // unsigned 1
+```
+
+`ExportDefaultCallableTargetV1`逐variant对应定义方HIR中产生access witness的八种callable
+target；它不从body形状猜出另一种target。`LocalFunction.declaration`只接受Function或
+GenericFunction，并由其source declaration key重放local path；三个lexical generated variant的
+persistent key必须分别具有`LambdaBody`、`AnonymousFunctionBody`或`CallableReferenceInvoke`的精确
+root/path/role。`DerivedEquality`在winner替换前没有exact generated callable identity，所以保留
+provider-scope的`owner_type`并由type authority重放；不能为它伪造一个persistent callable id。
+constructor、field与type target保留完整applied/structural ref，因此同一declaration的不同
+provider-scope application不会被错误合并。tuple field是合法的structural `DefaultFieldRefV1`，不为它
+制造persistent field id。
+
+每个typed set按record的`(target, definition_origin, witness)`结构序严格递增并拒绝重复；target sum
+按上述tag排序，product按字段序，persistent id按raw bytes，其余叶使用各自已冻结的canonical顺序。
+六个set彼此不合并排序，长度均必须可表示为`u32`。record与witness都使用上述精确三字段map；
+callable target的八种wire均为`{0:tag,1:payload}`。reader不得排序修复、按显示名合并target，或把
+不同definition origin的两次绑定折成一条记录。
+
+cross-Cone section只发布public callable的source interface，因此成功witness的direct call domain与
+target access domain都必为universal；承担public slot的owner还必须同时覆盖universal slot domain。
+wire据此使用两个refined leaf type，而不序列化含本地arena id的M21通用`AccessDomain`：
+`DirectPublic`对应owner callable record的`DirectOnly`，`DirectAndPublicSlot`对应`PublicSlot`，
+`Universal`由target public interface或同template lexical ownership重算。这个收窄不是省略证明：
+reader必须逐条核对witness owner等于template key owner、owner callable access精确映射到
+`call_domain`，并从target种类重建`target_domain`及调用域包含关系。foreign internal/private target、
+缺失`DefaultDependency` external route、generated key与template root/path/role不一致、普通`Export*Id`
+冒充refined ref均拒绝。
+
+reference set必须与template locals及body在优化、const folding和desugaring前直接绑定的typed引用按
+上述record identity形成双向精确闭包：缺项、多余项或错误definition origin均拒绝。body traversal
+保持source order，但最终set按canonical key去重；同一target在不同definition origin出现时是两条记录。
+expression result、显式type operand、callable/constructor/field applied owner与local record中的
+`SignatureTypeKey`都参与type reference收集；binder leaf本身不是外部实体。template-owned
+local/lambda/anonymous/callable-reference target仍携带witness，并由其lexical identity证明universal；
+callback registration和initialization unit是相应template operation的identity，不另造第七种access
+reference domain。reader从目标public interface重算domain包含关系；reference set与body实际typed
+引用的规范去重集合必须完全相等，无多余项。
 
 consumer只在winner与完整type arguments确定后实例化。template的definition origin保持provider source；新concrete expression的evaluation origin取当前call expression。若展开后的任一operation需要M23-6/7/10能力，则该candidate在applicability阶段失败并记录结构化原因；不能先commit winner再让MIR失败。
 
