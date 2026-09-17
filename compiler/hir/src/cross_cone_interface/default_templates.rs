@@ -144,9 +144,10 @@ pub use table::{
     ExportDefaultTemplateSourceClosureValidationError, IndexedCanonicalExportDefaultTemplatesV1,
 };
 pub use template::{
-    DecodedExportDefaultTemplateV1, ExportDefaultTemplateBuildError,
-    ExportDefaultTemplateContractSemanticValidationError, ExportDefaultTemplateIndexError,
-    ExportDefaultTemplateLocalIndexError, ExportDefaultTemplateResolutionError,
+    DecodedExportDefaultTemplateV1, DefaultTemplateOriginSemanticAuthority,
+    ExportDefaultTemplateBuildError, ExportDefaultTemplateContractSemanticValidationError,
+    ExportDefaultTemplateIndexError, ExportDefaultTemplateLocalIndexError,
+    ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateResolutionError,
     ExportDefaultTemplateV1, IndexedExportDefaultTemplateV1,
 };
 pub use value_parameters::{

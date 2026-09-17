@@ -22,6 +22,8 @@ use crate::{
     TemplateLocalRecordV1, TemplateValueParameterV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
+mod origins;
+
 #[test]
 fn validates_an_inherited_two_frame_default_contract() {
     let fixture = Fixture::new();
@@ -431,6 +433,12 @@ impl Fixture {
             provider: self.provider,
             definition_path: self.definition_path.clone(),
             inherited_validations: 0,
+            definition_source_validations: 0,
+            root_origin_validations: 0,
+            local_origin_validations: 0,
+            reject_definition_source: false,
+            reject_root_origin: false,
+            reject_local_origin: false,
         }
     }
 }
@@ -441,6 +449,12 @@ struct Authority {
     provider: PersistentLexicalRootV1,
     definition_path: StructuralDefinitionPath,
     inherited_validations: usize,
+    definition_source_validations: usize,
+    root_origin_validations: usize,
+    local_origin_validations: usize,
+    reject_definition_source: bool,
+    reject_root_origin: bool,
+    reject_local_origin: bool,
 }
 
 impl NominalInterfaceShapeAuthority<AuthorityError> for Authority {
@@ -505,6 +519,9 @@ enum AuthorityError {
     GenericNominal(PersistentGenericTypeId),
     Provider,
     Inherited,
+    DefinitionSource,
+    RootOrigin,
+    LocalOrigin,
 }
 
 impl std::fmt::Display for AuthorityError {

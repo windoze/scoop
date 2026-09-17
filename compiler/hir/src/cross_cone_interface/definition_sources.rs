@@ -7,6 +7,12 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod semantics;
+
+pub use semantics::{
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,
+};
+
 /// A definition-side source location embedded in the cross-Cone interface.
 ///
 /// This remains a distinct semantic type even though its wire is deliberately

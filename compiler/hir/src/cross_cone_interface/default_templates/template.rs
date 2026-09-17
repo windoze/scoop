@@ -28,7 +28,10 @@ use crate::{
 
 mod semantics;
 
-pub use semantics::ExportDefaultTemplateContractSemanticValidationError;
+pub use semantics::{
+    DefaultTemplateOriginSemanticAuthority, ExportDefaultTemplateContractSemanticValidationError,
+    ExportDefaultTemplateOriginSemanticValidationError,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExportDefaultTemplateV1 {
