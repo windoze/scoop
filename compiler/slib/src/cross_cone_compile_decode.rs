@@ -1,10 +1,11 @@
 //! Compile-view HIR-front decoding for the cross-Cone semantics profile.
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
-    CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceSectionV1,
-    DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
-    DecodedHirFoundation, NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
+    CallableInterfaceSetSemanticValidationError, CoreBootstrapInterfaceSectionV1,
+    CoreBootstrapInterfaceValidationError, CrossConeHirInterfaceResolutionError,
+    CrossConeHirInterfaceSectionV1, DecodedCoreBootstrapInterfaceSectionV1,
+    DecodedCrossConeHirInterfaceSectionV1, DecodedHirFoundation,
+    NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
@@ -21,7 +22,7 @@ use crate::{
     compile_decode::validate_foundation_identity_graph_with_authorities,
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
     cross_cone_hir_authority::{
-        CanonicalCrossConeNominalAuthority, CrossConeHirNominalAuthorityError,
+        CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError,
         ValidatedNominalProviderView,
     },
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
@@ -97,6 +98,19 @@ pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
 /// validated dependency surfaces. The remaining general HIR tables and
 /// routes are not yet semantic authority.
 pub struct NominalValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose public nominal and callable tables have
+/// both been replayed against canonical typed identities. Property, alias,
+/// source/default/const, route, and bridge semantics remain pending.
+pub struct CallableValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
@@ -514,7 +528,7 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             lir_strong_production,
         } = self;
-        let mut authority = CanonicalCrossConeNominalAuthority::new(
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             graph.identity(),
             &identities,
             &hir_interface,
@@ -589,11 +603,128 @@ impl NominalValidatedCrossConeHirFrontSections<'_> {
     }
 }
 
+impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
+    /// Validates each callable identity shape against its canonical
+    /// kind-specific key and the already nominal-validated dependency view.
+    pub(crate) fn validate_callable_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<CallableValidatedCrossConeHirFrontSections<'input>, CrossConeHirCallableSurfaceError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        } = self;
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            graph.identity(),
+            &identities,
+            &hir_interface,
+            dependencies,
+        );
+        hir_interface
+            .callable_interfaces()
+            .validate_semantics(&mut authority)
+            .map_err(|error| {
+                CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
+            })?;
+        Ok(CallableValidatedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl CallableValidatedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
+    }
+
+    pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
+        ValidatedNominalProviderView {
+            identity: self.graph.identity(),
+            interface: &self.hir_interface,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum CrossConeHirNominalSurfaceError {
     NominalInterfaces(
         Box<NominalInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
+}
+
+#[derive(Debug)]
+pub enum CrossConeHirCallableSurfaceError {
+    CallableInterfaces(
+        Box<CallableInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
+    ),
+}
+
+impl std::fmt::Display for CrossConeHirCallableSurfaceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CallableInterfaces(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirCallableSurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::CallableInterfaces(error) => Some(error),
+        }
+    }
 }
 
 impl std::fmt::Display for CrossConeHirNominalSurfaceError {

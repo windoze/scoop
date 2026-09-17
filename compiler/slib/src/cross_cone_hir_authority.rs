@@ -1,5 +1,7 @@
 //! Canonical identity authority used while validating cross-Cone HIR surfaces.
 
+mod callable;
+
 use std::fmt;
 
 use scoop_hir::{
@@ -32,14 +34,14 @@ pub(crate) struct ValidatedNominalProviderView<'a> {
 /// selected by the origin carried by those keys, so this type never searches
 /// by display name, FQN, or raw digest. Callers supply only the current
 /// provider's transitive dependency closure.
-pub(crate) struct CanonicalCrossConeNominalAuthority<'a> {
+pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current: ConeIdentity,
     identities: &'a ValidatedIdentityGraph,
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
 }
 
-impl<'a> CanonicalCrossConeNominalAuthority<'a> {
+impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     pub(crate) fn new(
         current: ConeIdentity,
         identities: &'a ValidatedIdentityGraph,
@@ -166,6 +168,18 @@ impl<'a> CanonicalCrossConeNominalAuthority<'a> {
                 owner: owner.clone(),
             }),
         }
+    }
+
+    fn require_current_nominal_owner(
+        &self,
+        entity: &'static str,
+        owner: PublicDeclarationOwnerV1,
+    ) -> Result<(), CrossConeHirNominalAuthorityError> {
+        let PublicDeclarationOwnerV1::Nominal(owner) = owner else {
+            return Ok(());
+        };
+        let key = self.source_nominal_key(owner)?;
+        self.require_current(entity, key.origin())
     }
 
     fn function_key(
@@ -312,7 +326,7 @@ impl<'a> CanonicalCrossConeNominalAuthority<'a> {
 }
 
 impl NominalInterfaceShapeAuthority<CrossConeHirNominalAuthorityError>
-    for CanonicalCrossConeNominalAuthority<'_>
+    for CanonicalCrossConeHirSurfaceAuthority<'_>
 {
     fn concrete_nominal_shape(
         &mut self,
@@ -330,7 +344,7 @@ impl NominalInterfaceShapeAuthority<CrossConeHirNominalAuthorityError>
 }
 
 impl NominalSourceShapeSemanticAuthority<CrossConeHirNominalAuthorityError>
-    for CanonicalCrossConeNominalAuthority<'_>
+    for CanonicalCrossConeHirSurfaceAuthority<'_>
 {
     fn struct_field_key(
         &mut self,
@@ -374,7 +388,7 @@ impl NominalSourceShapeSemanticAuthority<CrossConeHirNominalAuthorityError>
 }
 
 impl NominalInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
-    for CanonicalCrossConeNominalAuthority<'_>
+    for CanonicalCrossConeHirSurfaceAuthority<'_>
 {
     fn nominal_declaration_key(
         &mut self,
@@ -382,6 +396,8 @@ impl NominalInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
     ) -> Result<SourceDeclarationKey, CrossConeHirNominalAuthorityError> {
         let key = self.source_nominal_key(declaration)?;
         self.require_current("nominal interface", key.origin())?;
+        let owner = self.source_key_owner("nominal interface", &key)?;
+        self.require_current_nominal_owner("nominal owner", owner)?;
         Ok(key)
     }
 
@@ -514,6 +530,37 @@ pub enum CrossConeHirNominalAuthorityError {
     MissingSourceDeclarationKey {
         declaration: CallableTemplateOrigin,
     },
+    CallableDeclarationKindMismatch {
+        declaration: CallableTemplateOrigin,
+        actual: scoop_identity::SourceDeclarationKind,
+    },
+    CallableSignatureKindMismatch {
+        declaration: CallableTemplateOrigin,
+        actual: scoop_identity::DuplicateSignatureKey,
+    },
+    CallableNominalOwnerRequired {
+        declaration: CallableTemplateOrigin,
+        actual: PublicDeclarationOwnerV1,
+    },
+    PropertyDeclarationKindMismatch {
+        declaration: PropertyOwner,
+        actual: scoop_identity::SourceDeclarationKind,
+    },
+    PropertySignatureKindMismatch {
+        declaration: PropertyOwner,
+        actual: scoop_identity::DuplicateSignatureKey,
+    },
+    MissingPropertyInterface {
+        declaration: PropertyOwner,
+    },
+    NominalSourceShapeNotEnum {
+        declaration: SourceNominalId,
+        actual: PublicNominalKindV1,
+    },
+    MissingEnumVariant {
+        declaration: SourceNominalId,
+        variant: PersistentEnumVariantId,
+    },
 }
 
 impl fmt::Display for CrossConeHirNominalAuthorityError {
@@ -609,6 +656,59 @@ impl fmt::Display for CrossConeHirNominalAuthorityError {
                 formatter,
                 "callable declaration {declaration:?} has no source declaration key"
             ),
+            Self::CallableDeclarationKindMismatch {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "callable declaration {declaration:?} has source declaration kind {actual:?}"
+            ),
+            Self::CallableSignatureKindMismatch {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "callable declaration {declaration:?} has incompatible duplicate signature {actual:?}"
+            ),
+            Self::CallableNominalOwnerRequired {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "callable declaration {declaration:?} requires a nominal owner, found {actual:?}"
+            ),
+            Self::PropertyDeclarationKindMismatch {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "property declaration {declaration:?} has source declaration kind {actual:?}"
+            ),
+            Self::PropertySignatureKindMismatch {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "property declaration {declaration:?} has incompatible duplicate signature {actual:?}"
+            ),
+            Self::MissingPropertyInterface { declaration } => write!(
+                formatter,
+                "property accessor owner {declaration:?} is absent from the current property surface"
+            ),
+            Self::NominalSourceShapeNotEnum {
+                declaration,
+                actual,
+            } => write!(
+                formatter,
+                "variant constructor owner {declaration:?} has {actual:?} source shape instead of enum"
+            ),
+            Self::MissingEnumVariant {
+                declaration,
+                variant,
+            } => write!(
+                formatter,
+                "enum {declaration:?} has no source variant {variant}"
+            ),
         }
     }
 }
@@ -632,7 +732,15 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             | Self::ReexportedNestedBinding { .. }
             | Self::ConstructorInMemberSet
             | Self::VariantConstructorInMemberSet
-            | Self::MissingSourceDeclarationKey { .. } => None,
+            | Self::MissingSourceDeclarationKey { .. }
+            | Self::CallableDeclarationKindMismatch { .. }
+            | Self::CallableSignatureKindMismatch { .. }
+            | Self::CallableNominalOwnerRequired { .. }
+            | Self::PropertyDeclarationKindMismatch { .. }
+            | Self::PropertySignatureKindMismatch { .. }
+            | Self::MissingPropertyInterface { .. }
+            | Self::NominalSourceShapeNotEnum { .. }
+            | Self::MissingEnumVariant { .. } => None,
         }
     }
 }

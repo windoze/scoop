@@ -11,7 +11,8 @@ use scoop_identity::{
 use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
-    ConeKind, CrossConeHirNominalSurfaceError, DecodedCrossConeHirFrontSections, DependencyRecord,
+    CallableValidatedCrossConeHirFrontSections, ConeKind, CrossConeHirCallableSurfaceError,
+    CrossConeHirNominalSurfaceError, DecodedCrossConeHirFrontSections, DependencyRecord,
     FoundationValidatedCrossConeHirFrontSections, HirProductionValidatedCrossConeHirFrontSections,
     NominalValidatedCrossConeHirFrontSections, ResolvedCrossConeHirFrontSections,
     StrongProfileFoundationError,
@@ -622,6 +623,122 @@ impl NominalValidatedCrossConeHirClosure<'_> {
     }
 }
 
+impl<'input> NominalValidatedCrossConeHirClosure<'input> {
+    /// Validates public callable declaration shapes dependency-first while
+    /// exposing only each provider's transitive nominal authority.
+    pub fn validate_callable_surfaces(
+        self,
+    ) -> Result<CallableValidatedCrossConeHirClosure<'input>, CrossConeClosureCallableSurfaceError>
+    {
+        let Self {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = self;
+        let artifact_count = dependency_first.len();
+        let mut validated = Vec::<CallableValidatedCrossConeHirFrontSections<'input>>::new();
+        validated.try_reserve_exact(artifact_count).map_err(|_| {
+            CrossConeClosureCallableSurfaceError::Allocation {
+                requested_slots: artifact_count,
+            }
+        })?;
+
+        for (position, front) in dependency_first.into_iter().enumerate() {
+            let identity = front.identity();
+            let reachable = transitive_dependency_positions(position, &dependency_positions);
+            let mut dependencies = Vec::new();
+            dependencies
+                .try_reserve_exact(reachable.len())
+                .map_err(
+                    |_| CrossConeClosureCallableSurfaceError::AuthorityAllocation {
+                        identity,
+                        requested_slots: reachable.len(),
+                    },
+                )?;
+            dependencies.extend(
+                reachable
+                    .into_iter()
+                    .map(|dependency| validated[dependency].nominal_provider_view()),
+            );
+            let front = front
+                .validate_callable_surface(dependencies)
+                .map_err(|source| CrossConeClosureCallableSurfaceError::Artifact {
+                    identity,
+                    source: Box::new(source),
+                })?;
+            validated.push(front);
+        }
+
+        Ok(CallableValidatedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first: validated,
+            positions,
+            dependency_positions,
+        })
+    }
+}
+
+/// Cross-Cone providers whose nominal and callable interfaces are canonical.
+/// The remaining surface, route, and bridge obligations prevent import.
+pub struct CallableValidatedCrossConeHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<CallableValidatedCrossConeHirFrontSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+impl CallableValidatedCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.current
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        &self.direct
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &CallableValidatedCrossConeHirFrontSections<'_>> {
+        self.dependency_first.iter()
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&CallableValidatedCrossConeHirFrontSections<'_>> {
+        self.positions
+            .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.positions.get(&identity).map(|_| {
+            if self.direct.binary_search(&identity).is_ok() {
+                CrossConeProviderRole::Direct
+            } else {
+                CrossConeProviderRole::Support
+            }
+        })
+    }
+
+    pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+        self.positions
+            .get(&identity)
+            .map(|position| self.dependency_positions[*position].len())
+    }
+}
+
 fn transitive_dependency_positions(
     position: usize,
     dependency_positions: &[Vec<usize>],
@@ -1023,6 +1140,54 @@ pub enum CrossConeClosureNominalSurfaceError {
         identity: ConeIdentity,
         source: Box<CrossConeHirNominalSurfaceError>,
     },
+}
+
+#[derive(Debug)]
+pub enum CrossConeClosureCallableSurfaceError {
+    Allocation {
+        requested_slots: usize,
+    },
+    AuthorityAllocation {
+        identity: ConeIdentity,
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: Box<CrossConeHirCallableSurfaceError>,
+    },
+}
+
+impl fmt::Display for CrossConeClosureCallableSurfaceError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} callable-validated cross-Cone HIR slots"
+            ),
+            Self::AuthorityAllocation {
+                identity,
+                requested_slots,
+            } => write!(
+                formatter,
+                "cannot allocate {requested_slots} callable dependency authority slots for {identity}"
+            ),
+            Self::Artifact { identity, source } => {
+                write!(
+                    formatter,
+                    "invalid callable HIR surface for {identity}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureCallableSurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source),
+            Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,
+        }
+    }
 }
 
 impl fmt::Display for CrossConeClosureNominalSurfaceError {
