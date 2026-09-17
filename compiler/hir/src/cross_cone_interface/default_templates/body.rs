@@ -6,6 +6,7 @@ mod nested;
 mod operators;
 mod patterns;
 mod references;
+mod semantics;
 mod statements;
 
 #[cfg(test)]
@@ -83,6 +84,10 @@ pub use references::{
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefResolutionError, DefaultEnumVariantRefV1,
     DefaultFieldRefResolutionError, DefaultFieldRefV1, DefaultFieldReferenceResolver,
     DefaultPlaceIndexError, DefaultPlaceResolutionError, DefaultPlaceV1, IndexedDefaultPlaceV1,
+};
+pub use semantics::{
+    DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
+    DefaultBodyProviderTypeSiteV1,
 };
 pub use statements::{
     DecodedDefaultAppliedOptionV1, DecodedDefaultAssignTargetV1, DecodedDefaultBindingActionV1,

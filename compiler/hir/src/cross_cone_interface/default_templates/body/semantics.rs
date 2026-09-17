@@ -1,0 +1,132 @@
+use std::fmt;
+
+use scoop_wire::{BudgetMeter, WireError, WirePath};
+
+use super::ExportDefaultBodyV1;
+use crate::{
+    DefaultTemplateProviderShapeV1, ExportDefinitionSourceSemanticAuthority,
+    ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceV1,
+    NominalInterfaceShapeAuthority, SignatureBinderScopeError, SignatureTypeSemanticError,
+};
+
+mod walk;
+
+impl ExportDefaultBodyV1 {
+    /// Validates every provider-scoped type and inline definition origin in
+    /// this body. Operation typing, local data flow, nested callable ABI, and
+    /// the exact reference closure remain separate semantic passes.
+    pub fn validate_provider_envelope_semantics<A, E>(
+        &self,
+        provider: DefaultTemplateProviderShapeV1,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
+    where
+        A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
+    {
+        walk::validate(self, provider, authority, meter, path)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefaultBodyOriginSiteV1 {
+    Statement,
+    Expression,
+    WhenArm,
+    Catch,
+    BindingAction,
+    IteratorConformance,
+    IteratorNext,
+    CaptureFirstUse,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefaultBodyProviderTypeSiteV1 {
+    ExpressionResult,
+    StructConstructOwner,
+    FunctionCoercionSource,
+    FunctionCoercionTarget,
+    SizeOfOperand,
+    AlignOfOperand,
+    InstanceCheck,
+    ArrayAssemblyElement,
+    ArrayAssemblyResult,
+    CallableCallFunction,
+    CallableOwner,
+    CallableTypeArgument { index: usize },
+    BoundCallableBound,
+    BoundCallableInstantiatedSignature,
+    BoundCallableReceiverParameter,
+    DerivedEqualityOwner,
+    ConstructorOwner,
+    EnumVariantOwner,
+    EnumVariantFieldOwner,
+    FieldOwner,
+    NestedCallableFunction,
+    NestedCallableBodyTypeArgument { index: usize },
+    CaptureValue,
+    PatternSubject,
+    PatternStructOwner,
+    WhenFallbackSubject,
+    WhenFallbackEnumOwner,
+    CatchValue,
+    BindingTemporaryValue,
+    BindingLeafValue,
+    BindingShapeOwner,
+    BindingProjectionOwner,
+    IteratorInterface,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum DefaultBodyProviderEnvelopeSemanticValidationError<E> {
+    Type {
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: Box<SignatureTypeSemanticError<E>>,
+    },
+    Binder {
+        site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: SignatureBinderScopeError,
+    },
+    Origin {
+        site: DefaultBodyOriginSiteV1,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: Box<ExportDefinitionSourceSemanticValidationError<E>>,
+    },
+    Resource(WireError),
+}
+
+impl<E: fmt::Display> fmt::Display for DefaultBodyProviderEnvelopeSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Type { site, error, .. } => {
+                write!(
+                    formatter,
+                    "invalid provider-scoped type at {site:?}: {error}"
+                )
+            }
+            Self::Binder { site, error, .. } => {
+                write!(formatter, "invalid provider binder at {site:?}: {error}")
+            }
+            Self::Origin { site, error, .. } => {
+                write!(formatter, "invalid definition origin at {site:?}: {error}")
+            }
+            Self::Resource(error) => {
+                write!(
+                    formatter,
+                    "default body validation resource failure: {error}"
+                )
+            }
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for DefaultBodyProviderEnvelopeSemanticValidationError<E>
+{
+}
+
+#[cfg(test)]
+mod tests;

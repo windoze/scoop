@@ -110,6 +110,13 @@ impl OptionalDefaultWhenGuardV1 {
     pub fn present(guard: DefaultWhenGuardV1) -> Self {
         Self::Present(Box::new(guard))
     }
+
+    pub fn as_ref(&self) -> Option<&DefaultWhenGuardV1> {
+        match self {
+            Self::Absent => None,
+            Self::Present(guard) => Some(guard),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
