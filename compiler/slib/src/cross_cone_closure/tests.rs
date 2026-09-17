@@ -1,9 +1,18 @@
-use scoop_hir::CanonicalHirFoundation;
-use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
-    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExportBindingKey, PackagePath,
-    PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
+use scoop_hir::{
+    CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
+    CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
+    CanonicalExportDefinitionSourcesV1, CanonicalExternalHirReferencesV1, CanonicalHirFoundation,
+    CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1,
+    CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
+    PublicExportBindingRecordV1,
 };
+use scoop_identity::{
+    BindableEntity, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate,
+    ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExportBindingKey,
+    PackagePath, PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey,
+    SourceDeclarationSite,
+};
+use scoop_wire::encode;
 
 use super::*;
 use crate::{
@@ -424,6 +433,92 @@ fn closure_foundation_failure_is_attributed_to_the_exact_artifact() {
     ));
 }
 
+#[test]
+fn closure_resolves_every_general_hir_interface_after_foundations() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+    let provider_bytes = artifact(cone_named("provider"), vec![core.dependency_record()]);
+    let provider = decode(&provider_bytes);
+    let provider_identity = provider.identity();
+    let mut direct = vec![ConeIdentity::CORE, provider_identity];
+    direct.sort_unstable();
+
+    let closure = DecodedCrossConeClosure::new(
+        cone_named("current").identity(),
+        target(),
+        direct,
+        vec![decode(&core_bytes), provider],
+    )
+    .validate_profile_graph()
+    .unwrap()
+    .validate_identities()
+    .unwrap()
+    .validate_foundation_structure()
+    .unwrap()
+    .resolve_hir_interfaces()
+    .unwrap();
+
+    assert_eq!(closure.dependency_first().count(), 2);
+    assert!(
+        closure
+            .artifact(provider_identity)
+            .unwrap()
+            .hir_interface()
+            .public_bindings()
+            .records()
+            .is_empty()
+    );
+}
+
+#[test]
+fn hir_resolution_failure_is_attributed_to_the_exact_artifact() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+    let provider_cone = cone_named("unresolved-interface");
+    let missing_function = function_record(provider_cone.identity(), "missing");
+    let missing_binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            provider_cone.identity(),
+            PackagePath::root(),
+            CanonicalIdentifier::new("missing").unwrap(),
+            BindingTarget::function(missing_function.key()).unwrap(),
+        ))
+        .unwrap();
+    let public = PublicExportBindingRecordV1::new(
+        missing_binding.id(),
+        ExportBindingSourceV1::DeclaredCurrent {
+            declaration: BindableEntity::Function(missing_function.id()),
+        },
+    );
+    let provider_bytes = cross_cone_artifact_for(
+        provider_cone,
+        vec![core.dependency_record()],
+        encoded_interface_with_bindings(vec![public]),
+    );
+    let provider = decode(&provider_bytes);
+    let provider_identity = provider.identity();
+    let mut direct = vec![ConeIdentity::CORE, provider_identity];
+    direct.sort_unstable();
+
+    assert!(matches!(
+        DecodedCrossConeClosure::new(
+            cone_named("current").identity(),
+            target(),
+            direct,
+            vec![decode(&core_bytes), provider],
+        )
+        .validate_profile_graph()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .resolve_hir_interfaces(),
+        Err(CrossConeClosureHirResolutionError::Artifact { identity, .. })
+            if identity == provider_identity
+    ));
+}
+
 fn artifact(cone: ConeRecord, dependencies: Vec<crate::DependencyRecord>) -> Vec<u8> {
     cross_cone_artifact_for(cone, dependencies, empty_cross_cone_hir_interface())
 }
@@ -470,6 +565,22 @@ fn function_record(
         Vec::new(),
     );
     CborIdentityRecord::from_key(declaration).unwrap()
+}
+
+fn encoded_interface_with_bindings(bindings: Vec<PublicExportBindingRecordV1>) -> Vec<u8> {
+    let mut section = CrossConeHirInterfaceSectionV1::new(
+        CanonicalPublicExportBindingsV1::try_new(bindings).unwrap(),
+        CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalCallableInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalPropertyInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+    );
+    encode(&section.index_for_wire().unwrap()).unwrap()
 }
 
 fn decode(bytes: &[u8]) -> DecodedCrossConeHirFrontSections<'_> {

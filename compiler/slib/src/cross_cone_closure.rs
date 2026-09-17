@@ -3,14 +3,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+use scoop_hir::CrossConeHirInterfaceResolutionError;
 use scoop_identity::{
-    ConeCoordinate, ConeIdentity, IdentityValidationError, ValidatedIdentityGraph,
+    ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
+    ValidatedIdentityGraph,
 };
 use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
     ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord,
-    FoundationValidatedCrossConeHirFrontSections, StrongProfileFoundationError,
+    FoundationValidatedCrossConeHirFrontSections, ResolvedCrossConeHirFrontSections,
+    StrongProfileFoundationError,
 };
 
 /// Untrusted assembly input for the dependency artifacts visible while
@@ -260,7 +263,7 @@ pub struct FoundationValidatedCrossConeHirClosure<'input> {
     dependency_positions: Vec<Vec<usize>>,
 }
 
-impl FoundationValidatedCrossConeHirClosure<'_> {
+impl<'input> FoundationValidatedCrossConeHirClosure<'input> {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -283,6 +286,104 @@ impl FoundationValidatedCrossConeHirClosure<'_> {
         &self,
         identity: ConeIdentity,
     ) -> Option<&FoundationValidatedCrossConeHirFrontSections<'_>> {
+        self.positions
+            .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.positions.get(&identity).map(|_| {
+            if self.direct.binary_search(&identity).is_ok() {
+                CrossConeProviderRole::Direct
+            } else {
+                CrossConeProviderRole::Support
+            }
+        })
+    }
+
+    pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+        self.positions
+            .get(&identity)
+            .map(|position| self.dependency_positions[*position].len())
+    }
+
+    /// Resolves every general HIR section against the same identity graph
+    /// that proved its foundation. This does not yet grant public-surface or
+    /// route authority.
+    pub fn resolve_hir_interfaces(
+        self,
+    ) -> Result<ResolvedCrossConeHirClosure<'input>, CrossConeClosureHirResolutionError> {
+        let Self {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = self;
+        let artifact_count = dependency_first.len();
+        let mut resolved = Vec::new();
+        resolved.try_reserve_exact(artifact_count).map_err(|_| {
+            CrossConeClosureHirResolutionError::Allocation {
+                requested_slots: artifact_count,
+            }
+        })?;
+        for front in dependency_first {
+            let identity = front.identity();
+            resolved.push(front.resolve_hir_interface().map_err(|source| {
+                CrossConeClosureHirResolutionError::Artifact {
+                    identity,
+                    source: Box::new(source),
+                }
+            })?);
+        }
+
+        Ok(ResolvedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first: resolved,
+            positions,
+            dependency_positions,
+        })
+    }
+}
+
+/// Cross-Cone providers whose general HIR wire references are typed and
+/// resolved. Semantic ownership, public-surface, and route closure are still
+/// pending, so this state cannot be imported into a world or session.
+pub struct ResolvedCrossConeHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<ResolvedCrossConeHirFrontSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+impl ResolvedCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.current
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        &self.direct
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &ResolvedCrossConeHirFrontSections<'_>> {
+        self.dependency_first.iter()
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&ResolvedCrossConeHirFrontSections<'_>> {
         self.positions
             .get(&identity)
             .map(|position| &self.dependency_first[*position])
@@ -596,6 +697,43 @@ impl std::error::Error for CrossConeClosureFoundationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source),
+            Self::Allocation { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CrossConeClosureHirResolutionError {
+    Allocation {
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: Box<CrossConeHirInterfaceResolutionError<IdentityReferenceError>>,
+    },
+}
+
+impl fmt::Display for CrossConeClosureHirResolutionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} resolved cross-Cone HIR slots"
+            ),
+            Self::Artifact { identity, source } => {
+                write!(
+                    formatter,
+                    "cannot resolve cross-Cone HIR interface for {identity}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureHirResolutionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::Allocation { .. } => None,
         }
     }
