@@ -9,6 +9,7 @@ mod declaration_common;
 mod declaration_references;
 mod default_templates;
 mod definition_sources;
+mod external_references;
 mod nominal_interfaces;
 mod nominal_shapes;
 mod property_interfaces;
@@ -247,6 +248,11 @@ pub use definition_sources::{
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,
     ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceSetBuildError,
     ExportDefinitionSourceSetValidationError, ExportDefinitionSourceV1,
+};
+pub use external_references::{
+    CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
+    ExternalHirReferenceRoleSetBuildError, ExternalHirReferenceRoleSetValidationError,
+    ExternalHirReferenceRoleV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,

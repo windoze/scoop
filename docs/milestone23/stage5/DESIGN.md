@@ -1596,9 +1596,17 @@ ExternalHirReferenceV1 {
     roles: NonEmptyCanonicalSet<ExternalHirReferenceRoleV1>, // field 3
     witnesses: CanonicalVec<DependencyBindingWitnessV1>,     // field 4
 }
+
+ExternalHirReferenceRoleV1 =
+    ReexportTarget       // unsigned 1
+  | SignatureDependency // unsigned 2
+  | AliasTarget         // unsigned 3
+  | DefaultDependency   // unsigned 4
+  | ConstType           // unsigned 5
+  | ConcreteSelectedUse // unsigned 6
 ```
 
-role封闭为`ReexportTarget`、`SignatureDependency`、`AliasTarget`、`DefaultDependency`、`ConstType`和`ConcreteSelectedUse`。reader从fields 1～9的实际引用重建去重后的expected closure并逐byte比较；extra/missing role或错误origin均失败。只有需要source-name授权的role携带binding witness；signature dependency仍须有定义方已验证的signature exposure proof，但不会因此创建下游短名。
+role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean。`roles`至少含一个元素，按tag严格递增；producer排序后拒绝重复，reader拒绝空集、重复和非规范顺序，不得排序修复。reader从fields 1～9的实际引用重建去重后的expected closure并逐byte比较；extra/missing role或错误origin均失败。只有需要source-name授权的role携带binding witness；signature dependency仍须有定义方已验证的signature exposure proof，但不会因此创建下游短名。
 
 ## 6. re-export构造与公开表面
 
