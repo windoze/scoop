@@ -1303,6 +1303,9 @@ for binding leaf必须immutable。binding shape随后作为独立证明精确消
 的Bind，Tuple/Struct的每个非Wildcard子shape匹配唯一对应Project，Class component index必须从1连续且匹配
 唯一Component；一个action不能被复用，也不能游离于shape之外。不同for plan的私有temporary/setup/action
 definition、普通region definition与其他plan两两不重叠，防止同一local借由另一控制流区域获得定义。
+Struct shape只有declaration index而projection保存persistent field id；二者的对应关系由trusted foundation field
+authority返回精确index，不能按action位置、persistent id字节顺序或显示名称猜测。该查询只服务shape/action
+identity闭包；source/result type及field applied-owner关系仍由operation-typing pass独立证明。
 
 local data-flow pass的bitset、branch snapshot、definition-owner集合、shape-consumption表与显式work stack都在
 分配前向调用方`BudgetMeter`计费；每次状态转移、local lookup、merge比较与shape/action匹配均扣

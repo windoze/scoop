@@ -1,5 +1,6 @@
 mod bindings;
 mod callables;
+mod data_flow;
 mod export_body;
 mod expressions;
 mod nested;
@@ -33,6 +34,13 @@ pub use callables::{
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
     DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
     DefaultMethodCalleeV1,
+};
+pub use data_flow::{
+    DefaultBindingActionLocalRoleV1, DefaultBindingShapeActionKindV1,
+    DefaultBindingShapeDataFlowValidationError, DefaultForTemporaryRoleV1,
+    DefaultLocalDataFlowLocalError, DefaultLocalDataFlowSemanticAuthority,
+    DefaultLocalDataFlowSiteV1, DefaultLocalDefinitionOwnerV1, DefaultLoopControlV1,
+    ExportDefaultLocalDataFlowValidationError,
 };
 pub use export_body::{
     DecodedExportDefaultBodyV1, ExportDefaultBodyBuildError, ExportDefaultBodyIndexError,
