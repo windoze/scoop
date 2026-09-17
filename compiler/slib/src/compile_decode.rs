@@ -291,6 +291,16 @@ pub(crate) fn validate_foundation_identity_graph(
     mir: &DecodedMirFoundation,
     lir: &DecodedLirFoundation,
 ) -> Result<ValidatedIdentityGraph, IdentityValidationError> {
+    validate_foundation_identity_graph_with_authorities(graph, hir, mir, lir, std::iter::empty())
+}
+
+pub(crate) fn validate_foundation_identity_graph_with_authorities<'authority>(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    hir: &DecodedHirFoundation,
+    mir: &DecodedMirFoundation,
+    lir: &DecodedLirFoundation,
+    external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+) -> Result<ValidatedIdentityGraph, IdentityValidationError> {
     let producer = graph.identity();
     let (manifest, meter) = graph.envelope.manifest_and_meter();
     let mut validation = PendingIdentityValidation::with_meter(meter);
@@ -308,6 +318,9 @@ pub(crate) fn validate_foundation_identity_graph(
     hir.register_identities(&mut validation)?;
     mir.register_identities(&mut validation)?;
     lir.register_identities(&mut validation)?;
+    for authority in external_authorities {
+        validation.register_external_graph_authorities(authority)?;
+    }
 
     hir.resolve_identities(&mut validation)?;
     mir.resolve_identities(&mut validation)?;

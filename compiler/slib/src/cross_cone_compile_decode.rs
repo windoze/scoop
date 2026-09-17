@@ -4,7 +4,9 @@ use scoop_hir::{
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
     DecodedHirFoundation,
 };
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    ConeCoordinate, ConeIdentity, IdentityValidationError, ValidatedIdentityGraph,
+};
 use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1};
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
 use scoop_wire::DecodeUsage;
@@ -13,6 +15,7 @@ use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, ConeKind,
     ConeSourceForm, DependencyRecord, MetadataLocation, SemanticFingerprintRecord,
     ValidatedGraphArtifact,
+    compile_decode::validate_foundation_identity_graph_with_authorities,
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
@@ -182,6 +185,21 @@ impl DecodedCrossConeHirFrontSections<'_> {
 
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_strong_production
+    }
+
+    /// Validates this artifact's complete foundation identity delta against
+    /// only the already validated authority of its own dependency closure.
+    pub(crate) fn validate_foundation_identities<'authority>(
+        &mut self,
+        external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+    ) -> Result<ValidatedIdentityGraph, IdentityValidationError> {
+        validate_foundation_identity_graph_with_authorities(
+            &mut self.graph,
+            &self.hir_foundation,
+            &self.mir_foundation,
+            &self.lir_foundation,
+            external_authorities,
+        )
     }
 }
 

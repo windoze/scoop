@@ -1,11 +1,14 @@
+use scoop_hir::CanonicalHirFoundation;
 use scoop_identity::ArtifactCapabilityProfileId;
+use scoop_wire::encode;
 
 use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView, ConeRecord,
     DependencyRecord, MemberPurposeSet, MetadataLocation, SectionLocation,
     hir_cross_cone_interface_capability, lir_cross_cone_link_closure_capability,
-    lir_cross_cone_param_free_bridge_capability, mir_cross_cone_param_free_bridge_capability,
+    lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
+    lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     strong_compile_decode::tests::{
         build_artifact_for_profile, build_artifact_for_profile_with_dependencies, cone, open_graph,
         required_sections, section,
@@ -101,6 +104,7 @@ pub(crate) fn cross_cone_artifact_for(
     hir_interface: Vec<u8>,
 ) -> Vec<u8> {
     let (mut hir, mut mir, mut lir) = required_sections();
+    retarget_lir_sections(&cone, &mut lir);
     hir.push(section(
         MetadataLocation::Hir,
         hir_cross_cone_interface_capability(),
@@ -117,6 +121,81 @@ pub(crate) fn cross_cone_artifact_for(
         lir,
         false,
     )
+}
+
+pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
+    cone: ConeRecord,
+    dependencies: Vec<DependencyRecord>,
+    hir_foundation: &CanonicalHirFoundation,
+    hir_interface: Vec<u8>,
+) -> Vec<u8> {
+    let (mut hir, mut mir, mut lir) = required_sections();
+    retarget_lir_sections(&cone, &mut lir);
+    let foundation = hir
+        .iter_mut()
+        .find(|section| section.capability() == &hir_identity_foundation_capability())
+        .expect("the shared fixture has a HIR identity foundation");
+    *foundation = section(
+        MetadataLocation::Hir,
+        hir_identity_foundation_capability(),
+        MemberPurposeSet::COMPILE,
+        encode(hir_foundation).unwrap(),
+    );
+    hir.push(section(
+        MetadataLocation::Hir,
+        hir_cross_cone_interface_capability(),
+        MemberPurposeSet::COMPILE,
+        hir_interface,
+    ));
+    add_cross_cone_bridge_sections(&mut mir, &mut lir);
+    build_artifact_for_profile_with_dependencies(
+        cone,
+        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        dependencies,
+        hir,
+        mir,
+        lir,
+        false,
+    )
+}
+
+fn retarget_lir_sections(cone: &ConeRecord, lir: &mut [crate::MetadataSection]) {
+    if cone.identity() == scoop_identity::ConeIdentity::CORE {
+        let foundation_section = lir
+            .iter_mut()
+            .find(|section| section.capability() == &lir_identity_foundation_capability())
+            .expect("the shared fixture has a LIR identity foundation");
+        *foundation_section = section(
+            MetadataLocation::Lir,
+            lir_identity_foundation_capability(),
+            MemberPurposeSet::COMPILE,
+            encode(&scoop_lir::CanonicalLirFoundation::empty()).unwrap(),
+        );
+        return;
+    }
+
+    let (foundation, production) =
+        crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone());
+    let foundation_section = lir
+        .iter_mut()
+        .find(|section| section.capability() == &lir_identity_foundation_capability())
+        .expect("the shared fixture has a LIR identity foundation");
+    *foundation_section = section(
+        MetadataLocation::Lir,
+        lir_identity_foundation_capability(),
+        MemberPurposeSet::COMPILE,
+        encode(&foundation).unwrap(),
+    );
+    let production_section = lir
+        .iter_mut()
+        .find(|section| section.capability() == &lir_strong_production_capability())
+        .expect("the shared fixture has a LIR strong-production section");
+    *production_section = section(
+        MetadataLocation::Lir,
+        lir_strong_production_capability(),
+        MemberPurposeSet::COMPILE_AND_LINK,
+        encode(&production).unwrap(),
+    );
 }
 
 fn add_cross_cone_bridge_sections(

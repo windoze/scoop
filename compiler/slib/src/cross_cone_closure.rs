@@ -3,7 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    ConeCoordinate, ConeIdentity, IdentityValidationError, ValidatedIdentityGraph,
+};
 use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord};
@@ -57,9 +59,10 @@ pub struct ProfileValidatedCrossConeHirClosure<'input> {
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<DecodedCrossConeHirFrontSections<'input>>,
     positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
 }
 
-impl ProfileValidatedCrossConeHirClosure<'_> {
+impl<'input> ProfileValidatedCrossConeHirClosure<'input> {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -95,6 +98,103 @@ impl ProfileValidatedCrossConeHirClosure<'_> {
                 CrossConeProviderRole::Support
             }
         })
+    }
+
+    /// Validates every provider foundation in dependency-first order without
+    /// mutating the process-wide semantic session. Each provider receives
+    /// canonical authority only from its own direct dependencies; authority
+    /// carried by those graphs closes the transitive chain and folds diamonds.
+    pub fn validate_identities(
+        mut self,
+    ) -> Result<IdentityRegisteredCrossConeHirClosure<'input>, CrossConeClosureIdentityError> {
+        let artifact_count = self.dependency_first.len();
+        let mut identity_graphs = Vec::new();
+        identity_graphs
+            .try_reserve_exact(artifact_count)
+            .map_err(|_| CrossConeClosureIdentityError::Allocation {
+                requested_slots: artifact_count,
+            })?;
+
+        for (position, front) in self.dependency_first.iter_mut().enumerate() {
+            let identity = front.identity();
+            let dependencies = &self.dependency_positions[position];
+            let mut authorities = Vec::new();
+            authorities
+                .try_reserve_exact(dependencies.len())
+                .map_err(|_| CrossConeClosureIdentityError::AuthorityAllocation {
+                    identity,
+                    requested_slots: dependencies.len(),
+                })?;
+            authorities.extend(
+                dependencies
+                    .iter()
+                    .map(|dependency| &identity_graphs[*dependency]),
+            );
+            let graph = front
+                .validate_foundation_identities(authorities)
+                .map_err(|source| CrossConeClosureIdentityError::Artifact { identity, source })?;
+            identity_graphs.push(graph);
+        }
+
+        Ok(IdentityRegisteredCrossConeHirClosure {
+            profile: self,
+            identity_graphs,
+        })
+    }
+}
+
+/// Cross-Cone HIR fronts whose foundation identities were rehashed and
+/// resolved against their exact dependency authority. No graph has been
+/// committed to the caller's semantic session yet.
+pub struct IdentityRegisteredCrossConeHirClosure<'input> {
+    profile: ProfileValidatedCrossConeHirClosure<'input>,
+    identity_graphs: Vec<ValidatedIdentityGraph>,
+}
+
+impl IdentityRegisteredCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.profile.current()
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.profile.target_selection()
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        self.profile.direct_providers()
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<
+        Item = (
+            &DecodedCrossConeHirFrontSections<'_>,
+            &ValidatedIdentityGraph,
+        ),
+    > {
+        self.profile
+            .dependency_first
+            .iter()
+            .zip(self.identity_graphs.iter())
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<(
+        &DecodedCrossConeHirFrontSections<'_>,
+        &ValidatedIdentityGraph,
+    )> {
+        self.profile.positions.get(&identity).map(|position| {
+            (
+                &self.profile.dependency_first[*position],
+                &self.identity_graphs[*position],
+            )
+        })
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.profile.role(identity)
     }
 }
 
@@ -151,8 +251,10 @@ fn validate_profile_graph(
         }
     }
 
+    let mut dependency_positions = Vec::with_capacity(dependency_first.len());
     for (position, artifact) in dependency_first.iter().enumerate() {
         let dependent = artifact.identity();
+        let mut direct_positions = Vec::with_capacity(artifact.direct_dependencies().len());
         for recorded in artifact.direct_dependencies() {
             let dependency = recorded.identity();
             let Some(dependency_position) = positions.get(&dependency).copied() else {
@@ -176,7 +278,9 @@ fn validate_profile_graph(
                     actual: Box::new(actual),
                 });
             }
+            direct_positions.push(dependency_position);
         }
+        dependency_positions.push(direct_positions);
     }
 
     let mut reachable = BTreeSet::new();
@@ -209,6 +313,7 @@ fn validate_profile_graph(
         direct,
         dependency_first,
         positions,
+        dependency_positions,
     })
 }
 
@@ -303,6 +408,54 @@ impl fmt::Display for CrossConeClosureGraphError {
 }
 
 impl std::error::Error for CrossConeClosureGraphError {}
+
+#[derive(Debug)]
+pub enum CrossConeClosureIdentityError {
+    Allocation {
+        requested_slots: usize,
+    },
+    AuthorityAllocation {
+        identity: ConeIdentity,
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: IdentityValidationError,
+    },
+}
+
+impl fmt::Display for CrossConeClosureIdentityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} cross-Cone identity graph slots"
+            ),
+            Self::AuthorityAllocation {
+                identity,
+                requested_slots,
+            } => write!(
+                formatter,
+                "cannot allocate {requested_slots} dependency authority slots for {identity}"
+            ),
+            Self::Artifact { identity, source } => {
+                write!(
+                    formatter,
+                    "invalid identity foundation for {identity}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureIdentityError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source),
+            Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests;

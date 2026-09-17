@@ -1,9 +1,17 @@
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_hir::CanonicalHirFoundation;
+use scoop_identity::{
+    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOwnerChain, ExportBindingKey, PackagePath,
+    PersistentExportBindingId, PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite,
+};
 
 use super::*;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, HirFingerprint,
-    cross_cone_compile_decode::tests::{cross_cone_artifact_for, empty_cross_cone_hir_interface},
+    cross_cone_compile_decode::tests::{
+        cross_cone_artifact_for, cross_cone_artifact_for_with_hir_foundation,
+        empty_cross_cone_hir_interface,
+    },
     strong_compile_decode::tests::{cone_named, open_graph},
 };
 
@@ -230,8 +238,165 @@ fn profile_graph_rejects_two_versions_of_one_coordinate_family() {
     ));
 }
 
+#[test]
+fn identity_registration_resolves_reexport_targets_from_the_provider_closure() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+
+    let terminal_cone = cone_named("terminal");
+    let function = function_record(terminal_cone.identity(), "target");
+    let mut terminal_foundation = base_hir_foundation();
+    terminal_foundation
+        .set_functions(vec![function.clone()])
+        .unwrap();
+    let terminal_bytes = artifact_with_foundation(
+        terminal_cone,
+        vec![core.dependency_record()],
+        &terminal_foundation,
+    );
+    let terminal = decode(&terminal_bytes);
+
+    let facade_cone = cone_named("facade");
+    let binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            facade_cone.identity(),
+            PackagePath::root(),
+            CanonicalIdentifier::new("forwarded").unwrap(),
+            BindingTarget::function(function.key()).unwrap(),
+        ))
+        .unwrap();
+    let mut facade_foundation = base_hir_foundation();
+    facade_foundation
+        .set_export_bindings(vec![binding])
+        .unwrap();
+    let facade_bytes = artifact_with_foundation(
+        facade_cone,
+        vec![terminal.dependency_record()],
+        &facade_foundation,
+    );
+    let facade = decode(&facade_bytes);
+    let facade_identity = facade.identity();
+
+    let mut direct = vec![ConeIdentity::CORE, facade_identity];
+    direct.sort_unstable();
+    let closure = DecodedCrossConeClosure::new(
+        cone_named("current").identity(),
+        target(),
+        direct,
+        vec![decode(&core_bytes), decode(&terminal_bytes), facade],
+    )
+    .validate_profile_graph()
+    .unwrap()
+    .validate_identities()
+    .unwrap();
+
+    let (_, facade_identities) = closure.artifact(facade_identity).unwrap();
+    assert_eq!(facade_identities.declared_identity_count(), 18);
+    assert_eq!(closure.dependency_first().count(), 3);
+}
+
+#[test]
+fn identity_registration_does_not_leak_authority_between_siblings() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+
+    let owner_cone = cone_named("owner");
+    let function = function_record(owner_cone.identity(), "target");
+    let mut owner_foundation = base_hir_foundation();
+    owner_foundation
+        .set_functions(vec![function.clone()])
+        .unwrap();
+    let owner_bytes = artifact_with_foundation(
+        owner_cone,
+        vec![core.dependency_record()],
+        &owner_foundation,
+    );
+    let owner = decode(&owner_bytes);
+
+    let sibling_cone = cone_named("sibling");
+    let binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            sibling_cone.identity(),
+            PackagePath::root(),
+            CanonicalIdentifier::new("stolen").unwrap(),
+            BindingTarget::function(function.key()).unwrap(),
+        ))
+        .unwrap();
+    let mut sibling_foundation = base_hir_foundation();
+    sibling_foundation
+        .set_export_bindings(vec![binding])
+        .unwrap();
+    let sibling_bytes = artifact_with_foundation(
+        sibling_cone,
+        vec![core.dependency_record()],
+        &sibling_foundation,
+    );
+    let sibling = decode(&sibling_bytes);
+    let sibling_identity = sibling.identity();
+
+    let mut direct = vec![ConeIdentity::CORE, owner.identity(), sibling_identity];
+    direct.sort_unstable();
+    assert!(matches!(
+        DecodedCrossConeClosure::new(
+            cone_named("current").identity(),
+            target(),
+            direct,
+            vec![decode(&core_bytes), owner, sibling],
+        )
+        .validate_profile_graph()
+        .unwrap()
+        .validate_identities(),
+        Err(CrossConeClosureIdentityError::Artifact { identity, .. })
+            if identity == sibling_identity
+    ));
+}
+
 fn artifact(cone: ConeRecord, dependencies: Vec<crate::DependencyRecord>) -> Vec<u8> {
     cross_cone_artifact_for(cone, dependencies, empty_cross_cone_hir_interface())
+}
+
+fn artifact_with_foundation(
+    cone: ConeRecord,
+    dependencies: Vec<crate::DependencyRecord>,
+    foundation: &CanonicalHirFoundation,
+) -> Vec<u8> {
+    cross_cone_artifact_for_with_hir_foundation(
+        cone,
+        dependencies,
+        foundation,
+        empty_cross_cone_hir_interface(),
+    )
+}
+
+fn base_hir_foundation() -> CanonicalHirFoundation {
+    let mut foundation = CanonicalHirFoundation::empty();
+    foundation
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    foundation
+}
+
+fn function_record(
+    origin: ConeIdentity,
+    name: &str,
+) -> CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey> {
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            origin,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    CborIdentityRecord::from_key(declaration).unwrap()
 }
 
 fn decode(bytes: &[u8]) -> DecodedCrossConeHirFrontSections<'_> {
