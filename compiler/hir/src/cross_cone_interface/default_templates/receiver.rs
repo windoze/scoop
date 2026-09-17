@@ -6,6 +6,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 use crate::SignatureTypeReferenceResolver;
 
+mod semantics;
+
+pub use semantics::TemplateReceiverSemanticValidationError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TemplateReceiverV1 {
     local: LocalValueSelector,

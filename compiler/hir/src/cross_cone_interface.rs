@@ -101,10 +101,10 @@ pub use default_templates::{
     TemplateLocalReferenceResolver, TemplateLocalScopeValidationError,
     TemplateLocalSelectorResolver, TemplateLocalTableBuildError, TemplateLocalTableValidationError,
     TemplateReceiverBuildError, TemplateReceiverIndexError, TemplateReceiverResolutionError,
-    TemplateReceiverV1, TemplateValueParameterBuildError, TemplateValueParameterIndexError,
-    TemplateValueParameterListBuildError, TemplateValueParameterListIndexError,
-    TemplateValueParameterListValidationError, TemplateValueParameterResolutionError,
-    TemplateValueParameterV1,
+    TemplateReceiverSemanticValidationError, TemplateReceiverV1, TemplateValueParameterBuildError,
+    TemplateValueParameterIndexError, TemplateValueParameterListBuildError,
+    TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
+    TemplateValueParameterResolutionError, TemplateValueParameterV1,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,

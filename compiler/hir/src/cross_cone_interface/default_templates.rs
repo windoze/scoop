@@ -25,7 +25,7 @@ pub use receiver::{
     DecodedOptionalTemplateReceiverV1, DecodedTemplateReceiverV1,
     IndexedOptionalTemplateReceiverV1, IndexedTemplateReceiverV1, OptionalTemplateReceiverV1,
     TemplateReceiverBuildError, TemplateReceiverIndexError, TemplateReceiverResolutionError,
-    TemplateReceiverV1,
+    TemplateReceiverSemanticValidationError, TemplateReceiverV1,
 };
 pub use roots::{
     DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
