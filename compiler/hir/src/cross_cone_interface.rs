@@ -15,6 +15,7 @@ mod nominal_shapes;
 mod property_interfaces;
 mod public_bindings;
 mod route_closure;
+mod section;
 mod type_alias_interfaces;
 
 pub use binders::{
@@ -304,6 +305,11 @@ pub use public_bindings::{
 };
 pub use route_closure::{
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
+};
+pub use section::{
+    CrossConeHirInterfaceIndexError, CrossConeHirInterfaceResolutionError,
+    CrossConeHirInterfaceResolver, CrossConeHirInterfaceSectionV1,
+    DecodedCrossConeHirInterfaceSectionV1, IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
