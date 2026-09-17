@@ -197,6 +197,80 @@ fn raw_external_id_cannot_replace_canonical_authority_for_a_reexport_binding() {
 }
 
 #[test]
+fn validated_external_graph_supplies_canonical_reexport_authority() {
+    let function = source_function_record();
+    let external = validated_function_graph();
+    let binding =
+        CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            CanonicalIdentifier::new("forwarded").unwrap(),
+            BindingTarget::function(function.key()).unwrap(),
+        ))
+        .unwrap();
+    let decoded = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentExportBindingId, DecodedExportBindingKey>,
+    >(&encode(&binding).unwrap(), DecodeLimits::default())
+    .unwrap();
+
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_authority(ConeIdentity::SINGLE_FILE)
+        .unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending
+        .register_external_graph_authorities(&external)
+        .unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+
+    assert_eq!(graph.declared_identity_count(), 1);
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
+    assert_eq!(
+        graph
+            .records::<PersistentExportBindingId, ExportBindingKey>(
+                IdentityLayer::Hir,
+                &mut meter,
+                &WirePath::root(),
+            )
+            .unwrap(),
+        vec![binding]
+    );
+}
+
+#[test]
+fn repeated_external_graph_authority_is_folded_for_diamond_imports() {
+    let external = validated_function_graph();
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_external_graph_authorities(&external)
+        .unwrap();
+    pending
+        .register_external_graph_authorities(&external)
+        .unwrap();
+
+    let graph = pending.finish().unwrap();
+    assert_eq!(graph.identity_count(), 1);
+    assert_eq!(graph.declared_identity_count(), 0);
+}
+
+#[test]
+fn local_identity_keeps_layer_ownership_over_matching_external_authority() {
+    let decoded = decoded_source_type();
+    let external = validated_source_type_graph();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending
+        .register_external_graph_authorities(&external)
+        .unwrap();
+    pending.resolve(&decoded).unwrap();
+
+    let graph = pending.finish().unwrap();
+    assert_eq!(graph.declared_identity_count(), 1);
+}
+
+#[test]
 fn canonical_record_materialization_precharges_exact_slot_budget() {
     let decoded = decoded_source_type();
     let mut pending = PendingIdentityValidation::new();
@@ -843,6 +917,19 @@ fn semantic_import_batch_rejects_duplicate_origins_without_mutation() {
 
 fn validated_source_type_graph() -> ValidatedIdentityGraph {
     let decoded = decoded_source_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    pending.finish().unwrap()
+}
+
+fn validated_function_graph() -> ValidatedIdentityGraph {
+    let record = source_function_record();
+    let decoded = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentFunctionId, DecodedSourceDeclarationKey>,
+    >(&encode(&record).unwrap(), DecodeLimits::default())
+    .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     pending.register(IdentityLayer::Hir, &decoded).unwrap();
