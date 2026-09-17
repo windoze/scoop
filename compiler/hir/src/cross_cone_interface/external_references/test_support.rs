@@ -7,8 +7,8 @@ use scoop_identity::{
 
 use super::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
-    DependencyBindingWitnessV1, ExternalHirReferenceRoleV1, ExternalHirReferenceV1,
-    ExternalHirTargetV1,
+    DependencyBindingWitnessV1, ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority,
+    ExternalHirReferenceV1, ExternalHirTargetV1,
 };
 use crate::{ReexportRouteHopV1, ReexportRouteV1};
 
@@ -91,6 +91,69 @@ pub(super) fn witnesses(routes: Vec<ReexportRouteV1>) -> CanonicalDependencyBind
             .collect(),
     )
     .unwrap()
+}
+
+pub(super) struct TargetOriginAuthority {
+    current: ConeIdentity,
+    target_origin: ConeIdentity,
+    failing_target: Option<ExternalHirTargetV1>,
+    origin_queries: usize,
+}
+
+impl TargetOriginAuthority {
+    pub(super) fn new(current: ConeIdentity, target_origin: ConeIdentity) -> Self {
+        Self {
+            current,
+            target_origin,
+            failing_target: None,
+            origin_queries: 0,
+        }
+    }
+
+    pub(super) fn set_target_origin(&mut self, target_origin: ConeIdentity) {
+        self.target_origin = target_origin;
+    }
+
+    pub(super) fn fail_on(&mut self, target: ExternalHirTargetV1) {
+        self.failing_target = Some(target);
+    }
+
+    pub(super) const fn target_origin(&self) -> ConeIdentity {
+        self.target_origin
+    }
+
+    pub(super) const fn origin_queries(&self) -> usize {
+        self.origin_queries
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct TargetOriginAuthorityError;
+
+impl std::fmt::Display for TargetOriginAuthorityError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("missing external target origin")
+    }
+}
+
+impl std::error::Error for TargetOriginAuthorityError {}
+
+impl ExternalHirReferenceSemanticAuthority<TargetOriginAuthorityError> for TargetOriginAuthority {
+    fn current_cone(&self) -> ConeIdentity {
+        self.current
+    }
+
+    fn external_hir_target_origin(
+        &mut self,
+        target: ExternalHirTargetV1,
+    ) -> Result<ConeIdentity, TargetOriginAuthorityError> {
+        self.origin_queries += 1;
+        if self.failing_target == Some(target) {
+            Err(TargetOriginAuthorityError)
+        } else {
+            Ok(self.target_origin)
+        }
+    }
 }
 
 fn alias_binding(

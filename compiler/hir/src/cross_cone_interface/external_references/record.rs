@@ -11,6 +11,12 @@ use super::{
     ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
 };
 
+mod semantics;
+
+pub use semantics::{
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExternalHirReferenceV1 {
     origin: ConeIdentity,

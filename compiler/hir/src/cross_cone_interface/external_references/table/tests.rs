@@ -1,7 +1,9 @@
 use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
-use crate::cross_cone_interface::external_references::test_support::Fixture;
+use crate::cross_cone_interface::external_references::test_support::{
+    Fixture, TargetOriginAuthority, TargetOriginAuthorityError,
+};
 
 #[test]
 fn producer_sorts_by_typed_target_and_rejects_duplicate_targets() {
@@ -62,6 +64,32 @@ fn reader_rejects_duplicate_and_noncanonical_target_order() {
     assert!(matches!(
         reversed.resolve(&mut fixture.authority()),
         Err(ExternalHirReferenceSetValidationError::NonCanonicalOrder { index: 1 })
+    ));
+}
+
+#[test]
+fn table_semantics_reports_the_failing_canonical_record_index() {
+    let fixture = Fixture::new();
+    let table = CanonicalExternalHirReferencesV1::try_new(vec![
+        fixture.signature_reference(fixture.first_alias),
+        fixture.signature_reference(fixture.second_alias),
+    ])
+    .unwrap();
+    let mut authority =
+        TargetOriginAuthority::new(scoop_identity::ConeIdentity::CORE, fixture.provider);
+
+    assert!(table.validate_semantics(&mut authority).is_ok());
+
+    authority.fail_on(table.records()[1].target());
+    assert!(matches!(
+        table.validate_semantics(&mut authority),
+        Err(ExternalHirReferenceSetSemanticValidationError::Record {
+            index: 1,
+            error: ExternalHirReferenceSemanticValidationError::TargetOrigin {
+                target,
+                error: TargetOriginAuthorityError,
+            },
+        }) if target == table.records()[1].target()
     ));
 }
 

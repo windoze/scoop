@@ -259,9 +259,10 @@ pub use external_references::{
     ExternalHirReferenceBuildError, ExternalHirReferenceResolutionError,
     ExternalHirReferenceResolver, ExternalHirReferenceRoleSetBuildError,
     ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
-    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetValidationError,
-    ExternalHirReferenceV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,
-    ExternalHirTargetV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
+    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetSemanticValidationError,
+    ExternalHirReferenceSetValidationError, ExternalHirReferenceV1,
+    ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,

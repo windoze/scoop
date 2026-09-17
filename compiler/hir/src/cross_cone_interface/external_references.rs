@@ -8,7 +8,9 @@ mod witness;
 
 pub use record::{
     DecodedExternalHirReferenceV1, ExternalHirReferenceBuildError,
-    ExternalHirReferenceResolutionError, ExternalHirReferenceResolver, ExternalHirReferenceV1,
+    ExternalHirReferenceResolutionError, ExternalHirReferenceResolver,
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
+    ExternalHirReferenceV1,
 };
 pub use roles::{
     CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
@@ -17,7 +19,8 @@ pub use roles::{
 };
 pub use table::{
     CanonicalExternalHirReferencesV1, DecodedCanonicalExternalHirReferencesV1,
-    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetValidationError,
+    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetSemanticValidationError,
+    ExternalHirReferenceSetValidationError,
 };
 pub use target::{
     DecodedExternalHirTargetV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,

@@ -4,7 +4,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{
     DecodedExternalHirReferenceV1, ExternalHirReferenceResolutionError,
-    ExternalHirReferenceResolver, ExternalHirReferenceV1, ExternalHirTargetV1,
+    ExternalHirReferenceResolver, ExternalHirReferenceSemanticAuthority,
+    ExternalHirReferenceSemanticValidationError, ExternalHirReferenceV1, ExternalHirTargetV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,6 +41,21 @@ impl CanonicalExternalHirReferencesV1 {
 
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
+    }
+
+    pub fn validate_semantics<A, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), ExternalHirReferenceSetSemanticValidationError<E>>
+    where
+        A: ExternalHirReferenceSemanticAuthority<E>,
+    {
+        for (index, record) in self.records.iter().enumerate() {
+            record.validate_semantics(authority).map_err(|error| {
+                ExternalHirReferenceSetSemanticValidationError::Record { index, error }
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -165,6 +181,30 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSetValidationError<E>
 
 impl<E: std::error::Error + 'static> std::error::Error
     for ExternalHirReferenceSetValidationError<E>
+{
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExternalHirReferenceSetSemanticValidationError<E> {
+    Record {
+        index: usize,
+        error: ExternalHirReferenceSemanticValidationError<E>,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSetSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Record { index, error } => write!(
+                formatter,
+                "invalid external HIR reference semantics {index}: {error}"
+            ),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for ExternalHirReferenceSetSemanticValidationError<E>
 {
 }
 
