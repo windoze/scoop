@@ -5,13 +5,10 @@ use std::sync::Arc;
 
 use scoop_hir::{
     CanonicalPublicExportBindingsV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
-    ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1,
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
 };
 use scoop_identity::{
-    BindingTarget, BindingTargetError, ConeIdentity, ExportBindingKey, NominalDeclarationOwner,
-    PersistentExportBindingId, PersistentGenericTypeId, PersistentTypeAliasId, PersistentTypeId,
-    SourceDeclarationKey, ValidatedIdentityGraph,
+    ConeIdentity, ExportBindingKey, PersistentExportBindingId, ValidatedIdentityGraph,
 };
 use scoop_lir::ValidatedLirTargetSelection;
 
@@ -20,6 +17,10 @@ use super::{
     surface_validation::transitive_dependency_positions,
 };
 use crate::ConstValidatedCrossConeHirFrontSections;
+
+mod external_target;
+
+pub use external_target::CrossConeHirReferenceAuthorityError;
 
 /// A closure whose public binding routes have been checked against each
 /// provider's exact direct and transitive dependency graph.
@@ -207,36 +208,6 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
             binding_keys,
         })
     }
-
-    fn source_declaration_key<I>(
-        &self,
-        id: I,
-    ) -> Result<Arc<SourceDeclarationKey>, CrossConeHirReferenceAuthorityError>
-    where
-        I: scoop_identity::PersistentId + 'static,
-    {
-        self.identities
-            .canonical_key::<I, SourceDeclarationKey>(id)
-            .map_err(CrossConeHirReferenceAuthorityError::Identity)
-    }
-
-    fn target_source_declaration_key(
-        &self,
-        target: ExternalHirTargetV1,
-    ) -> Result<Arc<SourceDeclarationKey>, CrossConeHirReferenceAuthorityError> {
-        match target {
-            ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(id)) => {
-                self.source_declaration_key::<PersistentTypeId>(id)
-            }
-            ExternalHirTargetV1::Nominal(NominalDeclarationOwner::GenericTemplate(id)) => {
-                self.source_declaration_key::<PersistentGenericTypeId>(id)
-            }
-            ExternalHirTargetV1::TypeAlias(id) => {
-                self.source_declaration_key::<PersistentTypeAliasId>(id)
-            }
-            target => Err(CrossConeHirReferenceAuthorityError::UnsupportedTarget { target }),
-        }
-    }
 }
 
 impl PublicExportBindingClosureAuthority for CanonicalCrossConeRouteAuthority<'_> {
@@ -260,66 +231,6 @@ impl PublicExportBindingClosureAuthority for CanonicalCrossConeRouteAuthority<'_
             .iter()
             .find(|provider| provider.identity == exporter)
             .map(|provider| provider.bindings)
-    }
-}
-
-impl ExternalHirReferenceSemanticAuthority<CrossConeHirReferenceAuthorityError>
-    for CanonicalCrossConeRouteAuthority<'_>
-{
-    fn current_cone(&self) -> ConeIdentity {
-        self.current
-    }
-
-    fn external_hir_target_origin(
-        &mut self,
-        target: ExternalHirTargetV1,
-    ) -> Result<ConeIdentity, CrossConeHirReferenceAuthorityError> {
-        self.target_source_declaration_key(target)
-            .map(|key| key.origin())
-    }
-
-    fn external_hir_target_binding_root(
-        &mut self,
-        target: ExternalHirTargetV1,
-    ) -> Result<BindingTarget, CrossConeHirReferenceAuthorityError> {
-        let key = self.target_source_declaration_key(target)?;
-        match target {
-            ExternalHirTargetV1::Nominal(_) => BindingTarget::type_name(&key),
-            ExternalHirTargetV1::TypeAlias(_) => BindingTarget::type_alias(&key),
-            target => {
-                return Err(CrossConeHirReferenceAuthorityError::UnsupportedTarget { target });
-            }
-        }
-        .map_err(CrossConeHirReferenceAuthorityError::BindingTarget)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CrossConeHirReferenceAuthorityError {
-    Identity(scoop_identity::IdentityReferenceError),
-    UnsupportedTarget { target: ExternalHirTargetV1 },
-    BindingTarget(BindingTargetError),
-}
-
-impl fmt::Display for CrossConeHirReferenceAuthorityError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Identity(error) => error.fmt(formatter),
-            Self::UnsupportedTarget { target } => {
-                write!(formatter, "unsupported external HIR target {target:?}")
-            }
-            Self::BindingTarget(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CrossConeHirReferenceAuthorityError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Identity(error) => Some(error),
-            Self::BindingTarget(error) => Some(error),
-            Self::UnsupportedTarget { .. } => None,
-        }
     }
 }
 
