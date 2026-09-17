@@ -35,6 +35,9 @@ pub use mir_bridge_validation::*;
 mod lir_bridge_validation;
 pub use lir_bridge_validation::*;
 
+mod commit;
+pub use commit::*;
+
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
 pub struct DecodedCrossConeClosure<'input> {

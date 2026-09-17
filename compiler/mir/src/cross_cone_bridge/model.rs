@@ -165,6 +165,16 @@ impl CrossConeMirBridgeSectionV1 {
         &self.exports
     }
 
+    pub fn export(
+        &self,
+        declaration: DependencyCallableDeclarationId,
+    ) -> Option<&ParamFreeMirCallableExportV1> {
+        self.exports
+            .binary_search_by_key(&declaration, ParamFreeMirCallableExportV1::declaration)
+            .ok()
+            .map(|index| &self.exports[index])
+    }
+
     pub fn selected(&self) -> &[SelectedDependencyMirCallableV1] {
         &self.selected
     }

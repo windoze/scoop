@@ -18,13 +18,13 @@ use relations::validate_lir_bridge_relations;
 /// A semantic closure whose local strong LIR production, LIR bridge payloads,
 /// MIR/LIR projections, and terminal-provider exports are all validated.
 pub struct LirBridgeValidatedCrossConeHirClosure<'input> {
-    current: ConeIdentity,
-    target: ValidatedLirTargetSelection,
-    direct: Vec<ConeIdentity>,
-    dependency_first: Vec<LirBridgeValidatedCrossConeHirFrontSections<'input>>,
-    positions: BTreeMap<ConeIdentity, usize>,
-    dependency_positions: Vec<Vec<usize>>,
-    type_alias_expansions: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
+    pub(super) current: ConeIdentity,
+    pub(super) target: ValidatedLirTargetSelection,
+    pub(super) direct: Vec<ConeIdentity>,
+    pub(super) dependency_first: Vec<LirBridgeValidatedCrossConeHirFrontSections<'input>>,
+    pub(super) positions: BTreeMap<ConeIdentity, usize>,
+    pub(super) dependency_positions: Vec<Vec<usize>>,
+    pub(super) type_alias_expansions: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
 }
 
 impl LirBridgeValidatedCrossConeHirClosure<'_> {
