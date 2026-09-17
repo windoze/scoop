@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use scoop_hir::CrossConeHirInterfaceResolutionError;
+use scoop_hir::{CoreBootstrapInterfaceValidationError, CrossConeHirInterfaceResolutionError};
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
     ValidatedIdentityGraph,
@@ -12,8 +12,8 @@ use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
     ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord,
-    FoundationValidatedCrossConeHirFrontSections, ResolvedCrossConeHirFrontSections,
-    StrongProfileFoundationError,
+    FoundationValidatedCrossConeHirFrontSections, HirProductionValidatedCrossConeHirFrontSections,
+    ResolvedCrossConeHirFrontSections, StrongProfileFoundationError,
 };
 
 /// Untrusted assembly input for the dependency artifacts visible while
@@ -406,6 +406,103 @@ impl ResolvedCrossConeHirClosure<'_> {
     }
 }
 
+impl<'input> ResolvedCrossConeHirClosure<'input> {
+    /// Validates every provider's unchanged M23-3 HIR production section
+    /// before its direct-public surface is used as M23-5 semantic authority.
+    pub fn validate_hir_productions(
+        self,
+    ) -> Result<HirProductionValidatedCrossConeHirClosure<'input>, CrossConeClosureHirProductionError>
+    {
+        let Self {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = self;
+        let artifact_count = dependency_first.len();
+        let mut validated = Vec::new();
+        validated.try_reserve_exact(artifact_count).map_err(|_| {
+            CrossConeClosureHirProductionError::Allocation {
+                requested_slots: artifact_count,
+            }
+        })?;
+        for front in dependency_first {
+            let identity = front.identity();
+            validated.push(front.validate_hir_production().map_err(|source| {
+                CrossConeClosureHirProductionError::Artifact { identity, source }
+            })?);
+        }
+
+        Ok(HirProductionValidatedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first: validated,
+            positions,
+            dependency_positions,
+        })
+    }
+}
+
+/// Cross-Cone providers whose foundations, general HIR references, and legacy
+/// direct-public surfaces are validated. General surface semantics and routes
+/// remain pending, so this state still cannot be imported.
+pub struct HirProductionValidatedCrossConeHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<HirProductionValidatedCrossConeHirFrontSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+impl HirProductionValidatedCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.current
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        &self.direct
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &HirProductionValidatedCrossConeHirFrontSections<'_>> {
+        self.dependency_first.iter()
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&HirProductionValidatedCrossConeHirFrontSections<'_>> {
+        self.positions
+            .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.positions.get(&identity).map(|_| {
+            if self.direct.binary_search(&identity).is_ok() {
+                CrossConeProviderRole::Direct
+            } else {
+                CrossConeProviderRole::Support
+            }
+        })
+    }
+
+    pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+        self.positions
+            .get(&identity)
+            .map(|position| self.dependency_positions[*position].len())
+    }
+}
+
 fn validate_profile_graph(
     closure: DecodedCrossConeClosure<'_>,
 ) -> Result<ProfileValidatedCrossConeHirClosure<'_>, CrossConeClosureGraphError> {
@@ -734,6 +831,41 @@ impl std::error::Error for CrossConeClosureHirResolutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source.as_ref()),
+            Self::Allocation { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CrossConeClosureHirProductionError {
+    Allocation {
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: CoreBootstrapInterfaceValidationError,
+    },
+}
+
+impl fmt::Display for CrossConeClosureHirProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} validated cross-Cone HIR production slots"
+            ),
+            Self::Artifact { identity, source } => write!(
+                formatter,
+                "invalid legacy HIR production surface for {identity}: {source}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureHirProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source),
             Self::Allocation { .. } => None,
         }
     }

@@ -1,6 +1,7 @@
 //! Compile-view HIR-front decoding for the cross-Cone semantics profile.
 
 use scoop_hir::{
+    CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceSectionV1,
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
     DecodedHirFoundation, OdrFreeHirFoundation,
@@ -69,6 +70,19 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose legacy HIR production surface and general
+/// HIR identity references are both validated. General-interface ownership,
+/// route, and external-reference semantics remain pending.
+pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
@@ -341,7 +355,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
     }
 }
 
-impl ResolvedCrossConeHirFrontSections<'_> {
+impl<'input> ResolvedCrossConeHirFrontSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -371,6 +385,83 @@ impl ResolvedCrossConeHirFrontSections<'_> {
     }
 
     pub const fn hir_core_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
+    }
+
+    /// Replays the unchanged M23-3 HIR production contract against the same
+    /// ODR-free foundation used to resolve the general interface. This grants
+    /// the canonical direct-public surface needed by the M23-5 semantic pass.
+    pub(crate) fn validate_hir_production(
+        self,
+    ) -> Result<
+        HirProductionValidatedCrossConeHirFrontSections<'input>,
+        CoreBootstrapInterfaceValidationError,
+    > {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        } = self;
+        let hir_core_production = hir_core_production
+            .validate_against_strong_foundation(graph.identity(), &foundations.hir)?;
+        Ok(HirProductionValidatedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl HirProductionValidatedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir_core_production
     }
 

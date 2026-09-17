@@ -94,6 +94,37 @@ fn cross_cone_hir_front_rejects_noncanonical_general_hir_payload() {
     ));
 }
 
+#[test]
+fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
+    let bytes = cross_cone_artifact(empty_cross_cone_hir_interface());
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let validated = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap();
+
+    assert_eq!(validated.identity(), cone().identity());
+    assert!(
+        validated
+            .hir_core_production()
+            .direct_public_surface()
+            .bindings()
+            .is_empty()
+    );
+    assert!(matches!(
+        validated.hir_core_production().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+}
+
 pub(crate) fn cross_cone_artifact(hir_interface: Vec<u8>) -> Vec<u8> {
     cross_cone_artifact_for(cone(), Vec::new(), hir_interface)
 }

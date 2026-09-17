@@ -78,6 +78,18 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
     assert_eq!(closure.current(), ConeIdentity::CORE);
     assert_eq!(closure.dependency_first().count(), 0);
 
+    let validated = closure
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .resolve_hir_interfaces()
+        .unwrap()
+        .validate_hir_productions()
+        .unwrap();
+    assert_eq!(validated.current(), ConeIdentity::CORE);
+    assert_eq!(validated.dependency_first().count(), 0);
+
     let core_bytes = artifact(core_cone(), Vec::new());
     assert_eq!(
         DecodedCrossConeClosure::new(
@@ -90,6 +102,35 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .err(),
         Some(CrossConeClosureGraphError::CoreHasDependencyProviders)
     );
+}
+
+#[test]
+fn hir_production_failure_is_attributed_to_the_exact_artifact() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let mut direct = vec![ConeIdentity::CORE];
+    direct.sort_unstable();
+
+    assert!(matches!(
+        DecodedCrossConeClosure::new(
+            cone_named("current").identity(),
+            target(),
+            direct,
+            vec![decode(&core_bytes)],
+        )
+        .validate_profile_graph()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .resolve_hir_interfaces()
+        .unwrap()
+        .validate_hir_productions(),
+        Err(CrossConeClosureHirProductionError::Artifact {
+            identity: ConeIdentity::CORE,
+            source: scoop_hir::CoreBootstrapInterfaceValidationError::MissingCoreInterface,
+        })
+    ));
 }
 
 #[test]
