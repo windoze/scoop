@@ -309,15 +309,16 @@ pub use route_closure::{
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
 };
 pub use section::{
-    CrossConeHirInterfaceIndexError, CrossConeHirInterfaceResolutionError,
-    CrossConeHirInterfaceResolver, CrossConeHirInterfaceSectionV1,
-    CrossConeHirInternalClosureValidationError, DecodedCrossConeHirInterfaceSectionV1,
-    ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
-    ExternalHirAliasClosureValidationError, ExternalHirAliasUseSiteV1,
-    ExternalHirConstTypeClosureValidationError, ExternalHirDefaultClosureValidationError,
-    ExternalHirDefaultOriginMismatch, ExternalHirDefaultUseSiteV1,
-    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
-    ExternalHirSignatureUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
+    CrossConeHirExternalReferenceValidationError, CrossConeHirInterfaceIndexError,
+    CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceResolver,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
+    DecodedCrossConeHirInterfaceSectionV1, ExportDefinitionSourceClosureValidationError,
+    ExportDefinitionSourceUseSiteV1, ExternalHirAliasClosureValidationError,
+    ExternalHirAliasUseSiteV1, ExternalHirConstTypeClosureValidationError,
+    ExternalHirDefaultClosureValidationError, ExternalHirDefaultOriginMismatch,
+    ExternalHirDefaultUseSiteV1, ExternalHirSignatureClosureValidationError,
+    ExternalHirSignatureOriginMismatch, ExternalHirSignatureUseSiteV1,
+    IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,

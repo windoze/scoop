@@ -30,6 +30,7 @@ mod alias_reference_closure;
 mod const_type_reference_closure;
 mod default_reference_closure;
 mod definition_source_closure;
+mod external_reference_closure;
 mod internal_closures;
 mod signature_nominal_walk;
 mod signature_reference_closure;
@@ -45,6 +46,7 @@ pub use default_reference_closure::{
 pub use definition_source_closure::{
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
 };
+pub use external_reference_closure::CrossConeHirExternalReferenceValidationError;
 pub use internal_closures::CrossConeHirInternalClosureValidationError;
 pub use signature_reference_closure::{
     ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
