@@ -1386,6 +1386,36 @@ impl ValidatedIdentityGraph {
             .count()
     }
 
+    /// Returns the canonical key already proven for one trusted typed id.
+    ///
+    /// This is the read-only counterpart of [`PersistentKeyResolver`]: the
+    /// caller already holds an `I`, so no untrusted bytes are promoted here.
+    /// The lookup remains kind- and key-type-specific and never falls back to
+    /// another identity family that happens to share the same digest bytes.
+    pub fn canonical_key<I, K>(&self, id: I) -> Result<Arc<K>, IdentityReferenceError>
+    where
+        I: PersistentId + 'static,
+        K: Send + Sync + 'static,
+    {
+        let node = IdentityNode::trusted(id);
+        self.candidates
+            .get(&node)
+            .filter(|candidate| candidate.resolved)
+            .ok_or(IdentityReferenceError::Missing {
+                kind: node.kind,
+                id: node.bytes,
+            })?;
+        let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
+        self.canonical_keys
+            .get(&slot)
+            .cloned()
+            .and_then(|key| key.into_any().downcast::<K>().ok())
+            .ok_or(IdentityReferenceError::KeyUnavailable {
+                kind: node.kind,
+                id: node.bytes,
+            })
+    }
+
     /// Reconstructs the canonical records introduced by one layer and key
     /// family, sorted by raw persistent id.
     pub fn records<I, K>(

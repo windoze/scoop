@@ -116,6 +116,50 @@ fn commits_a_complete_identity_transaction() {
 }
 
 #[test]
+fn trusted_typed_id_retrieves_only_its_validated_canonical_key() {
+    let expected = source_type_record();
+    let decoded = decoded_source_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+
+    let first = graph
+        .canonical_key::<PersistentTypeId, SourceDeclarationKey>(expected.id())
+        .unwrap();
+    let second = graph
+        .canonical_key::<PersistentTypeId, SourceDeclarationKey>(expected.id())
+        .unwrap();
+    assert!(Arc::ptr_eq(&first, &second));
+    assert_eq!(first.as_ref(), expected.key());
+    assert!(matches!(
+        graph.canonical_key::<PersistentTypeId, ExactTypeKey>(expected.id()),
+        Err(IdentityReferenceError::KeyUnavailable { kind, id })
+            if kind == PersistentTypeId::KIND && id == *expected.id().as_array()
+    ));
+}
+
+#[test]
+fn trusted_typed_id_lookup_includes_imported_external_authority() {
+    let expected = source_function_record();
+    let external = validated_function_graph();
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_external_graph_authorities(&external)
+        .unwrap();
+    let graph = pending.finish().unwrap();
+
+    assert_eq!(
+        graph
+            .canonical_key::<PersistentFunctionId, SourceDeclarationKey>(expected.id())
+            .unwrap()
+            .as_ref(),
+        expected.key()
+    );
+}
+
+#[test]
 fn external_canonical_authority_resolves_a_reexport_binding_without_redeclaring_target() {
     let function = source_function_record();
     let binding =
