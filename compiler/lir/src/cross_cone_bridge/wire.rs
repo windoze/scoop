@@ -169,7 +169,11 @@ impl DecodedCrossConeLirBridgeSectionV1 {
 
         validation::validate_section_relations(foundation, &exports, &selected)
             .map_err(CrossConeLirBridgeValidationError::Relation)?;
-        let expected = CrossConeLirBridgeSectionV1 { exports, selected };
+        let expected = CrossConeLirBridgeSectionV1 {
+            artifact: producer,
+            exports,
+            selected,
+        };
         let expected_bytes =
             encode(&expected).map_err(CrossConeLirBridgeValidationError::Encode)?;
         if actual != expected_bytes {

@@ -134,6 +134,26 @@ impl<'a> FunctionLowerer<'a> {
                     args,
                 )
             }
+            mir::Callee::DependencyStrong(source) => {
+                assert!(matches!(call.target.kind, mir::CallKind::Direct));
+                let id = self.dependency_external_callable_map[&source];
+                let callable = &self.dependency_external_callables[id];
+                assert_eq!(
+                    call.args.len(),
+                    callable.signature().logical_argument_count(),
+                    "ordinary dependency call arity"
+                );
+                let args = call
+                    .args
+                    .iter()
+                    .map(|argument| self.lower_expr(argument))
+                    .collect();
+                self.emit_non_native_call_with_signature(
+                    LoweredCallDestination::dependency_external(id, callable.gc_effect()),
+                    callable.signature(),
+                    args,
+                )
+            }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
                 let mut parameter_types = Vec::with_capacity(call.args.len());
@@ -170,6 +190,7 @@ impl<'a> FunctionLowerer<'a> {
                         unreachable!("handled above")
                     }
                     mir::Callee::CoreExternal(_) => unreachable!("handled above"),
+                    mir::Callee::DependencyStrong(_) => unreachable!("handled above"),
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];

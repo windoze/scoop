@@ -39,6 +39,20 @@ impl LoweredCallDestination {
             lir::GcEffect::NoGc => Self::NoGc(lir::NoGcCallDestination::core_external(function)),
         }
     }
+
+    pub(in crate::function) fn dependency_external(
+        function: lir::DependencyExternalCallableId,
+        effect: lir::GcEffect,
+    ) -> Self {
+        match effect {
+            lir::GcEffect::Managed => {
+                Self::Managed(lir::ManagedCallDestination::dependency_external(function))
+            }
+            lir::GcEffect::NoGc => {
+                Self::NoGc(lir::NoGcCallDestination::dependency_external(function))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

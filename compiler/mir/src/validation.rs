@@ -27,6 +27,8 @@ mod generated_callables;
 use generated_callables::validate_generated_callable_metadata;
 mod immortal_objects;
 use immortal_objects::validate_immortal_objects;
+mod imported_calls;
+use imported_calls::validate_imported_call;
 
 mod callable_functions;
 use callable_functions::validate_callable_functions;
@@ -94,6 +96,10 @@ pub enum MirValidationErrorKind {
         callable: ImportedCoreCallableUseId,
     },
     ImportedCoreCallableRequiresDirect,
+    InvalidImportedDependencyCallableReference {
+        callable: ImportedDependencyMirCallableId,
+    },
+    ImportedDependencyCallableRequiresDirect,
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
@@ -490,6 +496,16 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::ImportedCoreCallableRequiresDirect => {
                 formatter.write_str("core-external callable requires a direct call target")
             }
+            MirValidationErrorKind::InvalidImportedDependencyCallableReference { callable } => {
+                write!(
+                    formatter,
+                    "ordinary dependency call references unknown imported callable {}",
+                    callable.into_raw().into_u32()
+                )
+            }
+            MirValidationErrorKind::ImportedDependencyCallableRequiresDirect => {
+                formatter.write_str("ordinary dependency callable requires a direct call target")
+            }
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
             | MirValidationErrorKind::InvalidCallbackBridge { reason }
@@ -746,23 +762,12 @@ fn validate_body(
                 });
             }
             if let Some(call) = call
-                && let Callee::CoreExternal(callable) = call.target.callee
+                && let Err(kind) = validate_imported_call(module, call)
             {
-                if !matches!(call.target.kind, CallKind::Direct) {
-                    return Err(MirValidationError {
-                        location: MirValidationLocation::FunctionBlock { function, block },
-                        kind: MirValidationErrorKind::ImportedCoreCallableRequiresDirect,
-                    });
-                }
-                let index = callable.into_raw().into_u32() as usize;
-                if index >= module.meta.imported_core_callables.len() {
-                    return Err(MirValidationError {
-                        location: MirValidationLocation::FunctionBlock { function, block },
-                        kind: MirValidationErrorKind::InvalidImportedCoreCallableReference {
-                            callable,
-                        },
-                    });
-                }
+                return Err(MirValidationError {
+                    location: MirValidationLocation::FunctionBlock { function, block },
+                    kind,
+                });
             }
         }
         try_visit_block_exprs(definition, &mut |expr| {

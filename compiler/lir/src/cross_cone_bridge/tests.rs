@@ -159,3 +159,36 @@ fn expected_definition(
     )
     .unwrap()
 }
+
+#[test]
+fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
+    let fixture = Fixture::new("selectedDependency");
+    let consumer = ConeCoordinate::new("test", "lir-bridge-consumer", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let selected = SelectedDependencyLirCallableV1::new(
+        fixture.producer,
+        fixture.declaration,
+        fixture.target,
+        fixture.abi.clone(),
+        CallingConvention::Cdecl,
+        DependencyExternalCallableRootPlanV1::NoGc,
+    )
+    .unwrap();
+    let section = CrossConeLirBridgeSectionV1::try_new(
+        &empty_foundation(consumer),
+        Vec::new(),
+        vec![selected.clone()],
+    )
+    .unwrap();
+    let selection = SelectedDependencyLirSet::try_from_bridge(&section).unwrap();
+
+    assert_eq!(section.artifact(), consumer);
+    assert_eq!(selection.consumer(), consumer);
+    assert_eq!(selection.callables(), &[selected]);
+    let id = selection
+        .callable_for(fixture.producer, fixture.declaration)
+        .unwrap();
+    assert_eq!(selection.callable(id), selection.callables().first());
+}

@@ -199,6 +199,10 @@ pub enum Callee {
     /// to this MIR module's imported-callable arena, not to a local function
     /// or extern declaration arena.
     CoreExternal(ImportedCoreCallableUseId),
+    /// A direct call to a Strong definition owned by an ordinary dependency.
+    /// The id belongs to this module's independent dependency-use arena; it is
+    /// neither a local Strong function nor a native declaration.
+    DependencyStrong(ImportedDependencyMirCallableId),
     /// Typed marker used only between CFG construction and the coroutine
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.

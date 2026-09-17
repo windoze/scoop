@@ -432,8 +432,8 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         mir::Callee::Extern(extern_id) => {
             return lowerer.extern_functions[extern_id].return_type.clone();
         }
-        mir::Callee::CoreExternal(_) => {
-            unreachable!("M23-3 imported core callables cannot suspend")
+        mir::Callee::CoreExternal(_) | mir::Callee::DependencyStrong(_) => {
+            unreachable!("imported parameter-free callables cannot suspend")
         }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
             let signature = &lowerer.shell.function_types[function_type];

@@ -637,6 +637,11 @@ pub struct MirMeta {
     /// sites name this arena; each entry retains the brand of the exact MIR
     /// selection set that proved it.
     pub imported_core_callables: Arena<ImportedCoreCallableUse>,
+    /// Ordinary dependency call targets selected for this MIR graph. Entries
+    /// are disjoint from local Strong functions, native externs, and trusted
+    /// core callables, and retain both their request-local bridge brand and GC
+    /// protocol.
+    pub imported_dependency_callables: Arena<ImportedDependencyMirCallableUse>,
     /// Complete identity relation for every LocalConcrete HIR type transposed
     /// into this MIR module. These records remain HIR-owned and are not
     /// re-emitted as MIR-first identity-foundation entries.

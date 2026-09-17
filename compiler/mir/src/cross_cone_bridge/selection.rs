@@ -100,6 +100,19 @@ impl SelectedDependencyMirSet {
         })
     }
 
+    /// Mint one effect-refined MIR arena value from this exact selected set.
+    /// The effect is supplied by the committed HIR callable use; the later
+    /// LIR bridge projection verifies it against the provider's canonical ABI
+    /// and root plan.
+    pub fn callable_use(
+        &self,
+        id: SelectedDependencyMirCallableId,
+        gc_effect: crate::GcEffect,
+    ) -> Option<crate::ImportedDependencyMirCallableUse> {
+        self.callable_ref(id)
+            .map(|reference| crate::ImportedDependencyMirCallableUse::new(reference, gc_effect))
+    }
+
     pub fn resolve_callable(
         &self,
         reference: SelectedDependencyMirCallableRef,

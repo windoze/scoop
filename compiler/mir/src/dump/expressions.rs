@@ -461,6 +461,9 @@ pub(super) fn dump_call(
         Callee::CoreExternal(id) => {
             format!("core-external{}", id.into_raw().into_u32())
         }
+        Callee::DependencyStrong(id) => {
+            format!("dependency-strong{}", id.into_raw().into_u32())
+        }
         Callee::CoroutineSuspend { register } => format!(
             "@coroutine_suspend[register={}]",
             function_ref(module.meta.instances[*register].function)

@@ -21,6 +21,7 @@ pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
 pub type ClosureAdapterId = Idx<ClosureAdapter>;
 pub type DynamicClosureAdapterId = Idx<DynamicClosureAdapter>;
 pub type ImportedCoreCallableUseId = Idx<ImportedCoreCallableUse>;
+pub type ImportedDependencyMirCallableId = Idx<ImportedDependencyMirCallableUse>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;

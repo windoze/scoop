@@ -128,12 +128,14 @@
 //! and keeping it out of LIR keeps these dumps stable.
 
 use std::collections::HashMap;
-use std::fmt;
 
 use la_arena::Arena;
 use scoop_lir as lir;
 
 use scoop_mir as mir;
+
+mod error;
+pub use error::*;
 
 mod identity_roots;
 use identity_roots::IdentityRoots;
@@ -146,11 +148,30 @@ mod imported_core;
 pub use imported_core::StrongImportedCoreLirInput;
 use imported_core::lower_imported_core_callables;
 use imported_core::lower_imported_core_runtime_string;
+mod imported_dependency;
+pub use imported_dependency::StrongImportedDependencyLirInput;
+use imported_dependency::lower_imported_dependency_callables;
 
 /// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
 pub fn lower(
     input: &mir::SingleConeStrongMirInput,
     imported_core: StrongImportedCoreLirInput<'_>,
+    target_profile: lir::LirTargetProfile,
+) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
+    lower_with_dependencies(
+        input,
+        imported_core,
+        StrongImportedDependencyLirInput::Unused,
+        target_profile,
+    )
+}
+
+/// Lower one sealed strong MIR product together with the exact selected
+/// ordinary-dependency LIR authority that closes its dependency call roots.
+pub fn lower_with_dependencies(
+    input: &mir::SingleConeStrongMirInput,
+    imported_core: StrongImportedCoreLirInput<'_>,
+    imported_dependencies: StrongImportedDependencyLirInput<'_>,
     target_profile: lir::LirTargetProfile,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let module = input.module();
@@ -192,6 +213,14 @@ pub fn lower(
         lower_imported_core_runtime_string(input, imported_core)?;
     let (core_external_callables, core_external_callable_map) =
         lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
+    let (dependency_external_callables, dependency_external_callable_map) =
+        lower_imported_dependency_callables(
+            &context,
+            input,
+            imported_dependencies,
+            &structs,
+            &enums,
+        )?;
     let native_abi = native_abi::lower(&context, module, &structs, &enums);
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
@@ -344,6 +373,8 @@ pub fn lower(
                 &function_signatures,
                 &core_external_callables,
                 &core_external_callable_map,
+                &dependency_external_callables,
+                &dependency_external_callable_map,
                 &extern_functions,
                 &extern_function_refs,
             )
@@ -414,7 +445,7 @@ pub fn lower(
             type_descriptors,
             core_external_type_descriptors,
             core_external_callables,
-            dependency_external_callables: Arena::new(),
+            dependency_external_callables,
         },
     };
     lir::SingleConeStrongLirOutput::try_new(
@@ -648,154 +679,6 @@ fn callable_body_identity(owner: mir::CallableOwner) -> lir::CallableBodyIdentit
         }
     };
     identity.expect("validated callable-body subjects have canonical runtime identities")
-}
-
-#[derive(Debug)]
-pub enum StrongLirLoweringError {
-    Capability(StrongLirCapabilityError),
-    MissingImportedCoreLirAuthority,
-    CoreCannotImportCore,
-    ImportedCoreLirCountMismatch {
-        mir: usize,
-        lir: usize,
-    },
-    MissingImportedCoreLirCallable {
-        index: usize,
-        kind: scoop_identity::CoreImportedCallableKind,
-    },
-    ImportedCoreLirCallableMismatch {
-        index: usize,
-        kind: scoop_identity::CoreImportedCallableKind,
-    },
-    MissingImportedCoreParameterType {
-        index: usize,
-        parameter: usize,
-        exact: scoop_identity::PersistentExactTypeId,
-    },
-    MissingImportedCoreResultType {
-        index: usize,
-        exact: scoop_identity::PersistentExactTypeId,
-    },
-    ImportedCoreCallable(lir::CoreExternalBuildError),
-    ImportedCoreTypeDescriptor(lir::CoreExternalBuildError),
-    ImportedCoreRuntimeStringMismatch {
-        mir: scoop_identity::PersistentExactTypeId,
-        lir: scoop_identity::PersistentExactTypeId,
-    },
-    MissingRuntimeStringDescriptor {
-        producer: scoop_identity::ConeIdentity,
-    },
-    RuntimeStringDescriptorOwnership {
-        producer: scoop_identity::ConeIdentity,
-    },
-    MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
-    MissingCoreCallableSignature(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableReceiver(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableOwner(scoop_identity::CallableOwner),
-    CoreLirBridge(lir::CoreLirBridgeBuildError),
-    Output(lir::SingleConeStrongLirOutputError),
-}
-
-impl fmt::Display for StrongLirLoweringError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Capability(source) => source.fmt(formatter),
-            Self::ImportedCoreCallable(source) => source.fmt(formatter),
-            Self::ImportedCoreTypeDescriptor(source) => source.fmt(formatter),
-            Self::CoreLirBridge(source) => source.fmt(formatter),
-            Self::MissingImportedCoreLirAuthority => formatter
-                .write_str("imported-core MIR roots require the exact selected LIR authority"),
-            Self::CoreCannotImportCore => {
-                formatter.write_str("the core bootstrap Cone cannot import core callables")
-            }
-            Self::ImportedCoreLirCountMismatch { mir, lir } => write!(
-                formatter,
-                "imported-core selection count mismatch: MIR has {mir}, LIR authority has {lir}"
-            ),
-            Self::MissingImportedCoreLirCallable { index, kind } => write!(
-                formatter,
-                "imported-core MIR callable {index} kind {kind:?} has no LIR authority"
-            ),
-            Self::ImportedCoreLirCallableMismatch { index, kind } => write!(
-                formatter,
-                "imported-core MIR callable {index} kind {kind:?} disagrees with its LIR authority"
-            ),
-            Self::MissingImportedCoreParameterType {
-                index,
-                parameter,
-                exact,
-            } => write!(
-                formatter,
-                "imported-core MIR callable {index} parameter {parameter} exact type {exact} has no MIR type relation"
-            ),
-            Self::MissingImportedCoreResultType { index, exact } => write!(
-                formatter,
-                "imported-core MIR callable {index} result {exact} has no exact MIR type relation"
-            ),
-            Self::ImportedCoreRuntimeStringMismatch { mir, lir } => write!(
-                formatter,
-                "runtime String exact type mismatch: MIR requires {mir}, LIR authority provides {lir}"
-            ),
-            Self::MissingRuntimeStringDescriptor { producer } => write!(
-                formatter,
-                "Cone {producer} has no complete runtime String TypeDescriptor authority"
-            ),
-            Self::RuntimeStringDescriptorOwnership { producer } => write!(
-                formatter,
-                "Cone {producer} has an invalid local/external runtime String TypeDescriptor branch"
-            ),
-            Self::MissingCoreCallableMaterialization(owner) => {
-                write!(
-                    formatter,
-                    "core callable {owner:?} has no strong materialization"
-                )
-            }
-            Self::MissingCoreCallableSignature(owner) => {
-                write!(formatter, "core callable {owner:?} has no exact signature")
-            }
-            Self::UnsupportedCoreCallableEffect(owner) => write!(
-                formatter,
-                "core callable {owner:?} has an unsupported suspend ABI"
-            ),
-            Self::UnsupportedCoreCallableReceiver(owner) => write!(
-                formatter,
-                "core callable {owner:?} has an unsupported receiver ABI"
-            ),
-            Self::UnsupportedCoreCallableOwner(owner) => write!(
-                formatter,
-                "core callable {owner:?} has no strong definition owner"
-            ),
-            Self::Output(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for StrongLirLoweringError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Capability(source) => Some(source),
-            Self::ImportedCoreCallable(source) => Some(source),
-            Self::ImportedCoreTypeDescriptor(source) => Some(source),
-            Self::CoreLirBridge(source) => Some(source),
-            Self::Output(source) => Some(source),
-            Self::MissingCoreCallableMaterialization(_)
-            | Self::MissingImportedCoreLirAuthority
-            | Self::CoreCannotImportCore
-            | Self::ImportedCoreLirCountMismatch { .. }
-            | Self::MissingImportedCoreLirCallable { .. }
-            | Self::ImportedCoreLirCallableMismatch { .. }
-            | Self::MissingImportedCoreParameterType { .. }
-            | Self::MissingImportedCoreResultType { .. }
-            | Self::ImportedCoreRuntimeStringMismatch { .. }
-            | Self::MissingRuntimeStringDescriptor { .. }
-            | Self::RuntimeStringDescriptorOwnership { .. }
-            | Self::MissingCoreCallableSignature(_)
-            | Self::UnsupportedCoreCallableEffect(_)
-            | Self::UnsupportedCoreCallableReceiver(_)
-            | Self::UnsupportedCoreCallableOwner(_) => None,
-        }
-    }
 }
 
 mod abi;

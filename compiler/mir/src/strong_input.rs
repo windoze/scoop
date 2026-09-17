@@ -1,24 +1,26 @@
 //! Sealed MIR input for the single-Cone strong production path.
 
-use std::fmt;
-
 use scoop_identity::{
-    CallableOwner, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId, PersistentTypeId,
-    SourceDeclarationIdentityError, SourceDeclarationKey, StrongCallableDefinitionOwner,
+    CallableOwner, ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature,
+    ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+    StrongCallableDefinitionOwner,
 };
-use scoop_wire::HashError;
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
     CoreMirBridgeBranchV1, CoreMirShapeSupportRootV1, EntryMirBridgeBranchV1, ExternFunctionId,
     FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
-    ImportedCoreCallableUseId, InitializationUnitId, MirFoundationBuildError, MirOutput, Module,
-    ObjectId, OdrFreeMirFoundation, SelectedImportedMirSet, SourceExactTypeOwner, StringConstId,
-    Type,
+    ImportedCoreCallableUseId, ImportedDependencyMirCallableId, InitializationUnitId, MirOutput,
+    Module, ObjectId, OdrFreeMirFoundation, SelectedDependencyMirSet, SelectedImportedMirSet,
+    SourceExactTypeOwner, StringConstId, Type,
 };
 
+mod errors;
+pub use errors::*;
 mod imported_core;
 use imported_core::validate_imported_core_callables;
+mod imported_dependency;
+use imported_dependency::validate_imported_dependency_callables;
 
 /// One local function selected as a mandatory strong materialization root.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -97,6 +99,44 @@ impl StrongImportedCoreCallableRoot {
     }
 }
 
+/// One ordinary dependency callable after its request-local selected bridge
+/// has been resolved and its caller-side GC protocol has been retained.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StrongImportedDependencyCallableRoot {
+    callable: ImportedDependencyMirCallableId,
+    provider: ConeIdentity,
+    declaration: DependencyCallableDeclarationId,
+    implementation: StrongCallableDefinitionOwner,
+    signature: ExactCallableSignature,
+    gc_effect: crate::GcEffect,
+}
+
+impl StrongImportedDependencyCallableRoot {
+    pub const fn callable(&self) -> ImportedDependencyMirCallableId {
+        self.callable
+    }
+
+    pub const fn provider(&self) -> ConeIdentity {
+        self.provider
+    }
+
+    pub const fn declaration(&self) -> DependencyCallableDeclarationId {
+        self.declaration
+    }
+
+    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
+        self.implementation
+    }
+
+    pub const fn signature(&self) -> &ExactCallableSignature {
+        &self.signature
+    }
+
+    pub const fn gc_effect(&self) -> crate::GcEffect {
+        self.gc_effect
+    }
+}
+
 impl StrongGeneratedNominalShapeRoot {
     pub const fn location(self) -> GeneratedExactTypeLocation {
         self.location
@@ -118,6 +158,7 @@ impl StrongGeneratedNominalShapeRoot {
 pub struct SingleConeStrongMaterializationPlan {
     callable_roots: Vec<StrongCallableMaterializationRoot>,
     imported_core_callable_roots: Vec<StrongImportedCoreCallableRoot>,
+    imported_dependency_callable_roots: Vec<StrongImportedDependencyCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
     core_shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
@@ -136,6 +177,10 @@ impl SingleConeStrongMaterializationPlan {
 
     pub fn imported_core_callable_roots(&self) -> &[StrongImportedCoreCallableRoot] {
         &self.imported_core_callable_roots
+    }
+
+    pub fn imported_dependency_callable_roots(&self) -> &[StrongImportedDependencyCallableRoot] {
+        &self.imported_dependency_callable_roots
     }
 
     pub fn source_nominal_shapes(&self) -> &[StrongSourceNominalShapeRoot] {
@@ -221,6 +266,16 @@ pub enum StrongImportedCoreInput<'a> {
     Selected(&'a SelectedImportedMirSet<'a>),
 }
 
+/// Ordinary-dependency authority supplied to the strong MIR sealer.
+///
+/// `Unused` is valid only when the graph has no dependency-callable arena
+/// entries. `Selected` must be the exact request-local set that minted every
+/// retained use.
+pub enum StrongImportedDependencyInput<'a> {
+    Unused,
+    Selected(&'a SelectedDependencyMirSet),
+}
+
 impl SingleConeStrongMirInput {
     pub fn try_new(
         module: Module,
@@ -228,6 +283,24 @@ impl SingleConeStrongMirInput {
         production: CoreBootstrapBridgeSectionV1,
         core_shape_support_sources: CoreShapeSupportSourceInput,
         imported_core: StrongImportedCoreInput<'_>,
+    ) -> Result<Self, SingleConeStrongMirInputError> {
+        Self::try_new_with_dependencies(
+            module,
+            foundation,
+            production,
+            core_shape_support_sources,
+            imported_core,
+            StrongImportedDependencyInput::Unused,
+        )
+    }
+
+    pub fn try_new_with_dependencies(
+        module: Module,
+        foundation: OdrFreeMirFoundation,
+        production: CoreBootstrapBridgeSectionV1,
+        core_shape_support_sources: CoreShapeSupportSourceInput,
+        imported_core: StrongImportedCoreInput<'_>,
+        imported_dependencies: StrongImportedDependencyInput<'_>,
     ) -> Result<Self, SingleConeStrongMirInputError> {
         let expected_foundation = CanonicalMirFoundation::from_module(&module)
             .map_err(SingleConeStrongMirInputError::Foundation)?;
@@ -244,6 +317,8 @@ impl SingleConeStrongMirInput {
         validate_core_branch(module.cone, production.core_bridge())?;
         let imported_core_callable_roots =
             validate_imported_core_callables(&module, imported_core)?;
+        let imported_dependency_callable_roots =
+            validate_imported_dependency_callables(&module, imported_dependencies)?;
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, &expected_bridges)?;
         validate_output(&module, &production, &callable_roots)?;
@@ -342,6 +417,7 @@ impl SingleConeStrongMirInput {
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             imported_core_callable_roots,
+            imported_dependency_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
             core_shape_support_roots,
@@ -512,131 +588,4 @@ fn validate_output(
             Err(SingleConeStrongMirInputError::OutputMismatch)
         }
     }
-}
-
-#[derive(Debug)]
-pub enum SingleConeStrongMirInputError {
-    MissingImportedCoreAuthority,
-    CoreCannotImportCore,
-    ImportedCoreCallableCountMismatch {
-        module: usize,
-        selected: usize,
-    },
-    ForeignImportedCoreCallable {
-        index: u32,
-    },
-    DuplicateImportedCoreCallable {
-        index: u32,
-    },
-    UnsupportedImportedCoreCallableShape {
-        index: u32,
-    },
-    UnreferencedImportedCoreCallable {
-        index: u32,
-    },
-    Foundation(MirFoundationBuildError),
-    FoundationMismatch,
-    StrongCallableSurfaceMismatch,
-    CoreBranchMismatch,
-    CoreShapeSupportSourceBranchMismatch,
-    CoreShapeSupportSourceCountMismatch {
-        expected: usize,
-        actual: usize,
-    },
-    InvalidCoreShapeSupportSource {
-        index: usize,
-    },
-    CoreShapeSupportSourceIdentity {
-        index: usize,
-        error: SourceDeclarationIdentityError,
-    },
-    CoreShapeSupportExactIdentity {
-        index: usize,
-        error: HashError,
-    },
-    CoreShapeSupportSourceMismatch(Box<CoreShapeSupportSourceMismatch>),
-    MissingCallableSubject(FunctionId),
-    OdrCallableSubject(FunctionId),
-    OdrGeneratedNominalShape(GeneratedExactTypeLocation),
-    MissingCoreShapeSupportSource {
-        source: PersistentTypeId,
-        exact: PersistentExactTypeId,
-    },
-    MissingCoreBoxedValue(PersistentExactTypeId),
-    MissingCoreCoroutineStep(PersistentExactTypeId),
-    MissingCoreCoroutineSlot(PersistentExactTypeId),
-    MissingStrongCallableBridge {
-        index: usize,
-        implementation: CallableOwner,
-    },
-    OutputMismatch,
-    MissingEntryRoot(FunctionId),
-    EntryImplementationMismatch {
-        expected: CallableOwner,
-        actual: CallableOwner,
-    },
-}
-
-impl fmt::Display for SingleConeStrongMirInputError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CoreShapeSupportSourceMismatch(mismatch) => write!(
-                formatter,
-                "cannot seal single-Cone strong MIR input: core shape source {} expected source {:?} exact {:?}, found source {:?} exact {:?}",
-                mismatch.index,
-                mismatch.expected_source,
-                mismatch.expected_exact,
-                mismatch.actual_source,
-                mismatch.actual_exact,
-            ),
-            _ => write!(
-                formatter,
-                "cannot seal single-Cone strong MIR input: {self:?}"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for SingleConeStrongMirInputError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Foundation(source) => Some(source),
-            Self::CoreShapeSupportSourceIdentity { error, .. } => Some(error),
-            Self::CoreShapeSupportExactIdentity { error, .. } => Some(error),
-            Self::MissingImportedCoreAuthority
-            | Self::CoreCannotImportCore
-            | Self::ImportedCoreCallableCountMismatch { .. }
-            | Self::ForeignImportedCoreCallable { .. }
-            | Self::DuplicateImportedCoreCallable { .. }
-            | Self::UnsupportedImportedCoreCallableShape { .. }
-            | Self::UnreferencedImportedCoreCallable { .. }
-            | Self::FoundationMismatch
-            | Self::StrongCallableSurfaceMismatch
-            | Self::CoreBranchMismatch
-            | Self::CoreShapeSupportSourceBranchMismatch
-            | Self::CoreShapeSupportSourceCountMismatch { .. }
-            | Self::InvalidCoreShapeSupportSource { .. }
-            | Self::CoreShapeSupportSourceMismatch(_)
-            | Self::MissingCallableSubject(_)
-            | Self::OdrCallableSubject(_)
-            | Self::OdrGeneratedNominalShape(_)
-            | Self::MissingCoreShapeSupportSource { .. }
-            | Self::MissingCoreBoxedValue(_)
-            | Self::MissingCoreCoroutineStep(_)
-            | Self::MissingCoreCoroutineSlot(_)
-            | Self::MissingStrongCallableBridge { .. }
-            | Self::OutputMismatch
-            | Self::MissingEntryRoot(_)
-            | Self::EntryImplementationMismatch { .. } => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct CoreShapeSupportSourceMismatch {
-    index: usize,
-    expected_source: PersistentTypeId,
-    expected_exact: PersistentExactTypeId,
-    actual_source: PersistentTypeId,
-    actual_exact: PersistentExactTypeId,
 }

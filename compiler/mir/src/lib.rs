@@ -42,6 +42,9 @@ pub use strong_input::*;
 mod ordinary_output;
 pub use ordinary_output::*;
 
+mod imported_dependency;
+pub use imported_dependency::*;
+
 mod generated_exact_types;
 pub use generated_exact_types::*;
 

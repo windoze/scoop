@@ -9,10 +9,12 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use crate::{CallingConvention, OdrFreeLirFoundation};
 
 mod errors;
+mod selection;
 mod validation;
 mod wire;
 
 pub use errors::*;
+pub use selection::*;
 pub use wire::DecodedCrossConeLirBridgeSectionV1;
 
 /// Caller-side GC root protocol for one ordinary dependency call.
@@ -199,6 +201,7 @@ impl WireEncode for SelectedDependencyLirCallableV1 {
 /// Canonical LIR export and selected-use surfaces for ordinary dependencies.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeLirBridgeSectionV1 {
+    artifact: ConeIdentity,
     exports: Vec<ParamFreeLirCallableExportV1>,
     selected: Vec<SelectedDependencyLirCallableV1>,
 }
@@ -221,7 +224,18 @@ impl CrossConeLirBridgeSectionV1 {
         })?;
         validation::validate_section_relations(foundation, &exports, &selected)
             .map_err(CrossConeLirBridgeBuildError::Relation)?;
-        Ok(Self { exports, selected })
+        Ok(Self {
+            artifact: foundation.producer(),
+            exports,
+            selected,
+        })
+    }
+
+    /// Artifact identity supplied by the containing foundation while the
+    /// section was built or validated. It is contextual and is not encoded in
+    /// this section's wire payload.
+    pub const fn artifact(&self) -> ConeIdentity {
+        self.artifact
     }
 
     pub fn exports(&self) -> &[ParamFreeLirCallableExportV1] {

@@ -6,6 +6,7 @@ mod closure_environments;
 mod constants;
 mod coroutines;
 mod function_bridges;
+mod imported_dependencies;
 mod metadata;
 
 fn test_property(name: &str) -> scoop_identity::PersistentPropertyId {

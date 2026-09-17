@@ -4,6 +4,8 @@ mod support;
 
 use support::*;
 
+mod dependency_external;
+
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
     CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,

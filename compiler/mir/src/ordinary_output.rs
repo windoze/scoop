@@ -29,6 +29,9 @@ impl<'a> OrdinaryMirOutput<'a> {
         module
             .validate()
             .map_err(OrdinaryMirOutputError::InvalidModule)?;
+        if !module.meta.imported_dependency_callables.is_empty() {
+            return Err(OrdinaryMirOutputError::MissingImportedDependencyAuthority);
+        }
         if module.meta.imported_core_callables.len() != imported_core.len() {
             return Err(OrdinaryMirOutputError::SelectionCountMismatch {
                 module: module.meta.imported_core_callables.len(),
@@ -102,6 +105,7 @@ fn referenced_imported_callables(module: &Module) -> HashSet<ImportedCoreCallabl
 pub enum OrdinaryMirOutputError {
     CurrentConeIsCore,
     InvalidModule(MirValidationError),
+    MissingImportedDependencyAuthority,
     SelectionCountMismatch { module: usize, selected: usize },
     ForeignImportedCallable { index: u32 },
     DuplicateImportedCallable { index: u32 },
@@ -119,6 +123,7 @@ impl std::error::Error for OrdinaryMirOutputError {
         match self {
             Self::InvalidModule(error) => Some(error),
             Self::CurrentConeIsCore
+            | Self::MissingImportedDependencyAuthority
             | Self::SelectionCountMismatch { .. }
             | Self::ForeignImportedCallable { .. }
             | Self::DuplicateImportedCallable { .. }
