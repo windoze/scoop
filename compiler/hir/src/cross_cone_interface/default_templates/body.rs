@@ -73,7 +73,7 @@ pub use nested::{
     DefaultNestedCallableAbiShapeV1, DefaultNestedCallableAbiValidationError,
     DefaultNestedCallableAuthorityQueryV1, DefaultNestedCallableBodyArgumentsV1,
     DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
-    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1,
+    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1, DefaultNestedCallableLocalUseV1,
     DefaultNestedCallableProvenanceV1, DefaultNestedCallableReferenceResolver,
     DefaultNestedCallableSemanticAuthority, IndexedDefaultAnonymousFunctionV1,
     IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,

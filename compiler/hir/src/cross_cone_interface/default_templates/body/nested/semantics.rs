@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use scoop_identity::{
@@ -13,6 +14,8 @@ use crate::{
 
 #[cfg(test)]
 mod tests;
+
+mod body;
 
 /// The kind-preserving persistent identity of one nested callable descriptor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,6 +42,12 @@ pub enum DefaultNestedCallableKindV1 {
     LocalFunction,
     Lambda,
     AnonymousFunction,
+    CallableReference,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefaultNestedCallableLocalUseV1 {
+    DirectCall,
     CallableReference,
 }
 
@@ -237,6 +246,8 @@ pub(super) struct Validator<'a, A, E> {
     authority: &'a mut A,
     meter: &'a mut BudgetMeter,
     path: &'a WirePath,
+    local_declarations: HashSet<CallableTemplateOrigin>,
+    local_uses: Vec<(CallableTemplateOrigin, DefaultNestedCallableLocalUseV1)>,
     error: std::marker::PhantomData<fn() -> E>,
 }
 
@@ -244,7 +255,7 @@ impl<'a, A, E> Validator<'a, A, E>
 where
     A: DefaultNestedCallableSemanticAuthority<E>,
 {
-    pub(super) const fn new(
+    pub(super) fn new(
         template: &'a ExportDefaultTemplateV1,
         authority: &'a mut A,
         meter: &'a mut BudgetMeter,
@@ -255,6 +266,8 @@ where
             authority,
             meter,
             path,
+            local_declarations: HashSet::new(),
+            local_uses: Vec::new(),
             error: std::marker::PhantomData,
         }
     }
@@ -452,6 +465,78 @@ where
         self.charge_work()
     }
 
+    pub(super) fn child_depth(
+        &mut self,
+        parent: u64,
+    ) -> Result<u64, DefaultNestedCallableAbiValidationError<E>> {
+        let depth = parent.checked_add(1).ok_or_else(|| {
+            DefaultNestedCallableAbiValidationError::Resource(WireError::new(
+                scoop_wire::WireErrorKind::IntegerOutOfRange,
+                self.path.clone(),
+                None,
+            ))
+        })?;
+        self.meter
+            .check_semantic_depth(depth, self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+        self.meter
+            .charge_edges(1, self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+        self.meter
+            .charge_work(1, self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+        Ok(depth)
+    }
+
+    pub(super) fn record_local_declaration(
+        &mut self,
+        declaration: CallableTemplateOrigin,
+    ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        self.charge_work()?;
+        if self.local_declarations.contains(&declaration) {
+            return Err(
+                DefaultNestedCallableAbiValidationError::DuplicateLocalFunction { declaration },
+            );
+        }
+        self.meter
+            .try_reserve_set_slots(&mut self.local_declarations, 1, self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+        self.local_declarations.insert(declaration);
+        Ok(())
+    }
+
+    pub(super) fn record_local_use(
+        &mut self,
+        declaration: CallableTemplateOrigin,
+        site: DefaultNestedCallableLocalUseV1,
+    ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        self.charge_work()?;
+        self.meter
+            .try_reserve_collection_slots(&mut self.local_uses, 1, self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+        self.local_uses.push((declaration, site));
+        Ok(())
+    }
+
+    pub(super) fn validate_local_uses(
+        &mut self,
+    ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        for &(declaration, site) in &self.local_uses {
+            self.meter
+                .charge_work(1, self.path)
+                .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
+            if !self.local_declarations.contains(&declaration) {
+                return Err(
+                    DefaultNestedCallableAbiValidationError::MissingLocalFunction {
+                        declaration,
+                        site,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
     fn charge_work(&mut self) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         self.meter
             .charge_work(1, self.path)
@@ -526,6 +611,13 @@ pub enum DefaultNestedCallableAbiValidationError<E> {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
+    DuplicateLocalFunction {
+        declaration: CallableTemplateOrigin,
+    },
+    MissingLocalFunction {
+        declaration: CallableTemplateOrigin,
+        site: DefaultNestedCallableLocalUseV1,
+    },
     Resource(WireError),
 }
 
@@ -592,6 +684,14 @@ impl<E: fmt::Display> fmt::Display for DefaultNestedCallableAbiValidationError<E
             } => write!(
                 formatter,
                 "default nested {kind:?} capture {index} type mismatch: expected {expected:?}, found {actual:?}"
+            ),
+            Self::DuplicateLocalFunction { declaration } => write!(
+                formatter,
+                "default body declares local function {declaration:?} more than once"
+            ),
+            Self::MissingLocalFunction { declaration, site } => write!(
+                formatter,
+                "default body {site:?} refers to undeclared local function {declaration:?}"
             ),
             Self::Resource(error) => {
                 write!(
