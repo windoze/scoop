@@ -1,5 +1,6 @@
 mod bindings;
 mod callables;
+mod expressions;
 mod nested;
 mod operators;
 mod patterns;
@@ -26,6 +27,11 @@ pub use callables::{
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
     DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
     DefaultMethodCalleeV1,
+};
+pub use expressions::{
+    DecodedDefaultIntegerOperationV1, DecodedDefaultStringOwnerV1,
+    DefaultIntegerOperationResolutionError, DefaultIntegerOperationV1,
+    DefaultStringOwnerResolutionError, DefaultStringOwnerV1,
 };
 pub use nested::{
     DecodedDefaultAnonymousFunctionV1, DecodedDefaultCallableBodyTypeArgumentsV1,
