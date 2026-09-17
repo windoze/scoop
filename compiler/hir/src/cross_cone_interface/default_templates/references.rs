@@ -1,5 +1,6 @@
 mod access;
 mod callable_target;
+mod closure;
 mod record;
 mod semantics;
 mod set;
@@ -11,6 +12,9 @@ pub use access::{
 pub use callable_target::{
     DecodedExportDefaultCallableTargetV1, ExportDefaultCallableTargetBuildError,
     ExportDefaultCallableTargetResolutionError, ExportDefaultCallableTargetV1,
+};
+pub use closure::{
+    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceOccurrenceSiteV1,
 };
 pub use record::{
     DecodedExportDefaultCallableReferenceV1, DecodedExportDefaultConstructorReferenceV1,
