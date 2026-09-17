@@ -79,12 +79,15 @@ impl CanonicalExternalHirReferencesV1 {
                 );
             }
 
-            let record_index = find_record(self, target, meter, path)?.ok_or(
-                ExternalHirReexportClosureValidationError::MissingReference {
-                    binding_index,
-                    target,
-                },
-            )?;
+            let record_index = self
+                .find_index_metered(target, meter, path)
+                .map_err(ExternalHirReexportClosureValidationError::Resource)?
+                .ok_or(
+                    ExternalHirReexportClosureValidationError::MissingReference {
+                        binding_index,
+                        target,
+                    },
+                )?;
             let record = &self.records()[record_index];
             if record.origin() != origin {
                 return Err(ExternalHirReexportClosureValidationError::OriginMismatch {
@@ -162,28 +165,6 @@ impl CanonicalExternalHirReferencesV1 {
 
         Ok(())
     }
-}
-
-fn find_record<E>(
-    references: &CanonicalExternalHirReferencesV1,
-    target: ExternalHirTargetV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<Option<usize>, ExternalHirReexportClosureValidationError<E>> {
-    let mut start = 0;
-    let mut end = references.records().len();
-    while start < end {
-        meter
-            .charge_work(1, path)
-            .map_err(ExternalHirReexportClosureValidationError::Resource)?;
-        let middle = start + (end - start) / 2;
-        match references.records()[middle].target().cmp(&target) {
-            std::cmp::Ordering::Less => start = middle + 1,
-            std::cmp::Ordering::Greater => end = middle,
-            std::cmp::Ordering::Equal => return Ok(Some(middle)),
-        }
-    }
-    Ok(None)
 }
 
 fn find_witness<E>(

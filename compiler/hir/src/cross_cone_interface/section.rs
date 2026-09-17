@@ -28,6 +28,7 @@ use super::{
 
 mod definition_source_closure;
 mod internal_closures;
+mod signature_nominal_walk;
 mod signature_reference_closure;
 
 pub use definition_source_closure::{

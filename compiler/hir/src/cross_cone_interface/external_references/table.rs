@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::{
     DecodedExternalHirReferenceV1, ExternalHirReferenceResolutionError,
@@ -37,6 +37,26 @@ impl CanonicalExternalHirReferencesV1 {
             .binary_search_by_key(&target, ExternalHirReferenceV1::target)
             .ok()
             .map(|index| &self.records[index])
+    }
+
+    pub(crate) fn find_index_metered(
+        &self,
+        target: ExternalHirTargetV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Option<usize>, WireError> {
+        let mut start = 0;
+        let mut end = self.records.len();
+        while start < end {
+            meter.charge_work(1, path)?;
+            let middle = start + (end - start) / 2;
+            match self.records[middle].target().cmp(&target) {
+                std::cmp::Ordering::Less => start = middle + 1,
+                std::cmp::Ordering::Greater => end = middle,
+                std::cmp::Ordering::Equal => return Ok(Some(middle)),
+            }
+        }
+        Ok(None)
     }
 
     pub fn is_empty(&self) -> bool {

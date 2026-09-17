@@ -1,9 +1,9 @@
 use std::fmt;
 
 use scoop_identity::{NominalDeclarationOwner, SignatureTypeKey};
-use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
-use super::CrossConeHirInterfaceSectionV1;
+use super::{CrossConeHirInterfaceSectionV1, signature_nominal_walk::SignatureNominalWalker};
 use crate::{
     CanonicalBinderListV1, CanonicalExternalHirReferencesV1, ExternalHirReferenceRoleV1,
     ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1, NominalSourceShapeV1,
@@ -333,64 +333,13 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let mut pending = Vec::new();
-        self.meter
-            .try_reserve_collection_slots(&mut pending, 1, path)
+        let mut walker = SignatureNominalWalker::new(signature, self.meter, path)
             .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-        pending.push((signature, 1_u64));
-
-        while let Some((signature, depth)) = pending.pop() {
-            self.meter
-                .check_semantic_depth(depth, path)
-                .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-            self.meter
-                .charge_nodes(1, path)
-                .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-            self.meter
-                .charge_work(1, path)
-                .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-
-            match signature {
-                SignatureTypeKey::Nominal(declaration) => self.observe_nominal(
-                    NominalDeclarationOwner::Concrete(*declaration),
-                    site,
-                    path,
-                )?,
-                SignatureTypeKey::NominalApplication { origin, arguments } => {
-                    self.observe_nominal(
-                        NominalDeclarationOwner::GenericTemplate(*origin),
-                        site,
-                        path,
-                    )?;
-                    push_children(&mut pending, arguments.as_slice(), depth, self.meter, path)?;
-                }
-                SignatureTypeKey::Tuple(elements) => {
-                    push_children(&mut pending, elements.as_slice(), depth, self.meter, path)?
-                }
-                SignatureTypeKey::Function {
-                    parameters, result, ..
-                }
-                | SignatureTypeKey::NativeFunctionPointer {
-                    parameters, result, ..
-                } => {
-                    let child_count = parameters.len().checked_add(1).ok_or_else(|| {
-                        ExternalHirSignatureClosureValidationError::Resource(integer_out_of_range(
-                            path,
-                        ))
-                    })?;
-                    let child_depth =
-                        reserve_children(&mut pending, child_count, depth, self.meter, path)?;
-                    pending.push((result.as_ref(), child_depth));
-                    for parameter in parameters.iter().rev() {
-                        pending.push((parameter, child_depth));
-                    }
-                }
-                SignatureTypeKey::RawPointer(pointee) => {
-                    let child_depth = reserve_children(&mut pending, 1, depth, self.meter, path)?;
-                    pending.push((pointee.as_ref(), child_depth));
-                }
-                SignatureTypeKey::Binder { .. } => {}
-            }
+        while let Some(declaration) = walker
+            .next(self.meter, path)
+            .map_err(ExternalHirSignatureClosureValidationError::Resource)?
+        {
+            self.observe_nominal(declaration, site, path)?;
         }
         Ok(())
     }
@@ -419,7 +368,10 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
             return Ok(());
         }
 
-        let record_index = find_record(self.references, target, self.meter, path)?
+        let record_index = self
+            .references
+            .find_index_metered(target, self.meter, path)
+            .map_err(ExternalHirSignatureClosureValidationError::Resource)?
             .ok_or(ExternalHirSignatureClosureValidationError::MissingReference { site, target })?;
         let record = &self.references.records()[record_index];
         if record.origin() != expected {
@@ -468,77 +420,6 @@ impl<'references, 'validation, A> SignatureReferenceClosureValidator<'references
         }
         Ok(())
     }
-}
-
-fn find_record<E>(
-    references: &CanonicalExternalHirReferencesV1,
-    target: ExternalHirTargetV1,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<Option<usize>, ExternalHirSignatureClosureValidationError<E>> {
-    let mut start = 0;
-    let mut end = references.records().len();
-    while start < end {
-        meter
-            .charge_work(1, path)
-            .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-        let middle = start + (end - start) / 2;
-        match references.records()[middle].target().cmp(&target) {
-            std::cmp::Ordering::Less => start = middle + 1,
-            std::cmp::Ordering::Greater => end = middle,
-            std::cmp::Ordering::Equal => return Ok(Some(middle)),
-        }
-    }
-    Ok(None)
-}
-
-fn push_children<'signature, E>(
-    pending: &mut Vec<(&'signature SignatureTypeKey, u64)>,
-    children: &'signature [SignatureTypeKey],
-    parent_depth: u64,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), ExternalHirSignatureClosureValidationError<E>> {
-    if children.is_empty() {
-        return Ok(());
-    }
-    let child_depth = reserve_children(pending, children.len(), parent_depth, meter, path)?;
-    for child in children.iter().rev() {
-        pending.push((child, child_depth));
-    }
-    Ok(())
-}
-
-fn reserve_children<E>(
-    pending: &mut Vec<(&SignatureTypeKey, u64)>,
-    count: usize,
-    parent_depth: u64,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<u64, ExternalHirSignatureClosureValidationError<E>> {
-    let child_depth = parent_depth.checked_add(1).ok_or_else(|| {
-        ExternalHirSignatureClosureValidationError::Resource(integer_out_of_range(path))
-    })?;
-    meter
-        .check_semantic_depth(child_depth, path)
-        .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-    let edge_count = u64::try_from(count).map_err(|_| {
-        ExternalHirSignatureClosureValidationError::Resource(integer_out_of_range(path))
-    })?;
-    meter
-        .charge_edges(edge_count, path)
-        .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-    meter
-        .charge_work(edge_count, path)
-        .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-    meter
-        .try_reserve_collection_slots(pending, count, path)
-        .map_err(ExternalHirSignatureClosureValidationError::Resource)?;
-    Ok(child_depth)
-}
-
-fn integer_out_of_range(path: &WirePath) -> WireError {
-    WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
