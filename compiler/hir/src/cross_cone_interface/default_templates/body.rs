@@ -4,6 +4,7 @@ mod data_flow;
 mod export_body;
 mod expressions;
 mod nested;
+mod operation_typing;
 mod operators;
 mod patterns;
 mod references;
@@ -71,6 +72,17 @@ pub use nested::{
     DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
     DefaultNestedCallableReferenceResolver, IndexedDefaultAnonymousFunctionV1,
     IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
+};
+pub use operation_typing::{
+    DefaultAggregateOperationShapeV1, DefaultCallableOperationShapeV1,
+    DefaultCallbackOperationShapeV1, DefaultCoreApplicationV1, DefaultExpressionOperationV1,
+    DefaultFieldOperationKindV1, DefaultFieldOperationShapeV1, DefaultOperationCoreTypeV1,
+    DefaultOperationEntityShapeKindV1, DefaultOperationEntityShapeV1, DefaultOperationEntityV1,
+    DefaultOperationExpectedTypeShapeV1, DefaultOperationIntrinsicV1,
+    DefaultOperationTypeRelationV1, DefaultOperationTypingProblemV1,
+    DefaultOperationTypingSemanticAuthority, DefaultOperationTypingSiteV1,
+    DefaultOperationValueRoleV1, DefaultValueOperationShapeV1, DefaultVariantFieldOperationShapeV1,
+    ExportDefaultOperationTypingValidationError,
 };
 pub use operators::{
     DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultForeignCallbackOperationV1,

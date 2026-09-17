@@ -1363,7 +1363,7 @@ expression operation规则固定如下：
 | box / unbox / runtime check | `Box`和`Unbox`的source/result必须分别满足authority证明的value-to-reference与reference-to-value relation；`IsInstance`产生`Boolean`；`Cast`的target由non-optional result或optional `Option<T>` payload唯一恢复，并与operand满足`could_hold` relation |
 | array | literal/result必须是exact `Array<T>`或`MutableArray<T>`且元素逐项exact为`T`；assembly result与内嵌result exact相等且必须是`Array<T>`，element part为`T`、copy part为`Array<T>`；index kind与receiver array kind一致、index为`Long`、结果为`T`；set只接受`MutableSet + MutableArray<T>`并返回`Unit`；len返回`Long`；clone在相同`T`的两种array kind之间切换 |
 | primitive / integer | string concat、string compare和boolean not使用canonical `String`/`Long`/`Boolean`；integer operation的arity、operand/result kind与operation枚举一致且target必须具有对应exact intrinsic role；conversion的operand/result分别匹配source/target integer kind且target具有exact conversion role |
-| binary / unary | `< <= > >=`是`Long, Long -> Boolean`，`&& || !`是`Boolean` operation；`=== !==`的两端必须是同一已适配reference type并由authority认定可做identity comparison，结果为`Boolean` |
+| binary / unary | `< <= > >=`是`Long, Long -> Boolean`，`&& || !`是`Boolean` operation；`=== !==`的两端都必须是authority证明可参与identity comparison的reference type，但不要求两个静态类型逐结构相等（例如`Any === Shape`合法），结果为`Boolean` |
 | option | `SomeWrap`的result exact为`Option<T>`且operand为`T`；`NoneLiteral`的result必须是某个exact `Option<T>`；`IsSome`产生`Boolean`；`Unwrap`产生operand的exact option payload type |
 
 statement/pattern operation规则与expression使用同一type relation：`Expr`不附加约束；`Return`仅在provider
