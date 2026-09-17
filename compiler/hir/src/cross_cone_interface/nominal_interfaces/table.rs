@@ -42,6 +42,21 @@ impl CanonicalNominalInterfacesV1 {
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
     }
+
+    pub fn validate_semantics<A, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), NominalInterfaceSetSemanticValidationError<E>>
+    where
+        A: super::NominalInterfaceSemanticAuthority<E>,
+    {
+        for (index, record) in self.records.iter().enumerate() {
+            record.validate_semantics(authority).map_err(|error| {
+                NominalInterfaceSetSemanticValidationError::Record { index, error }
+            })?;
+        }
+        Ok(())
+    }
 }
 
 impl WireEncode for CanonicalNominalInterfacesV1 {
@@ -165,6 +180,30 @@ impl<E: fmt::Display> fmt::Display for NominalInterfaceSetValidationError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for NominalInterfaceSetValidationError<E> {}
+
+#[derive(Debug)]
+pub enum NominalInterfaceSetSemanticValidationError<E> {
+    Record {
+        index: usize,
+        error: super::NominalInterfaceSemanticValidationError<E>,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for NominalInterfaceSetSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Record { index, error } => write!(
+                formatter,
+                "invalid nominal interface semantics at index {index}: {error}"
+            ),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for NominalInterfaceSetSemanticValidationError<E>
+{
+}
 
 #[cfg(test)]
 mod tests;

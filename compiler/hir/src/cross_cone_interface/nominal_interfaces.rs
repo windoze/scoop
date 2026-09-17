@@ -26,7 +26,8 @@ pub use semantics::{
 };
 pub use table::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
-    NominalInterfaceSetBuildError, NominalInterfaceSetValidationError,
+    NominalInterfaceSetBuildError, NominalInterfaceSetSemanticValidationError,
+    NominalInterfaceSetValidationError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]

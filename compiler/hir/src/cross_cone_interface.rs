@@ -273,7 +273,7 @@ pub use nominal_interfaces::{
     NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
     NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
-    NominalInterfaceSetValidationError,
+    NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,

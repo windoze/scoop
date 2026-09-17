@@ -2,8 +2,10 @@ use scoop_identity::{SignatureTypeKey, SourceDeclarationKind};
 
 use super::*;
 use crate::{
-    NominalBoundSemanticError, NominalSignatureSemanticError, NominalSourceShapeSemanticError,
-    NominalSourceShapeV1, SignatureTypeFormV1, StructSourceFieldSemanticError, StructSourceShapeV1,
+    CanonicalNominalInterfacesV1, NominalBoundSemanticError,
+    NominalInterfaceSetSemanticValidationError, NominalSignatureSemanticError,
+    NominalSourceShapeSemanticError, NominalSourceShapeV1, SignatureTypeFormV1,
+    StructSourceFieldSemanticError, StructSourceShapeV1,
     TypeParameterBinderSemanticValidationError, TypeParameterBoundLocation,
 };
 
@@ -18,6 +20,25 @@ fn validates_declaration_binders_supertypes_and_owned_entries() {
     let mut authority = fixture.authority();
 
     assert!(record.validate_semantics(&mut authority).is_ok());
+}
+
+#[test]
+fn table_validates_records_and_reports_the_failing_index() {
+    let fixture = Fixture::new();
+    let records = CanonicalNominalInterfacesV1::try_new(vec![fixture.record()]).unwrap();
+    assert!(records.validate_semantics(&mut fixture.authority()).is_ok());
+
+    let mut authority = fixture.authority();
+    authority.nominals.remove(&fixture.owner);
+    assert!(matches!(
+        records.validate_semantics(&mut authority),
+        Err(NominalInterfaceSetSemanticValidationError::Record {
+            index: 0,
+            error: NominalInterfaceSemanticValidationError::Declaration(
+                TestAuthorityError::Nominal(declaration)
+            ),
+        }) if declaration == fixture.owner
+    ));
 }
 
 #[test]
