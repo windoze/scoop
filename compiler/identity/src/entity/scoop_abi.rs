@@ -187,14 +187,17 @@ impl CanonicalScoopAbiFunctionSignature {
         result: ScoopAbiReturn,
         gc_effect: GcEffect,
     ) -> Result<Self, ScoopAbiError> {
-        if signature.receiver().is_present() {
-            return Err(ScoopAbiError::ReceiverPresent);
-        }
-        if signature.parameters().len() != arguments.len() {
+        let receiver = signature.receiver().into_option();
+        let logical_argument_count = signature.parameters().len() + usize::from(receiver.is_some());
+        if logical_argument_count != arguments.len() {
             return Err(ScoopAbiError::ArgumentCountMismatch);
         }
-        for (parameter, argument) in signature.parameters().iter().zip(&arguments) {
-            if *parameter != argument.storage().exact_type() {
+        for (exact_type, argument) in receiver
+            .into_iter()
+            .chain(signature.parameters().iter().copied())
+            .zip(&arguments)
+        {
+            if exact_type != argument.storage().exact_type() {
                 return Err(ScoopAbiError::ArgumentExactTypeMismatch);
             }
         }
@@ -250,7 +253,6 @@ pub enum ScoopAbiError {
     ExpectedZeroSize,
     ExpectedNonZeroSize,
     PassingShapeMismatch,
-    ReceiverPresent,
     ArgumentCountMismatch,
     ArgumentExactTypeMismatch,
     ResultExactTypeMismatch,
@@ -264,7 +266,6 @@ impl fmt::Display for ScoopAbiError {
             Self::PassingShapeMismatch => {
                 "Scoop ABI passing convention does not match the target value shape"
             }
-            Self::ReceiverPresent => "Scoop ABI extern signature must not contain a receiver",
             Self::ArgumentCountMismatch => {
                 "Scoop ABI physical argument count does not match its exact signature"
             }
@@ -323,95 +324,4 @@ fn encode_value_sum(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::num::NonZeroU64;
-
-    use scoop_wire::encode;
-
-    use super::{
-        CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, ScoopAbiArgument, ScoopAbiError,
-        ScoopAbiReturn, ScoopAbiValueShape,
-    };
-    use crate::{ConeIdentity, Effect, ExactCallableSignature, GcEffect, PersistentExactTypeId};
-
-    #[test]
-    fn passing_constructors_reject_wrong_size_and_shape() {
-        let exact = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let zero = storage(exact, 0, ScoopAbiValueShape::Aggregate);
-        let scalar = storage(exact, 8, ScoopAbiValueShape::Scalar);
-        let aggregate = storage(exact, 8, ScoopAbiValueShape::Aggregate);
-
-        assert_eq!(
-            ScoopAbiArgument::direct(zero),
-            Err(ScoopAbiError::ExpectedNonZeroSize)
-        );
-        assert_eq!(
-            ScoopAbiArgument::indirect(scalar),
-            Err(ScoopAbiError::PassingShapeMismatch)
-        );
-        assert_eq!(
-            ScoopAbiReturn::elided_zst(aggregate),
-            Err(ScoopAbiError::ExpectedZeroSize)
-        );
-    }
-
-    #[test]
-    fn signature_rejects_exact_type_mismatch() {
-        let parameter = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let result = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
-        let signature =
-            ExactCallableSignature::new(Effect::Ordinary, None, vec![parameter], result);
-        let argument =
-            ScoopAbiArgument::direct(storage(result, 8, ScoopAbiValueShape::Scalar)).unwrap();
-        let result =
-            ScoopAbiReturn::direct(storage(result, 8, ScoopAbiValueShape::Scalar)).unwrap();
-
-        assert_eq!(
-            CanonicalScoopAbiFunctionSignature::new(
-                signature,
-                vec![argument],
-                result,
-                GcEffect::Managed,
-            ),
-            Err(ScoopAbiError::ArgumentExactTypeMismatch)
-        );
-    }
-
-    #[test]
-    fn canonical_scoop_signature_has_fixed_wire_vector() {
-        let parameter = PersistentExactTypeId(ConeIdentity::CORE.0);
-        let result_exact = PersistentExactTypeId(ConeIdentity::SINGLE_FILE.0);
-        let signature =
-            ExactCallableSignature::new(Effect::Ordinary, None, vec![parameter], result_exact);
-        let argument =
-            ScoopAbiArgument::direct(storage(parameter, 8, ScoopAbiValueShape::Scalar)).unwrap();
-        let result_abi =
-            ScoopAbiReturn::direct(storage(result_exact, 8, ScoopAbiValueShape::Scalar)).unwrap();
-        let signature = CanonicalScoopAbiFunctionSignature::new(
-            signature,
-            vec![argument],
-            result_abi,
-            GcEffect::NoGc,
-        )
-        .unwrap();
-
-        assert_eq!(
-            hex(&encode(&signature).unwrap()),
-            format!(
-                "a401a4010102a1000103815820{parameter}045820{result_exact}0281a2000201a4015820{parameter}02080308040103a2000301a4015820{result_exact}0208030804010402"
-            )
-        );
-    }
-
-    fn storage(
-        exact_type: PersistentExactTypeId,
-        byte_size: u64,
-        shape: ScoopAbiValueShape,
-    ) -> CanonicalScoopStorage {
-        CanonicalScoopStorage::new(exact_type, byte_size, NonZeroU64::new(8).unwrap(), shape)
-    }
-
-    fn hex(bytes: &[u8]) -> String {
-        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-    }
-}
+mod tests;
