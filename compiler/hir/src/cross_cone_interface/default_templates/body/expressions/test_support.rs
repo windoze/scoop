@@ -1,16 +1,37 @@
+use std::sync::Arc;
+
 use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOwnerChain,
-    OptionalSignatureType, PackagePath, PersistentConstructorId, PersistentEnumVariantId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
-    PersistentGenericTypeId, PersistentIdResolver, PersistentPropertyAccessorId,
-    PersistentPropertyId, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
+    CallbackMode, CallbackParameterIndex, CallbackRegistrationKey, CanonicalIdentifier,
+    ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOrigin, DefinitionOwnerAtom,
+    DefinitionOwnerChain, Effect, EnumVariantFieldKey, EnumVariantFieldSelector,
+    EnumVariantIdentityKey, FieldIdentityKey, GeneratedCallableKey, LexicalCallableParent,
+    LocalValueSelector, NormalizedSourcePath, OptionalSignatureType, PackagePath,
+    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentEnumVariantFieldId,
+    PersistentEnumVariantId, PersistentFieldId, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
+    PersistentIdResolver, PersistentKeyResolver, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentSourceContextId,
+    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
+    SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
-use crate::{DefaultCallableDeclarationV1, DefaultCallableRefV1};
+use crate::{
+    DefaultCallableDeclarationV1, DefaultCallableRefV1, ExportDefinitionSourceV1,
+    TemplateLocalIndexResolver, TemplateLocalSelectorResolver,
+};
 
 pub(super) struct Fixture {
     pub(super) function: PersistentFunctionId,
     pub(super) property: PersistentPropertyId,
+    pub(super) generated: PersistentGeneratedCallableId,
+    pub(super) constructor: PersistentConstructorId,
+    pub(super) variant: PersistentEnumVariantId,
+    pub(super) variant_field: PersistentEnumVariantFieldId,
+    pub(super) field: PersistentFieldId,
+    pub(super) object: PersistentObjectValueId,
+    pub(super) callback: PersistentCallbackRegistrationId,
 }
 
 impl Fixture {
@@ -28,7 +49,82 @@ impl Fixture {
             &SourceDeclarationKey::property(top_level_site(), identifier("message")),
         )
         .unwrap();
-        Self { function, property }
+        let generated = PersistentGeneratedCallableId::from_key(
+            &GeneratedCallableKey::CallableReferenceInvoke {
+                parent: LexicalCallableParent::function(function),
+                path: definition_path(),
+            },
+        )
+        .unwrap();
+        let structure = SourceDeclarationKey::nominal(
+            top_level_site(),
+            identifier("Record"),
+            SourceNominalKind::Struct,
+            0,
+        );
+        let structure_id = PersistentTypeId::from_source_declaration(&structure).unwrap();
+        let constructor =
+            PersistentConstructorId::from_source_declaration(&SourceDeclarationKey::constructor(
+                owned_site(DefinitionOwnerAtom::Type(structure_id)),
+                Vec::new(),
+            ))
+            .unwrap();
+        let field = PersistentFieldId::from_key(
+            &FieldIdentityKey::source_declared(&structure, identifier("value")).unwrap(),
+        )
+        .unwrap();
+        let enumeration = SourceDeclarationKey::nominal(
+            top_level_site(),
+            identifier("Choice"),
+            SourceNominalKind::Enum,
+            0,
+        );
+        let variant = PersistentEnumVariantId::from_key(
+            &EnumVariantIdentityKey::source(&enumeration, identifier("Only")).unwrap(),
+        )
+        .unwrap();
+        let variant_field = PersistentEnumVariantFieldId::from_key(&EnumVariantFieldKey::new(
+            variant,
+            EnumVariantFieldSelector::Positional {
+                declaration_index: 0,
+            },
+        ))
+        .unwrap();
+        let object_key = SourceDeclarationKey::nominal(
+            top_level_site(),
+            identifier("Singleton"),
+            SourceNominalKind::Object,
+            0,
+        );
+        let object = PersistentObjectValueId::from_source_object(&object_key).unwrap();
+        let callback = PersistentCallbackRegistrationId::from_key(&CallbackRegistrationKey::new(
+            LexicalCallableParent::function(function),
+            StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::CallbackConversion, 0),
+                [],
+            ),
+            SourceCAbiFunctionSignature::new(Vec::new(), SourceCAbiReturn::Void),
+            CallbackParameterIndex::new(0),
+            SignatureCallableShape::new(
+                Effect::Ordinary,
+                None,
+                Vec::new(),
+                SignatureTypeKey::Binder { depth: 0, index: 0 },
+            ),
+            CallbackMode::Reusable,
+        ))
+        .unwrap();
+        Self {
+            function,
+            property,
+            generated,
+            constructor,
+            variant,
+            variant_field,
+            field,
+            object,
+            callback,
+        }
     }
 
     pub(super) fn callable(&self) -> DefaultCallableRefV1 {
@@ -40,10 +136,31 @@ impl Fixture {
         .unwrap()
     }
 
+    pub(super) fn origin(&self) -> ExportDefinitionSourceV1 {
+        origin()
+    }
+
+    pub(super) const fn value_type(&self) -> SignatureTypeKey {
+        SignatureTypeKey::Binder { depth: 0, index: 0 }
+    }
+
+    pub(super) const fn local(&self) -> LocalValueSelector {
+        LocalValueSelector::Parameter {
+            declaration_index: 0,
+        }
+    }
+
+    pub(super) fn locals(&self) -> LocalResolver {
+        LocalResolver {
+            selector: self.local(),
+        }
+    }
+
     pub(super) const fn resolver(&self) -> Resolver {
         Resolver {
             function: Some(self.function),
             property: Some(self.property),
+            generated: Some(self.generated),
         }
     }
 }
@@ -51,6 +168,7 @@ impl Fixture {
 pub(super) struct Resolver {
     function: Option<PersistentFunctionId>,
     property: Option<PersistentPropertyId>,
+    generated: Option<PersistentGeneratedCallableId>,
 }
 
 impl Resolver {
@@ -58,6 +176,7 @@ impl Resolver {
         Self {
             function: None,
             property: None,
+            generated: None,
         }
     }
 }
@@ -105,9 +224,49 @@ reject_identity!(PersistentGenericFunctionId);
 reject_identity!(PersistentConstructorId);
 reject_identity!(PersistentPropertyAccessorId);
 reject_identity!(PersistentEnumVariantId);
-reject_identity!(PersistentGeneratedCallableId);
+reject_identity!(PersistentEnumVariantFieldId);
+reject_identity!(PersistentFieldId);
 reject_identity!(PersistentTypeId);
 reject_identity!(PersistentGenericTypeId);
+reject_identity!(PersistentObjectValueId);
+reject_identity!(PersistentCallbackRegistrationId);
+
+impl PersistentIdResolver<PersistentGeneratedCallableId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentGeneratedCallableId>,
+    ) -> Result<PersistentGeneratedCallableId, Self::Error> {
+        id.verify(self.generated.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<ConeIdentity> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<ConeIdentity>,
+    ) -> Result<ConeIdentity, Self::Error> {
+        id.verify(ConeIdentity::CORE).map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve_key(
+        &mut self,
+        id: DecodedPersistentId<PersistentSourceContextId>,
+    ) -> Result<Arc<SourceContextKey>, Self::Error> {
+        let key = context_key();
+        id.verify(PersistentSourceContextId::from_key(&key).unwrap())
+            .map(|_| Arc::new(key))
+            .map_err(|_| ResolutionError)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ResolutionError;
@@ -120,11 +279,98 @@ impl std::fmt::Display for ResolutionError {
 
 impl std::error::Error for ResolutionError {}
 
+pub(super) struct LocalResolver {
+    selector: LocalValueSelector,
+}
+
+impl TemplateLocalSelectorResolver for LocalResolver {
+    type Error = LocalError;
+
+    fn resolve_template_local_selector(
+        &mut self,
+        index: u32,
+    ) -> Result<LocalValueSelector, Self::Error> {
+        if index == 0 {
+            Ok(self.selector.clone())
+        } else {
+            Err(LocalError)
+        }
+    }
+}
+
+impl TemplateLocalIndexResolver for LocalResolver {
+    type Error = LocalError;
+
+    fn resolve_template_local_index(
+        &mut self,
+        selector: &LocalValueSelector,
+    ) -> Result<u32, Self::Error> {
+        if selector == &self.selector {
+            Ok(0)
+        } else {
+            Err(LocalError)
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct LocalError;
+
+impl std::fmt::Display for LocalError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("local is absent")
+    }
+}
+
+impl std::error::Error for LocalError {}
+
+fn origin() -> ExportDefinitionSourceV1 {
+    ExportDefinitionSourceV1::new(
+        DefinitionOrigin::new(
+            source_identity(),
+            SourceSpan::new(2, 5).unwrap(),
+            &context_key(),
+        )
+        .unwrap(),
+    )
+}
+
+fn source_identity() -> SourceIdentity {
+    SourceIdentity::new(
+        ConeIdentity::CORE,
+        NormalizedSourcePath::new("src/Expressions.scoop").unwrap(),
+    )
+    .unwrap()
+}
+
+fn context_key() -> SourceContextKey {
+    SourceContextKey::File {
+        source: source_identity(),
+    }
+}
+
+pub(super) fn definition_path() -> StructuralDefinitionPath {
+    StructuralDefinitionPath::from_first(
+        StructuralPathSegment::new(StructuralDefinitionSiteRole::CallableConversion, 0),
+        [],
+    )
+}
+
 fn top_level_site() -> SourceDeclarationSite {
     SourceDeclarationSite::new(
         ConeIdentity::SINGLE_FILE,
         PackagePath::root(),
         DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap()
+}
+
+fn owned_site(owner: DefinitionOwnerAtom) -> SourceDeclarationSite {
+    SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::from_outer_to_inner(vec![owner]),
         DeclarationScope::ConeWide,
     )
     .unwrap()
