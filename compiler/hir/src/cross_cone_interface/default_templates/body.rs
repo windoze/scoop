@@ -1,5 +1,6 @@
 mod callables;
 mod nested;
+mod operators;
 mod references;
 
 pub use callables::{
@@ -22,6 +23,11 @@ pub use nested::{
     DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
     DefaultNestedCallableReferenceResolver, IndexedDefaultAnonymousFunctionV1,
     IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
+};
+pub use operators::{
+    DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultForeignCallbackOperationV1,
+    DefaultIntegerDivRemV1, DefaultIntegerKindV1, DefaultNoGcIntegerOperationV1,
+    DefaultPrimitiveBinaryKindV1, DefaultPrimitiveUnaryKindV1, DefaultUnaryOperatorV1,
 };
 pub use references::{
     DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
