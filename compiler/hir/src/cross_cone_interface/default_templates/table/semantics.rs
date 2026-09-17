@@ -8,7 +8,8 @@ use crate::{
     CallableInterfaceSemanticAuthority, CanonicalCallableInterfacesV1,
     CanonicalCallableSourceInterfacesV1, DefaultBodyProviderEnvelopeSemanticValidationError,
     DefaultReferenceSemanticAuthority, DefaultTemplateOriginSemanticAuthority,
-    DefaultTemplateRootSemanticAuthority, ExportDefaultReferenceSetSemanticValidationError,
+    DefaultTemplateRootSemanticAuthority, ExportDefaultReferenceClosureValidationError,
+    ExportDefaultReferenceSetSemanticValidationError,
     ExportDefaultTemplateContractSemanticValidationError, ExportDefaultTemplateKeyV1,
     ExportDefaultTemplateOriginSemanticValidationError,
 };
@@ -17,9 +18,9 @@ impl CanonicalExportDefaultTemplatesV1 {
     /// Validates every template envelope against callable/source tables that
     /// have already passed their own semantic validators, then proves the
     /// provider envelope of every body and declared reference set, then proves
-    /// the exact bidirectional source-template closure. Operation typing,
-    /// local data flow, nested callable ABI, and the exact body-to-reference
-    /// closure remain separate passes.
+    /// the exact body-reference and bidirectional source-template closures.
+    /// Operation typing, local data flow, and nested callable ABI remain
+    /// separate passes.
     pub fn validate_envelope_semantics<A, E>(
         &self,
         callables: &CanonicalCallableInterfacesV1,
@@ -80,6 +81,15 @@ impl CanonicalExportDefaultTemplatesV1 {
                 .validate_reference_envelope_semantics(callable, provider, authority, meter, path)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::References {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    }
+                })?;
+            template
+                .validate_reference_closure_semantics(callable, meter, path)
+                .map_err(|error| {
+                    ExportDefaultTemplateSetEnvelopeSemanticValidationError::ReferenceClosure {
                         index,
                         key,
                         error: Box::new(error),
@@ -242,6 +252,11 @@ pub enum ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
         key: ExportDefaultTemplateKeyV1,
         error: Box<ExportDefaultReferenceSetSemanticValidationError<E>>,
     },
+    ReferenceClosure {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<ExportDefaultReferenceClosureValidationError>,
+    },
     SourceClosure(ExportDefaultTemplateSourceClosureValidationError),
 }
 
@@ -271,6 +286,10 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateSetEnvelopeSemanticV
             Self::References { index, key, error } => write!(
                 formatter,
                 "invalid export default template {key:?} references at index {index}: {error}"
+            ),
+            Self::ReferenceClosure { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} reference closure at index {index}: {error}"
             ),
             Self::SourceClosure(error) => {
                 write!(

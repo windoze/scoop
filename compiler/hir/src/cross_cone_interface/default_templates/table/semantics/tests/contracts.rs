@@ -22,11 +22,12 @@ use crate::{
     DefaultReferenceSemanticAuthority, DefaultStatementKindV1, DefaultStatementV1,
     DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
-    ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1,
-    ExportDefaultReferenceSetSemanticValidationError, ExportDefaultReferenceSetV1,
-    ExportDefaultReferenceV1, ExportDefaultReferenceValidationError, ExportDefaultTemplateKeyV1,
-    ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateV1,
-    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
+    ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
+    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceKindV1,
+    ExportDefaultReferenceOccurrenceSiteV1, ExportDefaultReferenceSetSemanticValidationError,
+    ExportDefaultReferenceSetV1, ExportDefaultReferenceV1, ExportDefaultReferenceValidationError,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateOriginSemanticValidationError,
+    ExportDefaultTemplateV1, ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
     NominalInterfaceShapeAuthority, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
     PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1,
     SignatureBinderScopeError, SignatureTypeSemanticError, SourceParameterShapeV1,
@@ -44,7 +45,7 @@ fn validates_every_envelope_and_the_exact_source_closure() {
         validate_envelopes(&templates, &callables, &sources, &mut authority),
         Ok(())
     );
-    assert_eq!(authority.definition_source_validations, 2);
+    assert_eq!(authority.definition_source_validations, 3);
     assert_eq!(authority.template_origin_validations, 1);
 }
 
@@ -195,6 +196,49 @@ fn routes_reference_envelope_failures_with_table_identity() {
                     error: Box::new(ExportDefaultReferenceValidationError::Target(
                         AuthorityError::ReferenceTarget,
                     )),
+                }),
+            }
+        )
+    );
+}
+
+#[test]
+fn routes_reference_closure_failures_with_table_identity() {
+    let fixture = Fixture::new();
+    let body = ExportDefaultBodyV1::try_new(
+        Vec::new(),
+        DefaultExpressionV1::try_new(
+            DefaultExpressionKindV1::UnitLiteral,
+            fixture.value_type.clone(),
+            fixture.origin.clone(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let templates = fixture.templates_with_body_and_references(
+        body,
+        CanonicalBooleanV1::False,
+        ExportDefaultReferenceSetV1::default(),
+    );
+
+    assert_eq!(
+        validate_envelopes(
+            &templates,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::ReferenceClosure {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(ExportDefaultReferenceClosureValidationError::Missing {
+                    kind: ExportDefaultReferenceKindV1::Type,
+                    site: ExportDefaultReferenceOccurrenceSiteV1::BodyType(
+                        DefaultBodyProviderTypeSiteV1::ExpressionResult,
+                    ),
+                    insertion_index: 0,
+                    definition_origin: Box::new(fixture.origin.clone()),
                 }),
             }
         )
@@ -460,11 +504,7 @@ impl Fixture {
         body: ExportDefaultBodyV1,
         allows_suspend: CanonicalBooleanV1,
     ) -> CanonicalExportDefaultTemplatesV1 {
-        self.templates_with_body_and_references(
-            body,
-            allows_suspend,
-            ExportDefaultReferenceSetV1::default(),
-        )
+        self.templates_with_body_and_references(body, allows_suspend, self.value_type_references())
     }
 
     fn templates_with_references(
@@ -506,6 +546,25 @@ impl Fixture {
         )
         .unwrap();
         CanonicalExportDefaultTemplatesV1::try_new(vec![template]).unwrap()
+    }
+
+    fn value_type_references(&self) -> ExportDefaultReferenceSetV1 {
+        ExportDefaultReferenceSetV1::try_new(
+            Vec::new(),
+            Vec::new(),
+            vec![ExportDefaultReferenceV1::new(
+                self.value_type.clone(),
+                self.origin.clone(),
+                ExportDefaultAccessWitnessV1::new(
+                    self.owner,
+                    ExportDefaultCallDomainV1::DirectPublic,
+                ),
+            )],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap()
     }
 
     fn authority(&self) -> Authority {
@@ -662,11 +721,15 @@ impl DefaultReferenceSemanticAuthority<AuthorityError> for Authority {
     fn validate_default_type_reference_target(
         &mut self,
         _template: &ExportDefaultTemplateV1,
-        _target: &SignatureTypeKey,
+        target: &SignatureTypeKey,
     ) -> Result<(), AuthorityError> {
-        Err(AuthorityError::UnexpectedReferenceTarget(
-            ExportDefaultReferenceKindV1::Type,
-        ))
+        if target == &SignatureTypeKey::Nominal(self.value_type) {
+            Ok(())
+        } else {
+            Err(AuthorityError::UnexpectedReferenceTarget(
+                ExportDefaultReferenceKindV1::Type,
+            ))
+        }
     }
 
     fn validate_default_global_reference_target(
