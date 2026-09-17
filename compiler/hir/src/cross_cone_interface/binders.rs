@@ -9,6 +9,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::SourceNominalIdResolver;
 
 mod errors;
+mod metered_semantics;
 mod scope;
 mod semantics;
 
@@ -17,6 +18,7 @@ pub use errors::{
     TypeParameterBinderBuildError, TypeParameterBinderResolutionError,
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError,
 };
+pub use metered_semantics::MeteredSignatureTypeSemanticError;
 pub use scope::{
     SignatureBinderScopeError, SignatureBinderScopeV1, TypeParameterBinderScopeValidationError,
     TypeParameterBoundLocation,
