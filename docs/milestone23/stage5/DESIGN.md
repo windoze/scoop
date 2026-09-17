@@ -1622,6 +1622,8 @@ role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean�
 
 `DependencyBindingWitnessV1`与`ReexportRouteV1`是不同的Rust语义类型，但wire逐byte复用后者已经冻结的两字段map：`1=immediate_provider, 2=non-empty hops`，不增加wrapper tag或外层field。它证明当前artifact可从一个direct provider沿完整公开route取得该target；reader仍须执行route的non-empty、first-exporter、无重复Cone/binding与closure连续性验证。`witnesses`允许为空，按完整route结构序严格递增并拒绝重复；producer排序后拒绝重复，reader不得排序或去重修复。只有`ReexportTarget`、`AliasTarget`、`DefaultDependency`和`ConcreteSelectedUse`允许且要求至少一个witness；`SignatureDependency`与`ConstType`不靠source-name授权，单独出现时witnesses必须为空。多个role合并到同一target时，witnesses精确等于其中所有需source-name授权role的route并集。
 
+external reference table以`ExternalHirTargetV1`的`(variant tag, typed payload canonical bytes)`为唯一主键严格递增；同一target的全部role与witness必须在单个record中完成union，不能用不同origin或拆分role制造两条记录。producer排序后拒绝重复target，reader拒绝重复与非规范顺序。结构构造阶段即执行role/witness的空/非空约束；target canonical key所属Cone必须逐项等于`origin`、每条witness terminal binding必须指向同一target、route完整性与fields 1～9精确闭包由closure semantic pass在完整artifact authority上验证。
+
 ## 6. re-export构造与公开表面
 
 ### 6.1 import先于re-export commit

@@ -251,12 +251,16 @@ pub use definition_sources::{
 };
 pub use external_references::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
-    DecodedCanonicalDependencyBindingWitnessesV1, DecodedCanonicalExternalHirReferenceRolesV1,
-    DecodedDependencyBindingWitnessV1, DecodedExternalHirTargetV1,
+    CanonicalExternalHirReferencesV1, DecodedCanonicalDependencyBindingWitnessesV1,
+    DecodedCanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferencesV1,
+    DecodedDependencyBindingWitnessV1, DecodedExternalHirReferenceV1, DecodedExternalHirTargetV1,
     DependencyBindingWitnessResolutionError, DependencyBindingWitnessSetBuildError,
     DependencyBindingWitnessSetValidationError, DependencyBindingWitnessV1,
-    ExternalHirReferenceRoleSetBuildError, ExternalHirReferenceRoleSetValidationError,
-    ExternalHirReferenceRoleV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,
+    ExternalHirReferenceBuildError, ExternalHirReferenceResolutionError,
+    ExternalHirReferenceResolver, ExternalHirReferenceRoleSetBuildError,
+    ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
+    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetValidationError,
+    ExternalHirReferenceV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,
     ExternalHirTargetV1,
 };
 pub use nominal_interfaces::{
