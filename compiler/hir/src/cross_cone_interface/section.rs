@@ -28,6 +28,7 @@ use super::{
 
 mod alias_reference_closure;
 mod const_type_reference_closure;
+mod default_reference_closure;
 mod definition_source_closure;
 mod internal_closures;
 mod signature_nominal_walk;
@@ -37,6 +38,10 @@ pub use alias_reference_closure::{
     ExternalHirAliasClosureValidationError, ExternalHirAliasUseSiteV1,
 };
 pub use const_type_reference_closure::ExternalHirConstTypeClosureValidationError;
+pub use default_reference_closure::{
+    ExternalHirDefaultClosureValidationError, ExternalHirDefaultOriginMismatch,
+    ExternalHirDefaultUseSiteV1,
+};
 pub use definition_source_closure::{
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
 };

@@ -314,9 +314,10 @@ pub use section::{
     CrossConeHirInternalClosureValidationError, DecodedCrossConeHirInterfaceSectionV1,
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
     ExternalHirAliasClosureValidationError, ExternalHirAliasUseSiteV1,
-    ExternalHirConstTypeClosureValidationError, ExternalHirSignatureClosureValidationError,
-    ExternalHirSignatureOriginMismatch, ExternalHirSignatureUseSiteV1,
-    IndexedCrossConeHirInterfaceSectionV1,
+    ExternalHirConstTypeClosureValidationError, ExternalHirDefaultClosureValidationError,
+    ExternalHirDefaultOriginMismatch, ExternalHirDefaultUseSiteV1,
+    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
+    ExternalHirSignatureUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
