@@ -8,7 +8,10 @@ use scoop_identity::{
 };
 use scoop_lir::ValidatedLirTargetSelection;
 
-use crate::{ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord};
+use crate::{
+    ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord,
+    FoundationValidatedCrossConeHirFrontSections, StrongProfileFoundationError,
+};
 
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
@@ -151,7 +154,7 @@ pub struct IdentityRegisteredCrossConeHirClosure<'input> {
     identity_graphs: Vec<ValidatedIdentityGraph>,
 }
 
-impl IdentityRegisteredCrossConeHirClosure<'_> {
+impl<'input> IdentityRegisteredCrossConeHirClosure<'input> {
     pub const fn current(&self) -> ConeIdentity {
         self.profile.current()
     }
@@ -195,6 +198,110 @@ impl IdentityRegisteredCrossConeHirClosure<'_> {
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
         self.profile.role(identity)
+    }
+
+    /// Validates every provider's HIR/MIR/LIR foundation structure and the
+    /// M23-5 `RejectAll` ODR policy before any production or public surface is
+    /// allowed to consume those foundations.
+    pub fn validate_foundation_structure(
+        self,
+    ) -> Result<FoundationValidatedCrossConeHirClosure<'input>, CrossConeClosureFoundationError>
+    {
+        let Self {
+            profile,
+            identity_graphs,
+        } = self;
+        let ProfileValidatedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = profile;
+        let artifact_count = dependency_first.len();
+        let mut validated = Vec::new();
+        validated.try_reserve_exact(artifact_count).map_err(|_| {
+            CrossConeClosureFoundationError::Allocation {
+                requested_slots: artifact_count,
+            }
+        })?;
+        for (front, identities) in dependency_first.into_iter().zip(identity_graphs) {
+            let identity = front.identity();
+            validated.push(
+                front
+                    .validate_foundation_structure(identities)
+                    .map_err(|source| CrossConeClosureFoundationError::Artifact {
+                        identity,
+                        source: Box::new(source),
+                    })?,
+            );
+        }
+
+        Ok(FoundationValidatedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first: validated,
+            positions,
+            dependency_positions,
+        })
+    }
+}
+
+/// Cross-Cone HIR fronts with fully checked ODR-free foundations. General HIR
+/// surfaces and legacy production payloads remain unresolved and unvalidated.
+pub struct FoundationValidatedCrossConeHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<FoundationValidatedCrossConeHirFrontSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+impl FoundationValidatedCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.current
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        &self.direct
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &FoundationValidatedCrossConeHirFrontSections<'_>> {
+        self.dependency_first.iter()
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&FoundationValidatedCrossConeHirFrontSections<'_>> {
+        self.positions
+            .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.positions.get(&identity).map(|_| {
+            if self.direct.binary_search(&identity).is_ok() {
+                CrossConeProviderRole::Direct
+            } else {
+                CrossConeProviderRole::Support
+            }
+        })
+    }
+
+    pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+        self.positions
+            .get(&identity)
+            .map(|position| self.dependency_positions[*position].len())
     }
 }
 
@@ -453,6 +560,43 @@ impl std::error::Error for CrossConeClosureIdentityError {
         match self {
             Self::Artifact { source, .. } => Some(source),
             Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CrossConeClosureFoundationError {
+    Allocation {
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: Box<StrongProfileFoundationError>,
+    },
+}
+
+impl fmt::Display for CrossConeClosureFoundationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} validated cross-Cone foundation slots"
+            ),
+            Self::Artifact { identity, source } => {
+                write!(
+                    formatter,
+                    "invalid cross-Cone foundations for {identity}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureFoundationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source),
+            Self::Allocation { .. } => None,
         }
     }
 }

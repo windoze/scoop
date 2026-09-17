@@ -2,13 +2,13 @@
 
 use scoop_hir::{
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
-    DecodedHirFoundation,
+    DecodedHirFoundation, OdrFreeHirFoundation,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityValidationError, ValidatedIdentityGraph,
 };
-use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1};
-use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
+use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
+use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::DecodeUsage;
 
 use crate::{
@@ -21,6 +21,10 @@ use crate::{
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_strong_production_capability, mir_core_bootstrap_bridge_capability,
     mir_identity_foundation_capability,
+    strong_compile_decode::{
+        OdrFreeStrongFoundationSet, StrongProfileFoundationError,
+        validate_strong_profile_foundations,
+    },
 };
 
 /// Canonically decoded identity, legacy production, and general HIR payloads
@@ -39,6 +43,19 @@ pub struct DecodedCrossConeHirFrontSections<'input> {
     mir_foundation: DecodedMirFoundation,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose HIR/MIR/LIR foundations are structurally
+/// valid and ODR-free. General HIR and legacy production payloads remain
+/// decoded references and carry no semantic-surface authority yet.
+pub struct FoundationValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: DecodedCrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
 }
 
@@ -111,7 +128,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
     }
 }
 
-impl DecodedCrossConeHirFrontSections<'_> {
+impl<'input> DecodedCrossConeHirFrontSections<'input> {
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
@@ -200,6 +217,85 @@ impl DecodedCrossConeHirFrontSections<'_> {
             &self.lir_foundation,
             external_authorities,
         )
+    }
+
+    pub(crate) fn validate_foundation_structure(
+        self,
+        mut identities: ValidatedIdentityGraph,
+    ) -> Result<FoundationValidatedCrossConeHirFrontSections<'input>, StrongProfileFoundationError>
+    {
+        let Self {
+            mut graph,
+            hir_foundation,
+            hir_core_production,
+            hir_interface,
+            mir_foundation,
+            mir_core_production,
+            lir_foundation,
+            lir_strong_production,
+        } = self;
+        let foundations = validate_strong_profile_foundations(
+            &mut graph,
+            &mut identities,
+            hir_foundation,
+            mir_foundation,
+            lir_foundation,
+        )?;
+        Ok(FoundationValidatedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl FoundationValidatedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production_wire(&self) -> &DecodedCoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface_wire(&self) -> &DecodedCrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
     }
 }
 

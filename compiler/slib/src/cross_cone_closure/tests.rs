@@ -351,6 +351,79 @@ fn identity_registration_does_not_leak_authority_between_siblings() {
     ));
 }
 
+#[test]
+fn closure_foundations_validate_in_dependency_order() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+    let provider_bytes = artifact(cone_named("provider"), vec![core.dependency_record()]);
+    let provider = decode(&provider_bytes);
+    let provider_identity = provider.identity();
+    let mut direct = vec![ConeIdentity::CORE, provider_identity];
+    direct.sort_unstable();
+
+    let closure = DecodedCrossConeClosure::new(
+        cone_named("current").identity(),
+        target(),
+        direct,
+        vec![decode(&core_bytes), provider],
+    )
+    .validate_profile_graph()
+    .unwrap()
+    .validate_identities()
+    .unwrap()
+    .validate_foundation_structure()
+    .unwrap();
+
+    assert_eq!(closure.dependency_first().count(), 2);
+    assert_eq!(closure.dependency_count(provider_identity), Some(1));
+    assert_eq!(
+        closure
+            .artifact(provider_identity)
+            .unwrap()
+            .declared_identity_count(),
+        17
+    );
+}
+
+#[test]
+fn closure_foundation_failure_is_attributed_to_the_exact_artifact() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+    let invalid_cone = cone_named("invalid-foundation");
+    let mut invalid_foundation = base_hir_foundation();
+    invalid_foundation
+        .set_functions(vec![function_record(
+            invalid_cone.identity(),
+            "missingOrigin",
+        )])
+        .unwrap();
+    let invalid_bytes = artifact_with_foundation(
+        invalid_cone,
+        vec![core.dependency_record()],
+        &invalid_foundation,
+    );
+    let invalid = decode(&invalid_bytes);
+    let invalid_identity = invalid.identity();
+    let mut direct = vec![ConeIdentity::CORE, invalid_identity];
+    direct.sort_unstable();
+
+    assert!(matches!(
+        DecodedCrossConeClosure::new(
+            cone_named("current").identity(),
+            target(),
+            direct,
+            vec![decode(&core_bytes), invalid],
+        )
+        .validate_profile_graph()
+        .unwrap()
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure(),
+        Err(CrossConeClosureFoundationError::Artifact { identity, .. })
+            if identity == invalid_identity
+    ));
+}
+
 fn artifact(cone: ConeRecord, dependencies: Vec<crate::DependencyRecord>) -> Vec<u8> {
     cross_cone_artifact_for(cone, dependencies, empty_cross_cone_hir_interface())
 }
