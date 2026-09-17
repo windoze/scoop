@@ -70,7 +70,12 @@ pub use nested::{
     DefaultLexicalCallableBuildError, DefaultLexicalCallableIndexError,
     DefaultLexicalCallableResolutionError, DefaultLocalFunctionBuildError,
     DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
-    DefaultNestedCallableReferenceResolver, IndexedDefaultAnonymousFunctionV1,
+    DefaultNestedCallableAbiShapeV1, DefaultNestedCallableAbiValidationError,
+    DefaultNestedCallableAuthorityQueryV1, DefaultNestedCallableBodyArgumentsV1,
+    DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
+    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1,
+    DefaultNestedCallableProvenanceV1, DefaultNestedCallableReferenceResolver,
+    DefaultNestedCallableSemanticAuthority, IndexedDefaultAnonymousFunctionV1,
     IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
 };
 pub use operation_typing::{

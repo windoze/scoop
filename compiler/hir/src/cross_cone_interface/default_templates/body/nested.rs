@@ -1,6 +1,7 @@
 mod captures;
 mod lexical;
 mod local_function;
+mod semantics;
 
 pub use captures::{
     DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCaptureV1,
@@ -18,6 +19,13 @@ pub use local_function::{
     DecodedDefaultLocalFunctionV1, DefaultLocalFunctionBuildError, DefaultLocalFunctionIndexError,
     DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
     DefaultNestedCallableReferenceResolver, IndexedDefaultLocalFunctionV1,
+};
+pub use semantics::{
+    DefaultNestedCallableAbiShapeV1, DefaultNestedCallableAbiValidationError,
+    DefaultNestedCallableAuthorityQueryV1, DefaultNestedCallableBodyArgumentsV1,
+    DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
+    DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1,
+    DefaultNestedCallableProvenanceV1, DefaultNestedCallableSemanticAuthority,
 };
 
 #[cfg(test)]
