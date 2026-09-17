@@ -1,9 +1,23 @@
+mod bindings;
 mod callables;
 mod nested;
 mod operators;
 mod patterns;
 mod references;
 
+pub use bindings::{
+    DecodedDefaultBindingClassComponentV1, DecodedDefaultBindingLeafV1,
+    DecodedDefaultBindingProjectionV1, DecodedDefaultBindingShapeV1,
+    DecodedDefaultBindingStructFieldV1, DecodedDefaultBindingTemporaryV1,
+    DefaultBindingClassComponentV1, DefaultBindingLeafIndexError,
+    DefaultBindingLeafResolutionError, DefaultBindingLeafV1, DefaultBindingProjectionBuildError,
+    DefaultBindingProjectionResolutionError, DefaultBindingProjectionV1,
+    DefaultBindingProjectionViewV1, DefaultBindingShapeBuildError, DefaultBindingShapeIndexError,
+    DefaultBindingShapeResolutionError, DefaultBindingShapeV1, DefaultBindingShapeViewV1,
+    DefaultBindingStructFieldV1, DefaultBindingTemporaryIndexError,
+    DefaultBindingTemporaryResolutionError, DefaultBindingTemporaryV1, IndexedDefaultBindingLeafV1,
+    IndexedDefaultBindingShapeV1, IndexedDefaultBindingTemporaryV1,
+};
 pub use callables::{
     DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
     DecodedDefaultCallableDeclarationV1, DecodedDefaultCallableRefV1, DecodedDefaultMethodCalleeV1,
