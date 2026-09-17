@@ -30,8 +30,24 @@ pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
     known_capability("org.scoop-lang.hir", "core-bootstrap-interface")
 }
 
+pub fn hir_cross_cone_interface_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.hir", "cross-cone-interface")
+}
+
 pub fn mir_core_bootstrap_bridge_capability() -> CapabilityId {
     known_capability("org.scoop-lang.mir", "core-bootstrap-bridge")
+}
+
+pub fn mir_cross_cone_param_free_bridge_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.mir", "cross-cone-param-free-bridge")
+}
+
+pub fn lir_cross_cone_param_free_bridge_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.lir", "cross-cone-param-free-bridge")
+}
+
+pub fn lir_cross_cone_link_closure_capability() -> CapabilityId {
+    known_capability("org.scoop-lang.lir", "cross-cone-link-closure")
 }
 
 pub fn lir_strong_production_capability() -> CapabilityId {
@@ -53,11 +69,14 @@ pub struct ArtifactCapabilityProfile(ArtifactCapabilityProfileKind);
 enum ArtifactCapabilityProfileKind {
     IdentityFoundation,
     SingleConeStrong,
+    CrossConeSemanticsStrong,
 }
 
 impl ArtifactCapabilityProfile {
     pub const IDENTITY_FOUNDATION: Self = Self(ArtifactCapabilityProfileKind::IdentityFoundation);
     pub const SINGLE_CONE_STRONG: Self = Self(ArtifactCapabilityProfileKind::SingleConeStrong);
+    pub const CROSS_CONE_SEMANTICS_STRONG: Self =
+        Self(ArtifactCapabilityProfileKind::CrossConeSemanticsStrong);
 
     pub fn id(self) -> ArtifactCapabilityProfileId {
         match self.0 {
@@ -67,6 +86,9 @@ impl ArtifactCapabilityProfile {
             ArtifactCapabilityProfileKind::SingleConeStrong => {
                 ArtifactCapabilityProfileId::single_cone_strong()
             }
+            ArtifactCapabilityProfileKind::CrossConeSemanticsStrong => {
+                ArtifactCapabilityProfileId::cross_cone_semantics_strong()
+            }
         }
     }
 
@@ -75,6 +97,8 @@ impl ArtifactCapabilityProfile {
             Some(Self::IDENTITY_FOUNDATION)
         } else if id == &ArtifactCapabilityProfileId::single_cone_strong() {
             Some(Self::SINGLE_CONE_STRONG)
+        } else if id == &ArtifactCapabilityProfileId::cross_cone_semantics_strong() {
+            Some(Self::CROSS_CONE_SEMANTICS_STRONG)
         } else {
             None
         }
@@ -114,6 +138,39 @@ impl ArtifactCapabilityProfile {
                         mir_identity_foundation_capability(),
                     ],
                     required_lir: vec![
+                        lir_identity_foundation_capability(),
+                        lir_link_identity_closure_capability(),
+                        lir_strong_production_capability(),
+                    ],
+                    code_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
+                    runtime_requirement: FingerprintAvailabilityRequirement::MustBeAvailable,
+                    publication_class: PublicationClass::Publishable,
+                    validation_policy: ArtifactValidationPolicy {
+                        odr: OdrValidationPolicy::RejectAll,
+                        extra_sections:
+                            ExtraSectionPolicy::AllowPurposeDisjointOpaqueAndEnvelopeOptional,
+                        decode_cost_model: SlibDecodeCostModel::DeterministicLogicalCost,
+                        link_proof: LinkProofPolicy::Required,
+                    },
+                }
+            }
+            ArtifactCapabilityProfileKind::CrossConeSemanticsStrong => {
+                ArtifactCapabilityProfileDescriptor {
+                    id: self.id(),
+                    required_manifest: vec![manifest_single_cone_production_capability()],
+                    required_hir: vec![
+                        hir_core_bootstrap_interface_capability(),
+                        hir_cross_cone_interface_capability(),
+                        hir_identity_foundation_capability(),
+                    ],
+                    required_mir: vec![
+                        mir_core_bootstrap_bridge_capability(),
+                        mir_cross_cone_param_free_bridge_capability(),
+                        mir_identity_foundation_capability(),
+                    ],
+                    required_lir: vec![
+                        lir_cross_cone_link_closure_capability(),
+                        lir_cross_cone_param_free_bridge_capability(),
                         lir_identity_foundation_capability(),
                         lir_link_identity_closure_capability(),
                         lir_strong_production_capability(),
@@ -474,10 +531,30 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
+            ("org.scoop-lang.hir", "cross-cone-interface", 1) => (
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
             ("org.scoop-lang.mir", "core-bootstrap-bridge", 1) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
+            ),
+            ("org.scoop-lang.mir", "cross-cone-param-free-bridge", 1) => (
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            ("org.scoop-lang.lir", "cross-cone-param-free-bridge", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::LIR,
+            ),
+            ("org.scoop-lang.lir", "cross-cone-link-closure", 1) => (
+                SectionLocation::Lir,
+                MemberPurposeSet::LINK,
+                FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
             ("org.scoop-lang.lir", "strong-production", 1) => (
                 SectionLocation::Lir,
@@ -749,7 +826,7 @@ fn encode_capabilities(
 
 #[cfg(test)]
 mod tests {
-    use scoop_wire::encode;
+    use scoop_wire::{DecodeLimits, encode};
 
     use super::*;
 
@@ -841,6 +918,73 @@ mod tests {
     }
 
     #[test]
+    fn cross_cone_semantics_strong_profile_has_the_fixed_descriptor_and_fingerprint() {
+        let profile = ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG;
+        let descriptor = profile.descriptor();
+        assert_eq!(
+            hex(&encode(&descriptor).unwrap()),
+            "a901a301781b6f72672e73636f6f702d6c616e672e736c69622d70726f66696c6502781b63726f73732d636f6e652d73656d616e746963732d7374726f6e6703010281a301776f72672e73636f6f702d6c616e672e6d616e6966657374027673696e676c652d636f6e652d70726f64756374696f6e03010383a301726f72672e73636f6f702d6c616e672e686972027818636f72652d626f6f7473747261702d696e746572666163650301a301726f72672e73636f6f702d6c616e672e686972027463726f73732d636f6e652d696e746572666163650301a301726f72672e73636f6f702d6c616e672e68697202736964656e746974792d666f756e646174696f6e03010483a301726f72672e73636f6f702d6c616e672e6d69720275636f72652d626f6f7473747261702d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202781c63726f73732d636f6e652d706172616d2d667265652d6272696467650301a301726f72672e73636f6f702d6c616e672e6d697202736964656e746974792d666f756e646174696f6e03010585a301726f72672e73636f6f702d6c616e672e6c6972027763726f73732d636f6e652d6c696e6b2d636c6f737572650301a301726f72672e73636f6f702d6c616e672e6c697202781c63726f73732d636f6e652d706172616d2d667265652d6272696467650301a301726f72672e73636f6f702d6c616e672e6c697202736964656e746974792d666f756e646174696f6e0301a301726f72672e73636f6f702d6c616e672e6c697202756c696e6b2d6964656e746974792d636c6f737572650301a301726f72672e73636f6f702d6c616e672e6c697202717374726f6e672d70726f64756374696f6e030106020702080209a40102020103010402"
+        );
+        assert_eq!(
+            profile.fingerprint().unwrap().to_string(),
+            "f0406fc73985db06acdf0718c8587ce383d986d157f20434ec6375c5490d18f5"
+        );
+
+        assert_eq!(
+            ArtifactCapabilityProfile::from_id(descriptor.id()),
+            Some(profile)
+        );
+        assert_eq!(
+            descriptor.required_manifest(),
+            &[manifest_single_cone_production_capability()]
+        );
+        assert_eq!(
+            descriptor.required_hir(),
+            &[
+                hir_core_bootstrap_interface_capability(),
+                hir_cross_cone_interface_capability(),
+                hir_identity_foundation_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.required_mir(),
+            &[
+                mir_core_bootstrap_bridge_capability(),
+                mir_cross_cone_param_free_bridge_capability(),
+                mir_identity_foundation_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.required_lir(),
+            &[
+                lir_cross_cone_link_closure_capability(),
+                lir_cross_cone_param_free_bridge_capability(),
+                lir_identity_foundation_capability(),
+                lir_link_identity_closure_capability(),
+                lir_strong_production_capability(),
+            ]
+        );
+        assert_eq!(
+            descriptor.code_requirement(),
+            FingerprintAvailabilityRequirement::MustBeAvailable
+        );
+        assert_eq!(
+            descriptor.runtime_requirement(),
+            FingerprintAvailabilityRequirement::MustBeAvailable
+        );
+        assert_eq!(
+            descriptor.publication_class(),
+            PublicationClass::Publishable
+        );
+        assert_eq!(
+            descriptor.validation_policy(),
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG
+                .descriptor()
+                .validation_policy()
+        );
+    }
+
+    #[test]
     fn capability_registry_has_the_fixed_location_purpose_and_sink_matrix() {
         let code_runtime_link = FingerprintSinkSet::CODE
             .union(FingerprintSinkSet::RUNTIME_IMAGE)
@@ -848,6 +992,7 @@ mod tests {
         let lir_code_runtime = FingerprintSinkSet::LIR
             .union(FingerprintSinkSet::CODE)
             .union(FingerprintSinkSet::RUNTIME_IMAGE);
+        let code_link = FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY);
         for (capability, location, purpose, sinks) in [
             (
                 hir_identity_foundation_capability(),
@@ -880,10 +1025,34 @@ mod tests {
                 FingerprintSinkSet::HIR,
             ),
             (
+                hir_cross_cone_interface_capability(),
+                SectionLocation::Hir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::HIR,
+            ),
+            (
                 mir_core_bootstrap_bridge_capability(),
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
+            ),
+            (
+                mir_cross_cone_param_free_bridge_capability(),
+                SectionLocation::Mir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::MIR,
+            ),
+            (
+                lir_cross_cone_param_free_bridge_capability(),
+                SectionLocation::Lir,
+                MemberPurposeSet::COMPILE,
+                FingerprintSinkSet::LIR,
+            ),
+            (
+                lir_cross_cone_link_closure_capability(),
+                SectionLocation::Lir,
+                MemberPurposeSet::LINK,
+                code_link,
             ),
             (
                 lir_strong_production_capability(),
@@ -934,6 +1103,20 @@ mod tests {
                 .validate_link_manifest_inventory(std::slice::from_ref(&production))
                 .is_ok()
         );
+        assert_eq!(
+            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG
+                .validate_link_manifest_inventory(&[]),
+            Err(ArtifactProfileInventoryError::MissingRequiredCapability {
+                view: ArtifactProfileView::Link,
+                location: SectionLocation::Manifest,
+                capability: manifest_single_cone_production_capability()
+            })
+        );
+        assert!(
+            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG
+                .validate_link_manifest_inventory(std::slice::from_ref(&production))
+                .is_ok()
+        );
         assert!(matches!(
             ArtifactCapabilityProfile::IDENTITY_FOUNDATION
                 .validate_link_manifest_inventory(std::slice::from_ref(&production)),
@@ -958,6 +1141,127 @@ mod tests {
                 .validate_link_manifest_inventory(&[optional])
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn cross_cone_metadata_inventory_requires_each_new_capability_in_its_view() {
+        let profile = ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG;
+        let descriptor = profile.descriptor();
+        assert!(
+            validate_metadata_inventory(
+                profile,
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Hir,
+                descriptor.required_hir(),
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_metadata_inventory(
+                profile,
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Mir,
+                descriptor.required_mir(),
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_metadata_inventory(
+                profile,
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Lir,
+                descriptor.required_lir(),
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_metadata_inventory(
+                profile,
+                ArtifactProfileView::Link,
+                crate::MetadataLocation::Lir,
+                descriptor.required_lir(),
+            )
+            .is_ok()
+        );
+
+        for (view, location, capability, inventory) in [
+            (
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Hir,
+                hir_cross_cone_interface_capability(),
+                descriptor.required_hir(),
+            ),
+            (
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Mir,
+                mir_cross_cone_param_free_bridge_capability(),
+                descriptor.required_mir(),
+            ),
+            (
+                ArtifactProfileView::Compile,
+                crate::MetadataLocation::Lir,
+                lir_cross_cone_param_free_bridge_capability(),
+                descriptor.required_lir(),
+            ),
+            (
+                ArtifactProfileView::Link,
+                crate::MetadataLocation::Lir,
+                lir_cross_cone_link_closure_capability(),
+                descriptor.required_lir(),
+            ),
+        ] {
+            let incomplete = inventory
+                .iter()
+                .filter(|candidate| *candidate != &capability)
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                validate_metadata_inventory(profile, view, location, &incomplete),
+                Err(ArtifactProfileInventoryError::MissingRequiredCapability {
+                    view,
+                    location: match location {
+                        crate::MetadataLocation::Hir => SectionLocation::Hir,
+                        crate::MetadataLocation::Mir => SectionLocation::Mir,
+                        crate::MetadataLocation::Lir => SectionLocation::Lir,
+                    },
+                    capability,
+                })
+            );
+        }
+    }
+
+    fn validate_metadata_inventory(
+        profile: ArtifactCapabilityProfile,
+        view: ArtifactProfileView,
+        location: crate::MetadataLocation,
+        capabilities: &[CapabilityId],
+    ) -> Result<(), ArtifactProfileInventoryError> {
+        let sections = capabilities
+            .iter()
+            .map(|capability| {
+                let contract = CapabilityContractRegistry::contract(capability).unwrap();
+                crate::MetadataSection::new(
+                    location,
+                    capability.clone(),
+                    contract.required_for(),
+                    Vec::new(),
+                )
+                .unwrap()
+            })
+            .collect();
+        let envelope = crate::MetadataEnvelope::new(location, sections).unwrap();
+        let bytes = encode(&envelope).unwrap();
+        let decoded =
+            crate::DecodedMetadataEnvelope::decode(&bytes, location, DecodeLimits::default())
+                .unwrap();
+        match view {
+            ArtifactProfileView::Compile => {
+                profile.validate_compile_metadata_inventory(location, decoded.sections())
+            }
+            ArtifactProfileView::Link => {
+                profile.validate_link_metadata_inventory(location, decoded.sections())
+            }
+        }
     }
 
     fn hex(bytes: &[u8]) -> String {
