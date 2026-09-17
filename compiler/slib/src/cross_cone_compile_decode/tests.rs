@@ -67,6 +67,7 @@ fn cross_cone_profile_decodes_the_complete_hir_front() {
     let _ = front.mir_cross_cone_bridge_wire();
     let _ = front.lir_foundation_wire();
     let _ = front.lir_strong_production_wire();
+    let _ = front.lir_cross_cone_bridge_wire();
 }
 
 #[test]
@@ -663,7 +664,7 @@ fn add_cross_cone_bridge_sections(
         MetadataLocation::Lir,
         lir_cross_cone_param_free_bridge_capability(),
         MemberPurposeSet::COMPILE,
-        vec![0x80],
+        vec![0xa2, 0x01, 0x80, 0x02, 0x80],
     ));
     lir.push(section(
         MetadataLocation::Lir,

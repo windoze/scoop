@@ -44,6 +44,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             mir_cross_cone_bridge,
             lir_foundation,
             lir_strong_production,
+            lir_cross_cone_bridge,
         } = self;
         let foundations = validate_strong_profile_foundations(
             &mut graph,
@@ -61,6 +62,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         })
     }
 }
@@ -81,6 +83,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         } = self;
         let hir_interface = hir_interface.resolve(&mut identities)?;
         Ok(ResolvedCrossConeHirFrontSections {
@@ -92,6 +95,7 @@ impl<'input> FoundationValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         })
     }
 }
@@ -115,6 +119,7 @@ impl<'input> ResolvedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         } = self;
         let hir_core_production = hir_core_production
             .validate_against_strong_foundation(graph.identity(), &foundations.hir)?;
@@ -127,6 +132,7 @@ impl<'input> ResolvedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         })
     }
 }

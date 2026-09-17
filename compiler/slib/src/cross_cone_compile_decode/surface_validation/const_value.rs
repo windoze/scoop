@@ -29,6 +29,7 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         } = self.0;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             graph.identity(),
@@ -52,6 +53,7 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
                 mir_core_production,
                 mir_cross_cone_bridge,
                 lir_strong_production,
+                lir_cross_cone_bridge,
             },
         ))
     }

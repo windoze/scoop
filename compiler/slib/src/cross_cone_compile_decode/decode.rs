@@ -4,9 +4,10 @@ use crate::{
     ArtifactCapabilityProfile, CompileSectionDecodeError, MetadataLocation, ValidatedGraphArtifact,
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
-    hir_identity_foundation_capability, lir_identity_foundation_capability,
-    lir_strong_production_capability, mir_core_bootstrap_bridge_capability,
-    mir_cross_cone_param_free_bridge_capability, mir_identity_foundation_capability,
+    hir_identity_foundation_capability, lir_cross_cone_param_free_bridge_capability,
+    lir_identity_foundation_capability, lir_strong_production_capability,
+    mir_core_bootstrap_bridge_capability, mir_cross_cone_param_free_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 use super::DecodedCrossConeHirFrontSections;
@@ -70,6 +71,12 @@ impl<'input> ValidatedGraphArtifact<'input> {
             MetadataLocation::Lir,
             lir_strong_production_capability(),
         )?;
+        let lir_cross_cone_bridge = decode_compile_section(
+            &mut self,
+            &metadata,
+            MetadataLocation::Lir,
+            lir_cross_cone_param_free_bridge_capability(),
+        )?;
 
         metadata.validate_semantic_fingerprints(&mut self)?;
 
@@ -83,6 +90,7 @@ impl<'input> ValidatedGraphArtifact<'input> {
             mir_cross_cone_bridge,
             lir_foundation,
             lir_strong_production,
+            lir_cross_cone_bridge,
         })
     }
 }

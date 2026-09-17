@@ -2,7 +2,9 @@
 
 use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
-use scoop_lir::{DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
+use scoop_lir::{
+    DecodedCrossConeLirBridgeSectionV1, DecodedStrongProductionSectionV1, OdrFreeLirFoundation,
+};
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
     MirProductionValidationError, OdrFreeMirFoundation,
@@ -28,6 +30,7 @@ pub struct MirBridgeValidatedCrossConeHirFrontSections<'input> {
     mir_core_production: CoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: CrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
 impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
@@ -74,6 +77,10 @@ impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_strong_production
     }
+
+    pub const fn lir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeLirBridgeSectionV1 {
+        &self.lir_cross_cone_bridge
+    }
 }
 
 impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
@@ -90,6 +97,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         } = self.0;
         let mir_core_production = mir_core_production
             .validate_against_strong_foundation(graph.identity(), &mut identities, &foundations.mir)
@@ -109,6 +117,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
             mir_core_production,
             mir_cross_cone_bridge,
             lir_strong_production,
+            lir_cross_cone_bridge,
         })
     }
 }
