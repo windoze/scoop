@@ -10,11 +10,11 @@ use scoop_wire::{DecodeLimits, encode};
 
 use super::*;
 use crate::{
-    ArtifactProfileView, BootstrapManifest, CanonicalSlibArchive, CodeFingerprint,
-    CompatibilityRecord, ConeKind, ConeRecord, ConeSourceForm, FingerprintAvailability,
-    HirFingerprint, ManifestSection, MemberPurposeSet, MemberStableKey, MetadataEnvelope,
-    MetadataSection, ProducerRecord, RuntimeImageFingerprint, SemanticFingerprintRecord,
-    SlibMember, SlibMemberRole, hir_core_bootstrap_interface_capability,
+    ArtifactProfileInventoryError, ArtifactProfileView, BootstrapManifest, CanonicalSlibArchive,
+    CodeFingerprint, CompatibilityRecord, ConeKind, ConeRecord, ConeSourceForm,
+    FingerprintAvailability, HirFingerprint, ManifestSection, MemberPurposeSet, MemberStableKey,
+    MetadataEnvelope, MetadataSection, ProducerRecord, RuntimeImageFingerprint,
+    SemanticFingerprintRecord, SlibMember, SlibMemberRole, hir_core_bootstrap_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_link_identity_closure_capability, lir_strong_production_capability,
     manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,

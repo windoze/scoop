@@ -36,6 +36,9 @@ pub use dual_artifact::*;
 mod compile_decode;
 pub use compile_decode::*;
 
+mod compile_sections;
+pub use compile_sections::CompileSectionDecodeError;
+
 mod link_decode;
 pub use link_decode::*;
 
