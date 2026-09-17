@@ -26,6 +26,7 @@ pub(crate) struct Fixture {
     pub(crate) function: PersistentFunctionId,
     pub(crate) property: PersistentPropertyId,
     pub(crate) generated: PersistentGeneratedCallableId,
+    pub(crate) type_id: PersistentTypeId,
     pub(crate) constructor: PersistentConstructorId,
     pub(crate) variant: PersistentEnumVariantId,
     pub(crate) variant_field: PersistentEnumVariantFieldId,
@@ -123,6 +124,7 @@ impl Fixture {
             function,
             property,
             generated,
+            type_id: structure_id,
             constructor,
             variant,
             variant_field,
@@ -167,8 +169,12 @@ impl Fixture {
             function: Some(self.function),
             property: Some(self.property),
             generated: Some(self.generated),
+            type_id: Some(self.type_id),
+            constructor: Some(self.constructor),
             variant: Some(self.variant),
             variant_field: Some(self.variant_field),
+            field: Some(self.field),
+            object: Some(self.object),
             initialization: Some(self.initialization),
         }
     }
@@ -178,8 +184,12 @@ pub(crate) struct Resolver {
     function: Option<PersistentFunctionId>,
     property: Option<PersistentPropertyId>,
     generated: Option<PersistentGeneratedCallableId>,
+    type_id: Option<PersistentTypeId>,
+    constructor: Option<PersistentConstructorId>,
     variant: Option<PersistentEnumVariantId>,
     variant_field: Option<PersistentEnumVariantFieldId>,
+    field: Option<PersistentFieldId>,
+    object: Option<PersistentObjectValueId>,
     initialization: Option<PersistentInitializationUnitId>,
 }
 
@@ -189,8 +199,12 @@ impl Resolver {
             function: None,
             property: None,
             generated: None,
+            type_id: None,
+            constructor: None,
             variant: None,
             variant_field: None,
+            field: None,
+            object: None,
             initialization: None,
         }
     }
@@ -236,13 +250,57 @@ macro_rules! reject_identity {
 }
 
 reject_identity!(PersistentGenericFunctionId);
-reject_identity!(PersistentConstructorId);
 reject_identity!(PersistentPropertyAccessorId);
-reject_identity!(PersistentFieldId);
-reject_identity!(PersistentTypeId);
 reject_identity!(PersistentGenericTypeId);
-reject_identity!(PersistentObjectValueId);
 reject_identity!(PersistentCallbackRegistrationId);
+
+impl PersistentIdResolver<PersistentConstructorId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentConstructorId>,
+    ) -> Result<PersistentConstructorId, Self::Error> {
+        id.verify(self.constructor.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentFieldId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentFieldId>,
+    ) -> Result<PersistentFieldId, Self::Error> {
+        id.verify(self.field.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentTypeId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentTypeId>,
+    ) -> Result<PersistentTypeId, Self::Error> {
+        id.verify(self.type_id.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentObjectValueId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentObjectValueId>,
+    ) -> Result<PersistentObjectValueId, Self::Error> {
+        id.verify(self.object.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
 
 impl PersistentIdResolver<PersistentGeneratedCallableId> for Resolver {
     type Error = ResolutionError;

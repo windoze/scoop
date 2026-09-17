@@ -188,6 +188,22 @@ pub use default_templates::{
     TemplateValueParameterResolutionError, TemplateValueParameterSemanticValidationError,
     TemplateValueParameterV1,
 };
+pub use default_templates::{
+    DecodedExportDefaultAccessWitnessV1, DecodedExportDefaultCallableReferenceV1,
+    DecodedExportDefaultCallableTargetV1, DecodedExportDefaultConstructorReferenceV1,
+    DecodedExportDefaultFieldReferenceV1, DecodedExportDefaultGlobalReferenceV1,
+    DecodedExportDefaultReferenceSetV1, DecodedExportDefaultReferenceV1,
+    DecodedExportDefaultSingletonReferenceV1, DecodedExportDefaultTypeReferenceV1,
+    ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1, ExportDefaultCallableReferenceV1,
+    ExportDefaultCallableTargetBuildError, ExportDefaultCallableTargetResolutionError,
+    ExportDefaultCallableTargetV1, ExportDefaultConstructorReferenceV1,
+    ExportDefaultFieldReferenceV1, ExportDefaultGlobalReferenceV1, ExportDefaultReferenceKindV1,
+    ExportDefaultReferenceResolutionError, ExportDefaultReferenceResolver,
+    ExportDefaultReferenceSetBuildError, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceSetValidationError, ExportDefaultReferenceTargetResolutionError,
+    ExportDefaultReferenceV1, ExportDefaultSingletonReferenceV1, ExportDefaultTargetDomainV1,
+    ExportDefaultTypeReferenceV1,
+};
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSetBuildError,

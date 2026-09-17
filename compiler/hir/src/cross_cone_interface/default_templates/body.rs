@@ -8,6 +8,9 @@ mod patterns;
 mod references;
 mod statements;
 
+#[cfg(test)]
+pub(crate) use expressions::test_support as expression_test_support;
+
 pub use bindings::{
     DecodedDefaultBindingClassComponentV1, DecodedDefaultBindingLeafV1,
     DecodedDefaultBindingProjectionV1, DecodedDefaultBindingShapeV1,
