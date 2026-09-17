@@ -28,8 +28,9 @@ pub use receiver::{
     TemplateReceiverSemanticValidationError, TemplateReceiverV1,
 };
 pub use roots::{
-    DecodedPersistentLexicalRootV1, PersistentLexicalRootBuildError, PersistentLexicalRootResolver,
-    PersistentLexicalRootV1,
+    DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeV1,
+    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
+    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
 };
 pub use value_parameters::{
     CanonicalTemplateValueParametersV1, DecodedCanonicalTemplateValueParametersV1,

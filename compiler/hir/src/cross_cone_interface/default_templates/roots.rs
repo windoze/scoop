@@ -7,6 +7,13 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod semantics;
+
+pub use semantics::{
+    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority,
+    DefaultTemplateRootSemanticValidationError,
+};
+
 /// Persistent source root for one exported default template.
 ///
 /// Generated callables and property accessors cannot own source parameters,
