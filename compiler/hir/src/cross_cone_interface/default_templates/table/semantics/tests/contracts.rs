@@ -1,9 +1,10 @@
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOrigin,
-    DefinitionOwnerChain, Effect, GcEffect, PackagePath, PersistentFunctionId,
-    PersistentGenericTypeId, PersistentTypeId, SignatureTypeKey, SourceContextKey,
-    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionOwnerChain, Effect, GcEffect, OptionalSignatureType, PackagePath,
+    PersistentFunctionId, PersistentGenericTypeId, PersistentObjectValueId, PersistentPropertyId,
+    PersistentTypeId, SignatureTypeKey, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
 
@@ -16,10 +17,14 @@ use crate::{
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalCallableSourceParametersV1, CanonicalSourceParameterShapesV1,
     CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
-    DefaultBodyProviderTypeSiteV1, DefaultExpressionKindV1, DefaultExpressionV1,
-    DefaultStatementKindV1, DefaultStatementV1, DefaultTemplateOriginSemanticAuthority,
-    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority, ExportDefaultBodyV1,
-    ExportDefaultReferenceSetV1, ExportDefaultTemplateKeyV1,
+    DefaultBodyProviderTypeSiteV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
+    DefaultConstructorRefV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1,
+    DefaultReferenceSemanticAuthority, DefaultStatementKindV1, DefaultStatementV1,
+    DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
+    DefaultTemplateRootSemanticAuthority, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
+    ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1,
+    ExportDefaultReferenceSetSemanticValidationError, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1, ExportDefaultReferenceValidationError, ExportDefaultTemplateKeyV1,
     ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateV1,
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
     NominalInterfaceShapeAuthority, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
@@ -121,6 +126,76 @@ fn routes_record_contract_and_origin_failures_with_table_identity() {
                         AuthorityError::TemplateOrigin
                     )
                 ),
+            }
+        )
+    );
+}
+
+#[test]
+fn routes_reference_envelope_failures_with_table_identity() {
+    let fixture = Fixture::new();
+    let target = ExportDefaultCallableTargetV1::Callable(
+        DefaultCallableRefV1::try_new(
+            DefaultCallableDeclarationV1::Function(fixture.function),
+            OptionalSignatureType::Absent,
+            Vec::new(),
+        )
+        .unwrap(),
+    );
+    let wrong_domain = fixture.templates_with_references(reference_set(
+        &fixture,
+        target.clone(),
+        ExportDefaultCallDomainV1::DirectAndPublicSlot,
+    ));
+
+    assert_eq!(
+        validate_envelopes(
+            &wrong_domain,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::References {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(ExportDefaultReferenceSetSemanticValidationError::Record {
+                    kind: ExportDefaultReferenceKindV1::Callable,
+                    index: 0,
+                    error: Box::new(ExportDefaultReferenceValidationError::CallDomain {
+                        expected: ExportDefaultCallDomainV1::DirectPublic,
+                        actual: ExportDefaultCallDomainV1::DirectAndPublicSlot,
+                    }),
+                }),
+            }
+        )
+    );
+
+    let references = fixture.templates_with_references(reference_set(
+        &fixture,
+        target,
+        ExportDefaultCallDomainV1::DirectPublic,
+    ));
+    let mut authority = fixture.authority();
+    authority.reject_reference_target = true;
+    assert_eq!(
+        validate_envelopes(
+            &references,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut authority,
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::References {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(ExportDefaultReferenceSetSemanticValidationError::Record {
+                    kind: ExportDefaultReferenceKindV1::Callable,
+                    index: 0,
+                    error: Box::new(ExportDefaultReferenceValidationError::Target(
+                        AuthorityError::ReferenceTarget,
+                    )),
+                }),
             }
         )
     );
@@ -263,6 +338,26 @@ fn validate_envelopes(
     )
 }
 
+fn reference_set(
+    fixture: &Fixture,
+    target: ExportDefaultCallableTargetV1,
+    call_domain: ExportDefaultCallDomainV1,
+) -> ExportDefaultReferenceSetV1 {
+    ExportDefaultReferenceSetV1::try_new(
+        vec![ExportDefaultReferenceV1::new(
+            target,
+            fixture.origin.clone(),
+            ExportDefaultAccessWitnessV1::new(fixture.owner, call_domain),
+        )],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap()
+}
+
 struct Fixture {
     function: PersistentFunctionId,
     owner: CallableTemplateOrigin,
@@ -365,6 +460,36 @@ impl Fixture {
         body: ExportDefaultBodyV1,
         allows_suspend: CanonicalBooleanV1,
     ) -> CanonicalExportDefaultTemplatesV1 {
+        self.templates_with_body_and_references(
+            body,
+            allows_suspend,
+            ExportDefaultReferenceSetV1::default(),
+        )
+    }
+
+    fn templates_with_references(
+        &self,
+        references: ExportDefaultReferenceSetV1,
+    ) -> CanonicalExportDefaultTemplatesV1 {
+        let body = ExportDefaultBodyV1::try_new(
+            Vec::new(),
+            DefaultExpressionV1::try_new(
+                DefaultExpressionKindV1::UnitLiteral,
+                self.value_type.clone(),
+                self.origin.clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        self.templates_with_body_and_references(body, CanonicalBooleanV1::False, references)
+    }
+
+    fn templates_with_body_and_references(
+        &self,
+        body: ExportDefaultBodyV1,
+        allows_suspend: CanonicalBooleanV1,
+        references: ExportDefaultReferenceSetV1,
+    ) -> CanonicalExportDefaultTemplatesV1 {
         let template = ExportDefaultTemplateV1::try_new(
             self.key,
             PersistentLexicalRootV1::Function(self.function),
@@ -376,7 +501,7 @@ impl Fixture {
             CanonicalBinderUseListV1::try_new(Vec::new()).unwrap(),
             OptionalTemplateReceiverV1::Absent,
             CanonicalTemplateValueParametersV1::try_new(Vec::new()).unwrap(),
-            ExportDefaultReferenceSetV1::default(),
+            references,
             self.origin.clone(),
         )
         .unwrap();
@@ -391,6 +516,7 @@ impl Fixture {
             definition_source_validations: 0,
             template_origin_validations: 0,
             reject_template_origin: false,
+            reject_reference_target: false,
         }
     }
 }
@@ -402,6 +528,7 @@ struct Authority {
     definition_source_validations: usize,
     template_origin_validations: usize,
     reject_template_origin: bool,
+    reject_reference_target: bool,
 }
 
 impl NominalInterfaceShapeAuthority<AuthorityError> for Authority {
@@ -509,6 +636,70 @@ impl DefaultTemplateOriginSemanticAuthority<AuthorityError> for Authority {
     }
 }
 
+impl DefaultReferenceSemanticAuthority<AuthorityError> for Authority {
+    fn validate_default_callable_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: &ExportDefaultCallableTargetV1,
+    ) -> Result<(), AuthorityError> {
+        if self.reject_reference_target {
+            Err(AuthorityError::ReferenceTarget)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn validate_default_constructor_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: &DefaultConstructorRefV1,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedReferenceTarget(
+            ExportDefaultReferenceKindV1::Constructor,
+        ))
+    }
+
+    fn validate_default_type_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: &SignatureTypeKey,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedReferenceTarget(
+            ExportDefaultReferenceKindV1::Type,
+        ))
+    }
+
+    fn validate_default_global_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: PersistentPropertyId,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedReferenceTarget(
+            ExportDefaultReferenceKindV1::Global,
+        ))
+    }
+
+    fn validate_default_singleton_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: PersistentObjectValueId,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedReferenceTarget(
+            ExportDefaultReferenceKindV1::Singleton,
+        ))
+    }
+
+    fn validate_default_field_reference_target(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _target: &DefaultFieldRefV1,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedReferenceTarget(
+            ExportDefaultReferenceKindV1::Field,
+        ))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AuthorityError {
     Callable(CallableTemplateOrigin),
@@ -518,6 +709,8 @@ enum AuthorityError {
     UnexpectedInheritedProvider,
     TemplateOrigin,
     UnexpectedLocalOrigin,
+    ReferenceTarget,
+    UnexpectedReferenceTarget(ExportDefaultReferenceKindV1),
 }
 
 impl std::fmt::Display for AuthorityError {
