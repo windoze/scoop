@@ -104,7 +104,8 @@ pub use default_templates::{
     TemplateReceiverSemanticValidationError, TemplateReceiverV1, TemplateValueParameterBuildError,
     TemplateValueParameterIndexError, TemplateValueParameterListBuildError,
     TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
-    TemplateValueParameterResolutionError, TemplateValueParameterV1,
+    TemplateValueParameterResolutionError, TemplateValueParameterSemanticValidationError,
+    TemplateValueParameterV1,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,

@@ -37,7 +37,8 @@ pub use value_parameters::{
     IndexedTemplateValueParameterV1, TemplateValueParameterBuildError,
     TemplateValueParameterIndexError, TemplateValueParameterListBuildError,
     TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
-    TemplateValueParameterResolutionError, TemplateValueParameterV1,
+    TemplateValueParameterResolutionError, TemplateValueParameterSemanticValidationError,
+    TemplateValueParameterV1,
 };
 
 /// Section-local identity of one exported default template.

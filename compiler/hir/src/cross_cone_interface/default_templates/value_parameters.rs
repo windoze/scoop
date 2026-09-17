@@ -5,6 +5,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 
+mod semantics;
+
+pub use semantics::TemplateValueParameterSemanticValidationError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TemplateValueParameterV1 {
     position: u32,
