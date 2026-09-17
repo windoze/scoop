@@ -23,13 +23,13 @@ use selected::validate_selected_closure;
 /// A semantic closure whose provider MIR exports, consumer selections, HIR
 /// selected-use evidence, and terminal-provider matches are all exact.
 pub struct MirBridgeValidatedCrossConeHirClosure<'input> {
-    current: ConeIdentity,
-    target: ValidatedLirTargetSelection,
-    direct: Vec<ConeIdentity>,
-    dependency_first: Vec<MirBridgeValidatedCrossConeHirFrontSections<'input>>,
-    positions: BTreeMap<ConeIdentity, usize>,
-    dependency_positions: Vec<Vec<usize>>,
-    type_alias_expansions: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
+    pub(super) current: ConeIdentity,
+    pub(super) target: ValidatedLirTargetSelection,
+    pub(super) direct: Vec<ConeIdentity>,
+    pub(super) dependency_first: Vec<MirBridgeValidatedCrossConeHirFrontSections<'input>>,
+    pub(super) positions: BTreeMap<ConeIdentity, usize>,
+    pub(super) dependency_positions: Vec<Vec<usize>>,
+    pub(super) type_alias_expansions: Vec<scoop_hir::CanonicalTypeAliasExpansionsV1>,
 }
 
 impl MirBridgeValidatedCrossConeHirClosure<'_> {

@@ -33,6 +33,10 @@ use super::{
 use crate::ValidatedGraphArtifact;
 
 mod layout;
+mod scoop_abi;
+
+use scoop_abi::exact_type_records;
+pub(crate) use scoop_abi::replay_canonical_scoop_abi;
 
 /// Foundation payloads whose source closure and every target-specific native
 /// ABI leaf were independently recomputed from canonical identities.
@@ -77,33 +81,7 @@ pub(super) fn validate_target_normalization(
 ) -> Result<(), NativeBoundaryCompileError> {
     let target = artifact.target_selection().target();
     let meter = artifact.envelope.meter_mut();
-    let exact_types = records_by_id(
-        [
-            graph
-                .records::<PersistentExactTypeId, ExactTypeKey>(
-                    IdentityLayer::Hir,
-                    meter,
-                    &WirePath::root().field(15),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-            graph
-                .records::<PersistentExactTypeId, ExactTypeKey>(
-                    IdentityLayer::Mir,
-                    meter,
-                    &WirePath::root().field(1),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-            graph
-                .records::<PersistentExactTypeId, ExactTypeKey>(
-                    IdentityLayer::Lir,
-                    meter,
-                    &WirePath::root().field(1),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ],
-        meter,
-        &WirePath::root().field(15),
-    )?;
+    let exact_types = exact_type_records(graph, meter)?;
     let callable_applications = records_by_id(
         std::iter::once(
             graph

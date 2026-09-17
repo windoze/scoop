@@ -46,6 +46,7 @@ use crate::{
 };
 
 mod const_value;
+mod lir_bridge;
 mod mir_bridge;
 mod source_interface;
 mod type_alias;

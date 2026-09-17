@@ -24,12 +24,14 @@ use crate::{
 mod const_value;
 mod definition_source;
 mod errors;
+mod lir_bridge;
 mod mir_bridge;
 mod source_interface;
 
 pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
+pub use lir_bridge::*;
 pub use mir_bridge::*;
 pub use source_interface::*;
 

@@ -818,11 +818,11 @@ struct StrongProfileLocalProductionSet {
     mir: CoreBootstrapBridgeSectionV1,
 }
 
-struct StrongProfileSemanticFront<'a> {
-    hir_foundation: &'a OdrFreeHirFoundation,
-    hir_production: &'a CoreBootstrapInterfaceSectionV1,
-    mir_production: &'a CoreBootstrapBridgeSectionV1,
-    lir_foundation: &'a OdrFreeLirFoundation,
+pub(crate) struct StrongProfileSemanticFront<'a> {
+    pub(crate) hir_foundation: &'a OdrFreeHirFoundation,
+    pub(crate) hir_production: &'a CoreBootstrapInterfaceSectionV1,
+    pub(crate) mir_production: &'a CoreBootstrapBridgeSectionV1,
+    pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
 }
 
 pub(crate) fn validate_strong_profile_production(
@@ -893,7 +893,7 @@ pub(crate) fn validate_strong_profile_relations(
     )
 }
 
-fn validate_strong_profile_lir_production(
+pub(crate) fn validate_strong_profile_lir_production(
     graph: &ValidatedGraphArtifact<'_>,
     identities: &mut ValidatedIdentityGraph,
     front: StrongProfileSemanticFront<'_>,

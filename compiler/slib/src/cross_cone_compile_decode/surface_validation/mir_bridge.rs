@@ -22,15 +22,15 @@ use crate::{
 /// structurally valid. Closure-wide export eligibility and selected-provider
 /// matching are represented by the later closure type-state.
 pub struct MirBridgeValidatedCrossConeHirFrontSections<'input> {
-    graph: ValidatedGraphArtifact<'input>,
-    identities: ValidatedIdentityGraph,
-    foundations: OdrFreeStrongFoundationSet,
-    hir_core_production: CoreBootstrapInterfaceSectionV1,
-    hir_interface: CrossConeHirInterfaceSectionV1,
-    mir_core_production: CoreBootstrapBridgeSectionV1,
-    mir_cross_cone_bridge: CrossConeMirBridgeSectionV1,
-    lir_strong_production: DecodedStrongProductionSectionV1,
-    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    pub(super) graph: ValidatedGraphArtifact<'input>,
+    pub(super) identities: ValidatedIdentityGraph,
+    pub(super) foundations: OdrFreeStrongFoundationSet,
+    pub(super) hir_core_production: CoreBootstrapInterfaceSectionV1,
+    pub(super) hir_interface: CrossConeHirInterfaceSectionV1,
+    pub(super) mir_core_production: CoreBootstrapBridgeSectionV1,
+    pub(super) mir_cross_cone_bridge: CrossConeMirBridgeSectionV1,
+    pub(super) lir_strong_production: DecodedStrongProductionSectionV1,
+    pub(super) lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
 }
 
 impl MirBridgeValidatedCrossConeHirFrontSections<'_> {
