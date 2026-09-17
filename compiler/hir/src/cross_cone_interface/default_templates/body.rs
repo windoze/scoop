@@ -1,5 +1,6 @@
 mod bindings;
 mod callables;
+mod export_body;
 mod expressions;
 mod nested;
 mod operators;
@@ -28,6 +29,10 @@ pub use callables::{
     DefaultCallableDeclarationV1, DefaultCallableRefBuildError, DefaultCallableRefResolutionError,
     DefaultCallableRefV1, DefaultCallableReferenceResolver, DefaultMethodCalleeResolutionError,
     DefaultMethodCalleeV1,
+};
+pub use export_body::{
+    DecodedExportDefaultBodyV1, ExportDefaultBodyBuildError, ExportDefaultBodyIndexError,
+    ExportDefaultBodyResolutionError, ExportDefaultBodyV1, IndexedExportDefaultBodyV1,
 };
 pub use expressions::{
     DecodedDefaultArrayAssemblyPartV1, DecodedDefaultArrayAssemblyV1,
