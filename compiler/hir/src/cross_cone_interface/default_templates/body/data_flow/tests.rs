@@ -70,6 +70,28 @@ fn accepts_parameter_declaration_capture_and_final_read_in_definition_order() {
 }
 
 #[test]
+fn leaves_local_reference_retyping_to_operation_typing() {
+    let fixture = Fixture::new();
+    let parameter = LocalValueSelector::Parameter {
+        declaration_index: 0,
+    };
+    let retyped = SignatureTypeKey::Binder { depth: 0, index: 1 };
+    let template = template(
+        &fixture,
+        vec![source_record(
+            &fixture,
+            parameter.clone(),
+            CanonicalBooleanV1::False,
+        )],
+        vec![TemplateValueParameterV1::try_new(0, parameter.clone()).unwrap()],
+        Vec::new(),
+        local_expression(&fixture, parameter, retyped),
+    );
+
+    assert_eq!(validate(&template, &fixture), Ok(()));
+}
+
+#[test]
 fn rejects_reachable_future_read_but_ignores_it_after_abrupt_completion() {
     let fixture = Fixture::new();
     let future = local_selector(0);

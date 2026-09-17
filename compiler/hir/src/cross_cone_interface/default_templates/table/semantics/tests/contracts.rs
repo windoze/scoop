@@ -16,24 +16,28 @@ use crate::{
     CallableSourceParameterV1, CanonicalBinderListV1, CanonicalBinderUseListV1, CanonicalBooleanV1,
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalCallableSourceParametersV1, CanonicalSourceParameterShapesV1,
-    CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
+    CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1, DefaultBodyOperationV1,
     DefaultBodyProviderTypeSiteV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
-    DefaultConstructorRefV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1,
-    DefaultLocalDataFlowLocalError, DefaultLocalDataFlowSemanticAuthority,
-    DefaultLocalDataFlowSiteV1, DefaultReferenceSemanticAuthority, DefaultStatementKindV1,
-    DefaultStatementV1, DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
-    DefaultTemplateRootSemanticAuthority, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
-    ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
+    DefaultConstructorRefV1, DefaultCoreApplicationV1, DefaultExpressionKindV1,
+    DefaultExpressionV1, DefaultFieldRefV1, DefaultLocalDataFlowLocalError,
+    DefaultLocalDataFlowSemanticAuthority, DefaultLocalDataFlowSiteV1, DefaultOperationCoreTypeV1,
+    DefaultOperationEntityShapeV1, DefaultOperationEntityV1, DefaultOperationIntrinsicV1,
+    DefaultOperationTypeRelationV1, DefaultOperationTypingSemanticAuthority,
+    DefaultOperationValueRoleV1, DefaultReferenceSemanticAuthority, DefaultStatementKindV1,
+    DefaultStatementOperationV1, DefaultStatementV1, DefaultTemplateOriginSemanticAuthority,
+    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority,
+    ExportDefaultAccessWitnessV1, ExportDefaultBodyOperationTypingValidationError,
+    ExportDefaultBodyV1, ExportDefaultCallDomainV1, ExportDefaultCallableTargetV1,
     ExportDefaultLocalDataFlowValidationError, ExportDefaultReferenceClosureValidationError,
     ExportDefaultReferenceKindV1, ExportDefaultReferenceOccurrenceSiteV1,
     ExportDefaultReferenceSetSemanticValidationError, ExportDefaultReferenceSetV1,
     ExportDefaultReferenceV1, ExportDefaultReferenceValidationError, ExportDefaultTemplateKeyV1,
     ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateV1,
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
-    NominalInterfaceShapeAuthority, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
-    PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1,
-    SignatureBinderScopeError, SignatureTypeSemanticError, SourceParameterShapeV1,
-    TemplateLocalDefinitionV1, TemplateLocalRecordV1,
+    NominalInterfaceShapeAuthority, OptionalDefaultStatementListV1, OptionalTemplateReceiverV1,
+    PersistentLexicalRootV1, PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1,
+    PublicNominalShapeV1, SignatureBinderScopeError, SignatureTypeSemanticError,
+    SourceParameterShapeV1, TemplateLocalDefinitionV1, TemplateLocalRecordV1,
 };
 
 #[test]
@@ -331,6 +335,62 @@ fn rejects_source_defaults_missing_from_the_template_table() {
             )
         )
     );
+}
+
+#[test]
+fn routes_operation_typing_failures_with_table_identity() {
+    let fixture = Fixture::new();
+    let condition = DefaultExpressionV1::try_new(
+        DefaultExpressionKindV1::UnitLiteral,
+        fixture.value_type.clone(),
+        fixture.origin.clone(),
+    )
+    .unwrap();
+    let statement = DefaultStatementV1::try_new(
+        DefaultStatementKindV1::If {
+            condition: Box::new(condition),
+            then_body: Vec::new(),
+            else_body: OptionalDefaultStatementListV1::absent(),
+        },
+        fixture.origin.clone(),
+    )
+    .unwrap();
+    let body = ExportDefaultBodyV1::try_new(
+        vec![statement],
+        DefaultExpressionV1::try_new(
+            DefaultExpressionKindV1::UnitLiteral,
+            fixture.value_type.clone(),
+            fixture.origin.clone(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let templates = fixture.templates_with_body(body, CanonicalBooleanV1::False);
+
+    assert!(matches!(
+        validate_envelopes(
+            &templates,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::OperationTyping {
+                index: 0,
+                key,
+                error,
+            }
+        ) if key == fixture.key
+            && matches!(
+                error.as_ref(),
+                ExportDefaultBodyOperationTypingValidationError::Type { site, .. }
+                    if site.operation()
+                        == DefaultBodyOperationV1::Statement(
+                            DefaultStatementOperationV1::IfCondition,
+                        )
+                        && site.role() == DefaultOperationValueRoleV1::Condition
+            )
+    ));
 }
 
 #[test]
@@ -791,6 +851,56 @@ impl DefaultLocalDataFlowSemanticAuthority<AuthorityError> for Authority {
     }
 }
 
+impl DefaultOperationTypingSemanticAuthority<AuthorityError> for Authority {
+    fn canonical_default_operation_type(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        role: DefaultOperationCoreTypeV1,
+    ) -> Result<SignatureTypeKey, AuthorityError> {
+        match role {
+            DefaultOperationCoreTypeV1::Unit => Ok(SignatureTypeKey::Nominal(self.value_type)),
+            DefaultOperationCoreTypeV1::Boolean => Ok(SignatureTypeKey::RawPointer(Box::new(
+                SignatureTypeKey::Nominal(self.value_type),
+            ))),
+            _ => Err(AuthorityError::UnexpectedOperation),
+        }
+    }
+
+    fn classify_default_core_application(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _value: &SignatureTypeKey,
+    ) -> Result<Option<DefaultCoreApplicationV1>, AuthorityError> {
+        Err(AuthorityError::UnexpectedOperation)
+    }
+
+    fn default_operation_entity_shape(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _entity: DefaultOperationEntityV1<'_>,
+    ) -> Result<DefaultOperationEntityShapeV1, AuthorityError> {
+        Err(AuthorityError::UnexpectedOperation)
+    }
+
+    fn default_operation_type_relation(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _relation: DefaultOperationTypeRelationV1,
+        _source: &SignatureTypeKey,
+        _target: &SignatureTypeKey,
+    ) -> Result<bool, AuthorityError> {
+        Err(AuthorityError::UnexpectedOperation)
+    }
+
+    fn validate_default_operation_intrinsic(
+        &mut self,
+        _template: &ExportDefaultTemplateV1,
+        _intrinsic: DefaultOperationIntrinsicV1<'_>,
+    ) -> Result<(), AuthorityError> {
+        Err(AuthorityError::UnexpectedOperation)
+    }
+}
+
 impl DefaultReferenceSemanticAuthority<AuthorityError> for Authority {
     fn validate_default_callable_reference_target(
         &mut self,
@@ -869,6 +979,7 @@ enum AuthorityError {
     TemplateOrigin,
     UnexpectedLocalOrigin,
     UnexpectedBindingStructField(PersistentFieldId),
+    UnexpectedOperation,
     ReferenceTarget,
     UnexpectedReferenceTarget(ExportDefaultReferenceKindV1),
 }

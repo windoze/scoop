@@ -96,9 +96,10 @@ where
             | DefaultExpressionKindV1::FunctionAddress(_)
             | DefaultExpressionKindV1::NoneLiteral => Ok(()),
             DefaultExpressionKindV1::Local(local) => {
+                // Operation typing owns the principal-to-result reference retype.
                 self.use_local(
                     local,
-                    Some(expression.result_type()),
+                    None,
                     DefaultLocalDataFlowSiteV1::Expression,
                     available,
                     reachable,
