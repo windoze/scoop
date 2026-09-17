@@ -26,6 +26,12 @@ pub enum ExternalHirTargetV1 {
     GeneratedCallable(PersistentGeneratedCallableId),
 }
 
+impl From<NominalDeclarationOwner> for ExternalHirTargetV1 {
+    fn from(target: NominalDeclarationOwner) -> Self {
+        Self::Nominal(target)
+    }
+}
+
 impl From<BindableEntity> for ExternalHirTargetV1 {
     fn from(target: BindableEntity) -> Self {
         match target {

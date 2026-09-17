@@ -28,11 +28,16 @@ use super::{
 
 mod definition_source_closure;
 mod internal_closures;
+mod signature_reference_closure;
 
 pub use definition_source_closure::{
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
 };
 pub use internal_closures::CrossConeHirInternalClosureValidationError;
+pub use signature_reference_closure::{
+    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
+    ExternalHirSignatureUseSiteV1,
+};
 
 /// The complete canonical HIR interface exported across a Cone boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
