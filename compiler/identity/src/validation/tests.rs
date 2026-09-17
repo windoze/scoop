@@ -767,6 +767,80 @@ fn semantic_import_rejects_origin_conflicts_without_partial_commit() {
     assert_eq!(session.entity_count(), entity_count);
 }
 
+#[test]
+fn semantic_import_batch_reuses_world_ids_and_preserves_input_order() {
+    let graph = validated_source_type_graph();
+    let first_fingerprint = SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]);
+    let second_fingerprint = SemanticOriginFingerprint::new([4; 32], [5; 32], [6; 32]);
+    let imports = [
+        SemanticIdentityImport::new(ConeIdentity::CORE, first_fingerprint, &graph),
+        SemanticIdentityImport::new(ConeIdentity::SINGLE_FILE, second_fingerprint, &graph),
+    ];
+    let mut session = SemanticIdentitySession::new();
+
+    let mut imported = session.import_batch(&imports).unwrap().into_iter();
+    let (first, _, _) = imported.next().unwrap().into_parts();
+    let (second, _, _) = imported.next().unwrap().into_parts();
+    assert!(imported.next().is_none());
+    assert_eq!(
+        first.get(source_type_record().id()),
+        second.get(source_type_record().id())
+    );
+    assert_eq!(first.origin(), ConeIdentity::CORE);
+    assert_eq!(second.origin(), ConeIdentity::SINGLE_FILE);
+    assert_eq!(session.origin_count(), 2);
+    assert_eq!(session.entity_count(), 1);
+}
+
+#[test]
+fn semantic_import_batch_discards_earlier_success_when_a_later_origin_conflicts() {
+    let graph = validated_source_type_graph();
+    let existing = SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]);
+    let conflicting = SemanticOriginFingerprint::new([9; 32], [2; 32], [3; 32]);
+    let mut session = SemanticIdentitySession::new();
+    session
+        .import(ConeIdentity::SINGLE_FILE, existing, &graph)
+        .unwrap();
+    let imports = [
+        SemanticIdentityImport::new(ConeIdentity::CORE, existing, &graph),
+        SemanticIdentityImport::new(ConeIdentity::SINGLE_FILE, conflicting, &graph),
+    ];
+
+    assert_eq!(
+        session.import_batch(&imports).err(),
+        Some(SemanticIdentityImportError::OriginConflict {
+            origin: ConeIdentity::SINGLE_FILE,
+        })
+    );
+    assert_eq!(session.origin_count(), 1);
+    assert_eq!(session.entity_count(), 1);
+    assert_eq!(session.origin_fingerprint(ConeIdentity::CORE), None);
+    assert_eq!(
+        session.origin_fingerprint(ConeIdentity::SINGLE_FILE),
+        Some(existing)
+    );
+}
+
+#[test]
+fn semantic_import_batch_rejects_duplicate_origins_without_mutation() {
+    let graph = validated_source_type_graph();
+    let fingerprint = SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]);
+    let imports = [
+        SemanticIdentityImport::new(ConeIdentity::CORE, fingerprint, &graph),
+        SemanticIdentityImport::new(ConeIdentity::CORE, fingerprint, &graph),
+    ];
+    let mut session = SemanticIdentitySession::new();
+
+    assert_eq!(
+        session.import_batch(&imports).err(),
+        Some(SemanticIdentityImportError::DuplicateBatchOrigin {
+            origin: ConeIdentity::CORE,
+        })
+    );
+    assert_eq!(session.origin_count(), 0);
+    assert_eq!(session.entity_count(), 0);
+}
+
 fn validated_source_type_graph() -> ValidatedIdentityGraph {
     let decoded = decoded_source_type();
     let mut pending = PendingIdentityValidation::new();

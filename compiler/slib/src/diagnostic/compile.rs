@@ -150,10 +150,12 @@ impl SlibDiagnostic for CompileCommitError {
 impl SlibDiagnostic for SemanticIdentityImportError {
     fn diagnostic(&self) -> SlibDiagnosticRecord {
         match self {
-            Self::OriginConflict { origin } => root_diagnostic(
-                SlibErrorCode::SessionConflict,
-                SlibPrimaryOrigin::Cone(*origin),
-            ),
+            Self::OriginConflict { origin } | Self::DuplicateBatchOrigin { origin } => {
+                root_diagnostic(
+                    SlibErrorCode::SessionConflict,
+                    SlibPrimaryOrigin::Cone(*origin),
+                )
+            }
             Self::IdentityConflict { kind, id } => {
                 identity_diagnostic(SlibErrorCode::SessionConflict, kind, id)
             }

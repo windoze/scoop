@@ -32,8 +32,8 @@ pub use decoded::DecodedIdentityKey;
 mod semantic;
 pub use semantic::{
     HirIdentityLayer, ImportedIdentityId, ImportedIdentityLayer, ImportedIdentityLayers,
-    ImportedIdentityMap, LirIdentityLayer, MirIdentityLayer, SemanticIdentityImportError,
-    SemanticIdentitySession, SemanticOriginFingerprint,
+    ImportedIdentityMap, LirIdentityLayer, MirIdentityLayer, SemanticIdentityImport,
+    SemanticIdentityImportError, SemanticIdentitySession, SemanticOriginFingerprint,
 };
 
 /// Artifact layer that first introduces a persistent identity record.

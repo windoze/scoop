@@ -1,5 +1,5 @@
 use std::any::TypeId;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -58,6 +58,7 @@ impl SemanticIdentitySlot {
     }
 }
 
+#[derive(Clone)]
 struct SessionEntity {
     world_index: u32,
     key_slot: CanonicalKeySlot,
@@ -76,6 +77,42 @@ pub struct SemanticIdentitySession {
     next_world_index: u64,
 }
 
+/// One already validated identity graph queued for an atomic semantic-session
+/// import. The graph remains borrowed so batching does not clone canonical
+/// identity keys before the transaction is known to succeed.
+#[derive(Clone, Copy)]
+pub struct SemanticIdentityImport<'graph> {
+    origin: ConeIdentity,
+    fingerprint: SemanticOriginFingerprint,
+    graph: &'graph ValidatedIdentityGraph,
+}
+
+impl<'graph> SemanticIdentityImport<'graph> {
+    pub const fn new(
+        origin: ConeIdentity,
+        fingerprint: SemanticOriginFingerprint,
+        graph: &'graph ValidatedIdentityGraph,
+    ) -> Self {
+        Self {
+            origin,
+            fingerprint,
+            graph,
+        }
+    }
+
+    pub const fn origin(self) -> ConeIdentity {
+        self.origin
+    }
+
+    pub const fn fingerprint(self) -> SemanticOriginFingerprint {
+        self.fingerprint
+    }
+
+    pub const fn graph(self) -> &'graph ValidatedIdentityGraph {
+        self.graph
+    }
+}
+
 impl SemanticIdentitySession {
     pub fn new() -> Self {
         Self::default()
@@ -91,6 +128,45 @@ impl SemanticIdentitySession {
 
     pub fn origin_fingerprint(&self, origin: ConeIdentity) -> Option<SemanticOriginFingerprint> {
         self.origins.get(&origin).copied()
+    }
+
+    /// Imports an ordered closure of validated identity graphs as one atomic
+    /// session mutation.
+    ///
+    /// All imports run against an isolated session snapshot. The receiver is
+    /// replaced only after every origin, canonical key, world-id allocation,
+    /// and per-layer remap succeeds. Results preserve the caller's canonical
+    /// input order.
+    pub fn import_batch(
+        &mut self,
+        imports: &[SemanticIdentityImport<'_>],
+    ) -> Result<Vec<ImportedIdentityLayers>, SemanticIdentityImportError> {
+        let mut batch_origins = HashSet::new();
+        batch_origins.try_reserve(imports.len()).map_err(|_| {
+            SemanticIdentityImportError::Allocation {
+                requested_slots: imports.len(),
+            }
+        })?;
+        for import in imports {
+            if !batch_origins.insert(import.origin) {
+                return Err(SemanticIdentityImportError::DuplicateBatchOrigin {
+                    origin: import.origin,
+                });
+            }
+        }
+
+        let mut staged = self.try_clone_for_batch()?;
+        let mut imported = Vec::new();
+        imported.try_reserve_exact(imports.len()).map_err(|_| {
+            SemanticIdentityImportError::Allocation {
+                requested_slots: imports.len(),
+            }
+        })?;
+        for import in imports {
+            imported.push(staged.import(import.origin, import.fingerprint, import.graph)?);
+        }
+        *self = staged;
+        Ok(imported)
     }
 
     pub fn import(
@@ -214,6 +290,38 @@ impl SemanticIdentitySession {
         self.next_world_index = next_world_index;
         self.origins.entry(origin).or_insert(fingerprint);
         Ok(ImportedIdentityLayers { hir, mir, lir })
+    }
+
+    fn try_clone_for_batch(&self) -> Result<Self, SemanticIdentityImportError> {
+        let mut origins = HashMap::new();
+        origins.try_reserve(self.origins.len()).map_err(|_| {
+            SemanticIdentityImportError::Allocation {
+                requested_slots: self.origins.len(),
+            }
+        })?;
+        origins.extend(
+            self.origins
+                .iter()
+                .map(|(origin, fingerprint)| (*origin, *fingerprint)),
+        );
+
+        let mut entities = HashMap::new();
+        entities.try_reserve(self.entities.len()).map_err(|_| {
+            SemanticIdentityImportError::Allocation {
+                requested_slots: self.entities.len(),
+            }
+        })?;
+        entities.extend(
+            self.entities
+                .iter()
+                .map(|(slot, entity)| (*slot, entity.clone())),
+        );
+
+        Ok(Self {
+            origins,
+            entities,
+            next_world_index: self.next_world_index,
+        })
     }
 }
 
@@ -383,6 +491,7 @@ impl ImportedIdentityLayers {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SemanticIdentityImportError {
     OriginConflict { origin: ConeIdentity },
+    DuplicateBatchOrigin { origin: ConeIdentity },
     IdentityConflict { kind: &'static str, id: [u8; 32] },
     MissingCanonicalKey,
     WorldIdExhausted,
@@ -396,6 +505,12 @@ impl fmt::Display for SemanticIdentityImportError {
                 write!(
                     formatter,
                     "Cone {origin} was already imported with other fingerprints"
+                )
+            }
+            Self::DuplicateBatchOrigin { origin } => {
+                write!(
+                    formatter,
+                    "Cone {origin} occurs more than once in one import batch"
                 )
             }
             Self::IdentityConflict { kind, id } => {

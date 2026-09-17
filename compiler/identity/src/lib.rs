@@ -221,6 +221,6 @@ pub use validation::{
     DecodedIdentityKey, HirIdentityLayer, IdentityLayer, IdentityReferenceError,
     IdentityValidationError, ImportedIdentityId, ImportedIdentityLayer, ImportedIdentityLayers,
     ImportedIdentityMap, LirIdentityLayer, MirIdentityLayer, PendingIdentityValidation,
-    SemanticIdentityImportError, SemanticIdentitySession, SemanticOriginFingerprint,
-    ValidatedIdentityGraph,
+    SemanticIdentityImport, SemanticIdentityImportError, SemanticIdentitySession,
+    SemanticOriginFingerprint, ValidatedIdentityGraph,
 };
