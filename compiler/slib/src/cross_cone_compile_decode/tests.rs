@@ -2,12 +2,13 @@ use scoop_identity::ArtifactCapabilityProfileId;
 
 use super::*;
 use crate::{
-    ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView,
-    MemberPurposeSet, MetadataLocation, SectionLocation, hir_cross_cone_interface_capability,
-    lir_cross_cone_link_closure_capability, lir_cross_cone_param_free_bridge_capability,
-    mir_cross_cone_param_free_bridge_capability,
+    ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView, ConeRecord,
+    DependencyRecord, MemberPurposeSet, MetadataLocation, SectionLocation,
+    hir_cross_cone_interface_capability, lir_cross_cone_link_closure_capability,
+    lir_cross_cone_param_free_bridge_capability, mir_cross_cone_param_free_bridge_capability,
     strong_compile_decode::tests::{
-        build_artifact_for_profile, cone, open_graph, required_sections, section,
+        build_artifact_for_profile, build_artifact_for_profile_with_dependencies, cone, open_graph,
+        required_sections, section,
     },
 };
 
@@ -90,7 +91,15 @@ fn cross_cone_hir_front_rejects_noncanonical_general_hir_payload() {
     ));
 }
 
-fn cross_cone_artifact(hir_interface: Vec<u8>) -> Vec<u8> {
+pub(crate) fn cross_cone_artifact(hir_interface: Vec<u8>) -> Vec<u8> {
+    cross_cone_artifact_for(cone(), Vec::new(), hir_interface)
+}
+
+pub(crate) fn cross_cone_artifact_for(
+    cone: ConeRecord,
+    dependencies: Vec<DependencyRecord>,
+    hir_interface: Vec<u8>,
+) -> Vec<u8> {
     let (mut hir, mut mir, mut lir) = required_sections();
     hir.push(section(
         MetadataLocation::Hir,
@@ -99,9 +108,10 @@ fn cross_cone_artifact(hir_interface: Vec<u8>) -> Vec<u8> {
         hir_interface,
     ));
     add_cross_cone_bridge_sections(&mut mir, &mut lir);
-    build_artifact_for_profile(
-        cone(),
+    build_artifact_for_profile_with_dependencies(
+        cone,
         ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        dependencies,
         hir,
         mir,
         lir,
@@ -133,7 +143,7 @@ fn add_cross_cone_bridge_sections(
     ));
 }
 
-fn empty_cross_cone_hir_interface() -> Vec<u8> {
+pub(crate) fn empty_cross_cone_hir_interface() -> Vec<u8> {
     vec![
         0xaa, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80,
         0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,

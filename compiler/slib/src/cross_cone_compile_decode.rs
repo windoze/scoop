@@ -10,7 +10,8 @@ use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation};
 use scoop_wire::DecodeUsage;
 
 use crate::{
-    ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, MetadataLocation,
+    ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, ConeKind,
+    ConeSourceForm, DependencyRecord, MetadataLocation, SemanticFingerprintRecord,
     ValidatedGraphArtifact,
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
@@ -116,12 +117,43 @@ impl DecodedCrossConeHirFrontSections<'_> {
         self.graph.identity()
     }
 
+    pub const fn kind(&self) -> ConeKind {
+        self.graph.kind()
+    }
+
+    pub const fn source_form(&self) -> ConeSourceForm {
+        self.graph.source_form()
+    }
+
+    pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
+        self.graph.target_selection()
+    }
+
+    pub fn direct_dependencies(&self) -> &[DependencyRecord] {
+        self.graph.direct_dependencies()
+    }
+
     pub const fn artifact_fingerprint(&self) -> ArtifactFingerprint {
         self.graph.artifact_fingerprint()
     }
 
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.graph.decode_usage()
+    }
+
+    pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
+        self.graph.envelope.manifest().semantic_fingerprints()
+    }
+
+    pub fn dependency_record(&self) -> DependencyRecord {
+        let semantic = self.semantic_fingerprints();
+        DependencyRecord::from_validated(
+            self.coordinate().clone(),
+            self.identity(),
+            semantic.hir(),
+            semantic.mir(),
+            semantic.lir(),
+        )
     }
 
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {
@@ -156,4 +188,4 @@ impl DecodedCrossConeHirFrontSections<'_> {
 pub type CrossConeHirFrontSectionDecodeError = CompileSectionDecodeError;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -556,6 +556,26 @@ pub(crate) fn build_artifact_for_profile(
     lir_sections: Vec<MetadataSection>,
     stale_hir_fingerprint: bool,
 ) -> Vec<u8> {
+    build_artifact_for_profile_with_dependencies(
+        cone,
+        profile,
+        Vec::new(),
+        hir_sections,
+        mir_sections,
+        lir_sections,
+        stale_hir_fingerprint,
+    )
+}
+
+pub(crate) fn build_artifact_for_profile_with_dependencies(
+    cone: ConeRecord,
+    profile: ArtifactCapabilityProfile,
+    dependencies: Vec<crate::DependencyRecord>,
+    hir_sections: Vec<MetadataSection>,
+    mir_sections: Vec<MetadataSection>,
+    lir_sections: Vec<MetadataSection>,
+    stale_hir_fingerprint: bool,
+) -> Vec<u8> {
     let producer = cone.identity();
     let compatibility = CompatibilityRecord::new(selection(), profile).unwrap();
     let known_hir = known_sections(&hir_sections);
@@ -563,7 +583,7 @@ pub(crate) fn build_artifact_for_profile(
     let known_lir = known_sections(&lir_sections);
     let semantic = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
-        &[],
+        &dependencies,
         &known_hir,
         &known_mir,
         &known_lir,
@@ -613,7 +633,7 @@ pub(crate) fn build_artifact_for_profile(
         ProducerRecord::new("test").unwrap(),
         compatibility,
         cone,
-        Vec::new(),
+        dependencies,
         &members,
         semantic,
         vec![production],
@@ -660,8 +680,12 @@ fn empty_not_core_library_section() -> Vec<u8> {
 }
 
 pub(crate) fn cone() -> ConeRecord {
+    cone_named("strong-compile")
+}
+
+pub(crate) fn cone_named(name: &str) -> ConeRecord {
     ConeRecord::new(
-        ConeCoordinate::new("test", "strong-compile", "0.0.0").unwrap(),
+        ConeCoordinate::new("test", name, "0.0.0").unwrap(),
         ConeKind::Library,
         ConeSourceForm::Manifest,
     )
