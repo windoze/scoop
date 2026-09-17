@@ -140,8 +140,9 @@ pub use roots::{
 pub use table::{
     CanonicalExportDefaultTemplatesV1, DecodedCanonicalExportDefaultTemplatesV1,
     ExportDefaultTemplateLookupError, ExportDefaultTemplateSetBuildError,
-    ExportDefaultTemplateSetIndexError, ExportDefaultTemplateSetValidationError,
-    ExportDefaultTemplateSourceClosureValidationError, IndexedCanonicalExportDefaultTemplatesV1,
+    ExportDefaultTemplateSetEnvelopeSemanticValidationError, ExportDefaultTemplateSetIndexError,
+    ExportDefaultTemplateSetValidationError, ExportDefaultTemplateSourceClosureValidationError,
+    IndexedCanonicalExportDefaultTemplatesV1,
 };
 pub use template::{
     DecodedExportDefaultTemplateV1, DefaultTemplateOriginSemanticAuthority,

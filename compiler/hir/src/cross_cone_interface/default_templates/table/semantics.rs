@@ -3,9 +3,66 @@ use std::fmt;
 use scoop_identity::CallableTemplateOrigin;
 
 use super::CanonicalExportDefaultTemplatesV1;
-use crate::{CanonicalCallableSourceInterfacesV1, ExportDefaultTemplateKeyV1};
+use crate::{
+    CallableInterfaceSemanticAuthority, CanonicalCallableInterfacesV1,
+    CanonicalCallableSourceInterfacesV1, DefaultTemplateOriginSemanticAuthority,
+    DefaultTemplateRootSemanticAuthority, ExportDefaultTemplateContractSemanticValidationError,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateOriginSemanticValidationError,
+};
 
 impl CanonicalExportDefaultTemplatesV1 {
+    /// Validates every template envelope against callable/source tables that
+    /// have already passed their own semantic validators, then proves the
+    /// exact bidirectional source-template closure. Body operations and their
+    /// reference closure are validated separately.
+    pub fn validate_envelope_semantics<A, E>(
+        &self,
+        callables: &CanonicalCallableInterfacesV1,
+        sources: &CanonicalCallableSourceInterfacesV1,
+        authority: &mut A,
+    ) -> Result<(), ExportDefaultTemplateSetEnvelopeSemanticValidationError<E>>
+    where
+        A: CallableInterfaceSemanticAuthority<E>
+            + DefaultTemplateRootSemanticAuthority<E>
+            + DefaultTemplateOriginSemanticAuthority<E>,
+    {
+        for (index, template) in self.records().iter().enumerate() {
+            let key = template.key();
+            let callable = callables.get(key.owner()).ok_or(
+                ExportDefaultTemplateSetEnvelopeSemanticValidationError::MissingCallable {
+                    index,
+                    owner: key.owner(),
+                },
+            )?;
+            let source = sources.get(key.owner()).ok_or(
+                ExportDefaultTemplateSetEnvelopeSemanticValidationError::MissingSource {
+                    index,
+                    owner: key.owner(),
+                },
+            )?;
+            template
+                .validate_contract_semantics(callable, source, authority)
+                .map_err(|error| {
+                    ExportDefaultTemplateSetEnvelopeSemanticValidationError::Contract {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    }
+                })?;
+            template
+                .validate_origin_semantics(authority)
+                .map_err(|error| {
+                    ExportDefaultTemplateSetEnvelopeSemanticValidationError::Origin {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    }
+                })?;
+        }
+        self.validate_source_closure(sources)
+            .map_err(ExportDefaultTemplateSetEnvelopeSemanticValidationError::SourceClosure)
+    }
+
     pub fn validate_source_closure(
         &self,
         sources: &CanonicalCallableSourceInterfacesV1,
@@ -127,6 +184,63 @@ impl fmt::Display for ExportDefaultTemplateSourceClosureValidationError {
 }
 
 impl std::error::Error for ExportDefaultTemplateSourceClosureValidationError {}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
+    MissingCallable {
+        index: usize,
+        owner: CallableTemplateOrigin,
+    },
+    MissingSource {
+        index: usize,
+        owner: CallableTemplateOrigin,
+    },
+    Contract {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<ExportDefaultTemplateContractSemanticValidationError<E>>,
+    },
+    Origin {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<ExportDefaultTemplateOriginSemanticValidationError<E>>,
+    },
+    SourceClosure(ExportDefaultTemplateSourceClosureValidationError),
+}
+
+impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingCallable { index, owner } => write!(
+                formatter,
+                "export default template {index} owner {owner:?} has no callable interface"
+            ),
+            Self::MissingSource { index, owner } => write!(
+                formatter,
+                "export default template {index} owner {owner:?} has no source interface"
+            ),
+            Self::Contract { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} contract at index {index}: {error}"
+            ),
+            Self::Origin { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} origin at index {index}: {error}"
+            ),
+            Self::SourceClosure(error) => {
+                write!(
+                    formatter,
+                    "invalid default-template source closure: {error}"
+                )
+            }
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for ExportDefaultTemplateSetEnvelopeSemanticValidationError<E>
+{
+}
 
 #[cfg(test)]
 mod tests;

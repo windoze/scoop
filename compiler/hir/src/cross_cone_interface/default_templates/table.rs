@@ -13,7 +13,10 @@ use crate::{
 
 mod semantics;
 
-pub use semantics::ExportDefaultTemplateSourceClosureValidationError;
+pub use semantics::{
+    ExportDefaultTemplateSetEnvelopeSemanticValidationError,
+    ExportDefaultTemplateSourceClosureValidationError,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalExportDefaultTemplatesV1 {
