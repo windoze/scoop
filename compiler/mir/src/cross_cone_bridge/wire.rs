@@ -152,7 +152,11 @@ impl DecodedCrossConeMirBridgeSectionV1 {
 
         validate_section_relations(artifact, foundation, &exports, &selected)
             .map_err(CrossConeMirBridgeValidationError::Relation)?;
-        Ok(CrossConeMirBridgeSectionV1 { exports, selected })
+        Ok(CrossConeMirBridgeSectionV1 {
+            artifact,
+            exports,
+            selected,
+        })
     }
 }
 

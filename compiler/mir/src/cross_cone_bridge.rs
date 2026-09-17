@@ -4,11 +4,13 @@ use scoop_wire::{Encoder, WireEncode};
 
 mod errors;
 mod model;
+mod selection;
 mod validation;
 mod wire;
 
 pub use errors::*;
 pub use model::*;
+pub use selection::*;
 pub use wire::*;
 
 fn encode_array<T: WireEncode>(

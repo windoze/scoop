@@ -123,6 +123,7 @@ impl WireEncode for SelectedDependencyMirCallableV1 {
 /// Canonical MIR export and selected-use surfaces for ordinary dependencies.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeMirBridgeSectionV1 {
+    pub(super) artifact: ConeIdentity,
     pub(super) exports: Vec<ParamFreeMirCallableExportV1>,
     pub(super) selected: Vec<SelectedDependencyMirCallableV1>,
 }
@@ -146,7 +147,18 @@ impl CrossConeMirBridgeSectionV1 {
         })?;
         validate_section_relations(artifact, foundation, &exports, &selected)
             .map_err(CrossConeMirBridgeBuildError::Relation)?;
-        Ok(Self { exports, selected })
+        Ok(Self {
+            artifact,
+            exports,
+            selected,
+        })
+    }
+
+    /// Artifact identity supplied by the containing manifest while the
+    /// section was built or validated. It is contextual and therefore is not
+    /// encoded redundantly in this section's wire payload.
+    pub const fn artifact(&self) -> ConeIdentity {
+        self.artifact
     }
 
     pub fn exports(&self) -> &[ParamFreeMirCallableExportV1] {

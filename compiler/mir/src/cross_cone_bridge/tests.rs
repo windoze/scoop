@@ -183,6 +183,7 @@ fn reader_rejects_noncanonical_and_duplicate_tables() {
     ));
 
     let duplicate = CrossConeMirBridgeSectionV1 {
+        artifact: fixture.artifact,
         exports: Vec::new(),
         selected: vec![first.clone(), first],
     };
