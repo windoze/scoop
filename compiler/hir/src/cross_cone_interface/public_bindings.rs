@@ -9,6 +9,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{CanonicalReexportRoutesV1, DecodedCanonicalReexportRoutesV1};
 
+mod direct_surface;
+
+pub use direct_surface::PublicExportBindingDirectSurfaceValidationError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExportBindingSourceV1 {
     DeclaredCurrent { declaration: BindableEntity },

@@ -7,7 +7,107 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, Encoder, WireEncode, decode_canonical, encode};
 
 use super::*;
-use crate::{ReexportRouteHopV1, ReexportRouteV1};
+use crate::{CanonicalDirectPublicSurfaceV1, ReexportRouteHopV1, ReexportRouteV1};
+
+#[test]
+fn direct_surface_matches_exactly_the_declared_current_subset() {
+    let current = ConeIdentity::SINGLE_FILE;
+    let first = direct_fixture(current, "first");
+    let second = direct_fixture(current, "second");
+    let provider = cone("example:provider:1.0.0");
+    let target = function(provider, "target");
+    let provider_binding = binding(provider, "target", &target);
+    let facade_binding = binding(current, "forwarded", &target);
+    let reexport = PublicExportBindingRecordV1::new(
+        facade_binding.id(),
+        ExportBindingSourceV1::Reexport {
+            routes: CanonicalReexportRoutesV1::try_new(vec![
+                ReexportRouteV1::try_new(
+                    provider,
+                    vec![ReexportRouteHopV1::new(provider, provider_binding.id())],
+                )
+                .unwrap(),
+            ])
+            .unwrap(),
+        },
+    );
+    let bindings =
+        CanonicalPublicExportBindingsV1::try_new(vec![second.public, reexport, first.public])
+            .unwrap();
+    let direct =
+        CanonicalDirectPublicSurfaceV1::try_new(vec![second.binding.id(), first.binding.id()])
+            .unwrap();
+
+    assert_eq!(bindings.validate_direct_surface(&direct), Ok(()));
+}
+
+#[test]
+fn direct_surface_rejects_missing_and_unexpected_declared_bindings() {
+    let fixture = direct_fixture(ConeIdentity::SINGLE_FILE, "entry");
+    let binding = fixture.binding.id();
+    let empty = CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap();
+    let expected = CanonicalDirectPublicSurfaceV1::try_new(vec![binding]).unwrap();
+
+    assert_eq!(
+        empty.validate_direct_surface(&expected),
+        Err(
+            PublicExportBindingDirectSurfaceValidationError::MissingDeclaredCurrent {
+                surface_index: 0,
+                insertion_index: 0,
+                binding,
+            }
+        )
+    );
+
+    let actual = CanonicalPublicExportBindingsV1::try_new(vec![fixture.public]).unwrap();
+    let expected = CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap();
+    assert_eq!(
+        actual.validate_direct_surface(&expected),
+        Err(
+            PublicExportBindingDirectSurfaceValidationError::UnexpectedDeclaredCurrent {
+                record_index: 0,
+                insertion_index: 0,
+                binding,
+            }
+        )
+    );
+}
+
+#[test]
+fn direct_surface_rejects_a_reexport_with_a_direct_binding_id() {
+    let current = ConeIdentity::SINGLE_FILE;
+    let provider = cone("example:provider:1.0.0");
+    let target = function(provider, "target");
+    let provider_binding = binding(provider, "target", &target);
+    let facade_binding = binding(current, "forwarded", &target);
+    let binding = facade_binding.id();
+    let reexport = PublicExportBindingRecordV1::new(
+        binding,
+        ExportBindingSourceV1::Reexport {
+            routes: CanonicalReexportRoutesV1::try_new(vec![
+                ReexportRouteV1::try_new(
+                    provider,
+                    vec![ReexportRouteHopV1::new(provider, provider_binding.id())],
+                )
+                .unwrap(),
+            ])
+            .unwrap(),
+        },
+    );
+    let bindings = CanonicalPublicExportBindingsV1::try_new(vec![reexport]).unwrap();
+    let direct = CanonicalDirectPublicSurfaceV1::try_new(vec![binding]).unwrap();
+
+    assert_eq!(
+        bindings.validate_direct_surface(&direct),
+        Err(
+            PublicExportBindingDirectSurfaceValidationError::DirectBindingIsReexport {
+                surface_index: 0,
+                record_index: 0,
+                binding,
+            }
+        )
+    );
+}
 
 #[test]
 fn producer_sorts_records_rejects_duplicates_and_has_stable_wire() {

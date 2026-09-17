@@ -301,8 +301,9 @@ pub use property_interfaces::{
 pub use public_bindings::{
     CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
     DecodedExportBindingSourceV1, DecodedPublicExportBindingRecordV1, ExportBindingSourceV1,
-    PublicExportBindingBuildError, PublicExportBindingRecordV1, PublicExportBindingResolutionError,
-    PublicExportBindingResolver, PublicExportBindingSetValidationError,
+    PublicExportBindingBuildError, PublicExportBindingDirectSurfaceValidationError,
+    PublicExportBindingRecordV1, PublicExportBindingResolutionError, PublicExportBindingResolver,
+    PublicExportBindingSetValidationError,
 };
 pub use route_closure::{
     PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
