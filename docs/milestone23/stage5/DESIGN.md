@@ -806,9 +806,9 @@ frame而只有owner frame时，signature中的唯一frame仍使用`depth = 0`，
 
 body、receiver、value-parameter和后续嵌套template-owned entity在wire中以canonical local table的zero-based unsigned `u32`下标引用local。decoded形态只暂存`local_index`；解析后语义形态必须保存对应的`LocalValueSelector`，writer再按selector反查canonical index。越界、selector/index不一致或同一selector映射到多条record均拒绝，任何raw `LocalId`/arena ordinal不得进入已解析HIR。
 
-`OptionalTemplateReceiverV1`的wire为`Absent={0:1}`、`Present={0:2,1:receiver}`；`TemplateReceiverV1`为`{1:local_index,2:value_type}`。若key owner没有receiver则必须Absent；若有receiver则必须Present，local必须命中唯一`This`、不可变且类型逐结构等于receiver的`value_type`，该type再逐结构等于owner callable interface的receiver type。
+`OptionalTemplateReceiverV1`的wire为`Absent={0:1}`、`Present={0:2,1:receiver}`；`TemplateReceiverV1`为`{1:local_index,2:value_type}`。若key owner没有receiver则必须Absent；若有receiver则必须Present，local必须命中唯一`This`、不可变且provider-scope原始类型逐结构等于receiver的`value_type`。validator先在definition root的provider scope中验证该原始类型，再用`CanonicalBinderUseListV1`替换全部provider binder；替换后的类型必须逐结构等于key owner callable interface的receiver type。直接default的identity mapping自然得到相同结果，继承generic default不得跳过替换而直接比较两个不同binder scope中的表示。
 
-`CanonicalTemplateValueParametersV1`是按`position`严格递增的array，record wire为`{1:position,2:local_index}`。对key中`parameter_position = p`的template，它必须精确包含`0..p`的全部前置参数且不含当前/后置参数；每条local必须命中不可变的`Parameter { declaration_index: position }`，其类型逐结构等于同owner source interface该位置的`value_type`。这张表按position建立hygienic替换，consumer绝不重新解析参数名。`mutable`、`allows_suspend`及本default wire中的其他布尔语义一律复用`CanonicalBooleanV1`的unsigned `False=1`、`True=2`编码，不接受CBOR native boolean。
+`CanonicalTemplateValueParametersV1`是按`position`严格递增的array，record wire为`{1:position,2:local_index}`。对key中`parameter_position = p`的template，它必须精确包含`0..p`的全部前置参数且不含当前/后置参数；每条local必须命中不可变的`Parameter { declaration_index: position }`，其原始类型先在definition root的provider scope中验证，再经`CanonicalBinderUseListV1`替换后逐结构等于同owner source interface该位置的`value_type`。这张表按position建立hygienic替换，consumer绝不重新解析参数名，也不得把provider-scope binder与key-owner-scope binder按相同`depth/index`误判为同一类型。`mutable`、`allows_suspend`及本default wire中的其他布尔语义一律复用`CanonicalBooleanV1`的unsigned `False=1`、`True=2`编码，不接受CBOR native boolean。
 
 `ExportDefaultBodyV1`是M17已typed的statement/expression closure之canonical wire。它不是对`ExportHir`
 arena的serde投影：每个跨Cone实体都使用persistent identity，template local只使用上述
