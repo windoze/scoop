@@ -1,25 +1,30 @@
 use std::fmt;
 
 use scoop_identity::CallableTemplateOrigin;
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::CanonicalExportDefaultTemplatesV1;
 use crate::{
     CallableInterfaceSemanticAuthority, CanonicalCallableInterfacesV1,
-    CanonicalCallableSourceInterfacesV1, DefaultTemplateOriginSemanticAuthority,
-    DefaultTemplateRootSemanticAuthority, ExportDefaultTemplateContractSemanticValidationError,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateOriginSemanticValidationError,
+    CanonicalCallableSourceInterfacesV1, DefaultBodyProviderEnvelopeSemanticValidationError,
+    DefaultTemplateOriginSemanticAuthority, DefaultTemplateRootSemanticAuthority,
+    ExportDefaultTemplateContractSemanticValidationError, ExportDefaultTemplateKeyV1,
+    ExportDefaultTemplateOriginSemanticValidationError,
 };
 
 impl CanonicalExportDefaultTemplatesV1 {
     /// Validates every template envelope against callable/source tables that
     /// have already passed their own semantic validators, then proves the
-    /// exact bidirectional source-template closure. Body operations and their
-    /// reference closure are validated separately.
+    /// provider envelope of every body, then proves the exact bidirectional
+    /// source-template closure. Operation typing, local data flow, nested
+    /// callable ABI, and the exact reference closure remain separate passes.
     pub fn validate_envelope_semantics<A, E>(
         &self,
         callables: &CanonicalCallableInterfacesV1,
         sources: &CanonicalCallableSourceInterfacesV1,
         authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultTemplateSetEnvelopeSemanticValidationError<E>>
     where
         A: CallableInterfaceSemanticAuthority<E>
@@ -40,8 +45,8 @@ impl CanonicalExportDefaultTemplatesV1 {
                     owner: key.owner(),
                 },
             )?;
-            template
-                .validate_contract_semantics(callable, source, authority)
+            let provider = template
+                .validate_contract_semantics_with_provider(callable, source, authority)
                 .map_err(|error| {
                     ExportDefaultTemplateSetEnvelopeSemanticValidationError::Contract {
                         index,
@@ -49,6 +54,16 @@ impl CanonicalExportDefaultTemplatesV1 {
                         error: Box::new(error),
                     }
                 })?;
+            template
+                .body()
+                .validate_provider_envelope_semantics(provider, authority, meter, path)
+                .map_err(
+                    |error| ExportDefaultTemplateSetEnvelopeSemanticValidationError::Body {
+                        index,
+                        key,
+                        error: Box::new(error),
+                    },
+                )?;
             template
                 .validate_origin_semantics(authority)
                 .map_err(|error| {
@@ -205,6 +220,11 @@ pub enum ExportDefaultTemplateSetEnvelopeSemanticValidationError<E> {
         key: ExportDefaultTemplateKeyV1,
         error: Box<ExportDefaultTemplateOriginSemanticValidationError<E>>,
     },
+    Body {
+        index: usize,
+        key: ExportDefaultTemplateKeyV1,
+        error: Box<DefaultBodyProviderEnvelopeSemanticValidationError<E>>,
+    },
     SourceClosure(ExportDefaultTemplateSourceClosureValidationError),
 }
 
@@ -226,6 +246,10 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateSetEnvelopeSemanticV
             Self::Origin { index, key, error } => write!(
                 formatter,
                 "invalid export default template {key:?} origin at index {index}: {error}"
+            ),
+            Self::Body { index, key, error } => write!(
+                formatter,
+                "invalid export default template {key:?} body at index {index}: {error}"
             ),
             Self::SourceClosure(error) => {
                 write!(

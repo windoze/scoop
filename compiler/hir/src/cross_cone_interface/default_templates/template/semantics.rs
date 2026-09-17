@@ -8,13 +8,14 @@ use super::ExportDefaultTemplateV1;
 use crate::{
     BinderUseListSemanticValidationError, CallableInterfaceRecordV1,
     CallableInterfaceSemanticAuthority, CallableInterfaceSemanticValidationError,
-    CallableSourceInterfaceV1, CanonicalBooleanV1, DefaultTemplateRootSemanticAuthority,
-    DefaultTemplateRootSemanticValidationError, DefaultTemplateTypeSubstitutionError,
-    ExportDefaultTemplateKeyV1, ExportDefinitionSourceSemanticAuthority,
-    ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceV1,
-    PersistentLexicalRootV1, SignatureTypeSemanticError, TemplateLocalDefinitionV1,
-    TemplateLocalScopeValidationError, TemplateLocalTypeSemanticValidationError,
-    TemplateReceiverSemanticValidationError, TemplateValueParameterSemanticValidationError,
+    CallableSourceInterfaceV1, CanonicalBooleanV1, DefaultTemplateProviderShapeV1,
+    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
+    DefaultTemplateTypeSubstitutionError, ExportDefaultTemplateKeyV1,
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,
+    ExportDefinitionSourceV1, PersistentLexicalRootV1, SignatureTypeSemanticError,
+    TemplateLocalDefinitionV1, TemplateLocalScopeValidationError,
+    TemplateLocalTypeSemanticValidationError, TemplateReceiverSemanticValidationError,
+    TemplateValueParameterSemanticValidationError,
 };
 
 /// Supplies foundation subject relations for definition origins owned by one
@@ -106,6 +107,22 @@ impl ExportDefaultTemplateV1 {
     where
         A: CallableInterfaceSemanticAuthority<E> + DefaultTemplateRootSemanticAuthority<E>,
     {
+        self.validate_contract_semantics_with_provider(callable, source, authority)
+            .map(|_| ())
+    }
+
+    pub(crate) fn validate_contract_semantics_with_provider<A, E>(
+        &self,
+        callable: &CallableInterfaceRecordV1,
+        source: &CallableSourceInterfaceV1,
+        authority: &mut A,
+    ) -> Result<
+        DefaultTemplateProviderShapeV1,
+        ExportDefaultTemplateContractSemanticValidationError<E>,
+    >
+    where
+        A: CallableInterfaceSemanticAuthority<E> + DefaultTemplateRootSemanticAuthority<E>,
+    {
         let key = self.key();
         if callable.declaration() != key.owner() {
             return Err(
@@ -189,7 +206,7 @@ impl ExportDefaultTemplateV1 {
                 },
             );
         }
-        Ok(())
+        Ok(provider)
     }
 }
 

@@ -5,6 +5,7 @@ use scoop_identity::{
     SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
+use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
 
 use super::*;
 use crate::{
@@ -14,14 +15,16 @@ use crate::{
     CallableSourceParameterV1, CanonicalBinderListV1, CanonicalBinderUseListV1, CanonicalBooleanV1,
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
     CanonicalCallableSourceParametersV1, CanonicalSourceParameterShapesV1,
-    CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultTemplateOriginSemanticAuthority, DefaultTemplateProviderShapeV1,
-    DefaultTemplateRootSemanticAuthority, ExportDefaultBodyV1, ExportDefaultReferenceSetV1,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateOriginSemanticValidationError,
-    ExportDefaultTemplateV1, ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
+    CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
+    DefaultBodyProviderTypeSiteV1, DefaultExpressionKindV1, DefaultExpressionV1,
+    DefaultStatementKindV1, DefaultStatementV1, DefaultTemplateOriginSemanticAuthority,
+    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority, ExportDefaultBodyV1,
+    ExportDefaultReferenceSetV1, ExportDefaultTemplateKeyV1,
+    ExportDefaultTemplateOriginSemanticValidationError, ExportDefaultTemplateV1,
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
     NominalInterfaceShapeAuthority, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
     PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1,
-    SourceParameterShapeV1,
+    SignatureBinderScopeError, SignatureTypeSemanticError, SourceParameterShapeV1,
 };
 
 #[test]
@@ -33,10 +36,10 @@ fn validates_every_envelope_and_the_exact_source_closure() {
     let mut authority = fixture.authority();
 
     assert_eq!(
-        templates.validate_envelope_semantics(&callables, &sources, &mut authority),
+        validate_envelopes(&templates, &callables, &sources, &mut authority),
         Ok(())
     );
-    assert_eq!(authority.definition_source_validations, 1);
+    assert_eq!(authority.definition_source_validations, 2);
     assert_eq!(authority.template_origin_validations, 1);
 }
 
@@ -46,7 +49,8 @@ fn requires_matching_callable_and_source_interfaces() {
     let templates = fixture.templates(CanonicalBooleanV1::False);
     let empty_callables = CanonicalCallableInterfacesV1::try_new(Vec::new()).unwrap();
     assert_eq!(
-        templates.validate_envelope_semantics(
+        validate_envelopes(
+            &templates,
             &empty_callables,
             &fixture.sources(true),
             &mut fixture.authority(),
@@ -61,7 +65,8 @@ fn requires_matching_callable_and_source_interfaces() {
 
     let empty_sources = CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap();
     assert_eq!(
-        templates.validate_envelope_semantics(
+        validate_envelopes(
+            &templates,
             &fixture.callables(Effect::Ordinary),
             &empty_sources,
             &mut fixture.authority(),
@@ -83,7 +88,7 @@ fn routes_record_contract_and_origin_failures_with_table_identity() {
     let sources = fixture.sources(true);
 
     assert_eq!(
-        templates.validate_envelope_semantics(&callables, &sources, &mut fixture.authority()),
+        validate_envelopes(&templates, &callables, &sources, &mut fixture.authority(),),
         Err(
             ExportDefaultTemplateSetEnvelopeSemanticValidationError::Contract {
                 index: 0,
@@ -101,7 +106,8 @@ fn routes_record_contract_and_origin_failures_with_table_identity() {
     let mut authority = fixture.authority();
     authority.reject_template_origin = true;
     assert_eq!(
-        templates.validate_envelope_semantics(
+        validate_envelopes(
+            &templates,
             &fixture.callables(Effect::Ordinary),
             &sources,
             &mut authority,
@@ -126,7 +132,8 @@ fn rejects_source_defaults_missing_from_the_template_table() {
     let templates = CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap();
 
     assert_eq!(
-        templates.validate_envelope_semantics(
+        validate_envelopes(
+            &templates,
             &fixture.callables(Effect::Ordinary),
             &fixture.sources(true),
             &mut fixture.authority(),
@@ -142,6 +149,118 @@ fn rejects_source_defaults_missing_from_the_template_table() {
             )
         )
     );
+}
+
+#[test]
+fn routes_body_provider_type_failures_with_table_identity() {
+    let fixture = Fixture::new();
+    let invalid_type = SignatureTypeKey::Binder { depth: 0, index: 0 };
+    let nested = DefaultStatementV1::try_new(
+        DefaultStatementKindV1::Expr(Box::new(
+            DefaultExpressionV1::try_new(
+                DefaultExpressionKindV1::UnitLiteral,
+                invalid_type,
+                fixture.origin.clone(),
+            )
+            .unwrap(),
+        )),
+        fixture.origin.clone(),
+    )
+    .unwrap();
+    let body = ExportDefaultBodyV1::try_new(
+        vec![nested],
+        DefaultExpressionV1::try_new(
+            DefaultExpressionKindV1::UnitLiteral,
+            fixture.value_type.clone(),
+            fixture.origin.clone(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let templates = fixture.templates_with_body(body, CanonicalBooleanV1::False);
+
+    assert_eq!(
+        validate_envelopes(
+            &templates,
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+        ),
+        Err(
+            ExportDefaultTemplateSetEnvelopeSemanticValidationError::Body {
+                index: 0,
+                key: fixture.key,
+                error: Box::new(DefaultBodyProviderEnvelopeSemanticValidationError::Type {
+                    site: DefaultBodyProviderTypeSiteV1::ExpressionResult,
+                    definition_origin: Box::new(fixture.origin.clone()),
+                    error: Box::new(SignatureTypeSemanticError::BinderScope(
+                        SignatureBinderScopeError::DepthOutOfRange {
+                            depth: 0,
+                            available_depths: 0,
+                        },
+                    )),
+                },),
+            },
+        )
+    );
+}
+
+#[test]
+fn body_validation_uses_the_caller_meter_and_path() {
+    let fixture = Fixture::new();
+    let templates = fixture.templates(CanonicalBooleanV1::False);
+    let path = WirePath::root().field(11).index(3).field(5);
+    let mut meter = BudgetMeter::new(DecodeLimits {
+        semantic_recursion: 1,
+        ..DecodeLimits::default()
+    });
+    let error = templates
+        .validate_envelope_semantics(
+            &fixture.callables(Effect::Ordinary),
+            &fixture.sources(true),
+            &mut fixture.authority(),
+            &mut meter,
+            &path,
+        )
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        ExportDefaultTemplateSetEnvelopeSemanticValidationError::Body {
+            index: 0,
+            key,
+            error,
+        } if key == fixture.key
+            && matches!(
+                error.as_ref(),
+                DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error)
+                    if error.kind()
+                        == &WireErrorKind::LimitExceeded {
+                            resource: ResourceKind::SemanticRecursion,
+                            limit: 1,
+                            observed: 2,
+                        }
+                        && error.path() == &path
+            )
+    ));
+    assert_eq!(meter.usage().decoded_nodes, 1);
+    assert_eq!(meter.usage().decoded_edges, 0);
+    assert_eq!(meter.usage().validation_work_units, 1);
+}
+
+fn validate_envelopes(
+    templates: &CanonicalExportDefaultTemplatesV1,
+    callables: &CanonicalCallableInterfacesV1,
+    sources: &CanonicalCallableSourceInterfacesV1,
+    authority: &mut Authority,
+) -> Result<(), ExportDefaultTemplateSetEnvelopeSemanticValidationError<AuthorityError>> {
+    templates.validate_envelope_semantics(
+        callables,
+        sources,
+        authority,
+        &mut BudgetMeter::new(DecodeLimits::default()),
+        &WirePath::root(),
+    )
 }
 
 struct Fixture {
@@ -238,6 +357,14 @@ impl Fixture {
             .unwrap(),
         )
         .unwrap();
+        self.templates_with_body(body, allows_suspend)
+    }
+
+    fn templates_with_body(
+        &self,
+        body: ExportDefaultBodyV1,
+        allows_suspend: CanonicalBooleanV1,
+    ) -> CanonicalExportDefaultTemplatesV1 {
         let template = ExportDefaultTemplateV1::try_new(
             self.key,
             PersistentLexicalRootV1::Function(self.function),
