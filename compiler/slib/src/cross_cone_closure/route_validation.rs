@@ -18,8 +18,10 @@ use super::{
 };
 use crate::ConstValidatedCrossConeHirFrontSections;
 
+mod authority_inputs;
 mod external_target;
 
+pub(super) use authority_inputs::{RouteAuthorityInputs, RouteProviderView};
 pub use external_target::CrossConeHirReferenceAuthorityError;
 
 /// A closure whose public binding routes have been checked against each
@@ -79,45 +81,25 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
             for (position, artifact) in artifacts.iter().enumerate() {
                 let identity = artifact.identity();
                 let reachable = transitive_dependency_positions(position, dependency_positions);
-
-                let mut direct = Vec::new();
-                direct
-                    .try_reserve_exact(dependency_positions[position].len())
-                    .map_err(|_| CrossConeClosurePublicRouteError::AuthorityAllocation {
-                        identity,
-                        requested_slots: dependency_positions[position].len(),
-                    })?;
-                direct.extend(
-                    dependency_positions[position]
-                        .iter()
-                        .map(|dependency| artifacts[*dependency].identity()),
-                );
-
-                let mut providers = Vec::new();
-                providers.try_reserve_exact(reachable.len()).map_err(|_| {
+                let inputs = RouteAuthorityInputs::try_new(
+                    &artifacts[..position],
+                    &dependency_positions[position],
+                    &reachable,
+                )
+                .map_err(|requested_slots| {
                     CrossConeClosurePublicRouteError::AuthorityAllocation {
                         identity,
-                        requested_slots: reachable.len(),
+                        requested_slots,
                     }
                 })?;
-                providers.extend(reachable.iter().map(|dependency| RouteProviderView {
-                    identity: artifacts[*dependency].identity(),
-                    bindings: artifacts[*dependency].hir_interface().public_bindings(),
-                }));
-                let closure_node_count = reachable.len().checked_add(1).ok_or(
-                    CrossConeClosurePublicRouteError::AuthorityAllocation {
-                        identity,
-                        requested_slots: usize::MAX,
-                    },
-                )?;
 
                 let authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     artifact.identity_graph(),
                     artifact.hir_interface(),
-                    &direct,
-                    &providers,
-                    closure_node_count,
+                    inputs.direct(),
+                    inputs.providers(),
+                    inputs.closure_node_count(),
                 )
                 .map_err(|requested_slots| {
                     CrossConeClosurePublicRouteError::AuthorityAllocation {
@@ -138,12 +120,6 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
 
         Ok(PublicRouteValidatedCrossConeHirClosure { surfaces: self })
     }
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct RouteProviderView<'a> {
-    pub(super) identity: ConeIdentity,
-    pub(super) bindings: &'a CanonicalPublicExportBindingsV1,
 }
 
 pub(super) struct CanonicalCrossConeRouteAuthority<'a> {

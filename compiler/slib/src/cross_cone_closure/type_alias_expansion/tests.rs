@@ -4,11 +4,13 @@ use scoop_hir::{
     CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
     CanonicalExternalHirReferenceRolesV1, CanonicalExternalHirReferencesV1,
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1,
-    CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1,
-    DependencyBindingWitnessSemanticValidationError, DependencyBindingWitnessV1,
-    ExportBindingSourceV1, ExportDefinitionSourceV1, ExternalHirReferenceRoleV1,
-    ExternalHirReferenceV1, ExternalHirTargetV1, PublicExportBindingRecordV1, PublicLookupAccessV1,
-    ReexportRouteHopV1, ReexportRouteV1, TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
+    CanonicalTypeAliasInterfacesV1, CrossConeHirExternalReferenceValidationError,
+    CrossConeHirInterfaceSectionV1, DependencyBindingWitnessSemanticValidationError,
+    DependencyBindingWitnessV1, ExportBindingSourceV1, ExportDefinitionSourceV1,
+    ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticValidationError,
+    ExternalHirReferenceSetSemanticValidationError, ExternalHirReferenceV1, ExternalHirTargetV1,
+    PublicExportBindingRecordV1, PublicLookupAccessV1, ReexportRouteHopV1, ReexportRouteV1,
+    TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
 };
 use scoop_identity::{
     BindableEntity, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate,
@@ -20,6 +22,7 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::*;
+use crate::cross_cone_closure::route_validation::RouteProviderView;
 
 #[test]
 fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
@@ -40,13 +43,12 @@ fn authorizes_and_expands_a_foreign_alias_through_a_direct_witness() {
     .unwrap();
     let mut meter = BudgetMeter::new(DecodeLimits::default());
     let path = WirePath::root();
-    let authorized = validate_alias_authority(
-        &fixture.current_interface,
-        &mut route_authority,
-        &mut meter,
-        &path,
-    )
-    .unwrap();
+    fixture
+        .current_interface
+        .validate_external_reference_closure(&mut route_authority, &mut meter, &path)
+        .unwrap();
+    let authorized =
+        validate_alias_authority(&fixture.current_interface, &mut route_authority).unwrap();
     assert_eq!(
         authorized,
         vec![(fixture.current_alias, fixture.foreign_alias)]
@@ -90,17 +92,15 @@ fn rejects_a_foreign_alias_witness_that_does_not_start_at_a_direct_provider() {
     let mut meter = BudgetMeter::new(DecodeLimits::default());
 
     assert!(matches!(
-        validate_alias_authority(
-            &fixture.current_interface,
+        fixture.current_interface.validate_external_reference_closure(
             &mut route_authority,
             &mut meter,
             &WirePath::root(),
         ),
-        Err(CrossConeHirAliasAuthorityValidationError::ReferenceRecord {
-            source,
-            ..
-        }) if matches!(
-            source.as_ref(),
+        Err(CrossConeHirExternalReferenceValidationError::Records(
+            ExternalHirReferenceSetSemanticValidationError::Record { error, .. }
+        )) if matches!(
+            error.as_ref(),
             ExternalHirReferenceSemanticValidationError::Witness {
                 error: DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
                     provider,
@@ -137,15 +137,8 @@ fn rejects_a_same_cone_alias_target_absent_from_the_public_alias_table() {
     let mut authority =
         CanonicalCrossConeRouteAuthority::try_new(current, &identities, &interface, &[], &[], 1)
             .unwrap();
-    let mut meter = BudgetMeter::new(DecodeLimits::default());
-
     assert!(matches!(
-        validate_alias_authority(
-            &interface,
-            &mut authority,
-            &mut meter,
-            &WirePath::root(),
-        ),
+        validate_alias_authority(&interface, &mut authority),
         Err(CrossConeHirAliasAuthorityValidationError::MissingCurrentPublicTarget {
             source: actual_source,
             target,

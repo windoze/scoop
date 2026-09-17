@@ -105,6 +105,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .unwrap()
         .validate_public_binding_routes()
         .unwrap()
+        .validate_external_hir_references()
+        .unwrap()
         .validate_and_expand_type_aliases()
         .unwrap();
     assert_eq!(validated.current(), ConeIdentity::CORE);

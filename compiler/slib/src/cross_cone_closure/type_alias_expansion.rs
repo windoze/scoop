@@ -4,19 +4,17 @@ use std::fmt;
 
 use scoop_hir::{
     CanonicalTypeAliasExpansionsV1, CrossConeHirInterfaceSectionV1,
-    ExternalHirAliasClosureValidationError, ExternalHirReferenceRoleV1,
-    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
-    ExternalHirTargetV1, TypeAliasClosureAuthority, TypeAliasExpansionError,
-    TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1, TypeAliasClosureAuthority,
+    TypeAliasExpansionError, TypeAliasInterfaceRecordV1, TypeAliasTargetV1,
 };
 use scoop_identity::{ConeIdentity, PersistentTypeAliasId};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::WirePath;
 
 use super::{
-    CrossConeProviderRole, PublicRouteValidatedCrossConeHirClosure,
+    CrossConeProviderRole, ExternalReferenceValidatedCrossConeHirClosure,
     route_validation::{
-        CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteProviderView,
+        CanonicalCrossConeRouteAuthority, CrossConeHirReferenceAuthorityError, RouteAuthorityInputs,
     },
     surface_validation::transitive_dependency_positions,
 };
@@ -24,62 +22,62 @@ use crate::ConstValidatedCrossConeHirFrontSections;
 
 type AuthorizedAliasEdge = (PersistentTypeAliasId, PersistentTypeAliasId);
 
-/// A route-validated closure whose public non-generic aliases have been
+/// An externally closed HIR graph whose public non-generic aliases have been
 /// expanded to final signature types without exposing transitive providers as
 /// ordinary lookup candidates.
 pub struct TypeAliasExpandedCrossConeHirClosure<'input> {
-    routes: PublicRouteValidatedCrossConeHirClosure<'input>,
+    references: ExternalReferenceValidatedCrossConeHirClosure<'input>,
     expansions: Vec<CanonicalTypeAliasExpansionsV1>,
 }
 
 impl TypeAliasExpandedCrossConeHirClosure<'_> {
     pub const fn current(&self) -> ConeIdentity {
-        self.routes.current()
+        self.references.current()
     }
 
     pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
-        self.routes.target_selection()
+        self.references.target_selection()
     }
 
     pub fn direct_providers(&self) -> &[ConeIdentity] {
-        self.routes.direct_providers()
+        self.references.direct_providers()
     }
 
     pub fn dependency_first(
         &self,
     ) -> impl ExactSizeIterator<Item = &ConstValidatedCrossConeHirFrontSections<'_>> {
-        self.routes.dependency_first()
+        self.references.dependency_first()
     }
 
     pub fn artifact(
         &self,
         identity: ConeIdentity,
     ) -> Option<&ConstValidatedCrossConeHirFrontSections<'_>> {
-        self.routes.artifact(identity)
+        self.references.artifact(identity)
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
-        self.routes.role(identity)
+        self.references.role(identity)
     }
 
     pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
-        self.routes.dependency_count(identity)
+        self.references.dependency_count(identity)
     }
 
     pub fn type_alias_expansions(
         &self,
         identity: ConeIdentity,
     ) -> Option<&CanonicalTypeAliasExpansionsV1> {
-        self.routes
+        self.references
             .dependency_first()
             .position(|artifact| artifact.identity() == identity)
             .map(|position| &self.expansions[position])
     }
 }
 
-impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
-    /// Validates the exact `AliasTarget` reference closure and every foreign
-    /// alias witness before expanding alias chains dependency-first.
+impl<'input> ExternalReferenceValidatedCrossConeHirClosure<'input> {
+    /// Derives authorized alias edges from the already validated external
+    /// reference closure, then expands alias chains dependency-first.
     pub fn validate_and_expand_type_aliases(
         mut self,
     ) -> Result<TypeAliasExpandedCrossConeHirClosure<'input>, CrossConeClosureTypeAliasExpansionError>
@@ -107,49 +105,26 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                 let current = &mut current_and_later[0];
                 let identity = current.identity();
 
-                let mut direct = Vec::new();
-                direct
-                    .try_reserve_exact(dependency_positions[position].len())
-                    .map_err(
-                        |_| CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                            identity,
-                            requested_slots: dependency_positions[position].len(),
-                        },
-                    )?;
-                direct.extend(
-                    dependency_positions[position]
-                        .iter()
-                        .map(|dependency| previous[*dependency].identity()),
-                );
-
-                let mut route_providers = Vec::new();
-                route_providers
-                    .try_reserve_exact(reachable.len())
-                    .map_err(
-                        |_| CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
-                            identity,
-                            requested_slots: reachable.len(),
-                        },
-                    )?;
-                route_providers.extend(reachable.iter().map(|dependency| RouteProviderView {
-                    identity: previous[*dependency].identity(),
-                    bindings: previous[*dependency].hir_interface().public_bindings(),
-                }));
-                let closure_node_count = reachable.len().checked_add(1).ok_or(
+                let route_inputs = RouteAuthorityInputs::try_new(
+                    previous,
+                    &dependency_positions[position],
+                    &reachable,
+                )
+                .map_err(|requested_slots| {
                     CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
                         identity,
-                        requested_slots: usize::MAX,
-                    },
-                )?;
+                        requested_slots,
+                    }
+                })?;
 
                 let (identities, interface, meter) = current.hir_semantic_parts();
                 let mut route_authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     identities,
                     interface,
-                    &direct,
-                    &route_providers,
-                    closure_node_count,
+                    route_inputs.direct(),
+                    route_inputs.providers(),
+                    route_inputs.closure_node_count(),
                 )
                 .map_err(|requested_slots| {
                     CrossConeClosureTypeAliasExpansionError::AuthorityAllocation {
@@ -158,16 +133,15 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                     }
                 })?;
                 let path = WirePath::root();
-                let authorized =
-                    validate_alias_authority(interface, &mut route_authority, meter, &path)
-                        .map_err(|source| {
-                            CrossConeClosureTypeAliasExpansionError::ArtifactAuthority {
-                                identity,
-                                source: Box::new(source),
-                            }
-                        })?;
+                let authorized = validate_alias_authority(interface, &mut route_authority)
+                    .map_err(|source| {
+                        CrossConeClosureTypeAliasExpansionError::ArtifactAuthority {
+                            identity,
+                            source: Box::new(source),
+                        }
+                    })?;
                 drop(route_authority);
-                drop(route_providers);
+                drop(route_inputs);
 
                 let mut alias_providers = Vec::new();
                 alias_providers
@@ -205,7 +179,7 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
         }
 
         Ok(TypeAliasExpandedCrossConeHirClosure {
-            routes: self,
+            references: self,
             expansions,
         })
     }
@@ -214,29 +188,7 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 fn validate_alias_authority(
     interface: &CrossConeHirInterfaceSectionV1,
     authority: &mut CanonicalCrossConeRouteAuthority<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
 ) -> Result<Vec<AuthorizedAliasEdge>, CrossConeHirAliasAuthorityValidationError> {
-    interface
-        .validate_alias_reference_closure(authority, meter, path)
-        .map_err(|error| {
-            CrossConeHirAliasAuthorityValidationError::ReferenceClosure(Box::new(error))
-        })?;
-
-    for (record_index, reference) in interface.external_references().records().iter().enumerate() {
-        if reference
-            .roles()
-            .contains(ExternalHirReferenceRoleV1::AliasTarget)
-        {
-            reference.validate_semantics(authority).map_err(|error| {
-                CrossConeHirAliasAuthorityValidationError::ReferenceRecord {
-                    record_index,
-                    source: Box::new(error),
-                }
-            })?;
-        }
-    }
-
     let aliases = interface.type_aliases();
     let mut authorized = Vec::new();
     authorized
@@ -373,14 +325,6 @@ impl TypeAliasClosureAuthority for CanonicalTypeAliasClosureAuthority<'_> {
 
 #[derive(Debug)]
 pub enum CrossConeHirAliasAuthorityValidationError {
-    ReferenceClosure(
-        Box<ExternalHirAliasClosureValidationError<CrossConeHirReferenceAuthorityError>>,
-    ),
-    ReferenceRecord {
-        record_index: usize,
-        source:
-            Box<ExternalHirReferenceSemanticValidationError<CrossConeHirReferenceAuthorityError>>,
-    },
     TargetOrigin {
         source: PersistentTypeAliasId,
         target: PersistentTypeAliasId,
@@ -402,14 +346,6 @@ pub enum CrossConeHirAliasAuthorityValidationError {
 impl fmt::Display for CrossConeHirAliasAuthorityValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ReferenceClosure(error) => error.fmt(formatter),
-            Self::ReferenceRecord {
-                record_index,
-                source,
-            } => write!(
-                formatter,
-                "invalid alias external reference record {record_index}: {source}"
-            ),
             Self::TargetOrigin {
                 source,
                 target,
@@ -437,8 +373,6 @@ impl fmt::Display for CrossConeHirAliasAuthorityValidationError {
 impl std::error::Error for CrossConeHirAliasAuthorityValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ReferenceClosure(error) => Some(error.as_ref()),
-            Self::ReferenceRecord { source, .. } => Some(source.as_ref()),
             Self::TargetOrigin { error, .. } => Some(error),
             Self::MissingCurrentPublicTarget { .. }
             | Self::MissingForeignReference { .. }

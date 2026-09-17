@@ -24,6 +24,10 @@ mod route_validation;
 
 pub use route_validation::*;
 
+mod external_reference_validation;
+
+pub use external_reference_validation::*;
+
 mod type_alias_expansion;
 
 pub use type_alias_expansion::*;
