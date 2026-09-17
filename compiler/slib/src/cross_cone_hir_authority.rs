@@ -2,12 +2,14 @@
 
 mod callable;
 mod callable_source;
+mod const_value;
 mod definition_source;
 mod errors;
 mod property;
 mod type_alias;
 
 pub use callable_source::*;
+pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
 
@@ -68,6 +70,17 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             current_core,
             current_interface,
             dependencies,
+        }
+    }
+
+    fn trusted_core(&self) -> Option<&CoreBootstrapInterfaceSectionV1> {
+        if self.current == ConeIdentity::CORE {
+            Some(self.current_core)
+        } else {
+            self.dependencies
+                .iter()
+                .find(|provider| provider.identity == ConeIdentity::CORE)
+                .map(|provider| provider.core)
         }
     }
 

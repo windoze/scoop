@@ -101,6 +101,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .unwrap()
         .validate_source_interfaces()
         .unwrap()
+        .validate_const_values()
+        .unwrap()
         .validate_public_binding_routes()
         .unwrap()
         .validate_and_expand_type_aliases()

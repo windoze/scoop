@@ -44,6 +44,7 @@ use crate::{
     },
 };
 
+mod const_value;
 mod source_interface;
 mod type_alias;
 

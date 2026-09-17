@@ -17,10 +17,12 @@ use crate::{
     strong_compile_decode::OdrFreeStrongFoundationSet,
 };
 
+mod const_value;
 mod definition_source;
 mod errors;
 mod source_interface;
 
+pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
 pub use source_interface::*;
@@ -112,8 +114,9 @@ impl_surface_front_accessors!(PropertyValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(CallableValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(TypeAliasValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(SourceInterfaceValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(ConstValidatedCrossConeHirFrontSections);
 
-impl SourceInterfaceValidatedCrossConeHirFrontSections<'_> {
+impl ConstValidatedCrossConeHirFrontSections<'_> {
     pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.0.identities
     }
@@ -154,6 +157,7 @@ impl_nominal_provider_view!(PropertyValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(CallableValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(TypeAliasValidatedCrossConeHirFrontSections);
 impl_nominal_provider_view!(SourceInterfaceValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(ConstValidatedCrossConeHirFrontSections);
 
 impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
     /// Closes every relationship reconstructible from this HIR section and

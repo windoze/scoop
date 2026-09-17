@@ -22,15 +22,9 @@ impl CallableSourceInterfaceSemanticAuthority<CrossConeHirCallableSourceAuthorit
     fn canonical_array_type(
         &mut self,
     ) -> Result<PersistentGenericTypeId, CrossConeHirCallableSourceAuthorityError> {
-        let core = if self.current == ConeIdentity::CORE {
-            self.current_core
-        } else {
-            self.dependencies
-                .iter()
-                .find(|provider| provider.identity == ConeIdentity::CORE)
-                .map(|provider| provider.core)
-                .ok_or(CrossConeHirCallableSourceAuthorityError::MissingTrustedCore)?
-        };
+        let core = self
+            .trusted_core()
+            .ok_or(CrossConeHirCallableSourceAuthorityError::MissingTrustedCore)?;
         let CoreHirInterfaceBranchV1::Core(interface) = core.core_interface() else {
             return Err(CrossConeHirCallableSourceAuthorityError::InvalidTrustedCore);
         };

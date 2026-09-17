@@ -7,16 +7,18 @@ use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{CrossConeProviderRole, HirProductionValidatedCrossConeHirClosure};
 use crate::{
-    CallableValidatedCrossConeHirFrontSections, DefinitionSourceValidatedCrossConeHirFrontSections,
-    InternallyClosedCrossConeHirFrontSections, NominalValidatedCrossConeHirFrontSections,
-    PropertyValidatedCrossConeHirFrontSections, SourceInterfaceValidatedCrossConeHirFrontSections,
-    TypeAliasValidatedCrossConeHirFrontSections,
+    CallableValidatedCrossConeHirFrontSections, ConstValidatedCrossConeHirFrontSections,
+    DefinitionSourceValidatedCrossConeHirFrontSections, InternallyClosedCrossConeHirFrontSections,
+    NominalValidatedCrossConeHirFrontSections, PropertyValidatedCrossConeHirFrontSections,
+    SourceInterfaceValidatedCrossConeHirFrontSections, TypeAliasValidatedCrossConeHirFrontSections,
 };
 
+mod const_value;
 mod definition_source;
 mod errors;
 mod source_interface;
 
+pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
 pub use source_interface::*;
@@ -131,12 +133,16 @@ impl_surface_closure_accessors!(
     SourceInterfaceValidatedCrossConeHirClosure,
     SourceInterfaceValidatedCrossConeHirFrontSections
 );
+impl_surface_closure_accessors!(
+    ConstValidatedCrossConeHirClosure,
+    ConstValidatedCrossConeHirFrontSections
+);
 
-impl<'input> SourceInterfaceValidatedCrossConeHirClosure<'input> {
+impl<'input> ConstValidatedCrossConeHirClosure<'input> {
     pub(super) fn route_validation_parts(
         &self,
     ) -> (
-        &[SourceInterfaceValidatedCrossConeHirFrontSections<'input>],
+        &[ConstValidatedCrossConeHirFrontSections<'input>],
         &[Vec<usize>],
     ) {
         (&self.0.dependency_first, &self.0.dependency_positions)
@@ -145,7 +151,7 @@ impl<'input> SourceInterfaceValidatedCrossConeHirClosure<'input> {
     pub(super) fn hir_semantic_validation_parts(
         &mut self,
     ) -> (
-        &mut [SourceInterfaceValidatedCrossConeHirFrontSections<'input>],
+        &mut [ConstValidatedCrossConeHirFrontSections<'input>],
         &[Vec<usize>],
     ) {
         (&mut self.0.dependency_first, &self.0.dependency_positions)
@@ -440,6 +446,14 @@ impl NominalProviderFront for TypeAliasValidatedCrossConeHirFrontSections<'_> {
 }
 
 impl NominalProviderFront for SourceInterfaceValidatedCrossConeHirFrontSections<'_> {
+    fn nominal_provider_view(
+        &self,
+    ) -> crate::cross_cone_hir_authority::ValidatedNominalProviderView<'_> {
+        self.nominal_provider_view()
+    }
+}
+
+impl NominalProviderFront for ConstValidatedCrossConeHirFrontSections<'_> {
     fn nominal_provider_view(
         &self,
     ) -> crate::cross_cone_hir_authority::ValidatedNominalProviderView<'_> {

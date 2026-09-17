@@ -35,6 +35,25 @@ fn array_source_type_comes_from_the_fixed_generic_protocol_role() {
 }
 
 #[test]
+fn const_value_types_come_from_the_fixed_fundamental_roles() {
+    let (surface, _) = test_support::standalone();
+    for (offset, kind) in crate::IntegerKind::ALL.into_iter().enumerate() {
+        assert_eq!(
+            surface.const_value_source_type(crate::CanonicalConstValueKindV1::Integer(kind)),
+            concrete_entry(surface.fundamental_types().entries(), offset + 1),
+        );
+    }
+    assert_eq!(
+        surface.const_value_source_type(crate::CanonicalConstValueKindV1::Boolean),
+        concrete_entry(surface.fundamental_types().entries(), 9),
+    );
+    assert_eq!(
+        surface.const_value_source_type(crate::CanonicalConstValueKindV1::String),
+        concrete_entry(surface.fundamental_types().entries(), 10),
+    );
+}
+
+#[test]
 fn compiler_protocol_surface_rejects_wrong_callable_kinds_and_missing_operations() {
     let (mut surface, foundation) = test_support::standalone();
     surface.exception_protocol.0.entries[1] = CoreProtocolEntryV1::Callable(

@@ -370,6 +370,29 @@ impl CoreCompilerProtocolSurfaceV1 {
         concrete_entry(self.fundamental_types.entries(), 10)
     }
 
+    /// Returns the canonical non-generic core nominal for a portable const
+    /// value kind from the fixed fundamental-type protocol product.
+    pub fn const_value_source_type(
+        &self,
+        kind: crate::CanonicalConstValueKindV1,
+    ) -> PersistentTypeId {
+        let index = match kind {
+            crate::CanonicalConstValueKindV1::Integer(kind) => match kind {
+                crate::IntegerKind::SIGNED_8 => 1,
+                crate::IntegerKind::SIGNED_16 => 2,
+                crate::IntegerKind::SIGNED_32 => 3,
+                crate::IntegerKind::SIGNED_64 => 4,
+                crate::IntegerKind::UNSIGNED_8 => 5,
+                crate::IntegerKind::UNSIGNED_16 => 6,
+                crate::IntegerKind::UNSIGNED_32 => 7,
+                crate::IntegerKind::UNSIGNED_64 => 8,
+            },
+            crate::CanonicalConstValueKindV1::Boolean => 9,
+            crate::CanonicalConstValueKindV1::String => 10,
+        };
+        concrete_entry(self.fundamental_types.entries(), index)
+    }
+
     /// Returns the trusted generic `Array` declaration carried by the fixed
     /// fundamental-type protocol product.
     pub fn array_source_type(&self) -> PersistentGenericTypeId {
