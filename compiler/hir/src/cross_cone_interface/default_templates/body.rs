@@ -1,6 +1,7 @@
 mod callables;
 mod nested;
 mod operators;
+mod patterns;
 mod references;
 
 pub use callables::{
@@ -28,6 +29,12 @@ pub use operators::{
     DefaultArrayAccessKindV1, DefaultBinaryOperatorV1, DefaultForeignCallbackOperationV1,
     DefaultIntegerDivRemV1, DefaultIntegerKindV1, DefaultNoGcIntegerOperationV1,
     DefaultPrimitiveBinaryKindV1, DefaultPrimitiveUnaryKindV1, DefaultUnaryOperatorV1,
+};
+pub use patterns::{
+    DecodedDefaultLiteralEqualityV1, DecodedDefaultPatternFieldV1, DecodedDefaultPatternV1,
+    DefaultLiteralEqualityResolutionError, DefaultLiteralEqualityV1, DefaultPatternBuildError,
+    DefaultPatternFieldV1, DefaultPatternIndexError, DefaultPatternReferenceResolver,
+    DefaultPatternResolutionError, DefaultPatternV1, DefaultPatternViewV1, IndexedDefaultPatternV1,
 };
 pub use references::{
     DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
