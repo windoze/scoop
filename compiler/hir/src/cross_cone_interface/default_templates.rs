@@ -9,6 +9,7 @@ mod locals;
 mod receiver;
 mod references;
 mod roots;
+mod template;
 mod value_parameters;
 
 pub use binder_uses::{
@@ -132,6 +133,11 @@ pub use roots::{
     DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
     PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+};
+pub use template::{
+    DecodedExportDefaultTemplateV1, ExportDefaultTemplateBuildError,
+    ExportDefaultTemplateIndexError, ExportDefaultTemplateLocalIndexError,
+    ExportDefaultTemplateResolutionError, ExportDefaultTemplateV1, IndexedExportDefaultTemplateV1,
 };
 pub use value_parameters::{
     CanonicalTemplateValueParametersV1, DecodedCanonicalTemplateValueParametersV1,
