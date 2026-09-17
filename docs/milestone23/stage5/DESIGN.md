@@ -1620,6 +1620,8 @@ role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean�
 
 `ExternalHirTargetV1`的每个variant都编码为`{0: tag, 1: payload}`，并保持persistent id种类；不能把不同kind的相同raw bytes合并。`Callable`沿用source callable的封闭sum，因此同时覆盖ordinary/generic function、constructor、property accessor与enum variant constructor；generated callable保持独立variant，不能冒充source callable。signature、default applied owner等结构中的tuple/function/pointer/binder本身不是外部实体；闭包只收集其nominal leaf。re-export route使用的export binding属于`DependencyBindingWitnessV1`，不伪装成semantic target。callback registration、initialization unit与body-local identity由当前artifact的template拥有，不进入foreign target集合。
 
+`DependencyBindingWitnessV1`与`ReexportRouteV1`是不同的Rust语义类型，但wire逐byte复用后者已经冻结的两字段map：`1=immediate_provider, 2=non-empty hops`，不增加wrapper tag或外层field。它证明当前artifact可从一个direct provider沿完整公开route取得该target；reader仍须执行route的non-empty、first-exporter、无重复Cone/binding与closure连续性验证。`witnesses`允许为空，按完整route结构序严格递增并拒绝重复；producer排序后拒绝重复，reader不得排序或去重修复。只有`ReexportTarget`、`AliasTarget`、`DefaultDependency`和`ConcreteSelectedUse`允许且要求至少一个witness；`SignatureDependency`与`ConstType`不靠source-name授权，单独出现时witnesses必须为空。多个role合并到同一target时，witnesses精确等于其中所有需source-name授权role的route并集。
+
 ## 6. re-export构造与公开表面
 
 ### 6.1 import先于re-export commit

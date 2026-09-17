@@ -2,6 +2,7 @@
 
 mod roles;
 mod target;
+mod witness;
 
 pub use roles::{
     CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
@@ -11,4 +12,10 @@ pub use roles::{
 pub use target::{
     DecodedExternalHirTargetV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,
     ExternalHirTargetV1,
+};
+pub use witness::{
+    CanonicalDependencyBindingWitnessesV1, DecodedCanonicalDependencyBindingWitnessesV1,
+    DecodedDependencyBindingWitnessV1, DependencyBindingWitnessResolutionError,
+    DependencyBindingWitnessSetBuildError, DependencyBindingWitnessSetValidationError,
+    DependencyBindingWitnessV1,
 };

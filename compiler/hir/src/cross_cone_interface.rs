@@ -250,10 +250,14 @@ pub use definition_sources::{
     ExportDefinitionSourceSetValidationError, ExportDefinitionSourceV1,
 };
 pub use external_references::{
-    CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
-    DecodedExternalHirTargetV1, ExternalHirReferenceRoleSetBuildError,
-    ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
-    ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
+    CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
+    DecodedCanonicalDependencyBindingWitnessesV1, DecodedCanonicalExternalHirReferenceRolesV1,
+    DecodedDependencyBindingWitnessV1, DecodedExternalHirTargetV1,
+    DependencyBindingWitnessResolutionError, DependencyBindingWitnessSetBuildError,
+    DependencyBindingWitnessSetValidationError, DependencyBindingWitnessV1,
+    ExternalHirReferenceRoleSetBuildError, ExternalHirReferenceRoleSetValidationError,
+    ExternalHirReferenceRoleV1, ExternalHirTargetResolutionError, ExternalHirTargetResolver,
+    ExternalHirTargetV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
