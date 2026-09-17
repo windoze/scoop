@@ -10,13 +10,13 @@ use scoop_hir::{
     CanonicalSourceParameterShapesV1, CanonicalTypeAliasInterfacesV1,
     CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError, EnumSourceShapeV1,
     EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalInterfaceRecordV1,
-    NominalInterfaceSemanticValidationError, NominalSourceShapeV1,
-    PropertyAccessorClosureValidationError, PropertyCapabilityV1, PropertyInterfaceRecordV1,
-    PropertyInterfaceSemanticValidationError, PropertyInterfaceSetSemanticValidationError,
-    PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
-    PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicMemberRefV1, PublicNominalKindV1,
-    SourceNominalId, SourceParameterShapeV1, StructSourceFieldV1, StructSourceShapeV1,
-    TypeParameterBinderV1, TypeParameterBoundsV1,
+    NominalInterfaceSemanticValidationError, NominalInterfaceSetSemanticValidationError,
+    NominalSourceShapeV1, PropertyAccessorClosureValidationError, PropertyCapabilityV1,
+    PropertyInterfaceRecordV1, PropertyInterfaceSemanticValidationError,
+    PropertyInterfaceSetSemanticValidationError, PropertyPublicAccessV1, PropertyRepresentationV1,
+    PropertySetterPublicAccessV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
+    PublicMemberRefV1, PublicNominalKindV1, SourceNominalId, SourceParameterShapeV1,
+    StructSourceFieldV1, StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 use scoop_identity::{
     AccessorRole, ArtifactCapabilityProfileId, CallableTemplateOrigin, CanonicalIdentifier,
@@ -34,8 +34,8 @@ use scoop_wire::encode;
 use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView, ConeRecord,
-    DependencyRecord, MemberPurposeSet, MetadataLocation, SectionLocation,
-    hir_cross_cone_interface_capability, lir_cross_cone_link_closure_capability,
+    CrossConeHirNominalAuthorityError, DependencyRecord, MemberPurposeSet, MetadataLocation,
+    SectionLocation, hir_cross_cone_interface_capability, lir_cross_cone_link_closure_capability,
     lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
     lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     strong_compile_decode::tests::{
@@ -43,6 +43,8 @@ use crate::{
         required_sections, section,
     },
 };
+
+mod type_alias;
 
 #[test]
 fn cross_cone_profile_decodes_the_complete_hir_front() {

@@ -2,13 +2,15 @@
 
 mod callable;
 mod property;
+mod type_alias;
 
 use std::fmt;
 
 use scoop_hir::{
     CrossConeHirInterfaceSectionV1, ExportBindingSourceV1, NominalInterfaceSemanticAuthority,
-    NominalInterfaceShapeAuthority, NominalSourceShapeSemanticAuthority, PublicDeclarationOwnerV1,
-    PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1, SourceNominalId,
+    NominalInterfaceShapeAuthority, NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation,
+    PublicDeclarationOwnerV1, PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1,
+    SourceNominalId,
 };
 use scoop_identity::{
     BindableEntity, CallableTemplateOrigin, ConeIdentity, DefinitionOwnerAtom, EnumVariantFieldKey,
@@ -38,6 +40,7 @@ pub(crate) struct ValidatedNominalProviderView<'a> {
 pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current: ConeIdentity,
     identities: &'a ValidatedIdentityGraph,
+    current_foundation: &'a OdrFreeHirFoundation,
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
 }
@@ -46,12 +49,14 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     pub(crate) fn new(
         current: ConeIdentity,
         identities: &'a ValidatedIdentityGraph,
+        current_foundation: &'a OdrFreeHirFoundation,
         current_interface: &'a CrossConeHirInterfaceSectionV1,
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
     ) -> Self {
         Self {
             current,
             identities,
+            current_foundation,
             current_interface,
             dependencies,
         }
@@ -566,6 +571,12 @@ pub enum CrossConeHirNominalAuthorityError {
     MissingPropertyInterface {
         declaration: PropertyOwner,
     },
+    MissingDirectPublicTypeAliasBinding {
+        alias: PersistentTypeAliasId,
+    },
+    MissingDefinitionOrigin {
+        subject: scoop_identity::DefinitionOriginSubject,
+    },
     NominalSourceShapeNotEnum {
         declaration: SourceNominalId,
         actual: PublicNominalKindV1,
@@ -708,6 +719,14 @@ impl fmt::Display for CrossConeHirNominalAuthorityError {
                 formatter,
                 "property accessor owner {declaration:?} is absent from the current property surface"
             ),
+            Self::MissingDirectPublicTypeAliasBinding { alias } => write!(
+                formatter,
+                "type alias {alias} has no declared-current public binding"
+            ),
+            Self::MissingDefinitionOrigin { subject } => write!(
+                formatter,
+                "definition origin for {subject:?} is absent from the current HIR foundation"
+            ),
             Self::NominalSourceShapeNotEnum {
                 declaration,
                 actual,
@@ -752,6 +771,8 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             | Self::PropertyDeclarationKindMismatch { .. }
             | Self::PropertySignatureKindMismatch { .. }
             | Self::MissingPropertyInterface { .. }
+            | Self::MissingDirectPublicTypeAliasBinding { .. }
+            | Self::MissingDefinitionOrigin { .. }
             | Self::NominalSourceShapeNotEnum { .. }
             | Self::MissingEnumVariant { .. } => None,
         }
