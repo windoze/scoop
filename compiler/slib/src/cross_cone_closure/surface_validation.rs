@@ -1,19 +1,22 @@
 //! Closure-wide HIR declaration-surface validation.
 
 use std::collections::BTreeMap;
-use std::fmt;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{CrossConeProviderRole, HirProductionValidatedCrossConeHirClosure};
 use crate::{
-    CallableValidatedCrossConeHirFrontSections, CrossConeHirCallableSurfaceError,
-    CrossConeHirInternalClosureError, CrossConeHirNominalSurfaceError,
-    CrossConeHirPropertySurfaceError, CrossConeHirTypeAliasSurfaceError,
+    CallableValidatedCrossConeHirFrontSections, DefinitionSourceValidatedCrossConeHirFrontSections,
     InternallyClosedCrossConeHirFrontSections, NominalValidatedCrossConeHirFrontSections,
     PropertyValidatedCrossConeHirFrontSections, TypeAliasValidatedCrossConeHirFrontSections,
 };
+
+mod definition_source;
+mod errors;
+
+pub use definition_source::*;
+pub use errors::*;
 
 /// Shared graph carrier behind each consuming surface-validation state.
 struct ValidatedSurfaceClosure<T> {
@@ -102,6 +105,10 @@ impl_surface_closure_accessors!(
     InternallyClosedCrossConeHirFrontSections
 );
 impl_surface_closure_accessors!(
+    DefinitionSourceValidatedCrossConeHirClosure,
+    DefinitionSourceValidatedCrossConeHirFrontSections
+);
+impl_surface_closure_accessors!(
     NominalValidatedCrossConeHirClosure,
     NominalValidatedCrossConeHirFrontSections
 );
@@ -181,7 +188,7 @@ impl<'input> HirProductionValidatedCrossConeHirClosure<'input> {
     }
 }
 
-impl<'input> InternallyClosedCrossConeHirClosure<'input> {
+impl<'input> DefinitionSourceValidatedCrossConeHirClosure<'input> {
     /// Validates public nominal declarations dependency-first and exposes only
     /// each provider's transitive dependency closure.
     pub fn validate_nominal_surfaces(
@@ -462,115 +469,6 @@ pub(super) fn transitive_dependency_positions(
         .filter_map(|(dependency, reachable)| reachable.then_some(dependency))
         .collect()
 }
-
-#[derive(Debug)]
-pub enum CrossConeClosureInternalHirError {
-    Allocation {
-        requested_slots: usize,
-    },
-    Artifact {
-        identity: ConeIdentity,
-        source: Box<CrossConeHirInternalClosureError>,
-    },
-}
-
-impl fmt::Display for CrossConeClosureInternalHirError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Allocation { requested_slots } => write!(
-                formatter,
-                "cannot allocate {requested_slots} internally closed cross-Cone HIR slots"
-            ),
-            Self::Artifact { identity, source } => write!(
-                formatter,
-                "invalid internal HIR closure for {identity}: {source}"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for CrossConeClosureInternalHirError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Artifact { source, .. } => Some(source),
-            Self::Allocation { .. } => None,
-        }
-    }
-}
-
-macro_rules! define_surface_error {
-    ($name:ident, $source:ty, $label:literal) => {
-        #[derive(Debug)]
-        pub enum $name {
-            Allocation {
-                requested_slots: usize,
-            },
-            AuthorityAllocation {
-                identity: ConeIdentity,
-                requested_slots: usize,
-            },
-            Artifact {
-                identity: ConeIdentity,
-                source: Box<$source>,
-            },
-        }
-
-        impl fmt::Display for $name {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match self {
-                    Self::Allocation { requested_slots } => write!(
-                        formatter,
-                        "cannot allocate {requested_slots} {}-validated cross-Cone HIR slots",
-                        $label
-                    ),
-                    Self::AuthorityAllocation {
-                        identity,
-                        requested_slots,
-                    } => write!(
-                        formatter,
-                        "cannot allocate {requested_slots} {} dependency authority slots for {identity}",
-                        $label
-                    ),
-                    Self::Artifact { identity, source } => write!(
-                        formatter,
-                        "invalid {} HIR surface for {identity}: {source}",
-                        $label
-                    ),
-                }
-            }
-        }
-
-        impl std::error::Error for $name {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-                match self {
-                    Self::Artifact { source, .. } => Some(source),
-                    Self::Allocation { .. } | Self::AuthorityAllocation { .. } => None,
-                }
-            }
-        }
-    };
-}
-
-define_surface_error!(
-    CrossConeClosureNominalSurfaceError,
-    CrossConeHirNominalSurfaceError,
-    "nominal"
-);
-define_surface_error!(
-    CrossConeClosurePropertySurfaceError,
-    CrossConeHirPropertySurfaceError,
-    "property"
-);
-define_surface_error!(
-    CrossConeClosureCallableSurfaceError,
-    CrossConeHirCallableSurfaceError,
-    "callable"
-);
-define_surface_error!(
-    CrossConeClosureTypeAliasSurfaceError,
-    CrossConeHirTypeAliasSurfaceError,
-    "type-alias"
-);
 
 #[cfg(test)]
 pub(super) fn transitive_positions_for_test(

@@ -1,8 +1,11 @@
 //! Canonical identity authority used while validating cross-Cone HIR surfaces.
 
 mod callable;
+mod definition_source;
 mod property;
 mod type_alias;
+
+pub use definition_source::*;
 
 use std::fmt;
 

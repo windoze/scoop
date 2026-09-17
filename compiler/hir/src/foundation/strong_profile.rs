@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_identity::{
     DefinitionOriginRecord, DefinitionOriginSubject, OdrGroupId, OdrMemberId,
-    PersistentCallableApplicationId,
+    PersistentCallableApplicationId, PersistentSourceContextId, SourceContextKey, SourceIdentity,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -60,6 +60,27 @@ impl OdrFreeHirFoundation {
         subject: DefinitionOriginSubject,
     ) -> Option<&DefinitionOriginRecord> {
         self.0.definition_origin(subject)
+    }
+
+    /// Returns the canonical source record for an exact source identity.
+    pub fn source_record(&self, source: &SourceIdentity) -> Option<&crate::SourceRecord> {
+        self.0
+            .sources
+            .binary_search_by(|record| record.identity().cmp(source))
+            .ok()
+            .map(|index| &self.0.sources[index])
+    }
+
+    /// Returns the canonical key for an exact source-context identity.
+    pub fn source_context_key(
+        &self,
+        context: PersistentSourceContextId,
+    ) -> Option<&SourceContextKey> {
+        self.0
+            .source_contexts
+            .binary_search_by_key(&context, |record| record.id())
+            .ok()
+            .map(|index| self.0.source_contexts[index].key())
     }
 
     #[doc(hidden)]

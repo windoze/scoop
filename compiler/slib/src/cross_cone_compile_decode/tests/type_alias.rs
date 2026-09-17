@@ -5,7 +5,9 @@ use scoop_hir::{
     CanonicalExternalHirReferencesV1, CanonicalNominalInterfacesV1, CanonicalPersistentIdsV1,
     CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1, CanonicalPublicMemberRefsV1,
     CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, CoreHirInterfaceBranchV1,
-    CrossConeHirInterfaceSectionV1, ExportBindingSourceV1, ExportDefinitionSourceV1,
+    CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
+    ExportDefinitionSourceSemanticValidationError,
+    ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceV1,
     HirOutputContractV1, NominalInterfaceRecordV1, NominalSourceShapeV1,
     PublicExportBindingRecordV1, PublicLookupAccessV1, PublicNominalKindV1,
     SignatureTypeSemanticError, SourceNominalId, StructSourceShapeV1, TypeAliasInterfaceRecordV1,
@@ -23,6 +25,7 @@ use scoop_identity::{
 use scoop_wire::{Encoder, WireEncode, encode};
 
 use super::*;
+use crate::cross_cone_hir_authority::CrossConeHirDefinitionSourceAuthorityError;
 
 #[test]
 fn validates_a_canonical_type_alias_surface() {
@@ -85,6 +88,42 @@ fn rejects_a_type_alias_definition_origin_mismatch() {
             ..
         } if expected.as_ref() == &fixture.foundation_origin
             && actual.as_ref() == &fixture.interface_origin
+    ));
+}
+
+#[test]
+fn rejects_an_exported_definition_source_without_foundation_points() {
+    let mut fixture = AliasSurface::new(true, false, None);
+    fixture
+        .foundation
+        .set_sources(vec![
+            scoop_hir::SourceRecord::from_utf8(
+                fixture.interface_origin.source().clone(),
+                "typealias Alias = Target",
+                [0, 5],
+            )
+            .unwrap(),
+        ])
+        .unwrap();
+    let bytes = fixture.artifact();
+    let front = validate_until_internal(&bytes);
+
+    let Err(CrossConeHirDefinitionSourceSurfaceError::DefinitionSources(error)) =
+        front.validate_definition_sources()
+    else {
+        panic!("an unbacked exported definition point must fail semantic validation");
+    };
+    assert!(matches!(
+        error,
+        ExportDefinitionSourceSetSemanticValidationError::Source {
+            error: ExportDefinitionSourceSemanticValidationError::Foundation(
+                CrossConeHirDefinitionSourceAuthorityError::MissingSourcePoint {
+                    byte_offset: 6,
+                    ..
+                }
+            ),
+            ..
+        }
     ));
 }
 
@@ -157,6 +196,8 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
+        .validate_definition_sources()
+        .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
     let alias = alias
@@ -167,6 +208,8 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
         .validate_hir_production()
         .unwrap()
         .validate_internal_hir_closures()
+        .unwrap()
+        .validate_definition_sources()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -187,6 +230,18 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
 }
 
 fn validate_until_callable(bytes: &[u8]) -> CallableValidatedCrossConeHirFrontSections<'_> {
+    validate_until_internal(bytes)
+        .validate_definition_sources()
+        .unwrap()
+        .validate_nominal_surface(Vec::new())
+        .unwrap()
+        .validate_property_surface(Vec::new())
+        .unwrap()
+        .validate_callable_surface(Vec::new())
+        .unwrap()
+}
+
+fn validate_until_internal(bytes: &[u8]) -> InternallyClosedCrossConeHirFrontSections<'_> {
     let mut decoded = open_graph(bytes)
         .decode_cross_cone_hir_front_sections()
         .unwrap();
@@ -201,12 +256,6 @@ fn validate_until_callable(bytes: &[u8]) -> CallableValidatedCrossConeHirFrontSe
         .validate_hir_production()
         .unwrap()
         .validate_internal_hir_closures()
-        .unwrap()
-        .validate_nominal_surface(Vec::new())
-        .unwrap()
-        .validate_property_surface(Vec::new())
-        .unwrap()
-        .validate_callable_surface(Vec::new())
         .unwrap()
 }
 

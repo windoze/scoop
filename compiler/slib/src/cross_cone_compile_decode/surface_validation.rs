@@ -1,10 +1,7 @@
 //! Per-artifact HIR semantic-surface type-state transitions.
 
 use scoop_hir::{
-    CallableInterfaceSetSemanticValidationError, CoreBootstrapInterfaceSectionV1,
-    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
-    NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
-    PropertyInterfaceSetSemanticValidationError, TypeAliasInterfaceSetSemanticValidationError,
+    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, OdrFreeHirFoundation,
 };
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
@@ -15,11 +12,16 @@ use super::HirProductionValidatedCrossConeHirFrontSections;
 use crate::{
     ValidatedGraphArtifact,
     cross_cone_hir_authority::{
-        CanonicalCrossConeHirSurfaceAuthority, CrossConeHirNominalAuthorityError,
-        ValidatedNominalProviderView,
+        CanonicalCrossConeHirSurfaceAuthority, ValidatedNominalProviderView,
     },
     strong_compile_decode::OdrFreeStrongFoundationSet,
 };
+
+mod definition_source;
+mod errors;
+
+pub use definition_source::*;
+pub use errors::*;
 
 /// Storage shared by the declaration-surface proof states. Each public
 /// wrapper below is a distinct, consuming type-state gate over this carrier.
@@ -102,6 +104,7 @@ macro_rules! impl_surface_front_accessors {
 }
 
 impl_surface_front_accessors!(InternallyClosedCrossConeHirFrontSections);
+impl_surface_front_accessors!(DefinitionSourceValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(NominalValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(PropertyValidatedCrossConeHirFrontSections);
 impl_surface_front_accessors!(CallableValidatedCrossConeHirFrontSections);
@@ -184,7 +187,7 @@ impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
     }
 }
 
-impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
+impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
     /// Validates the nominal declaration surface using canonical keys and
     /// only the provider's already validated transitive dependencies.
     pub(crate) fn validate_nominal_surface<'dependency>(
@@ -358,77 +361,3 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
         ))
     }
 }
-
-#[derive(Debug)]
-pub enum CrossConeHirInternalClosureError {
-    Interface(CrossConeHirInternalClosureValidationError),
-}
-
-impl std::fmt::Display for CrossConeHirInternalClosureError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Interface(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CrossConeHirInternalClosureError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Interface(error) => Some(error),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CrossConeHirNominalSurfaceError {
-    NominalInterfaces(
-        Box<NominalInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
-    ),
-}
-
-#[derive(Debug)]
-pub enum CrossConeHirPropertySurfaceError {
-    PropertyInterfaces(
-        Box<PropertyInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
-    ),
-}
-
-#[derive(Debug)]
-pub enum CrossConeHirCallableSurfaceError {
-    CallableInterfaces(
-        Box<CallableInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
-    ),
-}
-
-#[derive(Debug)]
-pub enum CrossConeHirTypeAliasSurfaceError {
-    TypeAliasInterfaces(
-        Box<TypeAliasInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
-    ),
-}
-
-macro_rules! impl_surface_error {
-    ($error:ident, $variant:ident) => {
-        impl std::fmt::Display for $error {
-            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    Self::$variant(error) => error.fmt(formatter),
-                }
-            }
-        }
-
-        impl std::error::Error for $error {
-            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-                match self {
-                    Self::$variant(error) => Some(error),
-                }
-            }
-        }
-    };
-}
-
-impl_surface_error!(CrossConeHirNominalSurfaceError, NominalInterfaces);
-impl_surface_error!(CrossConeHirPropertySurfaceError, PropertyInterfaces);
-impl_surface_error!(CrossConeHirCallableSurfaceError, CallableInterfaces);
-impl_surface_error!(CrossConeHirTypeAliasSurfaceError, TypeAliasInterfaces);
