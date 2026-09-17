@@ -10,12 +10,14 @@ use super::{
     DependencyBindingWitnessV1, ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority,
     ExternalHirReferenceV1, ExternalHirTargetV1,
 };
+use crate::{CanonicalPublicExportBindingsV1, PublicExportBindingClosureAuthority};
 use crate::{ReexportRouteHopV1, ReexportRouteV1};
 
 pub(super) struct Fixture {
     pub(super) provider: ConeIdentity,
     pub(super) first_alias: PersistentTypeAliasId,
     pub(super) second_alias: PersistentTypeAliasId,
+    pub(super) first_root: BindingTarget,
     pub(super) first_route: ReexportRouteV1,
     pub(super) second_route: ReexportRouteV1,
 }
@@ -26,12 +28,13 @@ impl Fixture {
             .unwrap()
             .identity()
             .unwrap();
-        let (first_alias, first_binding) = alias_binding(provider, "First");
-        let (second_alias, second_binding) = alias_binding(provider, "Second");
+        let (first_alias, first_binding, first_root) = alias_binding(provider, "First");
+        let (second_alias, second_binding, _) = alias_binding(provider, "Second");
         Self {
             provider,
             first_alias,
             second_alias,
+            first_root,
             first_route: route(provider, first_binding),
             second_route: route(provider, second_binding),
         }
@@ -96,6 +99,7 @@ pub(super) fn witnesses(routes: Vec<ReexportRouteV1>) -> CanonicalDependencyBind
 pub(super) struct TargetOriginAuthority {
     current: ConeIdentity,
     target_origin: ConeIdentity,
+    binding_root: Option<BindingTarget>,
     failing_target: Option<ExternalHirTargetV1>,
     origin_queries: usize,
 }
@@ -105,6 +109,7 @@ impl TargetOriginAuthority {
         Self {
             current,
             target_origin,
+            binding_root: None,
             failing_target: None,
             origin_queries: 0,
         }
@@ -116,6 +121,10 @@ impl TargetOriginAuthority {
 
     pub(super) fn fail_on(&mut self, target: ExternalHirTargetV1) {
         self.failing_target = Some(target);
+    }
+
+    pub(super) fn set_binding_root(&mut self, binding_root: BindingTarget) {
+        self.binding_root = Some(binding_root);
     }
 
     pub(super) const fn target_origin(&self) -> ConeIdentity {
@@ -154,12 +163,41 @@ impl ExternalHirReferenceSemanticAuthority<TargetOriginAuthorityError> for Targe
             Ok(self.target_origin)
         }
     }
+
+    fn external_hir_target_binding_root(
+        &mut self,
+        _target: ExternalHirTargetV1,
+    ) -> Result<BindingTarget, TargetOriginAuthorityError> {
+        self.binding_root.ok_or(TargetOriginAuthorityError)
+    }
+}
+
+impl PublicExportBindingClosureAuthority for TargetOriginAuthority {
+    fn closure_node_count(&self) -> usize {
+        0
+    }
+
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
+    }
+
+    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        None
+    }
+
+    fn public_bindings(&self, _exporter: ConeIdentity) -> Option<&CanonicalPublicExportBindingsV1> {
+        None
+    }
 }
 
 fn alias_binding(
     provider: ConeIdentity,
     name: &str,
-) -> (PersistentTypeAliasId, PersistentExportBindingId) {
+) -> (
+    PersistentTypeAliasId,
+    PersistentExportBindingId,
+    BindingTarget,
+) {
     let declaration = SourceDeclarationKey::type_alias(
         SourceDeclarationSite::new(
             provider,
@@ -171,16 +209,17 @@ fn alias_binding(
         CanonicalIdentifier::new(name).unwrap(),
     );
     let alias = PersistentTypeAliasId::from_source_declaration(&declaration).unwrap();
+    let target = BindingTarget::type_alias(&declaration).unwrap();
     let binding =
         CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
             provider,
             PackagePath::root(),
             CanonicalIdentifier::new(name).unwrap(),
-            BindingTarget::type_alias(&declaration).unwrap(),
+            target,
         ))
         .unwrap()
         .id();
-    (alias, binding)
+    (alias, binding, target)
 }
 
 fn route(provider: ConeIdentity, binding: PersistentExportBindingId) -> ReexportRouteV1 {

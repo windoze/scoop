@@ -5,6 +5,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{DecodedReexportRouteV1, ReexportRouteResolutionError, ReexportRouteV1};
 
+mod semantics;
+
+pub use semantics::DependencyBindingWitnessSemanticValidationError;
+
 /// A consumer-side source-name authorization proof.
 ///
 /// This is semantically distinct from the route stored on a re-export

@@ -1,21 +1,27 @@
 use std::fmt;
 
-use scoop_identity::ConeIdentity;
+use scoop_identity::{BindingTarget, ConeIdentity};
 
 use super::{ExternalHirReferenceV1, ExternalHirTargetV1};
+use crate::{DependencyBindingWitnessSemanticValidationError, PublicExportBindingClosureAuthority};
 
 /// Supplies the canonical owner Cone for a resolved external HIR target.
 ///
 /// Implementations must derive the result from the target's kind-specific
 /// canonical identity key. A name, table position, or untyped raw id is not
 /// sufficient authority.
-pub trait ExternalHirReferenceSemanticAuthority<E> {
+pub trait ExternalHirReferenceSemanticAuthority<E>: PublicExportBindingClosureAuthority {
     fn current_cone(&self) -> ConeIdentity;
 
     fn external_hir_target_origin(
         &mut self,
         target: ExternalHirTargetV1,
     ) -> Result<ConeIdentity, E>;
+
+    fn external_hir_target_binding_root(
+        &mut self,
+        target: ExternalHirTargetV1,
+    ) -> Result<BindingTarget, E>;
 }
 
 impl ExternalHirReferenceV1 {
@@ -53,6 +59,27 @@ impl ExternalHirReferenceV1 {
                 },
             );
         }
+
+        if !self.witnesses().is_empty() {
+            let root = authority
+                .external_hir_target_binding_root(self.target())
+                .map_err(
+                    |error| ExternalHirReferenceSemanticValidationError::BindingRoot {
+                        target: self.target(),
+                        error,
+                    },
+                )?;
+            for (index, witness) in self.witnesses().witnesses().iter().enumerate() {
+                witness
+                    .validate_semantics(root, authority)
+                    .map_err(
+                        |error| ExternalHirReferenceSemanticValidationError::Witness {
+                            index,
+                            error,
+                        },
+                    )?;
+            }
+        }
         Ok(())
     }
 }
@@ -71,6 +98,14 @@ pub enum ExternalHirReferenceSemanticValidationError<E> {
         target: ExternalHirTargetV1,
         expected: ConeIdentity,
         actual: ConeIdentity,
+    },
+    BindingRoot {
+        target: ExternalHirTargetV1,
+        error: E,
+    },
+    Witness {
+        index: usize,
+        error: DependencyBindingWitnessSemanticValidationError,
     },
 }
 
@@ -93,6 +128,16 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSemanticValidationErr
                 formatter,
                 "external HIR target {target:?} belongs to Cone {expected}, not recorded origin {actual}"
             ),
+            Self::BindingRoot { target, error } => write!(
+                formatter,
+                "external HIR target {target:?} public binding root is unavailable: {error}"
+            ),
+            Self::Witness { index, error } => {
+                write!(
+                    formatter,
+                    "invalid dependency binding witness {index}: {error}"
+                )
+            }
         }
     }
 }

@@ -85,11 +85,14 @@ fn table_semantics_reports_the_failing_canonical_record_index() {
         table.validate_semantics(&mut authority),
         Err(ExternalHirReferenceSetSemanticValidationError::Record {
             index: 1,
-            error: ExternalHirReferenceSemanticValidationError::TargetOrigin {
+            error,
+        }) if matches!(
+            error.as_ref(),
+            ExternalHirReferenceSemanticValidationError::TargetOrigin {
                 target,
                 error: TargetOriginAuthorityError,
-            },
-        }) if target == table.records()[1].target()
+            } if *target == table.records()[1].target()
+        )
     ));
 }
 

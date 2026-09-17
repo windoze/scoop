@@ -52,7 +52,10 @@ impl CanonicalExternalHirReferencesV1 {
     {
         for (index, record) in self.records.iter().enumerate() {
             record.validate_semantics(authority).map_err(|error| {
-                ExternalHirReferenceSetSemanticValidationError::Record { index, error }
+                ExternalHirReferenceSetSemanticValidationError::Record {
+                    index,
+                    error: Box::new(error),
+                }
             })?;
         }
         Ok(())
@@ -188,7 +191,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 pub enum ExternalHirReferenceSetSemanticValidationError<E> {
     Record {
         index: usize,
-        error: ExternalHirReferenceSemanticValidationError<E>,
+        error: Box<ExternalHirReferenceSemanticValidationError<E>>,
     },
 }
 

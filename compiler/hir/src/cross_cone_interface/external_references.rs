@@ -29,8 +29,8 @@ pub use target::{
 pub use witness::{
     CanonicalDependencyBindingWitnessesV1, DecodedCanonicalDependencyBindingWitnessesV1,
     DecodedDependencyBindingWitnessV1, DependencyBindingWitnessResolutionError,
-    DependencyBindingWitnessSetBuildError, DependencyBindingWitnessSetValidationError,
-    DependencyBindingWitnessV1,
+    DependencyBindingWitnessSemanticValidationError, DependencyBindingWitnessSetBuildError,
+    DependencyBindingWitnessSetValidationError, DependencyBindingWitnessV1,
 };
 
 #[cfg(test)]

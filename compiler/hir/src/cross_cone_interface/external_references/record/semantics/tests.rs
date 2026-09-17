@@ -60,6 +60,32 @@ fn target_origin_authority_failure_is_preserved() {
     );
 }
 
+#[test]
+fn witness_root_and_route_failures_keep_their_record_context() {
+    let fixture = Fixture::new();
+    let record = fixture.alias_reference(fixture.first_alias, fixture.first_route.clone());
+    let mut authority = TargetOriginAuthority::new(ConeIdentity::CORE, fixture.provider);
+
+    assert_eq!(
+        record.validate_semantics(&mut authority),
+        Err(ExternalHirReferenceSemanticValidationError::BindingRoot {
+            target: record.target(),
+            error: TargetOriginAuthorityError,
+        })
+    );
+
+    authority.set_binding_root(fixture.first_root);
+    assert_eq!(
+        record.validate_semantics(&mut authority),
+        Err(ExternalHirReferenceSemanticValidationError::Witness {
+            index: 0,
+            error: DependencyBindingWitnessSemanticValidationError::ImmediateProviderNotDirect {
+                provider: fixture.provider,
+            },
+        })
+    );
+}
+
 fn cone(name: &str) -> ConeIdentity {
     ConeCoordinate::new("example", name, "1.0.0")
         .unwrap()
