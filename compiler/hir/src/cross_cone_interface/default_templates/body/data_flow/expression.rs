@@ -1,6 +1,7 @@
 use crate::{
-    DefaultArrayAssemblyPartV1, DefaultCallableReferenceTargetV1, DefaultCaptureV1,
-    DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultPlaceV1,
+    CanonicalBooleanV1, DefaultArrayAssemblyPartV1, DefaultCallableReferenceTargetV1,
+    DefaultCaptureV1, DefaultExpressionKindV1, DefaultExpressionV1, DefaultIntegerArgumentsV1,
+    DefaultPlaceV1,
 };
 
 use super::{DefaultLocalDataFlowSiteV1, ExportDefaultLocalDataFlowValidationError, Validator};
@@ -56,12 +57,18 @@ where
                     depth,
                 } => {
                     self.enter_node(depth)?;
-                    self.use_local(
+                    let local_index = self.use_local(
                         capture.source(),
                         Some(capture.value_type()),
                         DefaultLocalDataFlowSiteV1::Capture { index },
                         available,
                         reachable,
+                    )?;
+                    self.check_local_shape(
+                        local_index,
+                        None,
+                        Some(CanonicalBooleanV1::False),
+                        DefaultLocalDataFlowSiteV1::Capture { index },
                     )?;
                 }
             }

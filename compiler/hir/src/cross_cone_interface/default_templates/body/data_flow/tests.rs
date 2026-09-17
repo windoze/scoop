@@ -249,6 +249,53 @@ fn rejects_immutable_assignment_and_mismatched_capture_type() {
 }
 
 #[test]
+fn rejects_mutable_capture_source() {
+    let fixture = Fixture::new();
+    let local = local_selector(0);
+    let local_function = DefaultLocalFunctionV1::try_new(
+        CallableTemplateOrigin::Function(fixture.function),
+        path(StructuralDefinitionSiteRole::LocalDeclaration, 2),
+        binder(),
+        vec![DefaultCaptureV1::new(
+            local.clone(),
+            binder(),
+            fixture.origin(),
+        )],
+        0,
+    )
+    .unwrap();
+    let template = template(
+        &fixture,
+        vec![source_record(
+            &fixture,
+            local.clone(),
+            CanonicalBooleanV1::True,
+        )],
+        Vec::new(),
+        vec![
+            assignment_statement(&fixture, local.clone()),
+            statement(
+                &fixture,
+                DefaultStatementKindV1::LocalFunction(local_function),
+            ),
+        ],
+        unit(&fixture),
+    );
+
+    assert_eq!(
+        validate(&template, &fixture),
+        Err(ExportDefaultLocalDataFlowValidationError::Local {
+            site: DefaultLocalDataFlowSiteV1::Capture { index: 0 },
+            selector: Box::new(local),
+            error: DefaultLocalDataFlowLocalError::Mutability {
+                expected: CanonicalBooleanV1::True,
+                actual: CanonicalBooleanV1::False,
+            },
+        })
+    );
+}
+
+#[test]
 fn enforces_loop_control_nesting() {
     let fixture = Fixture::new();
     let outside = template(
