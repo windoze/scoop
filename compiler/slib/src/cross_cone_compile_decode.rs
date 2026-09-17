@@ -3,9 +3,9 @@
 use scoop_hir::{
     CallableInterfaceSetSemanticValidationError, CoreBootstrapInterfaceSectionV1,
     CoreBootstrapInterfaceValidationError, CrossConeHirInterfaceResolutionError,
-    CrossConeHirInterfaceSectionV1, DecodedCoreBootstrapInterfaceSectionV1,
-    DecodedCrossConeHirInterfaceSectionV1, DecodedHirFoundation,
-    NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
+    DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
+    DecodedHirFoundation, NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
     PropertyInterfaceSetSemanticValidationError,
 };
 use scoop_identity::{
@@ -14,7 +14,7 @@ use scoop_identity::{
 };
 use scoop_lir::{DecodedLirFoundation, DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
-use scoop_wire::DecodeUsage;
+use scoop_wire::{DecodeUsage, WirePath};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, CompileSectionDecodeError, ConeKind,
@@ -85,6 +85,19 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
 /// HIR identity references are both validated. General-interface ownership,
 /// route, and external-reference semantics remain pending.
 pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose exact section-internal HIR relationships
+/// match the legacy direct surface. Declaration ownership and cross-provider
+/// authority remain unvalidated.
+pub struct InternallyClosedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
@@ -525,6 +538,88 @@ impl HirProductionValidatedCrossConeHirFrontSections<'_> {
 }
 
 impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
+    /// Closes every relationship reconstructible from this HIR section and
+    /// its independently validated direct-public surface. Semantic work is
+    /// charged to the artifact's existing decode meter.
+    pub(crate) fn validate_internal_hir_closures(
+        self,
+    ) -> Result<InternallyClosedCrossConeHirFrontSections<'input>, CrossConeHirInternalClosureError>
+    {
+        let Self {
+            mut graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        } = self;
+        hir_interface
+            .validate_internal_closures(
+                hir_core_production.direct_public_surface(),
+                graph.envelope.meter_mut(),
+                &WirePath::root(),
+            )
+            .map_err(CrossConeHirInternalClosureError::Interface)?;
+        Ok(InternallyClosedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl InternallyClosedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
+    }
+}
+
+impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
     /// Validates the nominal declaration surface using canonical keys from
     /// this provider's identity graph and nominal interfaces from only its
     /// already validated transitive dependency closure.
@@ -810,6 +905,27 @@ pub enum CrossConeHirNominalSurfaceError {
     NominalInterfaces(
         Box<NominalInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
+}
+
+#[derive(Debug)]
+pub enum CrossConeHirInternalClosureError {
+    Interface(CrossConeHirInternalClosureValidationError),
+}
+
+impl std::fmt::Display for CrossConeHirInternalClosureError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Interface(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirInternalClosureError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Interface(error) => Some(error),
+        }
+    }
 }
 
 #[derive(Debug)]

@@ -87,6 +87,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .unwrap()
         .validate_hir_productions()
         .unwrap()
+        .validate_internal_hir_closures()
+        .unwrap()
         .validate_nominal_surfaces()
         .unwrap()
         .validate_property_surfaces()

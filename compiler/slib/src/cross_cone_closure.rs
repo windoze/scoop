@@ -12,11 +12,12 @@ use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{
     CallableValidatedCrossConeHirFrontSections, ConeKind, CrossConeHirCallableSurfaceError,
-    CrossConeHirNominalSurfaceError, CrossConeHirPropertySurfaceError,
-    DecodedCrossConeHirFrontSections, DependencyRecord,
+    CrossConeHirInternalClosureError, CrossConeHirNominalSurfaceError,
+    CrossConeHirPropertySurfaceError, DecodedCrossConeHirFrontSections, DependencyRecord,
     FoundationValidatedCrossConeHirFrontSections, HirProductionValidatedCrossConeHirFrontSections,
-    NominalValidatedCrossConeHirFrontSections, PropertyValidatedCrossConeHirFrontSections,
-    ResolvedCrossConeHirFrontSections, StrongProfileFoundationError,
+    InternallyClosedCrossConeHirFrontSections, NominalValidatedCrossConeHirFrontSections,
+    PropertyValidatedCrossConeHirFrontSections, ResolvedCrossConeHirFrontSections,
+    StrongProfileFoundationError,
 };
 
 /// Untrusted assembly input for the dependency artifacts visible while
@@ -507,6 +508,106 @@ impl HirProductionValidatedCrossConeHirClosure<'_> {
 }
 
 impl<'input> HirProductionValidatedCrossConeHirClosure<'input> {
+    /// Validates every provider's exact section-internal HIR relations before
+    /// any table is exposed as cross-provider semantic authority.
+    pub fn validate_internal_hir_closures(
+        self,
+    ) -> Result<InternallyClosedCrossConeHirClosure<'input>, CrossConeClosureInternalHirError> {
+        let Self {
+            current,
+            target,
+            direct,
+            dependency_first,
+            positions,
+            dependency_positions,
+        } = self;
+        let artifact_count = dependency_first.len();
+        let mut validated = Vec::<InternallyClosedCrossConeHirFrontSections<'input>>::new();
+        validated.try_reserve_exact(artifact_count).map_err(|_| {
+            CrossConeClosureInternalHirError::Allocation {
+                requested_slots: artifact_count,
+            }
+        })?;
+
+        for front in dependency_first {
+            let identity = front.identity();
+            let front = front.validate_internal_hir_closures().map_err(|source| {
+                CrossConeClosureInternalHirError::Artifact {
+                    identity,
+                    source: Box::new(source),
+                }
+            })?;
+            validated.push(front);
+        }
+
+        Ok(InternallyClosedCrossConeHirClosure {
+            current,
+            target,
+            direct,
+            dependency_first: validated,
+            positions,
+            dependency_positions,
+        })
+    }
+}
+
+/// Cross-Cone providers whose internal general-HIR relations are exact.
+/// Cross-provider declaration, route, and bridge semantics remain pending.
+pub struct InternallyClosedCrossConeHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<InternallyClosedCrossConeHirFrontSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+impl InternallyClosedCrossConeHirClosure<'_> {
+    pub const fn current(&self) -> ConeIdentity {
+        self.current
+    }
+
+    pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target
+    }
+
+    pub fn direct_providers(&self) -> &[ConeIdentity] {
+        &self.direct
+    }
+
+    pub fn dependency_first(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &InternallyClosedCrossConeHirFrontSections<'_>> {
+        self.dependency_first.iter()
+    }
+
+    pub fn artifact(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&InternallyClosedCrossConeHirFrontSections<'_>> {
+        self.positions
+            .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        self.positions.get(&identity).map(|_| {
+            if self.direct.binary_search(&identity).is_ok() {
+                CrossConeProviderRole::Direct
+            } else {
+                CrossConeProviderRole::Support
+            }
+        })
+    }
+
+    pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+        self.positions
+            .get(&identity)
+            .map(|position| self.dependency_positions[*position].len())
+    }
+}
+
+impl<'input> InternallyClosedCrossConeHirClosure<'input> {
     /// Validates public nominal declarations dependency-first. Each provider
     /// receives semantic surfaces only from its own transitive closure; an
     /// already validated sibling can never satisfy a nominal lookup.
@@ -1219,6 +1320,43 @@ pub enum CrossConeClosureHirProductionError {
         identity: ConeIdentity,
         source: CoreBootstrapInterfaceValidationError,
     },
+}
+
+#[derive(Debug)]
+pub enum CrossConeClosureInternalHirError {
+    Allocation {
+        requested_slots: usize,
+    },
+    Artifact {
+        identity: ConeIdentity,
+        source: Box<CrossConeHirInternalClosureError>,
+    },
+}
+
+impl fmt::Display for CrossConeClosureInternalHirError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Allocation { requested_slots } => write!(
+                formatter,
+                "cannot allocate {requested_slots} internally closed cross-Cone HIR slots"
+            ),
+            Self::Artifact { identity, source } => {
+                write!(
+                    formatter,
+                    "invalid internal HIR closure for {identity}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for CrossConeClosureInternalHirError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Artifact { source, .. } => Some(source),
+            Self::Allocation { .. } => None,
+        }
+    }
 }
 
 impl fmt::Display for CrossConeClosureHirProductionError {

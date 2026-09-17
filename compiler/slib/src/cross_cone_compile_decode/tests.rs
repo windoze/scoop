@@ -8,9 +8,10 @@ use scoop_hir::{
     CanonicalNominalInterfacesV1, CanonicalPersistentIdsV1, CanonicalPropertyInterfacesV1,
     CanonicalPublicExportBindingsV1, CanonicalPublicMemberRefsV1, CanonicalSignatureTypesV1,
     CanonicalSourceParameterShapesV1, CanonicalTypeAliasInterfacesV1,
-    CrossConeHirInterfaceSectionV1, EnumSourceShapeV1, EnumSourceVariantStyleV1,
-    EnumSourceVariantV1, NominalInterfaceRecordV1, NominalInterfaceSemanticValidationError,
-    NominalSourceShapeV1, PropertyCapabilityV1, PropertyInterfaceRecordV1,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError, EnumSourceShapeV1,
+    EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalInterfaceRecordV1,
+    NominalInterfaceSemanticValidationError, NominalSourceShapeV1,
+    PropertyAccessorClosureValidationError, PropertyCapabilityV1, PropertyInterfaceRecordV1,
     PropertyInterfaceSemanticValidationError, PropertyInterfaceSetSemanticValidationError,
     PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
     PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicMemberRefV1, PublicNominalKindV1,
@@ -154,10 +155,41 @@ fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
 }
 
 #[test]
+fn cross_cone_hir_front_rejects_an_open_property_accessor_closure() {
+    let cone = cone();
+    let (foundation, hir_interface, _, _, _, _, _, _) =
+        nominal_surface(cone.identity(), true, true, false);
+    let bytes =
+        cross_cone_artifact_for_with_hir_foundation(cone, Vec::new(), &foundation, hir_interface);
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let front = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap();
+
+    let Err(CrossConeHirInternalClosureError::Interface(
+        CrossConeHirInternalClosureValidationError::PropertyAccessors(
+            PropertyAccessorClosureValidationError::MissingPublicAccessor { .. },
+        ),
+    )) = front.validate_internal_hir_closures()
+    else {
+        panic!("an open property accessor closure must fail before surface validation");
+    };
+}
+
+#[test]
 fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
     let cone = cone();
     let (foundation, hir_interface, nominal, _, _, _, _, _) =
-        nominal_surface(cone.identity(), true, true);
+        nominal_surface(cone.identity(), true, true, true);
     let bytes = cross_cone_artifact_for_with_hir_foundation(
         cone.clone(),
         Vec::new(),
@@ -176,6 +208,8 @@ fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
@@ -194,7 +228,7 @@ fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
 fn cross_cone_hir_front_validates_a_canonical_property_surface() {
     let cone = cone();
     let (foundation, hir_interface, _, _, _, property, extension_property, _) =
-        nominal_surface(cone.identity(), true, true);
+        nominal_surface(cone.identity(), true, true, true);
     let bytes = cross_cone_artifact_for_with_hir_foundation(
         cone.clone(),
         Vec::new(),
@@ -213,6 +247,8 @@ fn cross_cone_hir_front_validates_a_canonical_property_surface() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -239,7 +275,7 @@ fn cross_cone_hir_front_validates_a_canonical_property_surface() {
 fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
     let cone = cone();
     let (foundation, hir_interface, _, callable, constructor, _, _, getter) =
-        nominal_surface(cone.identity(), true, true);
+        nominal_surface(cone.identity(), true, true, true);
     let bytes = cross_cone_artifact_for_with_hir_foundation(
         cone.clone(),
         Vec::new(),
@@ -258,6 +294,8 @@ fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -319,6 +357,8 @@ fn cross_cone_hir_front_validates_an_enum_variant_constructor_surface() {
         .unwrap()
         .validate_hir_production()
         .unwrap()
+        .validate_internal_hir_closures()
+        .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
         .validate_property_surface(Vec::new())
@@ -339,7 +379,7 @@ fn cross_cone_hir_front_validates_an_enum_variant_constructor_surface() {
 fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
     let cone = cone();
     let (foundation, hir_interface, nominal, _, _, _, _, _) =
-        nominal_surface(cone.identity(), false, true);
+        nominal_surface(cone.identity(), false, true, true);
     let bytes =
         cross_cone_artifact_for_with_hir_foundation(cone, Vec::new(), &foundation, hir_interface);
     let mut decoded = open_graph(&bytes)
@@ -354,6 +394,8 @@ fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -384,7 +426,7 @@ fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
 fn cross_cone_hir_front_rejects_a_property_owner_identity_mismatch() {
     let cone = cone();
     let (foundation, hir_interface, nominal, _, _, _, _, _) =
-        nominal_surface(cone.identity(), true, false);
+        nominal_surface(cone.identity(), true, false, true);
     let bytes =
         cross_cone_artifact_for_with_hir_foundation(cone, Vec::new(), &foundation, hir_interface);
     let mut decoded = open_graph(&bytes)
@@ -399,6 +441,8 @@ fn cross_cone_hir_front_rejects_a_property_owner_identity_mismatch() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
@@ -456,6 +500,8 @@ fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
         .resolve_hir_interface()
         .unwrap()
         .validate_hir_production()
+        .unwrap()
+        .validate_internal_hir_closures()
         .unwrap();
 
     let Err(CrossConeHirNominalSurfaceError::NominalInterfaces(error)) =
@@ -617,6 +663,7 @@ fn nominal_surface(
     cone: scoop_identity::ConeIdentity,
     matching_callable_parameter: bool,
     matching_property_owner: bool,
+    include_public_accessors: bool,
 ) -> (
     CanonicalHirFoundation,
     Vec<u8>,
@@ -875,9 +922,14 @@ fn nominal_surface(
         PublicLookupAccessV1::DirectOnly,
     )
     .unwrap();
+    let property_owner = if matching_property_owner {
+        PublicDeclarationOwnerV1::TopLevel
+    } else {
+        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(nominal.id()))
+    };
     let getter_callable = CallableInterfaceRecordV1::try_new(
         CallableTemplateOrigin::Accessor(getter.id()),
-        PublicDeclarationOwnerV1::TopLevel,
+        property_owner,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         CanonicalSourceParameterShapesV1::try_new(Vec::new()).unwrap(),
@@ -899,11 +951,6 @@ fn nominal_surface(
         PublicLookupAccessV1::DirectOnly,
     )
     .unwrap();
-    let property_owner = if matching_property_owner {
-        PublicDeclarationOwnerV1::TopLevel
-    } else {
-        PublicDeclarationOwnerV1::Nominal(SourceNominalId::Concrete(nominal.id()))
-    };
     let property_record = PropertyInterfaceRecordV1::try_new(
         PropertyOwner::Property(property.id()),
         property_owner,
@@ -935,17 +982,16 @@ fn nominal_surface(
         PropertyPublicAccessV1::DirectOnly,
     )
     .unwrap();
+    let mut callables = vec![callable, constructor_callable, extension_callable];
+    if include_public_accessors {
+        callables.push(getter_callable);
+        callables.push(extension_getter_callable);
+    }
     (
         foundation,
         interface_with_declarations(
             vec![record],
-            vec![
-                callable,
-                constructor_callable,
-                extension_callable,
-                getter_callable,
-                extension_getter_callable,
-            ],
+            callables,
             vec![property_record, extension_property_record],
         ),
         nominal.id(),
