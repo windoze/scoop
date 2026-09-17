@@ -1,6 +1,9 @@
 use std::fmt;
 
-use scoop_identity::{OdrGroupId, OdrMemberId, PersistentCallableApplicationId};
+use scoop_identity::{
+    DefinitionOriginRecord, DefinitionOriginSubject, OdrGroupId, OdrMemberId,
+    PersistentCallableApplicationId,
+};
 use scoop_wire::{Encoder, WireEncode};
 
 use super::{CanonicalHirFoundation, HirFoundationBuildError};
@@ -49,6 +52,14 @@ impl OdrFreeHirFoundation {
 
     pub const fn as_canonical(&self) -> &CanonicalHirFoundation {
         &self.0
+    }
+
+    /// Returns the canonical definition origin for an exact typed subject.
+    pub fn definition_origin(
+        &self,
+        subject: DefinitionOriginSubject,
+    ) -> Option<&DefinitionOriginRecord> {
+        self.0.definition_origin(subject)
     }
 
     #[doc(hidden)]
@@ -157,10 +168,12 @@ impl fmt::Display for HexIdentity<'_> {
 mod tests {
     use scoop_identity::{
         CallableApplicationKey, CallableInstantiationOwner, CanonicalIdentifier,
-        CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
-        OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath, PersistentExactTypeId,
-        PersistentFunctionId, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
-        SourceNominalKind, SpecializationKey,
+        CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOrigin,
+        DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain, ExactTypeKey,
+        NormalizedSourcePath, OdrMemberDiscriminator, OdrMemberKey, OdrMemberRole, PackagePath,
+        PersistentExactTypeId, PersistentFunctionId, PersistentTypeId, SourceContextKey,
+        SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
+        SpecializationKey,
     };
     use scoop_wire::encode;
 
@@ -176,6 +189,42 @@ mod tests {
 
         assert_eq!(encode(&proven).unwrap(), expected);
         assert_eq!(proven.as_canonical().counts().callable_applications, 0);
+    }
+
+    #[test]
+    fn exposes_definition_origins_by_typed_subject() {
+        let subject = DefinitionOriginSubject::Type(
+            PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
+                declaration_site(),
+                CanonicalIdentifier::new("Payload").unwrap(),
+                SourceNominalKind::Class,
+                0,
+            ))
+            .unwrap(),
+        );
+        let source = SourceIdentity::new(
+            ConeIdentity::CORE,
+            NormalizedSourcePath::new("src/Payload.scoop").unwrap(),
+        )
+        .unwrap();
+        let origin = DefinitionOrigin::new(
+            source.clone(),
+            SourceSpan::new(0, 7).unwrap(),
+            &SourceContextKey::File { source },
+        )
+        .unwrap();
+        let expected = DefinitionOriginRecord::new(subject, origin);
+        let mut canonical = CanonicalHirFoundation::empty();
+        canonical
+            .set_definition_origins(vec![expected.clone()])
+            .unwrap();
+        let proven = OdrFreeHirFoundation::try_new(canonical).unwrap();
+
+        assert_eq!(proven.definition_origin(subject), Some(&expected));
+        assert_eq!(
+            proven.definition_origin(DefinitionOriginSubject::Type(source_type("Missing"))),
+            None
+        );
     }
 
     #[test]
@@ -237,14 +286,17 @@ mod tests {
     }
 
     fn nominal_exact(name: &str) -> PersistentExactTypeId {
-        let nominal = SourceDeclarationKey::nominal(
+        PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source_type(name))).unwrap()
+    }
+
+    fn source_type(name: &str) -> PersistentTypeId {
+        let declaration = SourceDeclarationKey::nominal(
             declaration_site(),
             CanonicalIdentifier::new(name).unwrap(),
             SourceNominalKind::Class,
             0,
         );
-        let nominal = PersistentTypeId::from_source_declaration(&nominal).unwrap();
-        PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+        PersistentTypeId::from_source_declaration(&declaration).unwrap()
     }
 
     fn source_function(name: &str) -> PersistentFunctionId {
