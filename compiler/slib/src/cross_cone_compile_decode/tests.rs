@@ -20,7 +20,7 @@ use scoop_hir::{
 };
 use scoop_identity::{
     AccessorRole, ArtifactCapabilityProfileId, CallableTemplateOrigin, CanonicalIdentifier,
-    CborIdentityRecord, CoreBuiltinNominal, DeclarationScope, DefinitionOrigin,
+    CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope, DefinitionOrigin,
     DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerAtom, DefinitionOwnerChain,
     Effect, EnumVariantIdentityKey, FieldIdentityKey, GcEffect, NormalizedSourcePath, PackagePath,
     PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
@@ -35,7 +35,8 @@ use super::*;
 use crate::{
     ArtifactCapabilityProfile, ArtifactProfileInventoryError, ArtifactProfileView, ConeRecord,
     CrossConeHirNominalAuthorityError, DependencyRecord, MemberPurposeSet, MetadataLocation,
-    SectionLocation, hir_cross_cone_interface_capability, lir_cross_cone_link_closure_capability,
+    SectionLocation, hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
+    hir_identity_foundation_capability, lir_cross_cone_link_closure_capability,
     lir_cross_cone_param_free_bridge_capability, lir_identity_foundation_capability,
     lir_strong_production_capability, mir_cross_cone_param_free_bridge_capability,
     strong_compile_decode::tests::{
