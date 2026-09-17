@@ -810,6 +810,8 @@ body、receiver、value-parameter和后续嵌套template-owned entity在wire中�
 
 `CanonicalTemplateValueParametersV1`是按`position`严格递增的array，record wire为`{1:position,2:local_index}`。对key中`parameter_position = p`的template，它必须精确包含`0..p`的全部前置参数且不含当前/后置参数；每条local必须命中不可变的`Parameter { declaration_index: position }`，其原始类型先在definition root的provider scope中验证，再经`CanonicalBinderUseListV1`替换后逐结构等于同owner source interface该位置的`value_type`。这张表按position建立hygienic替换，consumer绝不重新解析参数名，也不得把provider-scope binder与key-owner-scope binder按相同`depth/index`误判为同一类型。`mutable`、`allows_suspend`及本default wire中的其他布尔语义一律复用`CanonicalBooleanV1`的unsigned `False=1`、`True=2`编码，不接受CBOR native boolean。
 
+template的`result`同样先在definition root的provider scope中验证；经上述完整binder mapping替换后，它必须逐结构等于key所指当前source parameter的`value_type`。`body.value.result_type`必须逐结构等于尚未替换的provider-scope `result`，不能只让body与自己一致却与发布方参数类型脱节。`allows_suspend`必须精确等于key owner callable的execution effect是否为`Suspend`：普通callable与全部constructor为`False`，suspend function为`True`；继承default不得保留一个与当前owner调用契约不一致的permission。
+
 `ExportDefaultBodyV1`是M17已typed的statement/expression closure之canonical wire。它不是对`ExportHir`
 arena的serde投影：每个跨Cone实体都使用persistent identity，template local只使用上述
 canonical local table下标，循环目标由语法嵌套表示。根product固定为：
