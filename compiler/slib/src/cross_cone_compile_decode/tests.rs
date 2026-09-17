@@ -1,5 +1,22 @@
-use scoop_hir::CanonicalHirFoundation;
-use scoop_identity::ArtifactCapabilityProfileId;
+use scoop_hir::{
+    CanonicalBinderListV1, CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
+    CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
+    CanonicalExportDefinitionSourcesV1, CanonicalExternalHirReferencesV1, CanonicalHirFoundation,
+    CanonicalNominalInterfacesV1, CanonicalPersistentIdsV1, CanonicalPropertyInterfacesV1,
+    CanonicalPublicExportBindingsV1, CanonicalPublicMemberRefsV1, CanonicalSignatureTypesV1,
+    CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1, NominalInterfaceRecordV1,
+    NominalInterfaceSemanticValidationError, NominalSourceShapeV1, PublicMemberRefV1,
+    PublicNominalKindV1, SourceNominalId, StructSourceFieldV1, StructSourceShapeV1,
+};
+use scoop_identity::{
+    ArtifactCapabilityProfileId, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
+    CoreBuiltinNominal, DeclarationScope, DefinitionOrigin, DefinitionOriginRecord,
+    DefinitionOriginSubject, DefinitionOwnerAtom, DefinitionOwnerChain, FieldIdentityKey,
+    NormalizedSourcePath, PackagePath, PersistentConstructorId, PersistentFieldId,
+    PersistentFunctionId, PersistentSourceContextId, PersistentTypeId, SignatureTypeKey,
+    SourceContextKey, SourceDeclarationKey, SourceDeclarationSite, SourceIdentity,
+    SourceNominalKind, SourceSpan,
+};
 use scoop_wire::encode;
 
 use super::*;
@@ -122,6 +139,100 @@ fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
     assert!(matches!(
         validated.hir_core_production().core_interface(),
         scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+}
+
+#[test]
+fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
+    let cone = cone();
+    let (foundation, hir_interface, nominal) = nominal_surface(cone.identity());
+    let bytes = cross_cone_artifact_for_with_hir_foundation(
+        cone.clone(),
+        Vec::new(),
+        &foundation,
+        hir_interface,
+    );
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let validated = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap()
+        .validate_nominal_surface(Vec::new())
+        .unwrap();
+
+    assert_eq!(validated.identity(), cone.identity());
+    assert!(
+        validated
+            .hir_interface()
+            .nominal_interfaces()
+            .get(SourceNominalId::Concrete(nominal))
+            .is_some()
+    );
+}
+
+#[test]
+fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
+    let cone = cone();
+    let foundation = base_hir_foundation();
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let interface = interface_with_nominals(vec![
+        NominalInterfaceRecordV1::try_new(
+            SourceNominalId::Concrete(unit),
+            PublicNominalKindV1::Struct,
+            CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+            CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+            CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+            CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
+            CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+            NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap()),
+        )
+        .unwrap(),
+    ]);
+    let bytes = cross_cone_artifact_for_with_hir_foundation(
+        cone.clone(),
+        Vec::new(),
+        &foundation,
+        interface,
+    );
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let front = decoded
+        .validate_foundation_structure(identities)
+        .unwrap()
+        .resolve_hir_interface()
+        .unwrap()
+        .validate_hir_production()
+        .unwrap();
+
+    let Err(CrossConeHirNominalSurfaceError::NominalInterfaces(error)) =
+        front.validate_nominal_surface(Vec::new())
+    else {
+        panic!("a foreign nominal claim must fail semantic validation");
+    };
+    assert!(matches!(
+        error.as_ref(),
+        NominalInterfaceSetSemanticValidationError::Record {
+            error: NominalInterfaceSemanticValidationError::Declaration(
+                CrossConeHirNominalAuthorityError::ForeignDeclaration {
+                    expected,
+                    actual: ConeIdentity::CORE,
+                    ..
+                }
+            ),
+            ..
+        } if *expected == cone.identity()
     ));
 }
 
@@ -258,4 +369,151 @@ pub(crate) fn empty_cross_cone_hir_interface() -> Vec<u8> {
         0xaa, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80,
         0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
     ]
+}
+
+fn nominal_surface(
+    cone: scoop_identity::ConeIdentity,
+) -> (CanonicalHirFoundation, Vec<u8>, PersistentTypeId) {
+    let source =
+        SourceIdentity::new(cone, NormalizedSourcePath::new("src/Value.scoop").unwrap()).unwrap();
+    let context_key = SourceContextKey::File {
+        source: source.clone(),
+    };
+    let context =
+        CborIdentityRecord::<PersistentSourceContextId, _>::from_key(context_key.clone()).unwrap();
+    let origin =
+        DefinitionOrigin::new(source.clone(), SourceSpan::new(0, 5).unwrap(), &context_key)
+            .unwrap();
+    let top_level_site = SourceDeclarationSite::new(
+        cone,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = SourceDeclarationKey::nominal(
+        top_level_site,
+        CanonicalIdentifier::new("Value").unwrap(),
+        SourceNominalKind::Struct,
+        0,
+    );
+    let nominal = CborIdentityRecord::<PersistentTypeId, _>::from_key(declaration).unwrap();
+    let owned_site = SourceDeclarationSite::new(
+        cone,
+        PackagePath::root(),
+        DefinitionOwnerChain::from_outer_to_inner(vec![DefinitionOwnerAtom::Type(nominal.id())]),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let constructor = CborIdentityRecord::<PersistentConstructorId, _>::from_key(
+        SourceDeclarationKey::constructor(owned_site.clone(), Vec::new()),
+    )
+    .unwrap();
+    let member =
+        CborIdentityRecord::<PersistentFunctionId, _>::from_key(SourceDeclarationKey::function(
+            owned_site,
+            CanonicalIdentifier::new("size").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        ))
+        .unwrap();
+    let field = CborIdentityRecord::<PersistentFieldId, _>::from_key(
+        FieldIdentityKey::source_declared(
+            nominal.key(),
+            CanonicalIdentifier::new("payload").unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let mut foundation = base_hir_foundation();
+    foundation
+        .set_sources(vec![
+            scoop_hir::SourceRecord::from_utf8(source, "class Value", [0, 5]).unwrap(),
+        ])
+        .unwrap();
+    foundation.set_source_contexts(vec![context]).unwrap();
+    foundation
+        .set_definition_origins(vec![
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::Type(nominal.id()),
+                origin.clone(),
+            ),
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::Constructor(constructor.id()),
+                origin.clone(),
+            ),
+            DefinitionOriginRecord::new(
+                DefinitionOriginSubject::Function(member.id()),
+                origin.clone(),
+            ),
+            DefinitionOriginRecord::new(DefinitionOriginSubject::Field(field.id()), origin),
+        ])
+        .unwrap();
+    foundation
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+            nominal.clone(),
+        ])
+        .unwrap();
+    foundation
+        .set_constructors(vec![constructor.clone()])
+        .unwrap();
+    foundation.set_functions(vec![member.clone()]).unwrap();
+    foundation.set_fields(vec![field.clone()]).unwrap();
+
+    let record = NominalInterfaceRecordV1::try_new(
+        SourceNominalId::Concrete(nominal.id()),
+        PublicNominalKindV1::Struct,
+        CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+        CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+        CanonicalPersistentIdsV1::try_new(vec![constructor.id()]).unwrap(),
+        CanonicalPublicMemberRefsV1::try_new(vec![PublicMemberRefV1::Callable(
+            CallableTemplateOrigin::Function(member.id()),
+        )])
+        .unwrap(),
+        CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+        NominalSourceShapeV1::Struct(
+            StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
+                field.id(),
+                SignatureTypeKey::Nominal(nominal.id()),
+            )])
+            .unwrap(),
+        ),
+    )
+    .unwrap();
+    (
+        foundation,
+        interface_with_nominals(vec![record]),
+        nominal.id(),
+    )
+}
+
+fn base_hir_foundation() -> CanonicalHirFoundation {
+    let mut foundation = CanonicalHirFoundation::empty();
+    foundation
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    foundation
+}
+
+fn interface_with_nominals(records: Vec<NominalInterfaceRecordV1>) -> Vec<u8> {
+    let mut section = CrossConeHirInterfaceSectionV1::new(
+        CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
+        CanonicalNominalInterfacesV1::try_new(records).unwrap(),
+        CanonicalCallableInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalPropertyInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
+        CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
+    );
+    encode(&section.index_for_wire().unwrap()).unwrap()
 }

@@ -51,6 +51,9 @@ pub use cross_cone_compile_decode::*;
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
 
+mod cross_cone_hir_authority;
+pub use cross_cone_hir_authority::CrossConeHirNominalAuthorityError;
+
 mod publish;
 pub use publish::*;
 

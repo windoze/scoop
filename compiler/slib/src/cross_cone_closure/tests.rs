@@ -86,6 +86,8 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .resolve_hir_interfaces()
         .unwrap()
         .validate_hir_productions()
+        .unwrap()
+        .validate_nominal_surfaces()
         .unwrap();
     assert_eq!(validated.current(), ConeIdentity::CORE);
     assert_eq!(validated.dependency_first().count(), 0);
@@ -102,6 +104,18 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
         .err(),
         Some(CrossConeClosureGraphError::CoreHasDependencyProviders)
     );
+}
+
+#[test]
+fn nominal_authority_walks_only_the_provider_transitive_dependencies() {
+    let dependencies = vec![vec![], vec![], vec![0], vec![1], vec![2, 3]];
+
+    assert_eq!(
+        transitive_dependency_positions(4, &dependencies),
+        vec![0, 1, 2, 3]
+    );
+    assert_eq!(transitive_dependency_positions(2, &dependencies), vec![0]);
+    assert_eq!(transitive_dependency_positions(3, &dependencies), vec![1]);
 }
 
 #[test]

@@ -4,7 +4,7 @@ use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
     CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceSectionV1,
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
-    DecodedHirFoundation, OdrFreeHirFoundation,
+    DecodedHirFoundation, NominalInterfaceSetSemanticValidationError, OdrFreeHirFoundation,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityReferenceError, IdentityValidationError,
@@ -20,6 +20,10 @@ use crate::{
     ValidatedGraphArtifact,
     compile_decode::validate_foundation_identity_graph_with_authorities,
     compile_sections::{decode_compile_metadata_envelopes, decode_compile_section},
+    cross_cone_hir_authority::{
+        CanonicalCrossConeNominalAuthority, CrossConeHirNominalAuthorityError,
+        ValidatedNominalProviderView,
+    },
     hir_core_bootstrap_interface_capability, hir_cross_cone_interface_capability,
     hir_identity_foundation_capability, lir_identity_foundation_capability,
     lir_strong_production_capability, mir_core_bootstrap_bridge_capability,
@@ -79,6 +83,20 @@ pub struct ResolvedCrossConeHirFrontSections<'input> {
 /// HIR identity references are both validated. General-interface ownership,
 /// route, and external-reference semantics remain pending.
 pub struct HirProductionValidatedCrossConeHirFrontSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV1,
+}
+
+/// One cross-Cone provider whose public nominal table has been replayed
+/// against canonical typed identities and only its reachable, already
+/// validated dependency surfaces. The remaining general HIR tables and
+/// routes are not yet semantic authority.
+pub struct NominalValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
@@ -475,6 +493,122 @@ impl HirProductionValidatedCrossConeHirFrontSections<'_> {
 
     pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
         &self.lir_strong_production
+    }
+}
+
+impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
+    /// Validates the nominal declaration surface using canonical keys from
+    /// this provider's identity graph and nominal interfaces from only its
+    /// already validated transitive dependency closure.
+    pub(crate) fn validate_nominal_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<NominalValidatedCrossConeHirFrontSections<'input>, CrossConeHirNominalSurfaceError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        } = self;
+        let mut authority = CanonicalCrossConeNominalAuthority::new(
+            graph.identity(),
+            &identities,
+            &hir_interface,
+            dependencies,
+        );
+        hir_interface
+            .nominal_interfaces()
+            .validate_semantics(&mut authority)
+            .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
+        Ok(NominalValidatedCrossConeHirFrontSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            lir_strong_production,
+        })
+    }
+}
+
+impl NominalValidatedCrossConeHirFrontSections<'_> {
+    pub const fn coordinate(&self) -> &ConeCoordinate {
+        self.graph.coordinate()
+    }
+
+    pub const fn identity(&self) -> ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub const fn hir_foundation(&self) -> &OdrFreeHirFoundation {
+        &self.foundations.hir
+    }
+
+    pub const fn mir_foundation(&self) -> &OdrFreeMirFoundation {
+        &self.foundations.mir
+    }
+
+    pub const fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub fn identity_count(&self) -> usize {
+        self.identities.identity_count()
+    }
+
+    pub fn declared_identity_count(&self) -> usize {
+        self.identities.declared_identity_count()
+    }
+
+    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_core_production
+    }
+
+    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+        &self.hir_interface
+    }
+
+    pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+        &self.mir_core_production
+    }
+
+    pub const fn lir_strong_production_wire(&self) -> &DecodedStrongProductionSectionV1 {
+        &self.lir_strong_production
+    }
+
+    pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
+        ValidatedNominalProviderView {
+            identity: self.graph.identity(),
+            interface: &self.hir_interface,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CrossConeHirNominalSurfaceError {
+    NominalInterfaces(
+        Box<NominalInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
+    ),
+}
+
+impl std::fmt::Display for CrossConeHirNominalSurfaceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NominalInterfaces(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirNominalSurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::NominalInterfaces(error) => Some(error),
+        }
     }
 }
 
