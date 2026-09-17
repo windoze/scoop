@@ -22,20 +22,20 @@ use crate::{
     TemplateLocalIndexResolver, TemplateLocalSelectorResolver,
 };
 
-pub(super) struct Fixture {
-    pub(super) function: PersistentFunctionId,
-    pub(super) property: PersistentPropertyId,
-    pub(super) generated: PersistentGeneratedCallableId,
-    pub(super) constructor: PersistentConstructorId,
-    pub(super) variant: PersistentEnumVariantId,
-    pub(super) variant_field: PersistentEnumVariantFieldId,
-    pub(super) field: PersistentFieldId,
-    pub(super) object: PersistentObjectValueId,
-    pub(super) callback: PersistentCallbackRegistrationId,
+pub(crate) struct Fixture {
+    pub(crate) function: PersistentFunctionId,
+    pub(crate) property: PersistentPropertyId,
+    pub(crate) generated: PersistentGeneratedCallableId,
+    pub(crate) constructor: PersistentConstructorId,
+    pub(crate) variant: PersistentEnumVariantId,
+    pub(crate) variant_field: PersistentEnumVariantFieldId,
+    pub(crate) field: PersistentFieldId,
+    pub(crate) object: PersistentObjectValueId,
+    pub(crate) callback: PersistentCallbackRegistrationId,
 }
 
 impl Fixture {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let function =
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
                 top_level_site(),
@@ -127,7 +127,7 @@ impl Fixture {
         }
     }
 
-    pub(super) fn callable(&self) -> DefaultCallableRefV1 {
+    pub(crate) fn callable(&self) -> DefaultCallableRefV1 {
         DefaultCallableRefV1::try_new(
             DefaultCallableDeclarationV1::Function(self.function),
             OptionalSignatureType::Absent,
@@ -136,27 +136,27 @@ impl Fixture {
         .unwrap()
     }
 
-    pub(super) fn origin(&self) -> ExportDefinitionSourceV1 {
+    pub(crate) fn origin(&self) -> ExportDefinitionSourceV1 {
         origin()
     }
 
-    pub(super) const fn value_type(&self) -> SignatureTypeKey {
+    pub(crate) const fn value_type(&self) -> SignatureTypeKey {
         SignatureTypeKey::Binder { depth: 0, index: 0 }
     }
 
-    pub(super) const fn local(&self) -> LocalValueSelector {
+    pub(crate) const fn local(&self) -> LocalValueSelector {
         LocalValueSelector::Parameter {
             declaration_index: 0,
         }
     }
 
-    pub(super) fn locals(&self) -> LocalResolver {
+    pub(crate) fn locals(&self) -> LocalResolver {
         LocalResolver {
             selector: self.local(),
         }
     }
 
-    pub(super) const fn resolver(&self) -> Resolver {
+    pub(crate) const fn resolver(&self) -> Resolver {
         Resolver {
             function: Some(self.function),
             property: Some(self.property),
@@ -165,14 +165,14 @@ impl Fixture {
     }
 }
 
-pub(super) struct Resolver {
+pub(crate) struct Resolver {
     function: Option<PersistentFunctionId>,
     property: Option<PersistentPropertyId>,
     generated: Option<PersistentGeneratedCallableId>,
 }
 
 impl Resolver {
-    pub(super) const fn rejecting() -> Self {
+    pub(crate) const fn rejecting() -> Self {
         Self {
             function: None,
             property: None,
@@ -269,7 +269,7 @@ impl PersistentKeyResolver<PersistentSourceContextId, SourceContextKey> for Reso
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct ResolutionError;
+pub(crate) struct ResolutionError;
 
 impl std::fmt::Display for ResolutionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -279,7 +279,7 @@ impl std::fmt::Display for ResolutionError {
 
 impl std::error::Error for ResolutionError {}
 
-pub(super) struct LocalResolver {
+pub(crate) struct LocalResolver {
     selector: LocalValueSelector,
 }
 
@@ -314,7 +314,7 @@ impl TemplateLocalIndexResolver for LocalResolver {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct LocalError;
+pub(crate) struct LocalError;
 
 impl std::fmt::Display for LocalError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -349,7 +349,7 @@ fn context_key() -> SourceContextKey {
     }
 }
 
-pub(super) fn definition_path() -> StructuralDefinitionPath {
+pub(crate) fn definition_path() -> StructuralDefinitionPath {
     StructuralDefinitionPath::from_first(
         StructuralPathSegment::new(StructuralDefinitionSiteRole::CallableConversion, 0),
         [],
@@ -380,6 +380,6 @@ fn identifier(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }
 
-pub(super) fn hex(bytes: &[u8]) -> String {
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

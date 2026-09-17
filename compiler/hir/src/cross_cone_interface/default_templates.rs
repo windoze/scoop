@@ -16,8 +16,9 @@ pub use binder_uses::{
 };
 pub use body::{
     DecodedDefaultAnonymousFunctionV1, DecodedDefaultArrayAssemblyPartV1,
-    DecodedDefaultArrayAssemblyV1, DecodedDefaultBindingClassComponentV1,
-    DecodedDefaultBindingLeafV1, DecodedDefaultBindingProjectionV1, DecodedDefaultBindingShapeV1,
+    DecodedDefaultArrayAssemblyV1, DecodedDefaultAssignTargetV1,
+    DecodedDefaultBindingClassComponentV1, DecodedDefaultBindingLeafV1,
+    DecodedDefaultBindingProjectionV1, DecodedDefaultBindingShapeV1,
     DecodedDefaultBindingStructFieldV1, DecodedDefaultBindingTemporaryV1,
     DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
     DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCallableDeclarationV1,
@@ -30,7 +31,8 @@ pub use body::{
     DecodedDefaultPatternFieldV1, DecodedDefaultPatternV1, DecodedDefaultPlaceV1,
     DecodedDefaultStringOwnerV1, DecodedOptionalDefaultExpressionV1, DefaultAnonymousFunctionV1,
     DefaultArrayAccessKindV1, DefaultArrayAssemblyBuildError, DefaultArrayAssemblyPartV1,
-    DefaultArrayAssemblyV1, DefaultBinaryOperatorV1, DefaultBinderRefV1,
+    DefaultArrayAssemblyV1, DefaultAssignTargetIndexError, DefaultAssignTargetResolutionError,
+    DefaultAssignTargetV1, DefaultBinaryOperatorV1, DefaultBinderRefV1,
     DefaultBindingClassComponentV1, DefaultBindingLeafIndexError,
     DefaultBindingLeafResolutionError, DefaultBindingLeafV1, DefaultBindingProjectionBuildError,
     DefaultBindingProjectionResolutionError, DefaultBindingProjectionV1,
@@ -66,10 +68,10 @@ pub use body::{
     DefaultPatternViewV1, DefaultPlaceIndexError, DefaultPlaceResolutionError, DefaultPlaceV1,
     DefaultPrimitiveBinaryKindV1, DefaultPrimitiveUnaryKindV1, DefaultStringOwnerResolutionError,
     DefaultStringOwnerV1, DefaultUnaryOperatorV1, IndexedDefaultAnonymousFunctionV1,
-    IndexedDefaultBindingLeafV1, IndexedDefaultBindingShapeV1, IndexedDefaultBindingTemporaryV1,
-    IndexedDefaultCallableReferenceV1, IndexedDefaultCaptureV1, IndexedDefaultExpressionV1,
-    IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1, IndexedDefaultPatternV1,
-    IndexedDefaultPlaceV1, OptionalDefaultExpressionV1,
+    IndexedDefaultAssignTargetV1, IndexedDefaultBindingLeafV1, IndexedDefaultBindingShapeV1,
+    IndexedDefaultBindingTemporaryV1, IndexedDefaultCallableReferenceV1, IndexedDefaultCaptureV1,
+    IndexedDefaultExpressionV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
+    IndexedDefaultPatternV1, IndexedDefaultPlaceV1, OptionalDefaultExpressionV1,
 };
 pub use locals::{
     CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,

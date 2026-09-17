@@ -5,6 +5,7 @@ mod nested;
 mod operators;
 mod patterns;
 mod references;
+mod statements;
 
 pub use bindings::{
     DecodedDefaultBindingClassComponentV1, DecodedDefaultBindingLeafV1,
@@ -74,4 +75,8 @@ pub use references::{
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefResolutionError, DefaultEnumVariantRefV1,
     DefaultFieldRefResolutionError, DefaultFieldRefV1, DefaultFieldReferenceResolver,
     DefaultPlaceIndexError, DefaultPlaceResolutionError, DefaultPlaceV1, IndexedDefaultPlaceV1,
+};
+pub use statements::{
+    DecodedDefaultAssignTargetV1, DefaultAssignTargetIndexError,
+    DefaultAssignTargetResolutionError, DefaultAssignTargetV1, IndexedDefaultAssignTargetV1,
 };
