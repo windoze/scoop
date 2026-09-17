@@ -122,7 +122,7 @@ fn empty_table_uses_the_canonical_empty_array() {
     );
 }
 
-fn template(fixture: &Fixture, position: u32) -> ExportDefaultTemplateV1 {
+pub(super) fn template(fixture: &Fixture, position: u32) -> ExportDefaultTemplateV1 {
     let result = fixture.value_type();
     let body = ExportDefaultBodyV1::try_new(
         Vec::new(),

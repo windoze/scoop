@@ -11,6 +11,10 @@ use crate::{
     ExportDefaultTemplateKeyResolver, ExportDefaultTemplateKeyV1,
 };
 
+mod semantics;
+
+pub use semantics::ExportDefaultTemplateSourceClosureValidationError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalExportDefaultTemplatesV1 {
     records: Vec<ExportDefaultTemplateV1>,

@@ -139,7 +139,7 @@ pub use table::{
     CanonicalExportDefaultTemplatesV1, DecodedCanonicalExportDefaultTemplatesV1,
     ExportDefaultTemplateLookupError, ExportDefaultTemplateSetBuildError,
     ExportDefaultTemplateSetIndexError, ExportDefaultTemplateSetValidationError,
-    IndexedCanonicalExportDefaultTemplatesV1,
+    ExportDefaultTemplateSourceClosureValidationError, IndexedCanonicalExportDefaultTemplatesV1,
 };
 pub use template::{
     DecodedExportDefaultTemplateV1, ExportDefaultTemplateBuildError,
