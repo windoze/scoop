@@ -796,6 +796,12 @@ TemplateValueParameterV1 {
 
 `CanonicalBinderUseListV1`不是集合，也不排序去重；它是长度可表示为`u32`的declaration-order映射。provider root的binder按“nominal owner frame在前、callable own frame在后”，每个frame内部按声明顺序展平；第`i`项是在**key owner的封闭signature binder scope**中表示的、用于替换provider第`i`个binder的`SignatureTypeKey`。直接default保存identity mapping，继承default保存已经沿override chain组合完毕的mapping。template的locals、body、result与receiver中出现的`Binder { depth, index }`仍以definition root的provider scope解释；consumer先按本表替换到key owner scope，winner确定后再代入concrete arguments。列表必须精确覆盖provider全部binder，不能缺项、多项或仅保存body碰巧使用的子集。
 
+reader从provider identity重放binder shape时必须分别保留`nominal_owner_binder_arity`与
+`callable_own_binder_arity`，不能只保留二者之和；否则在两个frame同时存在时无法把
+`Binder { depth: 1, index }`与`Binder { depth: 0, index }`唯一映射到上述展平表位置。两项arity的
+checked sum必须可表示为`u32`，且展平位置固定为先nominal owner frame、后callable own frame；没有own
+frame而只有owner frame时，signature中的唯一frame仍使用`depth = 0`，但其展平位置从0开始。
+
 `CanonicalTemplateLocalTableV1`是`TemplateLocalRecordV1`按`LocalValueSelector`完整结构序严格递增的array，拒绝重复，长度必须可表示为`u32`。它不保存`LocalId`、`BindingId`或body-local display name。`LocalValueSelector`沿用M23-2固定的tag与wire；本表只接受`This`、`Parameter`、`LocalDeclaration`、`BoundReceiver`和`Synthetic`，拒绝只会在后续coroutine transform产生的`SuspensionResult`。`This`、`Parameter`、`LocalDeclaration`与`BoundReceiver`必须使用`Source` definition，`Synthetic`必须使用`Synthetic` definition；所有带path的selector必须位于本template的`definition_path`之下。每个`Source` origin都按本section统一规则验证并进入顶层`definition_sources`精确闭包。所有`value_type`以definition root binder scope解释。
 
 body、receiver、value-parameter和后续嵌套template-owned entity在wire中以canonical local table的zero-based unsigned `u32`下标引用local。decoded形态只暂存`local_index`；解析后语义形态必须保存对应的`LocalValueSelector`，writer再按selector反查canonical index。越界、selector/index不一致或同一selector映射到多条record均拒绝，任何raw `LocalId`/arena ordinal不得进入已解析HIR。
