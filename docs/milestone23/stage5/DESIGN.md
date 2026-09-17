@@ -1194,8 +1194,22 @@ DefaultBindingShapeV1 =
     Binding(DefaultBindingLeafV1)                   // tag 1, field 1
   | Wildcard                                        // tag 2
   | Tuple(SourceOrderVec<DefaultBindingShapeV1>)    // tag 3, field 1
-  | Struct { owner_type, fields }                   // tag 4, fields 1,2
-  | Class { owner_type, components }                // tag 5, fields 1,2
+  | Struct { owner_type,
+             fields: CanonicalVec<DefaultBindingStructFieldV1> }
+                                                    // tag 4, fields 1,2
+  | Class { owner_type,
+            components: SourceOrderVec<DefaultBindingClassComponentV1> }
+                                                    // tag 5, fields 1,2
+
+DefaultBindingStructFieldV1 {
+    declaration_index: u32,                         // field 1
+    shape: DefaultBindingShapeV1,                   // field 2
+}
+
+DefaultBindingClassComponentV1 {
+    index: NonZeroU32,                              // field 1
+    shape: DefaultBindingShapeV1,                   // field 2
+}
 
 DefaultBindingProjectionV1 =
     TupleIndex(u32)                                 // tag 1, field 1
