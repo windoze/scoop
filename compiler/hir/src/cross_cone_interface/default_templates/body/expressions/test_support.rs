@@ -4,16 +4,16 @@ use scoop_identity::{
     CallbackMode, CallbackParameterIndex, CallbackRegistrationKey, CanonicalIdentifier,
     ConeIdentity, DeclarationScope, DecodedPersistentId, DefinitionOrigin, DefinitionOwnerAtom,
     DefinitionOwnerChain, Effect, EnumVariantFieldKey, EnumVariantFieldSelector,
-    EnumVariantIdentityKey, FieldIdentityKey, GeneratedCallableKey, LexicalCallableParent,
-    LocalValueSelector, NormalizedSourcePath, OptionalSignatureType, PackagePath,
-    PersistentCallbackRegistrationId, PersistentConstructorId, PersistentEnumVariantFieldId,
-    PersistentEnumVariantId, PersistentFieldId, PersistentFunctionId,
+    EnumVariantIdentityKey, FieldIdentityKey, GeneratedCallableKey, InitializationUnitKey,
+    LexicalCallableParent, LocalValueSelector, NormalizedSourcePath, OptionalSignatureType,
+    PackagePath, PersistentCallbackRegistrationId, PersistentConstructorId,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentFieldId, PersistentFunctionId,
     PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentIdResolver, PersistentKeyResolver, PersistentObjectValueId,
-    PersistentPropertyAccessorId, PersistentPropertyId, PersistentSourceContextId,
-    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
-    SourceCAbiReturn, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
-    SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
+    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentObjectValueId, PersistentPropertyAccessorId, PersistentPropertyId,
+    PersistentSourceContextId, PersistentTypeId, SignatureCallableShape, SignatureTypeKey,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceContextKey, SourceDeclarationKey,
+    SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan, StructuralDefinitionPath,
     StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
@@ -32,6 +32,7 @@ pub(crate) struct Fixture {
     pub(crate) field: PersistentFieldId,
     pub(crate) object: PersistentObjectValueId,
     pub(crate) callback: PersistentCallbackRegistrationId,
+    pub(crate) initialization: PersistentInitializationUnitId,
 }
 
 impl Fixture {
@@ -114,6 +115,10 @@ impl Fixture {
             CallbackMode::Reusable,
         ))
         .unwrap();
+        let initialization = PersistentInitializationUnitId::from_key(
+            &InitializationUnitKey::TopLevelProperty(property),
+        )
+        .unwrap();
         Self {
             function,
             property,
@@ -124,6 +129,7 @@ impl Fixture {
             field,
             object,
             callback,
+            initialization,
         }
     }
 
@@ -161,6 +167,9 @@ impl Fixture {
             function: Some(self.function),
             property: Some(self.property),
             generated: Some(self.generated),
+            variant: Some(self.variant),
+            variant_field: Some(self.variant_field),
+            initialization: Some(self.initialization),
         }
     }
 }
@@ -169,6 +178,9 @@ pub(crate) struct Resolver {
     function: Option<PersistentFunctionId>,
     property: Option<PersistentPropertyId>,
     generated: Option<PersistentGeneratedCallableId>,
+    variant: Option<PersistentEnumVariantId>,
+    variant_field: Option<PersistentEnumVariantFieldId>,
+    initialization: Option<PersistentInitializationUnitId>,
 }
 
 impl Resolver {
@@ -177,6 +189,9 @@ impl Resolver {
             function: None,
             property: None,
             generated: None,
+            variant: None,
+            variant_field: None,
+            initialization: None,
         }
     }
 }
@@ -223,8 +238,6 @@ macro_rules! reject_identity {
 reject_identity!(PersistentGenericFunctionId);
 reject_identity!(PersistentConstructorId);
 reject_identity!(PersistentPropertyAccessorId);
-reject_identity!(PersistentEnumVariantId);
-reject_identity!(PersistentEnumVariantFieldId);
 reject_identity!(PersistentFieldId);
 reject_identity!(PersistentTypeId);
 reject_identity!(PersistentGenericTypeId);
@@ -239,6 +252,42 @@ impl PersistentIdResolver<PersistentGeneratedCallableId> for Resolver {
         id: DecodedPersistentId<PersistentGeneratedCallableId>,
     ) -> Result<PersistentGeneratedCallableId, Self::Error> {
         id.verify(self.generated.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentEnumVariantId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentEnumVariantId>,
+    ) -> Result<PersistentEnumVariantId, Self::Error> {
+        id.verify(self.variant.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentEnumVariantFieldId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentEnumVariantFieldId>,
+    ) -> Result<PersistentEnumVariantFieldId, Self::Error> {
+        id.verify(self.variant_field.ok_or(ResolutionError)?)
+            .map_err(|_| ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<PersistentInitializationUnitId> for Resolver {
+    type Error = ResolutionError;
+
+    fn resolve(
+        &mut self,
+        id: DecodedPersistentId<PersistentInitializationUnitId>,
+    ) -> Result<PersistentInitializationUnitId, Self::Error> {
+        id.verify(self.initialization.ok_or(ResolutionError)?)
             .map_err(|_| ResolutionError)
     }
 }
