@@ -12,10 +12,16 @@ pub use callables::{
     DefaultMethodCalleeV1,
 };
 pub use nested::{
-    DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCaptureV1,
-    DefaultCallableBodyTypeArgumentsBuildError, DefaultCallableBodyTypeArgumentsResolutionError,
-    DefaultCallableBodyTypeArgumentsV1, DefaultCaptureIndexError, DefaultCaptureResolutionError,
-    DefaultCaptureV1, IndexedDefaultCaptureV1,
+    DecodedDefaultAnonymousFunctionV1, DecodedDefaultCallableBodyTypeArgumentsV1,
+    DecodedDefaultCaptureV1, DecodedDefaultLambdaV1, DecodedDefaultLocalFunctionV1,
+    DefaultAnonymousFunctionV1, DefaultCallableBodyTypeArgumentsBuildError,
+    DefaultCallableBodyTypeArgumentsResolutionError, DefaultCallableBodyTypeArgumentsV1,
+    DefaultCaptureIndexError, DefaultCaptureResolutionError, DefaultCaptureV1, DefaultLambdaV1,
+    DefaultLexicalCallableBuildError, DefaultLexicalCallableIndexError,
+    DefaultLexicalCallableResolutionError, DefaultLocalFunctionBuildError,
+    DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError, DefaultLocalFunctionV1,
+    DefaultNestedCallableReferenceResolver, IndexedDefaultAnonymousFunctionV1,
+    IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
 };
 pub use references::{
     DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
