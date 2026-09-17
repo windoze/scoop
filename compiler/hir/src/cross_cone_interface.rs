@@ -251,8 +251,9 @@ pub use definition_sources::{
 };
 pub use external_references::{
     CanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferenceRolesV1,
-    ExternalHirReferenceRoleSetBuildError, ExternalHirReferenceRoleSetValidationError,
-    ExternalHirReferenceRoleV1,
+    DecodedExternalHirTargetV1, ExternalHirReferenceRoleSetBuildError,
+    ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
+    ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,

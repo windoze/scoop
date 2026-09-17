@@ -1604,9 +1604,21 @@ ExternalHirReferenceRoleV1 =
   | DefaultDependency   // unsigned 4
   | ConstType           // unsigned 5
   | ConcreteSelectedUse // unsigned 6
+
+ExternalHirTargetV1 =
+    Nominal(SourceNominalId)                    // tag 1, field 1
+  | Callable(CallableDeclarationId)             // tag 2, field 1
+  | Property(PropertyDeclarationId)             // tag 3, field 1
+  | ObjectValue(PersistentObjectValueId)         // tag 4, field 1
+  | TypeAlias(PersistentTypeAliasId)             // tag 5, field 1
+  | Field(PersistentFieldId)                     // tag 6, field 1
+  | EnumVariantField(PersistentEnumVariantFieldId)// tag 7, field 1
+  | GeneratedCallable(PersistentGeneratedCallableId) // tag 8, field 1
 ```
 
 role封闭为上述六个unsigned tag，不接受0、未知tag或native boolean。`roles`至少含一个元素，按tag严格递增；producer排序后拒绝重复，reader拒绝空集、重复和非规范顺序，不得排序修复。reader从fields 1～9的实际引用重建去重后的expected closure并逐byte比较；extra/missing role或错误origin均失败。只有需要source-name授权的role携带binding witness；signature dependency仍须有定义方已验证的signature exposure proof，但不会因此创建下游短名。
+
+`ExternalHirTargetV1`的每个variant都编码为`{0: tag, 1: payload}`，并保持persistent id种类；不能把不同kind的相同raw bytes合并。`Callable`沿用source callable的封闭sum，因此同时覆盖ordinary/generic function、constructor、property accessor与enum variant constructor；generated callable保持独立variant，不能冒充source callable。signature、default applied owner等结构中的tuple/function/pointer/binder本身不是外部实体；闭包只收集其nominal leaf。re-export route使用的export binding属于`DependencyBindingWitnessV1`，不伪装成semantic target。callback registration、initialization unit与body-local identity由当前artifact的template拥有，不进入foreign target集合。
 
 ## 6. re-export构造与公开表面
 
