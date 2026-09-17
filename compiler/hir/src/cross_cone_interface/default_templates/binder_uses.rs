@@ -5,6 +5,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::SignatureTypeReferenceResolver;
 
+mod semantics;
+
+pub use semantics::BinderUseListSemanticValidationError;
+
 /// Declaration-order mapping from a default provider's binder slots to the
 /// callable interface that publishes this template.
 #[derive(Clone, Debug, Eq, PartialEq)]

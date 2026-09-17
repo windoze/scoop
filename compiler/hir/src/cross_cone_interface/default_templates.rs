@@ -10,8 +10,8 @@ mod roots;
 mod value_parameters;
 
 pub use binder_uses::{
-    BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
-    DecodedCanonicalBinderUseListV1,
+    BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
+    CanonicalBinderUseListV1, DecodedCanonicalBinderUseListV1,
 };
 pub use locals::{
     CanonicalTemplateLocalTableV1, DecodedCanonicalTemplateLocalTableV1,

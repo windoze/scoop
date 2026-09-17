@@ -86,8 +86,8 @@ pub use declaration_references::{
     PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
 };
 pub use default_templates::{
-    BinderUseListBuildError, BinderUseListValidationError, CanonicalBinderUseListV1,
-    CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
+    BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
+    CanonicalBinderUseListV1, CanonicalTemplateLocalTableV1, CanonicalTemplateValueParametersV1,
     DecodedCanonicalBinderUseListV1, DecodedCanonicalTemplateLocalTableV1,
     DecodedCanonicalTemplateValueParametersV1, DecodedExportDefaultTemplateKeyV1,
     DecodedOptionalTemplateReceiverV1, DecodedPersistentLexicalRootV1,
