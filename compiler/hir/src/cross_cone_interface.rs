@@ -311,7 +311,8 @@ pub use route_closure::{
 pub use section::{
     CrossConeHirExternalReferenceValidationError, CrossConeHirInterfaceIndexError,
     CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceResolver,
-    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInterfaceSemanticAuthority,
+    CrossConeHirInterfaceSemanticValidationError, CrossConeHirInternalClosureValidationError,
     DecodedCrossConeHirInterfaceSectionV1, ExportDefinitionSourceClosureValidationError,
     ExportDefinitionSourceUseSiteV1, ExternalHirAliasClosureValidationError,
     ExternalHirAliasUseSiteV1, ExternalHirConstTypeClosureValidationError,

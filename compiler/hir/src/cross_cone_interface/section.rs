@@ -32,6 +32,7 @@ mod default_reference_closure;
 mod definition_source_closure;
 mod external_reference_closure;
 mod internal_closures;
+mod semantic_validation;
 mod signature_nominal_walk;
 mod signature_reference_closure;
 
@@ -48,6 +49,9 @@ pub use definition_source_closure::{
 };
 pub use external_reference_closure::CrossConeHirExternalReferenceValidationError;
 pub use internal_closures::CrossConeHirInternalClosureValidationError;
+pub use semantic_validation::{
+    CrossConeHirInterfaceSemanticAuthority, CrossConeHirInterfaceSemanticValidationError,
+};
 pub use signature_reference_closure::{
     ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
     ExternalHirSignatureUseSiteV1,
