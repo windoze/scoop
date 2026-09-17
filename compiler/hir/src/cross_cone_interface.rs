@@ -313,6 +313,7 @@ pub use section::{
     CrossConeHirInterfaceResolver, CrossConeHirInterfaceSectionV1,
     CrossConeHirInternalClosureValidationError, DecodedCrossConeHirInterfaceSectionV1,
     ExportDefinitionSourceClosureValidationError, ExportDefinitionSourceUseSiteV1,
+    ExternalHirAliasClosureValidationError, ExternalHirAliasUseSiteV1,
     ExternalHirConstTypeClosureValidationError, ExternalHirSignatureClosureValidationError,
     ExternalHirSignatureOriginMismatch, ExternalHirSignatureUseSiteV1,
     IndexedCrossConeHirInterfaceSectionV1,
