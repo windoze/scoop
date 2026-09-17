@@ -24,6 +24,10 @@ mod route_validation;
 
 pub use route_validation::*;
 
+mod type_alias_expansion;
+
+pub use type_alias_expansion::*;
+
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
 pub struct DecodedCrossConeClosure<'input> {

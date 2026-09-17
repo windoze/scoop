@@ -30,8 +30,9 @@ fn adapter_validates_a_route_through_the_exact_provider_closure() {
     ];
     let direct = [fixture.direct];
     let authority = CanonicalCrossConeRouteAuthority::try_new(
+        fixture.current,
         &fixture.identities,
-        fixture.current_interface.public_bindings(),
+        &fixture.current_interface,
         &direct,
         &providers,
         3,
@@ -54,8 +55,9 @@ fn adapter_does_not_treat_a_loaded_non_dependency_as_route_authority() {
     }];
     let direct = [fixture.direct];
     let authority = CanonicalCrossConeRouteAuthority::try_new(
+        fixture.current,
         &fixture.identities,
-        fixture.current_interface.public_bindings(),
+        &fixture.current_interface,
         &direct,
         &providers,
         2,
@@ -89,8 +91,9 @@ fn adapter_uses_the_artifact_local_direct_dependency_set() {
         },
     ];
     let authority = CanonicalCrossConeRouteAuthority::try_new(
+        fixture.current,
         &fixture.identities,
-        fixture.current_interface.public_bindings(),
+        &fixture.current_interface,
         &[],
         &providers,
         3,

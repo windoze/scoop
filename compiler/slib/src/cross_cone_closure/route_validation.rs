@@ -4,11 +4,14 @@ use std::fmt;
 use std::sync::Arc;
 
 use scoop_hir::{
-    CanonicalPublicExportBindingsV1, ExportBindingSourceV1, PublicExportBindingClosureAuthority,
-    PublicExportBindingClosureValidationError,
+    CanonicalPublicExportBindingsV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1,
+    PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
 };
 use scoop_identity::{
-    ConeIdentity, ExportBindingKey, PersistentExportBindingId, ValidatedIdentityGraph,
+    BindingTarget, BindingTargetError, ConeIdentity, ExportBindingKey, NominalDeclarationOwner,
+    PersistentExportBindingId, PersistentGenericTypeId, PersistentTypeAliasId, PersistentTypeId,
+    SourceDeclarationKey, ValidatedIdentityGraph,
 };
 use scoop_lir::ValidatedLirTargetSelection;
 
@@ -24,7 +27,7 @@ pub struct PublicRouteValidatedCrossConeHirClosure<'input> {
     surfaces: TypeAliasValidatedCrossConeHirClosure<'input>,
 }
 
-impl PublicRouteValidatedCrossConeHirClosure<'_> {
+impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
     pub const fn current(&self) -> ConeIdentity {
         self.surfaces.current()
     }
@@ -56,6 +59,10 @@ impl PublicRouteValidatedCrossConeHirClosure<'_> {
 
     pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
         self.surfaces.dependency_count(identity)
+    }
+
+    pub(super) fn surfaces_mut(&mut self) -> &mut TypeAliasValidatedCrossConeHirClosure<'input> {
+        &mut self.surfaces
     }
 }
 
@@ -104,8 +111,9 @@ impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
                 )?;
 
                 let authority = CanonicalCrossConeRouteAuthority::try_new(
+                    identity,
                     artifact.identity_graph(),
-                    artifact.hir_interface().public_bindings(),
+                    artifact.hir_interface(),
                     &direct,
                     &providers,
                     closure_node_count,
@@ -132,12 +140,14 @@ impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
 }
 
 #[derive(Clone, Copy)]
-struct RouteProviderView<'a> {
-    identity: ConeIdentity,
-    bindings: &'a CanonicalPublicExportBindingsV1,
+pub(super) struct RouteProviderView<'a> {
+    pub(super) identity: ConeIdentity,
+    pub(super) bindings: &'a CanonicalPublicExportBindingsV1,
 }
 
-struct CanonicalCrossConeRouteAuthority<'a> {
+pub(super) struct CanonicalCrossConeRouteAuthority<'a> {
+    current: ConeIdentity,
+    identities: &'a ValidatedIdentityGraph,
     direct: &'a [ConeIdentity],
     providers: &'a [RouteProviderView<'a>],
     closure_node_count: usize,
@@ -145,17 +155,19 @@ struct CanonicalCrossConeRouteAuthority<'a> {
 }
 
 impl<'a> CanonicalCrossConeRouteAuthority<'a> {
-    fn try_new(
-        identities: &ValidatedIdentityGraph,
-        current: &CanonicalPublicExportBindingsV1,
+    pub(super) fn try_new(
+        current: ConeIdentity,
+        identities: &'a ValidatedIdentityGraph,
+        interface: &CrossConeHirInterfaceSectionV1,
         direct: &'a [ConeIdentity],
         providers: &'a [RouteProviderView<'a>],
         closure_node_count: usize,
     ) -> Result<Self, usize> {
+        let current_bindings = interface.public_bindings();
         let mut ids = Vec::new();
-        ids.try_reserve_exact(current.records().len())
-            .map_err(|_| current.records().len())?;
-        for record in current.records() {
+        ids.try_reserve_exact(current_bindings.records().len())
+            .map_err(|_| current_bindings.records().len())?;
+        for record in current_bindings.records() {
             ids.push(record.binding());
             if let ExportBindingSourceV1::Reexport { routes } = record.source() {
                 for route in routes.routes() {
@@ -163,6 +175,13 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
                         .map_err(|_| ids.len().saturating_add(route.hops().len()))?;
                     ids.extend(route.hops().iter().map(|hop| hop.binding()));
                 }
+            }
+        }
+        for reference in interface.external_references().records() {
+            for witness in reference.witnesses().witnesses() {
+                ids.try_reserve(witness.route().hops().len())
+                    .map_err(|_| ids.len().saturating_add(witness.route().hops().len()))?;
+                ids.extend(witness.route().hops().iter().map(|hop| hop.binding()));
             }
         }
         ids.sort_unstable();
@@ -180,11 +199,43 @@ impl<'a> CanonicalCrossConeRouteAuthority<'a> {
         }));
 
         Ok(Self {
+            current,
+            identities,
             direct,
             providers,
             closure_node_count,
             binding_keys,
         })
+    }
+
+    fn source_declaration_key<I>(
+        &self,
+        id: I,
+    ) -> Result<Arc<SourceDeclarationKey>, CrossConeHirReferenceAuthorityError>
+    where
+        I: scoop_identity::PersistentId + 'static,
+    {
+        self.identities
+            .canonical_key::<I, SourceDeclarationKey>(id)
+            .map_err(CrossConeHirReferenceAuthorityError::Identity)
+    }
+
+    fn target_source_declaration_key(
+        &self,
+        target: ExternalHirTargetV1,
+    ) -> Result<Arc<SourceDeclarationKey>, CrossConeHirReferenceAuthorityError> {
+        match target {
+            ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(id)) => {
+                self.source_declaration_key::<PersistentTypeId>(id)
+            }
+            ExternalHirTargetV1::Nominal(NominalDeclarationOwner::GenericTemplate(id)) => {
+                self.source_declaration_key::<PersistentGenericTypeId>(id)
+            }
+            ExternalHirTargetV1::TypeAlias(id) => {
+                self.source_declaration_key::<PersistentTypeAliasId>(id)
+            }
+            target => Err(CrossConeHirReferenceAuthorityError::UnsupportedTarget { target }),
+        }
     }
 }
 
@@ -209,6 +260,66 @@ impl PublicExportBindingClosureAuthority for CanonicalCrossConeRouteAuthority<'_
             .iter()
             .find(|provider| provider.identity == exporter)
             .map(|provider| provider.bindings)
+    }
+}
+
+impl ExternalHirReferenceSemanticAuthority<CrossConeHirReferenceAuthorityError>
+    for CanonicalCrossConeRouteAuthority<'_>
+{
+    fn current_cone(&self) -> ConeIdentity {
+        self.current
+    }
+
+    fn external_hir_target_origin(
+        &mut self,
+        target: ExternalHirTargetV1,
+    ) -> Result<ConeIdentity, CrossConeHirReferenceAuthorityError> {
+        self.target_source_declaration_key(target)
+            .map(|key| key.origin())
+    }
+
+    fn external_hir_target_binding_root(
+        &mut self,
+        target: ExternalHirTargetV1,
+    ) -> Result<BindingTarget, CrossConeHirReferenceAuthorityError> {
+        let key = self.target_source_declaration_key(target)?;
+        match target {
+            ExternalHirTargetV1::Nominal(_) => BindingTarget::type_name(&key),
+            ExternalHirTargetV1::TypeAlias(_) => BindingTarget::type_alias(&key),
+            target => {
+                return Err(CrossConeHirReferenceAuthorityError::UnsupportedTarget { target });
+            }
+        }
+        .map_err(CrossConeHirReferenceAuthorityError::BindingTarget)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CrossConeHirReferenceAuthorityError {
+    Identity(scoop_identity::IdentityReferenceError),
+    UnsupportedTarget { target: ExternalHirTargetV1 },
+    BindingTarget(BindingTargetError),
+}
+
+impl fmt::Display for CrossConeHirReferenceAuthorityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Identity(error) => error.fmt(formatter),
+            Self::UnsupportedTarget { target } => {
+                write!(formatter, "unsupported external HIR target {target:?}")
+            }
+            Self::BindingTarget(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirReferenceAuthorityError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Identity(error) => Some(error),
+            Self::BindingTarget(error) => Some(error),
+            Self::UnsupportedTarget { .. } => None,
+        }
     }
 }
 

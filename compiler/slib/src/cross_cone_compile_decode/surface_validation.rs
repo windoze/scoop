@@ -9,7 +9,7 @@ use scoop_hir::{
 use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::{DecodedStrongProductionSectionV1, OdrFreeLirFoundation};
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, OdrFreeMirFoundation};
-use scoop_wire::WirePath;
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::HirProductionValidatedCrossConeHirFrontSections;
 use crate::{
@@ -110,6 +110,22 @@ impl_surface_front_accessors!(TypeAliasValidatedCrossConeHirFrontSections);
 impl TypeAliasValidatedCrossConeHirFrontSections<'_> {
     pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.0.identities
+    }
+
+    pub(crate) fn hir_semantic_parts(
+        &mut self,
+    ) -> (
+        &ValidatedIdentityGraph,
+        &CrossConeHirInterfaceSectionV1,
+        &mut BudgetMeter,
+    ) {
+        let ValidatedSurfaceFront {
+            graph,
+            identities,
+            hir_interface,
+            ..
+        } = &mut self.0;
+        (identities, hir_interface, graph.envelope.meter_mut())
     }
 }
 

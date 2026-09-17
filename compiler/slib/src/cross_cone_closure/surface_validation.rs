@@ -127,6 +127,15 @@ impl<'input> TypeAliasValidatedCrossConeHirClosure<'input> {
     ) {
         (&self.0.dependency_first, &self.0.dependency_positions)
     }
+
+    pub(super) fn hir_semantic_validation_parts(
+        &mut self,
+    ) -> (
+        &mut [TypeAliasValidatedCrossConeHirFrontSections<'input>],
+        &[Vec<usize>],
+    ) {
+        (&mut self.0.dependency_first, &self.0.dependency_positions)
+    }
 }
 
 impl<'input> HirProductionValidatedCrossConeHirClosure<'input> {
