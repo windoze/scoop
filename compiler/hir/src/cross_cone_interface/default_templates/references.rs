@@ -1,6 +1,7 @@
 mod access;
 mod callable_target;
 mod record;
+mod semantics;
 mod set;
 
 pub use access::{
@@ -20,6 +21,10 @@ pub use record::{
     ExportDefaultGlobalReferenceV1, ExportDefaultReferenceResolutionError,
     ExportDefaultReferenceResolver, ExportDefaultReferenceTargetResolutionError,
     ExportDefaultReferenceV1, ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1,
+};
+pub use semantics::{
+    DefaultReferenceSemanticAuthority, ExportDefaultReferenceSetSemanticValidationError,
+    ExportDefaultReferenceTargetTypeSiteV1, ExportDefaultReferenceValidationError,
 };
 pub use set::{
     DecodedExportDefaultReferenceSetV1, ExportDefaultReferenceKindV1,

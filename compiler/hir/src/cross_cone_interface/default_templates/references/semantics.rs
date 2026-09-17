@@ -1,0 +1,578 @@
+use std::fmt;
+use std::marker::PhantomData;
+
+use scoop_identity::{
+    CallableTemplateOrigin, OptionalSignatureType, PersistentObjectValueId, PersistentPropertyId,
+    SignatureTypeKey,
+};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
+
+use super::{
+    ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1,
+};
+use crate::{
+    CallableInterfaceRecordV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
+    DefaultCallableRefV1, DefaultConstructorRefV1, DefaultFieldRefV1,
+    DefaultTemplateProviderShapeV1, ExportDefaultCallDomainV1, ExportDefaultTemplateV1,
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,
+    ExportDefinitionSourceV1, MeteredSignatureTypeSemanticError, NominalInterfaceShapeAuthority,
+    PublicLookupAccessV1, SignatureBinderScopeError, SignatureTypeSemanticError,
+};
+
+/// Supplies already validated public-surface and lexical-identity facts for
+/// direct references captured by one exported default template.
+///
+/// Every successful method must select the exact kind-specific target passed
+/// to it. For an independently declared target, success proves a universal
+/// public interface plus any required `DefaultDependency` route. For a
+/// template-owned lexical target, success proves the exact template root,
+/// path, and generated role. Implementations must use canonical typed
+/// identities and previously validated interface data, never display names,
+/// FQNs, link symbols, or an artifact-wide entity scan.
+pub trait DefaultReferenceSemanticAuthority<E>:
+    NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>
+{
+    fn validate_default_callable_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: &ExportDefaultCallableTargetV1,
+    ) -> Result<(), E>;
+
+    fn validate_default_constructor_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: &DefaultConstructorRefV1,
+    ) -> Result<(), E>;
+
+    fn validate_default_type_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: &SignatureTypeKey,
+    ) -> Result<(), E>;
+
+    fn validate_default_global_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: PersistentPropertyId,
+    ) -> Result<(), E>;
+
+    fn validate_default_singleton_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: PersistentObjectValueId,
+    ) -> Result<(), E>;
+
+    fn validate_default_field_reference_target(
+        &mut self,
+        template: &ExportDefaultTemplateV1,
+        target: &DefaultFieldRefV1,
+    ) -> Result<(), E>;
+}
+
+impl ExportDefaultTemplateV1 {
+    /// Validates the declared reference records without reconstructing the
+    /// body-to-reference exact closure.
+    ///
+    /// The caller supplies the provider shape already proven by the template
+    /// contract pass. All signature trees consume the artifact's shared
+    /// meter and use the provider binder scope.
+    pub fn validate_reference_envelope_semantics<A, E>(
+        &self,
+        owner_interface: &CallableInterfaceRecordV1,
+        provider: DefaultTemplateProviderShapeV1,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<E>>
+    where
+        A: DefaultReferenceSemanticAuthority<E>,
+    {
+        let expected_owner = self.key().owner();
+        let actual_owner = owner_interface.declaration();
+        if actual_owner != expected_owner {
+            return Err(
+                ExportDefaultReferenceSetSemanticValidationError::OwnerInterface {
+                    expected: expected_owner,
+                    actual: actual_owner,
+                },
+            );
+        }
+
+        ReferenceSetValidator {
+            template: self,
+            expected_call_domain: call_domain(owner_interface.access()),
+            scope: provider.signature_scope(),
+            authority,
+            meter,
+            path,
+            error: PhantomData,
+        }
+        .validate(self.references())
+    }
+}
+
+struct ReferenceSetValidator<'a, A, E> {
+    template: &'a ExportDefaultTemplateV1,
+    expected_call_domain: ExportDefaultCallDomainV1,
+    scope: crate::SignatureBinderScopeV1,
+    authority: &'a mut A,
+    meter: &'a mut BudgetMeter,
+    path: &'a WirePath,
+    error: PhantomData<fn() -> E>,
+}
+
+impl<A, E> ReferenceSetValidator<'_, A, E>
+where
+    A: DefaultReferenceSemanticAuthority<E>,
+{
+    fn validate(
+        &mut self,
+        references: &ExportDefaultReferenceSetV1,
+    ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<E>> {
+        for (index, reference) in references.callables().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Callable,
+                index,
+                reference,
+                |validator, target, origin| validator.validate_callable(target, origin),
+            )?;
+        }
+        for (index, reference) in references.constructors().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Constructor,
+                index,
+                reference,
+                |validator, target, origin| validator.validate_constructor(target, origin),
+            )?;
+        }
+        for (index, reference) in references.types().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Type,
+                index,
+                reference,
+                |validator, target, origin| validator.validate_type_target(target, origin),
+            )?;
+        }
+        for (index, reference) in references.globals().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Global,
+                index,
+                reference,
+                |validator, target, _| {
+                    validator
+                        .authority
+                        .validate_default_global_reference_target(validator.template, *target)
+                        .map_err(ExportDefaultReferenceValidationError::Target)
+                },
+            )?;
+        }
+        for (index, reference) in references.singleton_values().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Singleton,
+                index,
+                reference,
+                |validator, target, _| {
+                    validator
+                        .authority
+                        .validate_default_singleton_reference_target(validator.template, *target)
+                        .map_err(ExportDefaultReferenceValidationError::Target)
+                },
+            )?;
+        }
+        for (index, reference) in references.fields().iter().enumerate() {
+            self.validate_record(
+                ExportDefaultReferenceKindV1::Field,
+                index,
+                reference,
+                |validator, target, origin| validator.validate_field(target, origin),
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_record<T>(
+        &mut self,
+        kind: ExportDefaultReferenceKindV1,
+        index: usize,
+        reference: &ExportDefaultReferenceV1<T>,
+        validate_target: impl FnOnce(
+            &mut Self,
+            &T,
+            &ExportDefinitionSourceV1,
+        ) -> Result<(), ExportDefaultReferenceValidationError<E>>,
+    ) -> Result<(), ExportDefaultReferenceSetSemanticValidationError<E>> {
+        self.enter_record().map_err(|error| {
+            ExportDefaultReferenceSetSemanticValidationError::Record {
+                kind,
+                index,
+                error: Box::new(ExportDefaultReferenceValidationError::Resource(error)),
+            }
+        })?;
+
+        let witness = reference.witness();
+        let expected_owner = self.template.key().owner();
+        if witness.owner() != expected_owner {
+            return Err(self.record_error(
+                kind,
+                index,
+                ExportDefaultReferenceValidationError::WitnessOwner {
+                    expected: expected_owner,
+                    actual: witness.owner(),
+                },
+            ));
+        }
+        if witness.call_domain() != self.expected_call_domain {
+            return Err(self.record_error(
+                kind,
+                index,
+                ExportDefaultReferenceValidationError::CallDomain {
+                    expected: self.expected_call_domain,
+                    actual: witness.call_domain(),
+                },
+            ));
+        }
+
+        reference
+            .definition_origin()
+            .validate_semantics(self.authority)
+            .map_err(|error| {
+                self.record_error(
+                    kind,
+                    index,
+                    ExportDefaultReferenceValidationError::DefinitionOrigin(error),
+                )
+            })?;
+        validate_target(self, reference.target(), reference.definition_origin())
+            .map_err(|error| self.record_error(kind, index, error))
+    }
+
+    fn validate_callable(
+        &mut self,
+        target: &ExportDefaultCallableTargetV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        match target {
+            ExportDefaultCallableTargetV1::Callable(callable) => {
+                self.validate_callable_ref(callable, origin)
+            }
+            ExportDefaultCallableTargetV1::Bound(callable) => {
+                self.validate_bound_callable_ref(callable, origin)
+            }
+            ExportDefaultCallableTargetV1::DerivedEquality { owner_type } => self.validate_type(
+                owner_type,
+                ExportDefaultReferenceTargetTypeSiteV1::DerivedEqualityOwner,
+                origin,
+            ),
+            ExportDefaultCallableTargetV1::LocalFunction { .. }
+            | ExportDefaultCallableTargetV1::Lambda { .. }
+            | ExportDefaultCallableTargetV1::AnonymousFunction { .. }
+            | ExportDefaultCallableTargetV1::CallableReference { .. }
+            | ExportDefaultCallableTargetV1::FunctionAddress { .. } => Ok(()),
+        }?;
+        self.authority
+            .validate_default_callable_reference_target(self.template, target)
+            .map_err(ExportDefaultReferenceValidationError::Target)
+    }
+
+    fn validate_callable_ref(
+        &mut self,
+        callable: &DefaultCallableRefV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        if let OptionalSignatureType::Present(owner) = callable.owner() {
+            self.validate_type(
+                owner,
+                ExportDefaultReferenceTargetTypeSiteV1::CallableOwner,
+                origin,
+            )?;
+        }
+        for (index, argument) in callable.type_arguments().iter().enumerate() {
+            self.validate_type(
+                argument,
+                ExportDefaultReferenceTargetTypeSiteV1::CallableTypeArgument { index },
+                origin,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_bound_callable_ref(
+        &mut self,
+        callable: &DefaultBoundCallableRefV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        let receiver = callable.receiver_parameter();
+        self.scope
+            .validate(&SignatureTypeKey::Binder {
+                depth: receiver.depth(),
+                index: receiver.index(),
+            })
+            .map_err(|error| ExportDefaultReferenceValidationError::Binder {
+                site: ExportDefaultReferenceTargetTypeSiteV1::BoundCallableReceiverParameter,
+                definition_origin: Box::new(origin.clone()),
+                error,
+            })?;
+        match callable.source() {
+            DefaultBoundCallableSourceV1::Class {
+                bound,
+                callable: source,
+            } => {
+                self.validate_type(
+                    bound,
+                    ExportDefaultReferenceTargetTypeSiteV1::BoundCallableBound,
+                    origin,
+                )?;
+                self.validate_callable_ref(source, origin)?;
+            }
+            DefaultBoundCallableSourceV1::Interface { bound, .. } => {
+                self.validate_type(
+                    bound,
+                    ExportDefaultReferenceTargetTypeSiteV1::BoundCallableBound,
+                    origin,
+                )?;
+            }
+        }
+        self.validate_type(
+            callable.instantiated_signature(),
+            ExportDefaultReferenceTargetTypeSiteV1::BoundCallableInstantiatedSignature,
+            origin,
+        )
+    }
+
+    fn validate_constructor(
+        &mut self,
+        target: &DefaultConstructorRefV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        self.validate_type(
+            target.owner_type(),
+            ExportDefaultReferenceTargetTypeSiteV1::ConstructorOwner,
+            origin,
+        )?;
+        self.authority
+            .validate_default_constructor_reference_target(self.template, target)
+            .map_err(ExportDefaultReferenceValidationError::Target)
+    }
+
+    fn validate_type_target(
+        &mut self,
+        target: &SignatureTypeKey,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        if let SignatureTypeKey::Binder { depth, index } = target {
+            return Err(ExportDefaultReferenceValidationError::BinderTypeTarget {
+                depth: *depth,
+                index: *index,
+            });
+        }
+        self.validate_type(
+            target,
+            ExportDefaultReferenceTargetTypeSiteV1::TypeTarget,
+            origin,
+        )?;
+        self.authority
+            .validate_default_type_reference_target(self.template, target)
+            .map_err(ExportDefaultReferenceValidationError::Target)
+    }
+
+    fn validate_field(
+        &mut self,
+        target: &DefaultFieldRefV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        match target {
+            DefaultFieldRefV1::Struct { owner_type, .. }
+            | DefaultFieldRefV1::Class { owner_type, .. } => self.validate_type(
+                owner_type,
+                ExportDefaultReferenceTargetTypeSiteV1::FieldOwner,
+                origin,
+            ),
+            DefaultFieldRefV1::Tuple { .. } => Ok(()),
+        }?;
+        self.authority
+            .validate_default_field_reference_target(self.template, target)
+            .map_err(ExportDefaultReferenceValidationError::Target)
+    }
+
+    fn validate_type(
+        &mut self,
+        signature: &SignatureTypeKey,
+        site: ExportDefaultReferenceTargetTypeSiteV1,
+        origin: &ExportDefinitionSourceV1,
+    ) -> Result<(), ExportDefaultReferenceValidationError<E>> {
+        match self.scope.validate_signature_semantics_metered(
+            signature,
+            self.authority,
+            self.meter,
+            self.path,
+        ) {
+            Ok(()) => Ok(()),
+            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => {
+                Err(ExportDefaultReferenceValidationError::Type {
+                    site,
+                    definition_origin: Box::new(origin.clone()),
+                    error: Box::new(error),
+                })
+            }
+            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
+                Err(ExportDefaultReferenceValidationError::Resource(error))
+            }
+        }
+    }
+
+    fn enter_record(&mut self) -> Result<(), WireError> {
+        self.meter.check_semantic_depth(1, self.path)?;
+        self.meter.charge_nodes(1, self.path)?;
+        self.meter.charge_work(1, self.path)
+    }
+
+    fn record_error(
+        &self,
+        kind: ExportDefaultReferenceKindV1,
+        index: usize,
+        error: ExportDefaultReferenceValidationError<E>,
+    ) -> ExportDefaultReferenceSetSemanticValidationError<E> {
+        ExportDefaultReferenceSetSemanticValidationError::Record {
+            kind,
+            index,
+            error: Box::new(error),
+        }
+    }
+}
+
+const fn call_domain(access: PublicLookupAccessV1) -> ExportDefaultCallDomainV1 {
+    match access {
+        PublicLookupAccessV1::DirectOnly => ExportDefaultCallDomainV1::DirectPublic,
+        PublicLookupAccessV1::PublicSlot => ExportDefaultCallDomainV1::DirectAndPublicSlot,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExportDefaultReferenceTargetTypeSiteV1 {
+    CallableOwner,
+    CallableTypeArgument { index: usize },
+    BoundCallableReceiverParameter,
+    BoundCallableBound,
+    BoundCallableInstantiatedSignature,
+    DerivedEqualityOwner,
+    ConstructorOwner,
+    TypeTarget,
+    FieldOwner,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExportDefaultReferenceValidationError<E> {
+    WitnessOwner {
+        expected: CallableTemplateOrigin,
+        actual: CallableTemplateOrigin,
+    },
+    CallDomain {
+        expected: ExportDefaultCallDomainV1,
+        actual: ExportDefaultCallDomainV1,
+    },
+    DefinitionOrigin(ExportDefinitionSourceSemanticValidationError<E>),
+    Type {
+        site: ExportDefaultReferenceTargetTypeSiteV1,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: Box<SignatureTypeSemanticError<E>>,
+    },
+    Binder {
+        site: ExportDefaultReferenceTargetTypeSiteV1,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: SignatureBinderScopeError,
+    },
+    BinderTypeTarget {
+        depth: u32,
+        index: u32,
+    },
+    Target(E),
+    Resource(WireError),
+}
+
+impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WitnessOwner { expected, actual } => write!(
+                formatter,
+                "default reference witness owner {actual:?} differs from template owner {expected:?}"
+            ),
+            Self::CallDomain { expected, actual } => write!(
+                formatter,
+                "default reference call domain {actual:?} differs from owner domain {expected:?}"
+            ),
+            Self::DefinitionOrigin(error) => {
+                write!(
+                    formatter,
+                    "invalid default reference definition origin: {error}"
+                )
+            }
+            Self::Type { site, error, .. } => {
+                write!(
+                    formatter,
+                    "invalid default reference type at {site:?}: {error}"
+                )
+            }
+            Self::Binder { site, error, .. } => {
+                write!(
+                    formatter,
+                    "invalid default reference binder at {site:?}: {error}"
+                )
+            }
+            Self::BinderTypeTarget { depth, index } => write!(
+                formatter,
+                "default type reference cannot target provider binder ({depth}, {index})"
+            ),
+            Self::Target(error) => write!(formatter, "invalid default reference target: {error}"),
+            Self::Resource(error) => {
+                write!(
+                    formatter,
+                    "default reference validation resource failure: {error}"
+                )
+            }
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for ExportDefaultReferenceValidationError<E>
+{
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExportDefaultReferenceSetSemanticValidationError<E> {
+    OwnerInterface {
+        expected: CallableTemplateOrigin,
+        actual: CallableTemplateOrigin,
+    },
+    Record {
+        kind: ExportDefaultReferenceKindV1,
+        index: usize,
+        error: Box<ExportDefaultReferenceValidationError<E>>,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceSetSemanticValidationError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OwnerInterface { expected, actual } => write!(
+                formatter,
+                "default-template owner {expected:?} does not match reference owner interface {actual:?}"
+            ),
+            Self::Record { kind, index, error } => {
+                write!(
+                    formatter,
+                    "invalid {kind} default reference at index {index}: {error}"
+                )
+            }
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error
+    for ExportDefaultReferenceSetSemanticValidationError<E>
+{
+}
+
+#[cfg(test)]
+mod tests;
