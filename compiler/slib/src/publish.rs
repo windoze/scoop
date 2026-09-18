@@ -1,4 +1,4 @@
-//! Final two-view publication proof for one strong single-Cone artifact.
+//! Final two-view publication proofs for strong artifacts.
 
 use std::fmt;
 use std::io::Write;
@@ -22,6 +22,9 @@ use crate::{
     validate_self_describing_single_cone_strong_link_artifact,
     validate_single_cone_strong_compile_artifact, validate_single_cone_strong_link_artifact,
 };
+
+mod cross_cone;
+pub use cross_cone::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompileViewSummaryV1 {
@@ -508,7 +511,7 @@ impl std::error::Error for SingleConeArtifactPublishError {
     }
 }
 
-fn output_matches(
+pub(super) fn output_matches(
     kind: ConeKind,
     compile: &HirOutputContractV1,
     link: &SingleConeProductionOutputV1,
