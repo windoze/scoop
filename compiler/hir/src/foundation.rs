@@ -836,6 +836,14 @@ pub enum HirFoundationBuildError {
         source: SourceIdentity,
         error: SourceRecordError,
     },
+    CanonicalSourceIdentityMismatch {
+        metadata: SourceIdentity,
+        record: SourceIdentity,
+    },
+    CanonicalSourcePoints {
+        source: SourceIdentity,
+        error: crate::MissingSourcePointError,
+    },
     UnknownDefinitionSource {
         source: SourceIdentity,
         subject_tag: u8,
@@ -881,6 +889,14 @@ impl fmt::Display for HirFoundationBuildError {
             Self::SourceRecord { source, error } => {
                 write!(formatter, "cannot project source {source:?}: {error}")
             }
+            Self::CanonicalSourceIdentityMismatch { metadata, record } => write!(
+                formatter,
+                "canonical source record {record:?} does not match source metadata {metadata:?}"
+            ),
+            Self::CanonicalSourcePoints { source, error } => write!(
+                formatter,
+                "canonical source record {source:?} does not cover a required definition point: {error}"
+            ),
             Self::UnknownDefinitionSource {
                 source,
                 subject_tag,

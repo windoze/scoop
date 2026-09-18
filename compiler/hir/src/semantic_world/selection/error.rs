@@ -1,15 +1,31 @@
 use std::fmt;
 
-use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
+use scoop_identity::{
+    CallableTemplateOrigin, ConeIdentity, PersistentSourceContextId, SourceIdentity,
+};
 
 use super::super::{DirectImportedTargetMergeError, ImportedTarget};
 use crate::CoreClosedCallableClassificationError;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionPlanBuildError {
     Classification(CoreClosedCallableClassificationError),
     DuplicateCallable(CallableTemplateOrigin),
-    TooManyCallables { count: usize },
+    TooManyCallables {
+        count: usize,
+    },
+    MissingDefinitionSource {
+        provider: ConeIdentity,
+        source: SourceIdentity,
+    },
+    MissingDefinitionContext {
+        provider: ConeIdentity,
+        context: PersistentSourceContextId,
+    },
+    DirectBindingMerge {
+        declaration: CallableTemplateOrigin,
+        source: DirectImportedTargetMergeError,
+    },
 }
 
 impl fmt::Display for ImportedDependencySelectionPlanBuildError {
@@ -24,6 +40,21 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency semantic world contains {count} callables, exceeding the u32 id domain"
             ),
+            Self::MissingDefinitionSource { provider, source } => write!(
+                formatter,
+                "dependency provider {provider:?} has no HIR source record for exported definition source {source:?}"
+            ),
+            Self::MissingDefinitionContext { provider, context } => write!(
+                formatter,
+                "dependency provider {provider:?} has no HIR source context for exported definition context {context:?}"
+            ),
+            Self::DirectBindingMerge {
+                declaration,
+                source,
+            } => write!(
+                formatter,
+                "dependency callable {declaration:?} has inconsistent direct binding routes: {source}"
+            ),
         }
     }
 }
@@ -32,7 +63,11 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Classification(error) => Some(error),
-            Self::DuplicateCallable(_) | Self::TooManyCallables { .. } => None,
+            Self::DirectBindingMerge { source, .. } => Some(source),
+            Self::DuplicateCallable(_)
+            | Self::TooManyCallables { .. }
+            | Self::MissingDefinitionSource { .. }
+            | Self::MissingDefinitionContext { .. } => None,
         }
     }
 }
@@ -46,6 +81,8 @@ pub enum ImportedDependencyCandidateError {
         declaration: CallableTemplateOrigin,
         expected: ConeIdentity,
     },
+    MissingDefaultCallableBinding(CallableTemplateOrigin),
+    GeneratedDefaultCallable,
 }
 
 impl fmt::Display for ImportedDependencyCandidateError {
@@ -67,6 +104,13 @@ impl fmt::Display for ImportedDependencyCandidateError {
             } => write!(
                 formatter,
                 "imported callable {declaration:?} does not terminate at provider {expected}"
+            ),
+            Self::MissingDefaultCallableBinding(declaration) => write!(
+                formatter,
+                "dependency default callable {declaration:?} has no direct public route"
+            ),
+            Self::GeneratedDefaultCallable => formatter.write_str(
+                "dependency default references a generated callable without a public route",
             ),
         }
     }

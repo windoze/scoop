@@ -8,6 +8,10 @@ pub struct SourceFileMetadata {
     pub identity: scoop_identity::SourceIdentity,
     pub name: String,
     pub source: String,
+    /// Canonical metadata copied from an authenticated dependency artifact.
+    /// Current-source entries keep this absent and derive the record from
+    /// `source`; imported entries need not retain the provider's source text.
+    pub canonical_record: Option<SourceRecord>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -39,6 +43,9 @@ impl SourceContext {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SourceContextSubject {
     File,
+    /// A context whose persistent key was authenticated by a dependency HIR
+    /// foundation. It cannot be reconstructed from current-module arena ids.
+    Imported(scoop_identity::SourceContextKey),
     Nominal(SourceContextNominal),
     Function(FunctionId),
     Constructor(SourceContextConstructor),
@@ -71,6 +78,7 @@ impl Module {
     pub fn source_context_names(&self, context: SourceContextId) -> (String, String) {
         match self.source_contexts[context].subject() {
             SourceContextSubject::File => (String::new(), String::new()),
+            SourceContextSubject::Imported(_) => (String::new(), String::new()),
             SourceContextSubject::Nominal(owner) => {
                 (String::new(), self.source_context_nominal_name(*owner))
             }

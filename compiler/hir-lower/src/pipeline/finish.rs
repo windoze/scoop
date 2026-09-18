@@ -247,7 +247,7 @@ impl Lowerer {
                 return Err(vec![diagnostic]);
             }
         };
-        let source_files = self
+        let mut source_files = self
             .intrinsic_sources
             .iter()
             .map(|source| hir::SourceFileMetadata {
@@ -255,8 +255,10 @@ impl Lowerer {
                 identity: source.identity.clone(),
                 name: source.name.clone(),
                 source: source.source.clone(),
+                canonical_record: None,
             })
             .collect::<Vec<_>>();
+        source_files.extend(self.imported_source_files.iter().cloned());
         let source_context_identities = match crate::persistent_source_contexts::build(
             &self,
             &source_files,

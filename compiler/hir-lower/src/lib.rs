@@ -944,6 +944,11 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
+    /// Authenticated dependency sources referenced by instantiated defaults.
+    /// They are appended only after a winning candidate is committed and are
+    /// never traversed as parser inputs.
+    imported_source_files: Vec<hir::SourceFileMetadata>,
+    imported_source_indices: HashMap<scoop_identity::SourceIdentity, u32>,
     intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).

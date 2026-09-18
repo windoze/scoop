@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::ConeIdentity;
+use std::sync::Arc;
+
+use scoop_identity::{ConeIdentity, PersistentSourceContextId, SourceContextKey, SourceIdentity};
 
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedProviderCertificate,
+    ImportedTarget, ParamFreeCoreClosedCallableV1, SourceRecord,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -15,6 +18,30 @@ pub(super) struct DependencySelectionId(pub(super) u64);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct ImportedDependencyCallableId(pub(super) u32);
+
+#[derive(Clone, Debug)]
+pub(super) struct ImportedDependencyDefinitionSources {
+    pub(super) records: BTreeMap<SourceIdentity, SourceRecord>,
+    pub(super) contexts: BTreeMap<PersistentSourceContextId, SourceContextKey>,
+}
+
+/// Authenticated provider source metadata needed to preserve the definition
+/// side of an imported default expression.
+#[derive(Clone, Copy, Debug)]
+pub struct ImportedDependencyDefinitionSource<'a> {
+    record: &'a SourceRecord,
+    context: &'a SourceContextKey,
+}
+
+impl<'a> ImportedDependencyDefinitionSource<'a> {
+    pub const fn record(self) -> &'a SourceRecord {
+        self.record
+    }
+
+    pub const fn context(self) -> &'a SourceContextKey {
+        self.context
+    }
+}
 
 /// An owned source-level callable candidate obtained through one direct
 /// dependency binding. It can outlive the borrowed artifact views used to
@@ -29,6 +56,8 @@ pub struct ImportedDependencyCallableCandidate {
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeCoreClosedCallableV1>,
+    pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
+    pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
 
 impl ImportedDependencyCallableCandidate {
@@ -58,6 +87,24 @@ impl ImportedDependencyCallableCandidate {
 
     pub const fn binding(&self) -> &DirectImportedTargetBinding {
         &self.binding
+    }
+
+    pub fn default_template(
+        &self,
+        key: ExportDefaultTemplateKeyV1,
+    ) -> Option<&ExportDefaultTemplateV1> {
+        self.default_templates.get(&key)
+    }
+
+    pub fn definition_source(
+        &self,
+        source: &crate::ExportDefinitionSourceV1,
+    ) -> Option<ImportedDependencyDefinitionSource<'_>> {
+        let origin = source.origin();
+        Some(ImportedDependencyDefinitionSource {
+            record: self.definition_sources.records.get(origin.source())?,
+            context: self.definition_sources.contexts.get(&origin.context())?,
+        })
     }
 }
 

@@ -848,6 +848,7 @@ impl Harness {
             provider: hir::IntrinsicProviderId::from_raw(0),
             name: "<test>".to_string(),
             source: String::new(),
+            canonical_record: None,
         }];
         let source_context_identities =
             hir::HirSourceContextIdentities::from_contexts(hir::HirSourceContextIdentityInputs {

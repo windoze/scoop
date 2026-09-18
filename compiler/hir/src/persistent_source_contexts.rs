@@ -147,7 +147,12 @@ fn validate_sources(
                 context: raw_index(context),
             });
         };
-        if matches!(value.subject(), crate::SourceContextSubject::File) {
+        if matches!(value.subject(), crate::SourceContextSubject::File)
+            || matches!(
+                value.subject(),
+                crate::SourceContextSubject::Imported(SourceContextKey::File { .. })
+            )
+        {
             file_contexts[source] = true;
         }
     }

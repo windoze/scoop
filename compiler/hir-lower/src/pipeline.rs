@@ -338,6 +338,8 @@ impl Lowerer {
             smart_casts: HashMap::new(),
             current_file: 0,
             intrinsic_sources: Vec::new(),
+            imported_source_files: Vec::new(),
+            imported_source_indices: HashMap::new(),
             intrinsic_policy: IntrinsicDeclarationPolicy::CoreOnly,
             locals: Arena::new(),
             scopes: Scopes::new(),

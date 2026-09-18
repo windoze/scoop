@@ -79,6 +79,31 @@ impl ImportedHirFoundation {
         self.identities.get(id).map(ImportedHirId)
     }
 
+    /// Returns source metadata already authenticated as part of this
+    /// provider's HIR foundation.
+    pub fn source_record(
+        &self,
+        source: &scoop_identity::SourceIdentity,
+    ) -> Option<&crate::SourceRecord> {
+        self.canonical
+            .sources
+            .binary_search_by(|record| record.identity().cmp(source))
+            .ok()
+            .map(|index| &self.canonical.sources[index])
+    }
+
+    /// Returns the canonical key for one provider-owned source context.
+    pub fn source_context_key(
+        &self,
+        context: scoop_identity::PersistentSourceContextId,
+    ) -> Option<&scoop_identity::SourceContextKey> {
+        self.canonical
+            .source_contexts
+            .binary_search_by_key(&context, |record| record.id())
+            .ok()
+            .map(|index| self.canonical.source_contexts[index].key())
+    }
+
     pub(crate) fn semantic_world_export_binding_key(
         &self,
         id: PersistentExportBindingId,

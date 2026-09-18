@@ -25,6 +25,14 @@ pub(super) fn context_key(
         SourceContextSubject::File => Ok(SourceContextKey::File {
             source: source.clone(),
         }),
+        SourceContextSubject::Imported(key) => {
+            if key.source() != source {
+                return Err(HirSourceContextIdentityError::SourceMismatch {
+                    context: raw_index(context),
+                });
+            }
+            Ok(key.clone())
+        }
         SourceContextSubject::Nominal(owner) => Ok(SourceContextKey::Nominal {
             source: source.clone(),
             owner: nominal_owner(inputs, context, *owner, source)?,

@@ -57,6 +57,25 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn imported_core_callable_by_declaration(
+        &self,
+        declaration: hir::DefaultCallableDeclarationV1,
+    ) -> Option<hir::ImportedCorePreludeRef> {
+        let hir::DefaultCallableDeclarationV1::Function(declaration) = declaration else {
+            return None;
+        };
+        let CoreLoweringAuthority::Imported(authority) = &self.core else {
+            return None;
+        };
+        authority.candidates.iter().find_map(|candidate| {
+            matches!(
+                candidate.target.definition(),
+                hir::CoreCallableDefinitionV1::Function(id) if id == declaration
+            )
+            .then_some(candidate.reference)
+        })
+    }
+
     pub(crate) fn select_imported_core_callable(
         &mut self,
         reference: hir::ImportedCorePreludeRef,

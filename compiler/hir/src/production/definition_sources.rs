@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, DefinitionOrigin, SourceOriginError, SourceSpan};
+use scoop_identity::{DefinitionOrigin, SourceOriginError, SourceSpan};
 use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
 use crate::{
@@ -115,13 +115,6 @@ pub(super) fn project_definition_source(
             actual: origin.provider,
         });
     }
-    let actual_cone = source.identity.cone();
-    if actual_cone != export.cone {
-        return Err(HirDefinitionSourceProjectionError::ForeignSource {
-            expected: export.cone,
-            actual: actual_cone,
-        });
-    }
     let context_index = raw_index(origin.context);
     let local_context = arena_get(&export.source_contexts, origin.context).ok_or(
         HirDefinitionSourceProjectionError::UnknownContext(context_index),
@@ -169,10 +162,6 @@ pub enum HirDefinitionSourceProjectionError {
         expected: IntrinsicProviderId,
         actual: IntrinsicProviderId,
     },
-    ForeignSource {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
     UnknownContext(u32),
     MissingPersistentContext(u32),
     LocalContextSourceMismatch {
@@ -200,10 +189,6 @@ impl fmt::Display for HirDefinitionSourceProjectionError {
                 "source file {file} belongs to provider {}, not provider {}",
                 expected.into_raw(),
                 actual.into_raw()
-            ),
-            Self::ForeignSource { expected, actual } => write!(
-                formatter,
-                "definition source belongs to Cone {actual}, not current Cone {expected}"
             ),
             Self::UnknownContext(context) => {
                 write!(formatter, "source context {context} is unknown")

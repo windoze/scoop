@@ -6,18 +6,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
 
-use super::{
-    DirectImportedTargetBinding, ImportedProviderCertificate, ImportedSemanticWorld, ImportedTarget,
-};
-use crate::{
-    CallableInterfaceRecordV1, CallableSourceInterfaceV1, CoreClosedExactLeafClassifierV1,
-    ParamFreeCoreClosedCallableV1,
-};
+use super::{DirectImportedTargetBinding, ImportedTarget};
+use crate::DefaultCallableDeclarationV1;
 
+mod catalog;
 mod error;
 mod model;
 pub use error::*;
 pub use model::*;
+
+use catalog::DependencyCatalog;
 
 static NEXT_PROJECTION: AtomicU64 = AtomicU64::new(1);
 static NEXT_SELECTION: AtomicU64 = AtomicU64::new(1);
@@ -28,23 +26,6 @@ fn next_id(counter: &AtomicU64, domain: &'static str) -> u64 {
             current.checked_add(1)
         })
         .unwrap_or_else(|_| panic!("the {domain} id space is exhausted"))
-}
-
-#[derive(Clone, Debug)]
-struct CallableCatalogEntry {
-    certificate: ImportedProviderCertificate,
-    interface: CallableInterfaceRecordV1,
-    source: Option<CallableSourceInterfaceV1>,
-    capability: Option<ParamFreeCoreClosedCallableV1>,
-}
-
-#[derive(Debug)]
-struct DependencyCatalog {
-    world_brand: u64,
-    consumer: ConeIdentity,
-    projection: DependencyProjectionId,
-    callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
-    callable_ids: BTreeMap<CallableTemplateOrigin, ImportedDependencyCallableId>,
 }
 
 /// A cloneable, lifetime-free transaction for dependency selections.
@@ -74,6 +55,7 @@ impl ImportedDependencySelectionPlan {
                 )),
                 callables: BTreeMap::new(),
                 callable_ids: BTreeMap::new(),
+                direct_callable_bindings: BTreeMap::new(),
             }),
             selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
@@ -91,6 +73,14 @@ impl ImportedDependencySelectionPlan {
             }
             target => return Err(ImportedDependencyCandidateError::NotCallable(target)),
         };
+        self.callable_candidate_for_declaration(declaration, binding)
+    }
+
+    fn callable_candidate_for_declaration(
+        &self,
+        declaration: CallableTemplateOrigin,
+        binding: &DirectImportedTargetBinding,
+    ) -> Result<ImportedDependencyCallableCandidate, ImportedDependencyCandidateError> {
         if binding
             .sources()
             .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
@@ -122,7 +112,37 @@ impl ImportedDependencySelectionPlan {
             interface: entry.interface.clone(),
             source: entry.source.clone(),
             capability: entry.capability.clone(),
+            default_templates: entry.default_templates.clone(),
+            definition_sources: Arc::clone(&entry.definition_sources),
         })
+    }
+
+    /// Resolves a callable referenced by a validated dependency default
+    /// template through the direct dependency surface. The template reference
+    /// itself supplies definition-side access authority; this lookup supplies
+    /// the consumer-side route witness retained by the selected set.
+    pub fn default_callable_candidate(
+        &self,
+        declaration: DefaultCallableDeclarationV1,
+    ) -> Result<ImportedDependencyCallableCandidate, ImportedDependencyCandidateError> {
+        let declaration = match declaration {
+            DefaultCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
+            DefaultCallableDeclarationV1::GenericFunction(id) => {
+                CallableTemplateOrigin::GenericFunction(id)
+            }
+            DefaultCallableDeclarationV1::PropertyAccessor(id) => {
+                CallableTemplateOrigin::Accessor(id)
+            }
+            DefaultCallableDeclarationV1::Generated(_) => {
+                return Err(ImportedDependencyCandidateError::GeneratedDefaultCallable);
+            }
+        };
+        let binding = self
+            .catalog
+            .direct_callable_bindings
+            .get(&declaration)
+            .ok_or(ImportedDependencyCandidateError::MissingDefaultCallableBinding(declaration))?;
+        self.callable_candidate_for_declaration(declaration, binding)
     }
 
     pub fn select_callable(
@@ -189,65 +209,5 @@ impl ImportedDependencySelectionPlan {
 
     pub fn selected_callable_count(&self) -> usize {
         self.callables.len()
-    }
-}
-
-impl ImportedSemanticWorld<'_> {
-    pub fn dependency_selection_plan(
-        &self,
-        classifier: &CoreClosedExactLeafClassifierV1,
-    ) -> Result<ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError> {
-        let projection = DependencyProjectionId(next_id(&NEXT_PROJECTION, "dependency projection"));
-        let mut callables = BTreeMap::new();
-        for provider in &self.providers {
-            if provider.identity() == ConeIdentity::CORE {
-                continue;
-            }
-            for callable in provider.interface().callable_interfaces().records() {
-                let declaration = callable.declaration();
-                let entry = CallableCatalogEntry {
-                    certificate: provider.certificate().clone(),
-                    interface: callable.clone(),
-                    source: provider
-                        .interface()
-                        .source_interfaces()
-                        .get(declaration)
-                        .cloned(),
-                    capability: classifier
-                        .classify_callable(callable)
-                        .map_err(ImportedDependencySelectionPlanBuildError::Classification)?,
-                };
-                if callables.insert(declaration, entry).is_some() {
-                    return Err(
-                        ImportedDependencySelectionPlanBuildError::DuplicateCallable(declaration),
-                    );
-                }
-            }
-        }
-        let callable_ids = callables
-            .keys()
-            .copied()
-            .enumerate()
-            .map(|(index, declaration)| {
-                u32::try_from(index)
-                    .map(|index| (declaration, ImportedDependencyCallableId(index)))
-                    .map_err(
-                        |_| ImportedDependencySelectionPlanBuildError::TooManyCallables {
-                            count: callables.len(),
-                        },
-                    )
-            })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
-        Ok(ImportedDependencySelectionPlan {
-            catalog: Arc::new(DependencyCatalog {
-                world_brand: self.brand,
-                consumer: self.current,
-                projection,
-                callables,
-                callable_ids,
-            }),
-            selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
-            callables: BTreeMap::new(),
-        })
     }
 }

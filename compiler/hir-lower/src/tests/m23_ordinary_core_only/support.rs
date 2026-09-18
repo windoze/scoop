@@ -5,8 +5,8 @@ use scoop_ast::{
     IdentifiedParsedSource, NonEmptyVec,
 };
 use scoop_identity::{
-    ConeIdentity, PendingIdentityValidation, SemanticIdentitySession, SemanticOriginFingerprint,
-    SourceIdentity,
+    ConeCoordinate, ConeIdentity, NormalizedSourcePath, PendingIdentityValidation,
+    SemanticIdentitySession, SemanticOriginFingerprint, SourceIdentity,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -70,6 +70,7 @@ impl TrustedCoreFixture {
         pending
             .register_authority(coordinate.identity().unwrap())
             .unwrap();
+        pending.register_authority(ConeIdentity::CORE).unwrap();
         decoded.register_identities(&mut pending).unwrap();
         decoded.resolve_identities(&mut pending).unwrap();
         let identities = pending.finish().unwrap();
@@ -290,6 +291,18 @@ fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
 
 pub(crate) fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     parsed_sources(test_source_identity("src/main.scoop"), source, "<main>")
+}
+
+pub(crate) fn parsed_ordinary_at(
+    coordinate: &ConeCoordinate,
+    source: scoop_ast::SourceFile,
+) -> CurrentConeParsedSources {
+    let identity = SourceIdentity::new(
+        coordinate.identity().unwrap(),
+        NormalizedSourcePath::new("src/main.scoop").unwrap(),
+    )
+    .unwrap();
+    parsed_sources(identity, source, "<dependency-main>")
 }
 
 fn parsed_sources(

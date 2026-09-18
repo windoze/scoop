@@ -454,11 +454,28 @@ fn source_records(
         let points = required
             .remove(&source.identity)
             .map_or_else(Vec::new, |points| points.offsets);
-        let record = SourceRecord::from_utf8(source.identity.clone(), &source.source, points)
-            .map_err(|error| HirFoundationBuildError::SourceRecord {
-                source: source.identity.clone(),
-                error,
+        let record = if let Some(record) = &source.canonical_record {
+            if record.identity() != &source.identity {
+                return Err(HirFoundationBuildError::CanonicalSourceIdentityMismatch {
+                    metadata: source.identity.clone(),
+                    record: record.identity().clone(),
+                });
+            }
+            record.require_points(points).map_err(|error| {
+                HirFoundationBuildError::CanonicalSourcePoints {
+                    source: source.identity.clone(),
+                    error,
+                }
             })?;
+            record.clone()
+        } else {
+            SourceRecord::from_utf8(source.identity.clone(), &source.source, points).map_err(
+                |error| HirFoundationBuildError::SourceRecord {
+                    source: source.identity.clone(),
+                    error,
+                },
+            )?
+        };
         records.push(record);
     }
     if let Some((source, points)) = required.into_iter().next() {
@@ -520,6 +537,7 @@ mod tests {
             identity: source,
             name: "main.scoop".to_string(),
             source: "aé\nz".to_string(),
+            canonical_record: None,
         };
 
         let records = source_records(&[metadata], &[definition]).unwrap();
