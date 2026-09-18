@@ -50,6 +50,7 @@ mod m23_callable_references;
 mod m23_callable_source_interface_production;
 mod m23_const_interface_production;
 mod m23_core_bootstrap;
+mod m23_default_template_production;
 mod m23_definition_origins;
 mod m23_delegate_operator_layers;
 mod m23_exact_types;

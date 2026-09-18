@@ -41,6 +41,8 @@ mod callable_source_interfaces;
 pub use callable_source_interfaces::*;
 mod definition_sources;
 pub use definition_sources::HirDefinitionSourceProjectionError;
+mod default_templates;
+pub use default_templates::*;
 mod nominal_interfaces;
 pub use nominal_interfaces::*;
 mod property_interfaces;

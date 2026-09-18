@@ -396,6 +396,9 @@ pub struct ExportDefaultCallableRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportDefaultCallableTarget {
     Callable(Callable),
+    /// Strong imported core callable normalized to `Callable` in the
+    /// portable default representation.
+    ImportedCore(ImportedCoreCallableUseId),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
     LocalFunction(LocalFunctionId),

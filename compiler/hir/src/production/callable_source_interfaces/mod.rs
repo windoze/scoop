@@ -14,10 +14,29 @@ pub use errors::{
     SourceCallableOwnerProjectionError,
 };
 
-struct CallableSourceProjection<'a> {
+pub(super) struct CallableSourceProjection<'a> {
     export: &'a ExportHir,
     callables: &'a CanonicalCallableInterfacesV1,
     signatures: HirInterfaceSignatureProjector<'a>,
+}
+
+pub(super) struct SourceCallableOwner {
+    pub(super) subject: crate::CallableProjectionSubject,
+    pub(super) local: crate::ExportParameterOwner,
+    pub(super) declaration: CallableTemplateOrigin,
+    pub(super) binders: Vec<crate::HirSignatureBinder>,
+}
+
+pub(super) fn public_source_callable_owners<'a>(
+    export: &'a ExportHir,
+    callables: &'a CanonicalCallableInterfacesV1,
+) -> Result<Vec<SourceCallableOwner>, CallableSourceInterfaceProductionError> {
+    let projection = CallableSourceProjection {
+        export,
+        callables,
+        signatures: HirInterfaceSignatureProjector::new(export),
+    };
+    owners::collect_public(&projection)
 }
 
 impl CanonicalCallableSourceInterfacesV1 {

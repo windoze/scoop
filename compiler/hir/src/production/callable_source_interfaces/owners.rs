@@ -1,17 +1,10 @@
 use scoop_identity::CallableTemplateOrigin;
 
 use super::{
-    CallableSourceInterfaceProductionError, CallableSourceProjection,
+    CallableSourceInterfaceProductionError, CallableSourceProjection, SourceCallableOwner,
     SourceCallableOwnerProjectionError,
 };
 use crate::{ExportParameterOwner, HirClassConstructorIdentity, HirFunctionIdentity};
-
-pub(super) struct SourceCallableOwner {
-    pub(super) subject: crate::CallableProjectionSubject,
-    pub(super) local: ExportParameterOwner,
-    pub(super) declaration: CallableTemplateOrigin,
-    pub(super) binders: Vec<crate::HirSignatureBinder>,
-}
 
 pub(super) fn collect_public(
     projection: &CallableSourceProjection<'_>,

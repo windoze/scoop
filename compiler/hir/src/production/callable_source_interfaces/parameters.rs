@@ -2,7 +2,7 @@ use scoop_identity::{CanonicalIdentifier, SignatureTypeKey};
 
 use super::{
     CallableSourceInterfaceProductionError, CallableSourceParameterProjectionError,
-    CallableSourceProjection, owners::SourceCallableOwner,
+    CallableSourceProjection, SourceCallableOwner,
 };
 use crate::{
     CallableParameterCallingV1, CallableSourceInterfaceV1, CallableSourceParameterV1,
