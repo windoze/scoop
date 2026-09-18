@@ -2004,6 +2004,15 @@ Code contribution。这个projection不改写`abi_signature`、`expected_symbol`
 `required_definition`；任一个`(provider, target)`重复或与Compile-facing selected bridge不等都使
 artifact invalid。
 
+该Code contribution精确使用stage3第14.4节已经冻结的
+`KnownLinkExtensionCodeContributionV1`：field 1为
+`org.scoop-lang.lir/cross-cone-link-closure/1`，field 2为
+`CrossConeLinkSemanticImportSetV1 = CanonicalVec<CrossConeLinkSemanticImportV1>`本身的canonical
+array encoding，不再包一层section map，也不包含`requirements`或`object_coverage`。M23-5 profile的
+Code input field 2必须恰有这一项；即使semantic imports为空，也必须编码capability加空array projection，
+不能退化成M23-3的空贡献集合。reader从已验证Compile-facing LIR selected bridge独立重建该projection，
+并与Link section field 1及Code contribution逐byte三方相等后才提升publication proof。
+
 `requirements`按物理use key
 `(source_member, containing_atom, offset_within_atom, target_slot)`严格递增；每项`import_index`
 必须命中`semantic_imports`，其`use_site.symbol`必须与该import的

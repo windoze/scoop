@@ -3008,6 +3008,24 @@ NativeLinkRequirementKey>>`、`5=defined_symbols: CanonicalDefinedLinkSymbolOwne
 registration/image/entry branch及C-bridge envelope proof；构造器逐项核对后才返回typed
 `VerifiedCodeFingerprintV1`。这份九字段结构取代实现大纲2.6中较早的六类简写，不保留旧hash入口。
 
+`KnownLinkExtensionCodeContributionV1`是通用known-Link handler贡献的closed product：
+
+```text
+KnownLinkExtensionCodeContributionV1 {
+    capability: CapabilityId,       // field 1
+    canonical_projection: byte string, // field 2
+}
+```
+
+field 2的vector按`CapabilitySortKey`严格递增，同一capability恰能贡献一项。`canonical_projection`
+不是producer可自由提供的opaque bytes，而是对应registry handler从已经通过其closed decoder与关系验证的
+输入机械构造出的canonical inner encoding；reader必须由同一verified输入重建后逐byte比较。每个handler
+分别冻结该inner schema。Link-required `ExtensionBlob` handler的inner projection必须覆盖该capability下按
+`SlibMemberId`排序的全部`LinkMemberFingerprint`以及handler产生的canonical native-library requirement，
+后者还必须与field 4中的合并集合互证；metadata section的Code sink则可由其contract指定只包含完整payload
+的semantic projection。由此不同capability不能仅因projection bytes相同而碰撞，unknown handler也不能
+伪造一条已知贡献。M23-3 registry没有这两类handler，因此其唯一合法编码仍是空array。
+
 其中`CanonicalNativeExternalContractCodeSetV1`只保存Link判等所需的contract，不携带
 source/diagnostic provenance。它编码为array，元素`NativeExternalContractCodeRecordV1`固定为
 `1=symbol_id`、`2=symbol_key`、`3=fingerprint`、`4=contract`，按
