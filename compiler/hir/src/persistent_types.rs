@@ -72,6 +72,36 @@ pub struct HirTypeIdentityInputs<'a> {
     pub nominal_identities: &'a HirNominalIdentities,
 }
 
+impl<'a> HirTypeIdentityInputs<'a> {
+    /// Borrows the complete type-identity authority carried by one Export
+    /// HIR graph, regardless of whether that graph defines or imports core.
+    pub fn from_export(export: &'a crate::ExportHir) -> Self {
+        let core_types = match &export.core_protocols {
+            crate::CoreProtocols::Defined(protocols) => {
+                HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)
+            }
+            crate::CoreProtocols::Imported(protocols) => {
+                HirCoreTypeIdentityAuthority::Imported(protocols.fundamental_types())
+            }
+        };
+        Self {
+            types: &export.types,
+            function_types: &export.function_types,
+            structs: &export.structs,
+            struct_applications: &export.struct_applications,
+            enums: &export.enums,
+            enum_applications: &export.enum_applications,
+            classes: &export.classes,
+            class_applications: &export.class_applications,
+            interfaces: &export.interfaces,
+            interface_applications: &export.interface_applications,
+            objects: &export.objects,
+            core_types,
+            nominal_identities: &export.nominal_identities,
+        }
+    }
+}
+
 /// Origin-refined identity authority for compiler-represented fundamental
 /// types. Ordinary HIR resolves these owners from the trusted core artifact;
 /// only the defining core graph may use local nominal declarations.

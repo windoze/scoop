@@ -61,6 +61,7 @@ mod m23_ordinary_core_only;
 mod m23_output_kind;
 mod m23_pattern_paths;
 mod m23_source_model;
+mod m23_type_alias_interface_production;
 mod m23_type_alias_targets;
 mod m3;
 mod m4;

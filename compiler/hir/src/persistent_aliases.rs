@@ -41,6 +41,13 @@ impl HirTypeAliasIdentities {
             .map_err(HirTypeAliasIdentityError::Identity)?;
         Self::checked(aliases, identities).map_err(HirTypeAliasIdentityError::Table)
     }
+
+    pub fn get(
+        &self,
+        id: ExportTypeAliasId,
+    ) -> Option<&CborIdentityRecord<PersistentTypeAliasId, SourceDeclarationKey>> {
+        self.identities.get(id.into_raw().into_u32() as usize)
+    }
 }
 
 impl Index<ExportTypeAliasId> for HirTypeAliasIdentities {
