@@ -7,7 +7,6 @@ use scoop_hir::{
 };
 use scoop_lir::CrossConeLirBridgeSectionV1;
 use scoop_mir::CrossConeMirBridgeSectionV1;
-use scoop_wire::WireEncode;
 
 use super::*;
 
@@ -18,6 +17,9 @@ fn cross_cone_graph_validates_the_complete_final_link_view() {
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
     let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
 
+    open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
     let artifact = validate_cross_cone_strong_link_artifact(
         open_graph(&bytes),
         &external,
@@ -76,6 +78,14 @@ fn cross_cone_link_reader_rejects_the_legacy_profile() {
     ));
 }
 
+#[test]
+fn cross_cone_artifact_writer_is_byte_reproducible() {
+    assert_eq!(
+        complete_cross_cone_artifact().0,
+        complete_cross_cone_artifact().0
+    );
+}
+
 fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
     let mut hir_foundation = scoop_hir::CanonicalHirFoundation::empty();
     hir_foundation
@@ -92,8 +102,7 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
     .unwrap()
     .validate_against_strong_foundation(cone().identity(), &hir_proof)
     .unwrap();
-    let mut hir_cross_cone = empty_hir_interface();
-    let hir_cross_cone_payload = encode(&hir_cross_cone.index_for_wire().unwrap()).unwrap();
+    let hir_cross_cone = empty_hir_interface();
 
     let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
     mir_foundation
@@ -166,129 +175,25 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
         undefined_partitions,
     )
     .unwrap();
-    let (code, cross_cone_link_closure) = cross_cone_code.into_parts();
-    let link_identity_closure = LinkIdentityClosureSectionV1::from_verified_code(&code).unwrap();
-    let production_manifest = SingleConeProductionManifestV1::from_verified_code(code);
-
-    let hir_sections = vec![
-        metadata_section(
-            MetadataLocation::Hir,
-            hir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+    let artifact = crate::AssembledCrossConeStrongArtifactV1::write(
+        crate::CrossConeStrongArtifactInputV1::new(
+            ProducerRecord::new("test").unwrap(),
+            cone(),
+            dependencies,
             &hir_proof,
-        ),
-        metadata_section(
-            MetadataLocation::Hir,
-            hir_core_bootstrap_interface_capability(),
-            MemberPurposeSet::COMPILE,
             &hir_production,
-        ),
-        MetadataSection::new(
-            MetadataLocation::Hir,
-            crate::hir_cross_cone_interface_capability(),
-            MemberPurposeSet::COMPILE,
-            hir_cross_cone_payload,
-        )
-        .unwrap(),
-    ];
-    let mir_sections = vec![
-        metadata_section(
-            MetadataLocation::Mir,
-            mir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
+            hir_cross_cone,
             &mir_proof,
-        ),
-        metadata_section(
-            MetadataLocation::Mir,
-            mir_core_bootstrap_bridge_capability(),
-            MemberPurposeSet::COMPILE,
             &core_mir_production,
-        ),
-        metadata_section(
-            MetadataLocation::Mir,
-            crate::mir_cross_cone_param_free_bridge_capability(),
-            MemberPurposeSet::COMPILE,
             &mir_production,
-        ),
-    ];
-    let lir_sections = vec![
-        metadata_section(
-            MetadataLocation::Lir,
-            lir_identity_foundation_capability(),
-            MemberPurposeSet::COMPILE,
             &lir_proof,
-        ),
-        metadata_section(
-            MetadataLocation::Lir,
-            crate::lir_cross_cone_param_free_bridge_capability(),
-            MemberPurposeSet::COMPILE,
             &lir_cross_cone,
+            cross_cone_code,
+            vec![link_member],
         ),
-        metadata_section(
-            MetadataLocation::Lir,
-            lir_strong_production_capability(),
-            MemberPurposeSet::COMPILE_AND_LINK,
-            &strong_production,
-        ),
-        metadata_section(
-            MetadataLocation::Lir,
-            lir_link_identity_closure_capability(),
-            MemberPurposeSet::LINK,
-            &link_identity_closure,
-        ),
-        metadata_section(
-            MetadataLocation::Lir,
-            lir_cross_cone_link_closure_capability(),
-            MemberPurposeSet::LINK,
-            &cross_cone_link_closure,
-        ),
-    ];
-    let compatibility = CompatibilityRecord::new(
-        selection(),
-        ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
     )
     .unwrap();
-    let foundation_fingerprints = SemanticFingerprintRecord::from_metadata_sections(
-        &compatibility,
-        &dependencies,
-        &hir_sections,
-        &mir_sections,
-        &lir_sections,
-    )
-    .unwrap();
-    let semantic = SemanticFingerprintRecord::from_production_manifest(
-        foundation_fingerprints.hir(),
-        foundation_fingerprints.mir(),
-        foundation_fingerprints.lir(),
-        &production_manifest,
-    );
-    let manifest_section = ManifestSection::new(
-        manifest_single_cone_production_capability(),
-        MemberPurposeSet::LINK,
-        encode(&production_manifest).unwrap(),
-    )
-    .unwrap();
-    let mut members = vec![
-        metadata_member(MetadataLocation::Hir, hir_sections),
-        metadata_member(MetadataLocation::Mir, mir_sections),
-        metadata_member(MetadataLocation::Lir, lir_sections),
-        link_member,
-    ];
-    let manifest = BootstrapManifest::new(
-        ProducerRecord::new("test").unwrap(),
-        compatibility,
-        cone(),
-        dependencies,
-        &members,
-        semantic,
-        vec![manifest_section],
-    )
-    .unwrap();
-    let bytes = CanonicalSlibArchive::write_bootstrap(&manifest, std::mem::take(&mut members))
-        .unwrap()
-        .as_bytes()
-        .to_vec();
-    (bytes, lir_cross_cone)
+    (artifact.as_bytes().to_vec(), lir_cross_cone)
 }
 
 fn empty_hir_interface() -> CrossConeHirInterfaceSectionV1 {
@@ -304,28 +209,4 @@ fn empty_hir_interface() -> CrossConeHirInterfaceSectionV1 {
         CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
         CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
     )
-}
-
-fn metadata_section(
-    location: MetadataLocation,
-    capability: CapabilityId,
-    required_for: MemberPurposeSet,
-    value: &impl WireEncode,
-) -> MetadataSection {
-    MetadataSection::new(location, capability, required_for, encode(value).unwrap()).unwrap()
-}
-
-fn metadata_member(location: MetadataLocation, sections: Vec<MetadataSection>) -> SlibMember {
-    let (stable_key, role) = match location {
-        MetadataLocation::Hir => (MemberStableKey::HirMetadata, SlibMemberRole::HirMetadata),
-        MetadataLocation::Mir => (MemberStableKey::MirMetadata, SlibMemberRole::MirMetadata),
-        MetadataLocation::Lir => (MemberStableKey::LirMetadata, SlibMemberRole::LirMetadata),
-    };
-    SlibMember::new(
-        cone().identity(),
-        stable_key,
-        role,
-        encode(&MetadataEnvelope::new(location, sections).unwrap()).unwrap(),
-    )
-    .unwrap()
 }

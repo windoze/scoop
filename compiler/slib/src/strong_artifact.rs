@@ -6,21 +6,26 @@ use scoop_hir::{CoreBootstrapInterfaceSectionV1, OdrFreeHirFoundation};
 use scoop_identity::ConeIdentity;
 use scoop_lir::{OdrFreeLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::{CoreBootstrapBridgeSectionV1, OdrFreeMirFoundation};
-use scoop_wire::{HashError, WireEncode, encode};
+use scoop_wire::{HashError, encode};
 
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, BootstrapManifestError,
     CanonicalSlibArchive, CompatibilityRecord, ConeRecord, DependencyRecord,
     LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1, ManifestSection,
-    ManifestSectionError, MemberPurposeSet, MemberStableKey, MetadataEnvelope,
-    MetadataEnvelopeError, MetadataLocation, MetadataSection, MetadataSectionError, ProducerRecord,
-    SemanticFingerprintError, SemanticFingerprintRecord, SingleConeProductionManifestV1,
-    SlibMember, SlibMemberId, SlibMemberRecordError, SlibMemberRole, SlibWriteError,
-    hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
+    ManifestSectionError, MemberPurposeSet, MetadataEnvelopeError, MetadataLocation,
+    MetadataSectionError, ProducerRecord, SemanticFingerprintError, SemanticFingerprintRecord,
+    SingleConeProductionManifestV1, SlibMember, SlibMemberId, SlibMemberRecordError,
+    SlibWriteError, hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
     lir_identity_foundation_capability, lir_link_identity_closure_capability,
     lir_strong_production_capability, manifest_single_cone_production_capability,
     mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
 };
+
+mod assembly;
+use assembly::{LayerAssembly, StrongArtifactAssemblyError, build_section, verify_link_objects};
+
+mod cross_cone;
+pub use cross_cone::*;
 
 /// Complete, closed input to the only `SingleConeStrong` archive writer.
 ///
@@ -249,96 +254,6 @@ impl AssembledSingleConeStrongArtifactV1 {
     }
 }
 
-fn verify_link_objects(
-    code: &crate::VerifiedCodeFingerprintV1,
-    actual: &[SlibMember],
-) -> Result<(), SingleConeStrongArtifactWriteError> {
-    let expected = code.production().link_objects().members();
-    if actual.len() != expected.len() {
-        return Err(SingleConeStrongArtifactWriteError::LinkObjectCount {
-            expected: expected.len(),
-            actual: actual.len(),
-        });
-    }
-    for (index, (member, expected)) in actual.iter().zip(expected).enumerate() {
-        if !matches!(member.record().role(), SlibMemberRole::LinkObject { .. }) {
-            return Err(SingleConeStrongArtifactWriteError::InvalidLinkObjectRole {
-                index,
-                member: member.record().id(),
-            });
-        }
-        let fingerprint = member
-            .record()
-            .as_link_member()
-            .expect("a LinkObject record has a Link member projection")
-            .fingerprint()
-            .map_err(SingleConeStrongArtifactWriteError::LinkObjectFingerprint)?;
-        if member.record().id() != expected.member() || fingerprint != expected.fingerprint() {
-            return Err(SingleConeStrongArtifactWriteError::LinkObjectMismatch {
-                index,
-                expected: expected.member(),
-                actual: member.record().id(),
-            });
-        }
-    }
-    Ok(())
-}
-
-struct LayerAssembly {
-    location: MetadataLocation,
-    sections: Vec<MetadataSection>,
-    envelope: Vec<u8>,
-}
-
-impl LayerAssembly {
-    fn new(
-        location: MetadataLocation,
-        sections: Vec<MetadataSection>,
-    ) -> Result<Self, SingleConeStrongArtifactWriteError> {
-        let envelope = MetadataEnvelope::new(location, sections.clone()).map_err(|source| {
-            SingleConeStrongArtifactWriteError::MetadataEnvelope { location, source }
-        })?;
-        let envelope = encode(&envelope).map_err(|source| {
-            SingleConeStrongArtifactWriteError::MetadataEnvelopeEncoding { location, source }
-        })?;
-        Ok(Self {
-            location,
-            sections,
-            envelope,
-        })
-    }
-
-    fn into_member(
-        self,
-        cone: ConeIdentity,
-    ) -> Result<SlibMember, SingleConeStrongArtifactWriteError> {
-        let (stable_key, role) = match self.location {
-            MetadataLocation::Hir => (MemberStableKey::HirMetadata, SlibMemberRole::HirMetadata),
-            MetadataLocation::Mir => (MemberStableKey::MirMetadata, SlibMemberRole::MirMetadata),
-            MetadataLocation::Lir => (MemberStableKey::LirMetadata, SlibMemberRole::LirMetadata),
-        };
-        SlibMember::new(cone, stable_key, role, self.envelope).map_err(|source| {
-            SingleConeStrongArtifactWriteError::MetadataMember {
-                location: self.location,
-                source,
-            }
-        })
-    }
-}
-
-fn build_section(
-    section: StrongArtifactSectionV1,
-    location: MetadataLocation,
-    capability: scoop_identity::CapabilityId,
-    required_for: MemberPurposeSet,
-    value: &impl WireEncode,
-) -> Result<MetadataSection, SingleConeStrongArtifactWriteError> {
-    let payload = encode(value)
-        .map_err(|source| SingleConeStrongArtifactWriteError::Encoding { section, source })?;
-    MetadataSection::new(location, capability, required_for, payload)
-        .map_err(|source| SingleConeStrongArtifactWriteError::MetadataSection { section, source })
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongArtifactSectionV1 {
     HirFoundation,
@@ -348,6 +263,10 @@ pub enum StrongArtifactSectionV1 {
     LirFoundation,
     LirProduction,
     LinkIdentityClosure,
+    HirCrossConeInterface,
+    MirCrossConeBridge,
+    LirCrossConeBridge,
+    CrossConeLinkClosure,
     ProductionManifest,
 }
 
@@ -401,6 +320,46 @@ pub enum SingleConeStrongArtifactWriteError {
     ManifestSection(ManifestSectionError),
     Manifest(BootstrapManifestError),
     Archive(SlibWriteError),
+}
+
+impl From<StrongArtifactAssemblyError> for SingleConeStrongArtifactWriteError {
+    fn from(error: StrongArtifactAssemblyError) -> Self {
+        match error {
+            StrongArtifactAssemblyError::LinkObjectCount { expected, actual } => {
+                Self::LinkObjectCount { expected, actual }
+            }
+            StrongArtifactAssemblyError::InvalidLinkObjectRole { index, member } => {
+                Self::InvalidLinkObjectRole { index, member }
+            }
+            StrongArtifactAssemblyError::LinkObjectMismatch {
+                index,
+                expected,
+                actual,
+            } => Self::LinkObjectMismatch {
+                index,
+                expected,
+                actual,
+            },
+            StrongArtifactAssemblyError::LinkObjectFingerprint(source) => {
+                Self::LinkObjectFingerprint(source)
+            }
+            StrongArtifactAssemblyError::Encoding { section, source } => {
+                Self::Encoding { section, source }
+            }
+            StrongArtifactAssemblyError::MetadataSection { section, source } => {
+                Self::MetadataSection { section, source }
+            }
+            StrongArtifactAssemblyError::MetadataEnvelope { location, source } => {
+                Self::MetadataEnvelope { location, source }
+            }
+            StrongArtifactAssemblyError::MetadataEnvelopeEncoding { location, source } => {
+                Self::MetadataEnvelopeEncoding { location, source }
+            }
+            StrongArtifactAssemblyError::MetadataMember { location, source } => {
+                Self::MetadataMember { location, source }
+            }
+        }
+    }
 }
 
 impl fmt::Display for SingleConeStrongArtifactWriteError {
