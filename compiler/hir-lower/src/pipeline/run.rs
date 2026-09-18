@@ -5,7 +5,7 @@ impl Lowerer {
         self,
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
-        let (module, warnings, completion) = self.run(files)?;
+        let (module, warnings, completion) = self.run(files, None)?;
         let CoreLoweringCompletion::Defined = completion else {
             panic!("defined HIR entry cannot complete with imported core authority")
         };
@@ -15,9 +15,10 @@ impl Lowerer {
     pub(crate) fn run_imported(
         self,
         files: &[ast::SourceFile],
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> Result<(hir::Module, Vec<Diagnostic>, hir::ImportedCoreSelectionPlan), Vec<Diagnostic>>
     {
-        let (module, warnings, completion) = self.run(files)?;
+        let (module, warnings, completion) = self.run(files, world)?;
         let CoreLoweringCompletion::Imported(selection) = completion else {
             panic!("ordinary HIR entry cannot complete with defined core authority")
         };
@@ -27,6 +28,7 @@ impl Lowerer {
     fn run(
         mut self,
         files: &[ast::SourceFile],
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> Result<(hir::Module, Vec<Diagnostic>, CoreLoweringCompletion), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic::without_span(
@@ -167,11 +169,14 @@ impl Lowerer {
         let errors_before_imports = self.diagnostics.len();
         self.collect_and_resolve_imports(
             files,
-            &pending_functions,
-            &pending_methods,
-            &pending_globals,
-            &pending_enums,
-            &pending_objects,
+            crate::imports::ImportDeclarationInputs {
+                functions: &pending_functions,
+                methods: &pending_methods,
+                properties: &pending_globals,
+                enumerations: &pending_enums,
+                objects: &pending_objects,
+            },
+            world,
         );
         if self.diagnostics.len() != errors_before_imports {
             return Err(self.diagnostics);

@@ -8,6 +8,15 @@ use crate::SourceKind;
 use crate::{Lowerer, namespace::TopLevelLookupLayer};
 
 impl CurrentUnitImports {
+    #[cfg(test)]
+    pub(super) fn resolve_file(
+        &self,
+        lowerer: &mut Lowerer,
+        source: &ast::SourceFile,
+    ) -> FrozenFileImports {
+        self.resolve_file_with_world(lowerer, source, None)
+    }
+
     fn resolve_exposure<'a>(
         lowerer: &mut Lowerer,
         exposure: ast::ImportExposureSyntax,
@@ -34,14 +43,6 @@ impl CurrentUnitImports {
                 }
             }
         }
-    }
-
-    pub(super) fn resolve_file(
-        &self,
-        lowerer: &mut Lowerer,
-        source: &ast::SourceFile,
-    ) -> FrozenFileImports {
-        self.resolve_file_with_world(lowerer, source, None)
     }
 
     pub(super) fn resolve_file_with_world(

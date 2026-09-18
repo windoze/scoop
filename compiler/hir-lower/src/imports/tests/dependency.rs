@@ -66,6 +66,52 @@ fn direct_exact_star_and_static_selectors_preserve_typed_witnesses() {
 }
 
 #[test]
+fn production_import_collection_receives_the_dependency_world() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_nested_type(&["dependency", "api"], "Outer", "Nested");
+    let world = fixture.world(lowerer.current_cone());
+    let mut root = file(Vec::new());
+    root.imports
+        .push(exact(&["dependency", "api", "Outer"], None, false));
+    let files = [
+        root,
+        package(file(Vec::new()), &["api"]),
+        package(file(Vec::new()), &["api", "child"]),
+        package(file(Vec::new()), &["api", "empty"]),
+    ];
+
+    lowerer.collect_and_resolve_imports(
+        &files,
+        ImportDeclarationInputs {
+            functions: &[],
+            methods: &[],
+            properties: &[],
+            enumerations: &[],
+            objects: &[],
+        },
+        Some(&world),
+    );
+
+    assert!(lowerer.diagnostics.is_empty());
+    let layers = lowerer.imports.layers(
+        0,
+        crate::namespace::TopLevelNamespaces::root_package(),
+        "Outer",
+    );
+    assert!(layers[0].bindings.is_empty());
+    assert_eq!(layers[0].dependency_bindings.len(), 1);
+    assert_eq!(
+        layers[0].dependency_bindings[0]
+            .sources()
+            .next()
+            .unwrap()
+            .provider_identity(),
+        fixture.direct_identity()
+    );
+}
+
+#[test]
 fn equal_package_prefix_merges_current_and_direct_star_snapshots() {
     let (mut lowerer, api, _) = lowerer();
     let fixture = DependencyWorldFixture::with_nested_type(&["api"], "Remote", "Nested");

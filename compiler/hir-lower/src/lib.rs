@@ -114,6 +114,7 @@ mod imports;
 mod lowering_context;
 mod model;
 mod namespace;
+mod ordinary_input;
 mod output_kind;
 mod overload;
 mod patterns;
@@ -147,6 +148,7 @@ mod tests;
 mod types;
 mod visibility;
 
+pub use ordinary_input::*;
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -176,8 +178,8 @@ pub(crate) struct ProviderSource<'a> {
     pub source_text: &'a str,
 }
 
-/// Test-only defined-world input. Production callers must use either
-/// `CoreBootstrapSources` or `OrdinaryCoreOnlySources`.
+/// Test-only defined-world input. Production callers must use
+/// `CoreBootstrapSources`, `OrdinaryCoreOnlySources`, or `OrdinarySources`.
 #[cfg(test)]
 pub(crate) struct DefinedTestSources<'a> {
     core: Vec<ProviderSource<'a>>,
@@ -231,62 +233,6 @@ impl std::fmt::Display for CoreBootstrapSourceError {
 }
 
 impl std::error::Error for CoreBootstrapSourceError {}
-
-/// Parsed current-Cone sources paired with the only imported HIR capability
-/// authorized by the M23-3 ordinary path.
-///
-/// The fields remain private so the lowerer always receives the source graph
-/// and the atomic trusted core prelude/protocol authority as one
-/// lifetime-bound input.
-pub struct OrdinaryCoreOnlySources<'a> {
-    sources: &'a ast::CurrentConeParsedSources,
-    core: hir::ImportedCoreInputs<'a>,
-}
-
-impl<'a> OrdinaryCoreOnlySources<'a> {
-    pub fn try_new(
-        sources: &'a ast::CurrentConeParsedSources,
-        core: hir::ImportedCoreInputs<'a>,
-    ) -> Result<Self, OrdinaryCoreOnlySourceError> {
-        if sources.cone() == scoop_identity::ConeIdentity::CORE {
-            return Err(OrdinaryCoreOnlySourceError::CurrentConeIsCore);
-        }
-        Ok(Self { sources, core })
-    }
-
-    pub const fn current_cone(&self) -> scoop_identity::ConeIdentity {
-        self.sources.cone()
-    }
-
-    pub fn core_binding_count(&self) -> usize {
-        self.core.prelude().bindings().len()
-    }
-
-    pub fn core_compiler_operation_count(&self) -> usize {
-        self.core.protocols().compiler_operations().len()
-    }
-
-    fn bind_core_selection(
-        &self,
-        selection: hir::ImportedCoreSelectionPlan,
-    ) -> Result<hir::SelectedImportedCoreSet<'a>, hir::CorePreludeSelectionBindError> {
-        self.core.prelude().bind_selection(selection)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OrdinaryCoreOnlySourceError {
-    CurrentConeIsCore,
-}
-
-impl std::fmt::Display for OrdinaryCoreOnlySourceError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .write_str("ordinary HIR input cannot contain the reserved core Cone as current source")
-    }
-}
-
-impl std::error::Error for OrdinaryCoreOnlySourceError {}
 
 #[derive(Clone)]
 enum CoreLoweringAuthority {
@@ -461,11 +407,30 @@ pub fn lower_ordinary_core_only<'core>(
     requested: scoop_identity::RequestedConeKind,
     input: &OrdinaryCoreOnlySources<'core>,
 ) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
-    let (files, sources) = materialize_ordinary_sources(input.sources);
+    lower_ordinary_input(requested, input, None)
+}
+
+/// Lowers one ordinary Cone against its trusted core and validated ordinary
+/// dependency semantic world. Dependency import/re-export resolution is
+/// enabled here; executable dependency uses remain subject to the HIR
+/// selection and capability gates.
+pub fn lower_ordinary<'input>(
+    requested: scoop_identity::RequestedConeKind,
+    input: &OrdinarySources<'input>,
+) -> Result<hir::OrdinaryHirOutput<'input>, Vec<Diagnostic>> {
+    lower_ordinary_input(requested, input.core_only(), Some(input.semantic_world()))
+}
+
+fn lower_ordinary_input<'core>(
+    requested: scoop_identity::RequestedConeKind,
+    input: &OrdinaryCoreOnlySources<'core>,
+    world: Option<&hir::ImportedSemanticWorld<'_>>,
+) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
+    let (files, sources) = materialize_ordinary_sources(input.sources());
     let (module, warnings, selection) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
-        .with_imported_core(&input.core)
-        .run_imported(&files)?;
+        .with_imported_core(input.core())
+        .run_imported(&files, world)?;
     let output_kind = select_cone_output_kind(&module, requested)?;
     let export = hir::ExportHirOutput::try_new(module, output_kind).map_err(|error| {
         vec![Diagnostic::at(
@@ -477,7 +442,7 @@ pub fn lower_ordinary_core_only<'core>(
     let native_boundary_types = crate::persistent_native_boundary::build(
         export.module(),
         local.module(),
-        hir::HirNativeBoundaryExternalTypes::TrustedCore(input.core.native_boundary_types()),
+        hir::HirNativeBoundaryExternalTypes::TrustedCore(input.core().native_boundary_types()),
     )
     .map_err(native_boundary_diagnostic)?;
     let output =

@@ -164,12 +164,16 @@ impl Lowerer {
     pub(crate) fn collect_and_resolve_imports(
         &mut self,
         files: &[ast::SourceFile],
-        functions: &[(hir::FunctionId, &ast::FunctionDecl, usize)],
-        methods: &[(hir::FunctionId, &ast::FunctionDecl, usize, Owner)],
-        properties: &[(&ast::GlobalDecl, usize)],
-        enumerations: &[(hir::EnumId, &ast::EnumDecl, usize)],
-        objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
+        declarations: ImportDeclarationInputs<'_>,
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) {
+        let ImportDeclarationInputs {
+            functions,
+            methods,
+            properties,
+            enumerations,
+            objects,
+        } = declarations;
         let mut surface = CurrentUnitImports::default();
         for (package, name, target, file) in self.top_level_namespaces.current_type_bindings() {
             let namespace = ResolvedNamespace::Package(package);
@@ -335,7 +339,7 @@ impl Lowerer {
         for (file, syntax) in files.iter().enumerate() {
             self.current_file = file;
             let imports = if self.source_kind(file) == SourceKind::CurrentUnit {
-                surface.resolve_file(self, syntax)
+                surface.resolve_file_with_world(self, syntax, world)
             } else {
                 FrozenFileImports::default()
             };

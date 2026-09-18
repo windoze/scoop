@@ -40,6 +40,14 @@ pub(crate) struct ImportCandidateLayer {
     pub(crate) suppressed_values: Vec<CurrentUnitBindingId>,
 }
 
+pub(crate) struct ImportDeclarationInputs<'a> {
+    pub(crate) functions: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize)],
+    pub(crate) methods: &'a [(hir::FunctionId, &'a ast::FunctionDecl, usize, crate::Owner)],
+    pub(crate) properties: &'a [(&'a ast::GlobalDecl, usize)],
+    pub(crate) enumerations: &'a [(hir::EnumId, &'a ast::EnumDecl, usize)],
+    pub(crate) objects: &'a [(hir::ObjectId, crate::declarations::ObjectSource<'a>, usize)],
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum SuppressedValueScope {
     Exact { file: usize },
