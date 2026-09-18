@@ -9,6 +9,7 @@ pub type CallableReferenceId = Idx<CallableReference>;
 pub type ImportedCoreCallableUseId = Idx<ImportedCoreCallableUse>;
 pub type ImportedCoreTypeUseId = Idx<ImportedCoreTypeUse>;
 pub type ImportedCoreValueUseId = Idx<ImportedCoreValueUse>;
+pub type ImportedDependencyCallableUseId = Idx<ImportedDependencyCallableUse>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;

@@ -54,6 +54,9 @@ pub use module::*;
 mod callables;
 pub use callables::*;
 
+mod imported_dependency;
+pub use imported_dependency::*;
+
 mod nominals;
 pub use nominals::*;
 

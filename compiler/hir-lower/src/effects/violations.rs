@@ -357,6 +357,23 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
+            ExprKind::ImportedDependencyCall { callee, args } => {
+                let reference = self.imported_dependency_callables[*callee].reference();
+                let selected = self
+                    .dependencies
+                    .as_ref()
+                    .and_then(|dependencies| dependencies.resolve_callable(reference))
+                    .expect("a dependency call references its committed selection");
+                if selected.capability().gc_effect() != scoop_identity::GcEffect::NoGc {
+                    out.push((
+                        expr.span,
+                        "managed dependency calls are not allowed in `@NoGC` code".to_string(),
+                    ));
+                }
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
             ExprKind::LocalFunctionCall {
                 callee,
                 captures,

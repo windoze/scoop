@@ -426,6 +426,15 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+            export::ExprKind::ImportedDependencyCall { callee, args } => {
+                concrete::ExprKind::ImportedDependencyCall {
+                    callee: self.imported_dependency_callable_map[callee],
+                    args: args
+                        .iter()
+                        .map(|argument| self.lower_expr(argument, substitution, locals))
+                        .collect(),
+                }
+            }
             export::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

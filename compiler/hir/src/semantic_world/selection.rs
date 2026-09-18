@@ -166,6 +166,19 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
+    /// Resolves a reference already committed in this transaction.
+    ///
+    /// Lowering-side semantic checks consume the selected capability before
+    /// the transaction is sealed into its output-owned selected set.
+    pub fn resolve_callable(
+        &self,
+        reference: ImportedDependencyCallableRef,
+    ) -> Option<&SelectedImportedDependencyCallable> {
+        (reference.selection == self.selection)
+            .then(|| self.callables.get(&reference.callable))
+            .flatten()
+    }
+
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
             consumer: self.catalog.consumer,

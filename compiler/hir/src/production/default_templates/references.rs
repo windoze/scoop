@@ -164,6 +164,11 @@ fn callable_target(
         ExportDefaultCallableTarget::ImportedCore(callable) => {
             ExportDefaultCallableTargetV1::Callable(entities.imported_callable(callable)?)
         }
+        ExportDefaultCallableTarget::ImportedDependency(callable) => {
+            ExportDefaultCallableTargetV1::Callable(
+                entities.imported_dependency_callable(callable)?,
+            )
+        }
         ExportDefaultCallableTarget::Bound(bound) => {
             ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
         }

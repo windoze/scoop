@@ -211,9 +211,11 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
                     .is_empty(),
             )
             .map_err(OrdinaryConeMirStageError::Projection)?;
-        let mir = scoop_mir_lower::lower_ordinary(&self.hir, selected)
+        let dependency_selection =
+            scoop_mir::SelectedDependencyMirSet::empty(self.hir.output().local.module().cone);
+        let mir = scoop_mir_lower::lower_ordinary(&self.hir, selected, dependency_selection)
             .map_err(OrdinaryConeMirStageError::Lowering)?;
-        let (module, selected) = mir.into_parts();
+        let (module, selected, selected_dependencies) = mir.into_parts();
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)
             .map_err(OrdinaryConeMirStageError::Foundation)?;
         let production_section = scoop_mir_lower::lower_production_section(
@@ -222,12 +224,13 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
             &foundation,
         )
         .map_err(OrdinaryConeMirStageError::ProductionSection)?;
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
+        let strong = scoop_mir::SingleConeStrongMirInput::try_new_with_dependencies(
             module,
             foundation,
             production_section,
             scoop_mir::CoreShapeSupportSourceInput::NotCore,
             scoop_mir::StrongImportedCoreInput::Selected(&selected),
+            scoop_mir::StrongImportedDependencyInput::Selected(&selected_dependencies),
         )
         .map_err(OrdinaryConeMirStageError::Sealing)?;
         Ok(OrdinaryConeMirOutput {

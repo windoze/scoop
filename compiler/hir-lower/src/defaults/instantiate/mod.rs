@@ -658,6 +658,12 @@ impl Lowerer {
                 callee: *callee,
                 args: self.instantiate_default_exprs(args, context),
             },
+            hir::ExprKind::ImportedDependencyCall { callee, args } => {
+                hir::ExprKind::ImportedDependencyCall {
+                    callee: *callee,
+                    args: self.instantiate_default_exprs(args, context),
+                }
+            }
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

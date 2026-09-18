@@ -70,6 +70,13 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
     let reference = winning.select_callable(candidate).unwrap();
     assert_eq!(plan.selected_callable_count(), 0);
     assert_eq!(winning.selected_callable_count(), 1);
+    assert_eq!(
+        winning
+            .resolve_callable(reference)
+            .expect("the open transaction resolves its committed reference")
+            .provider(),
+        provider.identity()
+    );
     let selected = winning.finish();
     let callable = selected.resolve_callable(reference).unwrap();
     assert_eq!(selected.consumer(), world.current());

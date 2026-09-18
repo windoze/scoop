@@ -84,6 +84,7 @@ pub enum DefaultEntityProjectionError {
     GeneratedIdentity(scoop_identity::GeneratedCallableIdentityError),
     ImportedCoreUnavailable(u32),
     ImportedCoreKind(u32),
+    ImportedDependencyUnavailable(u32),
 }
 
 #[derive(Debug)]

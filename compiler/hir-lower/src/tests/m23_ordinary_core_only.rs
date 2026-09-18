@@ -198,7 +198,9 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
         .expect("ordinary HIR selects the trusted-core callable");
     let selected_mir = core.project_selected_callables_to_mir(hir.imported_core());
 
-    let mir = scoop_mir_lower::lower_ordinary(&hir, selected_mir)
+    let selected_dependencies =
+        scoop_mir::SelectedDependencyMirSet::empty(hir.output().local.module().cone);
+    let mir = scoop_mir_lower::lower_ordinary(&hir, selected_mir, selected_dependencies)
         .expect("ordinary MIR retains the exact trusted-core selection");
 
     assert_eq!(mir.imported_core().len(), 1);

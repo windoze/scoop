@@ -129,6 +129,10 @@ impl fmt::Display for DefaultEntityProjectionError {
                 formatter,
                 "default body imported core function {function} is not a callable"
             ),
+            Self::ImportedDependencyUnavailable(function) => write!(
+                formatter,
+                "default body dependency callable {function} cannot be resolved without an ordinary selected set"
+            ),
         }
     }
 }

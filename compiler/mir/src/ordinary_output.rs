@@ -4,8 +4,8 @@ use std::collections::HashSet;
 use std::fmt;
 
 use crate::{
-    Callee, ImportedCoreCallableUseId, MirValidationError, Module, SelectedImportedMirSet,
-    StatementKind,
+    Callee, ImportedCoreCallableUseId, ImportedDependencyMirCallableId, MirValidationError, Module,
+    SelectedDependencyMirSet, SelectedImportedMirSet, StatementKind,
 };
 
 /// Closed ordinary MIR product whose imported-core references are branded by
@@ -16,12 +16,14 @@ use crate::{
 pub struct OrdinaryMirOutput<'a> {
     module: Module,
     imported_core: SelectedImportedMirSet<'a>,
+    imported_dependencies: SelectedDependencyMirSet,
 }
 
 impl<'a> OrdinaryMirOutput<'a> {
     pub fn try_new(
         module: Module,
         imported_core: SelectedImportedMirSet<'a>,
+        imported_dependencies: SelectedDependencyMirSet,
     ) -> Result<Self, OrdinaryMirOutputError> {
         if module.cone == scoop_identity::ConeIdentity::CORE {
             return Err(OrdinaryMirOutputError::CurrentConeIsCore);
@@ -29,8 +31,11 @@ impl<'a> OrdinaryMirOutput<'a> {
         module
             .validate()
             .map_err(OrdinaryMirOutputError::InvalidModule)?;
-        if !module.meta.imported_dependency_callables.is_empty() {
-            return Err(OrdinaryMirOutputError::MissingImportedDependencyAuthority);
+        if imported_dependencies.consumer() != module.cone {
+            return Err(OrdinaryMirOutputError::ImportedDependencyConsumerMismatch {
+                module: module.cone,
+                selected: imported_dependencies.consumer(),
+            });
         }
         if module.meta.imported_core_callables.len() != imported_core.len() {
             return Err(OrdinaryMirOutputError::SelectionCountMismatch {
@@ -62,9 +67,12 @@ impl<'a> OrdinaryMirOutput<'a> {
             }
         }
 
+        validate_imported_dependencies(&module, &imported_dependencies)?;
+
         Ok(Self {
             module,
             imported_core,
+            imported_dependencies,
         })
     }
 
@@ -76,9 +84,54 @@ impl<'a> OrdinaryMirOutput<'a> {
         &self.imported_core
     }
 
-    pub fn into_parts(self) -> (Module, SelectedImportedMirSet<'a>) {
-        (self.module, self.imported_core)
+    pub const fn imported_dependencies(&self) -> &SelectedDependencyMirSet {
+        &self.imported_dependencies
     }
+
+    pub fn into_parts(self) -> (Module, SelectedImportedMirSet<'a>, SelectedDependencyMirSet) {
+        (self.module, self.imported_core, self.imported_dependencies)
+    }
+}
+
+fn validate_imported_dependencies(
+    module: &Module,
+    selected: &SelectedDependencyMirSet,
+) -> Result<(), OrdinaryMirOutputError> {
+    if module.meta.imported_dependency_callables.len() != selected.len() {
+        return Err(
+            OrdinaryMirOutputError::ImportedDependencySelectionCountMismatch {
+                module: module.meta.imported_dependency_callables.len(),
+                selected: selected.len(),
+            },
+        );
+    }
+    let mut declarations = HashSet::with_capacity(selected.len());
+    for (id, callable) in module.meta.imported_dependency_callables.iter() {
+        let Some(selected) = selected.resolve_callable(callable.reference()) else {
+            return Err(OrdinaryMirOutputError::ForeignImportedDependencyCallable {
+                index: id.into_raw().into_u32(),
+            });
+        };
+        if !declarations.insert((selected.provider(), selected.declaration())) {
+            return Err(
+                OrdinaryMirOutputError::DuplicateImportedDependencyCallable {
+                    index: id.into_raw().into_u32(),
+                },
+            );
+        }
+    }
+
+    let referenced = referenced_dependency_callables(module);
+    for (id, _) in module.meta.imported_dependency_callables.iter() {
+        if !referenced.contains(&id) {
+            return Err(
+                OrdinaryMirOutputError::UnreferencedImportedDependencyCallable {
+                    index: id.into_raw().into_u32(),
+                },
+            );
+        }
+    }
+    Ok(())
 }
 
 fn referenced_imported_callables(module: &Module) -> HashSet<ImportedCoreCallableUseId> {
@@ -101,15 +154,60 @@ fn referenced_imported_callables(module: &Module) -> HashSet<ImportedCoreCallabl
     referenced
 }
 
+fn referenced_dependency_callables(module: &Module) -> HashSet<ImportedDependencyMirCallableId> {
+    let mut referenced = HashSet::new();
+    for (_, function) in module.functions.iter() {
+        for (_, block) in function.body.blocks.iter() {
+            for statement in &block.statements {
+                let StatementKind::Call(effect) = &statement.kind else {
+                    continue;
+                };
+                let call = match effect {
+                    crate::CallEffect::Unit(call) | crate::CallEffect::Value { call, .. } => call,
+                };
+                if let Callee::DependencyStrong(callable) = call.target.callee {
+                    referenced.insert(callable);
+                }
+            }
+        }
+    }
+    referenced
+}
+
 #[derive(Debug)]
 pub enum OrdinaryMirOutputError {
     CurrentConeIsCore,
     InvalidModule(MirValidationError),
-    MissingImportedDependencyAuthority,
-    SelectionCountMismatch { module: usize, selected: usize },
-    ForeignImportedCallable { index: u32 },
-    DuplicateImportedCallable { index: u32 },
-    UnreferencedImportedCallable { index: u32 },
+    ImportedDependencyConsumerMismatch {
+        module: scoop_identity::ConeIdentity,
+        selected: scoop_identity::ConeIdentity,
+    },
+    SelectionCountMismatch {
+        module: usize,
+        selected: usize,
+    },
+    ForeignImportedCallable {
+        index: u32,
+    },
+    DuplicateImportedCallable {
+        index: u32,
+    },
+    UnreferencedImportedCallable {
+        index: u32,
+    },
+    ImportedDependencySelectionCountMismatch {
+        module: usize,
+        selected: usize,
+    },
+    ForeignImportedDependencyCallable {
+        index: u32,
+    },
+    DuplicateImportedDependencyCallable {
+        index: u32,
+    },
+    UnreferencedImportedDependencyCallable {
+        index: u32,
+    },
 }
 
 impl fmt::Display for OrdinaryMirOutputError {
@@ -123,11 +221,15 @@ impl std::error::Error for OrdinaryMirOutputError {
         match self {
             Self::InvalidModule(error) => Some(error),
             Self::CurrentConeIsCore
-            | Self::MissingImportedDependencyAuthority
+            | Self::ImportedDependencyConsumerMismatch { .. }
             | Self::SelectionCountMismatch { .. }
             | Self::ForeignImportedCallable { .. }
             | Self::DuplicateImportedCallable { .. }
-            | Self::UnreferencedImportedCallable { .. } => None,
+            | Self::UnreferencedImportedCallable { .. }
+            | Self::ImportedDependencySelectionCountMismatch { .. }
+            | Self::ForeignImportedDependencyCallable { .. }
+            | Self::DuplicateImportedDependencyCallable { .. }
+            | Self::UnreferencedImportedDependencyCallable { .. } => None,
         }
     }
 }

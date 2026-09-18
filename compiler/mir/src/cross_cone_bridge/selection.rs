@@ -55,6 +55,18 @@ pub struct SelectedDependencyMirSet {
 }
 
 impl SelectedDependencyMirSet {
+    /// Constructs the closed empty dependency selection used by an ordinary
+    /// core-only request.
+    #[doc(hidden)]
+    pub fn empty(consumer: ConeIdentity) -> Self {
+        Self {
+            consumer,
+            selection: next_dependency_mir_selection(),
+            by_declaration: BTreeMap::new(),
+            callables: Vec::new(),
+        }
+    }
+
     #[doc(hidden)]
     pub fn try_from_bridge(
         bridge: &CrossConeMirBridgeSectionV1,

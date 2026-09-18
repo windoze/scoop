@@ -936,6 +936,7 @@ impl Harness {
             anonymous_functions: Arena::new(),
             local_functions: Arena::new(),
             imported_core_callables: Arena::new(),
+            imported_dependency_callables: Arena::new(),
             imported_core_types: Arena::new(),
             imported_core_values: Arena::new(),
             callable_references: Arena::new(),

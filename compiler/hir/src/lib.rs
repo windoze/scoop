@@ -46,6 +46,9 @@ pub use output::*;
 mod output_kind;
 pub use output_kind::*;
 
+mod imported_dependency;
+pub use imported_dependency::*;
+
 mod production;
 pub use production::*;
 

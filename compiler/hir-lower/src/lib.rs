@@ -692,6 +692,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) imported_core_callables: Arena<hir::ImportedCoreCallableUse>,
+    pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
     pub(crate) imported_core_types: Arena<hir::ImportedCoreTypeUse>,
     pub(crate) imported_core_values: Arena<hir::ImportedCoreValueUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,

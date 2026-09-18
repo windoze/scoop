@@ -26,7 +26,7 @@ impl CrossConeHirInterfaceSectionV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        Self::from_parts(export, None, witness_uses, authority)
+        Self::from_parts(export, None, None, witness_uses, authority)
     }
 
     /// Projects an ordinary HIR graph while retaining the exact imported-core
@@ -42,6 +42,7 @@ impl CrossConeHirInterfaceSectionV1 {
         Self::from_parts(
             output.output().export.module(),
             Some(output.imported_core()),
+            Some(output.imported_dependencies()),
             witness_uses,
             authority,
         )
@@ -50,6 +51,7 @@ impl CrossConeHirInterfaceSectionV1 {
     fn from_parts<A, E>(
         export: &ExportHir,
         imported_core: Option<&crate::SelectedImportedCoreSet<'_>>,
+        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
     ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>
@@ -76,6 +78,7 @@ impl CrossConeHirInterfaceSectionV1 {
         let default_templates = CanonicalExportDefaultTemplatesV1::from_parts_with_interfaces(
             export,
             imported_core,
+            imported_dependencies,
             &callable_interfaces,
             &source_interfaces,
         )

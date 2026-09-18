@@ -306,6 +306,10 @@ pub enum ExprKind {
         callee: ImportedCoreCallableUseId,
         args: Vec<Expr>,
     },
+    ImportedDependencyCall {
+        callee: ImportedDependencyCallableUseId,
+        args: Vec<Expr>,
+    },
     LocalFunctionCall {
         local_function: LocalFunctionId,
         callee: Callable,

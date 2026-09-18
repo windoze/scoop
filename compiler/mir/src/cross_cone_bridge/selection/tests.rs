@@ -71,8 +71,7 @@ fn equal_dependency_selections_have_distinct_request_local_brands() {
 #[test]
 fn empty_dependency_selection_retains_its_consumer_authority() {
     let consumer = cone("consumer");
-    let bridge = bridge(consumer, Vec::new());
-    let selected = SelectedDependencyMirSet::try_from_bridge(&bridge).unwrap();
+    let selected = SelectedDependencyMirSet::empty(consumer);
 
     assert_eq!(selected.consumer(), consumer);
     assert!(selected.is_empty());

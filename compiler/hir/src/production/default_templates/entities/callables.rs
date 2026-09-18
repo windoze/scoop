@@ -6,7 +6,8 @@ use super::{DefaultEntityProjector, arena_get, unknown};
 use crate::{
     Callable, DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultCallableRefV1, GenericMethodOwner, HirSignatureBinder,
-    ImportedCoreCallableUseId, ImportedCorePreludeTarget, MethodOwnerApplication, TypeId,
+    ImportedCoreCallableUseId, ImportedCorePreludeTarget, ImportedDependencyCallableUseId,
+    MethodOwnerApplication, TypeId,
 };
 
 impl DefaultEntityProjector<'_, '_> {
@@ -101,6 +102,35 @@ impl DefaultEntityProjector<'_, '_> {
             }
             crate::CoreCallableDefinitionV1::GenericFunction(id) => {
                 DefaultCallableDeclarationV1::GenericFunction(id)
+            }
+        };
+        DefaultCallableRefV1::try_new(declaration, OptionalSignatureType::Absent, Vec::new())
+            .map_err(super::super::DefaultEntityProjectionError::Callable)
+    }
+
+    pub(in crate::production::default_templates) fn imported_dependency_callable(
+        &self,
+        id: ImportedDependencyCallableUseId,
+    ) -> Result<DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
+        let index = super::super::raw_index(id);
+        let use_ = arena_get(&self.export.imported_dependency_callables, id).ok_or(
+            super::super::DefaultEntityProjectionError::Unknown {
+                kind: "imported dependency callable use",
+                index,
+            },
+        )?;
+        let selected = self
+            .imported_dependencies
+            .and_then(|set| set.resolve_callable(use_.reference()))
+            .ok_or(
+                super::super::DefaultEntityProjectionError::ImportedDependencyUnavailable(index),
+            )?;
+        let declaration = match selected.capability().declaration() {
+            scoop_identity::DependencyCallableDeclarationId::Function(id) => {
+                DefaultCallableDeclarationV1::Function(id)
+            }
+            scoop_identity::DependencyCallableDeclarationId::PropertyAccessor(id) => {
+                DefaultCallableDeclarationV1::PropertyAccessor(id)
             }
         };
         DefaultCallableRefV1::try_new(declaration, OptionalSignatureType::Absent, Vec::new())

@@ -115,7 +115,8 @@ fn expression_references_any_inner(
         | ExprKind::ClassInit { args: values, .. }
         | ExprKind::VariantConstruct { args: values, .. }
         | ExprKind::Call { args: values, .. }
-        | ExprKind::ImportedCoreCall { args: values, .. } => values
+        | ExprKind::ImportedCoreCall { args: values, .. }
+        | ExprKind::ImportedDependencyCall { args: values, .. } => values
             .iter()
             .any(|value| expression_references_any_inner(module, value, locals, visiting)),
         ExprKind::VariantTest { operand, .. }

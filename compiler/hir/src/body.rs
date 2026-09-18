@@ -411,6 +411,13 @@ pub enum ExprKind {
         callee: ImportedCoreCallableUseId,
         args: Vec<Expr>,
     },
+    /// Direct call to a core-closed callable owned by an ordinary dependency.
+    /// Its branded arena use resolves only through this output's dependency
+    /// selection sidecar.
+    ImportedDependencyCall {
+        callee: ImportedDependencyCallableUseId,
+        args: Vec<Expr>,
+    },
     /// Direct call of a lifted local function. Hidden capture arguments are
     /// explicit and precede source arguments in the lowered ABI.
     LocalFunctionCall {

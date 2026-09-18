@@ -27,7 +27,7 @@ impl CanonicalExportDefaultTemplatesV1 {
     /// calls are rejected because their process-local handles require the
     /// `OrdinaryHirOutput` selection sidecar.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, DefaultTemplateProductionError> {
-        Self::from_parts(export, None)
+        Self::from_parts(export, None, None)
     }
 
     /// Projects defaults from an ordinary graph while resolving imported-core
@@ -36,30 +36,42 @@ impl CanonicalExportDefaultTemplatesV1 {
         output: &OrdinaryHirOutput<'_>,
     ) -> Result<Self, DefaultTemplateProductionError> {
         let export = output.output().export.module();
-        Self::from_parts(export, Some(output.imported_core()))
+        Self::from_parts(
+            export,
+            Some(output.imported_core()),
+            Some(output.imported_dependencies()),
+        )
     }
 
     fn from_parts(
         export: &ExportHir,
         imported_core: Option<&SelectedImportedCoreSet<'_>>,
+        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
     ) -> Result<Self, DefaultTemplateProductionError> {
         let callables = CanonicalCallableInterfacesV1::from_export_hir(export)
             .map_err(DefaultTemplateProductionError::CallableInterfaces)?;
         let source_interfaces =
             CanonicalCallableSourceInterfacesV1::from_export_hir_with_callables(export, &callables)
                 .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
-        Self::from_parts_with_interfaces(export, imported_core, &callables, &source_interfaces)
+        Self::from_parts_with_interfaces(
+            export,
+            imported_core,
+            imported_dependencies,
+            &callables,
+            &source_interfaces,
+        )
     }
 
     pub(in crate::production) fn from_parts_with_interfaces(
         export: &ExportHir,
         imported_core: Option<&SelectedImportedCoreSet<'_>>,
+        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
         callables: &CanonicalCallableInterfacesV1,
         source_interfaces: &CanonicalCallableSourceInterfacesV1,
     ) -> Result<Self, DefaultTemplateProductionError> {
         let owners = public_source_callable_owners(export, callables)
             .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
-        let entities = DefaultEntityProjector::new(export, imported_core);
+        let entities = DefaultEntityProjector::new(export, imported_core, imported_dependencies);
         let mut templates = Vec::new();
 
         for owner in owners {

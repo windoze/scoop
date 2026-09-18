@@ -209,6 +209,9 @@ struct Concretizer<'a> {
     imported_core_callables: Arena<concrete::ImportedCoreCallableUse>,
     imported_core_callable_map:
         HashMap<export::ImportedCoreCallableUseId, concrete::ImportedCoreCallableUseId>,
+    imported_dependency_callables: Arena<concrete::ImportedDependencyCallableUse>,
+    imported_dependency_callable_map:
+        HashMap<export::ImportedDependencyCallableUseId, concrete::ImportedDependencyCallableUseId>,
     imported_core_types: Arena<concrete::ImportedCoreTypeUse>,
     imported_core_values: Arena<concrete::ImportedCoreValueUse>,
     function_coercions: Arena<concrete::FunctionCoercion>,
@@ -291,6 +294,17 @@ impl<'a> Concretizer<'a> {
                 (source_id, target)
             })
             .collect();
+        let mut imported_dependency_callables = Arena::new();
+        let imported_dependency_callable_map = source
+            .imported_dependency_callables
+            .iter()
+            .map(|(source_id, source)| {
+                let target = imported_dependency_callables.alloc(
+                    concrete::ImportedDependencyCallableUse::from_export(*source),
+                );
+                (source_id, target)
+            })
+            .collect();
         let imported_core_types = source
             .imported_core_types
             .iter()
@@ -360,6 +374,8 @@ impl<'a> Concretizer<'a> {
             reference_by_key: HashMap::new(),
             imported_core_callables,
             imported_core_callable_map,
+            imported_dependency_callables,
+            imported_dependency_callable_map,
             imported_core_types,
             imported_core_values,
             function_coercions: Arena::new(),
@@ -689,6 +705,7 @@ impl<'a> Concretizer<'a> {
             local_functions: self.local_functions,
             callable_references,
             imported_core_callables: self.imported_core_callables,
+            imported_dependency_callables: self.imported_dependency_callables,
             imported_core_types: self.imported_core_types,
             imported_core_values: self.imported_core_values,
             function_coercions: self.function_coercions,

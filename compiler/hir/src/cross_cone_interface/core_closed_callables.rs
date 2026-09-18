@@ -170,6 +170,10 @@ impl ParamFreeCoreClosedCallableV1 {
     pub const fn gc_effect(&self) -> GcEffect {
         self.gc_effect
     }
+
+    pub const fn is_no_gc(&self) -> bool {
+        matches!(self.gc_effect, GcEffect::NoGc)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

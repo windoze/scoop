@@ -87,6 +87,9 @@ pub struct Module {
     /// entry retains the brand of the selected-set world that admitted it;
     /// expressions reference this arena instead of a core declaration id.
     pub imported_core_callables: Arena<ImportedCoreCallableUse>,
+    /// Ordinary-dependency callables committed by this HIR graph. These uses
+    /// have a separate id domain from trusted-core and local callables.
+    pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     /// Imported core type targets selected for this ordinary HIR graph. The
     /// arena is independent from callable and value uses, so their local ids
     /// cannot be interchanged.

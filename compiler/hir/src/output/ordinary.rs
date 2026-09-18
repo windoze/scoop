@@ -48,14 +48,9 @@ impl<'a> OrdinaryHirOutput<'a> {
                 selected: imported_dependencies.consumer(),
             });
         }
-        if !imported_dependencies.is_empty() {
-            return Err(OrdinaryHirOutputError::DependencySelectionsWithoutHirUses {
-                selected: imported_dependencies.len(),
-            });
-        }
-
         let export = output.export.module();
         let local = output.local.module();
+        validate_imported_dependency_projection(export, local, &imported_dependencies)?;
         let selected_count = imported_core.callable_count()
             + imported_core.type_count()
             + imported_core.value_count();
@@ -133,6 +128,49 @@ impl<'a> OrdinaryHirOutput<'a> {
     }
 }
 
+fn validate_imported_dependency_projection(
+    export: &crate::ExportHir,
+    local: &concrete::Module,
+    selected: &crate::SelectedImportedDependencySet,
+) -> Result<(), OrdinaryHirOutputError> {
+    let export_count = export.imported_dependency_callables.len();
+    let local_count = local.imported_dependency_callables.len();
+    if export_count != local_count {
+        return Err(OrdinaryHirOutputError::DependencyProjectionCountMismatch {
+            export: export_count,
+            local: local_count,
+        });
+    }
+    if export_count != selected.len() {
+        return Err(OrdinaryHirOutputError::DependencySelectionCountMismatch {
+            hir: export_count,
+            selected: selected.len(),
+        });
+    }
+
+    let mut references = HashSet::with_capacity(export_count);
+    for ((export_id, export_use), (local_id, local_use)) in export
+        .imported_dependency_callables
+        .iter()
+        .zip(local.imported_dependency_callables.iter())
+    {
+        let index = export_id.into_raw().into_u32();
+        if export_id.into_raw() != local_id.into_raw()
+            || export_use.reference() != local_use.reference()
+        {
+            return Err(OrdinaryHirOutputError::DependencyProjectionMismatch { index });
+        }
+        let reference = export_use.reference();
+        if selected.resolve_callable(reference).is_none() {
+            return Err(OrdinaryHirOutputError::ForeignImportedDependencyUse { index });
+        }
+        if !references.insert(reference) {
+            return Err(OrdinaryHirOutputError::DuplicateImportedDependencyUse { index });
+        }
+    }
+    Ok(())
+}
+
 fn validate_imported_core_projection<'a, Reference: Copy + Eq>(
     kind: ImportedCoreUseKind,
     export: impl ExactSizeIterator<Item = (u32, Reference)>,
@@ -196,8 +234,22 @@ pub enum OrdinaryHirOutputError {
         output: scoop_identity::ConeIdentity,
         selected: scoop_identity::ConeIdentity,
     },
-    DependencySelectionsWithoutHirUses {
+    DependencyProjectionCountMismatch {
+        export: usize,
+        local: usize,
+    },
+    DependencySelectionCountMismatch {
+        hir: usize,
         selected: usize,
+    },
+    DependencyProjectionMismatch {
+        index: u32,
+    },
+    ForeignImportedDependencyUse {
+        index: u32,
+    },
+    DuplicateImportedDependencyUse {
+        index: u32,
     },
     ProjectionCountMismatch {
         kind: ImportedCoreUseKind,

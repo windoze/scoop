@@ -346,6 +346,7 @@ impl Lowerer {
             local_functions: self.local_functions,
             callable_references: self.callable_references,
             imported_core_callables: self.imported_core_callables,
+            imported_dependency_callables: self.imported_dependency_callables,
             imported_core_types: self.imported_core_types,
             imported_core_values: self.imported_core_values,
             bound_callable_refs: self.bound_callable_refs,

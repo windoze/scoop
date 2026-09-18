@@ -152,13 +152,22 @@ fn selected_callable_derives_the_only_strong_implementation() {
         .unwrap();
     assert_eq!(foreign_id, first);
     assert!(matches!(
-        OrdinaryMirOutput::try_new(ordinary_module(callable_use), foreign_selections),
+        OrdinaryMirOutput::try_new(
+            ordinary_module(callable_use),
+            foreign_selections,
+            crate::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE),
+        ),
         Err(OrdinaryMirOutputError::ForeignImportedCallable { index: 0 })
     ));
 
-    let ordinary = OrdinaryMirOutput::try_new(ordinary_module(callable_use), selections)
-        .expect("the ordinary MIR graph and selected sidecar share one brand");
-    let (module, selections) = ordinary.into_parts();
+    let ordinary = OrdinaryMirOutput::try_new(
+        ordinary_module(callable_use),
+        selections,
+        crate::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE),
+    )
+    .expect("the ordinary MIR graph and selected sidecar share one brand");
+    let (module, selections, dependency_selections) = ordinary.into_parts();
+    assert!(dependency_selections.is_empty());
     let retained = module.meta.imported_core_callables.iter().next().unwrap().1;
     assert!(selections.resolve_callable(retained.reference()).is_some());
 

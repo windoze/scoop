@@ -12,12 +12,13 @@ use super::errors::DefaultEntityProjectionError;
 use crate::{
     DefaultCallableDeclarationV1, DefaultClassConstructorIdV1, ExportHir, HirFunctionIdentity,
     HirPropertyAccessorFunction, HirSignatureBinder, LexicalDefinitionRoot,
-    PersistentLexicalRootV1, SelectedImportedCoreSet, TypeId,
+    PersistentLexicalRootV1, SelectedImportedCoreSet, SelectedImportedDependencySet, TypeId,
 };
 
 pub(super) struct DefaultEntityProjector<'a, 'core> {
     export: &'a ExportHir,
     imported_core: Option<&'a SelectedImportedCoreSet<'core>>,
+    imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     signatures: HirInterfaceSignatureProjector<'a>,
 }
 
@@ -25,10 +26,12 @@ impl<'a, 'core> DefaultEntityProjector<'a, 'core> {
     pub(super) fn new(
         export: &'a ExportHir,
         imported_core: Option<&'a SelectedImportedCoreSet<'core>>,
+        imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     ) -> Self {
         Self {
             export,
             imported_core,
+            imported_dependencies,
             signatures: HirInterfaceSignatureProjector::new(export),
         }
     }
