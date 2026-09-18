@@ -11,9 +11,9 @@ use crate::link_object::callable_registrations::object_definition::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
-    ImmortalObjectRegistrationRelocationFailureV1, ObjectDefinitionFingerprintV1,
-    ObjectDefinitionRelocationFailureV1, ScoopLirObjectCandidateV1,
-    StrongImmortalObjectRegistrationValidationError,
+    FinalizedUndefinedSymbolRequirementPartitionsV1, ImmortalObjectRegistrationRelocationFailureV1,
+    ObjectDefinitionFingerprintV1, ObjectDefinitionRelocationFailureV1, ScoopLirObjectCandidateV1,
+    StrongImmortalObjectRegistrationValidationError, VerifiedObjectDefinitionRequirementSetV1,
 };
 
 mod validation;
@@ -47,7 +47,7 @@ impl VerifiedStrongImmortalObjectDefinitionFingerprintV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongImmortalObjectDefinitionFingerprintSetV1 {
     registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-    undefined_requirements: CanonicalUndefinedSymbolRequirementSetV1,
+    undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     fingerprints: Vec<VerifiedStrongImmortalObjectDefinitionFingerprintV1>,
 }
 
@@ -63,6 +63,12 @@ impl VerifiedStrongImmortalObjectDefinitionFingerprintSetV1 {
     }
 
     pub const fn undefined_requirements(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        self.undefined_requirements.legacy()
+    }
+
+    pub const fn object_definition_requirements(
+        &self,
+    ) -> &VerifiedObjectDefinitionRequirementSetV1 {
         &self.undefined_requirements
     }
 
@@ -79,9 +85,39 @@ pub fn compute_strong_immortal_object_definition_fingerprints_v1(
     VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,
     StrongImmortalObjectDefinitionFingerprintError,
 > {
+    compute_strong_immortal_object_definition_fingerprints_inner_v1(
+        registration_objects,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+pub fn compute_cross_cone_strong_immortal_object_definition_fingerprints_v1(
+    registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,
+    StrongImmortalObjectDefinitionFingerprintError,
+> {
+    compute_strong_immortal_object_definition_fingerprints_inner_v1(
+        registration_objects,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+fn compute_strong_immortal_object_definition_fingerprints_inner_v1(
+    registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,
+    StrongImmortalObjectDefinitionFingerprintError,
+> {
     let registrations = registration_objects.registrations();
     let builtins = registrations.patch_sites().builtins();
-    if !undefined_requirements.matches_strong_closure(builtins) {
+    if !undefined_requirements.matches_strong_closure(builtins.strong_relocations()) {
         return Err(
             StrongImmortalObjectDefinitionFingerprintError::UndefinedRequirementProofMismatch,
         );

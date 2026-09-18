@@ -97,15 +97,14 @@ impl CanonicalUndefinedSymbolRequirementSetV1 {
 
     pub(in crate::link_object) fn matches_strong_closure(
         &self,
-        builtins: &super::VerifiedBuiltinObjectStrongRelocationSetV1,
+        closure: &super::VerifiedCurrentConeStrongRelocationClosureV1,
     ) -> bool {
-        if self.producer != builtins.producer()
+        if self.producer != closure.producer()
             || self.selection != ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
         {
             return false;
         }
-        let expected = builtins
-            .strong_relocations()
+        let expected = closure
             .bindings()
             .iter()
             .filter(|binding| {

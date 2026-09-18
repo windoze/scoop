@@ -2,19 +2,123 @@
 
 use super::{
     CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
-    StrongRelocationResolutionV1, UndefinedSymbolRequirementFinalizationError,
+    FinalUndefinedSymbolRequirementV1, StrongRelocationResolutionV1,
+    UndefinedSymbolRequirementFinalizationError,
     finalize_partitioned_undefined_symbol_requirements_inner, use_key,
 };
 use crate::link_object::{
-    SealedBuiltinObjectExternalRequirementClosureV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
+    SealedBuiltinObjectExternalRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
+    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
 };
+use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
 
 /// Mutually exclusive legacy and ordinary-dependency relocation closures.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FinalizedUndefinedSymbolRequirementPartitionsV1 {
     legacy: CanonicalUndefinedSymbolRequirementSetV1,
     cross_cone: VerifiedCrossConeStrongRequirementClosureV1,
+}
+
+/// Complete requirement authority used while normalizing object-definition
+/// relocations. The profile mode is retained so a cross-Cone proof cannot be
+/// silently collapsed to its legacy partition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedObjectDefinitionRequirementSetV1 {
+    mode: ObjectDefinitionRequirementModeV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ObjectDefinitionRequirementModeV1 {
+    SingleCone(CanonicalUndefinedSymbolRequirementSetV1),
+    CrossCone(Box<FinalizedUndefinedSymbolRequirementPartitionsV1>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::link_object) enum CanonicalObjectDefinitionRequirementV1 {
+    Legacy(FinalUndefinedSymbolRequirementV1),
+    DependencyStrong {
+        provider: ConeIdentity,
+        target: StrongCallableDefinitionOwner,
+    },
+}
+
+impl VerifiedObjectDefinitionRequirementSetV1 {
+    pub const fn legacy(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        match &self.mode {
+            ObjectDefinitionRequirementModeV1::SingleCone(requirements) => requirements,
+            ObjectDefinitionRequirementModeV1::CrossCone(partitions) => partitions.legacy(),
+        }
+    }
+
+    pub const fn cross_cone(&self) -> Option<&FinalizedUndefinedSymbolRequirementPartitionsV1> {
+        match &self.mode {
+            ObjectDefinitionRequirementModeV1::SingleCone(_) => None,
+            ObjectDefinitionRequirementModeV1::CrossCone(partitions) => Some(partitions),
+        }
+    }
+
+    pub(in crate::link_object) fn matches_strong_closure(
+        &self,
+        closure: &VerifiedCurrentConeStrongRelocationClosureV1,
+    ) -> bool {
+        match &self.mode {
+            ObjectDefinitionRequirementModeV1::SingleCone(requirements) => {
+                requirements.matches_strong_closure(closure)
+            }
+            ObjectDefinitionRequirementModeV1::CrossCone(partitions) => {
+                partitions.matches_strong_closure(closure)
+            }
+        }
+    }
+
+    pub(in crate::link_object) fn requirement_for(
+        &self,
+        use_site: &CanonicalUndefinedRelocationUseV1,
+    ) -> Option<CanonicalObjectDefinitionRequirementV1> {
+        if let Some(requirement) = self
+            .legacy()
+            .requirements()
+            .iter()
+            .find(|requirement| requirement.use_site() == use_site)
+        {
+            return Some(CanonicalObjectDefinitionRequirementV1::Legacy(
+                requirement.requirement(),
+            ));
+        }
+        let partitions = self.cross_cone()?;
+        let requirement = partitions
+            .cross_cone()
+            .requirements()
+            .iter()
+            .find(|requirement| requirement.use_site() == use_site)?;
+        let import = partitions
+            .cross_cone()
+            .semantic_imports()
+            .imports()
+            .get(requirement.import_index() as usize)?;
+        Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {
+            provider: import.provider(),
+            target: import.target(),
+        })
+    }
+}
+
+impl From<CanonicalUndefinedSymbolRequirementSetV1> for VerifiedObjectDefinitionRequirementSetV1 {
+    fn from(requirements: CanonicalUndefinedSymbolRequirementSetV1) -> Self {
+        Self {
+            mode: ObjectDefinitionRequirementModeV1::SingleCone(requirements),
+        }
+    }
+}
+
+impl From<FinalizedUndefinedSymbolRequirementPartitionsV1>
+    for VerifiedObjectDefinitionRequirementSetV1
+{
+    fn from(partitions: FinalizedUndefinedSymbolRequirementPartitionsV1) -> Self {
+        Self {
+            mode: ObjectDefinitionRequirementModeV1::CrossCone(Box::new(partitions)),
+        }
+    }
 }
 
 impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
@@ -37,10 +141,10 @@ impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
 
     pub(in crate::link_object) fn matches_strong_closure(
         &self,
-        builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
+        closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     ) -> bool {
-        if self.legacy.producer() != builtins.producer()
-            || self.cross_cone.producer() != builtins.producer()
+        if self.legacy.producer() != closure.producer()
+            || self.cross_cone.producer() != closure.producer()
             || self.legacy.selection()
                 != scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
             || self.cross_cone.target() != scoop_lir::LirTargetProfile::DARWIN_AARCH64
@@ -48,8 +152,7 @@ impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
             return false;
         }
 
-        let mut expected = builtins
-            .strong_relocations()
+        let mut expected = closure
             .bindings()
             .iter()
             .filter(|binding| {

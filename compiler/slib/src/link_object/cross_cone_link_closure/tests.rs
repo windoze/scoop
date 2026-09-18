@@ -19,6 +19,7 @@ use crate::link_object::strong_relocation_closure::tests::{
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::link_object::{
+    CanonicalObjectDefinitionRequirementV1, VerifiedObjectDefinitionRequirementSetV1,
     empty_code_link_object_member_set_for_test,
     finalize_partitioned_undefined_symbol_requirements_v1,
     finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
@@ -270,6 +271,15 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
         finalize_partitioned_undefined_symbol_requirements_v1(current, external).unwrap();
     assert!(partitions.legacy().requirements().is_empty());
     assert_eq!(partitions.cross_cone().requirements().len(), 1);
+    let object_requirements = VerifiedObjectDefinitionRequirementSetV1::from(partitions.clone());
+    assert!(object_requirements.matches_strong_closure(&strong));
+    assert_eq!(
+        object_requirements.requirement_for(partitions.cross_cone().requirements()[0].use_site()),
+        Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {
+            provider: callable.provider,
+            target: callable.target,
+        })
+    );
     assert_eq!(
         partitions.cross_cone().requirements()[0].use_site(),
         &CanonicalUndefinedRelocationUseV1::from(&strong.bindings()[0])

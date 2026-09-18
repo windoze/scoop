@@ -6,12 +6,13 @@ use scoop_identity::{
 use scoop_wire::{RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
 use crate::link_object::{
-    CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
+    CanonicalObjectDefinitionRequirementV1, CanonicalUndefinedRelocationUseV1,
     FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
     VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDarwinArm64RelocationFormV1,
     VerifiedDarwinArm64RelocationShapeV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
+    VerifiedRelocationTargetV1,
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
@@ -183,7 +184,9 @@ impl CanonicalObjectRelocationV1 {
             encoded_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
-                target: CanonicalRelocationTargetKindV1::Requirement(requirement),
+                target: CanonicalRelocationTargetKindV1::Requirement(
+                    CanonicalObjectDefinitionRequirementV1::Legacy(requirement),
+                ),
             }],
         }
     }
@@ -309,7 +312,7 @@ struct CanonicalRelocationTargetV1 {
 
 #[derive(Clone, Copy)]
 enum CanonicalRelocationTargetKindV1 {
-    Requirement(FinalUndefinedSymbolRequirementV1),
+    Requirement(CanonicalObjectDefinitionRequirementV1),
     StaticStorage(CanonicalStaticStorageTargetV1),
     OwningAssociatedAtomOffset {
         atom: ObjectDefinitionAtomId,
@@ -327,7 +330,7 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
         })?;
         match self.target {
             CanonicalRelocationTargetKindV1::Requirement(requirement) => {
-                encode_requirement(encoder, requirement)
+                requirement.runtime_encode(encoder)
             }
             CanonicalRelocationTargetKindV1::StaticStorage(target) => {
                 encode_static_storage_target(encoder, target)
@@ -351,7 +354,7 @@ pub(in crate::link_object) fn canonicalize_relocations(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: scoop_identity::ObjectDefinitionAtomId,
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
 ) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
     canonicalize_relocations_with_associated_atoms(bytes, member, atom, closure, requirements, &[])
 }
@@ -361,7 +364,7 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: scoop_identity::ObjectDefinitionAtomId,
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     associated_atoms: &[VerifiedDefinitionAtomRangeV1],
 ) -> Result<Vec<CanonicalObjectRelocationV1>, ObjectDefinitionRelocationFailureV1> {
     let mut output = Vec::new();
@@ -484,12 +487,14 @@ fn relocation_targets(
 
 fn canonical_requirement(
     binding: &crate::link_object::StrongRelocationBindingV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
-) -> Result<FinalUndefinedSymbolRequirementV1, ObjectDefinitionRelocationFailureV1> {
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
+) -> Result<CanonicalObjectDefinitionRequirementV1, ObjectDefinitionRelocationFailureV1> {
     match binding.resolution() {
         StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. } => match owner {
             LinkDefinitionOwnerV1::StrongDefinition(owner) => {
-                Ok(FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner })
+                Ok(CanonicalObjectDefinitionRequirementV1::Legacy(
+                    FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+                ))
             }
             _ => Err(ObjectDefinitionRelocationFailureV1::UnsupportedObjectLocalOwner),
         },
@@ -497,10 +502,7 @@ fn canonical_requirement(
         | StrongRelocationResolutionV1::ExternalCandidate { .. } => {
             let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
             requirements
-                .requirements()
-                .iter()
-                .find(|requirement| requirement.use_site() == &use_site)
-                .map(|requirement| requirement.requirement())
+                .requirement_for(&use_site)
                 .ok_or(ObjectDefinitionRelocationFailureV1::MissingUndefinedRequirement)
         }
     }
@@ -560,46 +562,53 @@ fn encode_optional_addend(
     }
 }
 
-fn encode_requirement(
-    encoder: &mut RuntimeEncoder,
-    requirement: FinalUndefinedSymbolRequirementV1,
-) -> Result<(), RuntimeEncodeError> {
-    match requirement {
-        FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner } => {
-            encoder.u32(1)?;
-            encode_strong_owner(encoder, owner)
-        }
-        FinalUndefinedSymbolRequirementV1::CoreStrong { core, owner } => {
-            encoder.u32(2)?;
-            encoder.fixed(core.as_array())?;
-            encode_strong_owner(encoder, owner)
-        }
-        FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit } => {
-            encoder.u32(3)?;
-            encoder.fixed(unit.as_array())
-        }
-        FinalUndefinedSymbolRequirementV1::SourceExtern { contract, library } => {
-            encoder.u32(4)?;
-            encoder.fixed(contract.as_array())?;
-            match library {
-                NativeLibraryBinding::DefaultNativeNamespace => encoder.u32(1),
-                NativeLibraryBinding::Requirement(requirement) => {
-                    encoder.u32(2)?;
-                    encoder.fixed(requirement.as_array())
+impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
+    fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
+        let requirement = match *self {
+            CanonicalObjectDefinitionRequirementV1::Legacy(requirement) => requirement,
+            CanonicalObjectDefinitionRequirementV1::DependencyStrong { provider, target } => {
+                encoder.u32(11)?;
+                encoder.fixed(provider.as_array())?;
+                return target.runtime_encode(encoder);
+            }
+        };
+        match requirement {
+            FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner } => {
+                encoder.u32(1)?;
+                encode_strong_owner(encoder, owner)
+            }
+            FinalUndefinedSymbolRequirementV1::CoreStrong { core, owner } => {
+                encoder.u32(2)?;
+                encoder.fixed(core.as_array())?;
+                encode_strong_owner(encoder, owner)
+            }
+            FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit } => {
+                encoder.u32(3)?;
+                encoder.fixed(unit.as_array())
+            }
+            FinalUndefinedSymbolRequirementV1::SourceExtern { contract, library } => {
+                encoder.u32(4)?;
+                encoder.fixed(contract.as_array())?;
+                match library {
+                    NativeLibraryBinding::DefaultNativeNamespace => encoder.u32(1),
+                    NativeLibraryBinding::Requirement(requirement) => {
+                        encoder.u32(2)?;
+                        encoder.fixed(requirement.as_array())
+                    }
                 }
             }
-        }
-        FinalUndefinedSymbolRequirementV1::RuntimeAbi { contract } => {
-            encoder.u32(5)?;
-            encoder.fixed(contract.as_array())
-        }
-        FinalUndefinedSymbolRequirementV1::TargetEhSupport { contract } => {
-            encoder.u32(6)?;
-            encoder.fixed(contract.as_array())
-        }
-        FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract } => {
-            encoder.u32(7)?;
-            encoder.fixed(contract.as_array())
+            FinalUndefinedSymbolRequirementV1::RuntimeAbi { contract } => {
+                encoder.u32(5)?;
+                encoder.fixed(contract.as_array())
+            }
+            FinalUndefinedSymbolRequirementV1::TargetEhSupport { contract } => {
+                encoder.u32(6)?;
+                encoder.fixed(contract.as_array())
+            }
+            FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract } => {
+                encoder.u32(7)?;
+                encoder.fixed(contract.as_array())
+            }
         }
     }
 }
@@ -641,6 +650,9 @@ fn definition_atom_role_tag(role: DefinitionAtomRole) -> u32 {
         DefinitionAtomRole::AddressTakenConstant => 7,
     }
 }
+
+#[cfg(test)]
+mod tests;
 
 fn encode_strong_owner(
     encoder: &mut RuntimeEncoder,

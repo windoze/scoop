@@ -18,7 +18,9 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
-    ObjectDefinitionFingerprintV1, ScoopLirObjectCandidateV1, VerifiedScoopLirStackmapSetV1,
+    FinalizedUndefinedSymbolRequirementPartitionsV1, ObjectDefinitionFingerprintV1,
+    ScoopLirObjectCandidateV1, VerifiedObjectDefinitionRequirementSetV1,
+    VerifiedScoopLirStackmapSetV1,
 };
 
 const OBJECT_DEFINITION_DOMAIN: &str = "scoop-object-definition-v1";
@@ -50,7 +52,7 @@ impl VerifiedStrongCallableBodyObjectFingerprintV1 {
 pub struct VerifiedStrongCallableBodyObjectFingerprintSetV1 {
     registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
-    undefined_requirements: CanonicalUndefinedSymbolRequirementSetV1,
+    undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     fingerprints: Vec<VerifiedStrongCallableBodyObjectFingerprintV1>,
 }
 
@@ -70,6 +72,12 @@ impl VerifiedStrongCallableBodyObjectFingerprintSetV1 {
     }
 
     pub const fn undefined_requirements(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
+        self.undefined_requirements.legacy()
+    }
+
+    pub const fn object_definition_requirements(
+        &self,
+    ) -> &VerifiedObjectDefinitionRequirementSetV1 {
         &self.undefined_requirements
     }
 
@@ -82,6 +90,34 @@ pub fn compute_strong_callable_body_object_fingerprints_v1(
     registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: CanonicalUndefinedSymbolRequirementSetV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
+    compute_strong_callable_body_object_fingerprints_inner_v1(
+        registration_objects,
+        stackmaps,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
+    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    stackmaps: VerifiedScoopLirStackmapSetV1,
+    undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
+    compute_strong_callable_body_object_fingerprints_inner_v1(
+        registration_objects,
+        stackmaps,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+fn compute_strong_callable_body_object_fingerprints_inner_v1(
+    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    stackmaps: VerifiedScoopLirStackmapSetV1,
+    undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
     let registrations = registration_objects.registrations();
@@ -302,7 +338,7 @@ fn runtime_scan_fingerprint_atoms(
     plan: &StrongCallableRuntimeScanPlanV1,
     ranges: &[crate::link_object::VerifiedDefinitionAtomRangeV1],
     closure: &crate::link_object::VerifiedCurrentConeStrongRelocationClosureV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     body: PersistentCallableBodyId,
 ) -> Result<Vec<RuntimeScanFingerprintAtom>, StrongCallableBodyFingerprintError> {
     let mut output = Vec::with_capacity(plan.atoms().len());
@@ -487,9 +523,9 @@ fn runtime_scan_node_count(scan: &RefScan) -> Option<usize> {
 
 fn validate_undefined_requirements(
     builtins: &crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
 ) -> Result<(), StrongCallableBodyFingerprintError> {
-    if !requirements.matches_strong_closure(builtins) {
+    if !requirements.matches_strong_closure(builtins.strong_relocations()) {
         return Err(StrongCallableBodyFingerprintError::UndefinedRequirementProofMismatch);
     }
     Ok(())

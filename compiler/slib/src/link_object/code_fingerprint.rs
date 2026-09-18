@@ -359,7 +359,7 @@ pub fn compute_code_fingerprint_v1(
         .entry()
         .patch_sites()
         .builtins();
-    if !undefined_symbols.matches_strong_closure(builtins) {
+    if !undefined_symbols.matches_strong_closure(builtins.strong_relocations()) {
         return Err(CodeFingerprintError::UndefinedSymbolSetMismatch);
     }
     compute_code_fingerprint_with_contributions_v1(
@@ -404,7 +404,7 @@ pub fn compute_cross_cone_code_fingerprint_v1(
         .entry()
         .patch_sites()
         .builtins();
-    if !undefined_partitions.matches_strong_closure(builtins) {
+    if !undefined_partitions.matches_strong_closure(builtins.strong_relocations()) {
         return Err(CodeFingerprintError::UndefinedSymbolPartitionMismatch);
     }
     let link_closure = CrossConeLinkClosureSectionV1::from_verified_requirements(

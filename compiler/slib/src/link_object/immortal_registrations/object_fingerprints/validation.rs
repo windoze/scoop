@@ -12,12 +12,12 @@ use super::{ImmortalObjectByteFailureV1, StrongImmortalObjectDefinitionFingerpri
 use crate::SlibMemberId;
 use crate::link_object::immortal_registrations::physical::{atom_file_range, verified_member};
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1, CanonicalUndefinedRelocationUseV1,
-    CanonicalUndefinedSymbolRequirementSetV1, FinalUndefinedSymbolRequirementV1,
+    BuiltinObjectSectionRoleV1, CanonicalObjectDefinitionRequirementV1,
+    CanonicalUndefinedRelocationUseV1, FinalUndefinedSymbolRequirementV1,
     ImmortalObjectRegistrationRelocationFailureV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
     VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedMemberObjectRelocationIndexV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
 };
 
 pub(super) struct ValidatedImmortalObject<'a> {
@@ -27,7 +27,7 @@ pub(super) struct ValidatedImmortalObject<'a> {
 
 pub(super) fn validate_immortal_object<'a>(
     builtins: &'a VerifiedBuiltinObjectStrongRelocationSetV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     objects: &BTreeMap<SlibMemberId, &'a [u8]>,
     plan: StrongImmortalObjectRegistrationPlanV1,
 ) -> Result<ValidatedImmortalObject<'a>, StrongImmortalObjectDefinitionFingerprintError> {
@@ -162,7 +162,7 @@ fn validate_string_bytes(
 
 fn validate_descriptor_relocation(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     member: &VerifiedMemberObjectRelocationIndexV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
 ) -> Result<(), StrongImmortalObjectDefinitionFingerprintError> {
@@ -225,7 +225,7 @@ fn validate_descriptor_relocation(
 
 fn validate_local_descriptor_target(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
     binding: &StrongRelocationBindingV1,
     expected_owner: StrongDefinitionOwnerV1,
@@ -299,9 +299,11 @@ fn validate_local_descriptor_target(
         StrongRelocationResolutionV1::ObjectLocalStrong { .. } => Ok(()),
         StrongRelocationResolutionV1::CurrentConeUndefinedStrong { .. }
             if requirement_for(binding, requirements)
-                == Some(FinalUndefinedSymbolRequirementV1::IntraConeStrong {
-                    owner: expected_owner,
-                }) =>
+                == Some(CanonicalObjectDefinitionRequirementV1::Legacy(
+                    FinalUndefinedSymbolRequirementV1::IntraConeStrong {
+                        owner: expected_owner,
+                    },
+                )) =>
         {
             Ok(())
         }
@@ -310,7 +312,7 @@ fn validate_local_descriptor_target(
 }
 
 fn validate_core_descriptor_target(
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
     binding: &StrongRelocationBindingV1,
     expected_owner: StrongDefinitionOwnerV1,
@@ -341,10 +343,12 @@ fn validate_core_descriptor_target(
         return relocation_error(plan, Failure::TargetSymbol);
     }
     if requirement_for(binding, requirements)
-        != Some(FinalUndefinedSymbolRequirementV1::CoreStrong {
-            core: scoop_identity::ConeIdentity::CORE,
-            owner: expected_owner,
-        })
+        != Some(CanonicalObjectDefinitionRequirementV1::Legacy(
+            FinalUndefinedSymbolRequirementV1::CoreStrong {
+                core: scoop_identity::ConeIdentity::CORE,
+                owner: expected_owner,
+            },
+        ))
     {
         return relocation_error(plan, Failure::TargetOwner);
     }
@@ -353,14 +357,10 @@ fn validate_core_descriptor_target(
 
 fn requirement_for(
     binding: &StrongRelocationBindingV1,
-    requirements: &CanonicalUndefinedSymbolRequirementSetV1,
-) -> Option<FinalUndefinedSymbolRequirementV1> {
+    requirements: &VerifiedObjectDefinitionRequirementSetV1,
+) -> Option<CanonicalObjectDefinitionRequirementV1> {
     let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-    requirements
-        .requirements()
-        .iter()
-        .find(|requirement| requirement.use_site() == &use_site)
-        .map(|requirement| requirement.requirement())
+    requirements.requirement_for(&use_site)
 }
 
 fn object_bytes_error<T>(

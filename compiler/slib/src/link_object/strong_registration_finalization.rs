@@ -131,6 +131,10 @@ pub fn patch_strong_registration_fingerprints_v1(
         || safepoint_registrations.patch_sites() != static_storage_registrations.patch_sites()
         || safepoint_registrations.patch_sites() != initialization_registrations.patch_sites()
         || safepoint_registrations.stackmaps() != callable_body_objects.stackmaps()
+        || callable_body_objects.object_definition_requirements()
+            != immortal_objects
+                .object_definitions()
+                .object_definition_requirements()
     {
         return Err(StrongRegistrationPatchError::ProofMismatch);
     }
