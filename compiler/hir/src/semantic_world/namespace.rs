@@ -239,7 +239,18 @@ pub enum DirectNamespaceView<'world, 'input> {
     Static(ImportedStaticNamespace<'world, 'input>),
 }
 
-impl DirectNamespaceView<'_, '_> {
+impl<'world, 'input> DirectNamespaceView<'world, 'input> {
+    pub fn binding_group(
+        &self,
+        namespace: BindingNamespace,
+        name: &str,
+    ) -> Option<DirectPublicBindingGroup<'world, 'input>> {
+        match self {
+            Self::Package(view) => view.binding_group(namespace, name),
+            Self::Static(view) => view.binding_group(namespace, name),
+        }
+    }
+
     pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
         match self {
             Self::Package(namespace) => namespace.snapshot(),
@@ -259,6 +270,19 @@ impl<'input> ImportedSemanticWorld<'input> {
             path,
             entry,
         })
+    }
+
+    /// Reopens the public nested namespace of an already selected nominal.
+    ///
+    /// The caller must first hold the typed nominal identity; this method does
+    /// not enumerate support providers or create a name-lookup path to them.
+    pub fn imported_static_namespace(
+        &self,
+        owner: SourceNominalId,
+    ) -> Option<ImportedStaticNamespace<'_, 'input>> {
+        self.entities
+            .nominal_provider(owner)
+            .map(|_| ImportedStaticNamespace { world: self, owner })
     }
 
     /// Resolves an exact import/qualified selector using one fixed longest

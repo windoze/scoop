@@ -73,6 +73,18 @@ fn package_lookup_uses_static_edges_and_excludes_nested_bindings_from_package_sc
         direct.outer.unwrap()
     );
     assert_eq!(namespace.bindings().count(), 1);
+    let reopened = world
+        .imported_static_namespace(direct.outer.unwrap())
+        .expect("a selected typed nominal reopens its static namespace");
+    assert_eq!(
+        reopened.owner().declaration().persistent(),
+        direct.outer.unwrap()
+    );
+    assert!(
+        DirectNamespaceView::Static(reopened)
+            .binding_group(BindingNamespace::Type, "Nested")
+            .is_some()
+    );
 }
 
 #[test]
