@@ -209,7 +209,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - `compiler/scoop` orchestration library解析exact locator和静态无环、同`group:name`单版本的DAG，拥有cache与dependency-first子进程调度；prebuilt/cache/source节点都经Compile/Link双view门禁。
 - 以recording artifacts和core-only真实节点完成chain/diamond/cycle、ambiguous locator、stale dependency、cache失效与child失败传播；本阶段不提前开放跨Cone源码名称。
 
-### M23-5 多Cone名称语义
+### M23-5 多Cone名称语义 ✅（2026-09-19 完成）
 
 总体设计见`docs/milestone23/DESIGN.md`，阶段详细设计见`docs/milestone23/stage5/DESIGN.md`。
 
