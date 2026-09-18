@@ -132,7 +132,11 @@ impl Lowerer {
             );
             return None;
         }
-        self.resolve_type_alias(id, name.span)
+        let target = self.resolve_type_alias(id, name.span);
+        if target.is_some() {
+            self.propagate_type_alias_binding_witnesses(id);
+        }
+        target
     }
 
     fn resolve_type_alias(
@@ -199,6 +203,20 @@ impl Lowerer {
             None => {
                 self.source_type_aliases[id].resolution = TypeAliasResolution::Failed;
                 None
+            }
+        }
+    }
+
+    fn propagate_type_alias_binding_witnesses(&mut self, source: SourceTypeAliasId) {
+        let Some(witnesses) = self.type_alias_binding_witnesses.get(&source).cloned() else {
+            return;
+        };
+        for alias in self.type_alias_resolution_stack.iter().copied() {
+            if alias != source {
+                self.type_alias_binding_witnesses
+                    .entry(alias)
+                    .or_default()
+                    .extend(witnesses.iter().cloned());
             }
         }
     }

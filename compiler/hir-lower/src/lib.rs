@@ -244,7 +244,8 @@ enum CoreLoweringAuthority {
 struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
     selection: hir::ImportedCoreSelectionPlan,
-    candidates: Vec<ImportedCoreLoweringCandidate>,
+    callable_candidates: Vec<ImportedCoreLoweringCandidate>,
+    type_bindings: Vec<ImportedCoreTypeBinding>,
 }
 
 #[derive(Clone)]
@@ -255,12 +256,22 @@ struct ImportedCoreLoweringCandidate {
     target: hir::CoreCallableTargetV1,
 }
 
+#[derive(Clone, Debug)]
+struct ImportedCoreTypeBinding {
+    binding: scoop_identity::PersistentExportBindingId,
+    name: String,
+    definition: hir::CoreTypeDefinitionV1,
+}
+
 enum LoweringCompletion {
     Defined,
-    Imported {
-        core: hir::ImportedCoreSelectionPlan,
-        dependencies: hir::ImportedDependencySelectionPlan,
-    },
+    Imported(Box<ImportedLoweringCompletion>),
+}
+
+struct ImportedLoweringCompletion {
+    core: hir::ImportedCoreSelectionPlan,
+    dependencies: hir::ImportedDependencySelectionPlan,
+    binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
 }
 
 #[cfg(test)]
@@ -452,7 +463,7 @@ fn lower_ordinary_input<'core>(
         }
         None => hir::ImportedDependencySelectionPlan::empty(input.current_cone()),
     };
-    let (module, warnings, core_selection, dependency_selection) = Lowerer::new()
+    let (module, warnings, completion) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_core(input.core())
         .with_imported_dependencies(dependency_selection)
@@ -478,20 +489,26 @@ fn lower_ordinary_input<'core>(
                 format!("failed to seal ordinary HIR output: {error}"),
             )]
         })?;
-    let selected = input.bind_core_selection(core_selection).map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to bind ordinary core selection: {error}"),
-        )]
-    })?;
-    hir::OrdinaryHirOutput::try_new(output, selected, dependency_selection.finish()).map_err(
-        |error| {
+    let selected = input
+        .bind_core_selection(completion.core)
+        .map_err(|error| {
             vec![Diagnostic::at(
                 Span { start: 0, end: 0 },
-                format!("failed to seal ordinary imported-core HIR: {error}"),
+                format!("failed to bind ordinary core selection: {error}"),
             )]
-        },
+        })?;
+    hir::OrdinaryHirOutput::try_new(
+        output,
+        selected,
+        completion.dependencies.finish(),
+        completion.binding_witness_uses,
     )
+    .map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal ordinary imported-core HIR: {error}"),
+        )]
+    })
 }
 
 fn finish_output(
@@ -695,6 +712,12 @@ pub(crate) struct Lowerer {
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
     pub(crate) imported_core_types: Arena<hir::ImportedCoreTypeUse>,
     pub(crate) imported_core_values: Arena<hir::ImportedCoreValueUse>,
+    /// Exact source-name routes selected while resolving public type-alias
+    /// targets. Entries remain attached to their source alias until public
+    /// surface publication, so private aliases cannot leak witness records.
+    pub(crate) type_alias_binding_witnesses:
+        HashMap<aliases::SourceTypeAliasId, Vec<hir::ExternalHirBindingWitnessUse>>,
+    pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,

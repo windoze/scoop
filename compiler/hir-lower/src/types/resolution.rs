@@ -350,7 +350,14 @@ impl Lowerer {
     /// is empty everywhere else).
     fn resolve_type_ref_unchecked(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         match &ty_ref.kind {
-            ast::TypeRefKind::Unit => Some(self.unit),
+            ast::TypeRefKind::Unit => {
+                if let Some(declaration) = self.imported_core_builtin_declaration(self.unit)
+                    && !self.retain_core_alias_target_binding("Unit", declaration, ty_ref.span)
+                {
+                    return None;
+                }
+                Some(self.unit)
+            }
             ast::TypeRefKind::Generic(name, args) => {
                 // `Name<T1, ...>`: generic type application. M4: only
                 // generic enums. M5: the built-in `Array<T>` /
@@ -620,7 +627,7 @@ impl Lowerer {
                     }
                     None => {}
                 }
-                match name.text.as_str() {
+                let resolved = match name.text.as_str() {
                     "Unit" => Some(self.unit),
                     "Int8" => Some(self.integer_type(hir::IntegerKind::SIGNED_8)),
                     "Int16" => Some(self.integer_type(hir::IntegerKind::SIGNED_16)),
@@ -639,7 +646,14 @@ impl Lowerer {
                         self.error(name.span, format!("unknown type `{}`", name.text));
                         None
                     }
+                };
+                if let Some(ty) = resolved
+                    && let Some(declaration) = self.imported_core_builtin_declaration(ty)
+                    && !self.retain_core_alias_target_binding(&name.text, declaration, name.span)
+                {
+                    return None;
                 }
+                resolved
             }
             ast::TypeRefKind::Tuple(elements) => {
                 let mut resolved = Vec::with_capacity(elements.len());

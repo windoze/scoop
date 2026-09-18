@@ -208,6 +208,8 @@ impl Lowerer {
             imported_dependency_callables: Arena::new(),
             imported_core_types: Arena::new(),
             imported_core_values: Arena::new(),
+            type_alias_binding_witnesses: HashMap::new(),
+            retained_binding_witness_uses: Vec::new(),
             bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
@@ -379,7 +381,7 @@ impl Lowerer {
     }
 
     pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs<'_>) -> Self {
-        let candidates = core
+        let callable_candidates = core
             .prelude()
             .bindings()
             .iter()
@@ -395,10 +397,26 @@ impl Lowerer {
                 })
             })
             .collect();
+        let type_bindings = core
+            .prelude()
+            .bindings()
+            .iter()
+            .filter_map(|binding| {
+                let hir::ImportedCorePreludeTarget::Type(target) = binding.target() else {
+                    return None;
+                };
+                Some(ImportedCoreTypeBinding {
+                    binding: binding.identity().persistent(),
+                    name: binding.key().name().as_str().to_owned(),
+                    definition: target.definition(),
+                })
+            })
+            .collect();
         self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
             protocols: core.protocols().clone(),
             selection: core.prelude().selection_plan(),
-            candidates,
+            callable_candidates,
+            type_bindings,
         }));
         self
     }

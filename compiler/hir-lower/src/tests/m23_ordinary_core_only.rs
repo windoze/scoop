@@ -1,4 +1,6 @@
-use scoop_identity::{CallableTemplateOrigin, ConeIdentity};
+use scoop_identity::{
+    BindingNamespace, CallableTemplateOrigin, ConeIdentity, NominalDeclarationOwner,
+};
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
@@ -7,6 +9,18 @@ use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
 pub(crate) mod support;
 
 use support::{parsed_ordinary, trusted_core, trusted_core_with_answer};
+
+fn public_type_alias(name: &str, target: scoop_ast::TypeRef) -> scoop_ast::Decl {
+    scoop_ast::Decl::TypeAlias(scoop_ast::TypeAliasDecl {
+        visibility: scoop_ast::VisibilitySyntax::Explicit {
+            visibility: scoop_ast::DeclaredVisibility::Public,
+            span: sp(),
+        },
+        name: super::ident(name),
+        target,
+        span: sp(),
+    })
+}
 
 #[test]
 fn ordinary_library_lowers_against_imported_core_without_core_sources() {
@@ -45,6 +59,57 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
     assert_eq!(foundation.counts().core_external_source_types, 10);
     assert_eq!(foundation.counts().core_external_generic_types, 0);
+}
+
+#[test]
+fn public_alias_retains_the_exact_imported_core_type_binding() {
+    let core = trusted_core();
+    let ordinary = parsed_ordinary(file(vec![public_type_alias("Number", ty_named("Int"))]));
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &[])
+        .unwrap();
+    let int_binding = core_inputs
+        .prelude()
+        .candidates(BindingNamespace::Type, "Int")
+        .next()
+        .expect("the trusted-core prelude exports Int");
+    let scoop_hir::ImportedCorePreludeTarget::Type(int_target) = int_binding.target() else {
+        panic!("the Int prelude binding targets a type")
+    };
+    let scoop_hir::CoreTypeDefinitionV1::Type(int_declaration) = int_target.definition() else {
+        panic!("the Int prelude binding targets a concrete nominal")
+    };
+    let expected_binding = int_binding.identity().persistent();
+    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+
+    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
+        .expect("a public alias may expose a trusted-core nominal");
+
+    let [witness] = output.binding_witness_uses() else {
+        panic!("the public alias must retain exactly one source-name witness")
+    };
+    assert_eq!(
+        witness.target(),
+        scoop_hir::ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(int_declaration))
+    );
+    assert_eq!(
+        witness.role(),
+        scoop_hir::ExternalHirBindingWitnessRole::AliasTarget
+    );
+    assert_eq!(
+        witness.witness().route().immediate_provider(),
+        ConeIdentity::CORE
+    );
+    assert_eq!(witness.witness().route().hops().len(), 1);
+    assert_eq!(
+        witness.witness().route().hops()[0].exporter(),
+        ConeIdentity::CORE
+    );
+    assert_eq!(
+        witness.witness().route().hops()[0].binding(),
+        expected_binding
+    );
 }
 
 #[test]

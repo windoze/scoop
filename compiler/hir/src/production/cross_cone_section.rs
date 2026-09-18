@@ -65,9 +65,12 @@ impl CrossConeHirInterfaceSectionV1 {
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let mut complete_witness_uses = Vec::with_capacity(
-            witness_uses.len() + output.concrete_dependency_witness_uses().len(),
+            witness_uses.len()
+                + output.binding_witness_uses().len()
+                + output.concrete_dependency_witness_uses().len(),
         );
         complete_witness_uses.extend_from_slice(witness_uses);
+        complete_witness_uses.extend_from_slice(output.binding_witness_uses());
         complete_witness_uses.extend_from_slice(output.concrete_dependency_witness_uses());
         Self::from_parts(
             output.output().export.module(),
@@ -122,7 +125,7 @@ impl CrossConeHirInterfaceSectionV1 {
             &constants,
         )
         .map_err(CrossConeHirInterfaceProductionError::DefinitionSources)?;
-        let external_references = CanonicalExternalHirReferencesV1::from_interface_parts(
+        let external_references = CanonicalExternalHirReferencesV1::from_interface_parts_with_core(
             ExternalHirReferenceProductionInput::new(
                 &export.public_export_bindings,
                 &nominal_interfaces,
@@ -134,6 +137,7 @@ impl CrossConeHirInterfaceSectionV1 {
                 &constants,
             ),
             witness_uses,
+            imported_core,
             authority,
         )
         .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;

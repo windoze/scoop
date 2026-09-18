@@ -16,20 +16,12 @@ impl Lowerer {
         self,
         files: &[ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
-    ) -> Result<
-        (
-            hir::Module,
-            Vec<Diagnostic>,
-            hir::ImportedCoreSelectionPlan,
-            hir::ImportedDependencySelectionPlan,
-        ),
-        Vec<Diagnostic>,
-    > {
+    ) -> Result<(hir::Module, Vec<Diagnostic>, ImportedLoweringCompletion), Vec<Diagnostic>> {
         let (module, warnings, completion) = self.run(files, world)?;
-        let LoweringCompletion::Imported { core, dependencies } = completion else {
+        let LoweringCompletion::Imported(completion) = completion else {
             panic!("ordinary HIR entry cannot complete with defined core authority")
         };
-        Ok((module, warnings, core, dependencies))
+        Ok((module, warnings, *completion))
     }
 
     fn run(
@@ -561,13 +553,14 @@ impl Lowerer {
             ),
             CoreLoweringAuthority::Imported(authority) => (
                 hir::CoreProtocols::Imported(Box::new(authority.protocols)),
-                LoweringCompletion::Imported {
+                LoweringCompletion::Imported(Box::new(ImportedLoweringCompletion {
                     core: authority.selection,
                     dependencies: self
                         .dependencies
                         .take()
                         .expect("ordinary HIR lowering always carries a dependency selection plan"),
-                },
+                    binding_witness_uses: std::mem::take(&mut self.retained_binding_witness_uses),
+                })),
             ),
         };
         self.finish(current_cone, warnings, core_protocols, completion)

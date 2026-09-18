@@ -15,7 +15,9 @@ use super::{
 };
 use crate::{
     CoreCallableDefinitionV1, CoreCallableTargetV1, CoreHirCallableCapabilityV1,
-    CoreHirInterfaceV1, CoreTypeTargetV1, CoreValueTargetV1,
+    CoreHirInterfaceV1, CoreTypeDefinitionV1, CoreTypeTargetV1, CoreValueDefinitionV1,
+    CoreValueTargetV1, DependencyBindingWitnessV1, ExternalHirTargetV1, ReexportRouteHopV1,
+    ReexportRouteV1,
 };
 
 /// Session-local HIR identity. Its type is distinct from current HIR ids and
@@ -709,6 +711,121 @@ impl<'a> SelectedImportedCoreSet<'a> {
     #[doc(hidden)]
     pub fn callable_selections(&self) -> impl Iterator<Item = SelectedImportedCoreTarget<'a>> + '_ {
         self.callables.values().copied()
+    }
+
+    /// Returns the canonical one-hop witness for a target in the implicit
+    /// trusted-core prelude. Ordinary dependencies cannot use this lookup:
+    /// their exact source route must come from `DirectImportedTargetBinding`.
+    pub(crate) fn implicit_binding_witness(
+        &self,
+        target: ExternalHirTargetV1,
+    ) -> Option<DependencyBindingWitnessV1> {
+        let binding = match target {
+            ExternalHirTargetV1::Nominal(scoop_identity::NominalDeclarationOwner::Concrete(
+                declaration,
+            )) => self
+                .interface
+                .type_targets()
+                .targets()
+                .iter()
+                .find(|candidate| candidate.definition() == CoreTypeDefinitionV1::Type(declaration))
+                .map(CoreTypeTargetV1::binding),
+            ExternalHirTargetV1::Nominal(
+                scoop_identity::NominalDeclarationOwner::GenericTemplate(declaration),
+            ) => self
+                .interface
+                .type_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreTypeDefinitionV1::GenericType(declaration)
+                })
+                .map(CoreTypeTargetV1::binding),
+            ExternalHirTargetV1::Callable(scoop_identity::CallableTemplateOrigin::Function(
+                declaration,
+            )) => self
+                .interface
+                .callable_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreCallableDefinitionV1::Function(declaration)
+                })
+                .map(CoreCallableTargetV1::binding),
+            ExternalHirTargetV1::Callable(
+                scoop_identity::CallableTemplateOrigin::GenericFunction(declaration),
+            ) => self
+                .interface
+                .callable_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreCallableDefinitionV1::GenericFunction(declaration)
+                })
+                .map(CoreCallableTargetV1::binding),
+            ExternalHirTargetV1::Property(scoop_identity::PropertyOwner::Property(declaration)) => {
+                self.interface
+                    .value_targets()
+                    .targets()
+                    .iter()
+                    .find(|candidate| {
+                        candidate.definition() == CoreValueDefinitionV1::Property(declaration)
+                    })
+                    .map(CoreValueTargetV1::binding)
+            }
+            ExternalHirTargetV1::Property(scoop_identity::PropertyOwner::ExtensionProperty(
+                declaration,
+            )) => self
+                .interface
+                .value_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreValueDefinitionV1::ExtensionProperty(declaration)
+                })
+                .map(CoreValueTargetV1::binding),
+            ExternalHirTargetV1::ObjectValue(declaration) => self
+                .interface
+                .value_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreValueDefinitionV1::ObjectValue(declaration)
+                })
+                .map(CoreValueTargetV1::binding),
+            ExternalHirTargetV1::TypeAlias(declaration) => self
+                .interface
+                .type_targets()
+                .targets()
+                .iter()
+                .find(|candidate| {
+                    candidate.definition() == CoreTypeDefinitionV1::TypeAlias(declaration)
+                })
+                .map(CoreTypeTargetV1::binding),
+            ExternalHirTargetV1::Callable(
+                scoop_identity::CallableTemplateOrigin::Constructor(_)
+                | scoop_identity::CallableTemplateOrigin::Accessor(_)
+                | scoop_identity::CallableTemplateOrigin::VariantConstructor(_),
+            )
+            | ExternalHirTargetV1::Field(_)
+            | ExternalHirTargetV1::EnumVariantField(_)
+            | ExternalHirTargetV1::GeneratedCallable(_) => None,
+        }?;
+        if !self
+            .interface
+            .prelude_snapshot()
+            .ordinary_bindings()
+            .bindings()
+            .contains(&binding)
+        {
+            return None;
+        }
+        let route = ReexportRouteV1::try_new(
+            ConeIdentity::CORE,
+            vec![ReexportRouteHopV1::new(ConeIdentity::CORE, binding)],
+        )
+        .ok()?;
+        Some(DependencyBindingWitnessV1::new(route))
     }
 }
 

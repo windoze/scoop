@@ -143,6 +143,34 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         Ok(())
     }
 
+    pub(super) fn add_implicit_core_witnesses(
+        &mut self,
+        core: &crate::SelectedImportedCoreSet<'_>,
+    ) {
+        let required = self
+            .references
+            .iter()
+            .filter(|(_, pending)| pending.origin == ConeIdentity::CORE)
+            .filter_map(|(&target, pending)| {
+                pending
+                    .roles
+                    .contains(&ExternalHirReferenceRoleV1::DefaultDependency)
+                    .then_some((target, ExternalHirReferenceRoleV1::DefaultDependency))
+            })
+            .collect::<Vec<_>>();
+        for (target, role) in required {
+            let Some(witness) = core.implicit_binding_witness(target) else {
+                continue;
+            };
+            let pending = self
+                .references
+                .get_mut(&target)
+                .expect("an observed core target remains in the accumulator");
+            pending.witnessed_roles.insert(role);
+            pending.witnesses.insert(witness);
+        }
+    }
+
     pub(super) fn finish<E>(
         self,
     ) -> Result<CanonicalExternalHirReferencesV1, ExternalHirReferenceProductionError<E>> {

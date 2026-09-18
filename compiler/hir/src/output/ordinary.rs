@@ -13,6 +13,7 @@ pub struct OrdinaryHirOutput<'a> {
     output: crate::Output,
     imported_core: crate::SelectedImportedCoreSet<'a>,
     imported_dependencies: crate::SelectedImportedDependencySet,
+    binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     concrete_dependency_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
 }
 
@@ -21,6 +22,7 @@ impl<'a> OrdinaryHirOutput<'a> {
         output: crate::Output,
         imported_core: crate::SelectedImportedCoreSet<'a>,
         imported_dependencies: crate::SelectedImportedDependencySet,
+        mut binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     ) -> Result<Self, OrdinaryHirOutputError> {
         if output.export.module().cone == scoop_identity::ConeIdentity::CORE {
             return Err(OrdinaryHirOutputError::CurrentConeIsCore);
@@ -101,11 +103,14 @@ impl<'a> OrdinaryHirOutput<'a> {
 
         let concrete_dependency_witness_uses =
             concrete_dependency_witness_uses(&imported_dependencies);
+        binding_witness_uses.sort_unstable();
+        binding_witness_uses.dedup();
 
         Ok(Self {
             output,
             imported_core,
             imported_dependencies,
+            binding_witness_uses,
             concrete_dependency_witness_uses,
         })
     }
@@ -120,6 +125,12 @@ impl<'a> OrdinaryHirOutput<'a> {
 
     pub const fn imported_dependencies(&self) -> &crate::SelectedImportedDependencySet {
         &self.imported_dependencies
+    }
+
+    /// Source-name proofs retained by HIR lowering for export-surface uses
+    /// whose route cannot be reconstructed from the projected interface.
+    pub fn binding_witness_uses(&self) -> &[crate::ExternalHirBindingWitnessUse] {
+        &self.binding_witness_uses
     }
 
     /// Canonical source-name proofs for every committed ordinary-dependency

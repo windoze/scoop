@@ -28,6 +28,18 @@ impl CanonicalExternalHirReferencesV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
+        Self::from_interface_parts_with_core(input, witness_uses, None, authority)
+    }
+
+    pub(crate) fn from_interface_parts_with_core<A, E>(
+        input: ExternalHirReferenceProductionInput<'_>,
+        witness_uses: &[ExternalHirBindingWitnessUse],
+        imported_core: Option<&crate::SelectedImportedCoreSet<'_>>,
+        authority: &mut A,
+    ) -> Result<Self, ExternalHirReferenceProductionError<E>>
+    where
+        A: ExternalHirReferenceSemanticAuthority<E>,
+    {
         let mut meter = BudgetMeter::new(DecodeLimits::default());
         let mut accumulator = accumulator::ExternalReferenceAccumulator::new(authority);
 
@@ -38,6 +50,9 @@ impl CanonicalExternalHirReferencesV1 {
         surface::collect_constants(input, &mut accumulator, &mut meter)?;
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
+        }
+        if let Some(core) = imported_core {
+            accumulator.add_implicit_core_witnesses(core);
         }
 
         accumulator.finish()
