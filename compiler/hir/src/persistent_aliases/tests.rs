@@ -6,13 +6,17 @@ use scoop_identity::{
 };
 
 use super::*;
-use crate::{DeclarationAccess, DefinitionOrigin, IntrinsicProviderId, SourceContextId, TypeId};
+use crate::{
+    DeclarationAccess, DefinitionOrigin, IntrinsicProviderId, SourceContextId,
+    TypeAliasSourceTarget, TypeId,
+};
 
 fn alias() -> TypeAliasDecl {
     TypeAliasDecl {
         name: "Alias".to_string(),
         access: DeclarationAccess::public(),
         target: TypeId::from_raw(0_u32.into()),
+        source_target: TypeAliasSourceTarget::Expanded,
         origin: DefinitionOrigin {
             provider: IntrinsicProviderId::from_raw(0),
             file: 0,

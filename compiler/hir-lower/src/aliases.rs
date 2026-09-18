@@ -1,12 +1,12 @@
 //! Resolver-only transparent alias graph and Export HIR declarations.
 
-use std::collections::HashSet;
-
 use la_arena::Idx;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use crate::{Lowerer, NominalTarget, Type};
+
+mod publication;
 
 pub(crate) type SourceTypeAliasId = Idx<SourceTypeAlias>;
 
@@ -24,12 +24,24 @@ pub(crate) struct SourceTypeAlias {
 enum TypeAliasResolution {
     Unresolved,
     Resolving,
-    Resolved(hir::TypeId),
+    Resolved(ResolvedTypeAliasTarget),
     Published {
         target: hir::TypeId,
         declaration: hir::ExportTypeAliasId,
     },
     Failed,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ResolvedTypeAliasTarget {
+    expanded: hir::TypeId,
+    source: ResolvedTypeAliasSource,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResolvedTypeAliasSource {
+    Expanded,
+    Alias(SourceTypeAliasId),
 }
 
 impl Lowerer {
@@ -129,7 +141,9 @@ impl Lowerer {
         reference_span: ast::Span,
     ) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target)
+            TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                expanded: target, ..
+            })
             | TypeAliasResolution::Published { target, .. } => return Some(target),
             TypeAliasResolution::Failed => return None,
             TypeAliasResolution::Resolving => {
@@ -162,6 +176,7 @@ impl Lowerer {
         let previous_params = std::mem::take(&mut self.type_params_in_scope);
         self.current_file = alias.file;
         self.current_owner = None;
+        let source = self.resolve_type_alias_source(&alias.target);
         let target = self.resolve_type_ref(&alias.target);
         self.current_file = previous_file;
         self.current_owner = previous_owner;
@@ -174,7 +189,11 @@ impl Lowerer {
         debug_assert_eq!(popped, id);
         match target {
             Some(target) => {
-                self.source_type_aliases[id].resolution = TypeAliasResolution::Resolved(target);
+                self.source_type_aliases[id].resolution =
+                    TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                        expanded: target,
+                        source,
+                    });
                 Some(target)
             }
             None => {
@@ -182,6 +201,50 @@ impl Lowerer {
                 None
             }
         }
+    }
+
+    /// Classifies only the source target's outermost type reference. Nested
+    /// alias uses remain represented by the fully expanded HIR `TypeId`.
+    fn resolve_type_alias_source(&self, target: &ast::TypeRef) -> ResolvedTypeAliasSource {
+        let alias = match &target.kind {
+            ast::TypeRefKind::Named(name) => {
+                self.top_level_type_target(&name.text)
+                    .and_then(|target| match target {
+                        crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
+                        crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
+                    })
+            }
+            ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
+                let (package, package_length) =
+                    self.top_level_namespaces.longest_package_prefix(path);
+                if package_length == 0 || package_length + 1 != path.len() {
+                    None
+                } else {
+                    let binding = &path[package_length];
+                    match self.lookup_package_type(package, &binding.text) {
+                        crate::imports::lookup::LookupResult::Unique(candidate) => {
+                            match candidate.target {
+                                crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
+                                crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
+                            }
+                        }
+                        crate::imports::lookup::LookupResult::Missing
+                        | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                        | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+                    }
+                }
+            }
+            ast::TypeRefKind::Generic(_, _)
+            | ast::TypeRefKind::Qualified { .. }
+            | ast::TypeRefKind::Tuple(_)
+            | ast::TypeRefKind::Unit
+            | ast::TypeRefKind::Function(_)
+            | ast::TypeRefKind::Nullable(_) => None,
+        };
+        alias.map_or(
+            ResolvedTypeAliasSource::Expanded,
+            ResolvedTypeAliasSource::Alias,
+        )
     }
 
     pub(crate) fn resolve_all_type_aliases(&mut self) {
@@ -195,142 +258,11 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn validate_type_alias_targets(&mut self) {
-        let previous_file = self.current_file;
-        let aliases = self
-            .source_type_aliases
-            .iter()
-            .map(|(id, alias)| (id, alias.clone()))
-            .collect::<Vec<_>>();
-        for (id, alias) in aliases {
-            let TypeAliasResolution::Resolved(target) = self.source_type_aliases[id].resolution
-            else {
-                continue;
-            };
-            self.current_file = alias.file;
-            let mut visited = HashSet::new();
-            self.validate_type_alias_target_tree(
-                target,
-                alias.target.span,
-                &format!("target of typealias `{}`", alias.name),
-                &mut visited,
-            );
-            let mut access = alias.access;
-            access.signature = self.signature_exposure_witnesses(
-                &access,
-                &[target],
-                alias.origin.span,
-                &format!("typealias `{}`", alias.name),
-            );
-            let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {
-                name: alias.name,
-                access,
-                target,
-                origin: alias.origin,
-            });
-            self.source_type_aliases[id].resolution = TypeAliasResolution::Published {
-                target,
-                declaration,
-            };
-        }
-        self.current_file = previous_file;
-    }
-
-    fn validate_type_alias_target_tree(
-        &mut self,
-        ty: hir::TypeId,
-        span: ast::Span,
-        description: &str,
-        visited: &mut HashSet<hir::TypeId>,
-    ) {
-        if !visited.insert(ty) {
-            return;
-        }
-        match self.types[ty].clone() {
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let parameters = self.structs[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let parameters = self.enums[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let parameters = self.classes[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let parameters = self.interfaces[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Tuple(elements) => {
-                for element in elements {
-                    self.validate_type_alias_target_tree(element, span, description, visited);
-                }
-            }
-            Type::Function(function) | Type::FunPtr(function) => {
-                let function = self.function_types[function].clone();
-                for parameter in function.parameter_types {
-                    self.validate_type_alias_target_tree(parameter, span, description, visited);
-                }
-                self.validate_type_alias_target_tree(
-                    function.return_type,
-                    span,
-                    description,
-                    visited,
-                );
-            }
-            Type::Ptr(pointee) => {
-                self.validate_type_alias_target_tree(pointee, span, description, visited);
-            }
-            Type::Unit
-            | Type::Integer(_)
-            | Type::Boolean
-            | Type::String
-            | Type::Any
-            | Type::Param(_) => {}
-        }
-    }
-
     pub(crate) fn resolved_type_alias_target(&self, id: SourceTypeAliasId) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target)
+            TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                expanded: target, ..
+            })
             | TypeAliasResolution::Published { target, .. } => Some(target),
             TypeAliasResolution::Unresolved
             | TypeAliasResolution::Resolving
