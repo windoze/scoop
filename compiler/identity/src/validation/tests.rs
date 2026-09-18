@@ -9,13 +9,14 @@ use crate::{
     CanonicalCAbiSignatureFingerprintRecord, CanonicalIdentifier, CborIdentityRecord,
     ConeCoordinate, ConeIdentity, DeclarationScope, DecodedCanonicalCAbiSignatureFingerprintRecord,
     DecodedCborIdentityRecord, DecodedExactTypeKey, DecodedExportBindingKey,
-    DecodedNativeExternalContractRecord, DecodedSourceDeclarationKey,
+    DecodedNativeExternalContractRecord, DecodedSourceContextKey, DecodedSourceDeclarationKey,
     DecodedSourceNativeExternalContractRecord, DefinitionOwnerChain, ExactTypeKey,
     ExportBindingKey, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, PackagePath, PersistentExactTypeId,
-    PersistentExportBindingId, PersistentFunctionId, PersistentSourceNativeExternalContractId,
-    PersistentTypeId, SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention,
-    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    NativeExternalSymbolKey, NativeLibraryBinding, NormalizedSourcePath, PackagePath,
+    PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
+    PersistentSourceContextId, PersistentSourceNativeExternalContractId, PersistentTypeId,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceCallingConvention, SourceContextKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi, SourceIdentity,
     SourceNativeExternalContract, SourceNativeExternalContractKey,
     SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
     SourceNominalKind,
@@ -296,6 +297,50 @@ fn repeated_external_graph_authority_is_folded_for_diamond_imports() {
     let graph = pending.finish().unwrap();
     assert_eq!(graph.identity_count(), 1);
     assert_eq!(graph.declared_identity_count(), 0);
+}
+
+#[test]
+fn external_graph_propagates_transitive_leaf_authorities() {
+    let provider = ConeCoordinate::new("dev.example", "provider", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let mut dependency = PendingIdentityValidation::new();
+    dependency.register_authority(provider).unwrap();
+    let dependency = dependency.finish().unwrap();
+
+    let source = SourceIdentity::new(
+        provider,
+        NormalizedSourcePath::new("src/api.scoop").unwrap(),
+    )
+    .unwrap();
+    let context =
+        CborIdentityRecord::<PersistentSourceContextId, _>::from_key(SourceContextKey::File {
+            source,
+        })
+        .unwrap();
+    let decoded = decode_canonical::<
+        DecodedCborIdentityRecord<PersistentSourceContextId, DecodedSourceContextKey>,
+    >(&encode(&context).unwrap(), DecodeLimits::default())
+    .unwrap();
+
+    let mut pending = PendingIdentityValidation::new();
+    pending
+        .register_external_graph_authorities(&dependency)
+        .unwrap();
+    pending.register(IdentityLayer::Hir, &decoded).unwrap();
+    pending.resolve(&decoded).unwrap();
+    let graph = pending.finish().unwrap();
+
+    assert_eq!(graph.identity_count(), 2);
+    assert_eq!(graph.declared_identity_count(), 1);
+    assert_eq!(
+        graph
+            .canonical_key::<PersistentSourceContextId, SourceContextKey>(context.id())
+            .unwrap()
+            .as_ref(),
+        context.key()
+    );
 }
 
 #[test]

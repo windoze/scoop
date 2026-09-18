@@ -241,8 +241,8 @@ impl<'meter> PendingIdentityValidation<'meter> {
         Ok(())
     }
 
-    /// Imports every canonical key from an already validated dependency graph
-    /// as resolved external authority.
+    /// Imports every resolved identity and canonical key from an already
+    /// validated dependency graph as external authority.
     ///
     /// Identical authority repeated through a diamond is folded. An identity
     /// already declared by the current graph keeps its local layer ownership;
@@ -253,6 +253,77 @@ impl<'meter> PendingIdentityValidation<'meter> {
         graph: &ValidatedIdentityGraph,
     ) -> Result<(), IdentityValidationError> {
         self.require_registration_phase()?;
+        let candidate_count = u64::try_from(graph.candidates.len()).map_err(|_| {
+            self.poison(resource_error(
+                WireErrorKind::IntegerOutOfRange,
+                &self.resource_path,
+            ))
+        })?;
+        let mut nodes = Vec::new();
+        let reserve = match self.meter.as_deref_mut() {
+            Some(meter) => meter
+                .try_reserve_exact(
+                    &mut nodes,
+                    candidate_count,
+                    COLLECTION_ELEMENT_BYTES,
+                    &self.resource_path,
+                )
+                .map_err(IdentityValidationError::Resource),
+            None => nodes
+                .try_reserve_exact(graph.candidates.len())
+                .map_err(|_| {
+                    resource_error(
+                        WireErrorKind::ResourceAllocation {
+                            requested_logical_bytes: candidate_count
+                                .saturating_mul(COLLECTION_ELEMENT_BYTES),
+                            requested_slots: candidate_count,
+                        },
+                        &self.resource_path,
+                    )
+                }),
+        };
+        if let Err(error) = reserve {
+            return self.fail(error);
+        }
+        nodes.extend(graph.candidates.keys().copied());
+        nodes.sort_unstable_by_key(|node| (node.kind, node.bytes));
+
+        for node in nodes {
+            let source_candidate = &graph.candidates[&node];
+            if !source_candidate.resolved {
+                return self.fail(IdentityValidationError::InvalidRecord {
+                    kind: node.kind,
+                    id: node.bytes,
+                    reason: "external identity graph contains an unresolved authority".to_owned(),
+                });
+            }
+            if let Some(candidate) = self.candidates.get(&node) {
+                if candidate.layer.is_some() {
+                    continue;
+                }
+                if candidate.trusted_id.as_ref().type_id()
+                    != source_candidate.trusted_id.as_ref().type_id()
+                {
+                    return self.fail(IdentityValidationError::IdentityCollision {
+                        kind: node.kind,
+                        id: node.bytes,
+                    });
+                }
+                continue;
+            }
+            self.reserve_candidate_slot()?;
+            self.candidates.insert(
+                node,
+                Candidate {
+                    trusted_id: Arc::clone(&source_candidate.trusted_id),
+                    layer: None,
+                    resolved: true,
+                    dependency_count: 0,
+                    dependents: Vec::new(),
+                },
+            );
+        }
+
         let count = u64::try_from(graph.canonical_keys.len()).map_err(|_| {
             self.poison(resource_error(
                 WireErrorKind::IntegerOutOfRange,
@@ -292,14 +363,14 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 kind: slot.kind,
                 bytes: slot.bytes,
             };
-            let Some(source_candidate) = graph.candidates.get(&node) else {
+            if !graph.candidates.contains_key(&node) {
                 return self.fail(IdentityValidationError::InvalidRecord {
                     kind: node.kind,
                     id: node.bytes,
                     reason: "external identity graph has a canonical key without a candidate"
                         .to_owned(),
                 });
-            };
+            }
             let Some(source_key) = graph.canonical_keys.get(&slot) else {
                 return self.fail(IdentityValidationError::InvalidRecord {
                     kind: node.kind,
@@ -336,19 +407,14 @@ impl<'meter> PendingIdentityValidation<'meter> {
                 continue;
             }
 
-            self.reserve_candidate_slot()?;
-            self.reserve_canonical_key_slot()?;
-            self.candidates.insert(
-                node,
-                Candidate {
-                    trusted_id: Arc::clone(&source_candidate.trusted_id),
-                    layer: None,
-                    resolved: true,
-                    dependency_count: 0,
-                    dependents: Vec::new(),
-                },
-            );
-            self.canonical_keys.insert(slot, Arc::clone(source_key));
+            // Every canonical key belongs to a candidate copied by the first
+            // pass above. Reaching this branch means the validated graph is
+            // internally inconsistent.
+            return self.fail(IdentityValidationError::InvalidRecord {
+                kind: node.kind,
+                id: node.bytes,
+                reason: "external identity graph lost a candidate during import".to_owned(),
+            });
         }
         Ok(())
     }
