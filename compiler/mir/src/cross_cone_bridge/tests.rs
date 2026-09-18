@@ -12,6 +12,7 @@ use super::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeRelationError, CrossConeMirBridgeSectionV1,
     CrossConeMirBridgeValidationError, DecodedCrossConeMirBridgeSectionV1,
     ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedDependencyMirCallableV1,
+    SelectedDependencyMirSet, SelectedDependencyMirSetBuildError,
 };
 use crate::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
@@ -208,6 +209,55 @@ fn reader_rejects_unknown_or_open_section_shapes() {
                 DecodeLimits::default(),
             )
             .is_err()
+        );
+    }
+}
+
+#[test]
+fn producer_side_selection_is_canonical_and_closed() {
+    let fixture = fixture();
+    let other_provider = cone("other-provider");
+    let mut expected = vec![
+        fixture.selected_from(fixture.provider),
+        fixture.selected_from(other_provider),
+    ];
+    expected.sort_unstable_by_key(|callable| (callable.provider(), callable.declaration()));
+
+    let selection = SelectedDependencyMirSet::try_from_callables(
+        fixture.artifact,
+        expected.iter().cloned().rev().collect(),
+    )
+    .unwrap();
+    assert_eq!(selection.callables(), expected);
+
+    let duplicate = fixture.selected_from(fixture.provider);
+    assert!(matches!(
+        SelectedDependencyMirSet::try_from_callables(
+            fixture.artifact,
+            vec![duplicate.clone(), duplicate],
+        ),
+        Err(SelectedDependencyMirSetBuildError::DuplicateCallable { .. })
+    ));
+
+    for (provider, expected) in [
+        (
+            fixture.artifact,
+            SelectedDependencyMirSetBuildError::SelectedCurrentProvider {
+                provider: fixture.artifact,
+            },
+        ),
+        (
+            ConeIdentity::CORE,
+            SelectedDependencyMirSetBuildError::SelectedTrustedCore,
+        ),
+    ] {
+        assert_eq!(
+            SelectedDependencyMirSet::try_from_callables(
+                fixture.artifact,
+                vec![fixture.selected_from(provider)],
+            )
+            .err(),
+            Some(expected)
         );
     }
 }

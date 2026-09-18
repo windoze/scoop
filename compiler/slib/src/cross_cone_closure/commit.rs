@@ -16,7 +16,9 @@ use crate::{
     ValidatedCrossConeSemanticsProduction,
 };
 
+mod projection;
 mod world;
+pub use projection::*;
 
 /// A complete M23-5 dependency closure whose identity graphs were committed
 /// to one semantic session as a single transaction.

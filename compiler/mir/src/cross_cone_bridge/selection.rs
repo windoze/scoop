@@ -71,20 +71,60 @@ impl SelectedDependencyMirSet {
     pub fn try_from_bridge(
         bridge: &CrossConeMirBridgeSectionV1,
     ) -> Result<Self, SelectedDependencyMirSetBuildError> {
+        Self::try_from_callables(bridge.artifact(), bridge.selected().to_vec())
+    }
+
+    /// Seals a producer-side selection after its records have been projected
+    /// from an already validated dependency closure.
+    ///
+    /// This entry point deliberately accepts typed bridge records rather than
+    /// HIR ids or symbol names. The closure owner remains responsible for
+    /// proving each record against its terminal provider before calling it.
+    #[doc(hidden)]
+    pub fn try_from_callables(
+        consumer: ConeIdentity,
+        mut selected: Vec<SelectedDependencyMirCallableV1>,
+    ) -> Result<Self, SelectedDependencyMirSetBuildError> {
+        selected.sort_unstable_by_key(|callable| (callable.provider(), callable.declaration()));
+        if let Some(callable) = selected
+            .iter()
+            .find(|callable| callable.provider() == consumer)
+        {
+            return Err(
+                SelectedDependencyMirSetBuildError::SelectedCurrentProvider {
+                    provider: callable.provider(),
+                },
+            );
+        }
+        if selected
+            .iter()
+            .any(|callable| callable.provider() == ConeIdentity::CORE)
+        {
+            return Err(SelectedDependencyMirSetBuildError::SelectedTrustedCore);
+        }
+        if let Some(pair) = selected.windows(2).find(|pair| {
+            (pair[0].provider(), pair[0].declaration())
+                == (pair[1].provider(), pair[1].declaration())
+        }) {
+            return Err(SelectedDependencyMirSetBuildError::DuplicateCallable {
+                provider: pair[0].provider(),
+                declaration: pair[0].declaration(),
+            });
+        }
         let mut by_declaration = BTreeMap::new();
-        let mut callables = Vec::with_capacity(bridge.selected().len());
-        for selected in bridge.selected() {
+        let mut callables = Vec::with_capacity(selected.len());
+        for selected in selected {
             let index = u32::try_from(callables.len()).map_err(|_| {
                 SelectedDependencyMirSetBuildError::TooManyCallables {
-                    count: bridge.selected().len(),
+                    count: callables.len().saturating_add(1),
                 }
             })?;
             let id = SelectedDependencyMirCallableId(index);
             by_declaration.insert((selected.provider(), selected.declaration()), id);
-            callables.push(selected.clone());
+            callables.push(selected);
         }
         Ok(Self {
-            consumer: bridge.artifact(),
+            consumer,
             selection: next_dependency_mir_selection(),
             by_declaration,
             callables,
@@ -157,7 +197,17 @@ impl SelectedDependencyMirSet {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedDependencyMirSetBuildError {
-    TooManyCallables { count: usize },
+    TooManyCallables {
+        count: usize,
+    },
+    SelectedCurrentProvider {
+        provider: ConeIdentity,
+    },
+    SelectedTrustedCore,
+    DuplicateCallable {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
 }
 
 impl fmt::Display for SelectedDependencyMirSetBuildError {
@@ -166,6 +216,19 @@ impl fmt::Display for SelectedDependencyMirSetBuildError {
             Self::TooManyCallables { count } => write!(
                 formatter,
                 "dependency MIR selection contains {count} callables, exceeding the u32 id domain"
+            ),
+            Self::SelectedCurrentProvider { provider } => write!(
+                formatter,
+                "dependency MIR selection names current Cone {provider} as an ordinary provider"
+            ),
+            Self::SelectedTrustedCore => formatter
+                .write_str("dependency MIR selection names trusted core as an ordinary provider"),
+            Self::DuplicateCallable {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "dependency MIR selection contains duplicate callable {provider}:{declaration:?}"
             ),
         }
     }

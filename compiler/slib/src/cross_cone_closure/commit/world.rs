@@ -60,7 +60,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
     }
 }
 
-fn provider_certificate(
+pub(super) fn provider_certificate(
     artifact: &ValidatedCompileArtifact<'_, CrossConeSemanticsStrongProfile>,
 ) -> ImportedProviderCertificate {
     let semantic = artifact.semantic_fingerprints();

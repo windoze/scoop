@@ -27,20 +27,58 @@ impl SelectedDependencyLirSet {
     pub fn try_from_bridge(
         bridge: &CrossConeLirBridgeSectionV1,
     ) -> Result<Self, SelectedDependencyLirSetBuildError> {
+        Self::try_from_callables(bridge.artifact(), bridge.selected().to_vec())
+    }
+
+    /// Seals a producer-side selection after its records have been projected
+    /// from an already validated dependency closure.
+    #[doc(hidden)]
+    pub fn try_from_callables(
+        consumer: ConeIdentity,
+        mut selected: Vec<SelectedDependencyLirCallableV1>,
+    ) -> Result<Self, SelectedDependencyLirSetBuildError> {
+        selected.sort_unstable_by_key(|callable| {
+            (callable.provider(), callable.bridge().declaration())
+        });
+        if let Some(callable) = selected
+            .iter()
+            .find(|callable| callable.provider() == consumer)
+        {
+            return Err(
+                SelectedDependencyLirSetBuildError::SelectedCurrentProvider {
+                    provider: callable.provider(),
+                },
+            );
+        }
+        if selected
+            .iter()
+            .any(|callable| callable.provider() == ConeIdentity::CORE)
+        {
+            return Err(SelectedDependencyLirSetBuildError::SelectedTrustedCore);
+        }
+        if let Some(pair) = selected.windows(2).find(|pair| {
+            (pair[0].provider(), pair[0].bridge().declaration())
+                == (pair[1].provider(), pair[1].bridge().declaration())
+        }) {
+            return Err(SelectedDependencyLirSetBuildError::DuplicateCallable {
+                provider: pair[0].provider(),
+                declaration: pair[0].bridge().declaration(),
+            });
+        }
         let mut by_declaration = BTreeMap::new();
-        let mut callables = Vec::with_capacity(bridge.selected().len());
-        for selected in bridge.selected() {
+        let mut callables = Vec::with_capacity(selected.len());
+        for selected in selected {
             let index = u32::try_from(callables.len()).map_err(|_| {
                 SelectedDependencyLirSetBuildError::TooManyCallables {
-                    count: bridge.selected().len(),
+                    count: callables.len().saturating_add(1),
                 }
             })?;
             let id = SelectedDependencyLirCallableId(index);
             by_declaration.insert((selected.provider(), selected.bridge().declaration()), id);
-            callables.push(selected.clone());
+            callables.push(selected);
         }
         Ok(Self {
-            consumer: bridge.artifact(),
+            consumer,
             by_declaration,
             callables,
         })
@@ -80,7 +118,17 @@ impl SelectedDependencyLirSet {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectedDependencyLirSetBuildError {
-    TooManyCallables { count: usize },
+    TooManyCallables {
+        count: usize,
+    },
+    SelectedCurrentProvider {
+        provider: ConeIdentity,
+    },
+    SelectedTrustedCore,
+    DuplicateCallable {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
 }
 
 impl fmt::Display for SelectedDependencyLirSetBuildError {
@@ -89,6 +137,19 @@ impl fmt::Display for SelectedDependencyLirSetBuildError {
             Self::TooManyCallables { count } => write!(
                 formatter,
                 "dependency LIR selection contains {count} callables, exceeding the u32 id domain"
+            ),
+            Self::SelectedCurrentProvider { provider } => write!(
+                formatter,
+                "dependency LIR selection names current Cone {provider} as an ordinary provider"
+            ),
+            Self::SelectedTrustedCore => formatter
+                .write_str("dependency LIR selection names trusted core as an ordinary provider"),
+            Self::DuplicateCallable {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "dependency LIR selection contains duplicate callable {provider}:{declaration:?}"
             ),
         }
     }

@@ -192,3 +192,63 @@ fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
         .unwrap();
     assert_eq!(selection.callable(id), selection.callables().first());
 }
+
+#[test]
+fn producer_side_lir_selection_is_canonical_and_closed() {
+    let first = Fixture::new("firstSelection");
+    let second = Fixture::new("secondSelection");
+    let consumer = ConeCoordinate::new("test", "lir-selection-consumer", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let selected = |fixture: &Fixture, provider| {
+        SelectedDependencyLirCallableV1::new(
+            provider,
+            fixture.declaration,
+            fixture.target,
+            fixture.abi.clone(),
+            CallingConvention::Cdecl,
+            DependencyExternalCallableRootPlanV1::NoGc,
+        )
+        .unwrap()
+    };
+    let mut expected = vec![
+        selected(&first, first.producer),
+        selected(&second, second.producer),
+    ];
+    expected
+        .sort_unstable_by_key(|callable| (callable.provider(), callable.bridge().declaration()));
+
+    let selection = SelectedDependencyLirSet::try_from_callables(
+        consumer,
+        expected.iter().cloned().rev().collect(),
+    )
+    .unwrap();
+    assert_eq!(selection.callables(), expected);
+
+    let duplicate = selected(&first, first.producer);
+    assert!(matches!(
+        SelectedDependencyLirSet::try_from_callables(consumer, vec![duplicate.clone(), duplicate],),
+        Err(SelectedDependencyLirSetBuildError::DuplicateCallable { .. })
+    ));
+
+    for (provider, expected) in [
+        (
+            consumer,
+            SelectedDependencyLirSetBuildError::SelectedCurrentProvider { provider: consumer },
+        ),
+        (
+            ConeIdentity::CORE,
+            SelectedDependencyLirSetBuildError::SelectedTrustedCore,
+        ),
+    ] {
+        assert_eq!(
+            SelectedDependencyLirSet::try_from_callables(
+                consumer,
+                vec![selected(&first, provider)],
+            )
+            .err(),
+            Some(expected)
+        );
+    }
+}
