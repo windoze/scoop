@@ -5,7 +5,7 @@ use super::arguments::ImportedParameterInput;
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(in super::super) fn commit_imported_dependency_callable(
+    pub(in crate::expr) fn commit_imported_dependency_callable(
         &mut self,
         probe: ImportedDependencyCallProbe,
         sink: &mut Vec<hir::Statement>,

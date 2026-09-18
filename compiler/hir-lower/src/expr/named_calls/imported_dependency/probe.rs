@@ -4,6 +4,12 @@ use scoop_hir as hir;
 use super::{ImportedArgumentMap, ImportedDependencyCallProbe};
 use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
+use crate::expr::CallSite;
+
+enum ImportedDependencyCallReceiver {
+    Implicit,
+    Explicit(hir::Expr),
+}
 
 impl Lowerer {
     pub(in super::super) fn probe_imported_dependency_callable(
@@ -11,6 +17,44 @@ impl Lowerer {
         binding: &hir::DirectImportedTargetBinding,
         call: &ast::CallExpr,
         expected: Option<hir::TypeId>,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_dependency_callable_with_receiver(
+            binding,
+            &call.callee,
+            CallSite {
+                type_args: &call.type_args,
+                args: &call.args,
+                span: call.span,
+            },
+            expected,
+            ImportedDependencyCallReceiver::Implicit,
+        )
+    }
+
+    pub(in crate::expr) fn probe_imported_dependency_extension_callable(
+        &self,
+        binding: &hir::DirectImportedTargetBinding,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        expected: Option<hir::TypeId>,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_dependency_callable_with_receiver(
+            binding,
+            name,
+            call,
+            expected,
+            ImportedDependencyCallReceiver::Explicit(receiver),
+        )
+    }
+
+    fn probe_imported_dependency_callable_with_receiver(
+        &self,
+        binding: &hir::DirectImportedTargetBinding,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        expected: Option<hir::TypeId>,
+        receiver_source: ImportedDependencyCallReceiver,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         let mut state = self.clone();
         let candidate = match state
@@ -22,7 +66,7 @@ impl Lowerer {
             Ok(candidate) => candidate,
             Err(error) => {
                 state.error(
-                    call.callee.span,
+                    name.span,
                     format!("invalid imported dependency callable: {error}"),
                 );
                 return Err(Box::new(state));
@@ -32,10 +76,10 @@ impl Lowerer {
         let expected_type_arguments = interface.type_parameters().binders().len();
         if call.type_args.len() != expected_type_arguments {
             state.error(
-                call.callee.span,
+                name.span,
                 format!(
                     "dependency function `{}` expects {expected_type_arguments} type argument(s), found {}",
-                    call.callee.text,
+                    name.text,
                     call.type_args.len()
                 ),
             );
@@ -43,42 +87,66 @@ impl Lowerer {
         }
         let Some(source) = candidate.source_interface() else {
             state.error(
-                call.callee.span,
+                name.span,
                 format!(
                     "invalid imported dependency callable `{}`: source interface is missing",
-                    call.callee.text
+                    name.text
                 ),
             );
             return Err(Box::new(state));
         };
         let argument_map =
-            match ImportedArgumentMap::source(source.parameters().parameters(), &call.args) {
+            match ImportedArgumentMap::source(source.parameters().parameters(), call.args) {
                 Ok(map) => map,
                 Err(error) => {
-                    state.imported_dependency_shape_error(call, error);
+                    state.imported_dependency_shape_error(name, call, error);
                     return Err(Box::new(state));
                 }
             };
 
         let receiver = match interface.owner() {
-            hir::PublicDeclarationOwnerV1::TopLevel => None,
+            hir::PublicDeclarationOwnerV1::TopLevel => match receiver_source {
+                ImportedDependencyCallReceiver::Implicit => None,
+                ImportedDependencyCallReceiver::Explicit(_) => {
+                    state.error(
+                        name.span,
+                        format!("dependency function `{}` is not an extension", name.text),
+                    );
+                    return Err(Box::new(state));
+                }
+            },
             hir::PublicDeclarationOwnerV1::Extension => {
                 let Some(receiver_signature) = interface.receiver() else {
                     state.error(
-                        call.callee.span,
+                        name.span,
                         format!(
                             "invalid imported dependency extension `{}`: receiver type is missing",
-                            call.callee.text
+                            name.text
                         ),
                     );
                     return Err(Box::new(state));
                 };
                 let receiver_type = state.imported_signature_type(receiver_signature).ok();
-                let Some(receiver) = state.lower_current_this(call.callee.span) else {
-                    return Err(Box::new(state));
+                let receiver = match receiver_source {
+                    ImportedDependencyCallReceiver::Implicit => {
+                        let Some(receiver) = state.lower_current_this(name.span) else {
+                            return Err(Box::new(state));
+                        };
+                        receiver
+                    }
+                    ImportedDependencyCallReceiver::Explicit(receiver) => receiver,
                 };
                 if let Some(receiver_type) = receiver_type {
                     if !state.is_subtype(receiver.ty, receiver_type) {
+                        state.error(
+                            name.span,
+                            format!(
+                                "dependency extension `{}` expects receiver {}, found {}",
+                                name.text,
+                                state.type_name(receiver_type),
+                                state.type_name(receiver.ty),
+                            ),
+                        );
                         return Err(Box::new(state));
                     }
                     Some(state.adapt_to(receiver, receiver_type))
@@ -86,7 +154,16 @@ impl Lowerer {
                     Some(receiver)
                 }
             }
-            hir::PublicDeclarationOwnerV1::Nominal(_) => None,
+            hir::PublicDeclarationOwnerV1::Nominal(_) => {
+                if matches!(receiver_source, ImportedDependencyCallReceiver::Explicit(_)) {
+                    state.error(
+                        name.span,
+                        format!("dependency function `{}` is not an extension", name.text),
+                    );
+                    return Err(Box::new(state));
+                }
+                None
+            }
         };
         let parameter_types = interface
             .parameters()
@@ -109,7 +186,7 @@ impl Lowerer {
                 call.span,
                 format!(
                     "dependency function `{}` returns {}, which is not compatible with expected {}",
-                    call.callee.text,
+                    name.text,
                     state.type_name(result_type),
                     state.type_name(expected)
                 ),
@@ -180,7 +257,7 @@ impl Lowerer {
 
         Ok(ImportedDependencyCallProbe {
             declaration_file: state.current_file,
-            declaration_span: call.callee.span,
+            declaration_span: name.span,
             state: Box::new(state),
             candidate,
             receiver,
@@ -198,16 +275,13 @@ impl Lowerer {
 
     fn imported_dependency_shape_error(
         &mut self,
-        call: &ast::CallExpr,
+        name: &ast::Ident,
+        call: CallSite<'_>,
         error: ArgumentShapeFailure,
     ) {
         self.error(
             call.span,
-            format!(
-                "dependency function `{}` {}",
-                call.callee.text,
-                error.describe()
-            ),
+            format!("dependency function `{}` {}", name.text, error.describe()),
         );
     }
 }

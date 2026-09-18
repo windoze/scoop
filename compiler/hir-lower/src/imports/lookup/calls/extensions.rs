@@ -1,6 +1,6 @@
 //! Current-unit extension role lookup derived from named call layers.
 
-use super::NamedCallTarget;
+use super::{NamedCallOrigin, NamedCallTarget};
 use crate::Lowerer;
 use crate::imports::lookup::LookupLayer;
 use crate::imports::{
@@ -8,6 +8,35 @@ use crate::imports::{
 };
 use crate::namespace::TopLevelLookupLayer;
 use scoop_hir as hir;
+
+#[derive(Debug, Clone)]
+pub(crate) enum ExtensionCallTarget {
+    Current(hir::FunctionId),
+    Dependency(hir::DirectImportedTargetBinding),
+}
+
+impl ExtensionCallTarget {
+    const fn identity(&self) -> ExtensionCallIdentity {
+        match self {
+            Self::Current(function) => ExtensionCallIdentity::Current(*function),
+            Self::Dependency(binding) => ExtensionCallIdentity::Dependency(binding.target()),
+        }
+    }
+}
+
+impl PartialEq for ExtensionCallTarget {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity() == other.identity()
+    }
+}
+
+impl Eq for ExtensionCallTarget {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExtensionCallIdentity {
+    Current(hir::FunctionId),
+    Dependency(hir::ImportedTarget),
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum ExtensionPropertyTarget {
@@ -144,6 +173,24 @@ impl Lowerer {
             .collect()
     }
 
+    pub(crate) fn named_executable_extension_operator_layers(
+        &self,
+        operator: hir::OperatorKind,
+    ) -> Vec<LookupLayer<ExtensionCallTarget>> {
+        self.named_extension_operator_layers(operator)
+            .into_iter()
+            .map(|layer| LookupLayer {
+                kind: layer.kind,
+                candidates: layer
+                    .candidates
+                    .into_iter()
+                    .map(ExtensionCallTarget::Current)
+                    .collect(),
+                suppressed_callables: layer.suppressed_callables,
+            })
+            .collect()
+    }
+
     pub(crate) fn named_extension_delegate_operator_layers(
         &self,
         role: hir::PropertyDelegateOperatorKind,
@@ -200,6 +247,56 @@ impl Lowerer {
             layers.truncate(index + 1);
         }
         layers
+    }
+
+    pub(crate) fn named_executable_extension_call_layers(
+        &self,
+        name: &str,
+    ) -> Vec<LookupLayer<ExtensionCallTarget>> {
+        self.named_call_layers(name)
+            .into_iter()
+            .map(|layer| LookupLayer {
+                kind: layer.kind,
+                suppressed_callables: layer
+                    .suppressed_callables
+                    .into_iter()
+                    .filter(|function| self.extension_receivers.contains_key(function))
+                    .collect(),
+                candidates: layer
+                    .candidates
+                    .into_iter()
+                    .filter_map(|binding| match (binding.target, binding.origin) {
+                        (NamedCallTarget::Function(function), _)
+                            if self.extension_receivers.contains_key(&function) =>
+                        {
+                            Some(ExtensionCallTarget::Current(function))
+                        }
+                        (
+                            NamedCallTarget::ImportedDependency(
+                                hir::ImportedTarget::Function(_)
+                                | hir::ImportedTarget::GenericFunction(_),
+                            ),
+                            NamedCallOrigin::Dependency(binding),
+                        ) if self.imported_dependency_callable_is_extension(&binding) => {
+                            Some(ExtensionCallTarget::Dependency(binding))
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+            })
+            .collect()
+    }
+
+    fn imported_dependency_callable_is_extension(
+        &self,
+        binding: &hir::DirectImportedTargetBinding,
+    ) -> bool {
+        self.dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.callable_candidate(binding).ok())
+            .is_some_and(|candidate| {
+                candidate.interface().owner() == hir::PublicDeclarationOwnerV1::Extension
+            })
     }
 
     /// The declaration candidates visible to an unqualified callable

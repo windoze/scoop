@@ -278,40 +278,6 @@ impl Lowerer {
         .into_option()
     }
 
-    pub(crate) fn resolve_extension_overload_outcome(
-        &mut self,
-        name: &str,
-        candidates: &[FunctionId],
-        receiver: hir::Expr,
-        call: OverloadCall<'_>,
-        sink: &mut Vec<hir::Statement>,
-    ) -> OverloadResolutionOutcome {
-        let candidates = candidates
-            .iter()
-            .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    Vec::new(),
-                    self.function_lookup_witness(function),
-                )
-            })
-            .collect::<Vec<_>>();
-        self.resolve_overload_with_receiver(
-            name,
-            &candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Extension(receiver),
-                explicit_type_args: call.explicit_type_args,
-                arguments: OverloadArguments::Source(call.arg_exprs),
-                span: call.span,
-                expected_result: call.expected_result,
-                argument_protocol: call.argument_protocol,
-            },
-            sink,
-        )
-    }
-
     pub(crate) fn resolve_member_overload_lowered_outcome(
         &mut self,
         name: &str,

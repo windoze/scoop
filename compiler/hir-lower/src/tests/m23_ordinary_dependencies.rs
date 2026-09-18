@@ -1,9 +1,13 @@
 use scoop_identity::{ConeCoordinate, SignatureTypeKey};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
-use super::{call, file, fun, stmt};
+use super::{
+    Decl, call, extension_expr, file, fun, fun_expr, ident, int_lit, make_core_public, method_call,
+    sp, stmt, this_expr, tuple_lit, ty_named, ty_tuple,
+};
 use crate::{OrdinarySources, lower_ordinary};
 
+mod extensions;
 pub(super) mod support;
 
 use support::*;

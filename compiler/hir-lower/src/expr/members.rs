@@ -2,6 +2,7 @@ use super::*;
 use crate::NominalTarget;
 use crate::imports::lookup::calls::{ExpressionQualifierLookup, ExpressionQualifierTarget};
 
+mod extension_calls;
 mod extensions;
 mod interface_super;
 mod pointers;
@@ -591,8 +592,8 @@ impl Lowerer {
         }
 
         let mut extension_layers = match direct_required.operator {
-            Some(operator) => self.named_extension_operator_layers(operator),
-            None => self.named_extension_call_layers(&name.text),
+            Some(operator) => self.named_executable_extension_operator_layers(operator),
+            None => self.named_executable_extension_call_layers(&name.text),
         };
         let mut invoke_layers = self.named_extension_call_layers("invoke");
         let mut extension_property_layers = self.named_extension_property_layers(&name.text);
@@ -619,20 +620,18 @@ impl Lowerer {
                     )
                 });
             let extensions =
-                Self::extension_candidates_at_rank(&extension_layers, rank, |function| {
-                    Self::matches_required_modifiers(
-                        self.signatures[&function].modifiers,
-                        direct_required,
-                    )
+                Self::extension_candidates_at_rank(&extension_layers, rank, |target| {
+                    self.extension_call_target_matches_required(target, direct_required)
                 });
             if !extensions.is_empty() {
                 match self.probe_extension_call_partition(
                     &extensions,
-                    &name.text,
+                    name,
                     receiver.clone(),
                     call,
                     expected,
                     false,
+                    "extension candidate",
                 ) {
                     PropertyExtensionInvokeOutcome::Resolved(layer) => {
                         return Some(self.commit_expr_layer(layer, sink));
@@ -652,7 +651,7 @@ impl Lowerer {
 
             let invokes = Self::extension_candidates_at_rank(&invoke_layers, rank, |function| {
                 Self::matches_required_modifiers(
-                    self.signatures[&function].modifiers,
+                    self.signatures[function].modifiers,
                     RequiredCallableModifiers {
                         operator: Some(hir::OperatorKind::Invoke),
                         infix: direct_required.infix,
@@ -864,21 +863,22 @@ impl Lowerer {
             && (!required.infix || modifiers.is_infix)
     }
 
-    fn extension_candidates_at_rank(
-        layers: &[crate::imports::lookup::LookupLayer<hir::FunctionId>],
+    fn extension_candidates_at_rank<T: Clone>(
+        layers: &[crate::imports::lookup::LookupLayer<T>],
         rank: usize,
-        predicate: impl Fn(hir::FunctionId) -> bool,
-    ) -> Vec<hir::FunctionId> {
+        predicate: impl Fn(&T) -> bool,
+    ) -> Vec<T> {
         layers
             .iter()
             .filter(|layer| layer.kind.call_rank() == rank)
-            .flat_map(|layer| layer.candidates.iter().copied())
-            .filter(|function| predicate(*function))
+            .flat_map(|layer| layer.candidates.iter())
+            .filter(|candidate| predicate(candidate))
+            .cloned()
             .collect()
     }
 
-    fn suppressed_extensions_at_rank(
-        layers: &[crate::imports::lookup::LookupLayer<hir::FunctionId>],
+    fn suppressed_extensions_at_rank<T>(
+        layers: &[crate::imports::lookup::LookupLayer<T>],
         rank: usize,
         predicate: impl Fn(hir::FunctionId) -> bool,
     ) -> bool {
@@ -976,72 +976,6 @@ impl Lowerer {
                 let expression = state
                     .finish_resolved_method_call(*resolved, call.span)
                     .expect("a resolved member call always materializes an expression");
-                PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
-                    state: Box::new(state),
-                    expression,
-                    sink: layer_sink,
-                })
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn probe_extension_call_partition(
-        &self,
-        candidates: &[hir::FunctionId],
-        name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        expected: Option<TypeId>,
-        operator_set: bool,
-    ) -> PropertyExtensionInvokeOutcome {
-        use crate::overload::{CallArgumentProtocol, OverloadCall, OverloadResolutionOutcome};
-
-        if candidates.is_empty() {
-            return PropertyExtensionInvokeOutcome::NoApplicable(None);
-        }
-        let mut state = self.clone();
-        let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
-            return PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)));
-        };
-        let mut layer_sink = Vec::new();
-        match state.resolve_extension_overload_outcome(
-            name,
-            candidates,
-            receiver,
-            OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: if operator_set {
-                    CallArgumentProtocol::OperatorSet
-                } else {
-                    CallArgumentProtocol::Ordinary
-                },
-            },
-            &mut layer_sink,
-        ) {
-            OverloadResolutionOutcome::NoApplicable => {
-                PropertyExtensionInvokeOutcome::NoApplicable(Some(Box::new(state)))
-            }
-            OverloadResolutionOutcome::Blocked => PropertyExtensionInvokeOutcome::Blocked,
-            OverloadResolutionOutcome::Failed => {
-                PropertyExtensionInvokeOutcome::Failed(Box::new(state))
-            }
-            OverloadResolutionOutcome::Resolved(resolved) => {
-                let resolved = *resolved;
-                let callee = state.materialize_resolved_callee(&resolved);
-                state.check_call_effects(callee, call.span);
-                let expression = hir::Expr {
-                    kind: hir::ExprKind::Call {
-                        callee,
-                        args: resolved.args,
-                    },
-                    ty: resolved.return_ty,
-                    span: call.span,
-                    origin: state.expression_origin(call.span),
-                };
                 PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
                     state: Box::new(state),
                     expression,
@@ -1289,8 +1223,8 @@ impl Lowerer {
         }
 
         let extension_layers = match required.operator {
-            Some(operator) => self.named_extension_operator_layers(operator),
-            None => self.named_extension_call_layers(&name.text),
+            Some(operator) => self.named_executable_extension_operator_layers(operator),
+            None => self.named_executable_extension_call_layers(&name.text),
         };
         for layer in extension_layers {
             let suppressed = layer.suppressed_callables.iter().copied().any(|function| {
@@ -1299,10 +1233,7 @@ impl Lowerer {
             let extensions = layer
                 .candidates
                 .into_iter()
-                .filter(|function| {
-                    let modifiers = self.signatures[function].modifiers;
-                    Self::matches_required_modifiers(modifiers, required)
-                })
+                .filter(|target| self.extension_call_target_matches_required(target, required))
                 .collect::<Vec<_>>();
             if extensions.is_empty() {
                 if suppressed {
@@ -1312,11 +1243,12 @@ impl Lowerer {
             }
             match self.probe_extension_call_partition(
                 &extensions,
-                &name.text,
+                name,
                 receiver.clone(),
                 call,
                 expected,
                 required.operator == Some(hir::OperatorKind::Set),
+                "extension candidate",
             ) {
                 PropertyExtensionInvokeOutcome::Resolved(layer) => {
                     return Some(self.commit_expr_layer(layer, sink));
