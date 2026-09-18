@@ -46,6 +46,23 @@ impl DependencyWorldFixture {
         ])
     }
 
+    pub(super) fn with_distinct_types() -> Self {
+        Self::with_direct(vec![
+            ProviderFixture::with_nested_type(
+                ConeCoordinate::new("test", "first-dependency", "1.0.0").unwrap(),
+                package_path(&["first", "api"]),
+                "First",
+                "FirstNested",
+            ),
+            ProviderFixture::with_nested_type(
+                ConeCoordinate::new("test", "second-dependency", "1.0.0").unwrap(),
+                package_path(&["second", "api"]),
+                "Second",
+                "SecondNested",
+            ),
+        ])
+    }
+
     pub(super) fn with_function_overloads(
         package: &[&str],
         name: &str,

@@ -13,6 +13,7 @@ use crate::{Lowerer, namespace::TopLevelLookupLayer};
 pub(crate) struct FrozenReexportBinding {
     pub(crate) identity: hir::HirExportBindingIdentity,
     pub(crate) target: hir::ImportedTarget,
+    pub(crate) conflict: hir::ImportedBindingConflictKey,
     pub(crate) routes: hir::CanonicalReexportRoutesV1,
     pub(crate) origins: ast::NonEmptyVec<ImportSyntaxOrigin>,
 }
@@ -21,6 +22,7 @@ impl PartialEq for FrozenReexportBinding {
     fn eq(&self, other: &Self) -> bool {
         self.identity == other.identity
             && self.target == other.target
+            && self.conflict == other.conflict
             && self.routes == other.routes
             && self.origins.iter().eq(other.origins.iter())
     }
@@ -30,8 +32,15 @@ impl Eq for FrozenReexportBinding {}
 
 struct ReexportAccumulator {
     target: hir::ImportedTarget,
+    conflict: hir::ImportedBindingConflictKey,
     routes: Vec<hir::ReexportRouteV1>,
-    origins: Vec<ImportSyntaxOrigin>,
+    origins: Vec<PendingReexportOrigin>,
+}
+
+#[derive(Clone)]
+struct PendingReexportOrigin {
+    file: usize,
+    syntax: ImportSyntaxOrigin,
 }
 
 impl CurrentUnitImports {
@@ -60,6 +69,7 @@ impl CurrentUnitImports {
                 let name = canonical_name(file, import.origin.span, &import.local_name)?;
                 for target in import.targets.iter() {
                     append(
+                        file,
                         lowerer.current_cone(),
                         package.clone(),
                         name.clone(),
@@ -77,6 +87,7 @@ impl CurrentUnitImports {
                     let name = canonical_name(file, import.origin.span, name)?;
                     for target in targets.iter() {
                         append(
+                            file,
                             lowerer.current_cone(),
                             package.clone(),
                             name.clone(),
@@ -89,15 +100,22 @@ impl CurrentUnitImports {
             }
         }
 
-        let mut reexports = Vec::with_capacity(pending.len());
-        for (key, mut binding) in pending {
+        for binding in pending.values_mut() {
             binding.origins.sort_by(|left, right| {
-                left.source
-                    .cmp(&right.source)
-                    .then_with(|| left.span.start.cmp(&right.span.start))
-                    .then_with(|| left.span.end.cmp(&right.span.end))
+                left.syntax
+                    .source
+                    .cmp(&right.syntax.source)
+                    .then_with(|| left.syntax.span.start.cmp(&right.syntax.span.start))
+                    .then_with(|| left.syntax.span.end.cmp(&right.syntax.span.end))
             });
-            binding.origins.dedup();
+            binding
+                .origins
+                .dedup_by(|left, right| left.syntax == right.syntax);
+        }
+        validate_destination_conflicts(&pending)?;
+
+        let mut reexports = Vec::with_capacity(pending.len());
+        for (key, binding) in pending {
             let [first, rest @ ..] = binding.origins.as_slice() else {
                 return Err(ReexportPlanBuildError::MissingOrigin);
             };
@@ -108,8 +126,12 @@ impl CurrentUnitImports {
             reexports.push(FrozenReexportBinding {
                 identity,
                 target: binding.target,
+                conflict: binding.conflict,
                 routes,
-                origins: ast::NonEmptyVec::new(first.clone(), rest.to_vec()),
+                origins: ast::NonEmptyVec::new(
+                    first.syntax.clone(),
+                    rest.iter().map(|origin| origin.syntax.clone()).collect(),
+                ),
             });
         }
         reexports.sort_unstable_by_key(|binding| binding.identity.id());
@@ -119,6 +141,7 @@ impl CurrentUnitImports {
 }
 
 fn append(
+    file: usize,
     exporter: scoop_identity::ConeIdentity,
     package: PackagePath,
     name: CanonicalIdentifier,
@@ -135,18 +158,55 @@ fn append(
     let key = ExportBindingKey::new(exporter, package, name, binding.binding_target());
     let entry = pending.entry(key).or_insert_with(|| ReexportAccumulator {
         target: binding.target(),
+        conflict: binding.conflict_key().clone(),
         routes: Vec::new(),
         origins: Vec::new(),
     });
     if entry.target != binding.target() {
         return Err(ReexportPlanBuildError::TargetMismatch);
     }
+    if entry.conflict != *binding.conflict_key() {
+        return Err(ReexportPlanBuildError::ConflictKeyMismatch);
+    }
     entry.routes.extend(
         binding
             .sources()
             .map(|source| source.witness().route().clone()),
     );
-    entry.origins.push(origin.clone());
+    entry.origins.push(PendingReexportOrigin {
+        file,
+        syntax: origin.clone(),
+    });
+    Ok(())
+}
+
+fn validate_destination_conflicts(
+    pending: &BTreeMap<ExportBindingKey, ReexportAccumulator>,
+) -> Result<(), ReexportPlanBuildError> {
+    let mut occupied = BTreeMap::new();
+    for (key, binding) in pending {
+        let slot = (
+            key.package().clone(),
+            key.name().clone(),
+            binding.conflict.clone(),
+        );
+        match occupied.get(&slot) {
+            Some(previous) if *previous != key.binding_target() => {
+                let origin = binding
+                    .origins
+                    .first()
+                    .ok_or(ReexportPlanBuildError::MissingOrigin)?;
+                return Err(ReexportPlanBuildError::DestinationConflict {
+                    file: origin.file,
+                    span: origin.syntax.span,
+                });
+            }
+            Some(_) => {}
+            None => {
+                occupied.insert(slot, key.binding_target());
+            }
+        }
+    }
     Ok(())
 }
 
@@ -189,6 +249,11 @@ pub(crate) enum ReexportPlanBuildError {
     },
     NonDependencyTarget,
     TargetMismatch,
+    ConflictKeyMismatch,
+    DestinationConflict {
+        file: usize,
+        span: ast::Span,
+    },
     MissingOrigin,
     InvalidIdentity(String),
     InvalidRoutes(hir::ReexportRouteSetBuildError),
@@ -198,10 +263,12 @@ impl ReexportPlanBuildError {
     pub(crate) const fn file(&self) -> usize {
         match self {
             Self::InvalidName { file, .. } => *file,
+            Self::DestinationConflict { file, .. } => *file,
             Self::CoreSource
             | Self::InvalidPackage(_)
             | Self::NonDependencyTarget
             | Self::TargetMismatch
+            | Self::ConflictKeyMismatch
             | Self::MissingOrigin
             | Self::InvalidIdentity(_)
             | Self::InvalidRoutes(_) => 0,
@@ -211,10 +278,12 @@ impl ReexportPlanBuildError {
     pub(crate) const fn span(&self) -> ast::Span {
         match self {
             Self::InvalidName { span, .. } => *span,
+            Self::DestinationConflict { span, .. } => *span,
             Self::CoreSource
             | Self::InvalidPackage(_)
             | Self::NonDependencyTarget
             | Self::TargetMismatch
+            | Self::ConflictKeyMismatch
             | Self::MissingOrigin
             | Self::InvalidIdentity(_)
             | Self::InvalidRoutes(_) => ast::Span { start: 0, end: 0 },
@@ -238,6 +307,11 @@ impl fmt::Display for ReexportPlanBuildError {
             Self::TargetMismatch => formatter.write_str(
                 "a re-export binding target disagrees with its imported terminal target",
             ),
+            Self::ConflictKeyMismatch => formatter
+                .write_str("a re-export binding disagrees with its imported target conflict key"),
+            Self::DestinationConflict { .. } => {
+                formatter.write_str("re-export destination conflicts with another public binding")
+            }
             Self::MissingOrigin => {
                 formatter.write_str("a re-export binding must retain a source origin")
             }

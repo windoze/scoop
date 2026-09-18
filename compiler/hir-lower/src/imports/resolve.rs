@@ -1,3 +1,7 @@
+use std::collections::BTreeMap;
+
+use scoop_identity::BindingTarget;
+
 use super::selector::SelectorResult;
 use super::*;
 use crate::SourceKind;
@@ -48,6 +52,7 @@ impl CurrentUnitImports {
     ) -> FrozenFileImports {
         let diagnostics_before = lowerer.diagnostics.len();
         let mut frozen = FrozenFileImports::default();
+        let mut exact_dependency_slots = BTreeMap::new();
         debug_assert_eq!(
             lowerer.intrinsic_sources[lowerer.current_file].kind,
             SourceKind::CurrentUnit
@@ -110,19 +115,32 @@ impl CurrentUnitImports {
                     ) else {
                         continue;
                     };
+                    let local_name = alias
+                        .as_ref()
+                        .map(|alias| alias.name.text.clone())
+                        .unwrap_or_else(|| {
+                            selector
+                                .segments()
+                                .last()
+                                .expect("selector is non-empty")
+                                .text
+                                .clone()
+                        });
+                    if !stage_exact_dependency_targets(
+                        &mut exact_dependency_slots,
+                        &local_name,
+                        &targets,
+                    ) {
+                        lowerer.error(
+                            selector.span,
+                            "import target is ambiguous in the current compilation unit"
+                                .to_string(),
+                        );
+                        continue;
+                    }
                     frozen.exact.push(ResolvedExactImport {
                         exposure,
-                        local_name: alias
-                            .as_ref()
-                            .map(|alias| alias.name.text.clone())
-                            .unwrap_or_else(|| {
-                                selector
-                                    .segments()
-                                    .last()
-                                    .expect("selector is non-empty")
-                                    .text
-                                    .clone()
-                            }),
+                        local_name,
                         source_role: if alias.is_some() {
                             scoop_identity::LocalBindingRole::AliasImport
                         } else {
@@ -279,4 +297,30 @@ impl CurrentUnitImports {
             }
         }
     }
+}
+
+fn stage_exact_dependency_targets(
+    slots: &mut BTreeMap<(String, hir::ImportedBindingConflictKey), BindingTarget>,
+    local_name: &str,
+    targets: &ast::NonEmptyVec<ImportedTargetBinding>,
+) -> bool {
+    let direct = targets
+        .iter()
+        .filter_map(ImportedTargetBinding::direct_binding);
+    for target in direct.clone() {
+        let key = (local_name.to_owned(), target.conflict_key().clone());
+        if slots
+            .get(&key)
+            .is_some_and(|existing| *existing != target.binding_target())
+        {
+            return false;
+        }
+    }
+    for target in direct {
+        slots.insert(
+            (local_name.to_owned(), target.conflict_key().clone()),
+            target.binding_target(),
+        );
+    }
+    true
 }

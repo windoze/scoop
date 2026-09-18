@@ -66,6 +66,79 @@ fn reexport_destination_is_the_importing_source_package() {
     );
 }
 
+#[test]
+fn public_star_destination_conflict_aborts_the_whole_surface() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_conflicting_types(&["dependency", "api"], "Shared");
+    let world = fixture.world(lowerer.current_cone());
+    let mut surface = CurrentUnitImports::default();
+    let mut source = file(Vec::new());
+    source.imports.push(star(&["dependency", "api"], true));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    assert_eq!(resolved.stars.len(), 1);
+    surface.files.push(resolved);
+
+    let error = surface.freeze_reexports(&lowerer).unwrap_err();
+
+    assert!(lowerer.diagnostics.is_empty());
+    assert!(surface.reexports.is_empty());
+    assert!(matches!(
+        &error,
+        ReexportPlanBuildError::DestinationConflict { .. }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "re-export destination conflicts with another public binding"
+    );
+}
+
+#[test]
+fn public_star_preserves_distinct_dependency_overloads() {
+    let (lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_function_overloads(&["dependency", "api"], "invoke", [0, 1]);
+    let world = fixture.world(lowerer.current_cone());
+
+    let reexports = freeze(&lowerer, &world, vec![star(&["dependency", "api"], true)]);
+
+    assert_eq!(reexports.len(), 2);
+    assert!(
+        reexports
+            .iter()
+            .all(|binding| binding.identity.key().name().as_str() == "invoke")
+    );
+    assert_eq!(
+        reexports
+            .iter()
+            .map(|binding| &binding.conflict)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn public_star_rejects_same_signature_dependency_overloads() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_function_overloads(&["dependency", "api"], "invoke", [0, 0]);
+    let world = fixture.world(lowerer.current_cone());
+    let mut surface = CurrentUnitImports::default();
+    let mut source = file(Vec::new());
+    source.imports.push(star(&["dependency", "api"], true));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    assert_eq!(resolved.stars.len(), 1);
+    surface.files.push(resolved);
+
+    let error = surface.freeze_reexports(&lowerer).unwrap_err();
+
+    assert!(surface.reexports.is_empty());
+    assert!(matches!(
+        error,
+        ReexportPlanBuildError::DestinationConflict { .. }
+    ));
+}
+
 fn freeze(
     lowerer: &Lowerer,
     world: &hir::ImportedSemanticWorld<'_>,

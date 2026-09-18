@@ -202,6 +202,29 @@ fn exact_import_rejects_same_signature_dependency_overloads() {
 }
 
 #[test]
+fn repeated_exact_aliases_reject_incompatible_dependency_targets_atomically() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_distinct_types();
+    let world = fixture.world(lowerer.current_cone());
+    let first = exact(&["first", "api", "First"], Some("Shared"), false);
+    let second = exact(&["second", "api", "Second"], Some("Shared"), false);
+    let expected_span = selector_span(&second);
+    let mut source = file(Vec::new());
+    source.imports = vec![first, second];
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import target is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
+#[test]
 fn public_exact_and_star_freeze_direct_reexport_plans() {
     let (mut lowerer, _, _) = lowerer();
     let fixture =
