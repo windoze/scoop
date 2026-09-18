@@ -345,6 +345,15 @@ impl CanonicalHirFoundation {
         })
     }
 
+    pub(crate) fn field_by_bytes(
+        &self,
+        bytes: &[u8; 32],
+    ) -> Option<(PersistentFieldId, &FieldIdentityKey)> {
+        self.fields.iter().find_map(|record| {
+            (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
+        })
+    }
+
     pub(crate) fn definition_origin(
         &self,
         subject: scoop_identity::DefinitionOriginSubject,

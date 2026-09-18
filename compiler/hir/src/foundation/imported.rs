@@ -79,6 +79,10 @@ impl ImportedHirFoundation {
         self.identities.get(id).map(ImportedHirId)
     }
 
+    pub(crate) const fn canonical_for_semantic_authority(&self) -> &CanonicalHirFoundation {
+        &self.canonical
+    }
+
     /// Returns source metadata already authenticated as part of this
     /// provider's HIR foundation.
     pub fn source_record(
