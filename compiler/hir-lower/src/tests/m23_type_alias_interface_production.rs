@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use scoop_identity::{DefinitionOriginSubject, SignatureTypeKey};
 
 use super::*;
@@ -20,30 +18,6 @@ fn type_alias(name: &str, target: TypeRef, public: bool) -> Decl {
     })
 }
 
-fn lower_core_with_aliases(aliases: Vec<Decl>) -> hir::ExportHirOutput {
-    let mut source = complete_core_file();
-    source.declarations.extend(aliases);
-    let identity = core_source_identity("src/core.scoop");
-    let parsed = ast::CurrentConeParsedSources::try_new(
-        ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
-            ast::IdentifiedParsedSource::new(identity.clone(), source),
-            Vec::new(),
-        ))
-        .unwrap(),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceText::new(identity.clone(), String::new()),
-            Vec::new(),
-        ),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceDiagnosticContext::new(identity, PathBuf::from("<core>")),
-            Vec::new(),
-        ),
-    )
-    .unwrap();
-    let input = crate::CoreBootstrapSources::try_new(&parsed).unwrap();
-    crate::lower_core_bootstrap(&input).unwrap().export
-}
-
 fn lowered_alias<'module>(
     module: &'module hir::Module,
     name: &str,
@@ -57,7 +31,7 @@ fn lowered_alias<'module>(
 
 #[test]
 fn producer_projects_public_alias_edges_signatures_and_origins() {
-    let module = lower_core_with_aliases(vec![
+    let module = lower_core_with_additional_declarations(vec![
         type_alias("LeafForInterface", ty_named("Int"), true),
         type_alias("DirectForInterface", ty_named("LeafForInterface"), true),
         type_alias(
@@ -117,7 +91,7 @@ fn producer_projects_public_alias_edges_signatures_and_origins() {
 
 #[test]
 fn producer_rejects_a_public_alias_edge_to_a_non_public_alias() {
-    let module = lower_core_with_aliases(vec![
+    let module = lower_core_with_additional_declarations(vec![
         type_alias("HiddenAliasTarget", ty_named("Int"), false),
         type_alias("PublicAliasFacade", ty_named("HiddenAliasTarget"), true),
     ]);

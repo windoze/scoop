@@ -1,5 +1,39 @@
+use std::path::PathBuf;
+
 use super::super::*;
-use super::{core_file, gc_api_declarations, make_core_public};
+use super::{complete_core_file, core_file, gc_api_declarations, make_core_public};
+
+/// Lower the complete trusted-core fixture plus declarations owned by the
+/// same source. M23 producer tests use this path because core bootstrap is the
+/// first source of a complete Export HIR foundation.
+pub(crate) fn lower_core_with_additional_declarations(
+    declarations: Vec<Decl>,
+) -> hir::ExportHirOutput {
+    let mut source = complete_core_file();
+    source.declarations.extend(declarations);
+    let identity = core_source_identity("src/core.scoop");
+    let parsed = ast::CurrentConeParsedSources::try_new(
+        ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+            ast::IdentifiedParsedSource::new(identity.clone(), source),
+            Vec::new(),
+        ))
+        .expect("the core fixture has one parsed source"),
+        ast::NonEmptyVec::new(
+            ast::CurrentSourceText::new(identity.clone(), String::new()),
+            Vec::new(),
+        ),
+        ast::NonEmptyVec::new(
+            ast::CurrentSourceDiagnosticContext::new(identity, PathBuf::from("<core>")),
+            Vec::new(),
+        ),
+    )
+    .expect("the core fixture has matching source metadata");
+    let input = crate::CoreBootstrapSources::try_new(&parsed)
+        .expect("the core fixture belongs to the core Cone");
+    crate::lower_core_bootstrap(&input)
+        .expect("the complete core fixture must lower")
+        .export
+}
 
 /// Lower a user file together with the minimal `scoop.core`, mirroring
 /// the driver's sysroot convention (core files first, user file last).

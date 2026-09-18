@@ -33,6 +33,8 @@ mod core_values;
 pub use core_values::*;
 mod core_well_known;
 pub use core_well_known::*;
+mod const_values;
+pub use const_values::*;
 mod type_alias_interfaces;
 pub use type_alias_interfaces::*;
 

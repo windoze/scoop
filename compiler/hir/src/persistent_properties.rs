@@ -150,6 +150,10 @@ impl HirPropertyIdentities {
 
         Ok(Self { identities })
     }
+
+    pub fn get(&self, id: PropertyId) -> Option<&HirPropertyIdentity> {
+        self.identities.get(local_index(id))
+    }
 }
 
 impl Index<PropertyId> for HirPropertyIdentities {
