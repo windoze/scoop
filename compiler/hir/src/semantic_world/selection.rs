@@ -60,6 +60,26 @@ pub struct ImportedDependencySelectionPlan {
 }
 
 impl ImportedDependencySelectionPlan {
+    /// Starts an empty transaction for an ordinary core-only request.
+    /// No callable candidate can be minted from this plan.
+    #[doc(hidden)]
+    pub fn empty(consumer: ConeIdentity) -> Self {
+        Self {
+            catalog: Arc::new(DependencyCatalog {
+                world_brand: 0,
+                consumer,
+                projection: DependencyProjectionId(next_id(
+                    &NEXT_PROJECTION,
+                    "dependency projection",
+                )),
+                callables: BTreeMap::new(),
+                callable_ids: BTreeMap::new(),
+            }),
+            selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
+            callables: BTreeMap::new(),
+        }
+    }
+
     pub fn callable_candidate(
         &self,
         binding: &DirectImportedTargetBinding,

@@ -6,7 +6,7 @@ impl Lowerer {
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
         let (module, warnings, completion) = self.run(files, None)?;
-        let CoreLoweringCompletion::Defined = completion else {
+        let LoweringCompletion::Defined = completion else {
             panic!("defined HIR entry cannot complete with imported core authority")
         };
         Ok((module, warnings))
@@ -16,20 +16,27 @@ impl Lowerer {
         self,
         files: &[ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, hir::ImportedCoreSelectionPlan), Vec<Diagnostic>>
-    {
+    ) -> Result<
+        (
+            hir::Module,
+            Vec<Diagnostic>,
+            hir::ImportedCoreSelectionPlan,
+            hir::ImportedDependencySelectionPlan,
+        ),
+        Vec<Diagnostic>,
+    > {
         let (module, warnings, completion) = self.run(files, world)?;
-        let CoreLoweringCompletion::Imported(selection) = completion else {
+        let LoweringCompletion::Imported { core, dependencies } = completion else {
             panic!("ordinary HIR entry cannot complete with defined core authority")
         };
-        Ok((module, warnings, selection))
+        Ok((module, warnings, core, dependencies))
     }
 
     fn run(
         mut self,
         files: &[ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, CoreLoweringCompletion), Vec<Diagnostic>> {
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
         if files.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
@@ -550,11 +557,17 @@ impl Lowerer {
                     source_location: source_location_core
                         .expect("a missing or invalid source location core is always diagnosed"),
                 })),
-                CoreLoweringCompletion::Defined,
+                LoweringCompletion::Defined,
             ),
             CoreLoweringAuthority::Imported(authority) => (
                 hir::CoreProtocols::Imported(Box::new(authority.protocols)),
-                CoreLoweringCompletion::Imported(authority.selection),
+                LoweringCompletion::Imported {
+                    core: authority.selection,
+                    dependencies: self
+                        .dependencies
+                        .take()
+                        .expect("ordinary HIR lowering always carries a dependency selection plan"),
+                },
             ),
         };
         self.finish(current_cone, warnings, core_protocols, completion)

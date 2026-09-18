@@ -255,9 +255,12 @@ struct ImportedCoreLoweringCandidate {
     target: hir::CoreCallableTargetV1,
 }
 
-enum CoreLoweringCompletion {
+enum LoweringCompletion {
     Defined,
-    Imported(hir::ImportedCoreSelectionPlan),
+    Imported {
+        core: hir::ImportedCoreSelectionPlan,
+        dependencies: hir::ImportedDependencySelectionPlan,
+    },
 }
 
 #[cfg(test)]
@@ -427,9 +430,32 @@ fn lower_ordinary_input<'core>(
     world: Option<&hir::ImportedSemanticWorld<'_>>,
 ) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
     let (files, sources) = materialize_ordinary_sources(input.sources());
-    let (module, warnings, selection) = Lowerer::new()
+    let dependency_selection = match world {
+        Some(world) => {
+            let classifier = input
+                .core()
+                .core_closed_exact_leaf_classifier()
+                .map_err(|error| {
+                    vec![Diagnostic::at(
+                        Span { start: 0, end: 0 },
+                        format!("failed to classify trusted core ABI leaves: {error}"),
+                    )]
+                })?;
+            world
+                .dependency_selection_plan(&classifier)
+                .map_err(|error| {
+                    vec![Diagnostic::at(
+                        Span { start: 0, end: 0 },
+                        format!("failed to prepare dependency selection: {error}"),
+                    )]
+                })?
+        }
+        None => hir::ImportedDependencySelectionPlan::empty(input.current_cone()),
+    };
+    let (module, warnings, core_selection, dependency_selection) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_core(input.core())
+        .with_imported_dependencies(dependency_selection)
         .run_imported(&files, world)?;
     let output_kind = select_cone_output_kind(&module, requested)?;
     let export = hir::ExportHirOutput::try_new(module, output_kind).map_err(|error| {
@@ -452,18 +478,20 @@ fn lower_ordinary_input<'core>(
                 format!("failed to seal ordinary HIR output: {error}"),
             )]
         })?;
-    let selected = input.bind_core_selection(selection).map_err(|error| {
+    let selected = input.bind_core_selection(core_selection).map_err(|error| {
         vec![Diagnostic::at(
             Span { start: 0, end: 0 },
             format!("failed to bind ordinary core selection: {error}"),
         )]
     })?;
-    hir::OrdinaryHirOutput::try_new(output, selected).map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to seal ordinary imported-core HIR: {error}"),
-        )]
-    })
+    hir::OrdinaryHirOutput::try_new(output, selected, dependency_selection.finish()).map_err(
+        |error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to seal ordinary imported-core HIR: {error}"),
+            )]
+        },
+    )
 }
 
 fn finish_output(
@@ -621,6 +649,7 @@ pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHir
 #[derive(Clone)]
 pub(crate) struct Lowerer {
     core: CoreLoweringAuthority,
+    dependencies: Option<hir::ImportedDependencySelectionPlan>,
     pub(crate) source_contexts: Arena<hir::SourceContext>,
     source_context_by_value: HashMap<hir::SourceContext, hir::SourceContextId>,
     file_source_contexts: Vec<hir::SourceContextId>,

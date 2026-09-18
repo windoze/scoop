@@ -181,6 +181,7 @@ impl Lowerer {
         let any = types.alloc(Type::Any);
         Lowerer {
             core: CoreLoweringAuthority::Defined,
+            dependencies: None,
             imports: crate::imports::CurrentUnitImports::default(),
             declaration_surface: crate::declaration_surface::DeclarationSurface::default(),
             source_contexts: Arena::new(),
@@ -396,6 +397,14 @@ impl Lowerer {
             selection: core.prelude().selection_plan(),
             candidates,
         }));
+        self
+    }
+
+    pub(super) fn with_imported_dependencies(
+        mut self,
+        dependencies: hir::ImportedDependencySelectionPlan,
+    ) -> Self {
+        self.dependencies = Some(dependencies);
         self
     }
 

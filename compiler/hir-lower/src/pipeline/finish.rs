@@ -8,8 +8,8 @@ impl Lowerer {
         current_cone: scoop_identity::ConeIdentity,
         warnings: Vec<Diagnostic>,
         core_protocols: hir::CoreProtocols,
-        completion: CoreLoweringCompletion,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, CoreLoweringCompletion), Vec<Diagnostic>> {
+        completion: LoweringCompletion,
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
         let core_types = match &core_protocols {
             hir::CoreProtocols::Defined(protocols) => {
                 hir::HirCoreTypeIdentityAuthority::Defined(&protocols.fundamental_types)

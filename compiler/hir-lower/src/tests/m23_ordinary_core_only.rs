@@ -41,6 +41,7 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     assert_eq!(output.imported_core().callable_count(), 0);
     assert_eq!(output.imported_core().type_count(), 0);
     assert_eq!(output.imported_core().value_count(), 0);
+    assert!(output.imported_dependencies().is_empty());
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
     assert_eq!(foundation.counts().core_external_source_types, 10);
     assert_eq!(foundation.counts().core_external_generic_types, 0);
@@ -93,6 +94,7 @@ fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
         .expect("a param-free strong core callable is available to ordinary HIR");
 
     assert_eq!(output.imported_core().callable_count(), 1);
+    assert!(output.imported_dependencies().is_empty());
     assert_eq!(output.output().export.imported_core_callables.len(), 1);
     assert_eq!(output.output().local.imported_core_callables.len(), 1);
     assert_eq!(
