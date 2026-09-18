@@ -35,6 +35,8 @@ mod core_well_known;
 pub use core_well_known::*;
 mod const_values;
 pub use const_values::*;
+mod callable_interfaces;
+pub use callable_interfaces::*;
 mod nominal_interfaces;
 pub use nominal_interfaces::*;
 mod property_interfaces;

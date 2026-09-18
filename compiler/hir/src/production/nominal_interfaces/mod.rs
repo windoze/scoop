@@ -14,7 +14,7 @@ mod errors;
 mod identity;
 mod members;
 mod nested_bindings;
-mod owner_resolution;
+pub(in crate::production) mod owner_resolution;
 mod source_shape;
 
 pub use errors::{

@@ -1,6 +1,6 @@
 use scoop_identity::NominalDeclarationOwner;
 
-pub(super) fn from_type(
+pub(in crate::production) fn from_type(
     export: &crate::ExportHir,
     ty: crate::TypeId,
 ) -> Option<NominalDeclarationOwner> {
@@ -56,7 +56,7 @@ pub(super) fn from_type(
     identity.source().map(super::source_nominal_id)
 }
 
-pub(super) fn from_property(
+pub(in crate::production) fn from_property(
     export: &crate::ExportHir,
     owner: crate::PropertyOwner,
 ) -> Option<NominalDeclarationOwner> {
