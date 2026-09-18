@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -105,12 +105,7 @@ impl CurrentUnitImports {
         group: SelectorGroup,
     ) -> Result<SelectorResult, SelectorError> {
         let inaccessible = group.inaccessible;
-        let mut direct_conflicts = BTreeSet::new();
-        if group
-            .direct
-            .iter()
-            .any(|target| !direct_conflicts.insert(target.conflict_key().clone()))
-        {
+        if has_distinct_target_conflict(&group.direct) {
             return Err(SelectorError::AmbiguousBinding);
         }
         let targets = self.materialize_group(lowerer, group.current, group.direct);
@@ -221,4 +216,16 @@ impl CurrentUnitImports {
             })
             .collect()
     }
+}
+
+fn has_distinct_target_conflict(bindings: &[hir::DirectImportedTargetBinding]) -> bool {
+    bindings.iter().enumerate().any(|(index, binding)| {
+        bindings[..index].iter().any(|previous| {
+            previous.binding_target().namespace() == binding.binding_target().namespace()
+                && previous.binding_target() != binding.binding_target()
+                && previous
+                    .conflict_key()
+                    .conflicts_with(binding.conflict_key())
+        })
+    })
 }

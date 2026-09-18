@@ -183,28 +183,37 @@ fn append(
 fn validate_destination_conflicts(
     pending: &BTreeMap<ExportBindingKey, ReexportAccumulator>,
 ) -> Result<(), ReexportPlanBuildError> {
-    let mut occupied = BTreeMap::new();
+    let mut occupied = BTreeMap::<
+        (
+            PackagePath,
+            scoop_identity::BindingNamespace,
+            CanonicalIdentifier,
+        ),
+        Vec<(
+            scoop_identity::BindingTarget,
+            hir::ImportedBindingConflictKey,
+        )>,
+    >::new();
     for (key, binding) in pending {
-        let slot = (
-            key.package().clone(),
-            key.name().clone(),
-            binding.conflict.clone(),
-        );
-        match occupied.get(&slot) {
-            Some(previous) if *previous != key.binding_target() => {
-                let origin = binding
-                    .origins
-                    .first()
-                    .ok_or(ReexportPlanBuildError::MissingOrigin)?;
-                return Err(ReexportPlanBuildError::DestinationConflict {
-                    file: origin.file,
-                    span: origin.syntax.span,
-                });
-            }
-            Some(_) => {}
-            None => {
-                occupied.insert(slot, key.binding_target());
-            }
+        let slot = (key.package().clone(), key.namespace(), key.name().clone());
+        let targets = occupied.entry(slot).or_default();
+        if targets.iter().any(|(target, conflict)| {
+            *target != key.binding_target() && conflict.conflicts_with(&binding.conflict)
+        }) {
+            let origin = binding
+                .origins
+                .first()
+                .ok_or(ReexportPlanBuildError::MissingOrigin)?;
+            return Err(ReexportPlanBuildError::DestinationConflict {
+                file: origin.file,
+                span: origin.syntax.span,
+            });
+        }
+        if !targets
+            .iter()
+            .any(|(target, _)| *target == key.binding_target())
+        {
+            targets.push((key.binding_target(), binding.conflict.clone()));
         }
     }
     Ok(())

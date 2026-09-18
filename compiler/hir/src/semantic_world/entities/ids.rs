@@ -18,6 +18,18 @@ pub enum ImportedBindingConflictKey {
     Overload(DuplicateSignatureKey),
 }
 
+impl ImportedBindingConflictKey {
+    /// Returns whether two distinct targets cannot occupy the same
+    /// namespace/name slot. Only overloadable targets with distinct
+    /// normalized signatures may coexist.
+    pub fn conflicts_with(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Overload(left), Self::Overload(right)) => left == right,
+            (Self::Type | Self::Value, _) | (_, Self::Type | Self::Value) => true,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ImportedSourceNominalId {
     Concrete(ImportedHirId<PersistentTypeId>),

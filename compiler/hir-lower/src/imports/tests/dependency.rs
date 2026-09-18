@@ -202,12 +202,63 @@ fn exact_import_rejects_same_signature_dependency_overloads() {
 }
 
 #[test]
+fn exact_import_rejects_function_mixed_with_non_overloadable_value() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_object_and_function(&["dependency", "api"], "invoke", 0);
+    let world = fixture.world(lowerer.current_cone());
+    let import = exact(&["dependency", "api", "invoke"], None, false);
+    let expected_span = selector_span(&import);
+    let mut source = file(Vec::new());
+    source.imports.push(import);
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import target is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
+#[test]
 fn repeated_exact_aliases_reject_incompatible_dependency_targets_atomically() {
     let (mut lowerer, _, _) = lowerer();
     let fixture = DependencyWorldFixture::with_distinct_types();
     let world = fixture.world(lowerer.current_cone());
     let first = exact(&["first", "api", "First"], Some("Shared"), false);
     let second = exact(&["second", "api", "Second"], Some("Shared"), false);
+    let expected_span = selector_span(&second);
+    let mut source = file(Vec::new());
+    source.imports = vec![first, second];
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import target is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
+#[test]
+fn repeated_exact_aliases_reject_mixed_value_kinds_atomically() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_object_and_function_in_packages(
+        &["objects", "api"],
+        &["functions", "api"],
+        "invoke",
+        0,
+    );
+    let world = fixture.world(lowerer.current_cone());
+    let first = exact(&["objects", "api", "invoke"], Some("Shared"), false);
+    let second = exact(&["functions", "api", "invoke"], Some("Shared"), false);
     let expected_span = selector_span(&second);
     let mut source = file(Vec::new());
     source.imports = vec![first, second];

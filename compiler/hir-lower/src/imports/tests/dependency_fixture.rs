@@ -85,6 +85,35 @@ impl DependencyWorldFixture {
         ])
     }
 
+    pub(super) fn with_object_and_function(
+        package: &[&str],
+        name: &str,
+        parameter_count: usize,
+    ) -> Self {
+        Self::with_object_and_function_in_packages(package, package, name, parameter_count)
+    }
+
+    pub(super) fn with_object_and_function_in_packages(
+        object_package: &[&str],
+        function_package: &[&str],
+        name: &str,
+        parameter_count: usize,
+    ) -> Self {
+        Self::with_direct(vec![
+            ProviderFixture::with_object(
+                ConeCoordinate::new("test", "object-dependency", "1.0.0").unwrap(),
+                package_path(object_package),
+                name,
+            ),
+            ProviderFixture::with_function(
+                ConeCoordinate::new("test", "function-dependency", "1.0.0").unwrap(),
+                package_path(function_package),
+                name,
+                parameter_count,
+            ),
+        ])
+    }
+
     fn with_direct(direct: Vec<ProviderFixture>) -> Self {
         let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
         let mut session = SemanticIdentitySession::new();

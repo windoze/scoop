@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::BindingTarget;
+use scoop_identity::{BindingNamespace, BindingTarget};
 
 use super::selector::SelectorResult;
 use super::*;
@@ -300,27 +300,46 @@ impl CurrentUnitImports {
 }
 
 fn stage_exact_dependency_targets(
-    slots: &mut BTreeMap<(String, hir::ImportedBindingConflictKey), BindingTarget>,
+    slots: &mut BTreeMap<
+        (String, BindingNamespace),
+        Vec<(BindingTarget, hir::ImportedBindingConflictKey)>,
+    >,
     local_name: &str,
     targets: &ast::NonEmptyVec<ImportedTargetBinding>,
 ) -> bool {
     let direct = targets
         .iter()
-        .filter_map(ImportedTargetBinding::direct_binding);
-    for target in direct.clone() {
-        let key = (local_name.to_owned(), target.conflict_key().clone());
+        .filter_map(ImportedTargetBinding::direct_binding)
+        .collect::<Vec<_>>();
+    for (index, target) in direct.iter().enumerate() {
+        let slot = (local_name.to_owned(), target.binding_target().namespace());
+        let conflicts_with = |existing: &(BindingTarget, hir::ImportedBindingConflictKey)| {
+            existing.0 != target.binding_target()
+                && existing.1.conflicts_with(target.conflict_key())
+        };
         if slots
-            .get(&key)
-            .is_some_and(|existing| *existing != target.binding_target())
+            .get(&slot)
+            .is_some_and(|existing| existing.iter().any(conflicts_with))
+            || direct[..index].iter().any(|existing| {
+                existing.binding_target().namespace() == target.binding_target().namespace()
+                    && existing.binding_target() != target.binding_target()
+                    && existing
+                        .conflict_key()
+                        .conflicts_with(target.conflict_key())
+            })
         {
             return false;
         }
     }
     for target in direct {
-        slots.insert(
-            (local_name.to_owned(), target.conflict_key().clone()),
-            target.binding_target(),
-        );
+        let slot = (local_name.to_owned(), target.binding_target().namespace());
+        let occupied = slots.entry(slot).or_default();
+        if !occupied
+            .iter()
+            .any(|(existing, _)| *existing == target.binding_target())
+        {
+            occupied.push((target.binding_target(), target.conflict_key().clone()));
+        }
     }
     true
 }

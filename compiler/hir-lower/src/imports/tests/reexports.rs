@@ -139,6 +139,28 @@ fn public_star_rejects_same_signature_dependency_overloads() {
     ));
 }
 
+#[test]
+fn public_star_rejects_function_mixed_with_non_overloadable_value() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_object_and_function(&["dependency", "api"], "invoke", 0);
+    let world = fixture.world(lowerer.current_cone());
+    let mut surface = CurrentUnitImports::default();
+    let mut source = file(Vec::new());
+    source.imports.push(star(&["dependency", "api"], true));
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+    assert_eq!(resolved.stars.len(), 1);
+    surface.files.push(resolved);
+
+    let error = surface.freeze_reexports(&lowerer).unwrap_err();
+
+    assert!(surface.reexports.is_empty());
+    assert!(matches!(
+        error,
+        ReexportPlanBuildError::DestinationConflict { .. }
+    ));
+}
+
 fn freeze(
     lowerer: &Lowerer,
     world: &hir::ImportedSemanticWorld<'_>,

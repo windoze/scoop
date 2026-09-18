@@ -3,8 +3,8 @@ use scoop_identity::{
     BindableEntity, BindingTarget, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
     ConeCoordinate, ConeIdentity, DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain,
     Effect, ExportBindingKey, GcEffect, PackagePath, PersistentExportBindingId,
-    PersistentFunctionId, PersistentTypeId, SignatureTypeKey, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind,
+    PersistentFunctionId, PersistentObjectValueId, PersistentTypeId, SignatureTypeKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
 pub(super) struct ProviderFixture {
@@ -128,6 +128,55 @@ impl ProviderFixture {
         }
     }
 
+    pub(super) fn with_object(
+        coordinate: ConeCoordinate,
+        package: PackagePath,
+        name: &str,
+    ) -> Self {
+        let origin = coordinate.identity().unwrap();
+        let object_key = SourceDeclarationKey::nominal(
+            declaration_site(origin, package.clone(), DefinitionOwnerChain::top_level()),
+            CanonicalIdentifier::new(name).unwrap(),
+            SourceNominalKind::Object,
+            0,
+        );
+        let object_type: CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> =
+            CborIdentityRecord::from_key(object_key.clone()).unwrap();
+        let object_value: CborIdentityRecord<PersistentObjectValueId, SourceDeclarationKey> =
+            CborIdentityRecord::from_key(object_key.clone()).unwrap();
+        let type_binding = type_binding(origin, package.clone(), name, &object_key);
+        let value_binding = value_binding(
+            origin,
+            package,
+            name,
+            BindingTarget::object_value(&object_key).unwrap(),
+        );
+
+        let mut foundation = hir::CanonicalHirFoundation::empty();
+        foundation.set_types(vec![object_type.clone()]).unwrap();
+        foundation
+            .set_object_values(vec![object_value.clone()])
+            .unwrap();
+        foundation
+            .set_export_bindings(vec![type_binding.clone(), value_binding.clone()])
+            .unwrap();
+        Self {
+            coordinate,
+            foundation,
+            interface: interface(
+                vec![
+                    public_binding(type_binding.id(), BindableEntity::Type(object_type.id())),
+                    public_binding(
+                        value_binding.id(),
+                        BindableEntity::ObjectValue(object_value.id()),
+                    ),
+                ],
+                vec![object_record(object_type.id(), object_value.id())],
+                Vec::new(),
+            ),
+        }
+    }
+
     pub(super) const fn coordinate(&self) -> &ConeCoordinate {
         &self.coordinate
     }
@@ -219,6 +268,23 @@ fn nominal_record(
         hir::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPersistentIdsV1::try_new(nested_bindings).unwrap(),
         hir::NominalSourceShapeV1::Class,
+    )
+    .unwrap()
+}
+
+fn object_record(
+    declaration: PersistentTypeId,
+    value: PersistentObjectValueId,
+) -> hir::NominalInterfaceRecordV1 {
+    hir::NominalInterfaceRecordV1::try_new(
+        hir::SourceNominalId::Concrete(declaration),
+        hir::PublicNominalKindV1::Object,
+        hir::CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
+        hir::CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+        hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+        hir::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
+        hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+        hir::NominalSourceShapeV1::Object(hir::ObjectSourceShapeV1::new(value)),
     )
     .unwrap()
 }
