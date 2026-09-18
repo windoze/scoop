@@ -112,7 +112,9 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     }
 
     pub fn provider_count(&self) -> usize {
-        self.dependency_first.len()
+        self.dependency_first
+            .len()
+            .saturating_sub(usize::from(self.positions.contains_key(&self.current)))
     }
 
     pub fn direct_provider(
@@ -150,6 +152,9 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        if identity == self.current {
+            return None;
+        }
         self.positions.get(&identity).map(|_| {
             if self.direct.binary_search(&identity).is_ok() {
                 CrossConeProviderRole::Direct
@@ -169,8 +174,21 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
         &self,
         identity: ConeIdentity,
     ) -> Option<&ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>> {
+        if identity == self.current {
+            return None;
+        }
         self.positions
             .get(&identity)
+            .map(|position| &self.dependency_first[*position])
+    }
+
+    /// Returns the completed current artifact when this closure was created
+    /// with [`DecodedCrossConeClosure::with_current_artifact`].
+    pub fn current_artifact(
+        &self,
+    ) -> Option<&ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>> {
+        self.positions
+            .get(&self.current)
             .map(|position| &self.dependency_first[*position])
     }
 }

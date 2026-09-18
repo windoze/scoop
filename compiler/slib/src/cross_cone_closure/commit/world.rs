@@ -25,6 +25,9 @@ impl ValidatedCrossConeSemanticClosure<'_> {
         );
 
         for artifact in &self.dependency_first {
+            if artifact.identity() == self.current {
+                continue;
+            }
             let certificate = provider_certificate(artifact);
             let foundation = artifact.hir();
             let production = artifact.production();

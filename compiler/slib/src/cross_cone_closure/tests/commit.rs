@@ -147,6 +147,52 @@ fn semantic_commit_preserves_direct_and_support_capability_boundaries() {
 }
 
 #[test]
+fn completed_commit_retains_current_without_exposing_it_as_a_provider() {
+    let support_bytes = artifact(cone_named("support-complete"), Vec::new());
+    let support_record = decode(&support_bytes).dependency_record();
+    let direct_bytes = artifact(cone_named("direct-complete"), vec![support_record.clone()]);
+    let direct_record = decode(&direct_bytes).dependency_record();
+    let current_bytes = artifact(cone_named("current-complete"), vec![direct_record.clone()]);
+    let support = validate_local_front(&support_bytes);
+    let direct = validate_local_front(&direct_bytes);
+    let current = validate_local_front(&current_bytes);
+    let support_identity = support.identity();
+    let direct_identity = direct.identity();
+    let current_identity = current.identity();
+    let positions = BTreeMap::from([
+        (support_identity, 0),
+        (direct_identity, 1),
+        (current_identity, 2),
+    ]);
+    let closure = LirBridgeValidatedCrossConeHirClosure {
+        current: current_identity,
+        target: target(),
+        direct: vec![direct_identity],
+        dependency_first: vec![support, direct, current],
+        positions,
+        dependency_positions: vec![Vec::new(), vec![0], vec![1]],
+        type_alias_expansions: vec![
+            empty_alias_expansions(),
+            empty_alias_expansions(),
+            empty_alias_expansions(),
+        ],
+    };
+
+    let mut session = SemanticIdentitySession::new();
+    let committed = closure.commit(&mut session).unwrap();
+
+    assert_eq!(committed.provider_count(), 2);
+    assert_eq!(committed.role(current_identity), None);
+    assert!(committed.direct_provider(current_identity).is_none());
+    assert!(committed.support_provider(current_identity).is_none());
+    assert_eq!(
+        committed.current_artifact().unwrap().identity(),
+        current_identity
+    );
+    assert_eq!(session.origin_count(), 3);
+}
+
+#[test]
 fn semantic_commit_is_atomic_when_a_later_origin_conflicts() {
     let support_bytes = artifact(cone_named("support-conflict"), Vec::new());
     let support_record = decode(&support_bytes).dependency_record();

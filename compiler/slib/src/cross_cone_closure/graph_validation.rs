@@ -16,15 +16,16 @@ pub(super) fn validate_profile_graph(
         current,
         target,
         direct,
-        dependency_first,
+        mut dependency_first,
+        current_artifact,
     } = closure;
 
     validate_direct_order(&direct)?;
-    if current == ConeIdentity::CORE {
+    if current == ConeIdentity::CORE && current_artifact.is_none() {
         if !direct.is_empty() || !dependency_first.is_empty() {
             return Err(CrossConeClosureGraphError::CoreHasDependencyProviders);
         }
-    } else if direct.binary_search(&ConeIdentity::CORE).is_err() {
+    } else if current != ConeIdentity::CORE && direct.binary_search(&ConeIdentity::CORE).is_err() {
         return Err(CrossConeClosureGraphError::MissingTrustedCore);
     }
 
@@ -52,6 +53,39 @@ pub(super) fn validate_profile_graph(
             });
         }
         validate_unique_version(&mut versions, artifact.coordinate())?;
+    }
+
+    let has_current_artifact = current_artifact.is_some();
+    if let Some(artifact) = current_artifact {
+        if artifact.identity() != current {
+            return Err(
+                CrossConeClosureGraphError::CurrentArtifactIdentityMismatch {
+                    expected: current,
+                    actual: artifact.identity(),
+                },
+            );
+        }
+        if artifact.target_selection() != target {
+            return Err(CrossConeClosureGraphError::TargetMismatch {
+                identity: current,
+                expected: target,
+                actual: artifact.target_selection(),
+            });
+        }
+        let artifact_direct = artifact
+            .direct_dependencies()
+            .iter()
+            .map(DependencyRecord::identity)
+            .collect::<Vec<_>>();
+        if artifact_direct != direct {
+            return Err(CrossConeClosureGraphError::CurrentDirectSetMismatch {
+                expected: direct.clone(),
+                actual: artifact_direct,
+            });
+        }
+        validate_unique_version(&mut versions, artifact.coordinate())?;
+        positions.insert(current, dependency_first.len());
+        dependency_first.push(artifact);
     }
 
     for identity in &direct {
@@ -95,7 +129,11 @@ pub(super) fn validate_profile_graph(
     }
 
     let mut reachable = BTreeSet::new();
-    let mut pending = direct.clone();
+    let mut pending = if has_current_artifact {
+        vec![current]
+    } else {
+        direct.clone()
+    };
     while let Some(identity) = pending.pop() {
         if !reachable.insert(identity) {
             continue;

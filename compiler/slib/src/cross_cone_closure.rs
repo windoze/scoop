@@ -45,6 +45,7 @@ pub struct DecodedCrossConeClosure<'input> {
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<DecodedCrossConeHirFrontSections<'input>>,
+    current_artifact: Option<DecodedCrossConeHirFrontSections<'input>>,
 }
 
 /// Directness is a closed role assigned only after the whole dependency

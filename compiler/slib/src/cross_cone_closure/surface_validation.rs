@@ -100,6 +100,9 @@ macro_rules! impl_surface_closure_accessors {
             }
 
             pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+                if identity == self.0.current {
+                    return None;
+                }
                 self.0.positions.get(&identity).map(|_| {
                     if self.0.direct.binary_search(&identity).is_ok() {
                         CrossConeProviderRole::Direct

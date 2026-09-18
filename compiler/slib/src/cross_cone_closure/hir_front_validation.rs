@@ -43,6 +43,9 @@ impl<'input> FoundationValidatedCrossConeHirClosure<'input> {
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        if identity == self.current {
+            return None;
+        }
         self.positions.get(&identity).map(|_| {
             if self.direct.binary_search(&identity).is_ok() {
                 CrossConeProviderRole::Direct
@@ -129,6 +132,9 @@ impl ResolvedCrossConeHirClosure<'_> {
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        if identity == self.current {
+            return None;
+        }
         self.positions.get(&identity).map(|_| {
             if self.direct.binary_search(&identity).is_ok() {
                 CrossConeProviderRole::Direct
@@ -214,6 +220,9 @@ impl HirProductionValidatedCrossConeHirClosure<'_> {
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        if identity == self.current {
+            return None;
+        }
         self.positions.get(&identity).map(|_| {
             if self.direct.binary_search(&identity).is_ok() {
                 CrossConeProviderRole::Direct

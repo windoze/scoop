@@ -22,6 +22,14 @@ pub enum CrossConeClosureGraphError {
     CurrentArtifactPresent {
         current: ConeIdentity,
     },
+    CurrentArtifactIdentityMismatch {
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    CurrentDirectSetMismatch {
+        expected: Vec<ConeIdentity>,
+        actual: Vec<ConeIdentity>,
+    },
     DuplicateArtifact {
         identity: ConeIdentity,
     },

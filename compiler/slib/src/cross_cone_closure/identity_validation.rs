@@ -24,6 +24,28 @@ impl<'input> DecodedCrossConeClosure<'input> {
             target,
             direct,
             dependency_first,
+            current_artifact: None,
+        }
+    }
+
+    /// Constructs the closure used to validate one completed artifact.
+    ///
+    /// Dependency artifacts remain dependency-first; the current artifact is
+    /// retained separately so callers cannot accidentally grant it provider
+    /// visibility or place it before one of its own dependencies.
+    pub const fn with_current_artifact(
+        current: ConeIdentity,
+        target: ValidatedLirTargetSelection,
+        direct: Vec<ConeIdentity>,
+        dependency_first: Vec<DecodedCrossConeHirFrontSections<'input>>,
+        current_artifact: DecodedCrossConeHirFrontSections<'input>,
+    ) -> Self {
+        Self {
+            current,
+            target,
+            direct,
+            dependency_first,
+            current_artifact: Some(current_artifact),
         }
     }
 
@@ -65,6 +87,9 @@ impl<'input> ProfileValidatedCrossConeHirClosure<'input> {
     }
 
     pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+        if identity == self.current {
+            return None;
+        }
         self.positions.get(&identity).map(|_| {
             if self.direct.binary_search(&identity).is_ok() {
                 CrossConeProviderRole::Direct

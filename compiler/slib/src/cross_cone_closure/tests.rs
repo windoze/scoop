@@ -133,6 +133,68 @@ fn core_current_has_the_only_valid_empty_provider_closure() {
 }
 
 #[test]
+fn completed_closure_keeps_the_current_artifact_out_of_provider_roles() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let core = decode(&core_bytes);
+    let current_cone = ConeRecord::new(
+        cone_named("current-complete").coordinate().clone(),
+        ConeKind::Executable,
+        ConeSourceForm::Manifest,
+    )
+    .unwrap();
+    let current_bytes = artifact(current_cone, vec![core.dependency_record()]);
+
+    let closure = DecodedCrossConeClosure::with_current_artifact(
+        cone_named("current-complete").identity(),
+        target(),
+        vec![ConeIdentity::CORE],
+        vec![decode(&core_bytes)],
+        decode(&current_bytes),
+    )
+    .validate_profile_graph()
+    .unwrap();
+
+    assert_eq!(closure.dependency_first().count(), 2);
+    assert_eq!(
+        closure.role(ConeIdentity::CORE),
+        Some(CrossConeProviderRole::Direct)
+    );
+    assert_eq!(
+        closure.role(cone_named("current-complete").identity()),
+        None
+    );
+    assert!(
+        closure
+            .artifact(cone_named("current-complete").identity())
+            .is_some()
+    );
+}
+
+#[test]
+fn completed_closure_requires_the_current_artifacts_exact_direct_set() {
+    let core_bytes = artifact(core_cone(), Vec::new());
+    let current_cone = ConeRecord::new(
+        cone_named("current-direct-mismatch").coordinate().clone(),
+        ConeKind::Library,
+        ConeSourceForm::Manifest,
+    )
+    .unwrap();
+    let current_bytes = artifact(current_cone, Vec::new());
+
+    assert!(matches!(
+        DecodedCrossConeClosure::with_current_artifact(
+            cone_named("current-direct-mismatch").identity(),
+            target(),
+            vec![ConeIdentity::CORE],
+            vec![decode(&core_bytes)],
+            decode(&current_bytes),
+        )
+        .validate_profile_graph(),
+        Err(CrossConeClosureGraphError::CurrentDirectSetMismatch { .. })
+    ));
+}
+
+#[test]
 fn nominal_authority_walks_only_the_provider_transitive_dependencies() {
     let dependencies = vec![vec![], vec![], vec![0], vec![1], vec![2, 3]];
 
