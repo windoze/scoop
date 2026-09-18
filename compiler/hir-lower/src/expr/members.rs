@@ -12,7 +12,7 @@ mod resolution;
 pub(in crate::expr) enum PropertyExtensionInvokeOrigin {
     Member(hir::PropertyId),
     NamedValue(crate::imports::lookup::values::ValueTarget),
-    Extension(hir::PropertyId),
+    Extension(crate::imports::lookup::calls::ExtensionPropertyIdentity),
 }
 
 pub(in crate::expr) struct PropertyExtensionInvokeInput {
@@ -701,7 +701,6 @@ impl Lowerer {
                     name,
                     &property_candidates,
                     &mut extension_property_sink,
-                    true,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
                         match extension_property_state.probe_property_member_invoke_partition(
@@ -776,13 +775,12 @@ impl Lowerer {
                         name,
                         &property_layer.candidates,
                         &mut property_sink,
-                        true,
                     ) {
                         crate::properties::ExtensionPropertyCandidateOutcome::Resolved(
                             property,
                         ) => {
                             property_extension_inputs.push(PropertyExtensionInvokeInput::new(
-                                PropertyExtensionInvokeOrigin::Extension(property.property),
+                                PropertyExtensionInvokeOrigin::Extension(property.identity()),
                                 SuccessfulExprLayer {
                                     state: Box::new(property_state),
                                     expression: property.read,
@@ -892,17 +890,19 @@ impl Lowerer {
     }
 
     fn property_candidates_at_rank(
-        layers: &[crate::imports::lookup::LookupLayer<hir::PropertyId>],
+        layers: &[crate::imports::lookup::LookupLayer<
+            crate::imports::lookup::calls::ExtensionPropertyTarget,
+        >],
         rank: usize,
-    ) -> Vec<hir::PropertyId> {
+    ) -> Vec<crate::imports::lookup::calls::ExtensionPropertyTarget> {
         layers
             .iter()
             .filter(|layer| layer.kind.call_rank() == rank)
-            .flat_map(|layer| layer.candidates.iter().copied())
+            .flat_map(|layer| layer.candidates.iter().cloned())
             .collect()
     }
 
-    fn retain_highest_rank_origins<T: Copy + PartialEq>(
+    fn retain_highest_rank_origins<T: Clone + PartialEq>(
         layers: &mut [crate::imports::lookup::LookupLayer<T>],
     ) {
         let mut seen = Vec::new();
@@ -911,7 +911,7 @@ impl Lowerer {
                 if seen.contains(candidate) {
                     false
                 } else {
-                    seen.push(*candidate);
+                    seen.push(candidate.clone());
                     true
                 }
             });

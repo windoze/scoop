@@ -123,15 +123,11 @@ impl Lowerer {
         if self.initialization_context.is_none()
             && let Some(receiver) = self.lower_current_this(name.span)
         {
-            match self.resolve_implicit_value(receiver, name, sink, true) {
+            match self.resolve_implicit_value_read(receiver, name, sink) {
                 crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                     let ty = property.read.ty;
-                    let write = if self.properties[property.property]
-                        .capability
-                        .setter()
-                        .is_some()
-                    {
-                        WriteCapability::ExtensionProperty(*property.clone())
+                    let write = if property.write.has_setter() {
+                        WriteCapability::ExtensionProperty(property.write.clone())
                     } else {
                         WriteCapability::ReadOnly
                     };
@@ -199,6 +195,7 @@ impl Lowerer {
                             WriteCapability::ImportedDependencyProperty {
                                 binding,
                                 receiver: None,
+                                name: name.clone(),
                             }
                         } else {
                             WriteCapability::ReadOnly

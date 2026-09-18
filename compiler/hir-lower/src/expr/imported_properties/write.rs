@@ -36,19 +36,17 @@ impl Lowerer {
         binding: &hir::DirectImportedTargetBinding,
         receiver: Option<hir::Expr>,
         value: hir::Expr,
+        name: &ast::Ident,
         span: ast::Span,
     ) -> Option<hir::StatementKind> {
-        let name = ast::Ident {
-            text: "dependency property".to_string(),
-            span,
-        };
-        let prepared = self.prepare_imported_property_setter(binding, receiver, &name)?;
+        let prepared = self.prepare_imported_property_setter(binding, receiver, name)?;
         if !self.is_subtype(value.ty, prepared.value_type) {
             self.error(
                 value.span,
                 format!(
-                    "cannot assign value of type {} to dependency property of type {}",
+                    "cannot assign value of type {} to property `{}` of type {}",
                     self.type_name(value.ty),
+                    name.text,
                     self.type_name(prepared.value_type)
                 ),
             );

@@ -7,6 +7,8 @@ use scoop_hir as hir;
 mod extensions;
 mod qualifiers;
 
+pub(crate) use extensions::{ExtensionPropertyIdentity, ExtensionPropertyTarget};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NamedCallTarget {
     Function(hir::FunctionId),

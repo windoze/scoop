@@ -10,8 +10,11 @@ use scoop_hir as hir;
 use super::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::Lowerer;
 
+mod extension;
 mod read;
 mod write;
+
+pub(crate) use extension::ImportedDependencyExtensionPropertyProbe;
 
 pub(crate) struct ImportedDependencyPropertyRead {
     pub(crate) expression: hir::Expr,
@@ -119,12 +122,32 @@ impl Lowerer {
         property: &hir::ImportedDependencyPropertyCandidate,
         span: ast::Span,
     ) -> Option<hir::TypeId> {
-        match self.imported_signature_type(property.interface().value_type()) {
+        self.imported_property_signature_type(
+            property.interface().value_type(),
+            "dependency property value type",
+            span,
+        )
+    }
+
+    fn imported_property_signature_type(
+        &mut self,
+        signature: &scoop_identity::SignatureTypeKey,
+        subject: &str,
+        span: ast::Span,
+    ) -> Option<hir::TypeId> {
+        match self.imported_signature_type(signature) {
             Ok(ty) => Some(ty),
-            Err(error) => {
+            Err(crate::imported_core::ImportedSignatureTypeError::Generic) => {
                 self.error(
                     span,
-                    format!("dependency property has an unsupported value type: {error:?}"),
+                    ImportedCapabilityRequirement::Generic.diagnostic(subject),
+                );
+                None
+            }
+            Err(crate::imported_core::ImportedSignatureTypeError::Structural) => {
+                self.error(
+                    span,
+                    ImportedCapabilityRequirement::Layout.diagnostic(subject),
                 );
                 None
             }

@@ -9,6 +9,35 @@ use crate::imports::{
 use crate::namespace::TopLevelLookupLayer;
 use scoop_hir as hir;
 
+#[derive(Debug, Clone)]
+pub(crate) enum ExtensionPropertyTarget {
+    Current(hir::PropertyId),
+    Dependency(hir::DirectImportedTargetBinding),
+}
+
+impl ExtensionPropertyTarget {
+    pub(crate) const fn identity(&self) -> ExtensionPropertyIdentity {
+        match self {
+            Self::Current(property) => ExtensionPropertyIdentity::Current(*property),
+            Self::Dependency(binding) => ExtensionPropertyIdentity::Dependency(binding.target()),
+        }
+    }
+}
+
+impl PartialEq for ExtensionPropertyTarget {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity() == other.identity()
+    }
+}
+
+impl Eq for ExtensionPropertyTarget {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExtensionPropertyIdentity {
+    Current(hir::PropertyId),
+    Dependency(hir::ImportedTarget),
+}
+
 impl Lowerer {
     fn named_extension_role_layers(&self) -> Vec<LookupLayer<hir::FunctionId>> {
         let core = LookupLayer {
@@ -207,7 +236,7 @@ impl Lowerer {
     pub(crate) fn named_extension_property_layers(
         &self,
         name: &str,
-    ) -> Vec<LookupLayer<hir::PropertyId>> {
+    ) -> Vec<LookupLayer<ExtensionPropertyTarget>> {
         self.named_call_layers(name)
             .into_iter()
             .map(|layer| LookupLayer {
@@ -216,8 +245,16 @@ impl Lowerer {
                 candidates: layer
                     .candidates
                     .into_iter()
-                    .filter_map(|binding| match binding.target {
-                        NamedCallTarget::ExtensionProperty(id) => Some(id),
+                    .filter_map(|binding| match (binding.target, binding.origin) {
+                        (NamedCallTarget::ExtensionProperty(id), _) => {
+                            Some(ExtensionPropertyTarget::Current(id))
+                        }
+                        (
+                            NamedCallTarget::ImportedDependency(
+                                hir::ImportedTarget::ExtensionProperty(_),
+                            ),
+                            super::NamedCallOrigin::Dependency(binding),
+                        ) => Some(ExtensionPropertyTarget::Dependency(binding)),
                         _ => None,
                     })
                     .collect(),

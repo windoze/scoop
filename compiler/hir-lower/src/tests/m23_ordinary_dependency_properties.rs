@@ -6,10 +6,12 @@ use super::m23_ordinary_dependencies::support::{
     project_dependency_without_default_roles,
 };
 use super::{
-    Decl, Expr, Statement, TypeRef, assign, block, extension_expr, file, fun, fun_expr, ident,
-    int_lit, make_core_public, sp, this_expr, tuple_lit, ty_named, ty_tuple, var,
+    Decl, Expr, Statement, TypeRef, assign, assign_field, block, extension_expr, field, file, fun,
+    fun_expr, ident, int_lit, make_core_public, sp, this_expr, tuple_lit, ty_named, ty_tuple, var,
 };
 use crate::{OrdinarySources, lower_ordinary};
+
+mod extension;
 
 struct DependencyPropertyFixture {
     core: TrustedCoreFixture,
@@ -22,6 +24,10 @@ struct DependencyPropertyFixture {
 
 impl DependencyPropertyFixture {
     fn new(properties: Vec<Decl>) -> Self {
+        Self::with_core_types(properties, &["Int"])
+    }
+
+    fn with_core_types(properties: Vec<Decl>, core_types: &[&str]) -> Self {
         let mut core = trusted_core();
         let coordinate = ConeCoordinate::new("test", "property-provider", "1.0.0").unwrap();
         let mut provider = file(properties);
@@ -32,7 +38,7 @@ impl DependencyPropertyFixture {
             span: sp(),
         };
         let (foundation, interface) =
-            project_dependency_without_default_roles(&core, &coordinate, provider, &["Int"]);
+            project_dependency_without_default_roles(&core, &coordinate, provider, core_types);
         let foundation = core.import_dependency_foundation(&coordinate, &foundation, 57);
         Self {
             core,

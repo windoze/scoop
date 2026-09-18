@@ -22,11 +22,12 @@ pub(super) enum WriteCapability {
         owner: Option<hir::MethodOwnerApplication>,
         receiver: Option<hir::Expr>,
     },
-    ExtensionProperty(crate::properties::ResolvedExtensionProperty),
+    ExtensionProperty(crate::properties::ResolvedExtensionPropertyWrite),
     DirectInterfaceProperty(QualifiedInterfaceProperty),
     ImportedDependencyProperty {
         binding: hir::DirectImportedTargetBinding,
         receiver: Option<hir::Expr>,
+        name: ast::Ident,
     },
     OperatorSet {
         receiver: hir::Expr,
@@ -183,15 +184,11 @@ impl Lowerer {
                     };
                     return Some(ResolvedPlacePlan { read, write, ty });
                 }
-                match self.resolve_extension_property(receiver.clone(), name, sink, true) {
+                match self.resolve_extension_property_read(receiver.clone(), name, sink) {
                     crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                         let ty = property.read.ty;
-                        let write = if self.properties[property.property]
-                            .capability
-                            .setter()
-                            .is_some()
-                        {
-                            WriteCapability::ExtensionProperty(*property.clone())
+                        let write = if property.write.has_setter() {
+                            WriteCapability::ExtensionProperty(property.write.clone())
                         } else {
                             WriteCapability::ReadOnly
                         };
@@ -342,9 +339,12 @@ impl Lowerer {
             WriteCapability::DirectInterfaceProperty(property) => {
                 self.lower_direct_interface_property_write(property, value, span)
             }
-            WriteCapability::ImportedDependencyProperty { binding, receiver } => {
-                self.lower_imported_dependency_property_write(&binding, receiver, value, span)
-            }
+            WriteCapability::ImportedDependencyProperty {
+                binding,
+                receiver,
+                name,
+            } => self
+                .lower_imported_dependency_property_write(&binding, receiver, value, &name, span),
             WriteCapability::OperatorSet {
                 receiver,
                 mut index_arguments,

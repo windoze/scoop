@@ -160,7 +160,7 @@ impl Lowerer {
                 name.span,
             );
         }
-        let resolved = match self.resolve_extension_property(receiver, name, sink, false) {
+        let resolved = match self.resolve_extension_property_write(receiver, name, sink) {
             crate::properties::ExtensionPropertyResolution::Resolved(property) => property,
             crate::properties::ExtensionPropertyResolution::Failed => return None,
             crate::properties::ExtensionPropertyResolution::NoCandidate => {
@@ -186,7 +186,7 @@ impl Lowerer {
                 return None;
             }
         };
-        let property_ty = resolved.read.ty;
+        let property_ty = resolved.value_type();
         let value = self.lower_expr(&assign.value, sink, Some(property_ty))?;
         if !self.is_subtype(value.ty, property_ty) {
             let expected = self.type_name(property_ty);

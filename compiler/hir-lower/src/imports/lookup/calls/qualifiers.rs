@@ -128,7 +128,7 @@ impl Lowerer {
         }
         let Some(properties) = properties
             .iter()
-            .map(|(_, property)| *property)
+            .map(|(_, property)| property.map(super::ExtensionPropertyTarget::Current))
             .collect::<Option<Vec<_>>>()
         else {
             // Declaration preflight may run before source properties have HIR
@@ -146,7 +146,6 @@ impl Lowerer {
                 name,
                 &properties,
                 &mut sink,
-                false,
             ),
             crate::properties::ExtensionPropertyCandidateOutcome::NoCandidate
                 | crate::properties::ExtensionPropertyCandidateOutcome::NoApplicable

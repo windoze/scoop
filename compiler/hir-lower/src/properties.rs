@@ -10,7 +10,8 @@ mod implicit_values;
 
 pub(crate) use delegates::DelegateRoleCall;
 pub(crate) use extensions::{
-    ExtensionPropertyCandidateOutcome, ExtensionPropertyResolution, ResolvedExtensionProperty,
+    ExtensionPropertyCandidateOutcome, ExtensionPropertyResolution, ResolvedExtensionPropertyRead,
+    ResolvedExtensionPropertyWrite,
 };
 pub(crate) use implicit_values::ImplicitValueResolution;
 

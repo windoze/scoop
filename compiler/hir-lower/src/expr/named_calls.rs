@@ -8,7 +8,9 @@ use super::*;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::named::NamedFunctionLikeProbe;
 use crate::imports::ImportLookupLayer;
-use crate::imports::lookup::calls::{NamedCallBinding, NamedCallTarget};
+use crate::imports::lookup::calls::{
+    ExtensionPropertyTarget, NamedCallBinding, NamedCallOrigin, NamedCallTarget,
+};
 use crate::imports::lookup::values::ValueTarget;
 use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
@@ -275,8 +277,16 @@ impl Lowerer {
             let extension_properties = layer
                 .candidates
                 .iter()
-                .filter_map(|binding| match binding.target {
-                    NamedCallTarget::ExtensionProperty(id) => Some(id),
+                .filter_map(|binding| match (binding.target, &binding.origin) {
+                    (NamedCallTarget::ExtensionProperty(id), _) => {
+                        Some(ExtensionPropertyTarget::Current(id))
+                    }
+                    (
+                        NamedCallTarget::ImportedDependency(
+                            hir::ImportedTarget::ExtensionProperty(_),
+                        ),
+                        NamedCallOrigin::Dependency(binding),
+                    ) => Some(ExtensionPropertyTarget::Dependency(binding.clone())),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -289,11 +299,10 @@ impl Lowerer {
                     &call.callee,
                     &extension_properties,
                     &mut setup,
-                    true,
                 ) {
                     crate::properties::ExtensionPropertyCandidateOutcome::Resolved(property) => {
                         current_values.push(NamedValueLayer {
-                            origin: PropertyExtensionInvokeOrigin::Extension(property.property),
+                            origin: PropertyExtensionInvokeOrigin::Extension(property.identity()),
                             read: SuccessfulExprLayer {
                                 state: Box::new(state),
                                 expression: property.read,

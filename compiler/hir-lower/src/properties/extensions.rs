@@ -1,37 +1,154 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+use crate::imports::lookup::calls::{ExtensionPropertyIdentity, ExtensionPropertyTarget};
 use crate::{Lowerer, TypeId};
 
+mod candidates;
+mod write;
+
 #[derive(Clone)]
-pub(crate) struct ResolvedExtensionProperty {
-    pub(crate) property: hir::PropertyId,
-    pub(crate) receiver: hir::Expr,
-    pub(crate) type_args: Vec<TypeId>,
+pub(crate) struct ResolvedExtensionPropertyRead {
     pub(crate) read: hir::Expr,
+    pub(crate) write: ResolvedExtensionPropertyWrite,
 }
 
-pub(crate) enum ExtensionPropertyResolution {
+impl ResolvedExtensionPropertyRead {
+    pub(crate) const fn identity(&self) -> ExtensionPropertyIdentity {
+        self.write.identity()
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct ResolvedExtensionPropertyWrite {
+    target: ResolvedExtensionPropertyTarget,
+    receiver: hir::Expr,
+    value_type: TypeId,
+    has_setter: bool,
+}
+
+impl ResolvedExtensionPropertyWrite {
+    pub(crate) const fn identity(&self) -> ExtensionPropertyIdentity {
+        match &self.target {
+            ResolvedExtensionPropertyTarget::Current { property, .. } => {
+                ExtensionPropertyIdentity::Current(*property)
+            }
+            ResolvedExtensionPropertyTarget::Dependency { binding, .. } => {
+                ExtensionPropertyIdentity::Dependency(binding.target())
+            }
+        }
+    }
+
+    pub(crate) const fn value_type(&self) -> TypeId {
+        self.value_type
+    }
+
+    pub(crate) const fn has_setter(&self) -> bool {
+        self.has_setter
+    }
+}
+
+#[derive(Clone)]
+enum ResolvedExtensionPropertyTarget {
+    Current {
+        property: hir::PropertyId,
+        type_args: Vec<TypeId>,
+    },
+    Dependency {
+        binding: hir::DirectImportedTargetBinding,
+        name: ast::Ident,
+    },
+}
+
+pub(crate) enum ExtensionPropertyResolution<T> {
     NoCandidate,
     Failed,
-    Resolved(Box<ResolvedExtensionProperty>),
+    Resolved(Box<T>),
 }
 
-pub(crate) enum ExtensionPropertyCandidateOutcome {
+pub(crate) enum ExtensionPropertyCandidateOutcome<T> {
     NoCandidate,
     NoApplicable,
     Failed,
-    Resolved(Box<ResolvedExtensionProperty>),
+    Resolved(Box<T>),
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum ExtensionPropertyAccess {
+    Read,
+    Write,
+}
+
+pub(super) enum SelectedExtensionProperty {
+    Read(ResolvedExtensionPropertyRead),
+    Write(ResolvedExtensionPropertyWrite),
+}
+
+pub(super) enum ExtensionPropertySelectionOutcome {
+    NoCandidate,
+    NoApplicable,
+    Failed,
+    Resolved(Box<SelectedExtensionProperty>),
 }
 
 impl Lowerer {
-    pub(crate) fn resolve_extension_property(
+    pub(crate) fn resolve_extension_property_read(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
-        require_read: bool,
-    ) -> ExtensionPropertyResolution {
+    ) -> ExtensionPropertyResolution<ResolvedExtensionPropertyRead> {
+        match self.resolve_extension_property_for(
+            receiver,
+            name,
+            sink,
+            ExtensionPropertyAccess::Read,
+        ) {
+            ExtensionPropertyResolution::Resolved(selected) => match *selected {
+                SelectedExtensionProperty::Read(property) => {
+                    ExtensionPropertyResolution::Resolved(Box::new(property))
+                }
+                SelectedExtensionProperty::Write(_) => {
+                    unreachable!("read lookup produces a readable extension property")
+                }
+            },
+            ExtensionPropertyResolution::NoCandidate => ExtensionPropertyResolution::NoCandidate,
+            ExtensionPropertyResolution::Failed => ExtensionPropertyResolution::Failed,
+        }
+    }
+
+    pub(crate) fn resolve_extension_property_write(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
+    ) -> ExtensionPropertyResolution<ResolvedExtensionPropertyWrite> {
+        match self.resolve_extension_property_for(
+            receiver,
+            name,
+            sink,
+            ExtensionPropertyAccess::Write,
+        ) {
+            ExtensionPropertyResolution::Resolved(selected) => match *selected {
+                SelectedExtensionProperty::Write(property) => {
+                    ExtensionPropertyResolution::Resolved(Box::new(property))
+                }
+                SelectedExtensionProperty::Read(_) => {
+                    unreachable!("write lookup produces an extension property write target")
+                }
+            },
+            ExtensionPropertyResolution::NoCandidate => ExtensionPropertyResolution::NoCandidate,
+            ExtensionPropertyResolution::Failed => ExtensionPropertyResolution::Failed,
+        }
+    }
+
+    fn resolve_extension_property_for(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        sink: &mut Vec<hir::Statement>,
+        access: ExtensionPropertyAccess,
+    ) -> ExtensionPropertyResolution<SelectedExtensionProperty> {
         let declared = self
             .top_level_namespaces
             .extension_property_layers(self.current_file, &name.text)
@@ -39,41 +156,31 @@ impl Lowerer {
             .any(|properties| !properties.is_empty());
         let mut first_failure = None;
         for layer in self.named_extension_property_layers(&name.text) {
-            let properties = layer
-                .candidates
-                .into_iter()
-                .filter(|property| {
-                    self.access_domain_allows(
-                        &self.properties[*property].access.lookup.0,
-                        Some(receiver.ty),
-                    )
-                })
-                .collect::<Vec<_>>();
-            if properties.is_empty() {
+            if layer.candidates.is_empty() {
                 continue;
             }
             let mut state = self.clone();
             let mut layer_sink = Vec::new();
-            match state.resolve_extension_property_candidates_outcome(
+            match state.select_extension_property_candidates(
                 receiver.clone(),
                 name,
-                &properties,
+                &layer.candidates,
                 &mut layer_sink,
-                require_read,
+                access,
             ) {
-                ExtensionPropertyCandidateOutcome::Resolved(resolved) => {
+                ExtensionPropertySelectionOutcome::Resolved(resolved) => {
                     *self = state;
                     sink.extend(layer_sink);
                     return ExtensionPropertyResolution::Resolved(resolved);
                 }
-                ExtensionPropertyCandidateOutcome::NoApplicable => {
+                ExtensionPropertySelectionOutcome::NoApplicable => {
                     first_failure.get_or_insert(Box::new(state));
                 }
-                ExtensionPropertyCandidateOutcome::Failed => {
+                ExtensionPropertySelectionOutcome::Failed => {
                     self.commit_layer_diagnostics(state);
                     return ExtensionPropertyResolution::Failed;
                 }
-                ExtensionPropertyCandidateOutcome::NoCandidate => {}
+                ExtensionPropertySelectionOutcome::NoCandidate => {}
             }
         }
         if let Some(failure) = first_failure {
@@ -94,128 +201,63 @@ impl Lowerer {
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
-        properties: &[hir::PropertyId],
+        properties: &[ExtensionPropertyTarget],
         sink: &mut Vec<hir::Statement>,
-        require_read: bool,
-    ) -> ExtensionPropertyCandidateOutcome {
-        if properties.is_empty() {
-            return ExtensionPropertyCandidateOutcome::NoCandidate;
-        }
-        let getters = properties
-            .iter()
-            .map(|property| {
-                match self.property_getters[self.properties[*property].capability.getter()]
-                    .implementation
-                {
-                    hir::PropertyAccessorImplementation::Body(function) => function,
-                    hir::PropertyAccessorImplementation::Storage
-                    | hir::PropertyAccessorImplementation::Constant
-                    | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
-                        unreachable!("extension properties have concrete getter bodies")
-                    }
-                }
-            })
-            .collect::<Vec<_>>();
-        let no_type_args = [];
-        let no_arguments = [];
-        let resolved = match self.resolve_extension_overload_outcome(
-            &name.text,
-            &getters,
+    ) -> ExtensionPropertyCandidateOutcome<ResolvedExtensionPropertyRead> {
+        match self.select_extension_property_candidates(
             receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &no_type_args,
-                arg_exprs: &no_arguments,
-                span: name.span,
-                expected_result: None,
-                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
-            },
+            name,
+            properties,
             sink,
+            ExtensionPropertyAccess::Read,
         ) {
-            crate::overload::OverloadResolutionOutcome::NoApplicable => {
-                return ExtensionPropertyCandidateOutcome::NoApplicable;
-            }
-            crate::overload::OverloadResolutionOutcome::Blocked
-            | crate::overload::OverloadResolutionOutcome::Failed => {
-                return ExtensionPropertyCandidateOutcome::Failed;
-            }
-            crate::overload::OverloadResolutionOutcome::Resolved(resolved) => *resolved,
-        };
-        let function = resolved.function();
-        let property = self.extension_property_by_getter[&function];
-        let receiver = resolved
-            .args
-            .first()
-            .cloned()
-            .expect("an extension getter materializes its receiver argument");
-        let callee = self.materialize_resolved_callee(&resolved);
-        if require_read {
-            self.check_call_effects(callee, name.span);
-            let declaration = self.properties[property].clone();
-            self.record_property_initialization_dependency(&declaration, name.span);
-        }
-        let read = hir::Expr {
-            kind: hir::ExprKind::Call {
-                callee,
-                args: resolved.args,
+            ExtensionPropertySelectionOutcome::Resolved(selected) => match *selected {
+                SelectedExtensionProperty::Read(property) => {
+                    ExtensionPropertyCandidateOutcome::Resolved(Box::new(property))
+                }
+                SelectedExtensionProperty::Write(_) => {
+                    unreachable!("read candidate lookup produces a readable property")
+                }
             },
-            ty: resolved.return_ty,
-            span: name.span,
-            origin: self.expression_origin(name.span),
-        };
-        ExtensionPropertyCandidateOutcome::Resolved(Box::new(ResolvedExtensionProperty {
-            property,
-            receiver,
-            type_args: resolved.type_args,
-            read,
-        }))
+            ExtensionPropertySelectionOutcome::NoCandidate => {
+                ExtensionPropertyCandidateOutcome::NoCandidate
+            }
+            ExtensionPropertySelectionOutcome::NoApplicable => {
+                ExtensionPropertyCandidateOutcome::NoApplicable
+            }
+            ExtensionPropertySelectionOutcome::Failed => ExtensionPropertyCandidateOutcome::Failed,
+        }
     }
 
-    pub(crate) fn lower_extension_property_write(
+    pub(crate) fn resolve_extension_property_write_candidates_outcome(
         &mut self,
-        resolved: ResolvedExtensionProperty,
-        value: hir::Expr,
-        span: ast::Span,
-    ) -> Option<hir::StatementKind> {
-        let property = self.properties[resolved.property].clone();
-        self.record_property_initialization_dependency(&property, span);
-        let Some(setter) = property.capability.setter() else {
-            self.error(
-                span,
-                format!("cannot assign to immutable property `{}`", property.name),
-            );
-            return None;
-        };
-        let setter = self.property_setters[setter].clone();
-        if !self.access_domain_allows(&setter.access.lookup.0, Some(resolved.receiver.ty)) {
-            self.error(
-                span,
-                format!("setter of property `{}` is not accessible", property.name),
-            );
-            return None;
-        }
-        let function = match setter.implementation {
-            hir::PropertyAccessorImplementation::Body(function) => function,
-            hir::PropertyAccessorImplementation::Storage
-            | hir::PropertyAccessorImplementation::Constant
-            | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
-                unreachable!("extension properties use concrete accessor functions")
-            }
-        };
-        let candidate = crate::CallableCandidate::function(
-            function,
-            Vec::new(),
-            self.function_lookup_witness(function),
-        );
-        let callee = self.materialize_candidate_callable(&candidate, &resolved.type_args);
-        self.check_call_effects(callee, span);
-        Some(hir::StatementKind::Expr(hir::Expr {
-            kind: hir::ExprKind::Call {
-                callee,
-                args: vec![resolved.receiver, value],
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        properties: &[ExtensionPropertyTarget],
+        sink: &mut Vec<hir::Statement>,
+    ) -> ExtensionPropertyCandidateOutcome<ResolvedExtensionPropertyWrite> {
+        match self.select_extension_property_candidates(
+            receiver,
+            name,
+            properties,
+            sink,
+            ExtensionPropertyAccess::Write,
+        ) {
+            ExtensionPropertySelectionOutcome::Resolved(selected) => match *selected {
+                SelectedExtensionProperty::Write(property) => {
+                    ExtensionPropertyCandidateOutcome::Resolved(Box::new(property))
+                }
+                SelectedExtensionProperty::Read(_) => {
+                    unreachable!("write candidate lookup produces a property write target")
+                }
             },
-            ty: self.unit,
-            span,
-            origin: self.expression_origin(span),
-        }))
+            ExtensionPropertySelectionOutcome::NoCandidate => {
+                ExtensionPropertyCandidateOutcome::NoCandidate
+            }
+            ExtensionPropertySelectionOutcome::NoApplicable => {
+                ExtensionPropertyCandidateOutcome::NoApplicable
+            }
+            ExtensionPropertySelectionOutcome::Failed => ExtensionPropertyCandidateOutcome::Failed,
+        }
     }
 }

@@ -129,9 +129,9 @@ impl Lowerer {
                 && let Some(receiver) = self.lower_current_this(name.span)
             {
                 let mut sink = Vec::new();
-                match self.resolve_implicit_value(receiver, name, &mut sink, false) {
+                match self.resolve_implicit_value_write(receiver, name, &mut sink) {
                     crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
-                        let expected = property.read.ty;
+                        let expected = property.value_type();
                         let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
                         if !self.is_subtype(value.ty, expected) {
                             let message = self.with_nominal_invariance_detail(

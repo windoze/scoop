@@ -87,7 +87,7 @@ impl Lowerer {
             let selected_value = if self.initialization_context.is_none()
                 && let Some(receiver) = self.lower_current_this(name.span)
             {
-                match self.resolve_implicit_value(receiver, name, sink, true) {
+                match self.resolve_implicit_value_read(receiver, name, sink) {
                     crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
                         return Some(property.read);
                     }

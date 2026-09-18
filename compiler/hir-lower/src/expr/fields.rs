@@ -104,7 +104,7 @@ impl Lowerer {
                     access.span,
                 );
             }
-            match self.resolve_extension_property(receiver.clone(), field, sink, true) {
+            match self.resolve_extension_property_read(receiver.clone(), field, sink) {
                 crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                     return Some(property.read);
                 }
@@ -215,11 +215,10 @@ impl Lowerer {
                 {
                     self.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
                 } else {
-                    match self.resolve_extension_property(
+                    match self.resolve_extension_property_read(
                         unwrapped.clone(),
                         name,
                         &mut then_body,
-                        true,
                     ) {
                         crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                             property.read
