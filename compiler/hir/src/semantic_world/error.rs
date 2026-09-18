@@ -73,6 +73,11 @@ pub enum ImportedSemanticWorldBuildError {
         provider: ConeIdentity,
         binding: scoop_identity::PersistentExportBindingId,
     },
+    InvalidLookupWitnessRoute {
+        provider: ConeIdentity,
+        binding: scoop_identity::PersistentExportBindingId,
+        error: Box<crate::ReexportRouteBuildError>,
+    },
 }
 
 impl fmt::Display for ImportedSemanticWorldBuildError {
@@ -169,6 +174,14 @@ impl fmt::Display for ImportedSemanticWorldBuildError {
             Self::MissingNestedBinding { provider, binding } => write!(
                 formatter,
                 "provider {provider} nominal namespace names absent public binding {binding}"
+            ),
+            Self::InvalidLookupWitnessRoute {
+                provider,
+                binding,
+                error,
+            } => write!(
+                formatter,
+                "provider {provider} public binding {binding} cannot form a consumer lookup witness: {error}"
             ),
         }
     }

@@ -19,7 +19,8 @@ use crate::{
     DecodedHirFoundation, EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1,
     ExportBindingSourceV1, ImportedHirFoundation, NominalInterfaceRecordV1, NominalSourceShapeV1,
     ObjectSourceShapeV1, OdrFreeHirFoundation, PublicExportBindingRecordV1, PublicNominalKindV1,
-    SourceNominalId, TypeAliasClosureAuthority, TypeAliasInterfaceRecordV1,
+    ReexportRouteHopV1, ReexportRouteV1, SourceNominalId, TypeAliasClosureAuthority,
+    TypeAliasInterfaceRecordV1,
 };
 
 pub(super) struct ProviderFixture {
@@ -27,9 +28,12 @@ pub(super) struct ProviderFixture {
     pub(super) foundation: CanonicalHirFoundation,
     pub(super) interface: CrossConeHirInterfaceSectionV1,
     pub(super) outer: Option<SourceNominalId>,
+    pub(super) outer_key: Option<SourceDeclarationKey>,
+    pub(super) outer_binding: Option<PersistentExportBindingId>,
     pub(super) nested: Option<PersistentTypeId>,
     pub(super) object_value: Option<PersistentObjectValueId>,
     pub(super) enum_variant: Option<PersistentEnumVariantId>,
+    external_types: Vec<CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>>,
 }
 
 impl ProviderFixture {
@@ -39,9 +43,12 @@ impl ProviderFixture {
             foundation: CanonicalHirFoundation::empty(),
             interface: interface(Vec::new(), Vec::new()),
             outer: None,
+            outer_key: None,
+            outer_binding: None,
             nested: None,
             object_value: None,
             enum_variant: None,
+            external_types: Vec::new(),
         }
     }
 
@@ -105,9 +112,53 @@ impl ProviderFixture {
             foundation,
             interface: interface(public_bindings, nominals),
             outer: Some(outer_id),
+            outer_key: Some(outer_key),
+            outer_binding: Some(outer_binding.id()),
             nested,
             object_value: None,
             enum_variant: None,
+            external_types: Vec::new(),
+        }
+    }
+
+    pub(super) fn reexporting_type(
+        coordinate: ConeCoordinate,
+        package: PackagePath,
+        name: &str,
+        target_key: SourceDeclarationKey,
+        terminal_provider: ConeIdentity,
+        terminal_binding: PersistentExportBindingId,
+    ) -> Self {
+        let origin = coordinate.identity().unwrap();
+        let exported = binding(origin, package, name, &target_key);
+        let route = ReexportRouteV1::try_new(
+            terminal_provider,
+            vec![ReexportRouteHopV1::new(terminal_provider, terminal_binding)],
+        )
+        .unwrap();
+        let mut foundation = CanonicalHirFoundation::empty();
+        foundation
+            .set_export_bindings(vec![exported.clone()])
+            .unwrap();
+        Self {
+            coordinate,
+            foundation,
+            interface: interface(
+                vec![PublicExportBindingRecordV1::new(
+                    exported.id(),
+                    ExportBindingSourceV1::Reexport {
+                        routes: crate::CanonicalReexportRoutesV1::try_new(vec![route]).unwrap(),
+                    },
+                )],
+                Vec::new(),
+            ),
+            outer: None,
+            outer_key: None,
+            outer_binding: Some(exported.id()),
+            nested: None,
+            object_value: None,
+            enum_variant: None,
+            external_types: vec![CborIdentityRecord::from_key(target_key).unwrap()],
         }
     }
 
@@ -161,9 +212,12 @@ impl ProviderFixture {
             foundation,
             interface: interface(Vec::new(), nominals),
             outer: None,
+            outer_key: None,
+            outer_binding: None,
             nested: None,
             object_value: Some(object_value.id()),
             enum_variant: Some(variant.id()),
+            external_types: Vec::new(),
         }
     }
 
@@ -184,6 +238,11 @@ pub(super) fn import_foundation(
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(fixture.identity()).unwrap();
+    for record in &fixture.external_types {
+        pending
+            .register_external_canonical_authority(record.clone())
+            .unwrap();
+    }
     decoded.register_identities(&mut pending).unwrap();
     decoded.resolve_identities(&mut pending).unwrap();
     let identities = pending.finish().unwrap();

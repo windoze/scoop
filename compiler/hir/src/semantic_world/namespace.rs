@@ -8,6 +8,10 @@ use super::{
 };
 use crate::SourceNominalId;
 
+mod group;
+pub use group::DirectPublicBindingGroup;
+use group::non_empty_group;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct BindingLocator {
     provider: WorldConeId,
@@ -118,25 +122,6 @@ pub(super) fn build_direct_package_index(
     DirectPackageIndex { brand, entries }
 }
 
-/// Non-empty public binding group at an exact package or static-owner name.
-pub struct DirectPublicBindingGroup<'world, 'input> {
-    bindings: Vec<&'world ImportedPublicBinding<'input>>,
-}
-
-impl<'world, 'input> DirectPublicBindingGroup<'world, 'input> {
-    pub fn bindings(&self) -> impl ExactSizeIterator<Item = ImportedPublicBinding<'input>> + '_ {
-        self.bindings.iter().copied().copied()
-    }
-
-    pub fn len(&self) -> usize {
-        self.bindings.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.bindings.is_empty()
-    }
-}
-
 /// Direct package namespace selected by longest-prefix lookup.
 pub struct DirectPackageView<'world, 'input> {
     world: &'world ImportedSemanticWorld<'input>,
@@ -160,14 +145,13 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
             .map(|contribution| contribution.provider)
     }
 
-    pub fn bindings(&self) -> impl Iterator<Item = ImportedPublicBinding<'input>> + '_ {
+    pub fn bindings(&self) -> impl Iterator<Item = &ImportedPublicBinding<'input>> + '_ {
         self.entry
             .contributions
             .iter()
             .flat_map(|contribution| contribution.bindings.iter())
             .map(|locator| {
-                *self
-                    .world
+                self.world
                     .binding(*locator)
                     .expect("the direct package index contains checked binding locators")
             })
@@ -205,7 +189,7 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
             .expect("a static namespace is constructed only for an indexed nominal")
     }
 
-    pub fn bindings(&self) -> impl Iterator<Item = ImportedPublicBinding<'input>> + '_ {
+    pub fn bindings(&self) -> impl Iterator<Item = &ImportedPublicBinding<'input>> + '_ {
         let owner = self.owner();
         let provider = self
             .world
@@ -216,11 +200,8 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
             .nested_bindings()
             .values()
             .iter()
-            .map(|binding| {
-                *provider
-                    .binding_by_id(*binding)
-                    .expect("world construction checked every nested binding")
-            })
+            .filter_map(|binding| provider.binding_by_id(*binding))
+            .filter(|binding| !binding.lookup_sources().is_empty())
     }
 
     pub fn binding_group(
@@ -403,10 +384,4 @@ enum NamespaceCursor<'world> {
         entry: &'world DirectPackageEntry,
     },
     Static(SourceNominalId),
-}
-
-fn non_empty_group<'world, 'input>(
-    bindings: Vec<&'world ImportedPublicBinding<'input>>,
-) -> Option<DirectPublicBindingGroup<'world, 'input>> {
-    (!bindings.is_empty()).then_some(DirectPublicBindingGroup { bindings })
 }

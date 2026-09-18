@@ -5,6 +5,7 @@ use scoop_identity::{
 
 use super::super::{import_callable_id, import_nominal_id, import_property_id};
 use super::{ImportedProvider, ImportedProviderCertificate, WorldConeId};
+use crate::semantic_world::DirectDependencyImportSource;
 use crate::{
     CallableSourceInterfaceV1, ExportBindingSourceV1, ExportConstValueV1,
     ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedCallable, ImportedEnumVariant,
@@ -15,34 +16,39 @@ use crate::{
 /// One imported public binding with both persistent and session-local
 /// identities. The source remains the already validated declared/re-export
 /// proof from the provider artifact.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ImportedPublicBinding<'input> {
     pub(super) provider: WorldConeId,
     pub(super) identity: ImportedHirId<PersistentExportBindingId>,
     pub(super) key: &'input scoop_identity::ExportBindingKey,
     pub(super) target: ImportedTarget,
     pub(super) source: &'input ExportBindingSourceV1,
+    pub(super) lookup_sources: Vec<DirectDependencyImportSource>,
 }
 
 impl<'input> ImportedPublicBinding<'input> {
-    pub const fn provider(self) -> WorldConeId {
+    pub const fn provider(&self) -> WorldConeId {
         self.provider
     }
 
-    pub const fn identity(self) -> ImportedHirId<PersistentExportBindingId> {
+    pub const fn identity(&self) -> ImportedHirId<PersistentExportBindingId> {
         self.identity
     }
 
-    pub const fn key(self) -> &'input scoop_identity::ExportBindingKey {
+    pub const fn key(&self) -> &'input scoop_identity::ExportBindingKey {
         self.key
     }
 
-    pub const fn target(self) -> ImportedTarget {
+    pub const fn target(&self) -> ImportedTarget {
         self.target
     }
 
-    pub const fn source(self) -> &'input ExportBindingSourceV1 {
+    pub const fn source(&self) -> &'input ExportBindingSourceV1 {
         self.source
+    }
+
+    pub fn lookup_sources(&self) -> &[DirectDependencyImportSource] {
+        &self.lookup_sources
     }
 }
 

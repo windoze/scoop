@@ -5,7 +5,7 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, PersistentExportBindingId, SemanticOriginFingerprint,
 };
 
-use super::{ImportedEntityIndex, ImportedSemanticWorldBuildError};
+use super::{DirectDependencyImportSource, ImportedEntityIndex, ImportedSemanticWorldBuildError};
 use crate::{
     CanonicalTypeAliasExpansionsV1, CrossConeHirInterfaceSectionV1, ImportedHirFoundation,
 };
@@ -313,6 +313,24 @@ impl<'input> ImportedProvider<'input> {
                 key,
                 target,
                 source: record.source(),
+                lookup_sources: if self.is_direct() {
+                    DirectDependencyImportSource::from_validated_binding(
+                        self.id,
+                        &self.certificate,
+                        identity,
+                        target,
+                        record.source(),
+                    )
+                    .map_err(|error| {
+                        ImportedSemanticWorldBuildError::InvalidLookupWitnessRoute {
+                            provider,
+                            binding,
+                            error: Box::new(error),
+                        }
+                    })?
+                } else {
+                    Vec::new()
+                },
             });
         }
         if let Some(binding) = self

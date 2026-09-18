@@ -15,11 +15,13 @@ mod entities;
 mod error;
 mod namespace;
 mod provider;
+mod witness;
 
 pub use entities::*;
 pub use error::*;
 pub use namespace::*;
 pub use provider::*;
+pub use witness::*;
 
 use entities::ImportedEntityIndex;
 use namespace::build_direct_package_index;
