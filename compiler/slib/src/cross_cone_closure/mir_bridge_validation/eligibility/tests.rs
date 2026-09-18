@@ -1,7 +1,8 @@
 use scoop_hir::{
     CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordV1, CallableModalityV1,
     CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1,
-    CanonicalSourceParameterShapesV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
+    CanonicalSourceParameterShapesV1, CoreClosedCallableClassificationError,
+    PublicDeclarationOwnerV1, PublicLookupAccessV1,
 };
 use scoop_identity::{
     CallableOwner, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate,
@@ -16,7 +17,8 @@ use scoop_mir::{
 };
 
 use super::{
-    CoreClosedExactLeafClassifier, CrossConeMirClosureRelationError, validate_export_relation,
+    ClassifiedCallable, CoreClosedCallableClassifier, CrossConeMirClosureRelationError,
+    validate_export_relation,
 };
 
 #[test]
@@ -80,7 +82,24 @@ struct Fixture {
     signature: ExactCallableSignature,
     foundation: OdrFreeMirFoundation,
     strong: StrongCallableBridgeSurfaceV1,
-    classifier: CoreClosedExactLeafClassifier,
+    classifier: TestClassifier,
+}
+
+struct TestClassifier {
+    declaration: DependencyCallableDeclarationId,
+    signature: ExactCallableSignature,
+}
+
+impl CoreClosedCallableClassifier for TestClassifier {
+    fn classify_callable(
+        &self,
+        _callable: &CallableInterfaceRecordV1,
+    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError> {
+        Ok(Some(ClassifiedCallable {
+            declaration: self.declaration,
+            signature: self.signature.clone(),
+        }))
+    }
 }
 
 fn fixture() -> Fixture {
@@ -141,6 +160,10 @@ fn fixture() -> Fixture {
         signature.clone(),
     )])
     .unwrap();
+    let classifier = TestClassifier {
+        declaration,
+        signature: signature.clone(),
+    };
     Fixture {
         artifact,
         declaration,
@@ -148,8 +171,6 @@ fn fixture() -> Fixture {
         signature,
         foundation,
         strong,
-        classifier: CoreClosedExactLeafClassifier {
-            leaves: vec![(unit, exact)],
-        },
+        classifier,
     }
 }

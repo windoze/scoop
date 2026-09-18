@@ -17,7 +17,7 @@ mod selected;
 
 pub use errors::*;
 
-use eligibility::{CoreClosedExactLeafClassifier, validate_export_surface};
+use eligibility::{core_classifier, validate_export_surface};
 use selected::validate_selected_closure;
 
 /// A semantic closure whose provider MIR exports, consumer selections, HIR
@@ -126,7 +126,7 @@ impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
                 .get(&ConeIdentity::CORE)
                 .copied()
                 .ok_or(CrossConeClosureMirBridgeError::MissingTrustedCore)?;
-            let classifier = CoreClosedExactLeafClassifier::try_new(&validated[core_position])?;
+            let classifier = core_classifier(&validated[core_position])?;
             for front in &validated {
                 validate_export_surface(front, &classifier).map_err(|source| {
                     CrossConeClosureMirBridgeError::Relation {

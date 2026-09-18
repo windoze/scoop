@@ -1,13 +1,11 @@
 //! Maximal provider export derivation from validated HIR and MIR surfaces.
 
 use scoop_hir::{
-    CallableImplementationV1, CallableInterfaceRecordV1, CoreHirInterfaceBranchV1,
-    CoreHirTypeCapabilityV1, CoreTypeDefinitionV1, PublicDeclarationOwnerV1,
+    CallableInterfaceRecordV1, CoreClosedCallableClassificationError,
+    CoreClosedExactLeafClassifierBuildError, CoreClosedExactLeafClassifierV1,
+    CoreHirInterfaceBranchV1,
 };
-use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature,
-    PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
-};
+use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature};
 use scoop_mir::{
     CrossConeMirBridgeSectionV1, ParamFreeMirCallableExportV1, StrongCallableBridgeSurfaceV1,
 };
@@ -15,54 +13,52 @@ use scoop_mir::{
 use super::{CrossConeClosureMirBridgeError, CrossConeMirClosureRelationError};
 use crate::MirBridgeValidatedCrossConeHirFrontSections;
 
-pub(super) struct CoreClosedExactLeafClassifier {
-    leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
+pub(super) fn core_classifier(
+    core: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
+) -> Result<CoreClosedExactLeafClassifierV1, CrossConeClosureMirBridgeError> {
+    let CoreHirInterfaceBranchV1::Core(interface) = core.hir_core_production().core_interface()
+    else {
+        return Err(CrossConeClosureMirBridgeError::MissingTrustedCoreInterface);
+    };
+    CoreClosedExactLeafClassifierV1::try_from_core_interface(interface).map_err(
+        |CoreClosedExactLeafClassifierBuildError::Allocation { requested_slots }| {
+            CrossConeClosureMirBridgeError::Allocation { requested_slots }
+        },
+    )
 }
 
-impl CoreClosedExactLeafClassifier {
-    pub(super) fn try_new(
-        core: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
-    ) -> Result<Self, CrossConeClosureMirBridgeError> {
-        let CoreHirInterfaceBranchV1::Core(interface) = core.hir_core_production().core_interface()
-        else {
-            return Err(CrossConeClosureMirBridgeError::MissingTrustedCoreInterface);
-        };
-        let target_count = interface.type_targets().targets().len();
-        let mut leaves = Vec::new();
-        leaves.try_reserve_exact(target_count).map_err(|_| {
-            CrossConeClosureMirBridgeError::Allocation {
-                requested_slots: target_count,
-            }
-        })?;
-        for target in interface.type_targets().targets() {
-            let (
-                CoreTypeDefinitionV1::Type(source),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
-            ) = (target.definition(), target.capability())
-            else {
-                continue;
-            };
-            leaves.push((source, exact));
-        }
-        leaves.sort_unstable_by_key(|(source, _)| *source);
-        leaves.dedup_by_key(|(source, _)| *source);
-        Ok(Self { leaves })
-    }
+trait CoreClosedCallableClassifier {
+    fn classify_callable(
+        &self,
+        callable: &CallableInterfaceRecordV1,
+    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError>;
+}
 
-    fn classify(&self, signature: &SignatureTypeKey) -> Option<PersistentExactTypeId> {
-        let SignatureTypeKey::Nominal(source) = signature else {
-            return None;
-        };
-        self.leaves
-            .binary_search_by_key(source, |(candidate, _)| *candidate)
-            .ok()
-            .map(|index| self.leaves[index].1)
+impl CoreClosedCallableClassifier for CoreClosedExactLeafClassifierV1 {
+    fn classify_callable(
+        &self,
+        callable: &CallableInterfaceRecordV1,
+    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError> {
+        Ok(
+            CoreClosedExactLeafClassifierV1::classify_callable(self, callable)?.map(|eligible| {
+                ClassifiedCallable {
+                    declaration: eligible.declaration(),
+                    signature: eligible.signature().clone(),
+                }
+            }),
+        )
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ClassifiedCallable {
+    declaration: DependencyCallableDeclarationId,
+    signature: ExactCallableSignature,
 }
 
 pub(super) fn validate_export_surface(
     front: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
-    classifier: &CoreClosedExactLeafClassifier,
+    classifier: &CoreClosedExactLeafClassifierV1,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     validate_export_relation(
         front.identity(),
@@ -73,13 +69,16 @@ pub(super) fn validate_export_surface(
     )
 }
 
-fn validate_export_relation(
+fn validate_export_relation<C>(
     artifact: ConeIdentity,
     callable_records: &[CallableInterfaceRecordV1],
     strong_bridges: &StrongCallableBridgeSurfaceV1,
     dependency_bridge: &CrossConeMirBridgeSectionV1,
-    classifier: &CoreClosedExactLeafClassifier,
-) -> Result<(), CrossConeMirClosureRelationError> {
+    classifier: &C,
+) -> Result<(), CrossConeMirClosureRelationError>
+where
+    C: CoreClosedCallableClassifier,
+{
     if artifact == ConeIdentity::CORE {
         return Ok(());
     }
@@ -91,12 +90,15 @@ fn validate_export_relation(
             requested_slots: callable_records.len(),
         })?;
     for callable in callable_records {
-        let Some(declaration) = eligible_declaration(callable) else {
+        let Some(eligible) = classifier.classify_callable(callable).map_err(
+            |CoreClosedCallableClassificationError::Allocation { requested_slots }| {
+                CrossConeMirClosureRelationError::Allocation { requested_slots }
+            },
+        )?
+        else {
             continue;
         };
-        let Some(signature) = exact_signature(callable, classifier)? else {
-            continue;
-        };
+        let declaration = eligible.declaration;
         let implementation = declaration.implementation().callable_owner();
         let Some(strong) = strong_bridges
             .bridges()
@@ -105,10 +107,10 @@ fn validate_export_relation(
         else {
             continue;
         };
-        if strong.signature() != &signature {
+        if strong.signature() != &eligible.signature {
             return Err(CrossConeMirClosureRelationError::StrongSignatureMismatch { declaration });
         }
-        expected.push((declaration, signature));
+        expected.push((declaration, eligible.signature));
     }
     expected.sort_unstable_by_key(|(declaration, _)| *declaration);
 
@@ -136,66 +138,6 @@ fn validate_export_relation(
         }
     }
     Ok(())
-}
-
-fn eligible_declaration(
-    callable: &CallableInterfaceRecordV1,
-) -> Option<DependencyCallableDeclarationId> {
-    if !matches!(
-        callable.owner(),
-        PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension
-    ) || !callable.type_parameters().is_empty()
-        || callable.effects().execution() != scoop_identity::Effect::Ordinary
-        || callable.effects().implementation() != CallableImplementationV1::Scoop
-    {
-        return None;
-    }
-    match callable.declaration() {
-        CallableTemplateOrigin::Function(declaration) => {
-            Some(DependencyCallableDeclarationId::Function(declaration))
-        }
-        CallableTemplateOrigin::Accessor(declaration) => Some(
-            DependencyCallableDeclarationId::PropertyAccessor(declaration),
-        ),
-        CallableTemplateOrigin::GenericFunction(_)
-        | CallableTemplateOrigin::Constructor(_)
-        | CallableTemplateOrigin::VariantConstructor(_) => None,
-    }
-}
-
-fn exact_signature(
-    callable: &CallableInterfaceRecordV1,
-    classifier: &CoreClosedExactLeafClassifier,
-) -> Result<Option<ExactCallableSignature>, CrossConeMirClosureRelationError> {
-    let receiver = match callable.receiver() {
-        Some(receiver) => match classifier.classify(receiver) {
-            Some(exact) => Some(exact),
-            None => return Ok(None),
-        },
-        None => None,
-    };
-    let parameter_count = callable.parameters().parameters().len();
-    let mut parameters = Vec::new();
-    parameters.try_reserve_exact(parameter_count).map_err(|_| {
-        CrossConeMirClosureRelationError::Allocation {
-            requested_slots: parameter_count,
-        }
-    })?;
-    for parameter in callable.parameters().parameters() {
-        let Some(exact) = classifier.classify(parameter.value_type()) else {
-            return Ok(None);
-        };
-        parameters.push(exact);
-    }
-    let Some(result) = classifier.classify(callable.result()) else {
-        return Ok(None);
-    };
-    Ok(Some(ExactCallableSignature::new(
-        callable.effects().execution(),
-        receiver,
-        parameters,
-        result,
-    )))
 }
 
 fn find_export(

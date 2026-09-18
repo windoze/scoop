@@ -5,6 +5,7 @@ mod callable_interfaces;
 mod callable_source_interfaces;
 mod canonical_ids;
 mod const_values;
+mod core_closed_callables;
 mod declaration_common;
 mod declaration_references;
 mod default_templates;
@@ -76,6 +77,10 @@ pub use const_values::{
     ExportConstValueSemanticValidationError, ExportConstValueSetBuildError,
     ExportConstValueSetSemanticValidationError, ExportConstValueSetValidationError,
     ExportConstValueV1,
+};
+pub use core_closed_callables::{
+    CoreClosedCallableClassificationError, CoreClosedExactLeafClassifierBuildError,
+    CoreClosedExactLeafClassifierV1, ParamFreeCoreClosedCallableV1,
 };
 pub use declaration_common::{
     DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,
