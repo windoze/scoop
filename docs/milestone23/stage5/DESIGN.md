@@ -2055,8 +2055,8 @@ Link reader验证：
 
 ObjectDefinition fingerprint的relocation正规化不能把上述use重新塞入M23-3
 `FinalUndefinedSymbolRequirementV1`。M23-5增加仅属于`scoop-object-definition-v1` canonical target sum的
-`DependencyStrong { provider: ConeIdentity, owner: StrongDefinitionOwnerV1 }`，RuntimeEncode tag固定为11，
-依次编码provider的32 bytes和owner；既有requirement target tag 1..7、static-storage tag 8、sentinel tag 9与
+`DependencyStrong { provider: ConeIdentity, target: StrongCallableDefinitionOwner }`，RuntimeEncode tag固定为11，
+依次编码provider的32 bytes和target；既有requirement target tag 1..7、static-storage tag 8、sentinel tag 9与
 owning-associated-atom tag 10均保持不变。该target只能由
 `CrossConeUndefinedRequirementV1.import_index`命中的同一semantic import机械产生，provider/owner分别取
 该import的`provider/target`；symbol、required definition和ABI仍由同一import与Link closure验证，不能由

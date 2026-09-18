@@ -354,7 +354,7 @@ M23-5 ordinary dependency不复用或放宽上述core-only类型。Compile closu
 
 上述分区还必须贯穿`scoop-object-definition-v1`正规化：旧`FinalUndefinedSymbolRequirementV1`
 wire与tag 1..7保持不变，ordinary dependency use改为object-fingerprint内部的
-`DependencyStrong { provider: ConeIdentity, owner: StrongDefinitionOwnerV1 }` target，RuntimeEncode tag为11
+`DependencyStrong { provider: ConeIdentity, target: StrongCallableDefinitionOwner }` target，RuntimeEncode tag为11
 并按provider、owner顺序编码；tag 8..10继续分别属于static-storage、sentinel与owning-associated-atom。
 它只能由cross-Cone requirement的import index解析到已验证semantic import后构造，不能按symbol猜测。
 fingerprint入口消费typed old/new partition并验证互斥联合覆盖同一object closure，因此新增分区既不会污染
