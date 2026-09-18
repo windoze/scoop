@@ -416,8 +416,10 @@ impl Lowerer {
             imports.exact.retain(|import| {
                 let mut failed = false;
                 for target in import.targets.iter() {
-                    if unresolved.contains(&target.binding) {
-                        exact_suppressions.push((file, import.local_name.clone(), target.binding));
+                    if let Some(binding) = target.current_binding()
+                        && unresolved.contains(&binding)
+                    {
+                        exact_suppressions.push((file, import.local_name.clone(), binding));
                         failed = true;
                     }
                 }
@@ -427,8 +429,10 @@ impl Lowerer {
                 import.snapshot.retain(|name, targets| {
                     let mut failed = false;
                     for target in targets.iter() {
-                        if unresolved.contains(&target.binding) {
-                            star_suppressions.push((file, name.clone(), target.binding));
+                        if let Some(binding) = target.current_binding()
+                            && unresolved.contains(&binding)
+                        {
+                            star_suppressions.push((file, name.clone(), binding));
                             failed = true;
                         }
                     }

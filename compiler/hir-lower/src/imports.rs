@@ -9,6 +9,7 @@ mod bindings;
 mod collect;
 pub(crate) mod lookup;
 mod resolve;
+mod selector;
 #[cfg(test)]
 mod tests;
 
@@ -26,6 +27,7 @@ pub(crate) enum ImportLookupLayer {
 pub(crate) struct ImportCandidateLayer {
     pub(crate) kind: ImportLookupLayer,
     pub(crate) bindings: Vec<CurrentUnitBindingId>,
+    pub(crate) dependency_bindings: Vec<hir::DirectImportedTargetBinding>,
     /// Duplicate-signature functions which occupy this lookup layer but are
     /// forbidden from becoming semantic candidates.
     pub(crate) suppressed_callables: Vec<hir::FunctionId>,
@@ -203,6 +205,25 @@ impl CurrentUnitImports {
         bindings
     }
 
+    fn canonicalize_dependencies(
+        &self,
+        bindings: impl IntoIterator<Item = hir::DirectImportedTargetBinding>,
+    ) -> Vec<hir::DirectImportedTargetBinding> {
+        let mut canonical = BTreeMap::new();
+        for binding in bindings {
+            match canonical.entry(binding.binding_target()) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(binding);
+                }
+                std::collections::btree_map::Entry::Occupied(mut entry) => entry
+                    .get_mut()
+                    .try_merge(binding)
+                    .expect("one frozen import scope belongs to one semantic world"),
+            }
+        }
+        canonical.into_values().collect()
+    }
+
     /// Core targets remain in the existing prelude index; the final empty
     /// layer is an explicit handoff to that complete M22 backing view.
     pub(crate) fn layers(
@@ -220,7 +241,25 @@ impl CurrentUnitImports {
                         .exact
                         .iter()
                         .filter(|import| import.local_name == name)
-                        .flat_map(|import| import.targets.iter().map(|target| target.binding)),
+                        .flat_map(|import| {
+                            import
+                                .targets
+                                .iter()
+                                .filter_map(ImportedTargetBinding::current_binding)
+                        }),
+                ),
+                dependency_bindings: self.canonicalize_dependencies(
+                    imports
+                        .exact
+                        .iter()
+                        .filter(|import| import.local_name == name)
+                        .flat_map(|import| {
+                            import
+                                .targets
+                                .iter()
+                                .filter_map(ImportedTargetBinding::direct_binding)
+                                .cloned()
+                        }),
                 ),
                 suppressed_callables: Vec::new(),
                 suppressed_values: self
@@ -237,6 +276,7 @@ impl CurrentUnitImports {
                         .flatten()
                         .copied(),
                 ),
+                dependency_bindings: Vec::new(),
                 suppressed_callables: Vec::new(),
                 suppressed_values: self.diagnostic_suppressions.get(
                     SuppressedValueScope::Namespace(ResolvedNamespace::Package(package)),
@@ -251,8 +291,19 @@ impl CurrentUnitImports {
                         .get(name)
                         .into_iter()
                         .flat_map(ast::NonEmptyVec::iter)
-                        .map(|target| target.binding)
+                        .filter_map(ImportedTargetBinding::current_binding)
                 })),
+                dependency_bindings: self.canonicalize_dependencies(imports.stars.iter().flat_map(
+                    |import| {
+                        import
+                            .snapshot
+                            .get(name)
+                            .into_iter()
+                            .flat_map(ast::NonEmptyVec::iter)
+                            .filter_map(ImportedTargetBinding::direct_binding)
+                            .cloned()
+                    },
+                )),
                 suppressed_callables: Vec::new(),
                 suppressed_values: self
                     .diagnostic_suppressions
@@ -261,6 +312,7 @@ impl CurrentUnitImports {
             ImportCandidateLayer {
                 kind: ImportLookupLayer::CorePrelude,
                 bindings: Vec::new(),
+                dependency_bindings: Vec::new(),
                 suppressed_callables: Vec::new(),
                 suppressed_values: Vec::new(),
             },

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use scoop_ast as ast;
 use scoop_hir as hir;
-use scoop_identity::{LocalBindingRole, SourceIdentity};
+use scoop_identity::{LocalBindingRole, PackagePath, SourceIdentity};
 
 use crate::{aliases::SourceTypeAliasId, namespace::PackageId};
 
@@ -64,12 +64,39 @@ pub(crate) struct CurrentUnitImportWitness {
     pub(crate) access: hir::EffectiveLookupDomain,
 }
 
-/// The binding id dereferences to the typed declaration target. A forwarding
-/// static edge retains the same id rather than creating another entity.
 #[derive(Debug, Clone)]
-pub(crate) struct ImportedBinding {
-    pub(crate) binding: CurrentUnitBindingId,
-    pub(crate) sources: ast::NonEmptyVec<CurrentUnitImportWitness>,
+pub(crate) enum ImportedTargetBinding {
+    /// The binding id dereferences to the typed declaration target. A
+    /// forwarding static edge retains the same id rather than creating
+    /// another entity.
+    CurrentCone {
+        binding: CurrentUnitBindingId,
+        sources: ast::NonEmptyVec<CurrentUnitImportWitness>,
+    },
+    DirectDependency(hir::DirectImportedTargetBinding),
+}
+
+impl ImportedTargetBinding {
+    pub(crate) fn current(
+        binding: CurrentUnitBindingId,
+        sources: ast::NonEmptyVec<CurrentUnitImportWitness>,
+    ) -> Self {
+        Self::CurrentCone { binding, sources }
+    }
+
+    pub(crate) const fn current_binding(&self) -> Option<CurrentUnitBindingId> {
+        match self {
+            Self::CurrentCone { binding, .. } => Some(*binding),
+            Self::DirectDependency(_) => None,
+        }
+    }
+
+    pub(crate) const fn direct_binding(&self) -> Option<&hir::DirectImportedTargetBinding> {
+        match self {
+            Self::CurrentCone { .. } => None,
+            Self::DirectDependency(binding) => Some(binding),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,14 +109,35 @@ pub(crate) struct ImportSyntaxOrigin {
 pub(crate) struct ResolvedExactImport {
     pub(crate) local_name: String,
     pub(crate) source_role: LocalBindingRole,
-    pub(crate) targets: ast::NonEmptyVec<ImportedBinding>,
+    pub(crate) targets: ast::NonEmptyVec<ImportedTargetBinding>,
     pub(crate) origin: ImportSyntaxOrigin,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedImportNamespace {
+    Current(ResolvedNamespace),
+    DirectPackage(PackagePath),
+    DirectStatic(hir::SourceNominalId),
+    SplitPackage {
+        current: PackageId,
+        direct: PackagePath,
+    },
+}
+
+impl ResolvedImportNamespace {
+    pub(crate) const fn current(&self) -> Option<ResolvedNamespace> {
+        match self {
+            Self::Current(namespace) => Some(*namespace),
+            Self::SplitPackage { current, .. } => Some(ResolvedNamespace::Package(*current)),
+            Self::DirectPackage(_) | Self::DirectStatic(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedStarImport {
-    pub(crate) namespace: ResolvedNamespace,
-    pub(crate) snapshot: BTreeMap<String, ast::NonEmptyVec<ImportedBinding>>,
+    pub(crate) namespace: ResolvedImportNamespace,
+    pub(crate) snapshot: BTreeMap<String, ast::NonEmptyVec<ImportedTargetBinding>>,
     pub(crate) origin: ImportSyntaxOrigin,
 }
 

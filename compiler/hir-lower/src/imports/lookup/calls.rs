@@ -394,7 +394,12 @@ impl Lowerer {
                     imports
                         .exact
                         .iter()
-                        .flat_map(|import| import.targets.iter().map(|target| target.binding))
+                        .flat_map(|import| {
+                            import
+                                .targets
+                                .iter()
+                                .filter_map(ImportedTargetBinding::current_binding)
+                        })
                         .collect::<Vec<_>>(),
                 ),
                 (
@@ -414,7 +419,11 @@ impl Lowerer {
                         .stars
                         .iter()
                         .flat_map(|import| import.snapshot.values())
-                        .flat_map(|bindings| bindings.iter().map(|binding| binding.binding))
+                        .flat_map(|bindings| {
+                            bindings
+                                .iter()
+                                .filter_map(ImportedTargetBinding::current_binding)
+                        })
                         .collect(),
                 ),
             ];

@@ -53,6 +53,9 @@ fn declared_direct_binding_produces_one_public_lookup_witness() {
         source.exported_binding().persistent(),
         direct.outer_binding.unwrap()
     );
+    let mut merged = target.clone();
+    merged.try_merge(target.clone()).unwrap();
+    assert_eq!(merged.source_count(), 1);
     assert_eq!(source.witness().terminal_declaration(), target.target());
     assert_eq!(route.immediate_provider(), direct.identity());
     assert_eq!(route.hops().len(), 1);

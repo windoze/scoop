@@ -1,4 +1,6 @@
 use super::*;
+mod dependency;
+mod dependency_fixture;
 mod type_lookup;
 mod value_lookup;
 use crate::tests::{
@@ -378,7 +380,10 @@ fn star_is_nonrecursive_and_exact_cannot_import_a_package() {
     syntax.imports = vec![star(&["api"], false), exact(&["api"], None, false)];
     let resolved = surface.resolve_file(&mut lowerer, &syntax);
     assert!(resolved.exact.is_empty());
-    assert_eq!(resolved.stars[0].namespace, ResolvedNamespace::Package(api));
+    assert_eq!(
+        resolved.stars[0].namespace,
+        ResolvedImportNamespace::Current(ResolvedNamespace::Package(api))
+    );
     assert!(resolved.stars[0].snapshot.is_empty());
     assert_eq!(
         lowerer.diagnostics[0].message,
@@ -428,10 +433,15 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
     ];
     let resolved = surface.resolve_file(&mut lowerer, &syntax);
     assert_eq!(resolved.exact.len(), 1);
-    assert_eq!(resolved.exact[0].targets.first().binding, member);
     assert_eq!(
-        resolved.stars[0].snapshot["factory"].first().binding,
-        member
+        resolved.exact[0].targets.first().current_binding(),
+        Some(member)
+    );
+    assert_eq!(
+        resolved.stars[0].snapshot["factory"]
+            .first()
+            .current_binding(),
+        Some(member)
     );
     assert_eq!(lowerer.diagnostics.len(), 1);
     assert_eq!(

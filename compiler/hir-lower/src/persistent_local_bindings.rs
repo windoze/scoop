@@ -49,7 +49,7 @@ pub(crate) fn build(
     for (file, imports) in lowerer.imports.files.iter().enumerate() {
         for import in &imports.exact {
             for imported in import.targets.iter() {
-                append_binding(
+                append_imported_binding(
                     lowerer,
                     &tables,
                     source_contexts,
@@ -58,7 +58,7 @@ pub(crate) fn build(
                     file,
                     import.origin.span,
                     &import.local_name,
-                    lowerer.imports.binding(imported.binding).target,
+                    imported,
                     import.source_role,
                 )?;
             }
@@ -66,7 +66,7 @@ pub(crate) fn build(
         for import in &imports.stars {
             for (name, imported_bindings) in &import.snapshot {
                 for imported in imported_bindings.iter() {
-                    append_binding(
+                    append_imported_binding(
                         lowerer,
                         &tables,
                         source_contexts,
@@ -75,7 +75,7 @@ pub(crate) fn build(
                         file,
                         import.origin.span,
                         name,
-                        lowerer.imports.binding(imported.binding).target,
+                        imported,
                         LocalBindingRole::StarImport,
                     )?;
                 }
@@ -90,6 +90,46 @@ pub(crate) fn build(
             detail: PersistentLocalBindingIdentityErrorDetail::Identity(detail),
         }
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_imported_binding(
+    lowerer: &Lowerer,
+    tables: &IdentityTables<'_>,
+    source_contexts: &hir::HirSourceContextIdentities,
+    identities: &mut Vec<hir::HirLocalBindingIdentity>,
+    source: SourceIdentity,
+    file: usize,
+    span: Span,
+    local_name: &str,
+    imported: &crate::imports::ImportedTargetBinding,
+    source_role: LocalBindingRole,
+) -> Result<(), PersistentLocalBindingIdentityError> {
+    match imported {
+        crate::imports::ImportedTargetBinding::CurrentCone { binding, .. } => append_binding(
+            lowerer,
+            tables,
+            source_contexts,
+            identities,
+            source,
+            file,
+            span,
+            local_name,
+            lowerer.imports.binding(*binding).target,
+            source_role,
+        ),
+        crate::imports::ImportedTargetBinding::DirectDependency(binding) => append_binding_targets(
+            lowerer,
+            source_contexts,
+            identities,
+            source,
+            file,
+            span,
+            local_name,
+            std::iter::once(binding.binding_target()),
+            source_role,
+        ),
+    }
 }
 
 struct IdentityTables<'a> {
@@ -114,6 +154,34 @@ fn append_binding(
     target: CurrentUnitTarget,
     source_role: LocalBindingRole,
 ) -> Result<(), PersistentLocalBindingIdentityError> {
+    let targets =
+        binding_targets(lowerer, tables, target).map_err(|detail| failure(file, span, detail))?;
+
+    append_binding_targets(
+        lowerer,
+        source_contexts,
+        identities,
+        source,
+        file,
+        span,
+        local_name,
+        targets,
+        source_role,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_binding_targets(
+    lowerer: &Lowerer,
+    source_contexts: &hir::HirSourceContextIdentities,
+    identities: &mut Vec<hir::HirLocalBindingIdentity>,
+    source: SourceIdentity,
+    file: usize,
+    span: Span,
+    local_name: &str,
+    targets: impl IntoIterator<Item = BindingTarget>,
+    source_role: LocalBindingRole,
+) -> Result<(), PersistentLocalBindingIdentityError> {
     let package = package(lowerer, file).map_err(|detail| failure(file, span, detail))?;
     let local_name = CanonicalIdentifier::new(local_name).map_err(|error| {
         failure(
@@ -124,8 +192,6 @@ fn append_binding(
     })?;
     let origin = definition_origin(lowerer, source_contexts, &source, file, span)
         .map_err(|detail| failure(file, span, detail))?;
-    let targets =
-        binding_targets(lowerer, tables, target).map_err(|detail| failure(file, span, detail))?;
 
     for target in targets {
         let key = LocalBindingKey::new(

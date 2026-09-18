@@ -2,7 +2,7 @@
 
 use super::{
     CurrentUnitBindingId, CurrentUnitTarget, ImportCandidateLayer, ImportLookupLayer,
-    ResolvedNamespace,
+    ImportedTargetBinding, ResolvedNamespace,
 };
 use crate::{
     Lowerer, NominalTarget,

@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt;
 
 use scoop_identity::{BindingTarget, ConeIdentity, PersistentExportBindingId};
 
@@ -159,6 +160,21 @@ impl DirectImportedTargetBinding {
         self.sources.len()
     }
 
+    pub fn try_merge(&mut self, other: Self) -> Result<(), DirectImportedTargetMergeError> {
+        if self.binding_target != other.binding_target {
+            return Err(DirectImportedTargetMergeError::BindingTargetMismatch);
+        }
+        if self.target != other.target {
+            return Err(DirectImportedTargetMergeError::ImportedTargetMismatch);
+        }
+        self.sources.extend(other.sources);
+        self.sources
+            .sort_unstable_by(DirectDependencyImportSource::canonical_cmp);
+        self.sources
+            .dedup_by(|left, right| left.canonical_eq(right));
+        Ok(())
+    }
+
     pub(super) fn new(
         binding_target: BindingTarget,
         target: ImportedTarget,
@@ -177,3 +193,24 @@ impl DirectImportedTargetBinding {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DirectImportedTargetMergeError {
+    BindingTargetMismatch,
+    ImportedTargetMismatch,
+}
+
+impl fmt::Display for DirectImportedTargetMergeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BindingTargetMismatch => {
+                formatter.write_str("direct imported bindings name different binding targets")
+            }
+            Self::ImportedTargetMismatch => formatter.write_str(
+                "direct imported bindings belong to different semantic-world target handles",
+            ),
+        }
+    }
+}
+
+impl std::error::Error for DirectImportedTargetMergeError {}
