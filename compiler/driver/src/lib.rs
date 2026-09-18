@@ -9,14 +9,10 @@ mod request;
 mod trusted_core;
 
 pub use artifact_production::{
-    AssembledCrossConeArtifactProductionV1, AssembledStrongArtifactProductionV1,
-    CrossConeArtifactProductionError, CrossConeStrongArtifactMetadataInputV1,
-    StrongArtifactMetadataInputV1, StrongArtifactProductionError,
+    AssembledCrossConeArtifactProductionV1, CrossConeArtifactProductionError,
+    CrossConeStrongArtifactMetadataInputV1,
 };
-pub use ir_production::{
-    CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1,
-    SingleConeStrongIrProductionV1, StrongIrArtifactProductionError,
-};
+pub use ir_production::{CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, CodeFingerprintedObjectProductionV1,
@@ -38,19 +34,19 @@ pub use request::{
     EmittedStageDump, ExplicitDependencyArtifactInput, ExplicitDependencyInputs,
     ExplicitDependencyLoadError, ExplicitDependencyLoadOperation, ExplicitDependencyRole,
     ExplicitDependencyValidationError, HostArtifactLocator, LoadedCurrentConeInput,
-    LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, NonCoreDependencyInput,
-    OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
-    OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
-    OrdinaryConeProductionError, OrdinaryConeStrongProfileError, OrdinaryCoreOnlyHirInputError,
-    OutputAliasRole, OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest,
-    ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest, PublishedStrongArtifact,
-    PublishedStrongArtifactValidation, SingleConeBuildRequest, SingleConeBuildRequestError,
-    SingleConePreflightError, SingleConeProductionError, SingleConeProductionSuccess,
-    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
-    TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput, TrustedCoreBootstrapMirOutput,
-    TrustedCoreInput, ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput,
-    ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
-    normalize_direct_build_request, normalize_protocol_build_request,
+    LoadedSingleConeBuildRequest, LoadedTrustedCoreInput, OrdinaryConeHirOutput,
+    OrdinaryConeHirStageError, OrdinaryConeLirOutput, OrdinaryConeLirStageError,
+    OrdinaryConeMirOutput, OrdinaryConeMirStageError, OrdinaryConeProductionError,
+    OrdinaryConeStrongProfileError, OrdinaryCoreOnlyHirInputError, OutputAliasRole,
+    OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest, ParsedOrdinaryConeBuildRequest,
+    ParsedSingleConeBuildRequest, PublishedStrongArtifact, PublishedStrongArtifactValidation,
+    SingleConeBuildRequest, SingleConeBuildRequestError, SingleConePreflightError,
+    SingleConeProductionError, SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind,
+    StageDumpPolicy, TrustedCoreBootstrapHirInput, TrustedCoreBootstrapHirOutput,
+    TrustedCoreBootstrapLirOutput, TrustedCoreBootstrapMirOutput, TrustedCoreInput,
+    ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet,
+    classify_current_cone_operand, normalize_direct_build_request,
+    normalize_protocol_build_request,
 };
 pub use trusted_core::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactAuthority,

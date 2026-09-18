@@ -209,6 +209,15 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
     pub fn validate_identities(
         self,
     ) -> Result<IdentityCheckedSingleConeLinkSections<'input>, IdentityValidationError> {
+        self.validate_identities_with_authorities(std::iter::empty())
+    }
+
+    /// Validates the Link-view foundation against only the identity graphs
+    /// of this artifact's already validated direct dependencies.
+    pub(crate) fn validate_identities_with_authorities<'authority>(
+        self,
+        external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+    ) -> Result<IdentityCheckedSingleConeLinkSections<'input>, IdentityValidationError> {
         let Self {
             mut graph,
             hir_foundation,
@@ -220,11 +229,12 @@ impl<'input> DecodedSingleConeLinkSections<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let identities = validate_foundation_identity_graph(
+        let identities = validate_foundation_identity_graph_with_authorities(
             &mut graph,
             &hir_foundation,
             &mir_foundation,
             &lir_foundation,
+            external_authorities,
         )?;
         Ok(IdentityCheckedSingleConeLinkSections {
             graph,

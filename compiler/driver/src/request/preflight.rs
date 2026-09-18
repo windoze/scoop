@@ -1,13 +1,13 @@
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_hir::CoreInterfaceImportError;
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
-    ManifestSpan, SingleFileInputError, SingleFileInputErrorKind, SingleFileLocator,
-    SourceDiscoveryError, SourceDiscoveryErrorKind, discover_manifest_sources, load_cone_manifest,
+    SingleFileInputError, SingleFileInputErrorKind, SingleFileLocator, SourceDiscoveryError,
+    SourceDiscoveryErrorKind, discover_manifest_sources, load_cone_manifest,
     load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
@@ -23,8 +23,8 @@ use super::{
 };
 use crate::{
     CoreBootstrapAuthority, CrossConeStrongIrProductionV1, LoadedTrustedCoreArtifact,
-    SingleConeStrongIrProductionV1, TrustedCoreArtifactLoadError, TrustedCoreArtifactSlot,
-    TrustedCoreArtifactValidationError, TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
+    TrustedCoreArtifactLoadError, TrustedCoreArtifactSlot, TrustedCoreArtifactValidationError,
+    TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
 };
 
 mod bootstrap;
@@ -46,15 +46,84 @@ pub use ordinary::{
 };
 
 /// Proof that the manifest, explicit artifacts, and their recursive closure
-/// were all validated and contain no non-core dependency.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ValidatedExplicitDependencyInputSet {
-    _core_only: (),
+/// were validated before current-source discovery begins.
+pub struct ValidatedExplicitDependencyInputSet<'input> {
+    state: ValidatedDependencyInputState<'input>,
 }
 
-impl ValidatedExplicitDependencyInputSet {
-    pub const fn is_empty(self) -> bool {
-        true
+enum ValidatedDependencyInputState<'input> {
+    BootstrapEmpty,
+    Ordinary {
+        closure: Box<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
+        dependency_first: Vec<&'input [u8]>,
+        direct_dependencies: Vec<scoop_slib::DependencyRecord>,
+        explicit_count: usize,
+        _semantic_session: SemanticIdentitySession,
+    },
+}
+
+impl<'input> ValidatedExplicitDependencyInputSet<'input> {
+    pub const fn is_empty(&self) -> bool {
+        match &self.state {
+            ValidatedDependencyInputState::BootstrapEmpty => true,
+            ValidatedDependencyInputState::Ordinary { explicit_count, .. } => *explicit_count == 0,
+        }
+    }
+
+    pub(crate) const fn bootstrap_empty() -> Self {
+        Self {
+            state: ValidatedDependencyInputState::BootstrapEmpty,
+        }
+    }
+
+    pub(crate) fn ordinary(
+        closure: scoop_slib::ValidatedCrossConeArtifactClosure<'input>,
+        dependency_first: Vec<&'input [u8]>,
+        direct_dependencies: Vec<scoop_slib::DependencyRecord>,
+        explicit_count: usize,
+        semantic_session: SemanticIdentitySession,
+    ) -> Self {
+        Self {
+            state: ValidatedDependencyInputState::Ordinary {
+                closure: Box::new(closure),
+                dependency_first,
+                direct_dependencies,
+                explicit_count,
+                _semantic_session: semantic_session,
+            },
+        }
+    }
+
+    pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure<'_> {
+        match &self.state {
+            ValidatedDependencyInputState::Ordinary { closure, .. } => closure.semantic(),
+            ValidatedDependencyInputState::BootstrapEmpty => {
+                panic!("trusted-core bootstrap has no imported semantic closure")
+            }
+        }
+    }
+
+    pub(crate) fn dependency_first(&self) -> &[&'input [u8]] {
+        match &self.state {
+            ValidatedDependencyInputState::Ordinary {
+                dependency_first, ..
+            } => dependency_first,
+            ValidatedDependencyInputState::BootstrapEmpty => {
+                panic!("trusted-core bootstrap has no dependency artifacts")
+            }
+        }
+    }
+
+    pub(crate) fn direct_dependencies(&self) -> &[scoop_slib::DependencyRecord] {
+        match &self.state {
+            ValidatedDependencyInputState::Ordinary {
+                direct_dependencies,
+                ..
+            } => direct_dependencies,
+            ValidatedDependencyInputState::BootstrapEmpty => {
+                panic!("trusted-core bootstrap has no dependency records")
+            }
+        }
     }
 }
 
@@ -123,7 +192,7 @@ pub enum SingleConeProductionError {
     Preflight(SingleConePreflightError),
     Validation(CoreOnlyRequestValidationError),
     Sources(CurrentConeSourceStageError),
-    Ordinary(OrdinaryConeProductionError),
+    Ordinary(Box<OrdinaryConeProductionError>),
     CoreBootstrap(CoreBootstrapProductionError),
 }
 
@@ -239,7 +308,7 @@ pub enum ValidatedCurrentConeInput<'input> {
 pub struct ValidatedCoreOnlyBuildRequest<'input> {
     request: &'input LoadedSingleConeBuildRequest,
     current: ValidatedCurrentConeInput<'input>,
-    dependencies: ValidatedExplicitDependencyInputSet,
+    dependencies: ValidatedExplicitDependencyInputSet<'input>,
 }
 
 impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
@@ -247,8 +316,8 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
         &self.current
     }
 
-    pub const fn dependencies(&self) -> ValidatedExplicitDependencyInputSet {
-        self.dependencies
+    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet<'input> {
+        &self.dependencies
     }
 
     pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
@@ -469,42 +538,6 @@ impl std::error::Error for CurrentConeSourceStageError {
             Self::SingleFile(source) => Some(source.as_ref()),
             Self::Parser(source) => Some(source.as_ref()),
             Self::SourceLengthOverflow => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum NonCoreDependencyInput {
-    Manifest {
-        coordinate: ConeCoordinate,
-        declaration: ManifestSpan,
-    },
-    DirectArtifact {
-        index: usize,
-        path: PathBuf,
-    },
-    SupportArtifact {
-        index: usize,
-        path: PathBuf,
-    },
-}
-
-impl NonCoreDependencyInput {
-    pub const CODE: &'static str = "SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE";
-}
-
-impl fmt::Display for NonCoreDependencyInput {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Manifest { coordinate, .. } => {
-                write!(formatter, "manifest dependency {coordinate}")
-            }
-            Self::DirectArtifact { index, path } => {
-                write!(formatter, "direct artifact {index} {}", path.display())
-            }
-            Self::SupportArtifact { index, path } => {
-                write!(formatter, "support artifact {index} {}", path.display())
-            }
         }
     }
 }

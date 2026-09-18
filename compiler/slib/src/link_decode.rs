@@ -20,7 +20,7 @@ use scoop_lir::{
 use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation, OdrFreeMirFoundation};
 use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_with_meter};
 
-use crate::compile_decode::validate_foundation_identity_graph;
+use crate::compile_decode::validate_foundation_identity_graph_with_authorities;
 use crate::strong_compile_decode::{
     DecodedStrongProfileProductionSet, OdrFreeStrongFoundationSet, StrongProfileFoundationError,
     StrongProfileProductionError, validate_strong_profile_foundations,

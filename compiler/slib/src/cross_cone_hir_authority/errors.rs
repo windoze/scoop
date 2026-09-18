@@ -22,6 +22,11 @@ pub enum CrossConeHirNominalAuthorityError {
         origin: ConeIdentity,
         declaration: SourceNominalId,
     },
+    MissingTrustedCore,
+    InvalidTrustedCore,
+    MissingCoreNominalAuthority {
+        declaration: SourceNominalId,
+    },
     InvalidNominalDeclarationKind {
         declaration: SourceNominalId,
         actual: SourceDeclarationKind,
@@ -130,6 +135,16 @@ impl fmt::Display for CrossConeHirNominalAuthorityError {
             } => write!(
                 formatter,
                 "Cone {origin} has no public nominal interface for {declaration:?}"
+            ),
+            Self::MissingTrustedCore => {
+                formatter.write_str("trusted core is absent from the nominal dependency closure")
+            }
+            Self::InvalidTrustedCore => {
+                formatter.write_str("the canonical core provider has no trusted core interface")
+            }
+            Self::MissingCoreNominalAuthority { declaration } => write!(
+                formatter,
+                "trusted core has no public type target for {declaration:?}"
             ),
             Self::InvalidNominalDeclarationKind {
                 declaration,
@@ -272,6 +287,9 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             Self::ForeignDeclaration { .. }
             | Self::UnreachableProvider { .. }
             | Self::MissingNominalInterface { .. }
+            | Self::MissingTrustedCore
+            | Self::InvalidTrustedCore
+            | Self::MissingCoreNominalAuthority { .. }
             | Self::InvalidNominalDeclarationKind { .. }
             | Self::NominalKindMismatch { .. }
             | Self::NominalArityMismatch { .. }

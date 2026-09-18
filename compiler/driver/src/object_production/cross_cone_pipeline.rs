@@ -23,9 +23,9 @@ use scoop_slib::{
     patch_runtime_image_fingerprint_v1, patch_strong_registration_fingerprints_v1,
     seal_builtin_object_external_requirements_v1, verify_c_bridge_target_support_requirements_v1,
     verify_code_link_object_members_v1, verify_cone_image_v1, verify_core_strong_requirements_v1,
-    verify_cross_cone_strong_requirements_v1, verify_current_cone_undefined_requirements_v1,
-    verify_entry_production_v1, verify_generated_c_bridge_semantics_v1,
-    verify_runtime_and_eh_requirements_v1, verify_single_cone_production_code_projection_v1,
+    verify_cross_cone_production_code_projection_v1, verify_cross_cone_strong_requirements_v1,
+    verify_current_cone_undefined_requirements_v1, verify_entry_production_v1,
+    verify_generated_c_bridge_semantics_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_cross_cone_v1,
 };
 
@@ -344,7 +344,7 @@ impl CrossConeFinalizedStrongObjectProductionV1 {
             .collect::<Vec<_>>();
         let link_objects = verify_code_link_object_members_v1(final_objects, &directory)
             .map_err(BuiltinObjectProductionError::CodeLinkObjects)?;
-        let code_projection = verify_single_cone_production_code_projection_v1(
+        let code_projection = verify_cross_cone_production_code_projection_v1(
             cone,
             direct_dependencies,
             source_count,

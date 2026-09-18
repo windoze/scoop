@@ -142,15 +142,6 @@ fn production_error_code(error: &scoopc::SingleConeProductionError) -> &'static 
         scoopc::SingleConeProductionError::Sources(source) if source.is_resource_limit() => {
             GRAPH_RESOURCE_ERROR_CODE
         }
-        scoopc::SingleConeProductionError::Validation(
-            scoopc::CoreOnlyRequestValidationError::ExplicitDependencies(source),
-        ) if matches!(
-            source.as_ref(),
-            scoopc::ExplicitDependencyValidationError::CapabilityUnavailable(_)
-        ) =>
-        {
-            scoopc::NonCoreDependencyInput::CODE
-        }
         _ => CHILD_BUILD_ERROR_CODE,
     }
 }

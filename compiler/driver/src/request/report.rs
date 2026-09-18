@@ -262,18 +262,6 @@ pub struct SingleConeProductionSuccess {
 }
 
 impl SingleConeProductionSuccess {
-    pub(super) fn new(
-        artifact: PublishedSingleConeArtifact,
-        warnings: CurrentConeDiagnosticSet,
-        emitted_dump: Option<EmittedStageDump>,
-    ) -> Self {
-        Self {
-            artifact: PublishedStrongArtifact::LegacySingleCone(artifact),
-            warnings,
-            emitted_dump,
-        }
-    }
-
     pub(super) fn new_cross_cone(
         artifact: PublishedCrossConeArtifact,
         warnings: CurrentConeDiagnosticSet,

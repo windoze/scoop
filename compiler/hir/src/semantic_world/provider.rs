@@ -280,6 +280,13 @@ impl<'input> ImportedProvider<'input> {
         &mut self,
         entities: &ImportedEntityIndex,
     ) -> Result<(), ImportedSemanticWorldBuildError> {
+        // Core lookup is provided exclusively by `ImportedCoreInputs`. Its
+        // general cross-Cone section intentionally repeats only the direct
+        // binding inventory and omits ordinary declaration interfaces, so it
+        // must not be indexed as an ordinary dependency namespace.
+        if self.role == ProviderSeedRole::TrustedCore {
+            return Ok(());
+        }
         let provider = self.identity();
         let mut bindings = Vec::with_capacity(self.interface.public_bindings().records().len());
         let mut positions = BTreeMap::new();

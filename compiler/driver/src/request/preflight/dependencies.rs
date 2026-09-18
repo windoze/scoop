@@ -3,13 +3,12 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_slib::{
-    ConeKind, ConeSourceForm, PrebuiltManifestSummaryError, PublishableArtifactValidationError,
-    SlibClosureResourceErrorV1,
+    ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError,
+    PrebuiltManifestSummaryError, SlibClosureResourceErrorV1,
 };
 use scoop_wire::{DecodeLimits, HashError};
 
-use super::NonCoreDependencyInput;
-
+mod graph;
 mod load;
 mod validate;
 
@@ -46,19 +45,6 @@ impl ExplicitDependencyArtifactInput {
 
     pub fn path(&self) -> &Path {
         &self.path
-    }
-
-    fn capability_input(&self) -> NonCoreDependencyInput {
-        match self.role {
-            ExplicitDependencyRole::Direct => NonCoreDependencyInput::DirectArtifact {
-                index: self.index,
-                path: self.path.clone(),
-            },
-            ExplicitDependencyRole::Support => NonCoreDependencyInput::SupportArtifact {
-                index: self.index,
-                path: self.path.clone(),
-            },
-        }
     }
 }
 
@@ -162,10 +148,7 @@ pub enum ExplicitDependencyValidationError {
         input: ExplicitDependencyArtifactInput,
         source: Box<PrebuiltManifestSummaryError>,
     },
-    Artifact {
-        input: ExplicitDependencyArtifactInput,
-        source: Box<PublishableArtifactValidationError>,
-    },
+    Closure(Box<CrossConeArtifactClosureValidationError>),
     BootstrapArtifact {
         input: ExplicitDependencyArtifactInput,
     },
@@ -199,9 +182,6 @@ pub enum ExplicitDependencyValidationError {
         coordinate: ConeCoordinate,
         source: HashError,
     },
-    MissingManifestDependencySpan {
-        coordinate: ConeCoordinate,
-    },
     ManifestDirectSet {
         declared: Vec<ConeCoordinate>,
         actual: Vec<ConeCoordinate>,
@@ -224,11 +204,17 @@ pub enum ExplicitDependencyValidationError {
     DependencyCycle {
         cycle: Vec<ConeCoordinate>,
     },
+    DependencyOrderState {
+        identity: ConeIdentity,
+    },
+    DependencyOrderLength {
+        expected: usize,
+        actual: usize,
+    },
     SupportClosure {
         missing: Vec<ConeCoordinate>,
         unexpected: Vec<ConeCoordinate>,
     },
-    CapabilityUnavailable(NonCoreDependencyInput),
 }
 
 impl fmt::Display for ExplicitDependencyValidationError {
@@ -238,10 +224,9 @@ impl fmt::Display for ExplicitDependencyValidationError {
             Self::Summary { input, source } => {
                 write!(formatter, "cannot summarize dependency {input}: {source}")
             }
-            Self::Artifact { input, source } => write!(
-                formatter,
-                "dependency {input} is not a valid strong artifact: {source}"
-            ),
+            Self::Closure(source) => {
+                write!(formatter, "dependency closure is not valid: {source}")
+            }
             Self::BootstrapArtifact { input } => write!(
                 formatter,
                 "trusted-core bootstrap cannot accept dependency {input}"
@@ -287,10 +272,6 @@ impl fmt::Display for ExplicitDependencyValidationError {
                 formatter,
                 "cannot derive manifest dependency identity for {coordinate}: {source}"
             ),
-            Self::MissingManifestDependencySpan { coordinate } => write!(
-                formatter,
-                "manifest dependency {coordinate} has no diagnostic declaration span"
-            ),
             Self::ManifestDirectSet { declared, actual } => write!(
                 formatter,
                 "manifest dependency set does not equal the direct artifact set: declared {declared:?}, actual {actual:?}"
@@ -325,17 +306,20 @@ impl fmt::Display for ExplicitDependencyValidationError {
             Self::DependencyCycle { cycle } => {
                 write!(formatter, "dependency closure contains a cycle: {cycle:?}")
             }
+            Self::DependencyOrderState { identity } => write!(
+                formatter,
+                "dependency-first ordering reached an invalid state at {identity}"
+            ),
+            Self::DependencyOrderLength { expected, actual } => write!(
+                formatter,
+                "dependency-first ordering produced {actual} nodes, expected {expected}"
+            ),
             Self::SupportClosure {
                 missing,
                 unexpected,
             } => write!(
                 formatter,
                 "support artifact set is not the exact recursive closure: missing {missing:?}, unexpected {unexpected:?}"
-            ),
-            Self::CapabilityUnavailable(input) => write!(
-                formatter,
-                "{}: {input} requires non-core dependency support unavailable in M23-3",
-                NonCoreDependencyInput::CODE
             ),
         }
     }
@@ -346,7 +330,7 @@ impl std::error::Error for ExplicitDependencyValidationError {
         match self {
             Self::Resource(source) => Some(source),
             Self::Summary { source, .. } => Some(source.as_ref()),
-            Self::Artifact { source, .. } => Some(source.as_ref()),
+            Self::Closure(source) => Some(source.as_ref()),
             Self::ManifestIdentity { source, .. } => Some(source),
             Self::ReservedCoreArtifact { .. }
             | Self::BootstrapArtifact { .. }
@@ -354,15 +338,15 @@ impl std::error::Error for ExplicitDependencyValidationError {
             | Self::UnsupportedArtifactShape { .. }
             | Self::DuplicateIdentity { .. }
             | Self::MultipleVersions { .. }
-            | Self::MissingManifestDependencySpan { .. }
             | Self::ManifestDirectSet { .. }
             | Self::SelfDependency { .. }
             | Self::CycleToCurrentCone { .. }
             | Self::MissingDependencyArtifact { .. }
             | Self::DependencyRecordMismatch { .. }
             | Self::DependencyCycle { .. }
-            | Self::SupportClosure { .. }
-            | Self::CapabilityUnavailable(_) => None,
+            | Self::DependencyOrderState { .. }
+            | Self::DependencyOrderLength { .. }
+            | Self::SupportClosure { .. } => None,
         }
     }
 }

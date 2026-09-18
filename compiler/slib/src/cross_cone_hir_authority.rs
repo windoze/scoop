@@ -14,10 +14,11 @@ pub use definition_source::*;
 pub use errors::*;
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
-    NominalInterfaceSemanticAuthority, NominalInterfaceShapeAuthority,
-    NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation, PublicDeclarationOwnerV1,
-    PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1, SourceNominalId,
+    CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1, CoreTypeDefinitionV1,
+    CrossConeHirInterfaceSectionV1, ExportBindingSourceV1, NominalInterfaceSemanticAuthority,
+    NominalInterfaceShapeAuthority, NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation,
+    PublicDeclarationOwnerV1, PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1,
+    SourceNominalId,
 };
 use scoop_identity::{
     BindableEntity, CallableTemplateOrigin, ConeIdentity, DefinitionOwnerAtom, EnumVariantFieldKey,
@@ -136,13 +137,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     ) -> Result<PublicNominalShapeV1, CrossConeHirNominalAuthorityError> {
         let key = self.source_nominal_key(declaration)?;
         let origin = key.origin();
-        let interface = self.provider_interface(origin)?;
-        let record = interface.nominal_interfaces().get(declaration).ok_or(
-            CrossConeHirNominalAuthorityError::MissingNominalInterface {
-                origin,
-                declaration,
-            },
-        )?;
         let expected_kind =
             PublicNominalKindV1::try_from(key.declaration_kind()).map_err(|_| {
                 CrossConeHirNominalAuthorityError::InvalidNominalDeclarationKind {
@@ -150,6 +144,37 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                     actual: key.declaration_kind(),
                 }
             })?;
+        let expected_arity = key.duplicate_signature().type_parameter_count();
+        if origin == ConeIdentity::CORE {
+            let core = self
+                .trusted_core()
+                .ok_or(CrossConeHirNominalAuthorityError::MissingTrustedCore)?;
+            let CoreHirInterfaceBranchV1::Core(core) = core.core_interface() else {
+                return Err(CrossConeHirNominalAuthorityError::InvalidTrustedCore);
+            };
+            let definition = match declaration {
+                SourceNominalId::Concrete(id) => CoreTypeDefinitionV1::Type(id),
+                SourceNominalId::GenericTemplate(id) => CoreTypeDefinitionV1::GenericType(id),
+            };
+            if !core
+                .type_targets()
+                .targets()
+                .iter()
+                .any(|target| target.definition() == definition)
+            {
+                return Err(
+                    CrossConeHirNominalAuthorityError::MissingCoreNominalAuthority { declaration },
+                );
+            }
+            return Ok(PublicNominalShapeV1::new(expected_kind, expected_arity));
+        }
+        let interface = self.provider_interface(origin)?;
+        let record = interface.nominal_interfaces().get(declaration).ok_or(
+            CrossConeHirNominalAuthorityError::MissingNominalInterface {
+                origin,
+                declaration,
+            },
+        )?;
         if record.kind() != expected_kind {
             return Err(CrossConeHirNominalAuthorityError::NominalKindMismatch {
                 declaration,
@@ -157,7 +182,6 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                 actual: record.kind(),
             });
         }
-        let expected_arity = key.duplicate_signature().type_parameter_count();
         let actual_arity = record.type_parameters().len_u32();
         if actual_arity != expected_arity {
             return Err(CrossConeHirNominalAuthorityError::NominalArityMismatch {

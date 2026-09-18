@@ -151,9 +151,7 @@ fn rejects_a_type_alias_target_from_an_unreachable_provider() {
         TypeAliasInterfaceSetSemanticValidationError::Record {
             error: TypeAliasInterfaceSemanticValidationError::Target(
                 SignatureTypeSemanticError::Reference(
-                    CrossConeHirNominalAuthorityError::UnreachableProvider {
-                        origin: scoop_identity::ConeIdentity::CORE,
-                    }
+                    CrossConeHirNominalAuthorityError::MissingTrustedCore
                 )
             ),
             ..

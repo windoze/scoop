@@ -42,6 +42,10 @@ pub enum CrossConeArtifactClosureValidationError {
     },
     Semantic(Box<CrossConeSemanticClosureValidationError>),
     MissingTrustedCoreLink,
+    MissingLinkDependencyAuthority {
+        slot: CrossConeClosureArtifactSlotV1,
+        dependency: ConeIdentity,
+    },
     LinkEnvelope {
         slot: CrossConeClosureArtifactSlotV1,
         source: Box<SlibReadError>,
@@ -90,6 +94,10 @@ impl fmt::Display for CrossConeArtifactClosureValidationError {
             Self::MissingTrustedCoreLink => {
                 formatter.write_str("cross-Cone artifact closure has no trusted-core Link view")
             }
+            Self::MissingLinkDependencyAuthority { slot, dependency } => write!(
+                formatter,
+                "cannot validate Link view for {slot}: direct dependency {dependency} has no earlier validated Link identity authority"
+            ),
             Self::LinkEnvelope { slot, source } => {
                 write!(formatter, "cannot open Link view for {slot}: {source}")
             }
@@ -127,7 +135,9 @@ impl std::error::Error for CrossConeArtifactClosureValidationError {
             Self::Link { source, .. } => Some(source.as_ref()),
             Self::ViewMismatch { source, .. } => Some(source.as_ref()),
             Self::Definition(source) => Some(source.as_ref()),
-            Self::MissingTrustedCoreLink | Self::MissingCompletedCurrentArtifact => None,
+            Self::MissingTrustedCoreLink
+            | Self::MissingLinkDependencyAuthority { .. }
+            | Self::MissingCompletedCurrentArtifact => None,
         }
     }
 }

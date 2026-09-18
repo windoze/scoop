@@ -41,7 +41,7 @@ impl SingleConeBuildRequest {
         match parsed {
             ParsedSingleConeBuildRequest::Ordinary(parsed) => parsed
                 .build_and_publish(temporary.path(), limits)
-                .map_err(SingleConeProductionError::Ordinary),
+                .map_err(|source| SingleConeProductionError::Ordinary(Box::new(source))),
             ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) => parsed
                 .build_and_publish(temporary.path(), limits)
                 .map_err(SingleConeProductionError::CoreBootstrap),
@@ -136,6 +136,7 @@ impl LoadedSingleConeBuildRequest {
                         Some(manifest),
                         current_identity,
                         trusted_core.as_ref(),
+                        artifact.bytes(),
                         &self.target,
                         meter,
                     ),
@@ -143,6 +144,7 @@ impl LoadedSingleConeBuildRequest {
                         Some(manifest),
                         current_identity,
                         trusted_core.as_ref(),
+                        artifact.bytes(),
                         &self.target,
                     ),
                 }
@@ -169,6 +171,7 @@ impl LoadedSingleConeBuildRequest {
                         None,
                         ConeIdentity::SINGLE_FILE,
                         trusted_core.as_ref(),
+                        artifact.bytes(),
                         &self.target,
                         meter,
                     ),
@@ -176,6 +179,7 @@ impl LoadedSingleConeBuildRequest {
                         None,
                         ConeIdentity::SINGLE_FILE,
                         trusted_core.as_ref(),
+                        artifact.bytes(),
                         &self.target,
                     ),
                 }

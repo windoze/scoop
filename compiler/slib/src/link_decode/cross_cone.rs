@@ -135,6 +135,25 @@ pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
     core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
+    validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
+        graph,
+        std::iter::empty(),
+        lir_cross_cone_bridge,
+        core_owners,
+        c_bridge_profile,
+    )
+}
+
+pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_authorities<
+    'input,
+    'authority,
+>(
+    graph: ValidatedGraphArtifact<'input>,
+    external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+    lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
+    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     let DecodedCrossConeLinkSections {
         common,
         cross_cone_link_closure,
@@ -142,7 +161,7 @@ pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
         .decode_cross_cone_link_sections()
         .map_err(|error| StrongLinkArtifactValidationError::Decode(Box::new(error)))?;
     let mut front = common
-        .validate_identities()
+        .validate_identities_with_authorities(external_authorities)
         .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
         .validate_foundation_structure()
         .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?;
@@ -488,7 +507,7 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
         let link_objects =
             crate::verify_code_link_object_members_v1(final_objects, manifest.members())
                 .map_err(StrongLinkFinalValidationError::LinkObjectMembers)?;
-        let code_projection = crate::verify_single_cone_production_code_projection_v1(
+        let code_projection = crate::verify_cross_cone_production_code_projection_v1(
             manifest.cone(),
             manifest.direct_dependencies(),
             foundations.hir.as_canonical().counts().sources,
@@ -540,6 +559,10 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
 }
 
 impl ValidatedCrossConeStrongLinkArtifact<'_> {
+    pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
+        &self.identities
+    }
+
     pub const fn coordinate(&self) -> &ConeCoordinate {
         self.graph.coordinate()
     }
