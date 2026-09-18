@@ -593,6 +593,19 @@ impl<'a> ImportedCoreInputs<'a> {
     pub const fn native_boundary_types(&self) -> &ImportedCoreNativeBoundaryTypes {
         &self.native_boundary_types
     }
+
+    /// Derives the only exact nominal leaf classifier accepted by the
+    /// ordinary cross-Cone callable bridge from this trusted core artifact.
+    pub fn core_closed_exact_leaf_classifier(
+        &self,
+    ) -> Result<
+        crate::CoreClosedExactLeafClassifierV1,
+        crate::CoreClosedExactLeafClassifierBuildError,
+    > {
+        crate::CoreClosedExactLeafClassifierV1::try_from_core_interface(
+            self.prelude.core_interface(),
+        )
+    }
 }
 
 impl ImportedHirFoundation {

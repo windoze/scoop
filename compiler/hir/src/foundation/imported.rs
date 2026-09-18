@@ -217,6 +217,10 @@ pub struct ImportedHirSet<'a, Capability> {
 }
 
 impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
+    pub(super) const fn core_interface(&self) -> &'a CoreHirInterfaceV1 {
+        self.interface
+    }
+
     pub const fn origin(&self) -> ConeIdentity {
         self.foundation.origin()
     }

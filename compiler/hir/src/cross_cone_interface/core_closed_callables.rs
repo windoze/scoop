@@ -57,6 +57,15 @@ impl CoreClosedExactLeafClassifierV1 {
             .map(|index| self.leaves[index].1)
     }
 
+    #[cfg(test)]
+    pub(crate) fn from_exact_leaves_for_test(
+        mut leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
+    ) -> Self {
+        leaves.sort_unstable_by_key(|(source, _)| *source);
+        leaves.dedup_by_key(|(source, _)| *source);
+        Self { leaves }
+    }
+
     /// Refines one public callable interface into the complete executable
     /// M23-5 bridge shape, or reports that it remains semantic-only.
     pub fn classify_callable(

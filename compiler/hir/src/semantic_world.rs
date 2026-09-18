@@ -15,12 +15,14 @@ mod entities;
 mod error;
 mod namespace;
 mod provider;
+mod selection;
 mod witness;
 
 pub use entities::*;
 pub use error::*;
 pub use namespace::*;
 pub use provider::*;
+pub use selection::*;
 pub use witness::*;
 
 use entities::ImportedEntityIndex;

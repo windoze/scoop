@@ -23,6 +23,9 @@ use crate::{
     TypeAliasInterfaceRecordV1,
 };
 
+mod callable;
+pub(crate) use callable::CallableProviderFixture;
+
 pub(super) struct ProviderFixture {
     pub(super) coordinate: ConeCoordinate,
     pub(super) foundation: CanonicalHirFoundation,
