@@ -295,7 +295,7 @@ fn repeated_external_graph_authority_is_folded_for_diamond_imports() {
         .unwrap();
 
     let graph = pending.finish().unwrap();
-    assert_eq!(graph.identity_count(), 1);
+    assert_eq!(graph.identity_count(), external.identity_count());
     assert_eq!(graph.declared_identity_count(), 0);
 }
 
