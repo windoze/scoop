@@ -73,6 +73,7 @@ pub struct ValidatedCrossConeStrongLinkArtifact<'input> {
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     production: ValidatedSingleConeStrongProduction,
+    defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     link_identity_closure: LinkIdentityClosureSectionV1,
     cross_cone_link_closure: CrossConeLinkClosureSectionV1,
     production_manifest: SingleConeProductionManifestV1,
@@ -498,7 +499,7 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
         let cross_cone_code = crate::compute_cross_cone_code_fingerprint_v1(
             code_projection,
             native_requirements,
-            defined_symbols,
+            defined_symbols.clone(),
             undefined_partitions,
         )
         .map_err(StrongLinkFinalValidationError::CodeFingerprint)?;
@@ -530,6 +531,7 @@ impl<'input> FinalizedCrossConeStrongLinkObjectSections<'input> {
             identities,
             foundations,
             production,
+            defined_symbols,
             link_identity_closure,
             cross_cone_link_closure,
             production_manifest,
@@ -596,6 +598,10 @@ impl ValidatedCrossConeStrongLinkArtifact<'_> {
 
     pub const fn production(&self) -> &ValidatedSingleConeStrongProduction {
         &self.production
+    }
+
+    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        &self.defined_symbols
     }
 
     pub const fn link_identity_closure(&self) -> &LinkIdentityClosureSectionV1 {

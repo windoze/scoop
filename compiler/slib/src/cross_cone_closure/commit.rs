@@ -191,6 +191,13 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
             .get(&self.current)
             .map(|position| &self.dependency_first[*position])
     }
+
+    pub(super) fn all_artifacts_for_validation(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile>>
+    {
+        self.dependency_first.iter()
+    }
 }
 
 /// Enumeration-capable view of one validated direct dependency.

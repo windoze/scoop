@@ -41,6 +41,9 @@ pub use commit::*;
 mod validate;
 pub use validate::*;
 
+mod artifact;
+pub use artifact::*;
+
 /// Untrusted assembly input for the dependency artifacts visible while
 /// compiling one current Cone.
 pub struct DecodedCrossConeClosure<'input> {
