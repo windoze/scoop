@@ -13,6 +13,7 @@ pub struct OrdinaryHirOutput<'a> {
     output: crate::Output,
     imported_core: crate::SelectedImportedCoreSet<'a>,
     imported_dependencies: crate::SelectedImportedDependencySet,
+    concrete_dependency_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
 }
 
 impl<'a> OrdinaryHirOutput<'a> {
@@ -98,10 +99,14 @@ impl<'a> OrdinaryHirOutput<'a> {
             &mut bindings,
         )?;
 
+        let concrete_dependency_witness_uses =
+            concrete_dependency_witness_uses(&imported_dependencies);
+
         Ok(Self {
             output,
             imported_core,
             imported_dependencies,
+            concrete_dependency_witness_uses,
         })
     }
 
@@ -117,6 +122,13 @@ impl<'a> OrdinaryHirOutput<'a> {
         &self.imported_dependencies
     }
 
+    /// Canonical source-name proofs for every committed ordinary-dependency
+    /// HIR use. These are derived from the winner-only selection transaction,
+    /// never reconstructed from transient local-concrete nodes.
+    pub fn concrete_dependency_witness_uses(&self) -> &[crate::ExternalHirBindingWitnessUse] {
+        &self.concrete_dependency_witness_uses
+    }
+
     pub fn into_parts(
         self,
     ) -> (
@@ -126,6 +138,39 @@ impl<'a> OrdinaryHirOutput<'a> {
     ) {
         (self.output, self.imported_core, self.imported_dependencies)
     }
+}
+
+fn concrete_dependency_witness_uses(
+    selected: &crate::SelectedImportedDependencySet,
+) -> Vec<crate::ExternalHirBindingWitnessUse> {
+    let mut uses = Vec::new();
+    for callable in selected.callables() {
+        let target = crate::ExternalHirTargetV1::Callable(callable.interface().declaration());
+        append_concrete_dependency_witnesses(&mut uses, target, callable.binding());
+    }
+    for constant in selected.constants() {
+        let target = crate::ExternalHirTargetV1::Property(scoop_identity::PropertyOwner::Property(
+            constant.record().property(),
+        ));
+        append_concrete_dependency_witnesses(&mut uses, target, constant.binding());
+    }
+    uses.sort_unstable();
+    uses.dedup();
+    uses
+}
+
+fn append_concrete_dependency_witnesses(
+    uses: &mut Vec<crate::ExternalHirBindingWitnessUse>,
+    target: crate::ExternalHirTargetV1,
+    binding: &crate::DirectImportedTargetBinding,
+) {
+    uses.extend(binding.sources().map(|source| {
+        crate::ExternalHirBindingWitnessUse::new(
+            target,
+            crate::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
+            source.witness().dependency().clone(),
+        )
+    }));
 }
 
 fn validate_imported_dependency_projection(

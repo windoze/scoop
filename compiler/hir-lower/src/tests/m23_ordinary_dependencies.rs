@@ -64,6 +64,27 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
         .expect("a core-closed dependency function is executable in M23-5");
 
     assert_eq!(output.imported_dependencies().len(), 1);
+    assert_eq!(output.concrete_dependency_witness_uses().len(), 1);
+    let selected = output.imported_dependencies().callables().next().unwrap();
+    let witness = &output.concrete_dependency_witness_uses()[0];
+    assert_eq!(
+        witness.target(),
+        scoop_hir::ExternalHirTargetV1::Callable(selected.interface().declaration())
+    );
+    assert_eq!(
+        witness.role(),
+        scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse
+    );
+    assert_eq!(
+        witness.witness(),
+        selected
+            .binding()
+            .sources()
+            .next()
+            .unwrap()
+            .witness()
+            .dependency()
+    );
     assert_eq!(
         output.output().export.imported_dependency_callables.len(),
         1

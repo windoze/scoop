@@ -65,7 +65,7 @@ impl ExternalHirBindingWitnessRole {
 
 /// One actual source-name authorization selected while lowering an alias,
 /// default expression, or concrete foreign use.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExternalHirBindingWitnessUse {
     target: ExternalHirTargetV1,
     role: ExternalHirBindingWitnessRole,

@@ -64,11 +64,16 @@ impl CrossConeHirInterfaceSectionV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
+        let mut complete_witness_uses = Vec::with_capacity(
+            witness_uses.len() + output.concrete_dependency_witness_uses().len(),
+        );
+        complete_witness_uses.extend_from_slice(witness_uses);
+        complete_witness_uses.extend_from_slice(output.concrete_dependency_witness_uses());
         Self::from_parts(
             output.output().export.module(),
             Some(output.imported_core()),
             Some(output.imported_dependencies()),
-            witness_uses,
+            &complete_witness_uses,
             authority,
         )
     }

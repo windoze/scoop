@@ -140,6 +140,21 @@ fn exact_alias_and_star_imports_inline_literals_with_split_origins() {
     fixture.inspect(consumer, |output| {
         assert_eq!(output.imported_dependencies().callable_count(), 0);
         assert_eq!(output.imported_dependencies().constant_count(), 3);
+        assert_eq!(output.concrete_dependency_witness_uses().len(), 3);
+        assert!(
+            output
+                .concrete_dependency_witness_uses()
+                .iter()
+                .all(|use_| {
+                    use_.role() == scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse
+                        && matches!(
+                            use_.target(),
+                            scoop_hir::ExternalHirTargetV1::Property(
+                                scoop_identity::PropertyOwner::Property(_)
+                            )
+                        )
+                })
+        );
         assert!(
             output
                 .output()
