@@ -1,10 +1,102 @@
 //! Projection of request-local HIR source positions into persistent origins.
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, DefinitionOrigin, SourceOriginError, SourceSpan};
+use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
-use crate::{ExportDefinitionSourceV1, ExportHir, IntrinsicProviderId};
+use crate::{
+    CanonicalCallableSourceInterfacesV1, CanonicalExportConstValuesV1,
+    CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
+    CanonicalTypeAliasInterfacesV1, ExportDefaultReferenceV1, ExportDefinitionSourceSetBuildError,
+    ExportDefinitionSourceV1, ExportHir, IntrinsicProviderId, TemplateLocalDefinitionV1,
+};
+
+impl CanonicalExportDefinitionSourcesV1 {
+    /// Collects the exact canonical set of definition sources embedded in
+    /// cross-Cone interface fields 1 through 8.
+    pub fn from_interface_parts(
+        type_aliases: &CanonicalTypeAliasInterfacesV1,
+        source_interfaces: &CanonicalCallableSourceInterfacesV1,
+        default_templates: &CanonicalExportDefaultTemplatesV1,
+        constants: &CanonicalExportConstValuesV1,
+    ) -> Result<Self, ExportDefinitionSourceProductionError> {
+        let mut sources = BTreeSet::new();
+
+        sources.extend(
+            type_aliases
+                .records()
+                .iter()
+                .map(|record| record.definition_origin().clone()),
+        );
+        for interface in source_interfaces.records() {
+            sources.extend(
+                interface
+                    .parameters()
+                    .parameters()
+                    .iter()
+                    .map(|parameter| parameter.definition_origin().clone()),
+            );
+        }
+
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        for (wire_index, (template_index, template)) in
+            (0_u64..).zip(default_templates.records().iter().enumerate())
+        {
+            sources.insert(template.definition_origin().clone());
+            for local in template.locals().records() {
+                if let TemplateLocalDefinitionV1::Source(source) = local.definition() {
+                    sources.insert(source.clone());
+                }
+            }
+            template
+                .body()
+                .visit_definition_sources(
+                    &mut |source, _| {
+                        sources.insert(source.clone());
+                    },
+                    &mut meter,
+                    &WirePath::root().field(7).index(wire_index).field(5),
+                )
+                .map_err(
+                    |source| ExportDefinitionSourceProductionError::DefaultBody {
+                        template_index,
+                        source,
+                    },
+                )?;
+
+            let references = template.references();
+            collect_reference_sources(&mut sources, references.callables());
+            collect_reference_sources(&mut sources, references.constructors());
+            collect_reference_sources(&mut sources, references.types());
+            collect_reference_sources(&mut sources, references.globals());
+            collect_reference_sources(&mut sources, references.singleton_values());
+            collect_reference_sources(&mut sources, references.fields());
+        }
+
+        sources.extend(
+            constants
+                .records()
+                .iter()
+                .map(|record| record.definition_origin().clone()),
+        );
+
+        Self::try_new(sources.into_iter().collect())
+            .map_err(ExportDefinitionSourceProductionError::Table)
+    }
+}
+
+fn collect_reference_sources<T>(
+    sources: &mut BTreeSet<ExportDefinitionSourceV1>,
+    references: &[ExportDefaultReferenceV1<T>],
+) {
+    sources.extend(
+        references
+            .iter()
+            .map(|reference| reference.definition_origin().clone()),
+    );
+}
 
 pub(super) fn project_definition_source(
     export: &ExportHir,
@@ -135,3 +227,29 @@ impl fmt::Display for HirDefinitionSourceProjectionError {
 }
 
 impl std::error::Error for HirDefinitionSourceProjectionError {}
+
+#[derive(Debug)]
+pub enum ExportDefinitionSourceProductionError {
+    DefaultBody {
+        template_index: usize,
+        source: WireError,
+    },
+    Table(ExportDefinitionSourceSetBuildError),
+}
+
+impl fmt::Display for ExportDefinitionSourceProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DefaultBody {
+                template_index,
+                source,
+            } => write!(
+                formatter,
+                "cannot collect definition sources from default template {template_index}: {source}"
+            ),
+            Self::Table(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for ExportDefinitionSourceProductionError {}
