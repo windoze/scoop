@@ -8,13 +8,16 @@ use scoop_identity::{
     TargetProfileWireId,
 };
 use scoop_lir::{
-    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1, LirTargetProfile,
-    OdrFreeLirFoundation,
+    CanonicalLirFoundation, CanonicalNativeExternalRequirementSurfaceV1,
+    CrossConeLirBridgeSectionV1, LirTargetProfile, OdrFreeLirFoundation,
 };
 use scoop_wire::{DecodeLimits, decode_canonical};
 
 use super::*;
-use crate::{ExtensionRequirement, LogicalMemberKey, MemberStableKey, SlibMemberRecord};
+use crate::{
+    CrossConeLinkSemanticImportSetV1, ExtensionRequirement, LogicalMemberKey, MemberStableKey,
+    SlibMemberRecord,
+};
 
 #[test]
 fn empty_link_object_projection_is_the_canonical_empty_array() {
@@ -25,6 +28,39 @@ fn empty_link_object_projection_is_the_canonical_empty_array() {
         .unwrap(),
         vec![0x80]
     );
+}
+
+#[test]
+fn known_link_contributions_distinguish_legacy_and_cross_cone_profiles() {
+    let legacy = CanonicalKnownLinkExtensionCodeContributionSetV1::empty();
+    assert_eq!(scoop_wire::encode(&legacy).unwrap(), vec![0x80]);
+
+    let foundation =
+        OdrFreeLirFoundation::try_new(ConeIdentity::CORE, CanonicalLirFoundation::empty()).unwrap();
+    let bridge = CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
+    let semantic_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge).unwrap();
+    let cross_cone =
+        CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_semantic_imports(
+            &semantic_imports,
+        )
+        .unwrap();
+
+    assert_eq!(cross_cone.contributions().len(), 1);
+    assert_eq!(
+        cross_cone.contributions()[0].capability(),
+        &crate::lir_cross_cone_link_closure_capability()
+    );
+    assert_eq!(
+        cross_cone.contributions()[0].canonical_projection(),
+        &[0x80]
+    );
+
+    let mut expected = vec![0x81, 0xa2, 0x01, 0xa3, 0x01, 0x72];
+    expected.extend_from_slice(b"org.scoop-lang.lir");
+    expected.extend_from_slice(&[0x02, 0x77]);
+    expected.extend_from_slice(b"cross-cone-link-closure");
+    expected.extend_from_slice(&[0x03, 0x01, 0x02, 0x41, 0x80]);
+    assert_eq!(scoop_wire::encode(&cross_cone).unwrap(), expected);
 }
 
 #[test]

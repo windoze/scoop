@@ -3,11 +3,81 @@
 use std::fmt;
 
 use scoop_identity::{
-    NativeExternalContract, NativeExternalContractFingerprint, NativeExternalSymbolKey,
-    PersistentNativeExternalSymbolId,
+    CapabilityId, NativeExternalContract, NativeExternalContractFingerprint,
+    NativeExternalSymbolKey, PersistentNativeExternalSymbolId,
 };
 use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
-use scoop_wire::{Encoder, WireEncode};
+use scoop_wire::{Encoder, WireEncode, encode};
+
+use crate::{
+    link_object::CrossConeLinkSemanticImportSetV1, lir_cross_cone_link_closure_capability,
+};
+
+/// One contribution produced by a registered Link-purpose capability handler.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct KnownLinkExtensionCodeContributionV1 {
+    capability: CapabilityId,
+    canonical_projection: Vec<u8>,
+}
+
+impl KnownLinkExtensionCodeContributionV1 {
+    pub const fn capability(&self) -> &CapabilityId {
+        &self.capability
+    }
+
+    pub fn canonical_projection(&self) -> &[u8] {
+        &self.canonical_projection
+    }
+}
+
+impl WireEncode for KnownLinkExtensionCodeContributionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.capability.encode(encoder)?;
+        encoder.field(2)?;
+        encoder.bytes(&self.canonical_projection)
+    }
+}
+
+/// Canonical field-2 contribution set in `CodeFingerprintInputV1`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CanonicalKnownLinkExtensionCodeContributionSetV1 {
+    contributions: Vec<KnownLinkExtensionCodeContributionV1>,
+}
+
+impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
+    pub(super) const fn empty() -> Self {
+        Self {
+            contributions: Vec::new(),
+        }
+    }
+
+    pub(super) fn from_cross_cone_semantic_imports(
+        semantic_imports: &CrossConeLinkSemanticImportSetV1,
+    ) -> Result<Self, scoop_wire::cbor::EncodeError> {
+        Ok(Self {
+            contributions: vec![KnownLinkExtensionCodeContributionV1 {
+                capability: lir_cross_cone_link_closure_capability(),
+                canonical_projection: encode(semantic_imports)?,
+            }],
+        })
+    }
+
+    pub fn contributions(&self) -> &[KnownLinkExtensionCodeContributionV1] {
+        &self.contributions
+    }
+}
+
+impl WireEncode for CanonicalKnownLinkExtensionCodeContributionSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.contributions.len() as u64)?;
+        for contribution in &self.contributions {
+            contribution.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
 
 /// One native external contract stripped of source-only provenance.
 #[derive(Clone, Debug, Eq, PartialEq)]
