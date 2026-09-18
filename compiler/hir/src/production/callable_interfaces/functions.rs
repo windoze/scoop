@@ -9,9 +9,8 @@ use super::{
 };
 use crate::{
     CallableInterfaceRecordV1, CallableModalityV1, Function, FunctionGenericity,
-    HirFunctionIdentity, HirSignatureBinder, HirSourceFunctionIdentity,
-    InterfaceMemberImplementation, InterfaceMemberRole, MethodDispatch, MethodModifier,
-    PublicDeclarationOwnerV1, TypeParamDecl,
+    HirFunctionIdentity, HirSourceFunctionIdentity, InterfaceMemberImplementation,
+    InterfaceMemberRole, MethodDispatch, MethodModifier, PublicDeclarationOwnerV1, TypeParamDecl,
 };
 
 pub(super) fn project_all(
@@ -45,7 +44,7 @@ fn project(
     let key = source.declaration();
     validate_source_key(projection, key)?;
 
-    let (own_parameters, outer_parameters) = parameter_groups(function);
+    let (own_parameters, _) = parameter_groups(function);
     let own_arity = u32::try_from(own_parameters.len()).map_err(|_| {
         CallableProjectionError::TypeParameterArity {
             expected: key.duplicate_signature().type_parameter_count(),
@@ -73,7 +72,10 @@ fn project(
     };
     let receiver = optional_signature(receiver);
     let owner = project_owner(projection, function_id, function, receiver.is_some(), key)?;
-    let binders = signature_binders(projection, &own_parameters, &outer_parameters)?;
+    let binders = projection
+        .signatures
+        .function_binders(function)
+        .map_err(CallableProjectionError::Signature)?;
     let type_parameters = projection
         .signatures
         .project_binder_list(&own_parameters, &binders)
@@ -170,24 +172,6 @@ fn parameter_groups(function: &Function) -> (Vec<TypeParamDecl>, Vec<TypeParamDe
             owner_parameters.clone(),
         ),
     }
-}
-
-fn signature_binders(
-    projection: &CallableProjection<'_>,
-    own: &[TypeParamDecl],
-    outer: &[TypeParamDecl],
-) -> Result<Vec<HirSignatureBinder>, CallableProjectionError> {
-    let mut binders = projection
-        .signatures
-        .binder_frame(own, 0)
-        .map_err(CallableProjectionError::Signature)?;
-    binders.extend(
-        projection
-            .signatures
-            .binder_frame(outer, u32::from(!own.is_empty()))
-            .map_err(CallableProjectionError::Signature)?,
-    );
-    Ok(binders)
 }
 
 fn project_owner(

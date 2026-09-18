@@ -47,6 +47,7 @@ mod m23_callable_applications;
 mod m23_callable_interface_production;
 mod m23_callable_reference_identities;
 mod m23_callable_references;
+mod m23_callable_source_interface_production;
 mod m23_const_interface_production;
 mod m23_core_bootstrap;
 mod m23_definition_origins;

@@ -55,6 +55,32 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
             .collect()
     }
 
+    pub(super) fn function_binders(
+        &self,
+        function: &crate::Function,
+    ) -> Result<Vec<HirSignatureBinder>, HirInterfaceSignatureProjectionError> {
+        let (own, outer) = match &function.genericity {
+            crate::FunctionGenericity::Plain => (Vec::new(), Vec::new()),
+            crate::FunctionGenericity::Generic { parameters, .. } => {
+                (parameters.clone(), Vec::new())
+            }
+            crate::FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => (Vec::new(), owner_parameters.clone()),
+            crate::FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => (
+                method_parameters.iter().cloned().collect(),
+                owner_parameters.clone(),
+            ),
+        };
+        let mut binders = self.binder_frame(&own, 0)?;
+        binders.extend(self.binder_frame(&outer, u32::from(!own.is_empty()))?);
+        Ok(binders)
+    }
+
     pub(super) fn project_binder_list(
         &self,
         parameters: &[TypeParamDecl],
