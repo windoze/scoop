@@ -48,7 +48,16 @@ impl CanonicalExportDefaultTemplatesV1 {
         let source_interfaces =
             CanonicalCallableSourceInterfacesV1::from_export_hir_with_callables(export, &callables)
                 .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
-        let owners = public_source_callable_owners(export, &callables)
+        Self::from_parts_with_interfaces(export, imported_core, &callables, &source_interfaces)
+    }
+
+    pub(in crate::production) fn from_parts_with_interfaces(
+        export: &ExportHir,
+        imported_core: Option<&SelectedImportedCoreSet<'_>>,
+        callables: &CanonicalCallableInterfacesV1,
+        source_interfaces: &CanonicalCallableSourceInterfacesV1,
+    ) -> Result<Self, DefaultTemplateProductionError> {
+        let owners = public_source_callable_owners(export, callables)
             .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
         let entities = DefaultEntityProjector::new(export, imported_core);
         let mut templates = Vec::new();
@@ -85,7 +94,7 @@ impl CanonicalExportDefaultTemplatesV1 {
                 };
                 if let Some(default) = default {
                     templates.push(envelope::project(
-                        export, &entities, &callables, &owner, position, default,
+                        export, &entities, callables, &owner, position, default,
                     )?);
                 }
             }

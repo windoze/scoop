@@ -20,7 +20,7 @@ pub use errors::{
 struct CallableProjection<'a> {
     export: &'a ExportHir,
     signatures: HirInterfaceSignatureProjector<'a>,
-    properties: crate::CanonicalPropertyInterfacesV1,
+    properties: &'a crate::CanonicalPropertyInterfacesV1,
 }
 
 impl CanonicalCallableInterfacesV1 {
@@ -30,6 +30,13 @@ impl CanonicalCallableInterfacesV1 {
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, CallableInterfaceBuildError> {
         let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir(export)
             .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
+        Self::from_export_hir_with_properties(export, &properties)
+    }
+
+    pub(in crate::production) fn from_export_hir_with_properties(
+        export: &ExportHir,
+        properties: &crate::CanonicalPropertyInterfacesV1,
+    ) -> Result<Self, CallableInterfaceBuildError> {
         let projection = CallableProjection {
             export,
             signatures: HirInterfaceSignatureProjector::new(export),

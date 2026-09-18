@@ -1,3 +1,4 @@
+use scoop_identity::{BindingTarget, ConeIdentity, ExportBindingKey, PersistentExportBindingId};
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::*;
@@ -107,4 +108,77 @@ fn producer_collects_the_exact_deduplicated_definition_source_closure() {
             &WirePath::root(),
         )
         .expect("the producer must emit every inline origin exactly once");
+}
+
+#[test]
+fn complete_section_producer_assembles_all_ten_fields_once() {
+    let module = lower_core_with_additional_declarations(public_declarations(vec![
+        type_alias("CompleteSectionAlias", ty_named("Int")),
+        const_property("CompleteSectionConstant"),
+        function_with_default(),
+    ]));
+    let mut authority = CurrentConeAuthority(module.cone);
+
+    let section =
+        hir::CrossConeHirInterfaceSectionV1::from_export_hir(&module, &[], &mut authority).unwrap();
+
+    assert_eq!(section.public_bindings(), &module.public_export_bindings);
+    assert!(!section.nominal_interfaces().is_empty());
+    assert!(!section.callable_interfaces().is_empty());
+    assert!(!section.property_interfaces().is_empty());
+    assert!(!section.type_aliases().is_empty());
+    assert!(!section.source_interfaces().is_empty());
+    assert!(!section.default_templates().is_empty());
+    assert!(!section.constants().is_empty());
+    assert!(!section.definition_sources().is_empty());
+    assert!(section.external_references().is_empty());
+    section
+        .validate_definition_source_closure(
+            &mut BudgetMeter::new(DecodeLimits::default()),
+            &WirePath::root(),
+        )
+        .unwrap();
+}
+
+struct CurrentConeAuthority(ConeIdentity);
+
+impl hir::PublicExportBindingClosureAuthority for CurrentConeAuthority {
+    fn closure_node_count(&self) -> usize {
+        1
+    }
+
+    fn is_direct_dependency(&self, _provider: ConeIdentity) -> bool {
+        false
+    }
+
+    fn binding_key(&self, _binding: PersistentExportBindingId) -> Option<&ExportBindingKey> {
+        None
+    }
+
+    fn public_bindings(
+        &self,
+        _exporter: ConeIdentity,
+    ) -> Option<&hir::CanonicalPublicExportBindingsV1> {
+        None
+    }
+}
+
+impl hir::ExternalHirReferenceSemanticAuthority<&'static str> for CurrentConeAuthority {
+    fn current_cone(&self) -> ConeIdentity {
+        self.0
+    }
+
+    fn external_hir_target_origin(
+        &mut self,
+        _target: hir::ExternalHirTargetV1,
+    ) -> Result<ConeIdentity, &'static str> {
+        Ok(self.0)
+    }
+
+    fn external_hir_target_binding_root(
+        &mut self,
+        _target: hir::ExternalHirTargetV1,
+    ) -> Result<BindingTarget, &'static str> {
+        Err("a current-only producer never asks for an external binding root")
+    }
 }
