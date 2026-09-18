@@ -144,6 +144,9 @@ mod capability;
 use capability::validate_strong_materialization;
 pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequirement};
 
+mod cross_cone_bridge;
+pub use cross_cone_bridge::{CrossConeLirBridgeLoweringError, lower_cross_cone_bridge_section};
+
 mod imported_core;
 pub use imported_core::StrongImportedCoreLirInput;
 use imported_core::lower_imported_core_callables;

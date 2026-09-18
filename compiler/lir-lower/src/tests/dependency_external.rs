@@ -107,6 +107,139 @@ fn dependency_strong_lowering_classifies_an_extension_receiver_as_the_first_argu
     assert!(external.signature().arguments()[0].is_elided());
 }
 
+#[test]
+fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
+    for effect in [mir::GcEffect::Managed, mir::GcEffect::NoGc] {
+        let (input, selected_lir, _) = dependency_input(effect, effect, false);
+        let mir_bridge = dependency_mir_bridge(&input, true);
+        let core = test_imported_core_lir_input(&input);
+        let output = super::super::lower_with_dependencies(
+            &input,
+            core,
+            super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+            lir::LirTargetProfile::DARWIN_AARCH64,
+        )
+        .unwrap();
+
+        let bridge =
+            super::super::lower_cross_cone_bridge_section(&input, &mir_bridge, &output).unwrap();
+
+        assert_eq!(bridge.artifact(), input.module().cone);
+        assert_eq!(bridge.exports().len(), 1);
+        assert_eq!(bridge.selected().len(), 1);
+        let export = &bridge.exports()[0];
+        assert_eq!(
+            export.abi_signature().signature(),
+            mir_bridge.exports()[0].signature()
+        );
+        assert_eq!(export.calling_convention(), lir::CallingConvention::Cdecl);
+        assert_eq!(
+            export.root_plan(),
+            match input.module().functions[input.materialization().callable_roots()[0].function()]
+                .gc_effect
+            {
+                mir::GcEffect::Managed => {
+                    lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                }
+                mir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+            }
+        );
+        assert_eq!(
+            bridge.selected()[0].bridge().abi_signature().signature(),
+            mir_bridge.selected()[0].signature()
+        );
+        assert_eq!(
+            bridge.selected()[0].bridge().root_plan(),
+            match effect {
+                mir::GcEffect::Managed => {
+                    lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                }
+                mir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+            }
+        );
+    }
+}
+
+#[test]
+fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
+    let (input, selected_lir, _) =
+        dependency_input(mir::GcEffect::Managed, mir::GcEffect::Managed, false);
+    let incomplete_bridge = dependency_mir_bridge(&input, false);
+    let core = test_imported_core_lir_input(&input);
+    let output = super::super::lower_with_dependencies(
+        &input,
+        core,
+        super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
+
+    assert!(matches!(
+        super::super::lower_cross_cone_bridge_section(&input, &incomplete_bridge, &output),
+        Err(
+            super::super::CrossConeLirBridgeLoweringError::MirSelectionCountMismatch {
+                bridge: 0,
+                roots: 1,
+            }
+        )
+    ));
+}
+
+fn dependency_mir_bridge(
+    input: &mir::SingleConeStrongMirInput,
+    include_selected: bool,
+) -> mir::CrossConeMirBridgeSectionV1 {
+    let local = input.materialization().callable_roots()[0];
+    let implementation = match local.implementation() {
+        scoop_identity::CallableOwner::Function(id) => {
+            scoop_identity::StrongCallableDefinitionOwner::Function(id)
+        }
+        other => panic!("test caller must be a source function, found {other:?}"),
+    };
+    let declaration = match implementation {
+        scoop_identity::StrongCallableDefinitionOwner::Function(id) => {
+            scoop_identity::DependencyCallableDeclarationId::Function(id)
+        }
+        _ => unreachable!("the test implementation was refined above"),
+    };
+    let signature = input
+        .production()
+        .strong_callable_bridges()
+        .bridges()
+        .iter()
+        .find(|bridge| bridge.implementation() == local.implementation())
+        .unwrap()
+        .signature()
+        .clone();
+    let export =
+        mir::ParamFreeMirCallableExportV1::try_new(declaration, implementation, signature).unwrap();
+    let selected = if include_selected {
+        input
+            .materialization()
+            .imported_dependency_callable_roots()
+            .iter()
+            .map(|root| {
+                mir::SelectedDependencyMirCallableV1::try_new(
+                    root.provider(),
+                    root.declaration(),
+                    root.implementation(),
+                    root.signature().clone(),
+                )
+                .unwrap()
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    mir::CrossConeMirBridgeSectionV1::try_new(
+        input.module().cone,
+        input.foundation(),
+        vec![export],
+        selected,
+    )
+    .unwrap()
+}
+
 fn dependency_input(
     mir_effect: mir::GcEffect,
     lir_effect: mir::GcEffect,
