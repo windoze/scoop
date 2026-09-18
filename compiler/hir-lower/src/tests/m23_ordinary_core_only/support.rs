@@ -15,13 +15,13 @@ use super::super::{
 };
 use crate::{CoreBootstrapSources, lower_core_bootstrap};
 
-pub(super) struct TrustedCoreFixture {
-    pub(super) foundation: scoop_hir::ImportedHirFoundation,
-    pub(super) interface: scoop_hir::CoreHirInterfaceV1,
+pub(crate) struct TrustedCoreFixture {
+    pub(crate) foundation: scoop_hir::ImportedHirFoundation,
+    pub(crate) interface: scoop_hir::CoreHirInterfaceV1,
     mir_foundation: scoop_mir::ImportedMirFoundation,
     mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
-    pub(super) strong_callables: Vec<scoop_identity::PersistentExportBindingId>,
-    _session: SemanticIdentitySession,
+    pub(crate) strong_callables: Vec<scoop_identity::PersistentExportBindingId>,
+    session: SemanticIdentitySession,
 }
 
 impl TrustedCoreFixture {
@@ -57,9 +57,43 @@ impl TrustedCoreFixture {
         }
         projected
     }
+
+    pub(crate) fn import_dependency_foundation(
+        &mut self,
+        coordinate: &scoop_identity::ConeCoordinate,
+        foundation: &scoop_hir::CanonicalHirFoundation,
+        fingerprint: u8,
+    ) -> scoop_hir::ImportedHirFoundation {
+        let decoded: scoop_hir::DecodedHirFoundation =
+            decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
+        let mut pending = PendingIdentityValidation::new();
+        pending
+            .register_authority(coordinate.identity().unwrap())
+            .unwrap();
+        decoded.register_identities(&mut pending).unwrap();
+        decoded.resolve_identities(&mut pending).unwrap();
+        let identities = pending.finish().unwrap();
+        let imported = self
+            .session
+            .import(
+                coordinate.identity().unwrap(),
+                SemanticOriginFingerprint::new(
+                    [fingerprint; 32],
+                    [fingerprint.wrapping_add(1); 32],
+                    [fingerprint.wrapping_add(2); 32],
+                ),
+                &identities,
+            )
+            .unwrap();
+        let (hir, _, _) = imported.into_parts();
+        scoop_hir::ImportedHirFoundation::from_odr_free(
+            scoop_hir::OdrFreeHirFoundation::try_new(foundation.clone()).unwrap(),
+            hir,
+        )
+    }
 }
 
-pub(super) fn trusted_core() -> TrustedCoreFixture {
+pub(crate) fn trusted_core() -> TrustedCoreFixture {
     trusted_core_from_source(complete_core_file(), None)
 }
 
@@ -245,7 +279,7 @@ fn trusted_core_from_source(
         mir_foundation,
         mir_production,
         strong_callables,
-        _session: session,
+        session,
     }
 }
 
@@ -254,7 +288,7 @@ fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     parsed_sources(identity, source, "<core>")
 }
 
-pub(super) fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
+pub(crate) fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     parsed_sources(test_source_identity("src/main.scoop"), source, "<main>")
 }
 

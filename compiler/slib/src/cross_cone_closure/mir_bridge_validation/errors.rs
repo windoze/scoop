@@ -12,6 +12,7 @@ pub enum CrossConeClosureMirBridgeError {
     Allocation {
         requested_slots: usize,
     },
+    CoreExactTypeIdentity(scoop_wire::HashError),
     Artifact {
         identity: ConeIdentity,
         source: Box<CrossConeMirFrontValidationError>,
@@ -31,6 +32,12 @@ impl fmt::Display for CrossConeClosureMirBridgeError {
                 formatter,
                 "cannot allocate {requested_slots} cross-Cone MIR bridge validation slots"
             ),
+            Self::CoreExactTypeIdentity(source) => {
+                write!(
+                    formatter,
+                    "cannot derive the trusted-core Unit exact type: {source}"
+                )
+            }
             Self::Artifact { identity, source } => {
                 write!(
                     formatter,
@@ -57,6 +64,7 @@ impl std::error::Error for CrossConeClosureMirBridgeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source.as_ref()),
+            Self::CoreExactTypeIdentity(source) => Some(source),
             Self::Relation { source, .. } => Some(source.as_ref()),
             Self::Allocation { .. }
             | Self::MissingTrustedCore

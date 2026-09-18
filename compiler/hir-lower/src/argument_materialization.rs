@@ -291,7 +291,7 @@ impl Lowerer {
         }
     }
 
-    fn materialize_temporary(
+    pub(crate) fn materialize_temporary(
         &mut self,
         name: String,
         value: hir::Expr,

@@ -11,18 +11,20 @@ mod qualifiers;
 pub(crate) enum NamedCallTarget {
     Function(hir::FunctionId),
     ImportedCoreCallable(hir::ImportedCorePreludeRef),
+    ImportedDependency(hir::ImportedTarget),
     Type(TopLevelTypeTarget),
     Value(ValueTarget),
     ExtensionProperty(hir::PropertyId),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) enum NamedCallOrigin {
     CurrentUnit(CurrentUnitBindingId),
     Core(NamedCallTarget),
+    Dependency(hir::DirectImportedTargetBinding),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct NamedCallBinding {
     pub(crate) target: NamedCallTarget,
     pub(crate) origin: NamedCallOrigin,
@@ -160,14 +162,17 @@ impl Lowerer {
         (targets, suppressed_callables)
     }
 
-    pub(super) fn named_call_binding_accessible(&self, binding: NamedCallBinding) -> bool {
-        match binding.origin {
+    pub(super) fn named_call_binding_accessible(&self, binding: &NamedCallBinding) -> bool {
+        match &binding.origin {
             NamedCallOrigin::CurrentUnit(id) => {
-                self.access_domain_allows(&self.imports.binding(id).access.0, None)
+                self.access_domain_allows(&self.imports.binding(*id).access.0, None)
             }
-            NamedCallOrigin::Core(target) => match target {
+            NamedCallOrigin::Core(target) => match *target {
                 NamedCallTarget::Function(id) => self.function_is_accessible(id, None),
                 NamedCallTarget::ImportedCoreCallable(_) => true,
+                NamedCallTarget::ImportedDependency(_) => {
+                    unreachable!("core bindings cannot carry ordinary dependency targets")
+                }
                 NamedCallTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NamedCallTarget::Value(ValueTarget::Property(id))
                 | NamedCallTarget::ExtensionProperty(id) => {
@@ -179,6 +184,7 @@ impl Lowerer {
                 NamedCallTarget::Value(ValueTarget::Variant(target)) => self
                     .access_domain_allows(&self.enums[target.enumeration()].access.lookup.0, None),
             },
+            NamedCallOrigin::Dependency(_) => true,
         }
     }
 
@@ -209,17 +215,24 @@ impl Lowerer {
                     if layer.kind == ImportLookupLayer::CorePrelude {
                         core()
                     } else {
+                        let mut candidates = layer
+                            .bindings
+                            .into_iter()
+                            .map(|id| NamedCallBinding {
+                                target: self.current_named_call_target(id),
+                                origin: NamedCallOrigin::CurrentUnit(id),
+                            })
+                            .collect::<Vec<_>>();
+                        candidates.extend(layer.dependency_bindings.into_iter().map(|binding| {
+                            NamedCallBinding {
+                                target: NamedCallTarget::ImportedDependency(binding.target()),
+                                origin: NamedCallOrigin::Dependency(binding),
+                            }
+                        }));
                         LookupLayer {
                             kind: layer.kind,
                             suppressed_callables: layer.suppressed_callables,
-                            candidates: layer
-                                .bindings
-                                .into_iter()
-                                .map(|id| NamedCallBinding {
-                                    target: self.current_named_call_target(id),
-                                    origin: NamedCallOrigin::CurrentUnit(id),
-                                })
-                                .collect(),
+                            candidates,
                         }
                     }
                 })
@@ -230,7 +243,7 @@ impl Lowerer {
             .map(|layer| {
                 let mut candidates = Vec::new();
                 for binding in layer.candidates {
-                    if self.named_call_binding_accessible(binding)
+                    if self.named_call_binding_accessible(&binding)
                         && !candidates
                             .iter()
                             .any(|other: &NamedCallBinding| other.target == binding.target)

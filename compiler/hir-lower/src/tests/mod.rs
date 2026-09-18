@@ -64,6 +64,7 @@ mod m23_local_value_selectors;
 mod m23_named_calls;
 mod m23_nominal_interface_production;
 mod m23_ordinary_core_only;
+mod m23_ordinary_dependencies;
 mod m23_output_kind;
 mod m23_pattern_paths;
 mod m23_property_interface_production;

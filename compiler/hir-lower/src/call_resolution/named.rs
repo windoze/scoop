@@ -6,6 +6,7 @@ use scoop_hir as hir;
 
 pub(crate) enum NamedFunctionLikeProbe {
     Callable(Box<NamedCallableProbe>),
+    ImportedDependency(Box<crate::expr::ImportedDependencyCallProbe>),
     Nominal(Box<NamedNominalProbe>),
     IntrinsicStruct(NamedIntrinsicStructProbe),
 }
@@ -21,6 +22,7 @@ impl NamedFunctionLikeProbe {
     fn forwarding(&self) -> super::specificity::DeclarationForwardingView<'_> {
         match self {
             Self::Callable(probe) => probe.forwarding(),
+            Self::ImportedDependency(probe) => probe.forwarding(),
             Self::Nominal(probe) => probe.forwarding(),
             Self::IntrinsicStruct(probe) => {
                 super::specificity::DeclarationForwardingView::nominal_parameters(
@@ -33,6 +35,7 @@ impl NamedFunctionLikeProbe {
     fn parameterized(&self) -> bool {
         match self {
             Self::Callable(probe) => probe.parameterized(),
+            Self::ImportedDependency(probe) => probe.parameterized(),
             Self::Nominal(probe) => probe.parameterized(),
             Self::IntrinsicStruct(probe) => !probe.owners.is_empty(),
         }
@@ -40,6 +43,7 @@ impl NamedFunctionLikeProbe {
     fn defaults(&self) -> usize {
         match self {
             Self::Callable(probe) => probe.defaults(),
+            Self::ImportedDependency(probe) => probe.defaults(),
             Self::Nominal(probe) => probe.defaults(),
             Self::IntrinsicStruct(_) => 0,
         }
@@ -47,6 +51,7 @@ impl NamedFunctionLikeProbe {
     fn vararg(&self) -> bool {
         match self {
             Self::Callable(probe) => probe.vararg(),
+            Self::ImportedDependency(probe) => probe.vararg(),
             Self::Nominal(probe) => probe.vararg(),
             Self::IntrinsicStruct(_) => false,
         }
@@ -54,6 +59,7 @@ impl NamedFunctionLikeProbe {
     fn source_argument_integer(&self, index: usize) -> Option<hir::IntegerKind> {
         match self {
             Self::Callable(probe) => probe.source_argument_integer(index),
+            Self::ImportedDependency(probe) => probe.source_argument_integer(index),
             Self::Nominal(probe) => probe.source_argument_integer(index),
             Self::IntrinsicStruct(probe) => probe.integer_arguments[index],
         }
@@ -61,6 +67,7 @@ impl NamedFunctionLikeProbe {
     fn signature(&self, state: &Lowerer, name: &str) -> String {
         match self {
             Self::Callable(probe) => probe.signature(state, name),
+            Self::ImportedDependency(probe) => probe.signature(state, name),
             Self::Nominal(probe) => probe.signature(state),
             Self::IntrinsicStruct(probe) => {
                 format!("{}<T>(raw: ULong)", state.structs[probe.structure].name)
@@ -71,6 +78,7 @@ impl NamedFunctionLikeProbe {
     fn declaration_location(&self, state: &Lowerer) -> (usize, ast::Span) {
         match self {
             Self::Callable(probe) => probe.declaration_location(state),
+            Self::ImportedDependency(probe) => probe.declaration_location(),
             Self::Nominal(probe) => probe.declaration_location(state),
             Self::IntrinsicStruct(probe) => (
                 state.struct_files[&probe.structure],

@@ -199,7 +199,7 @@ impl Lowerer {
             let mut properties = Vec::new();
             let mut blockers = Vec::new();
             for binding in layer.candidates {
-                let origin = self.named_call_value_origin(binding);
+                let origin = self.named_call_value_origin(&binding);
                 match binding.target {
                     NamedCallTarget::Value(value) => values.push((value, origin)),
                     NamedCallTarget::ExtensionProperty(property)
@@ -212,6 +212,7 @@ impl Lowerer {
                     }
                     NamedCallTarget::Function(_)
                     | NamedCallTarget::ImportedCoreCallable(_)
+                    | NamedCallTarget::ImportedDependency(_)
                     | NamedCallTarget::Type(_) => {
                         blockers.push(origin);
                     }

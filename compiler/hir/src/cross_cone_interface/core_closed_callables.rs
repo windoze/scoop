@@ -3,8 +3,9 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
-    GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
+    CallableTemplateOrigin, CoreBuiltinNominal, DependencyCallableDeclarationId, Effect,
+    ExactCallableSignature, ExactTypeKey, GcEffect, PersistentExactTypeId, PersistentTypeId,
+    SignatureTypeKey,
 };
 
 use crate::{
@@ -25,11 +26,15 @@ impl CoreClosedExactLeafClassifierV1 {
     ) -> Result<Self, CoreClosedExactLeafClassifierBuildError> {
         let target_count = core.type_targets().targets().len();
         let mut leaves = Vec::new();
-        leaves.try_reserve_exact(target_count).map_err(|_| {
+        leaves.try_reserve_exact(target_count + 1).map_err(|_| {
             CoreClosedExactLeafClassifierBuildError::Allocation {
-                requested_slots: target_count,
+                requested_slots: target_count + 1,
             }
         })?;
+        let unit = CoreBuiltinNominal::Unit.identity_record().id();
+        let unit_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
+            .map_err(CoreClosedExactLeafClassifierBuildError::Identity)?;
+        leaves.push((unit, unit_exact));
         for target in core.type_targets().targets() {
             let (
                 CoreTypeDefinitionV1::Type(source),
@@ -179,6 +184,7 @@ impl ParamFreeCoreClosedCallableV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreClosedExactLeafClassifierBuildError {
     Allocation { requested_slots: usize },
+    Identity(scoop_wire::HashError),
 }
 
 impl fmt::Display for CoreClosedExactLeafClassifierBuildError {

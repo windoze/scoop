@@ -30,6 +30,7 @@ impl Lowerer {
                     lowered.kind,
                     hir::ExprKind::Call { .. }
                         | hir::ExprKind::ImportedCoreCall { .. }
+                        | hir::ExprKind::ImportedDependencyCall { .. }
                         | hir::ExprKind::MethodCall { .. }
                         | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }

@@ -65,6 +65,7 @@ mod callbacks;
 mod generic_calls;
 mod generic_inference;
 mod named_calls;
+pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
 mod aggregates;
 mod analysis;

@@ -28,6 +28,7 @@ pub(crate) enum ValueOrigin {
     },
     Core(ValueTarget),
     CoreNonValue(NonValueTarget),
+    DependencyNonValue(hir::ImportedTarget),
     /// A duplicate-signature declaration owns this value spelling but cannot
     /// be exposed as a semantic value/callable candidate.
     RejectedFunction(hir::FunctionId),
@@ -37,6 +38,7 @@ pub(crate) enum ValueOrigin {
 pub(crate) enum NonValueTarget {
     Function(hir::FunctionId),
     ImportedCoreCallable(hir::ImportedCorePreludeRef),
+    ImportedDependency(hir::ImportedTarget),
     Type(TopLevelTypeTarget),
     ExtensionProperty(hir::PropertyId),
     SourceExtensionProperty(crate::imports::SourcePropertyId),
@@ -64,6 +66,9 @@ impl Lowerer {
         match origin {
             ValueOrigin::NonValue { target, .. } | ValueOrigin::CoreNonValue(target) => {
                 Some(target)
+            }
+            ValueOrigin::DependencyNonValue(target) => {
+                Some(NonValueTarget::ImportedDependency(target))
             }
             ValueOrigin::CurrentUnit(_)
             | ValueOrigin::Core(_)
@@ -105,16 +110,19 @@ impl Lowerer {
 
     pub(crate) fn named_call_value_origin(
         &self,
-        binding: super::calls::NamedCallBinding,
+        binding: &super::calls::NamedCallBinding,
     ) -> ValueOrigin {
-        match binding.origin {
-            super::calls::NamedCallOrigin::CurrentUnit(id) => self.value_binding_origin(id),
-            super::calls::NamedCallOrigin::Core(target) => match target {
+        match &binding.origin {
+            super::calls::NamedCallOrigin::CurrentUnit(id) => self.value_binding_origin(*id),
+            super::calls::NamedCallOrigin::Core(target) => match *target {
                 super::calls::NamedCallTarget::Function(id) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::Function(id))
                 }
                 super::calls::NamedCallTarget::ImportedCoreCallable(reference) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(reference))
+                }
+                super::calls::NamedCallTarget::ImportedDependency(_) => {
+                    unreachable!("core bindings cannot carry ordinary dependency targets")
                 }
                 super::calls::NamedCallTarget::Type(target) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::Type(target))
@@ -124,6 +132,9 @@ impl Lowerer {
                     ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id))
                 }
             },
+            super::calls::NamedCallOrigin::Dependency(binding) => {
+                ValueOrigin::DependencyNonValue(binding.target())
+            }
         }
     }
 
@@ -173,13 +184,19 @@ impl Lowerer {
     }
 
     fn value_origin_accessible(&self, origin: ValueOrigin) -> bool {
-        if matches!(origin, ValueOrigin::RejectedFunction(_)) {
+        if matches!(
+            origin,
+            ValueOrigin::RejectedFunction(_) | ValueOrigin::DependencyNonValue(_)
+        ) {
             return true;
         }
         if let ValueOrigin::CoreNonValue(target) = origin {
             return match target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
                 NonValueTarget::ImportedCoreCallable(_) => true,
+                NonValueTarget::ImportedDependency(_) => {
+                    unreachable!("core blockers cannot carry ordinary dependency targets")
+                }
                 NonValueTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NonValueTarget::ExtensionProperty(id) => {
                     self.access_domain_allows(&self.properties[id].access.lookup.0, None)
@@ -200,6 +217,9 @@ impl Lowerer {
             }
             ValueOrigin::RejectedFunction(_) => {
                 unreachable!("rejected-function blockers are accessible by construction")
+            }
+            ValueOrigin::DependencyNonValue(_) => {
+                unreachable!("dependency blockers are accessible by construction")
             }
             ValueOrigin::CoreNonValue(_) => unreachable!("core blocker access was checked above"),
         };
@@ -234,6 +254,9 @@ impl Lowerer {
                                 .bindings
                                 .into_iter()
                                 .map(|binding| self.value_binding_origin(binding))
+                                .chain(layer.dependency_bindings.into_iter().map(|binding| {
+                                    ValueOrigin::DependencyNonValue(binding.target())
+                                }))
                                 .collect(),
                         }
                     }
@@ -284,7 +307,9 @@ impl Lowerer {
     /// it must then decline folding, not select a different origin.
     pub(crate) fn materialized_value_target(&self, origin: ValueOrigin) -> Option<ValueTarget> {
         Some(match origin {
-            ValueOrigin::NonValue { .. } | ValueOrigin::CoreNonValue(_) => return None,
+            ValueOrigin::NonValue { .. }
+            | ValueOrigin::CoreNonValue(_)
+            | ValueOrigin::DependencyNonValue(_) => return None,
             ValueOrigin::RejectedFunction(_) => return None,
             ValueOrigin::Core(target) => target,
             ValueOrigin::CurrentUnit(id) => match self.imports.binding(id).target {
@@ -309,6 +334,9 @@ impl Lowerer {
             }
             ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(_)) => {
                 (self.current_file, ast::Span::new(0, 0))
+            }
+            ValueOrigin::CoreNonValue(NonValueTarget::ImportedDependency(_)) => {
+                unreachable!("core blockers cannot carry ordinary dependency targets")
             }
             ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => self
                 .type_candidate_location(super::TypeLookupCandidate {
@@ -338,6 +366,7 @@ impl Lowerer {
             ValueOrigin::RejectedFunction(id) => {
                 (self.function_files[&id], self.functions[id].span)
             }
+            ValueOrigin::DependencyNonValue(_) => (self.current_file, ast::Span::new(0, 0)),
         }
     }
 
@@ -368,6 +397,10 @@ impl Lowerer {
                 Self::non_value_message(name, target),
                 ast::NonEmptyVec::new(origin, Vec::new()),
             ),
+            LookupResult::Unique(origin @ ValueOrigin::DependencyNonValue(target)) => (
+                Self::non_value_message(name, NonValueTarget::ImportedDependency(target)),
+                ast::NonEmptyVec::new(origin, Vec::new()),
+            ),
             LookupResult::Unique(origin) => return Ok(Some(origin)),
             LookupResult::Ambiguous { layer, candidates } => {
                 let layer = match layer {
@@ -379,7 +412,13 @@ impl Lowerer {
                 let message = if candidates.iter().all(|origin| {
                     matches!(
                         Self::non_value_origin(*origin),
-                        Some(NonValueTarget::Function(_))
+                        Some(
+                            NonValueTarget::Function(_)
+                                | NonValueTarget::ImportedDependency(
+                                    hir::ImportedTarget::Function(_)
+                                        | hir::ImportedTarget::GenericFunction(_)
+                                )
+                        )
                     )
                 }) {
                     format!(
@@ -417,7 +456,13 @@ impl Lowerer {
         } else if candidates.iter().all(|origin| {
             matches!(
                 Self::non_value_origin(*origin),
-                Some(NonValueTarget::Function(_))
+                Some(
+                    NonValueTarget::Function(_)
+                        | NonValueTarget::ImportedDependency(
+                            hir::ImportedTarget::Function(_)
+                                | hir::ImportedTarget::GenericFunction(_)
+                        )
+                )
             )
         }) {
             format!(
@@ -460,9 +505,31 @@ impl Lowerer {
 
     fn non_value_message(name: &ast::Ident, target: NonValueTarget) -> String {
         match target {
-            NonValueTarget::Function(_) | NonValueTarget::ImportedCoreCallable(_) => format!(
+            NonValueTarget::Function(_)
+            | NonValueTarget::ImportedCoreCallable(_)
+            | NonValueTarget::ImportedDependency(
+                hir::ImportedTarget::Function(_) | hir::ImportedTarget::GenericFunction(_),
+            ) => format!(
                 "function `{}` is not a value; use `::{}` to create a callable reference",
                 name.text, name.text
+            ),
+            NonValueTarget::ImportedDependency(hir::ImportedTarget::Type(_))
+            | NonValueTarget::ImportedDependency(hir::ImportedTarget::GenericType(_)) => {
+                format!("type `{}` is a type, not a value", name.text)
+            }
+            NonValueTarget::ImportedDependency(hir::ImportedTarget::TypeAlias(_)) => {
+                format!("typealias `{}` is a type, not a value", name.text)
+            }
+            NonValueTarget::ImportedDependency(hir::ImportedTarget::ExtensionProperty(_)) => {
+                format!("extension property `{}` requires a receiver", name.text)
+            }
+            NonValueTarget::ImportedDependency(
+                hir::ImportedTarget::ObjectValue(_)
+                | hir::ImportedTarget::Property(_)
+                | hir::ImportedTarget::EnumVariant(_),
+            ) => format!(
+                "dependency value `{}` requires a later cross-Cone capability",
+                name.text
             ),
             NonValueTarget::Type(TopLevelTypeTarget::Alias(_)) => {
                 format!("typealias `{}` is a type, not a value", name.text)

@@ -1,6 +1,7 @@
 use super::*;
-use crate::call_resolution::candidates::ValueParameter;
-use crate::constructor_resolution::{NominalConstructorCall, ResolvedNominalConstructor};
+use crate::constructor_resolution::NominalConstructorCall;
+
+mod plans;
 
 struct NominalPlan {
     view: NominalConstructorView,
@@ -13,7 +14,7 @@ type PreparedNominalPlans = (Vec<NominalPlan>, Option<(hir::StructId, Option<Typ
 impl Lowerer {
     pub(super) fn lower_named_function_partition(
         &mut self,
-        targets: &[NamedCallTarget],
+        targets: &[NamedCallBinding],
         kind: ImportLookupLayer,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
@@ -21,8 +22,8 @@ impl Lowerer {
     ) -> Result<Option<hir::Expr>, ()> {
         let imported = targets
             .iter()
-            .filter_map(|target| match target {
-                NamedCallTarget::ImportedCoreCallable(reference) => Some(*reference),
+            .filter_map(|binding| match binding.target {
+                NamedCallTarget::ImportedCoreCallable(reference) => Some(reference),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -38,7 +39,8 @@ impl Lowerer {
         let diagnostics_before = self.diagnostics.len();
         let mut failures = Vec::new();
         let mut intrinsics = Vec::new();
-        for &target in targets {
+        for binding in targets {
+            let target = binding.target;
             let mut preparation = self.clone();
             match preparation.named_nominal_plans(target, call, expected) {
                 Ok((mut prepared, intrinsic)) => {
@@ -63,14 +65,15 @@ impl Lowerer {
         };
         let functions = targets
             .iter()
-            .filter_map(|target| match target {
-                NamedCallTarget::Function(id) => Some(*id),
+            .filter_map(|binding| match binding.target {
+                NamedCallTarget::Function(id) => Some(id),
                 _ => None,
             })
             .collect::<Vec<_>>();
         if plans.is_empty()
             && intrinsics.is_empty()
             && !functions.is_empty()
+            && functions.len() == targets.len()
             && functions.iter().all(|id| {
                 !self.extension_receivers.contains_key(id) && !self.function_owner.contains_key(id)
             })
@@ -92,8 +95,8 @@ impl Lowerer {
             };
         }
         let mut applicable = Vec::new();
-        for &target in targets {
-            let NamedCallTarget::Function(function) = target else {
+        for binding in targets {
+            let NamedCallTarget::Function(function) = binding.target else {
                 continue;
             };
             let mut state = self.clone();
@@ -154,6 +157,28 @@ impl Lowerer {
                 Err(failure) => {
                     failures.push(failure);
                 }
+            }
+        }
+        for binding in targets {
+            if !matches!(
+                binding.target,
+                NamedCallTarget::ImportedDependency(
+                    hir::ImportedTarget::Function(_) | hir::ImportedTarget::GenericFunction(_)
+                )
+            ) {
+                continue;
+            }
+            let crate::imports::lookup::calls::NamedCallOrigin::Dependency(binding) =
+                &binding.origin
+            else {
+                unreachable!("an ordinary dependency target retains its dependency binding")
+            };
+            match self.probe_imported_dependency_callable(binding, call, expected) {
+                Ok(probe) => applicable.push(NamedApplicable {
+                    probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
+                    commit: NamedFunctionCommit::ImportedDependency,
+                }),
+                Err(failure) => failures.push(failure),
             }
         }
         for plan in plans {
@@ -221,12 +246,12 @@ impl Lowerer {
         if applicable.is_empty() {
             let functions = targets
                 .iter()
-                .filter_map(|target| match target {
+                .filter_map(|binding| match binding.target {
                     NamedCallTarget::Function(id)
-                        if !self.extension_receivers.contains_key(id)
-                            && !self.function_owner.contains_key(id) =>
+                        if !self.extension_receivers.contains_key(&id)
+                            && !self.function_owner.contains_key(&id) =>
                     {
-                        Some(*id)
+                        Some(id)
                     }
                     _ => None,
                 })
@@ -234,7 +259,7 @@ impl Lowerer {
             if functions.len() > 1
                 && targets
                     .iter()
-                    .all(|target| matches!(target, NamedCallTarget::Function(_)))
+                    .all(|binding| matches!(binding.target, NamedCallTarget::Function(_)))
             {
                 return Ok(self.lower_top_level_function_layer(
                     &call.callee.text,
@@ -288,8 +313,8 @@ impl Lowerer {
         ) else {
             let variants = targets
                 .iter()
-                .filter_map(|target| match target {
-                    NamedCallTarget::Value(ValueTarget::Variant(target)) => Some(*target),
+                .filter_map(|binding| match binding.target {
+                    NamedCallTarget::Value(ValueTarget::Variant(target)) => Some(target),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
@@ -311,6 +336,10 @@ impl Lowerer {
                 let resolved = self.commit_named_callable(*probe, sink);
                 self.finish_resolved_method_call(resolved, call.span)
             }
+            (
+                NamedFunctionLikeProbe::ImportedDependency(probe),
+                NamedFunctionCommit::ImportedDependency,
+            ) => return Ok(self.commit_imported_dependency_callable(*probe, sink)),
             (NamedFunctionLikeProbe::Nominal(probe), NamedFunctionCommit::Nominal) => {
                 let resolved = self.commit_named_nominal(*probe, call.span, sink);
                 Some(self.finish_named_nominal(resolved, call.span))
@@ -321,275 +350,5 @@ impl Lowerer {
             _ => unreachable!("each typed probe retains its matching commit protocol"),
         };
         expression.map(Some).ok_or(())
-    }
-
-    fn named_nominal_plans(
-        &mut self,
-        target: NamedCallTarget,
-        call: &ast::CallExpr,
-        expected: Option<TypeId>,
-    ) -> Result<PreparedNominalPlans, ()> {
-        let (nominal, expected, fixed_alias) = match target {
-            NamedCallTarget::Value(ValueTarget::Object(id)) => {
-                let ty = self.object_types[self.objects[id].object_type].canonical_type;
-                if !self.type_exposes_invoke(ty, false) {
-                    let kind = match self.objects[id].kind {
-                        hir::ObjectKind::Standalone => "object",
-                        hir::ObjectKind::Companion(_) => "companion object",
-                    };
-                    self.error(
-                        call.span,
-                        format!("{kind} `{}` cannot be constructed", call.callee.text),
-                    );
-                    return Err(());
-                }
-                return Ok((Vec::new(), None));
-            }
-            NamedCallTarget::Type(TopLevelTypeTarget::Nominal(nominal)) => {
-                (nominal, expected, false)
-            }
-            NamedCallTarget::Type(TopLevelTypeTarget::Alias(id)) => {
-                let ty = self
-                    .resolve_type_alias_id_reference(id, &call.callee, !call.type_args.is_empty())
-                    .ok_or(())?;
-                let Some(nominal) = self.nominal_target_for_type(ty) else {
-                    self.error(
-                        call.span,
-                        format!(
-                            "typealias `{}` does not name a constructible type",
-                            call.callee.text
-                        ),
-                    );
-                    return Err(());
-                };
-                (nominal, Some(ty), true)
-            }
-            NamedCallTarget::Value(ValueTarget::Variant(target)) => {
-                if self.resolved_variant_style(target) == VariantStyle::Unit {
-                    self.error(call.span, format!("unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses", call.callee.text, self.enums[target.enumeration()].name, call.callee.text));
-                    return Err(());
-                }
-                return Ok((
-                    vec![NominalPlan {
-                        view: self
-                            .nominal_constructor_view(NominalConstructorSource::Variant(target)),
-                        expected,
-                        fixed_alias: false,
-                    }],
-                    None,
-                ));
-            }
-            _ => return Ok((Vec::new(), None)),
-        };
-        let sources = match nominal {
-            crate::NominalTarget::Struct(id) => {
-                if Some(id) == self.ffi_foreign_callback {
-                    self.error(
-                        call.span,
-                        "`ForeignCallback` values can only be produced by `foreignCallback`"
-                            .to_string(),
-                    );
-                    return Err(());
-                }
-                if Some(id) == self.ffi_ptr || Some(id) == self.ffi_fun_ptr {
-                    return Ok((Vec::new(), Some((id, expected))));
-                }
-                if matches!(
-                    self.structs[id].representation,
-                    hir::StructRepresentation::Intrinsic(_)
-                ) {
-                    self.error(
-                        call.span,
-                        format!(
-                            "intrinsic struct `{}` has no source constructor",
-                            self.structs[id].name
-                        ),
-                    );
-                    return Err(());
-                }
-                self.structs[id]
-                    .constructors
-                    .iter()
-                    .copied()
-                    .map(NominalConstructorSource::Struct)
-                    .collect::<Vec<_>>()
-            }
-            crate::NominalTarget::Class(id) => {
-                if let Some(kind) = self.array_class_kind(id) {
-                    let mut view =
-                        self.nominal_constructor_view(NominalConstructorSource::IntrinsicClass(id));
-                    let element = self.intern_type(Type::Param(view.owner_parameters[0].id));
-                    let opposite = match kind {
-                        ArrayKind::Immutable => ArrayKind::Mutable,
-                        ArrayKind::Mutable => ArrayKind::Immutable,
-                    };
-                    let ty = self.array_type(opposite, element);
-                    view.value_parameters = vec![ValueParameter {
-                        name: "source".into(),
-                        calling: crate::defaults::SourceParameterCalling::Required,
-                        ty,
-                    }];
-                    return Ok((
-                        vec![NominalPlan {
-                            view,
-                            expected,
-                            fixed_alias,
-                        }],
-                        None,
-                    ));
-                }
-                if self.classes[id].modifier == hir::ClassModifier::Abstract {
-                    self.error(
-                        call.span,
-                        format!(
-                            "abstract class `{}` cannot be instantiated",
-                            self.classes[id].name
-                        ),
-                    );
-                    return Err(());
-                }
-                if matches!(
-                    self.classes[id].representation,
-                    hir::ClassRepresentation::Intrinsic(_)
-                ) {
-                    self.error(
-                        call.span,
-                        format!(
-                            "intrinsic class `{}` has no source constructor",
-                            self.classes[id].name
-                        ),
-                    );
-                    return Err(());
-                }
-                self.classes[id]
-                    .constructors
-                    .iter()
-                    .copied()
-                    .map(NominalConstructorSource::Class)
-                    .collect::<Vec<_>>()
-            }
-            _ => {
-                self.error(
-                    call.span,
-                    format!(
-                        "type `{}` does not name a constructible type",
-                        call.callee.text
-                    ),
-                );
-                return Err(());
-            }
-        };
-        let mut plans = Vec::new();
-        for source in sources {
-            if self.constructor_is_accessible(source) {
-                plans.push(NominalPlan {
-                    view: self.nominal_constructor_view(source),
-                    expected,
-                    fixed_alias,
-                });
-            }
-        }
-        if plans.is_empty() {
-            self.error(
-                call.span,
-                format!(
-                    "constructor of type `{}` is not accessible here",
-                    call.callee.text
-                ),
-            );
-            return Err(());
-        }
-        Ok((plans, None))
-    }
-
-    fn named_nominal_expected_arguments(
-        &self,
-        definition: TypeId,
-        expected: Option<TypeId>,
-    ) -> Option<Vec<TypeId>> {
-        match (&self.types[definition], &self.types[expected?]) {
-            (Type::Class(a), Type::Class(b))
-                if self.class_applications[*a].template == self.class_applications[*b].template =>
-            {
-                Some(self.class_applications[*b].arguments.clone())
-            }
-            (Type::Struct(a), Type::Struct(b))
-                if self.struct_applications[*a].template
-                    == self.struct_applications[*b].template =>
-            {
-                Some(self.struct_applications[*b].arguments.clone())
-            }
-            (Type::Enum(a), Type::Enum(b))
-                if self.enum_applications[*a].template == self.enum_applications[*b].template =>
-            {
-                Some(self.enum_applications[*b].arguments.clone())
-            }
-            _ => None,
-        }
-    }
-
-    fn finish_named_nominal(
-        &mut self,
-        resolved: ResolvedNominalConstructor,
-        span: Span,
-    ) -> hir::Expr {
-        let (kind, ty) = match resolved.source {
-            NominalConstructorSource::Struct(source) => {
-                let owner = self.struct_constructors[source].owner;
-                let application = self.struct_application_id(owner, resolved.type_args);
-                let constructor = self.struct_constructor_application(source, application);
-                (
-                    ExprKind::StructInit {
-                        constructor,
-                        args: resolved.args,
-                    },
-                    self.struct_applications[application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Class(source) => {
-                let owner = self.class_constructors[source].owner;
-                let application = self.class_application_id(owner, resolved.type_args);
-                let constructor = self.class_constructor_application(source, application);
-                (
-                    ExprKind::ClassInit {
-                        constructor,
-                        args: resolved.args,
-                    },
-                    self.class_applications[application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Variant(target) => {
-                let application =
-                    self.enum_application_id(target.enumeration(), resolved.type_args);
-                let variant = hir::AppliedEnumVariantRef::checked(
-                    &self.enums,
-                    &self.enum_applications,
-                    application,
-                    target,
-                )
-                .expect("the chosen nominal application owns its variant");
-                (
-                    ExprKind::VariantConstruct {
-                        variant,
-                        args: resolved.args,
-                    },
-                    self.enum_applications[application].canonical_type,
-                )
-            }
-            NominalConstructorSource::IntrinsicClass(class) => {
-                let ty = self.class_application(class, resolved.type_args);
-                let [argument]: [hir::Expr; 1] = resolved
-                    .args
-                    .try_into()
-                    .expect("array conversion has one materialized argument");
-                (ExprKind::ArrayClone(Box::new(argument)), ty)
-            }
-        };
-        hir::Expr {
-            kind,
-            ty,
-            span,
-            origin: self.expression_origin(span),
-        }
     }
 }

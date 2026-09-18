@@ -8,12 +8,13 @@ use super::*;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::named::NamedFunctionLikeProbe;
 use crate::imports::ImportLookupLayer;
-use crate::imports::lookup::calls::NamedCallTarget;
+use crate::imports::lookup::calls::{NamedCallBinding, NamedCallTarget};
 use crate::imports::lookup::values::ValueTarget;
 use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 mod imported_core;
+pub(crate) mod imported_dependency;
 mod nominals;
 
 struct NamedValueLayer {
@@ -25,6 +26,7 @@ struct NamedValueLayer {
 enum NamedFunctionCommit {
     TopLevel,
     Member,
+    ImportedDependency,
     Nominal,
     Intrinsic(SuccessfulExprLayer),
 }
@@ -182,11 +184,7 @@ impl Lowerer {
             let mut state = self.clone();
             let mut layer_sink = Vec::new();
             match state.lower_named_function_partition(
-                &layer
-                    .candidates
-                    .iter()
-                    .map(|binding| binding.target)
-                    .collect::<Vec<_>>(),
+                &layer.candidates,
                 layer.kind,
                 call,
                 &mut layer_sink,

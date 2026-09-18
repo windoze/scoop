@@ -17,6 +17,7 @@ use super::super::values::ValueTarget;
 enum ExpressionQualifierValueOrigin {
     CurrentUnit(CurrentUnitBindingId),
     Core(NamedCallTarget),
+    Dependency(hir::ImportedTarget),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +87,7 @@ impl Lowerer {
                 }
                 NamedCallTarget::Function(_)
                 | NamedCallTarget::ImportedCoreCallable(_)
+                | NamedCallTarget::ImportedDependency(_)
                 | NamedCallTarget::Value(_) => ExpressionQualifierCandidate::Value(
                     ExpressionQualifierValueOrigin::Core(target),
                 ),
@@ -102,11 +104,12 @@ impl Lowerer {
                 self.access_domain_allows(&self.imports.binding(binding).access.0, None)
             }
             ExpressionQualifierValueOrigin::Core(target) => {
-                self.named_call_binding_accessible(NamedCallBinding {
+                self.named_call_binding_accessible(&NamedCallBinding {
                     target,
                     origin: NamedCallOrigin::Core(target),
                 })
             }
+            ExpressionQualifierValueOrigin::Dependency(_) => true,
         }
     }
 
@@ -177,14 +180,20 @@ impl Lowerer {
                     if layer.kind == ImportLookupLayer::CorePrelude {
                         core()
                     } else {
+                        let mut candidates = layer
+                            .bindings
+                            .into_iter()
+                            .map(|binding| self.current_expression_qualifier_candidate(binding))
+                            .collect::<Vec<_>>();
+                        candidates.extend(layer.dependency_bindings.into_iter().map(|binding| {
+                            ExpressionQualifierCandidate::Value(
+                                ExpressionQualifierValueOrigin::Dependency(binding.target()),
+                            )
+                        }));
                         LookupLayer {
                             kind: layer.kind,
                             suppressed_callables: layer.suppressed_callables,
-                            candidates: layer
-                                .bindings
-                                .into_iter()
-                                .map(|binding| self.current_expression_qualifier_candidate(binding))
-                                .collect(),
+                            candidates,
                         }
                     }
                 })

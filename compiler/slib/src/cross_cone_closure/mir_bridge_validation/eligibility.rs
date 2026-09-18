@@ -20,11 +20,15 @@ pub(super) fn core_classifier(
     else {
         return Err(CrossConeClosureMirBridgeError::MissingTrustedCoreInterface);
     };
-    CoreClosedExactLeafClassifierV1::try_from_core_interface(interface).map_err(
-        |CoreClosedExactLeafClassifierBuildError::Allocation { requested_slots }| {
+    CoreClosedExactLeafClassifierV1::try_from_core_interface(interface).map_err(|error| match error
+    {
+        CoreClosedExactLeafClassifierBuildError::Allocation { requested_slots } => {
             CrossConeClosureMirBridgeError::Allocation { requested_slots }
-        },
-    )
+        }
+        CoreClosedExactLeafClassifierBuildError::Identity(source) => {
+            CrossConeClosureMirBridgeError::CoreExactTypeIdentity(source)
+        }
+    })
 }
 
 trait CoreClosedCallableClassifier {
