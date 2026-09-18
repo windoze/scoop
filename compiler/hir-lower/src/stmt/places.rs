@@ -419,7 +419,9 @@ impl Lowerer {
                     });
                 }
                 crate::properties::ImplicitValueResolution::Value { target, .. } => {
-                    selected_value = Some(target);
+                    selected_value = Some(
+                        crate::imports::lookup::values::ResolvedValueTarget::Materialized(target),
+                    );
                 }
                 crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                     self.commit_layer_diagnostics(*failure);
@@ -434,7 +436,10 @@ impl Lowerer {
             None => self.resolve_value_name(name).ok()?,
         };
         if let Some(value) = selected_value {
-            if let crate::imports::lookup::values::ValueTarget::Property(property) = value {
+            if let crate::imports::lookup::values::ResolvedValueTarget::Materialized(
+                crate::imports::lookup::values::ValueTarget::Property(property),
+            ) = value
+            {
                 let ty = self.properties[property].ty;
                 let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
                 return Some(ResolvedPlacePlan {
@@ -457,7 +462,14 @@ impl Lowerer {
                     ty,
                 });
             }
-            let read = self.lower_named_value_target(name, value, None)?;
+            let read = match value {
+                crate::imports::lookup::values::ResolvedValueTarget::Materialized(value) => {
+                    self.lower_named_value_target(name, value, None)?
+                }
+                crate::imports::lookup::values::ResolvedValueTarget::Dependency(binding) => {
+                    self.lower_imported_dependency_constant(&binding, name.span)?
+                }
+            };
             return Some(ResolvedPlacePlan {
                 ty: read.ty,
                 read,

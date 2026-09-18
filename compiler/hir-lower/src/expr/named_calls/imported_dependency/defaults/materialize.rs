@@ -5,9 +5,9 @@ use scoop_ast::Span;
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
-use super::origins::ImportedDefinitionOriginError;
 use super::plan::{PreparedImportedDefault, PreparedImportedDefaultCallable};
 use crate::Lowerer;
+use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
 struct ImportedDefaultContext<'a> {
     owner: &'a hir::ImportedDependencyCallableCandidate,
@@ -59,8 +59,13 @@ impl Lowerer {
         expression: &hir::DefaultExpressionV1,
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::Expr, ImportedDefaultMaterializationError> {
-        let definition = self
-            .import_dependency_definition_origin(context.owner, expression.definition_origin())?;
+        let source = expression.definition_origin();
+        let imported = context.owner.definition_source(source).ok_or_else(|| {
+            ImportedDefinitionOriginError::MissingAuthenticatedSource {
+                context: source.origin().context(),
+            }
+        })?;
+        let definition = self.import_dependency_definition_origin(source, imported)?;
         let span = definition.span;
         let origin = hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
             definition,

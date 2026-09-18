@@ -355,7 +355,11 @@ impl Lowerer {
                         return self.lower_extension_property_write(*property, value, name.span);
                     }
                     crate::properties::ImplicitValueResolution::Value { target, .. } => {
-                        selected_value = Some(target);
+                        selected_value = Some(
+                            crate::imports::lookup::values::ResolvedValueTarget::Materialized(
+                                target,
+                            ),
+                        );
                     }
                     crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                         self.commit_layer_diagnostics(*failure);
@@ -370,7 +374,10 @@ impl Lowerer {
                 None => self.resolve_value_name(name).ok()?,
             };
             if let Some(target) = target {
-                let crate::imports::lookup::values::ValueTarget::Property(property) = target else {
+                let crate::imports::lookup::values::ResolvedValueTarget::Materialized(
+                    crate::imports::lookup::values::ValueTarget::Property(property),
+                ) = target
+                else {
                     self.error(
                         name.span,
                         format!("cannot assign to immutable value `{}`", name.text),

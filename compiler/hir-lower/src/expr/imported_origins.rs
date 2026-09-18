@@ -1,3 +1,6 @@
+//! Authenticated dependency-source projection shared by every inlined HIR
+//! expression. Importing source metadata is a winner-only operation.
+
 use std::fmt;
 
 use scoop_ast::Span;
@@ -7,17 +10,12 @@ use scoop_identity::{PersistentSourceContextId, SourceContextKey};
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(super) fn import_dependency_definition_origin(
+    pub(in crate::expr) fn import_dependency_definition_origin(
         &mut self,
-        candidate: &hir::ImportedDependencyCallableCandidate,
         source: &hir::ExportDefinitionSourceV1,
+        imported: hir::ImportedDependencyDefinitionSource<'_>,
     ) -> Result<hir::DefinitionOrigin, ImportedDefinitionOriginError> {
         let origin = source.origin();
-        let imported = candidate.definition_source(source).ok_or_else(|| {
-            ImportedDefinitionOriginError::MissingAuthenticatedSource {
-                context: origin.context(),
-            }
-        })?;
         if PersistentSourceContextId::from_key(imported.context())
             .map_err(|error| ImportedDefinitionOriginError::ContextIdentity(error.to_string()))?
             != origin.context()
@@ -136,7 +134,7 @@ impl Lowerer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(in super::super) enum ImportedDefinitionOriginError {
+pub(in crate::expr) enum ImportedDefinitionOriginError {
     MissingAuthenticatedSource { context: PersistentSourceContextId },
     ContextIdentity(String),
     ContextIdentityMismatch { expected: PersistentSourceContextId },
@@ -153,7 +151,7 @@ impl fmt::Display for ImportedDefinitionOriginError {
         match self {
             Self::MissingAuthenticatedSource { context } => write!(
                 formatter,
-                "dependency default origin context {context:?} has no authenticated source metadata"
+                "dependency definition origin context {context:?} has no authenticated source metadata"
             ),
             Self::ContextIdentity(error) => {
                 write!(

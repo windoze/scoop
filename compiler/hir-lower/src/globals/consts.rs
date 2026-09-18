@@ -217,14 +217,26 @@ impl Lowerer {
                 let Some(target) =
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
+                    let lookup = self.lookup_value_origin(&name.text);
+                    if let crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::Dependency(binding),
+                    ) = &lookup
+                    {
+                        let imported =
+                            self.select_imported_dependency_constant(binding, name.span)?;
+                        return Some(EvaluatedConst {
+                            value: imported.value,
+                            ty: imported.ty,
+                        });
+                    }
                     if matches!(
-                        self.lookup_value_origin(&name.text),
+                        &lookup,
                         crate::imports::lookup::LookupResult::Ambiguous { .. }
                     ) {
                         self.resolve_value_origin(name).ok()?;
                     }
                     let message = if matches!(
-                        self.lookup_value_origin(&name.text),
+                        &lookup,
                         crate::imports::lookup::LookupResult::Unique(_)
                     ) {
                         format!(

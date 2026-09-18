@@ -384,7 +384,7 @@ impl Lowerer {
         }
         match self.lookup_value_origin(&name.text) {
             crate::imports::lookup::LookupResult::Unique(origin) => {
-                match self.materialized_value_target(origin) {
+                match self.materialized_value_target(&origin) {
                     Some(crate::imports::lookup::values::ValueTarget::Variant(target)) => {
                         self.resolved_variant_style(target) == VariantStyle::Unit
                             && !self.enums[target.enumeration()].type_params.is_empty()

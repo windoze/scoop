@@ -1062,7 +1062,7 @@ impl Lowerer {
                 self.contextual_variant_ref(&name.text, Some(expected))
             }
             crate::imports::lookup::LookupResult::Unique(origin) => {
-                match self.materialized_value_target(origin)? {
+                match self.materialized_value_target(&origin)? {
                     crate::imports::lookup::values::ValueTarget::Variant(target) => Some(target),
                     _ => None,
                 }

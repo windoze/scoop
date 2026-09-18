@@ -75,7 +75,7 @@ impl Lowerer {
             | CurrentUnitTarget::EnumVariant(_)
             | CurrentUnitTarget::SourceVariant(_) => {
                 let value = self
-                    .materialized_value_target(ValueOrigin::CurrentUnit(binding))
+                    .materialized_value_target(&ValueOrigin::CurrentUnit(binding))
                     .expect("named body calls follow complete declaration materialization");
                 match value {
                     ValueTarget::Property(id)

@@ -1,4 +1,4 @@
-use super::{NonValueTarget, ValueOrigin, ValueTarget};
+use super::{NonValueTarget, ResolvedValueTarget, ValueOrigin, ValueTarget};
 use crate::{
     Lowerer,
     imports::{ImportLookupLayer, lookup::LookupResult},
@@ -8,10 +8,10 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 impl Lowerer {
-    fn value_origin_location(&self, origin: ValueOrigin) -> (usize, ast::Span) {
+    fn value_origin_location(&self, origin: &ValueOrigin) -> (usize, ast::Span) {
         match origin {
             ValueOrigin::CoreNonValue(NonValueTarget::Function(id)) => {
-                (self.function_files[&id], self.functions[id].span)
+                (self.function_files[id], self.functions[*id].span)
             }
             ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(_)) => {
                 (self.current_file, ast::Span::new(0, 0))
@@ -21,44 +21,47 @@ impl Lowerer {
             }
             ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => self
                 .type_candidate_location(super::super::TypeLookupCandidate {
-                    target,
+                    target: *target,
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
                 }),
             ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id)) => {
-                (self.property_files[&id], self.properties[id].span)
+                (self.property_files[id], self.properties[*id].span)
             }
             ValueOrigin::CoreNonValue(NonValueTarget::SourceExtensionProperty(_)) => {
                 unreachable!("core has no provisional import properties")
             }
             ValueOrigin::CurrentUnit(id) | ValueOrigin::NonValue { binding: id, .. } => {
-                let binding = self.imports.binding(id);
+                let binding = self.imports.binding(*id);
                 (binding.file, binding.span)
             }
             ValueOrigin::Core(ValueTarget::Property(id)) => {
-                (self.property_files[&id], self.properties[id].span)
+                (self.property_files[id], self.properties[*id].span)
             }
             ValueOrigin::Core(ValueTarget::Object(id)) => {
-                (self.object_files[&id], self.objects[id].span)
+                (self.object_files[id], self.objects[*id].span)
             }
             ValueOrigin::Core(ValueTarget::Variant(target)) => (
                 self.enum_files[&target.enumeration()],
                 self.enums[target.enumeration()].span,
             ),
             ValueOrigin::RejectedFunction(id) => {
-                (self.function_files[&id], self.functions[id].span)
+                (self.function_files[id], self.functions[*id].span)
             }
-            ValueOrigin::DependencyNonValue(_) => (self.current_file, ast::Span::new(0, 0)),
+            ValueOrigin::Dependency(_) => (self.current_file, ast::Span::new(0, 0)),
         }
     }
 
     pub(crate) fn resolve_value_name(
         &mut self,
         name: &ast::Ident,
-    ) -> Result<Option<ValueTarget>, ()> {
+    ) -> Result<Option<ResolvedValueTarget>, ()> {
         self.resolve_value_origin(name).map(|origin| {
-            origin.map(|origin| {
-                self.materialized_value_target(origin)
-                    .expect("body lookup follows complete declaration materialization")
+            origin.map(|origin| match origin {
+                ValueOrigin::Dependency(binding) => ResolvedValueTarget::Dependency(binding),
+                origin => ResolvedValueTarget::Materialized(
+                    self.materialized_value_target(&origin)
+                        .expect("body lookup follows complete declaration materialization"),
+                ),
             })
         })
     }
@@ -70,19 +73,13 @@ impl Lowerer {
         let (message, candidates) = match self.lookup_value_origin(&name.text) {
             LookupResult::Missing => return Ok(None),
             LookupResult::Unique(ValueOrigin::RejectedFunction(_)) => return Err(()),
-            LookupResult::Unique(origin @ ValueOrigin::NonValue { target, .. }) => (
-                Self::non_value_message(name, target),
-                ast::NonEmptyVec::new(origin, Vec::new()),
-            ),
-            LookupResult::Unique(origin @ ValueOrigin::CoreNonValue(target)) => (
-                Self::non_value_message(name, target),
-                ast::NonEmptyVec::new(origin, Vec::new()),
-            ),
-            LookupResult::Unique(origin @ ValueOrigin::DependencyNonValue(target)) => (
-                Self::non_value_message(name, NonValueTarget::ImportedDependency(target)),
-                ast::NonEmptyVec::new(origin, Vec::new()),
-            ),
-            LookupResult::Unique(origin) => return Ok(Some(origin)),
+            LookupResult::Unique(origin) => match Self::non_value_origin(&origin) {
+                Some(target) => (
+                    Self::non_value_message(name, target),
+                    ast::NonEmptyVec::new(origin, Vec::new()),
+                ),
+                None => return Ok(Some(origin)),
+            },
             LookupResult::Ambiguous { layer, candidates } => {
                 let layer = match layer {
                     ImportLookupLayer::Exact => "exact import",
@@ -92,7 +89,7 @@ impl Lowerer {
                 };
                 let message = if candidates.iter().all(|origin| {
                     matches!(
-                        Self::non_value_origin(*origin),
+                        Self::non_value_origin(origin),
                         Some(
                             NonValueTarget::Function(_)
                                 | NonValueTarget::ImportedDependency(
@@ -131,12 +128,12 @@ impl Lowerer {
             "a failed value layer has candidates"
         );
         let message = if candidates.len() == 1 {
-            let target = Self::non_value_origin(candidates[0])
+            let target = Self::non_value_origin(&candidates[0])
                 .expect("one selected value candidate is not an ambiguity");
             Self::non_value_message(name, target)
         } else if candidates.iter().all(|origin| {
             matches!(
-                Self::non_value_origin(*origin),
+                Self::non_value_origin(origin),
                 Some(
                     NonValueTarget::Function(_)
                         | NonValueTarget::ImportedDependency(
@@ -171,7 +168,7 @@ impl Lowerer {
         let mut diagnostic = ast::Diagnostic::at_file(self.current_file, name.span, message);
         let mut locations = candidates
             .iter()
-            .map(|origin| self.value_origin_location(*origin))
+            .map(|origin| self.value_origin_location(origin))
             .collect::<Vec<_>>();
         locations.sort_by_key(|(file, span)| (*file, span.start, span.end));
         for (file, span) in locations {

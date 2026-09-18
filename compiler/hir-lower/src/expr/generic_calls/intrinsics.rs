@@ -26,8 +26,9 @@ impl Lowerer {
                             Err(()) => return None,
                         };
                         let global = target.and_then(|target| {
-                            let crate::imports::lookup::values::ValueTarget::Property(property) =
-                                target
+                            let crate::imports::lookup::values::ResolvedValueTarget::Materialized(
+                                crate::imports::lookup::values::ValueTarget::Property(property),
+                            ) = target
                             else {
                                 return None;
                             };

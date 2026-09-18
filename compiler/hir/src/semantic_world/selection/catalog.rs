@@ -1,18 +1,19 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use scoop_identity::{CallableTemplateOrigin, ConeIdentity, PropertyOwner};
+use scoop_identity::{CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PropertyOwner};
 
 use super::{
     DependencyProjectionId, DependencySelectionId, ImportedDependencyCallableId,
-    ImportedDependencyDefinitionSources, ImportedDependencySelectionPlan,
-    ImportedDependencySelectionPlanBuildError, NEXT_PROJECTION, NEXT_SELECTION, next_id,
+    ImportedDependencyConstantId, ImportedDependencyDefinitionSources,
+    ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError, NEXT_PROJECTION,
+    NEXT_SELECTION, next_id,
 };
 use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, CoreClosedExactLeafClassifierV1,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedProviderCertificate,
-    ImportedTarget, ParamFreeCoreClosedCallableV1,
+    ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
+    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
 };
 
 #[derive(Clone, Debug)]
@@ -25,6 +26,14 @@ pub(super) struct CallableCatalogEntry {
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct ConstantCatalogEntry {
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) record: ExportConstValueV1,
+    pub(super) exact_type: Option<scoop_identity::PersistentExactTypeId>,
+    pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
+}
+
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
     pub(super) world_brand: u64,
@@ -32,6 +41,8 @@ pub(super) struct DependencyCatalog {
     pub(super) projection: DependencyProjectionId,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) callable_ids: BTreeMap<CallableTemplateOrigin, ImportedDependencyCallableId>,
+    pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
+    pub(super) constant_ids: BTreeMap<PersistentPropertyId, ImportedDependencyConstantId>,
     pub(super) direct_callable_bindings:
         BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
 }
@@ -43,6 +54,7 @@ impl ImportedSemanticWorld<'_> {
     ) -> Result<ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError> {
         let projection = DependencyProjectionId(next_id(&NEXT_PROJECTION, "dependency projection"));
         let mut callables = BTreeMap::new();
+        let mut constants = BTreeMap::new();
         for provider in &self.providers {
             if provider.identity() == ConeIdentity::CORE {
                 continue;
@@ -77,6 +89,20 @@ impl ImportedSemanticWorld<'_> {
                     );
                 }
             }
+            for constant in provider.interface().constants().records() {
+                let property = constant.property();
+                let entry = ConstantCatalogEntry {
+                    certificate: provider.certificate().clone(),
+                    record: constant.clone(),
+                    exact_type: classifier.classify(constant.value_type()),
+                    definition_sources: Arc::clone(&definition_sources),
+                };
+                if constants.insert(property, entry).is_some() {
+                    return Err(
+                        ImportedDependencySelectionPlanBuildError::DuplicateConstant(property),
+                    );
+                }
+            }
         }
         let callable_ids = callables
             .keys()
@@ -92,6 +118,20 @@ impl ImportedSemanticWorld<'_> {
                     )
             })
             .collect::<Result<BTreeMap<_, _>, _>>()?;
+        let constant_ids = constants
+            .keys()
+            .copied()
+            .enumerate()
+            .map(|(index, property)| {
+                u32::try_from(index)
+                    .map(|index| (property, ImportedDependencyConstantId(index)))
+                    .map_err(
+                        |_| ImportedDependencySelectionPlanBuildError::TooManyConstants {
+                            count: constants.len(),
+                        },
+                    )
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
@@ -100,10 +140,13 @@ impl ImportedSemanticWorld<'_> {
                 projection,
                 callables,
                 callable_ids,
+                constants,
+                constant_ids,
                 direct_callable_bindings,
             }),
             selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
+            constants: BTreeMap::new(),
         })
     }
 

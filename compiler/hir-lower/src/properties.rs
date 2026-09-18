@@ -238,13 +238,15 @@ impl Lowerer {
                 ) {
                     ExtensionPropertyCandidateOutcome::Resolved(property) => {
                         if !values.is_empty() {
-                            let mut origins =
-                                values.iter().map(|(_, origin)| *origin).collect::<Vec<_>>();
+                            let mut origins = values
+                                .iter()
+                                .map(|(_, origin)| origin.clone())
+                                .collect::<Vec<_>>();
                             origins.push(
                                 properties
                                     .iter()
                                     .find_map(|(candidate, origin)| {
-                                        (*candidate == property.property).then_some(*origin)
+                                        (*candidate == property.property).then_some(origin.clone())
                                     })
                                     .expect("a resolved extension property came from this layer"),
                             );
@@ -278,7 +280,10 @@ impl Lowerer {
                     };
                 }
                 _ => {
-                    let origins = values.iter().map(|(_, origin)| *origin).collect::<Vec<_>>();
+                    let origins = values
+                        .iter()
+                        .map(|(_, origin)| origin.clone())
+                        .collect::<Vec<_>>();
                     self.diagnose_value_layer(name, layer.kind, &origins);
                     return ImplicitValueResolution::Failed;
                 }

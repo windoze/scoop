@@ -9,14 +9,15 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 impl Lowerer {
-    pub(super) fn non_value_origin(origin: ValueOrigin) -> Option<NonValueTarget> {
+    pub(super) fn non_value_origin(origin: &ValueOrigin) -> Option<NonValueTarget> {
         match origin {
             ValueOrigin::NonValue { target, .. } | ValueOrigin::CoreNonValue(target) => {
-                Some(target)
+                Some(*target)
             }
-            ValueOrigin::DependencyNonValue(target) => {
-                Some(NonValueTarget::ImportedDependency(target))
-            }
+            ValueOrigin::Dependency(binding) => match binding.target() {
+                hir::ImportedTarget::Property(_) => None,
+                target => Some(NonValueTarget::ImportedDependency(target)),
+            },
             ValueOrigin::CurrentUnit(_)
             | ValueOrigin::Core(_)
             | ValueOrigin::RejectedFunction(_) => None,
@@ -81,7 +82,7 @@ impl Lowerer {
                 }
             },
             super::super::calls::NamedCallOrigin::Dependency(binding) => {
-                ValueOrigin::DependencyNonValue(binding.target())
+                ValueOrigin::Dependency(binding.clone())
             }
         }
     }
@@ -131,15 +132,15 @@ impl Lowerer {
         result
     }
 
-    fn value_origin_accessible(&self, origin: ValueOrigin) -> bool {
+    fn value_origin_accessible(&self, origin: &ValueOrigin) -> bool {
         if matches!(
             origin,
-            ValueOrigin::RejectedFunction(_) | ValueOrigin::DependencyNonValue(_)
+            ValueOrigin::RejectedFunction(_) | ValueOrigin::Dependency(_)
         ) {
             return true;
         }
         if let ValueOrigin::CoreNonValue(target) = origin {
-            return match target {
+            return match *target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
                 NonValueTarget::ImportedCoreCallable(_) => true,
                 NonValueTarget::ImportedDependency(_) => {
@@ -156,18 +157,18 @@ impl Lowerer {
         }
         let domain = match origin {
             ValueOrigin::CurrentUnit(id) | ValueOrigin::NonValue { binding: id, .. } => {
-                &self.imports.binding(id).access.0
+                &self.imports.binding(*id).access.0
             }
-            ValueOrigin::Core(ValueTarget::Property(id)) => &self.properties[id].access.lookup.0,
-            ValueOrigin::Core(ValueTarget::Object(id)) => &self.objects[id].access.lookup.0,
+            ValueOrigin::Core(ValueTarget::Property(id)) => &self.properties[*id].access.lookup.0,
+            ValueOrigin::Core(ValueTarget::Object(id)) => &self.objects[*id].access.lookup.0,
             ValueOrigin::Core(ValueTarget::Variant(target)) => {
                 &self.enums[target.enumeration()].access.lookup.0
             }
             ValueOrigin::RejectedFunction(_) => {
                 unreachable!("rejected-function blockers are accessible by construction")
             }
-            ValueOrigin::DependencyNonValue(_) => {
-                unreachable!("dependency blockers are accessible by construction")
+            ValueOrigin::Dependency(_) => {
+                unreachable!("dependency values are accessible by construction")
             }
             ValueOrigin::CoreNonValue(_) => unreachable!("core blocker access was checked above"),
         };
@@ -202,9 +203,12 @@ impl Lowerer {
                                 .bindings
                                 .into_iter()
                                 .map(|binding| self.value_binding_origin(binding))
-                                .chain(layer.dependency_bindings.into_iter().map(|binding| {
-                                    ValueOrigin::DependencyNonValue(binding.target())
-                                }))
+                                .chain(
+                                    layer
+                                        .dependency_bindings
+                                        .into_iter()
+                                        .map(ValueOrigin::Dependency),
+                                )
                                 .collect(),
                         }
                     }
@@ -215,7 +219,7 @@ impl Lowerer {
         for layer in layers {
             let mut visible = Vec::new();
             for origin in layer.candidates {
-                let candidates = if self.value_origin_accessible(origin) {
+                let candidates = if self.value_origin_accessible(&origin) {
                     &mut visible
                 } else {
                     &mut inaccessible
@@ -226,19 +230,19 @@ impl Lowerer {
             }
             let has_value = visible
                 .iter()
-                .any(|origin| Self::non_value_origin(*origin).is_none());
+                .any(|origin| Self::non_value_origin(origin).is_none());
             if has_value {
-                visible.retain(|origin| Self::non_value_origin(*origin).is_none());
+                visible.retain(|origin| Self::non_value_origin(origin).is_none());
             } else if let Some(&function) = layer.suppressed_callables.first() {
                 return LookupResult::Unique(ValueOrigin::RejectedFunction(function));
             }
             match visible.as_slice() {
                 [] => {}
-                [one] => return LookupResult::Unique(*one),
+                [one] => return LookupResult::Unique(one.clone()),
                 [first, rest @ ..] => {
                     return LookupResult::Ambiguous {
                         layer: layer.kind,
-                        candidates: ast::NonEmptyVec::new(*first, rest.to_vec()),
+                        candidates: ast::NonEmptyVec::new(first.clone(), rest.to_vec()),
                     };
                 }
             }
@@ -246,7 +250,7 @@ impl Lowerer {
         match inaccessible.as_slice() {
             [] => LookupResult::Missing,
             [first, rest @ ..] => {
-                LookupResult::Inaccessible(ast::NonEmptyVec::new(*first, rest.to_vec()))
+                LookupResult::Inaccessible(ast::NonEmptyVec::new(first.clone(), rest.to_vec()))
             }
         }
     }

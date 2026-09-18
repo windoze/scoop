@@ -1,5 +1,5 @@
 use super::*;
-use crate::imports::lookup::values::ValueTarget;
+use crate::imports::lookup::values::{ResolvedValueTarget, ValueTarget};
 
 impl Lowerer {
     /// A bare identifier in expression position. Ordinary lexical/member/
@@ -92,7 +92,7 @@ impl Lowerer {
                         return Some(property.read);
                     }
                     crate::properties::ImplicitValueResolution::Value { target, layer } => {
-                        Some((target, Some(layer)))
+                        Some((ResolvedValueTarget::Materialized(target), Some(layer)))
                     }
                     crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
                         implicit_failure = Some(failure);
@@ -111,10 +111,11 @@ impl Lowerer {
             };
             let mut prelude_failure = None;
             if let Some((target, selected_layer)) = selected_value {
-                let core_variant = matches!(target, ValueTarget::Variant(_))
-                    && selected_layer.is_some_and(|layer| {
-                        layer == crate::imports::ImportLookupLayer::CorePrelude
-                    });
+                let core_variant = matches!(
+                    target,
+                    ResolvedValueTarget::Materialized(ValueTarget::Variant(_))
+                ) && selected_layer
+                    .is_some_and(|layer| layer == crate::imports::ImportLookupLayer::CorePrelude);
                 let legacy_core_variant = selected_layer.is_none()
                     && matches!(
                         self.lookup_value_origin(&name.text),
@@ -125,6 +126,9 @@ impl Lowerer {
                         )
                     );
                 if core_variant || legacy_core_variant {
+                    let ResolvedValueTarget::Materialized(target) = target else {
+                        unreachable!("core-prelude values are materialized locally")
+                    };
                     match self.probe_expr_layer(|state, _| {
                         state.lower_named_value_target(name, target, expected)
                     }) {
@@ -132,7 +136,14 @@ impl Lowerer {
                         Err(failure) => prelude_failure = Some(failure),
                     }
                 } else {
-                    return self.lower_named_value_target(name, target, expected);
+                    return match target {
+                        ResolvedValueTarget::Materialized(target) => {
+                            self.lower_named_value_target(name, target, expected)
+                        }
+                        ResolvedValueTarget::Dependency(binding) => {
+                            self.lower_imported_dependency_constant(&binding, name.span)
+                        }
+                    };
                 }
             }
             if let Some(target) = self.contextual_variant_ref(&name.text, expected) {

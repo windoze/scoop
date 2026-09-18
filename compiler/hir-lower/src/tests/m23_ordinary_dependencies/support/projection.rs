@@ -16,14 +16,39 @@ pub(crate) fn project_dependency(
     scoop_hir::CanonicalHirFoundation,
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
+    project_dependency_with_core_roles(core, coordinate, source, default_core_types, true)
+}
+
+pub(crate) fn project_constant_dependency(
+    core: &TrustedCoreFixture,
+    coordinate: &ConeCoordinate,
+    source: scoop_ast::SourceFile,
+    core_types: &[&str],
+) -> (
+    scoop_hir::CanonicalHirFoundation,
+    scoop_hir::CrossConeHirInterfaceSectionV1,
+) {
+    project_dependency_with_core_roles(core, coordinate, source, core_types, false)
+}
+
+fn project_dependency_with_core_roles(
+    core: &TrustedCoreFixture,
+    coordinate: &ConeCoordinate,
+    source: scoop_ast::SourceFile,
+    core_types: &[&str],
+    include_default_role: bool,
+) -> (
+    scoop_hir::CanonicalHirFoundation,
+    scoop_hir::CrossConeHirInterfaceSectionV1,
+) {
     let parsed = parsed_ordinary_at(coordinate, source);
     let core_inputs = core
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let witnesses = default_core_types
+    let witnesses = core_types
         .iter()
-        .flat_map(|name| core_type_witnesses(&core_inputs, name))
+        .flat_map(|name| core_type_witnesses(&core_inputs, name, include_default_role))
         .collect::<Vec<_>>();
     let input = OrdinaryCoreOnlySources::try_new(&parsed, core_inputs).unwrap();
     let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
@@ -44,7 +69,8 @@ pub(crate) fn project_dependency(
 fn core_type_witnesses(
     core: &scoop_hir::ImportedCoreInputs<'_>,
     name: &str,
-) -> [scoop_hir::ExternalHirBindingWitnessUse; 2] {
+    include_default_role: bool,
+) -> Vec<scoop_hir::ExternalHirBindingWitnessUse> {
     let binding = core
         .prelude()
         .candidates(BindingNamespace::Type, name)
@@ -67,18 +93,20 @@ fn core_type_witnesses(
     let target = scoop_hir::ExternalHirTargetV1::Nominal(
         scoop_identity::NominalDeclarationOwner::Concrete(declaration),
     );
-    [
-        scoop_hir::ExternalHirBindingWitnessUse::new(
+    let mut witnesses = Vec::with_capacity(1 + usize::from(include_default_role));
+    if include_default_role {
+        witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
             target,
             scoop_hir::ExternalHirBindingWitnessRole::DefaultDependency,
             scoop_hir::DependencyBindingWitnessV1::new(route.clone()),
-        ),
-        scoop_hir::ExternalHirBindingWitnessUse::new(
-            target,
-            scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
-            scoop_hir::DependencyBindingWitnessV1::new(route),
-        ),
-    ]
+        ));
+    }
+    witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
+        target,
+        scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
+        scoop_hir::DependencyBindingWitnessV1::new(route),
+    ));
+    witnesses
 }
 
 struct ProviderProjectionAuthority {

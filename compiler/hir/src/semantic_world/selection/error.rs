@@ -1,7 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, PersistentSourceContextId, SourceIdentity,
+    CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PersistentSourceContextId,
+    SourceIdentity,
 };
 
 use super::super::{DirectImportedTargetMergeError, ImportedTarget};
@@ -12,6 +13,10 @@ pub enum ImportedDependencySelectionPlanBuildError {
     Classification(CoreClosedCallableClassificationError),
     DuplicateCallable(CallableTemplateOrigin),
     TooManyCallables {
+        count: usize,
+    },
+    DuplicateConstant(PersistentPropertyId),
+    TooManyConstants {
         count: usize,
     },
     MissingDefinitionSource {
@@ -40,6 +45,14 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency semantic world contains {count} callables, exceeding the u32 id domain"
             ),
+            Self::DuplicateConstant(property) => write!(
+                formatter,
+                "dependency semantic world contains duplicate constant {property:?}"
+            ),
+            Self::TooManyConstants { count } => write!(
+                formatter,
+                "dependency semantic world contains {count} constants, exceeding the u32 id domain"
+            ),
             Self::MissingDefinitionSource { provider, source } => write!(
                 formatter,
                 "dependency provider {provider:?} has no HIR source record for exported definition source {source:?}"
@@ -66,6 +79,8 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::DirectBindingMerge { source, .. } => Some(source),
             Self::DuplicateCallable(_)
             | Self::TooManyCallables { .. }
+            | Self::DuplicateConstant(_)
+            | Self::TooManyConstants { .. }
             | Self::MissingDefinitionSource { .. }
             | Self::MissingDefinitionContext { .. } => None,
         }
@@ -75,10 +90,16 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedDependencyCandidateError {
     NotCallable(ImportedTarget),
+    NotConstant(ImportedTarget),
     ForeignWorld,
     MissingCallable(CallableTemplateOrigin),
+    MissingConstant(PersistentPropertyId),
     TerminalProviderMismatch {
         declaration: CallableTemplateOrigin,
+        expected: ConeIdentity,
+    },
+    ConstantTerminalProviderMismatch {
+        property: PersistentPropertyId,
         expected: ConeIdentity,
     },
     MissingDefaultCallableBinding(CallableTemplateOrigin),
@@ -91,6 +112,9 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::NotCallable(target) => {
                 write!(formatter, "imported target {target:?} is not a callable")
             }
+            Self::NotConstant(target) => {
+                write!(formatter, "imported target {target:?} is not a constant")
+            }
             Self::ForeignWorld => {
                 formatter.write_str("imported binding belongs to another semantic world")
             }
@@ -98,12 +122,20 @@ impl fmt::Display for ImportedDependencyCandidateError {
                 formatter,
                 "imported callable {declaration:?} is absent from the dependency selection catalog"
             ),
+            Self::MissingConstant(property) => write!(
+                formatter,
+                "imported property {property:?} has no dependency constant record"
+            ),
             Self::TerminalProviderMismatch {
                 declaration,
                 expected,
             } => write!(
                 formatter,
                 "imported callable {declaration:?} does not terminate at provider {expected}"
+            ),
+            Self::ConstantTerminalProviderMismatch { property, expected } => write!(
+                formatter,
+                "imported constant {property:?} does not terminate at provider {expected}"
             ),
             Self::MissingDefaultCallableBinding(declaration) => write!(
                 formatter,
@@ -122,6 +154,7 @@ impl std::error::Error for ImportedDependencyCandidateError {}
 pub enum ImportedDependencySelectionError {
     ForeignProjection,
     CapabilityUnavailable { target: ImportedTarget },
+    ConstantCapabilityUnavailable { target: ImportedTarget },
     RouteMerge(DirectImportedTargetMergeError),
 }
 
@@ -129,15 +162,19 @@ impl fmt::Display for ImportedDependencySelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ForeignProjection => {
-                formatter.write_str("dependency callable candidate belongs to another projection")
+                formatter.write_str("dependency candidate belongs to another projection")
             }
             Self::CapabilityUnavailable { target } => write!(
                 formatter,
                 "imported callable {target:?} is not executable by the M23-5 core-closed bridge"
             ),
+            Self::ConstantCapabilityUnavailable { target } => write!(
+                formatter,
+                "imported constant {target:?} is not executable by the M23-5 core-closed constant bridge"
+            ),
             Self::RouteMerge(error) => write!(
                 formatter,
-                "cannot merge selected dependency callable routes: {error}"
+                "cannot merge selected dependency routes: {error}"
             ),
         }
     }
@@ -147,7 +184,9 @@ impl std::error::Error for ImportedDependencySelectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RouteMerge(error) => Some(error),
-            Self::ForeignProjection | Self::CapabilityUnavailable { .. } => None,
+            Self::ForeignProjection
+            | Self::CapabilityUnavailable { .. }
+            | Self::ConstantCapabilityUnavailable { .. } => None,
         }
     }
 }

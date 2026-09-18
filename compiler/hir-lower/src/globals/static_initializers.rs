@@ -19,7 +19,11 @@ impl Lowerer {
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
         let mut probe = self.clone();
-        probe.evaluate_static_property_constant(expression, expected)
+        let value = probe.evaluate_static_property_constant(expression, expected);
+        if value.is_some() {
+            self.dependencies = probe.dependencies;
+        }
+        value
     }
 
     fn evaluate_static_property_constant(
@@ -72,8 +76,15 @@ impl Lowerer {
                 else {
                     return None;
                 };
+                if let crate::imports::lookup::values::ValueOrigin::Dependency(binding) = origin {
+                    let imported = self.select_imported_dependency_constant(&binding, name.span)?;
+                    return Some(StaticValue {
+                        value: imported.value,
+                        ty: imported.ty,
+                    });
+                }
                 let crate::imports::lookup::values::ValueTarget::Property(property) =
-                    self.materialized_value_target(origin)?
+                    self.materialized_value_target(&origin)?
                 else {
                     return None;
                 };

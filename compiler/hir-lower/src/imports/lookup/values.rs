@@ -6,4 +6,6 @@ mod materialization;
 mod model;
 mod selection;
 
-pub(crate) use model::{NamedPropertyReceiver, NonValueTarget, ValueOrigin, ValueTarget};
+pub(crate) use model::{
+    NamedPropertyReceiver, NonValueTarget, ResolvedValueTarget, ValueOrigin, ValueTarget,
+};

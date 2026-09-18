@@ -1,4 +1,4 @@
-//! Cloneable selection transactions for ordinary dependency callables.
+//! Cloneable selection transactions for executable ordinary dependency uses.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -38,6 +38,7 @@ pub struct ImportedDependencySelectionPlan {
     catalog: Arc<DependencyCatalog>,
     selection: DependencySelectionId,
     callables: BTreeMap<ImportedDependencyCallableId, SelectedImportedDependencyCallable>,
+    constants: BTreeMap<ImportedDependencyConstantId, SelectedImportedDependencyConstant>,
 }
 
 impl ImportedDependencySelectionPlan {
@@ -55,10 +56,13 @@ impl ImportedDependencySelectionPlan {
                 )),
                 callables: BTreeMap::new(),
                 callable_ids: BTreeMap::new(),
+                constants: BTreeMap::new(),
+                constant_ids: BTreeMap::new(),
                 direct_callable_bindings: BTreeMap::new(),
             }),
             selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
+            constants: BTreeMap::new(),
         }
     }
 
@@ -145,6 +149,52 @@ impl ImportedDependencySelectionPlan {
         self.callable_candidate_for_declaration(declaration, binding)
     }
 
+    pub fn constant_candidate(
+        &self,
+        binding: &DirectImportedTargetBinding,
+    ) -> Result<ImportedDependencyConstantCandidate, ImportedDependencyCandidateError> {
+        let property = match binding.target() {
+            ImportedTarget::Property(id) => id.persistent(),
+            target => return Err(ImportedDependencyCandidateError::NotConstant(target)),
+        };
+        if binding
+            .sources()
+            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
+        {
+            return Err(ImportedDependencyCandidateError::ForeignWorld);
+        }
+        let entry = self
+            .catalog
+            .constants
+            .get(&property)
+            .ok_or(ImportedDependencyCandidateError::MissingConstant(property))?;
+        let constant = *self
+            .catalog
+            .constant_ids
+            .get(&property)
+            .expect("every dependency constant snapshot has one stable id");
+        if binding.sources().any(|source| {
+            source.witness().terminal_declaration() != binding.target()
+                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+        }) {
+            return Err(
+                ImportedDependencyCandidateError::ConstantTerminalProviderMismatch {
+                    property,
+                    expected: entry.certificate.identity(),
+                },
+            );
+        }
+        Ok(ImportedDependencyConstantCandidate {
+            projection: self.catalog.projection,
+            constant,
+            binding: binding.clone(),
+            certificate: entry.certificate.clone(),
+            record: entry.record.clone(),
+            exact_type: entry.exact_type,
+            definition_sources: Arc::clone(&entry.definition_sources),
+        })
+    }
+
     pub fn select_callable(
         &mut self,
         candidate: ImportedDependencyCallableCandidate,
@@ -186,6 +236,49 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
+    pub fn select_constant(
+        &mut self,
+        candidate: ImportedDependencyConstantCandidate,
+    ) -> Result<ImportedDependencyConstantRef, ImportedDependencySelectionError> {
+        if candidate.projection != self.catalog.projection {
+            return Err(ImportedDependencySelectionError::ForeignProjection);
+        }
+        let Some(exact_type) = candidate.exact_type else {
+            return Err(
+                ImportedDependencySelectionError::ConstantCapabilityUnavailable {
+                    target: candidate.target(),
+                },
+            );
+        };
+        let id = candidate.constant;
+        if let Some(selected) = self.constants.get_mut(&id) {
+            if selected.provider() != candidate.provider()
+                || selected.record.property() != candidate.record.property()
+                || selected.exact_type != exact_type
+            {
+                return Err(ImportedDependencySelectionError::ForeignProjection);
+            }
+            selected
+                .binding
+                .try_merge(candidate.binding)
+                .map_err(ImportedDependencySelectionError::RouteMerge)?;
+        } else {
+            self.constants.insert(
+                id,
+                SelectedImportedDependencyConstant {
+                    binding: candidate.binding,
+                    certificate: candidate.certificate,
+                    record: candidate.record,
+                    exact_type,
+                },
+            );
+        }
+        Ok(ImportedDependencyConstantRef {
+            selection: self.selection,
+            constant: id,
+        })
+    }
+
     /// Resolves a reference already committed in this transaction.
     ///
     /// Lowering-side semantic checks consume the selected capability before
@@ -204,10 +297,15 @@ impl ImportedDependencySelectionPlan {
             consumer: self.catalog.consumer,
             selection: self.selection,
             callables: self.callables,
+            constants: self.constants,
         }
     }
 
     pub fn selected_callable_count(&self) -> usize {
         self.callables.len()
+    }
+
+    pub fn selected_constant_count(&self) -> usize {
+        self.constants.len()
     }
 }

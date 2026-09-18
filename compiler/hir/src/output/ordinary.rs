@@ -141,10 +141,10 @@ fn validate_imported_dependency_projection(
             local: local_count,
         });
     }
-    if export_count != selected.len() {
+    if export_count != selected.callable_count() {
         return Err(OrdinaryHirOutputError::DependencySelectionCountMismatch {
             hir: export_count,
-            selected: selected.len(),
+            selected: selected.callable_count(),
         });
     }
 

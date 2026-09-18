@@ -6,14 +6,14 @@ use scoop_hir as hir;
 impl Lowerer {
     /// Early static preflight may return None for an unallocated declaration;
     /// it must then decline folding, not select a different origin.
-    pub(crate) fn materialized_value_target(&self, origin: ValueOrigin) -> Option<ValueTarget> {
+    pub(crate) fn materialized_value_target(&self, origin: &ValueOrigin) -> Option<ValueTarget> {
         Some(match origin {
             ValueOrigin::NonValue { .. }
             | ValueOrigin::CoreNonValue(_)
-            | ValueOrigin::DependencyNonValue(_)
+            | ValueOrigin::Dependency(_)
             | ValueOrigin::RejectedFunction(_) => return None,
-            ValueOrigin::Core(target) => target,
-            ValueOrigin::CurrentUnit(id) => match self.imports.binding(id).target {
+            ValueOrigin::Core(target) => *target,
+            ValueOrigin::CurrentUnit(id) => match self.imports.binding(*id).target {
                 CurrentUnitTarget::Property(id) => ValueTarget::Property(id),
                 CurrentUnitTarget::Object(id) => ValueTarget::Object(id),
                 CurrentUnitTarget::EnumVariant(target) => ValueTarget::Variant(target),
