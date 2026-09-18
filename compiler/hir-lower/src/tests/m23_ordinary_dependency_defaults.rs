@@ -72,6 +72,20 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
             .cone(),
         ordinary.cone()
     );
+    let constant = imported_default_constant_expression(output.output().export.module());
+    let origin = constant.origin.concrete();
+    assert_eq!(
+        source_files[usize::try_from(origin.definition.file).unwrap()]
+            .identity
+            .cone(),
+        provider.identity().unwrap()
+    );
+    assert_eq!(
+        source_files[usize::try_from(origin.evaluation.file).unwrap()]
+            .identity
+            .cone(),
+        ordinary.cone()
+    );
 }
 
 #[test]
@@ -205,16 +219,17 @@ fn dependency_with_callable_default(
         unreachable!("fun_expr always builds a function declaration")
     };
     function.params[0].syntax = scoop_ast::ParameterSyntax::Default {
-        expression: call("defaultValue", Vec::new()),
+        expression: call("defaultValue", vec![var("DEFAULT_VALUE")]),
         equals_span: sp(),
     };
     let mut source = file(vec![
+        const_property("DEFAULT_VALUE", int_lit(7)),
         fun_expr(
             "defaultValue",
             Vec::new(),
-            Vec::new(),
+            vec![("value", ty_named("Int"))],
             Some(ty_named("Int")),
-            int_lit(7),
+            var("value"),
         ),
         with_default,
     ]);
@@ -242,7 +257,7 @@ fn imported_helper_expression(module: &scoop_hir::Module) -> &scoop_hir::Expr {
             scoop_hir::StatementKind::ValDecl { init, .. }
                 if matches!(
                     &init.kind,
-                    scoop_hir::ExprKind::ImportedDependencyCall { args, .. } if args.is_empty()
+                    scoop_hir::ExprKind::ImportedDependencyCall { args, .. } if args.len() == 1
                 ) =>
             {
                 Some(init)
@@ -250,6 +265,48 @@ fn imported_helper_expression(module: &scoop_hir::Module) -> &scoop_hir::Expr {
             _ => None,
         })
         .expect("the dependency default helper call must be materialized once")
+}
+
+fn imported_default_constant_expression(module: &scoop_hir::Module) -> &scoop_hir::Expr {
+    let consumer = module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == "consumer").then_some(function))
+        .expect("the consumer function must be present");
+    let scoop_hir::FunctionKind::User(body) = &consumer.kind else {
+        panic!("the consumer function must have a Scoop body")
+    };
+    body.statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            scoop_hir::StatementKind::ValDecl { init, .. }
+                if matches!(
+                    init.kind,
+                    scoop_hir::ExprKind::IntegerLiteral(scoop_hir::HirIntegerConstant::Signed32(7))
+                ) =>
+            {
+                Some(init)
+            }
+            _ => None,
+        })
+        .expect("the dependency default's const temporary must be materialized")
+}
+
+fn const_property(name: &str, expression: scoop_ast::Expr) -> scoop_ast::Decl {
+    scoop_ast::Decl::Global(scoop_ast::PropertyDecl {
+        annotations: Vec::new(),
+        visibility: scoop_ast::VisibilitySyntax::Omitted,
+        modifier: scoop_ast::MethodModifier::Final,
+        is_override: false,
+        mutable: false,
+        receiver_ty: None,
+        type_params: Vec::new(),
+        where_clause: None,
+        name: super::ident(name),
+        ty: ty_named("Int"),
+        body: scoop_ast::PropertyBodySyntax::Const(Box::new(expression)),
+        span: sp(),
+    })
 }
 
 fn qualified(parts: &[&str]) -> scoop_ast::QualifiedNameSyntax {

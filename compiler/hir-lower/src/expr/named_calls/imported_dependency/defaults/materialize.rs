@@ -9,10 +9,13 @@ use super::plan::{PreparedImportedDefault, PreparedImportedDefaultCallable};
 use crate::Lowerer;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
+mod statements;
+
 struct ImportedDefaultContext<'a> {
     owner: &'a hir::ImportedDependencyCallableCandidate,
     prepared: &'a PreparedImportedDefault,
     locals: BTreeMap<LocalValueSelector, hir::Expr>,
+    loop_targets: Vec<hir::LoopId>,
     evaluation: hir::EvaluationOrigin,
 }
 
@@ -24,10 +27,8 @@ impl Lowerer {
         receiver: Option<&hir::Expr>,
         value_parameters: &[hir::Expr],
         call_span: Span,
+        sink: &mut Vec<hir::Statement>,
     ) -> Result<hir::Expr, ImportedDefaultMaterializationError> {
-        if !prepared.template.body().statements().is_empty() {
-            return Err(ImportedDefaultMaterializationError::UnexpectedStatements);
-        }
         let mut locals = BTreeMap::new();
         if let Some(template_receiver) = prepared.template.receiver().receiver() {
             let value = receiver
@@ -45,12 +46,40 @@ impl Lowerer {
             )?;
             locals.insert(parameter.local().clone(), value);
         }
+        for (index, local) in prepared.template.locals().records().iter().enumerate() {
+            if locals.contains_key(local.selector()) {
+                continue;
+            }
+            let ty = self
+                .imported_default_core_type(local.value_type())
+                .map_err(|error| ImportedDefaultMaterializationError::Plan(error.to_string()))?;
+            let id = self.alloc_synthetic_local(
+                format!("$dependency.default.local.{index}"),
+                ty,
+                local.mutable().into(),
+                scoop_identity::SyntheticLocalRole::DefaultValue,
+            );
+            locals.insert(
+                local.selector().clone(),
+                hir::Expr {
+                    kind: hir::ExprKind::Local(id),
+                    ty,
+                    span: call_span,
+                    origin: self.expression_origin(call_span),
+                },
+            );
+        }
         let mut context = ImportedDefaultContext {
             owner,
             prepared,
             locals,
+            loop_targets: Vec::new(),
             evaluation: self.definition_origin(call_span).into(),
         };
+        for statement in prepared.template.body().statements() {
+            sink.push(self.materialize_imported_default_statement(statement, &mut context)?);
+        }
+        debug_assert!(context.loop_targets.is_empty());
         self.materialize_imported_default_expression(prepared.template.body().value(), &mut context)
     }
 
@@ -59,13 +88,8 @@ impl Lowerer {
         expression: &hir::DefaultExpressionV1,
         context: &mut ImportedDefaultContext<'_>,
     ) -> Result<hir::Expr, ImportedDefaultMaterializationError> {
-        let source = expression.definition_origin();
-        let imported = context.owner.definition_source(source).ok_or_else(|| {
-            ImportedDefinitionOriginError::MissingAuthenticatedSource {
-                context: source.origin().context(),
-            }
-        })?;
-        let definition = self.import_dependency_definition_origin(source, imported)?;
+        let definition =
+            self.imported_default_definition_origin(expression.definition_origin(), context)?;
         let span = definition.span;
         let origin = hir::ExpressionOrigin::Instantiated(hir::ConcreteExpressionOrigin {
             definition,
@@ -243,15 +267,30 @@ impl Lowerer {
             }
         }
     }
+
+    fn imported_default_definition_origin(
+        &mut self,
+        source: &hir::ExportDefinitionSourceV1,
+        context: &ImportedDefaultContext<'_>,
+    ) -> Result<hir::DefinitionOrigin, ImportedDefaultMaterializationError> {
+        let imported = context.owner.definition_source(source).ok_or_else(|| {
+            ImportedDefinitionOriginError::MissingAuthenticatedSource {
+                context: source.origin().context(),
+            }
+        })?;
+        self.import_dependency_definition_origin(source, imported)
+            .map_err(Into::into)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(in super::super) enum ImportedDefaultMaterializationError {
-    UnexpectedStatements,
     MissingReceiver,
     ParameterIndexOverflow,
     MissingValueParameter { position: u32 },
     UnknownLocal(LocalValueSelector),
+    ExpectedMaterializedLocal(LocalValueSelector),
+    InvalidControlFlow(&'static str),
     MissingCallable(hir::DefaultCallableRefV1),
     CoreSelection,
     DependencySelection(String),
@@ -268,9 +307,6 @@ impl From<ImportedDefinitionOriginError> for ImportedDefaultMaterializationError
 impl fmt::Display for ImportedDefaultMaterializationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnexpectedStatements => {
-                formatter.write_str("preflight admitted dependency default statements")
-            }
             Self::MissingReceiver => {
                 formatter.write_str("dependency default is missing its receiver value")
             }
@@ -285,6 +321,16 @@ impl fmt::Display for ImportedDefaultMaterializationError {
                 write!(
                     formatter,
                     "dependency default reads unmapped local {local:?}"
+                )
+            }
+            Self::ExpectedMaterializedLocal(local) => write!(
+                formatter,
+                "dependency default local {local:?} is not backed by a materialized local"
+            ),
+            Self::InvalidControlFlow(operation) => {
+                write!(
+                    formatter,
+                    "invalid dependency default control flow: {operation}"
                 )
             }
             Self::MissingCallable(callee) => {

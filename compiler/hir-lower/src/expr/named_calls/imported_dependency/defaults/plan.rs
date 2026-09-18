@@ -70,6 +70,7 @@ pub(in super::super) enum ImportedDefaultPlanError {
     MissingTemplate(hir::ExportDefaultTemplateKeyV1),
     UnknownLocal(LocalValueSelector),
     MissingCallableReference(hir::DefaultCallableRefV1),
+    InvalidControlFlow(&'static str),
     Callable {
         callee: hir::DefaultCallableRefV1,
         error: String,
@@ -99,6 +100,12 @@ impl fmt::Display for ImportedDefaultPlanError {
                 formatter,
                 "dependency default call {callee:?} lacks its validated reference proof"
             ),
+            Self::InvalidControlFlow(operation) => {
+                write!(
+                    formatter,
+                    "invalid dependency default control flow: {operation}"
+                )
+            }
             Self::Callable { callee, error } => {
                 write!(
                     formatter,

@@ -82,6 +82,7 @@ impl Lowerer {
                         receiver.as_ref(),
                         &parameter_values,
                         call_span,
+                        sink,
                     ) {
                         Ok(value) => self.adapt_to(value, parameter),
                         Err(error) => {

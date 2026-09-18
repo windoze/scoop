@@ -10,6 +10,8 @@ use crate::Lowerer;
 use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::imported_core::ImportedSignatureTypeError;
 
+mod statements;
+
 impl Lowerer {
     pub(super) fn prepare_imported_default(
         &mut self,
@@ -22,23 +24,22 @@ impl Lowerer {
                 operation: "dependency default type substitution",
             });
         }
-        if !template.body().statements().is_empty() {
-            return Err(ImportedDefaultPlanError::Requires {
-                requirement: ImportedCapabilityRequirement::Layout,
-                operation: "dependency default statement materialization",
-            });
-        }
         self.imported_default_core_type(template.result())?;
 
         let mut locals = BTreeSet::new();
-        if let Some(receiver) = template.receiver().receiver() {
-            self.imported_default_core_type(receiver.value_type())?;
-            locals.insert(receiver.local().clone());
-        }
-        for parameter in template.value_parameters().parameters() {
-            locals.insert(parameter.local().clone());
+        for local in template.locals().records() {
+            self.imported_default_core_type(local.value_type())?;
+            locals.insert(local.selector().clone());
         }
         let mut callables = BTreeMap::new();
+        self.preflight_imported_default_statements(
+            owner,
+            &template,
+            template.body().statements(),
+            &locals,
+            &mut callables,
+            0,
+        )?;
         self.preflight_imported_default_expression(
             owner,
             &template,
