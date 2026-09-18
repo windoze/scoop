@@ -71,6 +71,12 @@ impl OdrFreeHirFoundation {
             .map(|index| &self.0.sources[index])
     }
 
+    /// Returns all canonical source records retained by this artifact.
+    #[doc(hidden)]
+    pub fn source_records(&self) -> &[crate::SourceRecord] {
+        &self.0.sources
+    }
+
     /// Returns the canonical key for an exact source-context identity.
     pub fn source_context_key(
         &self,
@@ -81,6 +87,18 @@ impl OdrFreeHirFoundation {
             .binary_search_by_key(&context, |record| record.id())
             .ok()
             .map(|index| self.0.source_contexts[index].key())
+    }
+
+    /// Iterates every canonical source-context identity declared by this
+    /// artifact together with its validated key.
+    #[doc(hidden)]
+    pub fn source_context_records(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (PersistentSourceContextId, &SourceContextKey)> {
+        self.0
+            .source_contexts
+            .iter()
+            .map(|record| (record.id(), record.key()))
     }
 
     #[doc(hidden)]

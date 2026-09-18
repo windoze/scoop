@@ -1,6 +1,7 @@
 //! Wire decoding and structural validation for source metadata.
 
 use super::{SourcePointRecord, SourceRecord, SourceRecordError};
+use scoop_identity::{ConeIdentity, PersistentIdResolver, SourceIdentityResolutionError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DecodedSourcePointRecord {
@@ -56,50 +57,104 @@ impl DecodedSourceRecord {
         coordinate: &scoop_identity::ConeCoordinate,
         source_attachment: Option<&str>,
     ) -> Result<SourceRecord, SourceRecordValidationError> {
-        let identity = self
-            .identity
+        let Self {
+            identity,
+            byte_length,
+            content_digest,
+            line_starts,
+            points,
+        } = self;
+        let identity = identity
             .validate(coordinate)
             .map_err(SourceRecordValidationError::Identity)?;
-        let content_digest = self
-            .content_digest
-            .validate()
-            .map_err(SourceRecordValidationError::ContentDigest)?;
-        validate_line_starts(&self.line_starts, self.byte_length)?;
-        let points = validate_points(&self.points, &self.line_starts, self.byte_length)?;
-        let record = SourceRecord {
+        validate_resolved_record(
             identity,
-            byte_length: self.byte_length,
+            byte_length,
             content_digest,
-            line_starts: self.line_starts,
+            line_starts,
             points,
-        };
-
-        let Some(source) = source_attachment else {
-            return Ok(record);
-        };
-        let expected = SourceRecord::from_utf8(
-            record.identity.clone(),
-            source,
-            record.points.iter().map(SourcePointRecord::byte_offset),
+            source_attachment,
         )
-        .map_err(SourceRecordValidationError::SourceAttachment)?;
-        if record.byte_length != expected.byte_length {
-            return Err(SourceRecordValidationError::SourceLengthMismatch {
-                declared: record.byte_length,
-                actual: expected.byte_length,
-            });
-        }
-        if record.content_digest != expected.content_digest {
-            return Err(SourceRecordValidationError::SourceDigestMismatch);
-        }
-        if record.line_starts != expected.line_starts {
-            return Err(SourceRecordValidationError::SourceLineStartsMismatch);
-        }
-        if record.points != expected.points {
-            return Err(SourceRecordValidationError::SourcePointsMismatch);
-        }
-        Ok(record)
     }
+
+    /// Resolves the source Cone through an already validated dependency
+    /// identity graph, then validates the canonical source metadata.
+    pub fn resolve<R>(
+        self,
+        resolver: &mut R,
+        source_attachment: Option<&str>,
+    ) -> Result<SourceRecord, SourceRecordResolutionError<R::Error>>
+    where
+        R: PersistentIdResolver<ConeIdentity>,
+    {
+        let Self {
+            identity,
+            byte_length,
+            content_digest,
+            line_starts,
+            points,
+        } = self;
+        let identity = identity
+            .resolve(resolver)
+            .map_err(SourceRecordResolutionError::Identity)?;
+        validate_resolved_record(
+            identity,
+            byte_length,
+            content_digest,
+            line_starts,
+            points,
+            source_attachment,
+        )
+        .map_err(SourceRecordResolutionError::Metadata)
+    }
+}
+
+fn validate_resolved_record(
+    identity: scoop_identity::SourceIdentity,
+    byte_length: u64,
+    content_digest: scoop_identity::DecodedSourceContentDigest,
+    line_starts: Vec<u64>,
+    decoded_points: Vec<DecodedSourcePointRecord>,
+    source_attachment: Option<&str>,
+) -> Result<SourceRecord, SourceRecordValidationError> {
+    let content_digest = content_digest
+        .validate()
+        .map_err(SourceRecordValidationError::ContentDigest)?;
+    validate_line_starts(&line_starts, byte_length)?;
+    let points = validate_points(&decoded_points, &line_starts, byte_length)?;
+    let record = SourceRecord {
+        identity,
+        byte_length,
+        content_digest,
+        line_starts,
+        points,
+    };
+
+    let Some(source) = source_attachment else {
+        return Ok(record);
+    };
+    let expected = SourceRecord::from_utf8(
+        record.identity.clone(),
+        source,
+        record.points.iter().map(SourcePointRecord::byte_offset),
+    )
+    .map_err(SourceRecordValidationError::SourceAttachment)?;
+    if record.byte_length != expected.byte_length {
+        return Err(SourceRecordValidationError::SourceLengthMismatch {
+            declared: record.byte_length,
+            actual: expected.byte_length,
+        });
+    }
+    if record.content_digest != expected.content_digest {
+        return Err(SourceRecordValidationError::SourceDigestMismatch);
+    }
+    if record.line_starts != expected.line_starts {
+        return Err(SourceRecordValidationError::SourceLineStartsMismatch);
+    }
+    if record.points != expected.points {
+        return Err(SourceRecordValidationError::SourcePointsMismatch);
+    }
+    Ok(record)
 }
 
 impl scoop_wire::WireEncode for DecodedSourceRecord {
@@ -355,3 +410,20 @@ impl std::fmt::Display for SourceRecordValidationError {
 }
 
 impl std::error::Error for SourceRecordValidationError {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceRecordResolutionError<E> {
+    Identity(SourceIdentityResolutionError<E>),
+    Metadata(SourceRecordValidationError),
+}
+
+impl<E: std::fmt::Display> std::fmt::Display for SourceRecordResolutionError<E> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Identity(error) => error.fmt(formatter),
+            Self::Metadata(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for SourceRecordResolutionError<E> {}

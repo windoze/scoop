@@ -23,8 +23,8 @@ use scoop_wire::{DecodeUsage, WireDecode, WireError, WirePath, decode_canonical_
 use crate::compile_decode::validate_foundation_identity_graph_with_authorities;
 use crate::strong_compile_decode::{
     DecodedStrongProfileProductionSet, OdrFreeStrongFoundationSet, StrongProfileFoundationError,
-    StrongProfileProductionError, validate_strong_profile_foundations,
-    validate_strong_profile_production,
+    StrongProfileProductionError, validate_cross_cone_strong_profile_foundations,
+    validate_strong_profile_foundations, validate_strong_profile_production,
 };
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, ArtifactProfileInventoryError,

@@ -3,13 +3,13 @@
 use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
 use scoop_lir::ValidatedLirTargetSelection;
 
-use crate::DecodedCrossConeHirFrontSections;
+use crate::{DecodedCrossConeHirFrontSections, FoundationValidatedCrossConeHirFrontSections};
 
 use super::{
     CrossConeClosureFoundationError, CrossConeClosureGraphError, CrossConeClosureIdentityError,
     CrossConeProviderRole, DecodedCrossConeClosure, FoundationValidatedCrossConeHirClosure,
     IdentityRegisteredCrossConeHirClosure, ProfileValidatedCrossConeHirClosure,
-    graph_validation::validate_profile_graph,
+    graph_validation::validate_profile_graph, source_provenance::validate_imported_source_metadata,
 };
 
 impl<'input> DecodedCrossConeClosure<'input> {
@@ -208,22 +208,36 @@ impl<'input> IdentityRegisteredCrossConeHirClosure<'input> {
             dependency_positions,
         } = profile;
         let artifact_count = dependency_first.len();
-        let mut validated = Vec::new();
+        let mut validated = Vec::<FoundationValidatedCrossConeHirFrontSections<'input>>::new();
         validated.try_reserve_exact(artifact_count).map_err(|_| {
             CrossConeClosureFoundationError::Allocation {
                 requested_slots: artifact_count,
             }
         })?;
-        for (front, identities) in dependency_first.into_iter().zip(identity_graphs) {
+        for (position, (front, identities)) in dependency_first
+            .into_iter()
+            .zip(identity_graphs)
+            .enumerate()
+        {
             let identity = front.identity();
-            validated.push(
-                front
-                    .validate_foundation_structure(identities)
-                    .map_err(|source| CrossConeClosureFoundationError::Artifact {
-                        identity,
-                        source: Box::new(source),
-                    })?,
-            );
+            let front = front
+                .validate_foundation_structure(identities)
+                .map_err(|source| CrossConeClosureFoundationError::Artifact {
+                    identity,
+                    source: Box::new(source),
+                })?;
+            validate_imported_source_metadata(identity, front.hir_foundation(), |provider| {
+                positions
+                    .get(&provider)
+                    .copied()
+                    .filter(|provider_position| *provider_position < position)
+                    .map(|provider_position| validated[provider_position].hir_foundation())
+            })
+            .map_err(|source| CrossConeClosureFoundationError::SourceProvenance {
+                identity,
+                source,
+            })?;
+            validated.push(front);
         }
 
         Ok(FoundationValidatedCrossConeHirClosure {

@@ -1157,12 +1157,57 @@ pub(crate) fn validate_strong_profile_foundations(
     mir: DecodedMirFoundation,
     lir: DecodedLirFoundation,
 ) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+    validate_strong_profile_foundations_with_source_authority(
+        graph,
+        identities,
+        hir,
+        mir,
+        lir,
+        HirSourceAuthority::CurrentArtifact,
+    )
+}
+
+pub(crate) fn validate_cross_cone_strong_profile_foundations(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    hir: DecodedHirFoundation,
+    mir: DecodedMirFoundation,
+    lir: DecodedLirFoundation,
+) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
+    validate_strong_profile_foundations_with_source_authority(
+        graph,
+        identities,
+        hir,
+        mir,
+        lir,
+        HirSourceAuthority::DependencyClosure,
+    )
+}
+
+#[derive(Clone, Copy)]
+enum HirSourceAuthority {
+    CurrentArtifact,
+    DependencyClosure,
+}
+
+fn validate_strong_profile_foundations_with_source_authority(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    hir: DecodedHirFoundation,
+    mir: DecodedMirFoundation,
+    lir: DecodedLirFoundation,
+    source_authority: HirSourceAuthority,
+) -> Result<OdrFreeStrongFoundationSet, StrongProfileFoundationError> {
     let coordinate = graph.coordinate().clone();
     let producer = graph.identity();
     let meter = graph.envelope.meter_mut();
-    let hir = hir
-        .validate(&coordinate, identities, meter)
-        .map_err(StrongProfileFoundationError::HirStructure)?;
+    let hir = match source_authority {
+        HirSourceAuthority::CurrentArtifact => hir.validate(&coordinate, identities, meter),
+        HirSourceAuthority::DependencyClosure => {
+            hir.validate_with_dependency_sources(&coordinate, identities, meter)
+        }
+    }
+    .map_err(StrongProfileFoundationError::HirStructure)?;
     let mir = mir
         .validate(identities, meter)
         .map_err(StrongProfileFoundationError::MirStructure)?;

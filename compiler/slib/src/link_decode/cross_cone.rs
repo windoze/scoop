@@ -96,7 +96,7 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
     common
         .validate_identities()
         .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
-        .validate_foundation_structure()
+        .validate_cross_cone_foundation_structure()
         .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?
         .validate_production(expected_external_bridges)
         .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
@@ -163,7 +163,7 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
     let mut front = common
         .validate_identities_with_authorities(external_authorities)
         .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
-        .validate_foundation_structure()
+        .validate_cross_cone_foundation_structure()
         .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?;
     let external_bridges = front
         .reconstruct_external_bridges()

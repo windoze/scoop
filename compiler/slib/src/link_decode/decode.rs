@@ -299,6 +299,19 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
     pub fn validate_foundation_structure(
         self,
     ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
+        self.validate_foundation_structure_with(LinkFoundationSourceAuthority::CurrentArtifact)
+    }
+
+    pub(super) fn validate_cross_cone_foundation_structure(
+        self,
+    ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
+        self.validate_foundation_structure_with(LinkFoundationSourceAuthority::DependencyClosure)
+    }
+
+    fn validate_foundation_structure_with(
+        self,
+        source_authority: LinkFoundationSourceAuthority,
+    ) -> Result<OdrCheckedSingleConeLinkFoundations<'input>, StrongProfileFoundationError> {
         let Self {
             mut graph,
             mut identities,
@@ -311,13 +324,24 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
             link_identity_closure,
             production_manifest,
         } = self;
-        let foundations = validate_strong_profile_foundations(
-            &mut graph,
-            &mut identities,
-            hir_foundation,
-            mir_foundation,
-            lir_foundation,
-        )?;
+        let foundations = match source_authority {
+            LinkFoundationSourceAuthority::CurrentArtifact => validate_strong_profile_foundations(
+                &mut graph,
+                &mut identities,
+                hir_foundation,
+                mir_foundation,
+                lir_foundation,
+            ),
+            LinkFoundationSourceAuthority::DependencyClosure => {
+                validate_cross_cone_strong_profile_foundations(
+                    &mut graph,
+                    &mut identities,
+                    hir_foundation,
+                    mir_foundation,
+                    lir_foundation,
+                )
+            }
+        }?;
         Ok(OdrCheckedSingleConeLinkFoundations {
             graph,
             identities,
@@ -331,6 +355,12 @@ impl<'input> IdentityCheckedSingleConeLinkSections<'input> {
             production_manifest,
         })
     }
+}
+
+#[derive(Clone, Copy)]
+enum LinkFoundationSourceAuthority {
+    CurrentArtifact,
+    DependencyClosure,
 }
 
 impl<'input> OdrCheckedSingleConeLinkFoundations<'input> {

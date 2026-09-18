@@ -121,6 +121,30 @@ fn reader_validates_canonical_record_with_or_without_source_attachment() {
 }
 
 #[test]
+fn reader_resolves_a_dependency_source_through_validated_cone_authority() {
+    let coordinate =
+        scoop_identity::ConeCoordinate::new("dev.example", "provider", "1.0.0").unwrap();
+    let source = scoop_identity::SourceIdentity::new(
+        coordinate.identity().unwrap(),
+        scoop_identity::NormalizedSourcePath::new("src/api.scoop").unwrap(),
+    )
+    .unwrap();
+    let expected = SourceRecord::from_utf8(source, "abc", [0, 3]).unwrap();
+    let decoded: DecodedSourceRecord = scoop_wire::decode_canonical(
+        &scoop_wire::encode(&expected).unwrap(),
+        scoop_wire::DecodeLimits::default(),
+    )
+    .unwrap();
+    let mut pending = scoop_identity::PendingIdentityValidation::new();
+    pending
+        .register_authority(coordinate.identity().unwrap())
+        .unwrap();
+    let mut identities = pending.finish().unwrap();
+
+    assert_eq!(decoded.resolve(&mut identities, None), Ok(expected));
+}
+
+#[test]
 fn required_source_points_must_be_present() {
     let record = decoded_record("abc", [0, 3])
         .validate(

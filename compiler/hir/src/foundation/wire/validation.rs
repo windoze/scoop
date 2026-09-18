@@ -10,7 +10,10 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, WireEncode, WirePath, encode_canonical_temporary_with_meter};
 
 use super::*;
-use crate::{NativeBoundaryResolutionError, NativeBoundaryResolver, SourceRecordValidationError};
+use crate::{
+    NativeBoundaryResolutionError, NativeBoundaryResolver, SourceRecordResolutionError,
+    SourceRecordValidationError,
+};
 
 mod origins;
 pub use origins::DefinitionOriginValidationError;
@@ -73,8 +76,38 @@ impl DecodedHirFoundation {
         identities: &mut ValidatedIdentityGraph,
         meter: &mut BudgetMeter,
     ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
-        validate_foundation(self, coordinate, identities, meter)
+        validate_foundation(
+            self,
+            coordinate,
+            identities,
+            meter,
+            SourceIdentityAuthority::CurrentArtifact,
+        )
     }
+
+    /// Validates a cross-Cone foundation whose source table may contain exact
+    /// metadata copied from an already validated dependency artifact.
+    #[doc(hidden)]
+    pub fn validate_with_dependency_sources(
+        self,
+        coordinate: &ConeCoordinate,
+        identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
+    ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
+        validate_foundation(
+            self,
+            coordinate,
+            identities,
+            meter,
+            SourceIdentityAuthority::DependencyClosure,
+        )
+    }
+}
+
+#[derive(Clone, Copy)]
+enum SourceIdentityAuthority {
+    CurrentArtifact,
+    DependencyClosure,
 }
 
 fn validate_foundation(
@@ -82,6 +115,7 @@ fn validate_foundation(
     coordinate: &ConeCoordinate,
     identities: &mut ValidatedIdentityGraph,
     meter: &mut BudgetMeter,
+    source_authority: SourceIdentityAuthority,
 ) -> Result<ValidatedHirFoundation, HirFoundationValidationError> {
     let original = encode_canonical_temporary_with_meter(&foundation, meter, &WirePath::root())
         .map_err(HirFoundationValidationError::Resource)?;
@@ -132,11 +166,17 @@ fn validate_foundation(
         )
         .map_err(HirFoundationValidationError::Resource)?;
     for (index, source) in sources.into_iter().enumerate() {
-        validated_sources.push(
-            source
+        let source = match source_authority {
+            SourceIdentityAuthority::CurrentArtifact => source
                 .validate(coordinate, None)
                 .map_err(|error| HirFoundationValidationError::SourceRecord { index, error })?,
-        );
+            SourceIdentityAuthority::DependencyClosure => {
+                source.resolve(identities, None).map_err(|error| {
+                    HirFoundationValidationError::DependencySourceRecord { index, error }
+                })?
+            }
+        };
+        validated_sources.push(source);
     }
 
     macro_rules! records {
@@ -550,6 +590,10 @@ pub enum HirFoundationValidationError {
         index: usize,
         error: SourceRecordValidationError,
     },
+    DependencySourceRecord {
+        index: usize,
+        error: SourceRecordResolutionError<IdentityReferenceError>,
+    },
     Identity(IdentityValidationError),
     ForeignDeclaration {
         table: HirFoundationTable,
@@ -607,6 +651,10 @@ impl fmt::Display for HirFoundationValidationError {
             Self::SourceRecord { index, error } => {
                 write!(formatter, "HIR source record {index} is invalid: {error}")
             }
+            Self::DependencySourceRecord { index, error } => write!(
+                formatter,
+                "HIR dependency-aware source record {index} is invalid: {error}"
+            ),
             Self::Identity(error) => error.fmt(formatter),
             Self::ForeignDeclaration {
                 table,

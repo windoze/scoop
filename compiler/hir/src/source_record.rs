@@ -1,7 +1,10 @@
 //! Canonical source metadata shared by persistent HIR sections.
 
 mod validation;
-pub use validation::{DecodedSourcePointRecord, DecodedSourceRecord, SourceRecordValidationError};
+pub use validation::{
+    DecodedSourcePointRecord, DecodedSourceRecord, SourceRecordResolutionError,
+    SourceRecordValidationError,
+};
 
 /// A canonical source point used by persistent locations and span endpoints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -168,6 +168,60 @@ fn validates_the_complete_hir_foundation_atomically() {
 }
 
 #[test]
+fn dependency_source_mode_resolves_an_external_source_identity() {
+    let coordinate = ConeCoordinate::new("example", "consumer", "0.1.0").unwrap();
+    let provider = ConeCoordinate::new("example", "provider", "0.1.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let source = SourceIdentity::new(
+        provider,
+        NormalizedSourcePath::new("src/api.scoop").unwrap(),
+    )
+    .unwrap();
+    let context = CborIdentityRecord::from_key(SourceContextKey::File {
+        source: source.clone(),
+    })
+    .unwrap();
+    let mut canonical = CanonicalHirFoundation::empty();
+    canonical
+        .set_types(vec![
+            CoreBuiltinNominal::Unit.identity_record(),
+            CoreBuiltinNominal::Any.identity_record(),
+        ])
+        .unwrap();
+    canonical
+        .set_sources(vec![
+            SourceRecord::from_utf8(source, "api", [0, 3]).unwrap(),
+        ])
+        .unwrap();
+    canonical.set_source_contexts(vec![context]).unwrap();
+
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(
+        &decoded,
+        [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
+    );
+    assert!(matches!(
+        decoded.validate(&coordinate, &mut identities, &mut meter()),
+        Err(HirFoundationValidationError::SourceRecord {
+            error: SourceRecordValidationError::Identity(_),
+            ..
+        })
+    ));
+
+    let decoded = decode(&canonical);
+    let mut identities = validate_identities(
+        &decoded,
+        [ConeIdentity::CORE, coordinate.identity().unwrap(), provider],
+    );
+    let validated = decoded
+        .validate_with_dependency_sources(&coordinate, &mut identities, &mut meter())
+        .unwrap();
+    assert_eq!(encode(&validated).unwrap(), encode(&canonical).unwrap());
+}
+
+#[test]
 fn validates_an_ordinary_native_boundary_against_a_core_external_nominal_leaf() {
     let coordinate = ConeCoordinate::new("example", "ordinary", "0.1.0").unwrap();
     let external =

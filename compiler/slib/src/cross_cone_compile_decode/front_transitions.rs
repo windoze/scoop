@@ -5,7 +5,9 @@ use scoop_identity::{IdentityReferenceError, IdentityValidationError, ValidatedI
 
 use crate::{
     compile_decode::validate_foundation_identity_graph_with_authorities,
-    strong_compile_decode::{StrongProfileFoundationError, validate_strong_profile_foundations},
+    strong_compile_decode::{
+        StrongProfileFoundationError, validate_cross_cone_strong_profile_foundations,
+    },
 };
 
 use super::{
@@ -46,7 +48,7 @@ impl<'input> DecodedCrossConeHirFrontSections<'input> {
             lir_strong_production,
             lir_cross_cone_bridge,
         } = self;
-        let foundations = validate_strong_profile_foundations(
+        let foundations = validate_cross_cone_strong_profile_foundations(
             &mut graph,
             &mut identities,
             hir_foundation,
