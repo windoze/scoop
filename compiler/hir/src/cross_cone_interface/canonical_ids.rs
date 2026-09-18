@@ -9,6 +9,10 @@ pub struct CanonicalPersistentIdsV1<I: PersistentId> {
 }
 
 impl<I: PersistentId> CanonicalPersistentIdsV1<I> {
+    pub const fn empty() -> Self {
+        Self { values: Vec::new() }
+    }
+
     pub fn try_new(mut values: Vec<I>) -> Result<Self, CanonicalPersistentIdSetBuildError<I>> {
         values.sort_unstable();
         if let Some(pair) = values.windows(2).find(|pair| pair[0] == pair[1]) {

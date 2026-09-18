@@ -128,6 +128,23 @@ impl HirEnumMemberIdentities {
         }
         Ok(Self { enums: rows })
     }
+
+    pub(crate) fn get_variant(&self, variant: EnumVariantRef) -> Option<&VariantRecord> {
+        self.enums
+            .get(raw_enum_index(variant.enumeration()) as usize)?
+            .variants
+            .get(variant.local_index() as usize)
+            .map(|row| &row.variant)
+    }
+
+    pub(crate) fn get_field(&self, field: EnumVariantFieldRef) -> Option<&FieldRecord> {
+        self.enums
+            .get(raw_enum_index(field.variant().enumeration()) as usize)?
+            .variants
+            .get(field.variant().local_index() as usize)?
+            .fields
+            .get(field.local_index() as usize)
+    }
 }
 
 impl Index<EnumVariantRef> for HirEnumMemberIdentities {

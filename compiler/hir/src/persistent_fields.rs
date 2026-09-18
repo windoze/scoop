@@ -147,6 +147,12 @@ impl HirFieldIdentities {
             class_fields,
         })
     }
+
+    pub(crate) fn get_struct(&self, field: StructFieldRef) -> Option<&FieldRecord> {
+        self.struct_fields
+            .get(local_index(field.structure()))?
+            .get(field.local_index() as usize)
+    }
 }
 
 impl Index<StructFieldRef> for HirFieldIdentities {

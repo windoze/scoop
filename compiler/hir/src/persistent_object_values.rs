@@ -141,6 +141,10 @@ impl HirObjectValueIdentities {
         }
         Ok(Self { values: identities })
     }
+
+    pub(crate) fn get(&self, id: SingletonValueId) -> Option<&HirObjectValueIdentity> {
+        self.values.get(local_index(id))
+    }
 }
 
 impl Index<SingletonValueId> for HirObjectValueIdentities {

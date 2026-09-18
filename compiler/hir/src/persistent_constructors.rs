@@ -89,6 +89,17 @@ impl HirConstructorIdentities {
         validation::validate(&inputs, &structs, &classes)?;
         Ok(Self { structs, classes })
     }
+
+    pub(crate) fn get_struct(
+        &self,
+        id: StructConstructorId,
+    ) -> Option<&HirSourceConstructorIdentity> {
+        self.structs.get(local_index(id))
+    }
+
+    pub(crate) fn get_class(&self, id: ClassConstructorId) -> Option<&HirClassConstructorIdentity> {
+        self.classes.get(local_index(id))
+    }
 }
 
 impl Index<StructConstructorId> for HirConstructorIdentities {

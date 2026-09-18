@@ -231,6 +231,10 @@ impl HirFunctionIdentities {
             .enumerate()
             .map(|(index, identity)| (FunctionId::from_raw((index as u32).into()), identity))
     }
+
+    pub(crate) fn get(&self, id: FunctionId) -> Option<&HirFunctionIdentity> {
+        self.identities.get(local_index(id))
+    }
 }
 
 impl Index<FunctionId> for HirFunctionIdentities {
