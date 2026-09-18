@@ -64,6 +64,10 @@ fn semantic_commit_accepts_the_valid_empty_core_closure() {
     assert_eq!(committed.provider_count(), 0);
     assert_eq!(session.origin_count(), 0);
     assert_eq!(session.entity_count(), 0);
+    let world = committed.imported_semantic_world().unwrap();
+    assert_eq!(world.current(), ConeIdentity::CORE);
+    assert_eq!(world.provider_count(), 0);
+    assert!(world.trusted_core().is_none());
 }
 
 #[test]
@@ -113,6 +117,10 @@ fn semantic_commit_preserves_direct_and_support_capability_boundaries() {
             .records()
             .is_empty()
     );
+    assert!(matches!(
+        committed.imported_semantic_world(),
+        Err(scoop_hir::ImportedSemanticWorldBuildError::MissingTrustedCore)
+    ));
 }
 
 #[test]

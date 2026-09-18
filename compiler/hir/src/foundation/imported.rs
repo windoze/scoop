@@ -79,6 +79,13 @@ impl ImportedHirFoundation {
         self.identities.get(id).map(ImportedHirId)
     }
 
+    pub(crate) fn semantic_world_export_binding_key(
+        &self,
+        id: PersistentExportBindingId,
+    ) -> Option<&ExportBindingKey> {
+        self.canonical.export_binding_key(id)
+    }
+
     pub(super) fn core_source_type_key(
         &self,
         id: PersistentTypeId,

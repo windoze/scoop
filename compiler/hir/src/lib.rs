@@ -150,6 +150,9 @@ pub use persistent_types::*;
 mod foundation;
 pub use foundation::*;
 
+mod semantic_world;
+pub use semantic_world::*;
+
 mod source_interfaces;
 pub use source_interfaces::*;
 
