@@ -352,6 +352,14 @@ manifest非可选地记录magic/container与三层wire schema version、language
 
 M23-5 ordinary dependency不复用或放宽上述core-only类型。Compile closure先在一个原子identity transaction中导入全部provider，再构造只允许direct provider枚举public binding、support provider按typed id取回definition的`SemanticWorld`；re-export保存从immediate direct provider到terminal declaration的完整canonical route。HIR分别输出lookup observation与committed selected set；前者覆盖空/不可访问/shape/applicability/MSC结果，后者才可投影到MIR/LIR。满足core-closed param-free classifier的ordinary top-level callable/property accessor使用独立`DependencyExternal` target、MIR/LIR bridge及Link-only physical-use closure；provider export、consumer selected、canonical ABI、symbol、required definition与actual relocation必须逐层一一对应。M23-3旧core undefined-use集合与ordinary dependency集合从object intent起即分区，Link reader验证二者互斥且联合完整，不能把ordinary provider identity塞进`CoreStrong { core }`。`LocalConcreteHir`仍是本Cone瞬时输出，绝不写入`.slib`。reader只能分别返回branded `ImportedHirSet`、`ImportedMirSet`与`ImportedLirSet`，不提供无类型metadata map或unchecked id cast。
 
+上述Link-only closure的semantic import是Compile-facing LIR selected bridge去除declaration与
+calling/root decorator、再按`(provider, target)`排序的无重复Code projection；物理requirement按
+`(source member, containing atom, offset, target slot)`排序。object coverage proof保存与旧link
+identity closure相同的完整`CodeLinkObjectMemberSetV1`，并以domain
+`scoop-cross-cone-object-coverage-v1`对该成员集及全部cross-Cone use site的canonical preimage计算
+typed digest。Link reader必须从最终object重建成员集、use set与digest；wire中的digest本身不授予
+authority。
+
 reader先执行所有view共享的“受限canonical normal-archive读取 → manifest/directory/hash/compatibility验证”，随后按`P`分层：Graph只验证graph envelope；Compile解码HIR/MIR/LIR、验证index/identity/arity/origin/visibility/bridge并完成typed remap/semantic-world commit；Link解码LIR verification surface、运行Link handler、重算native contract与每条member-aware defined/undefined use、ODR/range/patch/image owner。失败必须丢弃整个artifact。中央预算同时限制manifest与各payload bytes、member/Cone/entity/node/edge/text总量、CBOR nesting/depth及object section/symbol/relocation/string-table工作量，known capability handler必须共享而不能另开无界解析器。unknown required field/variant、重复key/member、indefinite CBOR、缺失section、跨member range/patch、损坏hash或同identity不同payload均为结构化错误，不得panic、OOM或以FQN/symbol/文件名补猜；较弱view不能调用较强view的API。
 
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`

@@ -1991,15 +1991,53 @@ CrossConeUndefinedRequirementV1 {
     use_site: CanonicalUndefinedRelocationUseV1, // field 1
     import_index: u32,                            // field 2
 }
+
+CrossConeObjectCoverageProofV1 {
+    verified_link_objects: CodeLinkObjectMemberSetV1,             // field 1
+    relocation_use_set_digest: CrossConeRelocationUseSetDigestV1, // field 2
+}
 ```
 
-`semantic_imports`逐byte等于Compile-facing selected bridge去掉declaration/calling decorator后的projection，并进入Code contribution。`requirements`按物理use key `(member, containing atom, offset, target slot)`严格递增；index必须命中semantic import。`object_coverage`从全部verified object重算cross-Cone relocation use集合及digest，只作LinkValidationOnly。
+`semantic_imports`是Compile-facing selected bridge逐项去掉`declaration`、`calling_convention`与
+`root_plan`后，再按`(provider, target)`严格递增排序得到的无重复projection，并进入
+Code contribution。这个projection不改写`abi_signature`、`expected_symbol`或
+`required_definition`；任一个`(provider, target)`重复或与Compile-facing selected bridge不等都使
+artifact invalid。
+
+`requirements`按物理use key
+`(source_member, containing_atom, offset_within_atom, target_slot)`严格递增；每项`import_index`
+必须命中`semantic_imports`，其`use_site.symbol`必须与该import的
+`expected_symbol`精确相等。每个semantic import至少被一个requirement引用，每个
+`DependencyExternalCallable`物理relocation use在本表中恰出现一次；不允许用无relocation的import
+扩大Code contribution。
+
+`CrossConeRelocationUseSetDigestV1`是32-byte typed digest，精确计算为：
+
+```text
+DomainSeparatedCborHash(
+    "scoop-cross-cone-object-coverage-v1",
+    CrossConeObjectCoveragePreimageV1 {
+        verified_link_objects: CodeLinkObjectMemberSetV1,                 // field 1
+        relocation_uses: CanonicalVec<CanonicalUndefinedRelocationUseV1>, // field 2
+    },
+)
+```
+
+`relocation_uses`精确等于`requirements`按上述规范顺序去掉`import_index`后的
+`use_site`序列。`verified_link_objects`必须逐byte等于从最终全部受检
+`LinkObject`重建的`CodeLinkObjectMemberSetV1`，也必须逐byte等于同artifact
+`link-identity-closure/1` field 6的投影。reader从这个object全集重新扫描并
+分类ordinary dependency relocation，重建`requirements`与上述digest后逐byte比较；
+wire中的digest不授予绕过object扫描的authority。`requirements`与
+`object_coverage`只作LinkValidationOnly。
 
 Link reader验证：
 
 - 每个use site实际是对应expected symbol的undefined relocation；
 - containing atom属于当前Cone已验证definition；
-- use不出现在旧`link-identity-closure/1`或另一cross-Cone requirement；
+- use不出现在旧`link-identity-closure/1`或另一cross-Cone requirement；旧closure的
+  undefined-use集与新集合互斥，两者并集精确等于最终object proof中除object-local
+  definition外的全部undefined relocation use；
 - 全部`DependencyExternalCallable` relocation恰覆盖一次，其他relocation不能混入；
 - consumer defined-symbol set不定义该expected symbol；
 - closure级终端provider的defined-symbol owner与required definition、callable body和symbol逐项相等且为Strong；
