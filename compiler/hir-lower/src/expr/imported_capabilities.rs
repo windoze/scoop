@@ -1,11 +1,13 @@
+//! Stable HIR capability gates shared by dependency calls and accessors.
+
 use scoop_hir as hir;
 use scoop_identity::{CallableTemplateOrigin, Effect};
 
-use super::super::arguments::ImportedArgumentMap;
+use super::named_calls::imported_dependency::ImportedArgumentMap;
 use crate::Lowerer;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in super::super) enum ImportedCapabilityRequirement {
+pub(in crate::expr) enum ImportedCapabilityRequirement {
     Layout,
     Dispatch,
     Generic,
@@ -13,7 +15,7 @@ pub(in super::super) enum ImportedCapabilityRequirement {
 }
 
 impl ImportedCapabilityRequirement {
-    pub(super) const fn code(self) -> &'static str {
+    pub(in crate::expr) const fn code(self) -> &'static str {
         match self {
             Self::Layout => "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED",
             Self::Dispatch => "SCOOP_HIR_CROSS_CONE_DISPATCH_REQUIRED",
@@ -31,12 +33,12 @@ impl ImportedCapabilityRequirement {
         }
     }
 
-    pub(super) fn diagnostic(self, subject: &str) -> String {
+    pub(in crate::expr) fn diagnostic(self, subject: &str) -> String {
         format!("{}: {subject} requires {}", self.code(), self.description())
     }
 }
 
-pub(super) fn callable_requirement(
+pub(in crate::expr) fn callable_requirement(
     candidate: &hir::ImportedDependencyCallableCandidate,
     arguments: Option<&ImportedArgumentMap>,
 ) -> ImportedCapabilityRequirement {
@@ -62,13 +64,14 @@ pub(super) fn callable_requirement(
 }
 
 impl Lowerer {
-    pub(in super::super) fn imported_dependency_capability_error(
+    pub(in crate::expr) fn imported_dependency_capability_error(
         &mut self,
         candidate: &hir::ImportedDependencyCallableCandidate,
-        arguments: &ImportedArgumentMap,
+        arguments: Option<&ImportedArgumentMap>,
+        subject: &str,
         span: scoop_ast::Span,
     ) {
-        let requirement = callable_requirement(candidate, Some(arguments));
-        self.error(span, requirement.diagnostic("dependency callable"));
+        let requirement = callable_requirement(candidate, arguments);
+        self.error(span, requirement.diagnostic(subject));
     }
 }

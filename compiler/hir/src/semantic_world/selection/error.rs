@@ -2,7 +2,7 @@ use std::fmt;
 
 use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PersistentSourceContextId,
-    SourceIdentity,
+    PropertyOwner, SourceIdentity,
 };
 
 use super::super::{DirectImportedTargetMergeError, ImportedTarget};
@@ -16,6 +16,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
         count: usize,
     },
     DuplicateConstant(PersistentPropertyId),
+    DuplicateProperty(PropertyOwner),
     TooManyConstants {
         count: usize,
     },
@@ -49,6 +50,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency semantic world contains duplicate constant {property:?}"
             ),
+            Self::DuplicateProperty(property) => write!(
+                formatter,
+                "dependency semantic world contains duplicate property {property:?}"
+            ),
             Self::TooManyConstants { count } => write!(
                 formatter,
                 "dependency semantic world contains {count} constants, exceeding the u32 id domain"
@@ -80,6 +85,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::DuplicateCallable(_)
             | Self::TooManyCallables { .. }
             | Self::DuplicateConstant(_)
+            | Self::DuplicateProperty(_)
             | Self::TooManyConstants { .. }
             | Self::MissingDefinitionSource { .. }
             | Self::MissingDefinitionContext { .. } => None,
@@ -91,15 +97,24 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
 pub enum ImportedDependencyCandidateError {
     NotCallable(ImportedTarget),
     NotConstant(ImportedTarget),
+    NotProperty(ImportedTarget),
     ForeignWorld,
+    ForeignProjection,
     MissingCallable(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
+    MissingProperty(PropertyOwner),
+    MissingPropertySetter(PropertyOwner),
+    RestrictedPropertySetter(PropertyOwner),
     TerminalProviderMismatch {
         declaration: CallableTemplateOrigin,
         expected: ConeIdentity,
     },
     ConstantTerminalProviderMismatch {
         property: PersistentPropertyId,
+        expected: ConeIdentity,
+    },
+    PropertyTerminalProviderMismatch {
+        property: PropertyOwner,
         expected: ConeIdentity,
     },
     MissingDefaultCallableBinding(CallableTemplateOrigin),
@@ -115,8 +130,14 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::NotConstant(target) => {
                 write!(formatter, "imported target {target:?} is not a constant")
             }
+            Self::NotProperty(target) => {
+                write!(formatter, "imported target {target:?} is not a property")
+            }
             Self::ForeignWorld => {
                 formatter.write_str("imported binding belongs to another semantic world")
+            }
+            Self::ForeignProjection => {
+                formatter.write_str("imported property belongs to another dependency projection")
             }
             Self::MissingCallable(declaration) => write!(
                 formatter,
@@ -125,6 +146,17 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::MissingConstant(property) => write!(
                 formatter,
                 "imported property {property:?} has no dependency constant record"
+            ),
+            Self::MissingProperty(property) => write!(
+                formatter,
+                "imported property {property:?} is absent from the dependency selection catalog"
+            ),
+            Self::MissingPropertySetter(property) => {
+                write!(formatter, "imported property {property:?} is read-only")
+            }
+            Self::RestrictedPropertySetter(property) => write!(
+                formatter,
+                "setter of imported property {property:?} is not public"
             ),
             Self::TerminalProviderMismatch {
                 declaration,
@@ -136,6 +168,10 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::ConstantTerminalProviderMismatch { property, expected } => write!(
                 formatter,
                 "imported constant {property:?} does not terminate at provider {expected}"
+            ),
+            Self::PropertyTerminalProviderMismatch { property, expected } => write!(
+                formatter,
+                "imported property {property:?} does not terminate at provider {expected}"
             ),
             Self::MissingDefaultCallableBinding(declaration) => write!(
                 formatter,

@@ -22,6 +22,10 @@ pub(super) enum WriteCapability {
     },
     ExtensionProperty(crate::properties::ResolvedExtensionProperty),
     DirectInterfaceProperty(QualifiedInterfaceProperty),
+    ImportedDependencyProperty {
+        binding: hir::DirectImportedTargetBinding,
+        receiver: Option<hir::Expr>,
+    },
     OperatorSet {
         receiver: hir::Expr,
         index_arguments: Vec<ast::CallArgument>,
@@ -467,7 +471,20 @@ impl Lowerer {
                     self.lower_named_value_target(name, value, None)?
                 }
                 crate::imports::lookup::values::ResolvedValueTarget::Dependency(binding) => {
-                    self.lower_imported_dependency_constant(&binding, name.span)?
+                    let property =
+                        self.lower_imported_dependency_property_read(&binding, None, name.span)?;
+                    return Some(ResolvedPlacePlan {
+                        ty: property.expression.ty,
+                        read: property.expression,
+                        write: if property.has_setter {
+                            WriteCapability::ImportedDependencyProperty {
+                                binding,
+                                receiver: None,
+                            }
+                        } else {
+                            WriteCapability::ReadOnly
+                        },
+                    });
                 }
             };
             return Some(ResolvedPlacePlan {
@@ -541,6 +558,9 @@ impl Lowerer {
             }
             WriteCapability::DirectInterfaceProperty(property) => {
                 self.lower_direct_interface_property_write(property, value, span)
+            }
+            WriteCapability::ImportedDependencyProperty { binding, receiver } => {
+                self.lower_imported_dependency_property_write(&binding, receiver, value, span)
             }
             WriteCapability::OperatorSet {
                 receiver,

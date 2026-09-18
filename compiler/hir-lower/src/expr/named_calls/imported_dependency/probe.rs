@@ -162,7 +162,12 @@ impl Lowerer {
         forwarding_parameters.extend(source_parameter_types);
 
         if candidate.capability().is_none() {
-            state.imported_dependency_capability_error(&candidate, &argument_map, call.span);
+            state.imported_dependency_capability_error(
+                &candidate,
+                Some(&argument_map),
+                "dependency callable",
+                call.span,
+            );
             return Err(Box::new(state));
         }
         let default_plan = match state.prepare_imported_defaults(&candidate, &argument_map) {

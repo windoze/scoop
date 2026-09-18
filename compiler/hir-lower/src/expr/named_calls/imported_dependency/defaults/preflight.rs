@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_hir as hir;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
-use super::capability::{ImportedCapabilityRequirement, callable_requirement};
 use super::plan::{
     ImportedDefaultPlanError, PreparedImportedDefault, PreparedImportedDefaultCallable,
 };
 use crate::Lowerer;
+use crate::expr::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::imported_core::ImportedSignatureTypeError;
 
 impl Lowerer {

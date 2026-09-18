@@ -12,6 +12,7 @@ use crate::DefaultCallableDeclarationV1;
 mod catalog;
 mod error;
 mod model;
+mod properties;
 pub use error::*;
 pub use model::*;
 
@@ -56,6 +57,7 @@ impl ImportedDependencySelectionPlan {
                 )),
                 callables: BTreeMap::new(),
                 callable_ids: BTreeMap::new(),
+                properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
                 constant_ids: BTreeMap::new(),
                 direct_callable_bindings: BTreeMap::new(),

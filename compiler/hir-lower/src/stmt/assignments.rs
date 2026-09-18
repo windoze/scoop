@@ -374,10 +374,20 @@ impl Lowerer {
                 None => self.resolve_value_name(name).ok()?,
             };
             if let Some(target) = target {
-                let crate::imports::lookup::values::ResolvedValueTarget::Materialized(
-                    crate::imports::lookup::values::ValueTarget::Property(property),
-                ) = target
-                else {
+                let target = match target {
+                    crate::imports::lookup::values::ResolvedValueTarget::Dependency(binding) => {
+                        return self.lower_imported_dependency_property_assignment(
+                            &binding,
+                            name,
+                            &assign.value,
+                            out,
+                        );
+                    }
+                    crate::imports::lookup::values::ResolvedValueTarget::Materialized(target) => {
+                        target
+                    }
+                };
+                let crate::imports::lookup::values::ValueTarget::Property(property) = target else {
                     self.error(
                         name.span,
                         format!("cannot assign to immutable value `{}`", name.text),

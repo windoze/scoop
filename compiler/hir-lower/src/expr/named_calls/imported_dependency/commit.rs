@@ -94,7 +94,12 @@ impl Lowerer {
                     }
                 }
                 ImportedParameterInput::Vararg => {
-                    self.imported_dependency_capability_error(&candidate, &argument_map, call_span);
+                    self.imported_dependency_capability_error(
+                        &candidate,
+                        Some(&argument_map),
+                        "dependency callable",
+                        call_span,
+                    );
                     return None;
                 }
             };
@@ -110,13 +115,8 @@ impl Lowerer {
         args.extend(receiver);
         args.extend(parameter_values);
 
-        let reference = match self
-            .dependencies
-            .as_mut()
-            .expect("ordinary lowering carries a dependency selection plan")
-            .select_callable(candidate)
-        {
-            Ok(reference) => reference,
+        let callee = match self.select_imported_dependency_callable_use(candidate) {
+            Ok(callee) => callee,
             Err(error) => {
                 self.error(
                     call_span,
@@ -125,14 +125,6 @@ impl Lowerer {
                 return None;
             }
         };
-        let existing = self
-            .imported_dependency_callables
-            .iter()
-            .find_map(|(id, use_)| (use_.reference() == reference).then_some(id));
-        let callee = existing.unwrap_or_else(|| {
-            self.imported_dependency_callables
-                .alloc(hir::ImportedDependencyCallableUse::new(reference))
-        });
         Some(hir::Expr {
             kind: hir::ExprKind::ImportedDependencyCall { callee, args },
             ty: result_type,

@@ -19,7 +19,7 @@ pub(crate) fn project_dependency(
     project_dependency_with_core_roles(core, coordinate, source, default_core_types, true)
 }
 
-pub(crate) fn project_constant_dependency(
+pub(crate) fn project_dependency_without_default_roles(
     core: &TrustedCoreFixture,
     coordinate: &ConeCoordinate,
     source: scoop_ast::SourceFile,

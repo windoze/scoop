@@ -234,22 +234,11 @@ impl Lowerer {
                 Ok(hir::ExprKind::ImportedCoreCall { callee, args })
             }
             PreparedImportedDefaultCallable::Dependency(candidate) => {
-                let reference = self
-                    .dependencies
-                    .as_mut()
-                    .expect("ordinary lowering carries a dependency selection plan")
-                    .select_callable(candidate.as_ref().clone())
+                let callee = self
+                    .select_imported_dependency_callable_use(candidate.as_ref().clone())
                     .map_err(|error| {
                         ImportedDefaultMaterializationError::DependencySelection(error.to_string())
                     })?;
-                let existing = self
-                    .imported_dependency_callables
-                    .iter()
-                    .find_map(|(id, use_)| (use_.reference() == reference).then_some(id));
-                let callee = existing.unwrap_or_else(|| {
-                    self.imported_dependency_callables
-                        .alloc(hir::ImportedDependencyCallableUse::new(reference))
-                });
                 Ok(hir::ExprKind::ImportedDependencyCall { callee, args })
             }
         }

@@ -2,7 +2,8 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 
 use super::m23_ordinary_core_only::support::{TrustedCoreFixture, parsed_ordinary, trusted_core};
 use super::m23_ordinary_dependencies::support::{
-    certificate, empty_alias_expansions, empty_interface, exact_import, project_constant_dependency,
+    certificate, empty_alias_expansions, empty_interface, exact_import,
+    project_dependency_without_default_roles,
 };
 use super::{
     Decl, Expr, TypeRef, bool_lit, file, fun_expr, ident, int_lit, make_core_public, return_value,
@@ -34,7 +35,7 @@ impl DependencyConstantFixture {
             path: qualified(&["dependency", "api"]),
             span: sp(),
         };
-        let (foundation, interface) = project_constant_dependency(
+        let (foundation, interface) = project_dependency_without_default_roles(
             &core,
             &coordinate,
             provider,

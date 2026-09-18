@@ -14,6 +14,7 @@ use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, CoreClosedExactLeafClassifierV1,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
     ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
+    PropertyInterfaceRecordV1,
 };
 
 #[derive(Clone, Debug)]
@@ -34,6 +35,12 @@ pub(super) struct ConstantCatalogEntry {
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct PropertyCatalogEntry {
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) interface: PropertyInterfaceRecordV1,
+}
+
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
     pub(super) world_brand: u64,
@@ -41,6 +48,7 @@ pub(super) struct DependencyCatalog {
     pub(super) projection: DependencyProjectionId,
     pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
     pub(super) callable_ids: BTreeMap<CallableTemplateOrigin, ImportedDependencyCallableId>,
+    pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) constant_ids: BTreeMap<PersistentPropertyId, ImportedDependencyConstantId>,
     pub(super) direct_callable_bindings:
@@ -54,6 +62,7 @@ impl ImportedSemanticWorld<'_> {
     ) -> Result<ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError> {
         let projection = DependencyProjectionId(next_id(&NEXT_PROJECTION, "dependency projection"));
         let mut callables = BTreeMap::new();
+        let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
         for provider in &self.providers {
             if provider.identity() == ConeIdentity::CORE {
@@ -86,6 +95,18 @@ impl ImportedSemanticWorld<'_> {
                 if callables.insert(declaration, entry).is_some() {
                     return Err(
                         ImportedDependencySelectionPlanBuildError::DuplicateCallable(declaration),
+                    );
+                }
+            }
+            for property in provider.interface().property_interfaces().records() {
+                let declaration = property.declaration();
+                let entry = PropertyCatalogEntry {
+                    certificate: provider.certificate().clone(),
+                    interface: property.clone(),
+                };
+                if properties.insert(declaration, entry).is_some() {
+                    return Err(
+                        ImportedDependencySelectionPlanBuildError::DuplicateProperty(declaration),
                     );
                 }
             }
@@ -140,6 +161,7 @@ impl ImportedSemanticWorld<'_> {
                 projection,
                 callables,
                 callable_ids,
+                properties,
                 constants,
                 constant_ids,
                 direct_callable_bindings,

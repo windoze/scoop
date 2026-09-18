@@ -7,7 +7,7 @@ use scoop_identity::SignatureTypeKey;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
 
 #[derive(Clone, Debug)]
-pub(super) struct ImportedArgumentMap {
+pub(in crate::expr) struct ImportedArgumentMap {
     parameters: Vec<ImportedParameterInput>,
     source_parameters: Vec<SignatureTypeKey>,
     defaults: usize,
@@ -180,7 +180,7 @@ impl ImportedArgumentMap {
         self.defaults
     }
 
-    pub(super) const fn has_vararg(&self) -> bool {
+    pub(in crate::expr) const fn has_vararg(&self) -> bool {
         self.vararg
     }
 }

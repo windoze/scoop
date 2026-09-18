@@ -11,7 +11,7 @@ mod commit;
 mod defaults;
 mod probe;
 
-use arguments::ImportedArgumentMap;
+pub(in crate::expr) use arguments::ImportedArgumentMap;
 use defaults::ImportedDefaultPlan;
 
 pub(crate) struct ImportedDependencyCallProbe {

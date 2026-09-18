@@ -140,9 +140,9 @@ impl Lowerer {
                         ResolvedValueTarget::Materialized(target) => {
                             self.lower_named_value_target(name, target, expected)
                         }
-                        ResolvedValueTarget::Dependency(binding) => {
-                            self.lower_imported_dependency_constant(&binding, name.span)
-                        }
+                        ResolvedValueTarget::Dependency(binding) => self
+                            .lower_imported_dependency_property_read(&binding, None, name.span)
+                            .map(|property| property.expression),
                     };
                 }
             }

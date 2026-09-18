@@ -10,7 +10,8 @@ use scoop_identity::{
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1, SourceRecord,
+    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
+    PropertyInterfaceRecordV1, SourceRecord,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -134,6 +135,45 @@ pub struct ImportedDependencyConstantCandidate {
     pub(super) record: ExportConstValueV1,
     pub(super) exact_type: Option<PersistentExactTypeId>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
+}
+
+/// An owned public dependency property reached through one direct binding.
+/// Accessor selection remains a separate typed step so a property cannot be
+/// mistaken for a callable declaration or a provider storage identity.
+#[derive(Clone, Debug)]
+pub struct ImportedDependencyPropertyCandidate {
+    pub(super) projection: DependencyProjectionId,
+    pub(super) binding: DirectImportedTargetBinding,
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) interface: PropertyInterfaceRecordV1,
+}
+
+impl ImportedDependencyPropertyCandidate {
+    pub const fn target(&self) -> ImportedTarget {
+        self.binding.target()
+    }
+
+    pub const fn provider(&self) -> ConeIdentity {
+        self.certificate.identity()
+    }
+
+    pub const fn certificate(&self) -> &ImportedProviderCertificate {
+        &self.certificate
+    }
+
+    pub const fn interface(&self) -> &PropertyInterfaceRecordV1 {
+        &self.interface
+    }
+
+    pub const fn binding(&self) -> &DirectImportedTargetBinding {
+        &self.binding
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImportedDependencyPropertyAccessorKind {
+    Getter,
+    Setter,
 }
 
 impl ImportedDependencyConstantCandidate {

@@ -64,8 +64,11 @@ mod callables;
 mod callbacks;
 mod generic_calls;
 mod generic_inference;
+mod imported_callables;
+mod imported_capabilities;
 mod imported_constants;
 mod imported_origins;
+mod imported_properties;
 mod named_calls;
 pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
