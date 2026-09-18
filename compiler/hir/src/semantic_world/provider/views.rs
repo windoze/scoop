@@ -8,9 +8,9 @@ use super::{ImportedProvider, ImportedProviderCertificate, WorldConeId};
 use crate::semantic_world::DirectDependencyImportSource;
 use crate::{
     CallableSourceInterfaceV1, ExportBindingSourceV1, ExportConstValueV1,
-    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedCallable, ImportedEnumVariant,
-    ImportedHirId, ImportedNominal, ImportedObjectValue, ImportedProperty, ImportedTarget,
-    ImportedTypeAlias, NominalSourceShapeV1, SourceNominalId,
+    ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1, ImportedBindingConflictKey,
+    ImportedCallable, ImportedEnumVariant, ImportedHirId, ImportedNominal, ImportedObjectValue,
+    ImportedProperty, ImportedTarget, ImportedTypeAlias, NominalSourceShapeV1, SourceNominalId,
 };
 
 /// One imported public binding with both persistent and session-local
@@ -22,6 +22,7 @@ pub struct ImportedPublicBinding<'input> {
     pub(super) identity: ImportedHirId<PersistentExportBindingId>,
     pub(super) key: &'input scoop_identity::ExportBindingKey,
     pub(super) target: ImportedTarget,
+    pub(super) conflict: ImportedBindingConflictKey,
     pub(super) source: &'input ExportBindingSourceV1,
     pub(super) lookup_sources: Vec<DirectDependencyImportSource>,
 }
@@ -41,6 +42,10 @@ impl<'input> ImportedPublicBinding<'input> {
 
     pub const fn target(&self) -> ImportedTarget {
         self.target
+    }
+
+    pub const fn conflict_key(&self) -> &ImportedBindingConflictKey {
+        &self.conflict
     }
 
     pub const fn source(&self) -> &'input ExportBindingSourceV1 {

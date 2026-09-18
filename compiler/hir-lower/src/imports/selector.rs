@@ -20,6 +20,7 @@ pub(super) enum SelectorError {
     Missing {
         inaccessible: Vec<CurrentUnitBindingId>,
     },
+    AmbiguousBinding,
     AmbiguousStaticOwner,
     NotStaticOwner,
 }
@@ -33,6 +34,7 @@ impl SelectorError {
             Self::Missing { .. } | Self::NotStaticOwner => {
                 "import target is not available in the current compilation unit"
             }
+            Self::AmbiguousBinding => "import target is ambiguous in the current compilation unit",
             Self::AmbiguousStaticOwner => {
                 "import namespace is ambiguous in the current compilation unit"
             }
@@ -43,6 +45,7 @@ impl SelectorError {
         match self {
             Self::Missing { inaccessible } => inaccessible,
             Self::ExpectedBindingAfterPackage
+            | Self::AmbiguousBinding
             | Self::AmbiguousStaticOwner
             | Self::NotStaticOwner => &[],
         }
@@ -267,6 +270,14 @@ impl CurrentUnitImports {
         group: SelectorGroup,
     ) -> Result<SelectorResult, SelectorError> {
         let inaccessible = group.inaccessible;
+        let mut direct_conflicts = std::collections::BTreeSet::new();
+        if group
+            .direct
+            .iter()
+            .any(|target| !direct_conflicts.insert(target.conflict_key().clone()))
+        {
+            return Err(SelectorError::AmbiguousBinding);
+        }
         let targets = self.materialize_group(lowerer, group.current, group.direct);
         let mut targets = targets.into_iter();
         let Some(first) = targets.next() else {

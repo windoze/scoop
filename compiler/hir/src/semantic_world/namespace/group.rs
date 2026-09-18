@@ -105,13 +105,14 @@ fn normalized_targets(bindings: &[&ImportedPublicBinding<'_>]) -> Vec<DirectImpo
         let binding_target = binding.key().binding_target();
         let entry = targets
             .entry(binding_target)
-            .or_insert_with(|| (binding.target(), Vec::new()));
-        entry.1.extend(binding.lookup_sources().iter().cloned());
+            .or_insert_with(|| (binding.target(), binding.conflict_key().clone(), Vec::new()));
+        debug_assert_eq!(&entry.1, binding.conflict_key());
+        entry.2.extend(binding.lookup_sources().iter().cloned());
     }
     targets
         .into_iter()
-        .map(|(binding_target, (target, sources))| {
-            DirectImportedTargetBinding::new(binding_target, target, sources)
+        .map(|(binding_target, (target, conflict, sources))| {
+            DirectImportedTargetBinding::new(binding_target, target, conflict, sources)
         })
         .collect()
 }

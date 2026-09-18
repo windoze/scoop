@@ -3,7 +3,7 @@ use std::fmt;
 
 use scoop_identity::{BindingTarget, ConeIdentity, PersistentExportBindingId};
 
-use super::{ImportedProviderCertificate, ImportedTarget, WorldConeId};
+use super::{ImportedBindingConflictKey, ImportedProviderCertificate, ImportedTarget, WorldConeId};
 use crate::{
     DependencyBindingWitnessV1, ExportBindingSourceV1, ImportedHirId, ReexportRouteBuildError,
     ReexportRouteHopV1, ReexportRouteV1,
@@ -140,6 +140,7 @@ fn coordinate_key(certificate: &ImportedProviderCertificate) -> (&str, &str, &st
 pub struct DirectImportedTargetBinding {
     binding_target: BindingTarget,
     target: ImportedTarget,
+    conflict: ImportedBindingConflictKey,
     sources: Vec<DirectDependencyImportSource>,
 }
 
@@ -150,6 +151,10 @@ impl DirectImportedTargetBinding {
 
     pub const fn target(&self) -> ImportedTarget {
         self.target
+    }
+
+    pub const fn conflict_key(&self) -> &ImportedBindingConflictKey {
+        &self.conflict
     }
 
     pub fn sources(&self) -> impl ExactSizeIterator<Item = &DirectDependencyImportSource> + '_ {
@@ -167,6 +172,9 @@ impl DirectImportedTargetBinding {
         if self.target != other.target {
             return Err(DirectImportedTargetMergeError::ImportedTargetMismatch);
         }
+        if self.conflict != other.conflict {
+            return Err(DirectImportedTargetMergeError::ConflictKeyMismatch);
+        }
         self.sources.extend(other.sources);
         self.sources
             .sort_unstable_by(DirectDependencyImportSource::canonical_cmp);
@@ -178,6 +186,7 @@ impl DirectImportedTargetBinding {
     pub(super) fn new(
         binding_target: BindingTarget,
         target: ImportedTarget,
+        conflict: ImportedBindingConflictKey,
         mut sources: Vec<DirectDependencyImportSource>,
     ) -> Self {
         assert!(
@@ -189,6 +198,7 @@ impl DirectImportedTargetBinding {
         Self {
             binding_target,
             target,
+            conflict,
             sources,
         }
     }
@@ -198,6 +208,7 @@ impl DirectImportedTargetBinding {
 pub enum DirectImportedTargetMergeError {
     BindingTargetMismatch,
     ImportedTargetMismatch,
+    ConflictKeyMismatch,
 }
 
 impl fmt::Display for DirectImportedTargetMergeError {
@@ -209,6 +220,8 @@ impl fmt::Display for DirectImportedTargetMergeError {
             Self::ImportedTargetMismatch => formatter.write_str(
                 "direct imported bindings belong to different semantic-world target handles",
             ),
+            Self::ConflictKeyMismatch => formatter
+                .write_str("direct imported bindings disagree on the target's public conflict key"),
         }
     }
 }

@@ -299,7 +299,7 @@ impl<'input> ImportedProvider<'input> {
                     actual: key.exporter(),
                 });
             }
-            let target = entities.import_target(key.target()).ok_or(
+            let (target, conflict) = entities.import_target_with_conflict(key.target()).ok_or(
                 ImportedSemanticWorldBuildError::MissingBindingTarget {
                     provider,
                     binding,
@@ -312,6 +312,7 @@ impl<'input> ImportedProvider<'input> {
                 identity,
                 key,
                 target,
+                conflict: conflict.clone(),
                 source: record.source(),
                 lookup_sources: if self.is_direct() {
                     DirectDependencyImportSource::from_validated_binding(

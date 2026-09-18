@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{
-    BindableEntity, CallableTemplateOrigin, PersistentEnumVariantId, PersistentObjectValueId,
-    PersistentTypeAliasId, PropertyOwner,
+    BindableEntity, CallableTemplateOrigin, DuplicateSignatureKey, OptionalSignatureType,
+    PersistentEnumVariantId, PersistentObjectValueId, PersistentTypeAliasId, PropertyOwner,
 };
 
 use super::{
-    ImportedCallableDeclarationId, ImportedPropertyDeclarationId, ImportedSourceNominalId,
-    ImportedTarget,
+    ImportedBindingConflictKey, ImportedCallableDeclarationId, ImportedPropertyDeclarationId,
+    ImportedSourceNominalId, ImportedTarget,
 };
 use crate::{
     ImportedSemanticEntityId, ImportedSemanticWorldBuildError, NominalSourceShapeV1,
@@ -21,7 +21,13 @@ pub(in crate::semantic_world) struct ImportedEntityIndex {
     aliases: BTreeMap<PersistentTypeAliasId, WorldConeId>,
     object_values: BTreeMap<PersistentObjectValueId, WorldConeId>,
     enum_variants: BTreeMap<PersistentEnumVariantId, WorldConeId>,
-    targets: BTreeMap<BindableEntity, (WorldConeId, ImportedTarget)>,
+    targets: BTreeMap<BindableEntity, ImportedTargetEntry>,
+}
+
+struct ImportedTargetEntry {
+    provider: WorldConeId,
+    target: ImportedTarget,
+    conflict: ImportedBindingConflictKey,
 }
 
 impl ImportedEntityIndex {
@@ -78,6 +84,7 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::Nominal(declaration),
                         BindableEntity::Type(id.persistent()),
                         ImportedTarget::Type(id),
+                        ImportedBindingConflictKey::Type,
                     )?;
                 }
                 ImportedSourceNominalId::GenericTemplate(id) => {
@@ -86,6 +93,7 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::Nominal(declaration),
                         BindableEntity::GenericType(id.persistent()),
                         ImportedTarget::GenericType(id),
+                        ImportedBindingConflictKey::Type,
                     )?;
                 }
             }
@@ -119,6 +127,7 @@ impl ImportedEntityIndex {
                     ImportedSemanticEntityId::ObjectValue(id),
                     BindableEntity::ObjectValue(id),
                     ImportedTarget::ObjectValue(imported),
+                    ImportedBindingConflictKey::Value,
                 )?;
             }
             NominalSourceShapeV1::Enum(shape) => {
@@ -141,6 +150,7 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::EnumVariant(id),
                         BindableEntity::EnumVariant(id),
                         ImportedTarget::EnumVariant(imported),
+                        ImportedBindingConflictKey::Value,
                     )?;
                 }
             }
@@ -157,6 +167,16 @@ impl ImportedEntityIndex {
     ) -> Result<(), ImportedSemanticWorldBuildError> {
         for record in provider.interface().callable_interfaces().records() {
             let declaration = record.declaration();
+            let conflict = ImportedBindingConflictKey::Overload(DuplicateSignatureKey::Function {
+                type_parameter_count: record.type_parameters().len_u32(),
+                receiver: OptionalSignatureType::from_option(record.receiver().cloned()),
+                parameters: record
+                    .parameters()
+                    .parameters()
+                    .iter()
+                    .map(|parameter| parameter.value_type().clone())
+                    .collect(),
+            });
             let imported = import_callable_id(provider, declaration).ok_or(
                 ImportedSemanticWorldBuildError::MissingEntityIdentity {
                     provider: provider.identity(),
@@ -176,6 +196,7 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::Callable(declaration),
                         BindableEntity::Function(id.persistent()),
                         ImportedTarget::Function(id),
+                        conflict.clone(),
                     )?;
                 }
                 ImportedCallableDeclarationId::GenericFunction(id) => {
@@ -184,6 +205,7 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::Callable(declaration),
                         BindableEntity::GenericFunction(id.persistent()),
                         ImportedTarget::GenericFunction(id),
+                        conflict,
                     )?;
                 }
                 ImportedCallableDeclarationId::Constructor(_)
@@ -219,14 +241,23 @@ impl ImportedEntityIndex {
                         ImportedSemanticEntityId::Property(declaration),
                         BindableEntity::Property(id.persistent()),
                         ImportedTarget::Property(id),
+                        ImportedBindingConflictKey::Value,
                     )?;
                 }
                 ImportedPropertyDeclarationId::ExtensionProperty(id) => {
+                    let conflict =
+                        ImportedBindingConflictKey::Overload(DuplicateSignatureKey::Property {
+                            type_parameter_count: record.type_parameters().len_u32(),
+                            receiver: OptionalSignatureType::from_option(
+                                record.receiver().cloned(),
+                            ),
+                        });
                     self.insert_target(
                         provider,
                         ImportedSemanticEntityId::Property(declaration),
                         BindableEntity::ExtensionProperty(id.persistent()),
                         ImportedTarget::ExtensionProperty(id),
+                        conflict,
                     )?;
                 }
             }
@@ -263,6 +294,7 @@ impl ImportedEntityIndex {
                 ImportedSemanticEntityId::TypeAlias(alias),
                 BindableEntity::TypeAlias(alias),
                 ImportedTarget::TypeAlias(imported),
+                ImportedBindingConflictKey::Type,
             )?;
         }
         Ok(())
@@ -274,11 +306,19 @@ impl ImportedEntityIndex {
         entity: ImportedSemanticEntityId,
         persistent: BindableEntity,
         imported: ImportedTarget,
+        conflict: ImportedBindingConflictKey,
     ) -> Result<(), ImportedSemanticWorldBuildError> {
-        if let Some((first, _)) = self.targets.insert(persistent, (provider.id(), imported)) {
+        if let Some(first) = self.targets.insert(
+            persistent,
+            ImportedTargetEntry {
+                provider: provider.id(),
+                target: imported,
+                conflict,
+            },
+        ) {
             return Err(ImportedSemanticWorldBuildError::DuplicateEntityAuthority {
                 entity,
-                first,
+                first: first.provider,
                 second: provider.identity(),
             });
         }
@@ -289,7 +329,16 @@ impl ImportedEntityIndex {
         &self,
         target: BindableEntity,
     ) -> Option<ImportedTarget> {
-        self.targets.get(&target).map(|(_, imported)| *imported)
+        self.targets.get(&target).map(|entry| entry.target)
+    }
+
+    pub(in crate::semantic_world) fn import_target_with_conflict(
+        &self,
+        target: BindableEntity,
+    ) -> Option<(ImportedTarget, &ImportedBindingConflictKey)> {
+        self.targets
+            .get(&target)
+            .map(|entry| (entry.target, &entry.conflict))
     }
 
     pub(in crate::semantic_world) fn nominal_provider(

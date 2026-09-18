@@ -1,11 +1,22 @@
 use scoop_identity::{
-    BindableEntity, CallableTemplateOrigin, PersistentConstructorId, PersistentEnumVariantId,
-    PersistentExtensionPropertyId, PersistentFunctionId, PersistentGenericFunctionId,
-    PersistentGenericTypeId, PersistentObjectValueId, PersistentPropertyAccessorId,
-    PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, PropertyOwner,
+    BindableEntity, CallableTemplateOrigin, DuplicateSignatureKey, PersistentConstructorId,
+    PersistentEnumVariantId, PersistentExtensionPropertyId, PersistentFunctionId,
+    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentObjectValueId,
+    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
+    PropertyOwner,
 };
 
 use crate::{ImportedHirId, SourceNominalId};
+
+/// Namespace slot used to decide whether distinct imported targets may share
+/// one source-visible name. Overload signatures are already alias-expanded
+/// and persistent, so equality is independent of provider/load order.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ImportedBindingConflictKey {
+    Type,
+    Value,
+    Overload(DuplicateSignatureKey),
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ImportedSourceNominalId {

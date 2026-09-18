@@ -127,6 +127,81 @@ fn globally_longest_current_package_never_falls_back_to_direct_static_owner() {
 }
 
 #[test]
+fn exact_import_rejects_conflicting_non_overloadable_dependency_targets() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_conflicting_types(&["dependency", "api"], "Shared");
+    let world = fixture.world(lowerer.current_cone());
+    let import = exact(&["dependency", "api", "Shared"], None, false);
+    let expected_span = selector_span(&import);
+    let mut source = file(Vec::new());
+    source.imports.push(import);
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import target is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
+#[test]
+fn exact_import_preserves_distinct_dependency_overloads() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_function_overloads(&["dependency", "api"], "invoke", [0, 1]);
+    let world = fixture.world(lowerer.current_cone());
+    let mut source = file(Vec::new());
+    source
+        .imports
+        .push(exact(&["dependency", "api", "invoke"], None, false));
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(lowerer.diagnostics.is_empty());
+    assert_eq!(resolved.exact.len(), 1);
+    assert_eq!(resolved.exact[0].targets.len(), 2);
+    let conflict_keys = resolved.exact[0]
+        .targets
+        .iter()
+        .map(|target| {
+            target
+                .direct_binding()
+                .expect("dependency overload target")
+                .conflict_key()
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(conflict_keys.len(), 2);
+}
+
+#[test]
+fn exact_import_rejects_same_signature_dependency_overloads() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_function_overloads(&["dependency", "api"], "invoke", [0, 0]);
+    let world = fixture.world(lowerer.current_cone());
+    let import = exact(&["dependency", "api", "invoke"], None, false);
+    let expected_span = selector_span(&import);
+    let mut source = file(Vec::new());
+    source.imports.push(import);
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "import target is ambiguous in the current compilation unit"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}
+
+#[test]
 fn public_exact_and_star_freeze_direct_reexport_plans() {
     let (mut lowerer, _, _) = lowerer();
     let fixture =
