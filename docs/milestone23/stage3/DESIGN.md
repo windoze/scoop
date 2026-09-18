@@ -2744,7 +2744,9 @@ callable body Primary的ObjectDefinition leaf只能经
 `compute_strong_callable_body_object_fingerprints_v1`消费registration-object proof、完整Scoop stackmap
 proof、最终`CanonicalUndefinedSymbolRequirementSetV1`与exact object全集产生。四份proof必须回指同一
 built-in strong relocation closure；undefined requirement的use-site序列必须与该closure中除object-local
-以外的全部binding逐项相等。每个body definition/Primary atom从callable plan反查实际member与range，section
+以外的全部binding逐项相等。后续profile可以用新的typed分区proof取代单集合参数，但必须证明所有分区互斥且
+联合后仍与同一closure逐项相等；不能为了新分区放松object fingerprint的全覆盖。每个body definition/Primary
+atom从callable plan反查实际member与range，section
 role固定为`Text`。本阶段body ObjectDefinition的direct input必须精确等于owner为该body的全部
 `StackmapRecord` node并按node id排序；出现尚未有typed计算proof的其他input kind直接fail closed，不接受
 调用者传入裸digest。
@@ -2756,7 +2758,7 @@ normalized byte span、按atom offset排序的relocation sequence及canonical di
 relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
 按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
 提升为`IntraConeStrong/CoreStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`
-封闭sum，或在物理target精确落入同一body已计划associated atom时提升为
+封闭sum，或由后续profile增加的不改写上述tag的typed target，或在物理target精确落入同一body已计划associated atom时提升为
 `OwningAssociatedAtomOffset { atom, role, offset_within_atom }`。每个callable runtime-scan atom的bytes与其中指向
 child scan atom的canonical relocation按plan顺序作为associated-atom sequence进入同一个body ObjectDefinition
 fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也使用同一owner-relative target。

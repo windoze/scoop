@@ -352,6 +352,14 @@ manifest非可选地记录magic/container与三层wire schema version、language
 
 M23-5 ordinary dependency不复用或放宽上述core-only类型。Compile closure先在一个原子identity transaction中导入全部provider，再构造只允许direct provider枚举public binding、support provider按typed id取回definition的`SemanticWorld`；re-export保存从immediate direct provider到terminal declaration的完整canonical route。HIR分别输出lookup observation与committed selected set；前者覆盖空/不可访问/shape/applicability/MSC结果，后者才可投影到MIR/LIR。满足core-closed param-free classifier的ordinary top-level callable/property accessor使用独立`DependencyExternal` target、MIR/LIR bridge及Link-only physical-use closure；provider export、consumer selected、canonical ABI、symbol、required definition与actual relocation必须逐层一一对应。M23-3旧core undefined-use集合与ordinary dependency集合从object intent起即分区，Link reader验证二者互斥且联合完整，不能把ordinary provider identity塞进`CoreStrong { core }`。`LocalConcreteHir`仍是本Cone瞬时输出，绝不写入`.slib`。reader只能分别返回branded `ImportedHirSet`、`ImportedMirSet`与`ImportedLirSet`，不提供无类型metadata map或unchecked id cast。
 
+上述分区还必须贯穿`scoop-object-definition-v1`正规化：旧`FinalUndefinedSymbolRequirementV1`
+wire与tag 1..7保持不变，ordinary dependency use改为object-fingerprint内部的
+`DependencyStrong { provider: ConeIdentity, owner: StrongDefinitionOwnerV1 }` target，RuntimeEncode tag为11
+并按provider、owner顺序编码；tag 8..10继续分别属于static-storage、sentinel与owning-associated-atom。
+它只能由cross-Cone requirement的import index解析到已验证semantic import后构造，不能按symbol猜测。
+fingerprint入口消费typed old/new partition并验证互斥联合覆盖同一object closure，因此新增分区既不会污染
+旧undefined-requirement wire，也不会使包含dependency call的body缺少canonical relocation target。
+
 上述Link-only closure的semantic import是Compile-facing LIR selected bridge去除declaration与
 calling/root decorator、再按`(provider, target)`排序的无重复Code projection；物理requirement按
 `(source member, containing atom, offset, target slot)`排序。object coverage proof保存与旧link
