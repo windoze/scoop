@@ -77,6 +77,57 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
 }
 
 #[test]
+fn direct_dependency_function_is_visible_in_the_split_current_package() {
+    let mut core = trusted_core();
+    let provider = DependencyFunctionFixture::new(
+        "split-package-provider",
+        "run",
+        SignatureTypeKey::Nominal(
+            scoop_identity::CoreBuiltinNominal::Unit
+                .identity_record()
+                .id(),
+        ),
+    );
+    let provider_foundation =
+        core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 54);
+    let aliases = empty_alias_expansions();
+    let core_semantic_interface = empty_interface();
+    let source = in_package(
+        file(vec![fun("consumer", vec![stmt(call("run", Vec::new()))])]),
+        &["dependency", "api"],
+    );
+    let ordinary = parsed_ordinary(source);
+    let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+        ordinary.cone(),
+        Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
+            certificate(&ConeCoordinate::reserved_core(), 41),
+            &core.foundation,
+            &core_semantic_interface,
+            &aliases,
+        )),
+        vec![scoop_hir::DirectImportedProviderInput::from_validated(
+            certificate(&provider.coordinate, 54),
+            &provider_foundation,
+            &provider.interface,
+            &aliases,
+        )],
+        Vec::new(),
+    )
+    .unwrap();
+    let core_inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &[])
+        .unwrap();
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+        .expect("a direct dependency contributes to the current split package");
+
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+    assert!(scoop_hir::dump(&output.output().export).contains("ImportedDependencyCall #0"));
+}
+
+#[test]
 fn unsupported_dependency_candidate_falls_through_to_current_package() {
     let mut core = trusted_core();
     let provider = DependencyFunctionFixture::new(
@@ -190,4 +241,26 @@ fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
             .message
             .contains("SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED")
     }));
+}
+
+fn in_package(mut source: scoop_ast::SourceFile, segments: &[&str]) -> scoop_ast::SourceFile {
+    let (first, rest) = segments
+        .split_first()
+        .expect("test package paths are non-empty");
+    source.package = scoop_ast::PackageSyntax::QualifiedPackage {
+        package_keyword_span: sp(),
+        path: scoop_ast::QualifiedNameSyntax {
+            first: ident(first),
+            rest: rest
+                .iter()
+                .map(|segment| scoop_ast::QualifiedNameTailSyntax {
+                    dot_span: sp(),
+                    identifier: ident(segment),
+                })
+                .collect(),
+            span: sp(),
+        },
+        span: sp(),
+    };
+    source
 }

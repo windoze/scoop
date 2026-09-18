@@ -287,7 +287,14 @@ impl CurrentUnitImports {
                         .flatten()
                         .copied(),
                 ),
-                dependency_bindings: Vec::new(),
+                dependency_bindings: self.canonicalize_dependencies(
+                    imports
+                        .current_package_dependencies
+                        .get(name)
+                        .into_iter()
+                        .flatten()
+                        .cloned(),
+                ),
                 suppressed_callables: Vec::new(),
                 suppressed_values: self.diagnostic_suppressions.get(
                     SuppressedValueScope::Namespace(ResolvedNamespace::Package(package)),

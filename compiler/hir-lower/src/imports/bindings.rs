@@ -177,5 +177,7 @@ pub(crate) struct ResolvedStarImport {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct FrozenFileImports {
     pub(crate) exact: Vec<ResolvedExactImport>,
+    pub(crate) current_package_dependencies:
+        BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     pub(crate) stars: Vec<ResolvedStarImport>,
 }

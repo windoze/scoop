@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::{BindingNamespace, BindingTarget};
+use scoop_identity::{BindingNamespace, BindingTarget, CanonicalIdentifier, PackagePath};
 
 use super::selector::SelectorResult;
 use super::*;
@@ -52,7 +52,10 @@ impl CurrentUnitImports {
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> FrozenFileImports {
         let diagnostics_before = lowerer.diagnostics.len();
-        let mut frozen = FrozenFileImports::default();
+        let mut frozen = FrozenFileImports {
+            current_package_dependencies: Self::current_package_dependency_snapshot(lowerer, world),
+            ..FrozenFileImports::default()
+        };
         let mut exact_dependency_slots = BTreeMap::new();
         debug_assert_eq!(
             lowerer.intrinsic_sources[lowerer.current_file].kind,
@@ -201,8 +204,45 @@ impl CurrentUnitImports {
         if lowerer.diagnostics.len() == diagnostics_before {
             frozen
         } else {
-            FrozenFileImports::default()
+            FrozenFileImports {
+                current_package_dependencies: frozen.current_package_dependencies,
+                ..FrozenFileImports::default()
+            }
         }
+    }
+
+    fn current_package_dependency_snapshot(
+        lowerer: &Lowerer,
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+    ) -> BTreeMap<String, Vec<hir::DirectImportedTargetBinding>> {
+        let crate::namespace::TopLevelLookupLayer::CurrentPackage(package) = lowerer
+            .top_level_namespaces
+            .source_namespace(lowerer.current_file)
+        else {
+            return BTreeMap::new();
+        };
+        let path = PackagePath::from_segments(
+            lowerer
+                .top_level_namespaces
+                .package_segments(package)
+                .into_iter()
+                .map(|segment| {
+                    CanonicalIdentifier::new(segment)
+                        .expect("source package segments are canonical identifiers")
+                })
+                .collect(),
+        );
+        let Some(package) = world.and_then(|world| world.direct_package(&path)) else {
+            return BTreeMap::new();
+        };
+        let mut snapshot = BTreeMap::<String, Vec<_>>::new();
+        for group in package.snapshot() {
+            snapshot
+                .entry(group.name().as_str().to_owned())
+                .or_default()
+                .extend(group.targets().iter().cloned());
+        }
+        snapshot
     }
 
     pub(super) fn validate_frozen_scopes(&self, lowerer: &Lowerer) {

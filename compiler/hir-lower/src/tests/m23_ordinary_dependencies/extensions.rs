@@ -184,6 +184,55 @@ fn dependency_extensions_share_one_msc_partition_with_their_exact_layer() {
     });
 }
 
+#[test]
+fn current_and_dependency_extensions_share_the_split_package_msc_partition() {
+    let dependency = extension_provider(
+        "split-extension-provider",
+        extension_expr(
+            ty_named("Int"),
+            "choose",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_named("Int")),
+            int_lit(2),
+        ),
+        &["Int"],
+        66,
+    );
+    let consumer = in_package(
+        file(vec![
+            extension_expr(
+                ty_named("Any"),
+                "choose",
+                Vec::new(),
+                Vec::new(),
+                Some(ty_named("Int")),
+                int_lit(1),
+            ),
+            fun_expr(
+                "consumer",
+                Vec::new(),
+                Vec::new(),
+                Some(ty_named("Int")),
+                method_call(int_lit(1), "choose", Vec::new()),
+            ),
+        ]),
+        &["dependency", "api"],
+    );
+    let expected_provider = dependency.coordinate.identity().unwrap();
+
+    inspect_extensions(vec![dependency], consumer, |output| {
+        let output = output.expect("split-package extensions share one MSC partition");
+        let selected = output
+            .imported_dependencies()
+            .callables()
+            .next()
+            .expect("the narrower dependency extension is selected");
+        assert_eq!(selected.provider(), expected_provider);
+        assert_eq!(output.imported_dependencies().callable_count(), 1);
+    });
+}
+
 struct DependencyExtensionProvider {
     coordinate: scoop_identity::ConeCoordinate,
     declaration: Decl,

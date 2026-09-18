@@ -112,6 +112,45 @@ fn production_import_collection_receives_the_dependency_world() {
 }
 
 #[test]
+fn current_package_layer_freezes_direct_split_package_contributions() {
+    let (mut lowerer, api, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_nested_type(&["api"], "Remote", "Nested");
+    let world = fixture.world(lowerer.current_cone());
+    let files = [
+        file(Vec::new()),
+        package(file(Vec::new()), &["api"]),
+        package(file(Vec::new()), &["api", "child"]),
+        package(file(Vec::new()), &["api", "empty"]),
+    ];
+
+    lowerer.collect_and_resolve_imports(
+        &files,
+        ImportDeclarationInputs {
+            functions: &[],
+            methods: &[],
+            properties: &[],
+            enumerations: &[],
+            objects: &[],
+        },
+        Some(&world),
+    );
+
+    assert!(lowerer.diagnostics.is_empty());
+    let layers = lowerer.imports.layers(1, api, "Remote");
+    assert_eq!(layers[1].kind, ImportLookupLayer::CurrentPackage(api));
+    assert!(layers[1].bindings.is_empty());
+    assert_eq!(layers[1].dependency_bindings.len(), 1);
+    assert_eq!(
+        layers[1].dependency_bindings[0]
+            .sources()
+            .next()
+            .unwrap()
+            .provider_identity(),
+        fixture.direct_identity()
+    );
+}
+
+#[test]
 fn equal_package_prefix_merges_current_and_direct_star_snapshots() {
     let (mut lowerer, api, _) = lowerer();
     let fixture = DependencyWorldFixture::with_nested_type(&["api"], "Remote", "Nested");
