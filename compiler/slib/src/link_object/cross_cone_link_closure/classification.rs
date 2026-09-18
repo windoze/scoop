@@ -29,6 +29,10 @@ impl VerifiedCrossConeStrongRequirementClosureV1 {
         self.core_closure.producer()
     }
 
+    pub const fn target(&self) -> scoop_lir::LirTargetProfile {
+        self.core_closure.target()
+    }
+
     pub const fn core_closure(&self) -> &VerifiedCoreStrongRequirementClosureV1 {
         &self.core_closure
     }
@@ -43,6 +47,22 @@ impl VerifiedCrossConeStrongRequirementClosureV1 {
 
     pub fn remaining_external_candidates(&self) -> &[StrongRelocationBindingV1] {
         &self.remaining_external_candidates
+    }
+}
+
+pub(in crate::link_object) fn preserve_without_cross_cone_requirements_v1(
+    core_closure: VerifiedCoreStrongRequirementClosureV1,
+) -> VerifiedCrossConeStrongRequirementClosureV1 {
+    let consumer = core_closure.producer();
+    let remaining_external_candidates = core_closure.remaining_external_candidates().to_vec();
+    VerifiedCrossConeStrongRequirementClosureV1 {
+        core_closure,
+        semantic_imports: CrossConeLinkSemanticImportSetV1 {
+            consumer,
+            imports: Vec::new(),
+        },
+        requirements: Vec::new(),
+        remaining_external_candidates,
     }
 }
 

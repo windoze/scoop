@@ -12,12 +12,20 @@ use scoop_lir::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::link_object::empty_code_link_object_member_set_for_test;
 use crate::link_object::native_requirements::tests::core_closure;
 use crate::link_object::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
+use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
+use crate::link_object::{
+    empty_code_link_object_member_set_for_test,
+    finalize_partitioned_undefined_symbol_requirements_v1,
+    finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
+    verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
+    verify_source_external_requirements_after_cross_cone_v1,
+    without_generated_bridge_semantics_for_test,
+};
 
 struct CallableFixture {
     provider: ConeIdentity,
@@ -208,6 +216,63 @@ fn classifier_rejects_a_bridge_for_another_consumer() {
                 bridge: other,
             }
         )
+    );
+}
+
+#[test]
+fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
+    let consumer = ConeIdentity::SINGLE_FILE;
+    let callable = CallableFixture::new("partition-provider", "partitionCall");
+    let lir = bridge(consumer, vec![callable.selected()]);
+    let semantic = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&lir).unwrap();
+    let physical_symbol = LirTargetProfile::DARWIN_AARCH64
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol(semantic.imports()[0].expected_symbol().symbol().as_str())
+        .into_bytes();
+    let object = fixture_for_producer(consumer, "partitionCaller");
+    let member = verified_member_with_undefined(&object, &physical_symbol);
+    let core = core_closure(consumer, member);
+    let strong = core.strong_closure().clone();
+    let current =
+        verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(consumer))
+            .unwrap();
+    let cross = verify_cross_cone_strong_requirements_v1(core, &lir).unwrap();
+    let source = verify_source_external_requirements_after_cross_cone_v1(
+        cross,
+        crate::link_object::native_requirements::tests::native_surface(
+            consumer,
+            Vec::new(),
+            Vec::new(),
+        ),
+    )
+    .unwrap();
+    let runtime = verify_runtime_and_eh_requirements_v1(
+        source,
+        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    )
+    .unwrap();
+    let external = seal_builtin_object_external_requirements_v1(
+        without_generated_bridge_semantics_for_test(runtime),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        finalize_undefined_symbol_requirements_v1(current.clone(), external.clone()),
+        Err(
+            crate::UndefinedSymbolRequirementFinalizationError::CrossConeRequirementsRequirePartitionedFinalizer {
+                imports: 1,
+                requirements: 1,
+            }
+        )
+    ));
+    let partitions =
+        finalize_partitioned_undefined_symbol_requirements_v1(current, external).unwrap();
+    assert!(partitions.legacy().requirements().is_empty());
+    assert_eq!(partitions.cross_cone().requirements().len(), 1);
+    assert_eq!(
+        partitions.cross_cone().requirements()[0].use_site(),
+        &CanonicalUndefinedRelocationUseV1::from(&strong.bindings()[0])
     );
 }
 

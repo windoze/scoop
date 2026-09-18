@@ -1,5 +1,6 @@
 //! Canonical final undefined-symbol requirements for one verified artifact.
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use super::{
@@ -23,6 +24,9 @@ use wire::DecodedFinalUndefinedSymbolRequirementV1;
 pub use wire::{
     DecodedCanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementValidationError,
 };
+
+mod partitions;
+pub use partitions::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FinalUndefinedSymbolRequirementV1 {
@@ -123,6 +127,23 @@ pub fn finalize_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
     external: SealedBuiltinObjectExternalRequirementClosureV1,
 ) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
+    let cross_cone = external.cross_cone_closure();
+    if !cross_cone.semantic_imports().imports().is_empty() || !cross_cone.requirements().is_empty()
+    {
+        return Err(
+            UndefinedSymbolRequirementFinalizationError::CrossConeRequirementsRequirePartitionedFinalizer {
+                imports: cross_cone.semantic_imports().imports().len(),
+                requirements: cross_cone.requirements().len(),
+            },
+        );
+    }
+    finalize_partitioned_undefined_symbol_requirements_inner(current_cone, external)
+}
+
+pub(super) fn finalize_partitioned_undefined_symbol_requirements_inner(
+    current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
+    external: SealedBuiltinObjectExternalRequirementClosureV1,
+) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
     let external_strong = external.verified().strong_closure();
     if current_cone.strong_closure() != external_strong {
         return Err(UndefinedSymbolRequirementFinalizationError::StrongClosureMismatch);
@@ -202,6 +223,28 @@ pub fn finalize_undefined_symbol_requirements_v1(
         });
     }
 
+    let cross_cone_uses = external
+        .cross_cone_closure()
+        .requirements()
+        .iter()
+        .map(|requirement| requirement.use_site().clone())
+        .collect::<Vec<_>>();
+    let cross_cone_keys = cross_cone_uses.iter().map(use_key).collect::<BTreeSet<_>>();
+    if let Some(requirement) = requirements
+        .iter()
+        .find(|requirement| cross_cone_keys.contains(&use_key(requirement.use_site())))
+    {
+        let use_site = requirement.use_site();
+        return Err(
+            UndefinedSymbolRequirementFinalizationError::CrossConeUseOverlap {
+                member: use_site.source_member(),
+                atom: use_site.containing_atom(),
+                offset: use_site.offset_within_atom(),
+                target_slot: use_site.target_slot(),
+            },
+        );
+    }
+
     let mut expected = current_cone
         .strong_closure()
         .bindings()
@@ -215,10 +258,12 @@ pub fn finalize_undefined_symbol_requirements_v1(
         .map(CanonicalUndefinedRelocationUseV1::from)
         .collect::<Vec<_>>();
     expected.sort_unstable_by_key(use_key);
-    let actual = requirements
+    let mut actual = requirements
         .iter()
         .map(|item| item.use_site().clone())
+        .chain(cross_cone_uses)
         .collect::<Vec<_>>();
+    actual.sort_unstable_by_key(use_key);
     if actual != expected {
         let first_mismatch = actual
             .iter()
@@ -262,7 +307,17 @@ fn use_key(use_site: &CanonicalUndefinedRelocationUseV1) -> UseKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UndefinedSymbolRequirementFinalizationError {
     StrongClosureMismatch,
+    CrossConeRequirementsRequirePartitionedFinalizer {
+        imports: usize,
+        requirements: usize,
+    },
     DuplicateUse {
+        member: SlibMemberId,
+        atom: scoop_identity::ObjectDefinitionAtomId,
+        offset: u64,
+        target_slot: RelocationTargetSlotV1,
+    },
+    CrossConeUseOverlap {
         member: SlibMemberId,
         atom: scoop_identity::ObjectDefinitionAtomId,
         offset: u64,

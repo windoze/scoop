@@ -13,8 +13,8 @@ use super::{
     CanonicalUndefinedRelocationUseV1, CoreStrongRequirementUseV1,
     GeneratedBridgeRelocationSemanticV1, RelocationTargetSlotV1, RuntimeAbiRequirementUseV1,
     SourceExternalRequirementUseV1, StrongRelocationBindingV1, TargetEhRequirementUseV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedGeneratedCBridgeSemanticSetV1,
-    VerifiedRuntimeAndEhRequirementClosureV1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
+    VerifiedGeneratedCBridgeSemanticSetV1, VerifiedRuntimeAndEhRequirementClosureV1,
 };
 use crate::SlibMemberId;
 
@@ -77,6 +77,10 @@ impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
             .source_closure()
             .core_closure()
             .core_requirements()
+    }
+
+    pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
+        self.runtime_and_eh.source_closure().cross_cone_closure()
     }
 
     pub fn source_external_requirements(&self) -> &[SourceExternalRequirementUseV1] {
@@ -319,6 +323,10 @@ impl SealedBuiltinObjectExternalRequirementClosureV1 {
 
     pub const fn verified(&self) -> &VerifiedCBridgeTargetSupportRequirementClosureV1 {
         &self.verified
+    }
+
+    pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
+        self.verified.cross_cone_closure()
     }
 }
 

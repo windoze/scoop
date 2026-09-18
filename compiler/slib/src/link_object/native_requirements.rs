@@ -11,7 +11,8 @@ use scoop_lir::{
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedCoreStrongRequirementClosureV1, VerifiedDarwinArm64RelocationFormV1,
+    VerifiedCoreStrongRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
+    VerifiedDarwinArm64RelocationFormV1, preserve_without_cross_cone_requirements_v1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,7 +33,7 @@ impl SourceExternalRequirementUseV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSourceExternalRequirementClosureV1 {
-    core_closure: VerifiedCoreStrongRequirementClosureV1,
+    cross_cone_closure: VerifiedCrossConeStrongRequirementClosureV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     source_external_requirements: Vec<SourceExternalRequirementUseV1>,
     remaining_external_candidates: Vec<StrongRelocationBindingV1>,
@@ -40,15 +41,19 @@ pub struct VerifiedSourceExternalRequirementClosureV1 {
 
 impl VerifiedSourceExternalRequirementClosureV1 {
     pub const fn producer(&self) -> ConeIdentity {
-        self.core_closure.producer()
+        self.cross_cone_closure.producer()
     }
 
     pub const fn target(&self) -> LirTargetProfile {
-        self.core_closure.target()
+        self.cross_cone_closure.core_closure().target()
     }
 
     pub const fn core_closure(&self) -> &VerifiedCoreStrongRequirementClosureV1 {
-        &self.core_closure
+        self.cross_cone_closure.core_closure()
+    }
+
+    pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
+        &self.cross_cone_closure
     }
 
     pub const fn native_requirements(&self) -> &CanonicalNativeExternalRequirementSurfaceV1 {
@@ -68,15 +73,25 @@ pub fn verify_source_external_requirements_v1(
     core_closure: VerifiedCoreStrongRequirementClosureV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
 ) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
-    if core_closure.producer() != native_requirements.producer() {
+    verify_source_external_requirements_after_cross_cone_v1(
+        preserve_without_cross_cone_requirements_v1(core_closure),
+        native_requirements,
+    )
+}
+
+pub fn verify_source_external_requirements_after_cross_cone_v1(
+    cross_cone_closure: VerifiedCrossConeStrongRequirementClosureV1,
+    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
+    if cross_cone_closure.producer() != native_requirements.producer() {
         return Err(SourceExternalRequirementValidationError::ProducerMismatch {
-            object: core_closure.producer(),
+            object: cross_cone_closure.producer(),
             native: native_requirements.producer(),
         });
     }
-    if core_closure.target() != native_requirements.target() {
+    if cross_cone_closure.core_closure().target() != native_requirements.target() {
         return Err(SourceExternalRequirementValidationError::TargetMismatch {
-            object: core_closure.target(),
+            object: cross_cone_closure.core_closure().target(),
             native: native_requirements.target(),
         });
     }
@@ -97,7 +112,7 @@ pub fn verify_source_external_requirements_v1(
         .collect::<BTreeMap<_, _>>();
     let mut source_external_requirements = Vec::new();
     let mut remaining_external_candidates = Vec::new();
-    for binding in core_closure.remaining_external_candidates() {
+    for binding in cross_cone_closure.remaining_external_candidates() {
         if let Some(requirement) = requirements.get(binding.symbol()) {
             if is_tlvp_relocation(binding.relocation_form())
                 && !matches!(
@@ -123,7 +138,7 @@ pub fn verify_source_external_requirements_v1(
     }
 
     Ok(VerifiedSourceExternalRequirementClosureV1 {
-        core_closure,
+        cross_cone_closure,
         native_requirements,
         source_external_requirements,
         remaining_external_candidates,
