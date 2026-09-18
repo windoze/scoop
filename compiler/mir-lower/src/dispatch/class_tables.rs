@@ -23,7 +23,7 @@ impl Lowerer {
             };
             for &fn_id in &decl.methods {
                 let function = &module.functions[fn_id];
-                let Some(method) = function.method else {
+                let Some(method) = function.receiver.method() else {
                     continue;
                 };
                 let family = match method.dispatch {

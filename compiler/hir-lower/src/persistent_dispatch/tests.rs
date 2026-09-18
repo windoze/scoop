@@ -180,7 +180,8 @@ fn virtual_override_family_uses_the_root_declaration_identity() {
     let concrete_base = concrete_function_named(&output.local, "Base.value");
     let hir::concrete::MethodDispatch::Virtual(concrete_family) = output.local.functions
         [concrete_base]
-        .method
+        .receiver
+        .method()
         .expect("concrete base method metadata")
         .dispatch
     else {

@@ -13,8 +13,42 @@ pub struct Function {
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
     pub kind: FunctionKind,
-    pub method: Option<Method>,
+    /// Source-level receiver shape. The physical receiver remains the first
+    /// entry in `params`, while this enum preserves whether that parameter is
+    /// an extension receiver or a nominal member receiver.
+    pub receiver: FunctionReceiver,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunctionReceiver {
+    None,
+    Extension(TypeId),
+    Method(Method),
+}
+
+impl FunctionReceiver {
+    pub const fn value_type(self) -> Option<TypeId> {
+        match self {
+            Self::None => None,
+            Self::Extension(receiver) => Some(receiver),
+            Self::Method(method) => Some(method.owner),
+        }
+    }
+
+    pub const fn method(self) -> Option<Method> {
+        match self {
+            Self::Method(method) => Some(method),
+            Self::None | Self::Extension(_) => None,
+        }
+    }
+
+    pub fn method_mut(&mut self) -> Option<&mut Method> {
+        match self {
+            Self::Method(method) => Some(method),
+            Self::None | Self::Extension(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

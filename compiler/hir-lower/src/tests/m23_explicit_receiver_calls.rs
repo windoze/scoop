@@ -213,6 +213,45 @@ fn assert_marker(module: &hir::Module, expression: &hir::Expr, expected: i64) {
 }
 
 #[test]
+fn local_concrete_extension_retains_its_logical_receiver_in_mir_metadata() {
+    let output = lower_sources(
+        vec![file(vec![extension("Int", "bump", "Int", 1)])],
+        core_file(),
+    )
+    .expect("the extension source lowers");
+    let (_, function) = output
+        .local
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "bump")
+        .expect("the concrete extension is materialized");
+    let hir::concrete::FunctionReceiver::Extension(receiver) = function.receiver else {
+        panic!("the concrete function must retain its extension receiver")
+    };
+    assert_eq!(function.params[0].ty, receiver);
+    let exact_receiver = output.local.exact_type_identities[receiver].id();
+    let exact_parameter = output.local.exact_type_identities[function.params[1].ty].id();
+    let materialization = function.materialization;
+
+    let mir = scoop_mir_lower::lower(&output.local).expect("the concrete extension lowers to MIR");
+    let source = mir
+        .meta
+        .source_callable_materializations
+        .get_by_materialization(materialization)
+        .expect("the extension has one source callable materialization");
+    let signature = source.signature_record().signature();
+    assert_eq!(
+        signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(exact_receiver)
+    );
+    assert_eq!(signature.parameters(), &[exact_parameter]);
+    assert_eq!(
+        signature.result(),
+        output.local.exact_type_identities[function.return_ty].id()
+    );
+}
+
+#[test]
 fn explicit_receiver_extensions_fall_through_exact_current_star_then_core() {
     for winner in 0..4 {
         let parameter = |layer| if layer < winner { "String" } else { "Boolean" };

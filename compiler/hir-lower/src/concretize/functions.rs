@@ -8,7 +8,7 @@ pub(super) struct PendingFunction {
     pub(super) return_ty: concrete::TypeId,
     pub(super) attributes: export::FunctionAttributes,
     pub(super) kind: concrete::FunctionKind,
-    pub(super) method: Option<concrete::Method>,
+    pub(super) receiver: concrete::FunctionReceiver,
     pub(super) span: scoop_ast::Span,
 }
 
@@ -26,7 +26,7 @@ impl PendingFunction {
             return_ty: self.return_ty,
             attributes: self.attributes,
             kind: self.kind,
-            method: self.method,
+            receiver: self.receiver,
             span: self.span,
         }
     }
@@ -125,7 +125,7 @@ impl Concretizer<'_> {
                 Vec::new(),
             ),
         };
-        let params = source
+        let params: Vec<concrete::Param> = source
             .params
             .iter()
             .map(|param| concrete::Param {
@@ -143,6 +143,17 @@ impl Concretizer<'_> {
             modifier: method.modifier,
             dispatch: self.lower_method_dispatch(method.dispatch, key),
         });
+        let receiver = match method {
+            Some(method) => concrete::FunctionReceiver::Method(method),
+            None if self.source_function_has_extension_receiver(source_id) => {
+                let receiver = params
+                    .first()
+                    .expect("a source extension has one physical receiver parameter")
+                    .ty;
+                concrete::FunctionReceiver::Extension(receiver)
+            }
+            None => concrete::FunctionReceiver::None,
+        };
         PendingFunction {
             name: source.name,
             is_suspend: source.is_suspend,
@@ -151,8 +162,35 @@ impl Concretizer<'_> {
             return_ty,
             attributes: source.attributes,
             kind,
-            method,
+            receiver,
             span: source.span,
+        }
+    }
+
+    fn source_function_has_extension_receiver(&self, source: export::FunctionId) -> bool {
+        match &self.source.function_identities[source] {
+            export::HirFunctionIdentity::Source(identity) => identity
+                .declaration()
+                .duplicate_signature()
+                .receiver_is_present(),
+            export::HirFunctionIdentity::PropertyAccessor(accessor) => {
+                let property = match accessor {
+                    export::HirPropertyAccessorFunction::Getter(getter) => {
+                        self.source.property_accessor_identities.get_getter(*getter)
+                    }
+                    export::HirPropertyAccessorFunction::Setter(setter) => {
+                        self.source.property_accessor_identities.get_setter(*setter)
+                    }
+                }
+                .expect("a concrete property accessor has one persistent identity")
+                .property();
+                self.source.property_identities[property]
+                    .extension_id()
+                    .is_some()
+            }
+            export::HirFunctionIdentity::LexicalGenerated(_)
+            | export::HirFunctionIdentity::Initialization { .. }
+            | export::HirFunctionIdentity::DerivedEquality(_) => false,
         }
     }
 

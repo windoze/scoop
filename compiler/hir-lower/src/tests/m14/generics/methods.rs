@@ -110,7 +110,7 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             if function.name != "Box.choose" {
                 return None;
             }
-            let method = function.method?;
+            let method = function.receiver.method()?;
             let hir::concrete::TypeKind::Class(owner) = output.local.types[method.owner].kind
             else {
                 panic!("Box.choose has an exact class owner")

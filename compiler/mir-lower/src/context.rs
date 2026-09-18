@@ -2,19 +2,10 @@ use super::*;
 
 /// A function's source-facing MIR display name.
 pub(super) fn fn_name(function: &hir::Function) -> String {
-    // Extension receivers are structurally the first immutable HIR parameter
-    // named `this`, while real members also carry `Method` metadata. Source
-    // syntax cannot declare an ordinary parameter named `this`, so this is an
-    // unambiguous discriminator. Keep extension display names in a private
-    // namespace:
+    // Keep extension display names in a private namespace:
     // `fun f(x: Int)` and `fun Int.f()` otherwise have the same ABI parameter
     // shape and would collide despite belonging to different source layers.
-    if function.method.is_none()
-        && function
-            .params
-            .first()
-            .is_some_and(|parameter| parameter.name == "this")
-    {
+    if matches!(function.receiver, hir::FunctionReceiver::Extension(_)) {
         format!("$extension.{}", function.name)
     } else {
         function.name.clone()

@@ -11,7 +11,8 @@ pub(super) fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
 /// explicitly, including for `Unit`-returning methods.
 pub(super) fn is_abstract_bodiless(function: &hir::Function) -> bool {
     function
-        .method
+        .receiver
+        .method()
         .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
 }
 

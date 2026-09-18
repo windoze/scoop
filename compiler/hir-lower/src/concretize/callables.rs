@@ -350,7 +350,7 @@ impl Concretizer<'_> {
                     return_ty: self.lower_type(source_function.return_ty, substitution),
                     attributes: application.attributes,
                     kind: concrete::FunctionKind::User(body),
-                    method: Some(concrete::Method {
+                    receiver: concrete::FunctionReceiver::Method(concrete::Method {
                         owner: owner_ty,
                         modifier: concrete::MethodModifier::Final,
                         dispatch: concrete::MethodDispatch::Direct,

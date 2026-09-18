@@ -60,7 +60,7 @@ impl Lowerer {
             user_functions.push((hir_id, id));
         }
         for (hir_id, function) in module.functions.iter() {
-            let Some(method) = function.method else {
+            let Some(method) = function.receiver.method() else {
                 continue;
             };
             if !matches!(module.types[method.owner].kind, hir::TypeKind::Interface(_))
@@ -79,7 +79,7 @@ impl Lowerer {
             .map(|(id, interface)| (id, vec![None; interface.methods.len()]))
             .collect::<BTreeMap<_, _>>();
         for (hir_id, function) in module.functions.iter() {
-            let Some(method) = function.method else {
+            let Some(method) = function.receiver.method() else {
                 continue;
             };
             // The typed dispatch identity is authoritative; MIR does not

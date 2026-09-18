@@ -336,7 +336,8 @@ impl BodyLowerer<'_> {
             _ => None,
         };
         let dispatch = f
-            .method
+            .receiver
+            .method()
             .expect("a method call names method metadata")
             .dispatch;
         let kind = match dispatch {

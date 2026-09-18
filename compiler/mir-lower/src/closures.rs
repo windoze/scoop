@@ -434,7 +434,8 @@ impl Lowerer {
         let function = module.callable_function(callable);
         let declaration = &module.functions[function];
         let method = declaration
-            .method
+            .receiver
+            .method()
             .expect("a bound member reference names method metadata");
         match method.dispatch {
             hir::MethodDispatch::Direct | hir::MethodDispatch::FinalOverride(_) => {

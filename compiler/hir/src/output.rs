@@ -428,7 +428,7 @@ fn validate_concrete_entry(
     if function.name != "main" {
         return Err(ConcreteExecutableEntryError::NotMain);
     }
-    if function.method.is_some() {
+    if function.receiver.value_type().is_some() {
         return Err(ConcreteExecutableEntryError::HasReceiver);
     }
     if function.materialization.template() != CallableTemplateOwner::Function(declaration) {

@@ -153,14 +153,15 @@ pub(super) fn exact_function_signature(
     function: hir::FunctionId,
 ) -> hir::ExactCallableSignature {
     let declaration = &module.functions[function];
-    let parameters = if let Some(method) = declaration.method {
+    let receiver = declaration.receiver.value_type();
+    let parameters = if let Some(receiver_type) = receiver {
         let (receiver, parameters) = declaration
             .params
             .split_first()
-            .expect("a LocalConcrete method has one physical receiver parameter");
+            .expect("a LocalConcrete receiver has one physical receiver parameter");
         assert_eq!(
-            receiver.ty, method.owner,
-            "a LocalConcrete method receiver matches its exact owner",
+            receiver.ty, receiver_type,
+            "a LocalConcrete receiver parameter matches its exact receiver type",
         );
         parameters
     } else {
@@ -172,9 +173,7 @@ pub(super) fn exact_function_signature(
         } else {
             hir::Effect::Ordinary
         },
-        declaration
-            .method
-            .map(|method| module.exact_type_identities[method.owner].id()),
+        receiver.map(|receiver| module.exact_type_identities[receiver].id()),
         parameters
             .iter()
             .map(|parameter| module.exact_type_identities[parameter.ty].id())

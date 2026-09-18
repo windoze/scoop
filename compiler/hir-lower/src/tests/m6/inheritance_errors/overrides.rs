@@ -94,7 +94,7 @@ fn open_and_default_open_override_form_one_visible_dispatch_slot() {
             .local
             .functions
             .iter()
-            .find_map(|(_, function)| (function.name == name).then_some(function.method))
+            .find_map(|(_, function)| (function.name == name).then_some(function.receiver.method()))
             .flatten()
             .expect("the concrete override chain keeps method metadata")
             .dispatch
