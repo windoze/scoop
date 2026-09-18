@@ -9,7 +9,7 @@ use super::{
     TypeAliasInterfaceSemanticAuthority, TypeAliasInterfaceSemanticValidationError,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalTypeAliasInterfacesV1 {
     records: Vec<TypeAliasInterfaceRecordV1>,
 }

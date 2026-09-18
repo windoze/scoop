@@ -18,7 +18,7 @@ pub use semantics::{
     ExportDefaultTemplateSourceClosureValidationError,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExportDefaultTemplatesV1 {
     records: Vec<ExportDefaultTemplateV1>,
     len: u32,

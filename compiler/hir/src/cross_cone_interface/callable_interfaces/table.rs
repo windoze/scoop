@@ -9,7 +9,7 @@ use super::{
 };
 use crate::CallableDeclarationId;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalCallableInterfacesV1 {
     records: Vec<CallableInterfaceRecordV1>,
 }

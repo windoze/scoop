@@ -70,7 +70,7 @@ impl WireDecode for DecodedExportDefinitionSourceV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExportDefinitionSourcesV1 {
     sources: Vec<ExportDefinitionSourceV1>,
 }

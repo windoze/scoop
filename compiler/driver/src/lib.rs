@@ -13,7 +13,10 @@ pub use artifact_production::{
     CrossConeArtifactProductionError, CrossConeStrongArtifactMetadataInputV1,
     StrongArtifactMetadataInputV1, StrongArtifactProductionError,
 };
-pub use ir_production::{SingleConeStrongIrProductionV1, StrongIrArtifactProductionError};
+pub use ir_production::{
+    CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1,
+    SingleConeStrongIrProductionV1, StrongIrArtifactProductionError,
+};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, CodeFingerprintedObjectProductionV1,
@@ -40,19 +43,20 @@ pub use request::{
     OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
     OrdinaryConeProductionError, OrdinaryConeStrongProfileError, OrdinaryCoreOnlyHirInputError,
     OutputAliasRole, OutputIsolationErrorKind, ParsedCoreBootstrapBuildRequest,
-    ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest, SingleConeBuildRequest,
-    SingleConeBuildRequestError, SingleConePreflightError, SingleConeProductionError,
-    SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind, StageDumpPolicy,
-    TrustedCoreBootstrapHirInput, TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput,
-    TrustedCoreBootstrapMirOutput, TrustedCoreInput, ValidatedCoreOnlyBuildRequest,
-    ValidatedCurrentConeInput, ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
+    ParsedOrdinaryConeBuildRequest, ParsedSingleConeBuildRequest, PublishedStrongArtifact,
+    PublishedStrongArtifactValidation, SingleConeBuildRequest, SingleConeBuildRequestError,
+    SingleConePreflightError, SingleConeProductionError, SingleConeProductionSuccess,
+    SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreBootstrapHirInput,
+    TrustedCoreBootstrapHirOutput, TrustedCoreBootstrapLirOutput, TrustedCoreBootstrapMirOutput,
+    TrustedCoreInput, ValidatedCoreOnlyBuildRequest, ValidatedCurrentConeInput,
+    ValidatedExplicitDependencyInputSet, classify_current_cone_operand,
     normalize_direct_build_request, normalize_protocol_build_request,
 };
 pub use trusted_core::{
     CoreBootstrapAuthority, LoadedTrustedCoreArtifact, TrustedCoreArtifactAuthority,
     TrustedCoreArtifactAuthorityError, TrustedCoreArtifactInput, TrustedCoreArtifactInputError,
     TrustedCoreArtifactLoadError, TrustedCoreArtifactLoadOperation, TrustedCoreArtifactSlot,
-    TrustedCoreArtifactValidationError, TrustedCoreArtifactView, TrustedCoreBootstrapInput,
+    TrustedCoreArtifactValidationError, TrustedCoreBootstrapInput,
     TrustedCoreCallableProjectionError, TrustedCoreCallableSetProjectionError,
     TrustedCoreLirSetProjectionError, TrustedCoreSlot, TrustedCoreSlotError,
     TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation, TrustedCoreSourceSlot,

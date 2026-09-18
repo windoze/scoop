@@ -18,7 +18,7 @@ mod semantics;
 
 pub use semantics::CallableSourceInterfaceSetSemanticValidationError;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalCallableSourceInterfacesV1 {
     records: Vec<CallableSourceInterfaceV1>,
 }

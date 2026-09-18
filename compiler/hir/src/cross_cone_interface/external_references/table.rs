@@ -8,7 +8,7 @@ use super::{
     ExternalHirReferenceSemanticValidationError, ExternalHirReferenceV1, ExternalHirTargetV1,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExternalHirReferencesV1 {
     records: Vec<ExternalHirReferenceV1>,
 }

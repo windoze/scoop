@@ -198,6 +198,13 @@ impl<'input> ValidatedCrossConeSemanticClosure<'input> {
     {
         self.dependency_first.iter()
     }
+
+    pub(super) fn artifact_at(
+        &self,
+        position: usize,
+    ) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
+        &self.dependency_first[position]
+    }
 }
 
 /// Enumeration-capable view of one validated direct dependency.

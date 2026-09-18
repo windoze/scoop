@@ -16,6 +16,31 @@ use crate::{
 };
 
 impl CrossConeHirInterfaceSectionV1 {
+    /// Projects the trusted core's direct binding inventory while keeping
+    /// ordinary-dependency declaration tables empty. Core declarations are
+    /// consumed through the dedicated bootstrap interface.
+    pub fn from_core_export(
+        export: &ExportHir,
+    ) -> Result<Self, CoreCrossConeHirInterfaceProductionError> {
+        if export.cone != scoop_identity::ConeIdentity::CORE {
+            return Err(CoreCrossConeHirInterfaceProductionError::NotCore(
+                export.cone,
+            ));
+        }
+        Ok(Self::new(
+            export.public_export_bindings.clone(),
+            CanonicalNominalInterfacesV1::default(),
+            CanonicalCallableInterfacesV1::default(),
+            CanonicalPropertyInterfacesV1::default(),
+            CanonicalTypeAliasInterfacesV1::default(),
+            CanonicalCallableSourceInterfacesV1::default(),
+            CanonicalExportDefaultTemplatesV1::default(),
+            CanonicalExportConstValuesV1::default(),
+            CanonicalExportDefinitionSourcesV1::default(),
+            CanonicalExternalHirReferencesV1::default(),
+        ))
+    }
+
     /// Projects a self-contained Export HIR graph into the complete general
     /// cross-Cone interface section.
     pub fn from_export_hir<A, E>(
@@ -157,3 +182,21 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirInterfaceProductionError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for CrossConeHirInterfaceProductionError<E> {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreCrossConeHirInterfaceProductionError {
+    NotCore(scoop_identity::ConeIdentity),
+}
+
+impl fmt::Display for CoreCrossConeHirInterfaceProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotCore(actual) => write!(
+                formatter,
+                "trusted-core cross-Cone HIR projection received Cone {actual}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CoreCrossConeHirInterfaceProductionError {}

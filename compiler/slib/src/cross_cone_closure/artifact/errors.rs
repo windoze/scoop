@@ -59,6 +59,7 @@ pub enum CrossConeArtifactClosureValidationError {
         source: Box<CrossConePublishViewMismatchError>,
     },
     Definition(Box<CrossConeDefinitionResolutionError>),
+    MissingCompletedCurrentArtifact,
 }
 
 impl From<CrossConeDefinitionResolutionError> for CrossConeArtifactClosureValidationError {
@@ -105,6 +106,9 @@ impl fmt::Display for CrossConeArtifactClosureValidationError {
                 )
             }
             Self::Definition(source) => source.fmt(formatter),
+            Self::MissingCompletedCurrentArtifact => formatter.write_str(
+                "completed cross-Cone closure validation did not retain the current artifact",
+            ),
         }
     }
 }
@@ -123,7 +127,7 @@ impl std::error::Error for CrossConeArtifactClosureValidationError {
             Self::Link { source, .. } => Some(source.as_ref()),
             Self::ViewMismatch { source, .. } => Some(source.as_ref()),
             Self::Definition(source) => Some(source.as_ref()),
-            Self::MissingTrustedCoreLink => None,
+            Self::MissingTrustedCoreLink | Self::MissingCompletedCurrentArtifact => None,
         }
     }
 }

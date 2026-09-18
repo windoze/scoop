@@ -12,6 +12,9 @@ use crate::{
     PlannedBuiltinObjectProductionV1, StrongArtifactMetadataInputV1, StrongArtifactProductionError,
 };
 
+mod cross_cone;
+pub use cross_cone::{CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1};
+
 /// One exact HIR/MIR/LIR chain proven admissible for strong object production.
 pub struct SingleConeStrongIrProductionV1 {
     hir_foundation: scoop_hir::OdrFreeHirFoundation,

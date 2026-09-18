@@ -9,7 +9,7 @@ pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestinatio
 pub use preflight::*;
 pub use report::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, EmittedStageDump,
-    SingleConeProductionSuccess,
+    PublishedStrongArtifact, PublishedStrongArtifactValidation, SingleConeProductionSuccess,
 };
 
 use scoop_codegen::CodegenError;

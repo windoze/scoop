@@ -8,7 +8,7 @@ use super::{
     ExportConstValueSemanticAuthority, ExportConstValueSemanticValidationError, ExportConstValueV1,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExportConstValuesV1 {
     records: Vec<ExportConstValueV1>,
 }

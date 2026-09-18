@@ -1,0 +1,598 @@
+//! Trusted-core bootstrap stage chain and publication.
+
+use super::*;
+
+pub struct ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
+    pub(super) request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
+    pub(super) authority: &'request CoreBootstrapAuthority,
+    pub(super) artifact_slot: &'request TrustedCoreArtifactSlot,
+    pub(super) sources: CurrentConeParsedSources,
+}
+
+impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
+    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
+        self.request
+    }
+
+    pub const fn sources(&self) -> &CurrentConeParsedSources {
+        &self.sources
+    }
+
+    pub fn hir_input(
+        &self,
+    ) -> Result<TrustedCoreBootstrapHirInput<'_>, CoreBootstrapHirInputError> {
+        TrustedCoreBootstrapHirInput::try_new(&self.sources, self.authority, self.artifact_slot)
+    }
+
+    /// Consumes the complete parsed bootstrap request through the shared
+    /// strong object pipeline and atomically publishes the independently
+    /// revalidated artifact to its trusted sysroot slot.
+    pub fn build_and_publish(
+        self,
+        temporary_parent: &Path,
+        limits: DecodeLimits,
+    ) -> Result<SingleConeProductionSuccess, CoreBootstrapProductionError> {
+        let emit = self.request.emit();
+        let mut emitted_dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
+            self.sources
+                .sources()
+                .sources()
+                .iter()
+                .map(|source| scoop_ast::dump(source.ast()))
+                .collect()
+        });
+        let hir = self
+            .hir_input()
+            .map_err(CoreBootstrapProductionError::HirInput)?
+            .lower()
+            .map_err(CoreBootstrapProductionError::Hir)?;
+        let warnings = CurrentConeDiagnosticSet::try_new(hir.hir().warnings.clone(), &self.sources)
+            .map_err(CoreBootstrapProductionError::Warnings)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Hir, || {
+                scoop_hir::dump(&hir.hir().export)
+            })
+        });
+        let mir = hir.lower_mir().map_err(CoreBootstrapProductionError::Mir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Mir, || scoop_mir::dump(mir.mir()))
+        });
+        let lir = mir
+            .lower_lir(self.request.target().lir_target())
+            .map_err(CoreBootstrapProductionError::Lir)?;
+        emitted_dump = emitted_dump.or_else(|| {
+            capture_stage_dump(emit, StageDumpKind::Lir, || scoop_lir::dump(lir.lir()))
+        });
+        let strong = lir
+            .seal_strong_profile()
+            .map_err(CoreBootstrapProductionError::StrongProfile)?;
+        let producer =
+            scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
+                .map_err(CoreBootstrapProductionError::Producer)?;
+        let cone = scoop_slib::ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            scoop_slib::ConeKind::Library,
+            scoop_slib::ConeSourceForm::Manifest,
+        )
+        .map_err(CoreBootstrapProductionError::Cone)?;
+        let core_owners = scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let artifact = strong
+            .produce_artifact(
+                producer,
+                cone,
+                Vec::new(),
+                temporary_parent,
+                self.request.target(),
+                &core_owners,
+            )
+            .map_err(CoreBootstrapProductionError::Artifact)?;
+        let artifact = artifact
+            .publish(self.artifact_slot.path(), Vec::new(), limits)
+            .map_err(CoreBootstrapProductionError::Publication)?;
+        Ok(SingleConeProductionSuccess::new_cross_cone(
+            artifact,
+            warnings,
+            emitted_dump,
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapProductionError {
+    HirInput(CoreBootstrapHirInputError),
+    Hir(CoreBootstrapHirStageError),
+    Mir(CoreBootstrapMirStageError),
+    Lir(CoreBootstrapLirStageError),
+    StrongProfile(CoreBootstrapStrongProfileError),
+    Warnings(super::CurrentConeDiagnosticSetError),
+    Producer(scoop_slib::ProducerRecordError),
+    Cone(scoop_slib::ConeRecordError),
+    Artifact(crate::CrossConeStrongIrArtifactProductionError),
+    Publication(crate::CrossConeArtifactProductionError),
+}
+
+impl fmt::Display for CoreBootstrapProductionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HirInput(source) => source.fmt(formatter),
+            Self::Hir(source) => source.fmt(formatter),
+            Self::Mir(source) => source.fmt(formatter),
+            Self::Lir(source) => source.fmt(formatter),
+            Self::StrongProfile(source) => source.fmt(formatter),
+            Self::Warnings(source) => source.fmt(formatter),
+            Self::Producer(source) => source.fmt(formatter),
+            Self::Cone(source) => source.fmt(formatter),
+            Self::Artifact(source) => source.fmt(formatter),
+            Self::Publication(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapProductionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::HirInput(source) => Some(source),
+            Self::Hir(source) => Some(source),
+            Self::Mir(source) => Some(source),
+            Self::Lir(source) => Some(source),
+            Self::StrongProfile(source) => Some(source),
+            Self::Warnings(source) => Some(source),
+            Self::Producer(source) => Some(source),
+            Self::Cone(source) => Some(source),
+            Self::Artifact(source) => Some(source),
+            Self::Publication(source) => Some(source),
+        }
+    }
+}
+
+/// Authority-bearing driver projection for the trusted-core HIR stage.
+///
+/// The source-only lowerer input cannot mint this value: it additionally
+/// binds the resolver authority to the configured artifact slot that must
+/// receive the eventual bootstrap artifact.
+pub struct TrustedCoreBootstrapHirInput<'a> {
+    sources: scoop_hir_lower::CoreBootstrapSources<'a>,
+    authority: &'a CoreBootstrapAuthority,
+    artifact_slot: &'a TrustedCoreArtifactSlot,
+}
+
+impl<'a> TrustedCoreBootstrapHirInput<'a> {
+    pub(super) fn try_new(
+        sources: &'a CurrentConeParsedSources,
+        authority: &'a CoreBootstrapAuthority,
+        artifact_slot: &'a TrustedCoreArtifactSlot,
+    ) -> Result<Self, CoreBootstrapHirInputError> {
+        if authority.expected_identity() != scoop_identity::ConeIdentity::CORE {
+            return Err(CoreBootstrapHirInputError::InvalidAuthorityIdentity(
+                authority.expected_identity(),
+            ));
+        }
+        if authority.artifact_path() != artifact_slot.path()
+            || authority.target() != artifact_slot.target()
+            || authority.toolchain_compatibility() != artifact_slot.toolchain_compatibility()
+        {
+            return Err(CoreBootstrapHirInputError::ArtifactSlotMismatch);
+        }
+        let sources = scoop_hir_lower::CoreBootstrapSources::try_new(sources)
+            .map_err(CoreBootstrapHirInputError::Sources)?;
+        Ok(Self {
+            sources,
+            authority,
+            artifact_slot,
+        })
+    }
+
+    pub fn lower(&self) -> Result<TrustedCoreBootstrapHirOutput, CoreBootstrapHirStageError> {
+        let hir = scoop_hir_lower::lower_core_bootstrap(&self.sources)
+            .map_err(CoreBootstrapHirStageError::Lowering)?;
+        let foundation = scoop_hir::CanonicalHirFoundation::from_modules(
+            &hir.export,
+            &hir.local,
+            &hir.native_boundary_types,
+        )
+        .map_err(CoreBootstrapHirStageError::Foundation)?;
+        let production_section =
+            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
+                .map_err(CoreBootstrapHirStageError::ProductionSection)?;
+        let core_classifier = match production_section.core_interface() {
+            scoop_hir::CoreHirInterfaceBranchV1::Core(interface) => {
+                scoop_hir::CoreClosedExactLeafClassifierV1::try_from_core_interface(interface)
+                    .map_err(CoreBootstrapHirStageError::CoreClassifier)?
+            }
+            scoop_hir::CoreHirInterfaceBranchV1::NotCore => {
+                return Err(CoreBootstrapHirStageError::MissingCoreInterface);
+            }
+        };
+        let cross_cone_section =
+            scoop_hir::CrossConeHirInterfaceSectionV1::from_core_export(hir.export.module())
+                .map_err(CoreBootstrapHirStageError::CrossConeSection)?;
+        Ok(TrustedCoreBootstrapHirOutput {
+            hir,
+            foundation,
+            production_section,
+            cross_cone_section,
+            core_classifier,
+        })
+    }
+
+    pub const fn authority(&self) -> &'a CoreBootstrapAuthority {
+        self.authority
+    }
+
+    pub const fn artifact_slot(&self) -> &'a TrustedCoreArtifactSlot {
+        self.artifact_slot
+    }
+}
+
+/// Atomic trusted-core HIR product for the single-Cone production pipeline.
+///
+/// The private fields prevent downstream orchestration from omitting the
+/// mandatory production section. The graph already owns its output contract,
+/// and both are derived during the same successful stage.
+pub struct TrustedCoreBootstrapHirOutput {
+    hir: scoop_hir::Output,
+    foundation: scoop_hir::CanonicalHirFoundation,
+    production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
+    cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
+    core_classifier: scoop_hir::CoreClosedExactLeafClassifierV1,
+}
+
+impl TrustedCoreBootstrapHirOutput {
+    pub const fn hir(&self) -> &scoop_hir::Output {
+        &self.hir
+    }
+
+    pub const fn output_kind(&self) -> &scoop_hir::ConeOutputKind {
+        self.hir.output_kind()
+    }
+
+    pub const fn foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+        &self.foundation
+    }
+
+    pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
+        &self.production_section
+    }
+
+    pub const fn cross_cone_section(&self) -> &scoop_hir::CrossConeHirInterfaceSectionV1 {
+        &self.cross_cone_section
+    }
+
+    /// Advances this exact sealed HIR product through MIR lowering.
+    ///
+    /// Consuming `self` keeps the HIR graph, its mandatory production
+    /// section, the MIR graph, and the derived ODR-free foundation in one
+    /// inseparable stage product.
+    pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CoreBootstrapMirStageError> {
+        let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_support) =
+            self.hir.local.materialization()
+        else {
+            return Err(CoreBootstrapMirStageError::MissingCoreShapeSupportPlan);
+        };
+        let shape_sources = scoop_mir::CoreShapeSupportSourceInput::Core(
+            shape_support
+                .roots()
+                .iter()
+                .map(|root| root.declaration().clone())
+                .collect(),
+        );
+        let mir = scoop_mir_lower::lower(&self.hir.local)
+            .map_err(CoreBootstrapMirStageError::Lowering)?;
+        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
+            .map_err(CoreBootstrapMirStageError::Foundation)?;
+        let production_section = scoop_mir_lower::lower_production_section(
+            mir.cone,
+            &self.production_section,
+            &foundation,
+        )
+        .map_err(CoreBootstrapMirStageError::ProductionSection)?;
+        let dependency_selection = scoop_mir::SelectedDependencyMirSet::empty(mir.cone);
+        let cross_cone_bridge = scoop_mir_lower::lower_cross_cone_bridge_section(
+            mir.cone,
+            &self.cross_cone_section,
+            &self.core_classifier,
+            &foundation,
+            &dependency_selection,
+        )
+        .map_err(CoreBootstrapMirStageError::CrossConeBridge)?;
+        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
+            mir,
+            foundation,
+            production_section,
+            shape_sources,
+            scoop_mir::StrongImportedCoreInput::Unused,
+        )
+        .map_err(CoreBootstrapMirStageError::Sealing)?;
+        Ok(TrustedCoreBootstrapMirOutput {
+            hir: self,
+            strong,
+            cross_cone_bridge,
+        })
+    }
+}
+
+/// Atomic trusted-core MIR product for the single-Cone strong pipeline.
+///
+/// The previous HIR stage is owned rather than referenced so no caller can
+/// pair this MIR graph or production section with a different HIR proof.
+pub struct TrustedCoreBootstrapMirOutput {
+    hir: TrustedCoreBootstrapHirOutput,
+    strong: scoop_mir::SingleConeStrongMirInput,
+    cross_cone_bridge: scoop_mir::CrossConeMirBridgeSectionV1,
+}
+
+impl TrustedCoreBootstrapMirOutput {
+    pub const fn hir(&self) -> &TrustedCoreBootstrapHirOutput {
+        &self.hir
+    }
+
+    pub const fn mir(&self) -> &scoop_mir::Module {
+        self.strong.module()
+    }
+
+    pub const fn foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
+        self.strong.foundation()
+    }
+
+    pub const fn production_section(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
+        self.strong.production()
+    }
+
+    pub const fn cross_cone_bridge(&self) -> &scoop_mir::CrossConeMirBridgeSectionV1 {
+        &self.cross_cone_bridge
+    }
+
+    pub const fn materialization_plan(&self) -> &scoop_mir::SingleConeStrongMaterializationPlan {
+        self.strong.materialization()
+    }
+
+    /// Advances this exact sealed MIR product through strong LIR lowering.
+    ///
+    /// Consuming `self` keeps the complete bootstrap proof chain attached to
+    /// the resulting ODR-free LIR graph.
+    pub fn lower_lir(
+        self,
+        target_profile: scoop_lir::LirTargetProfile,
+    ) -> Result<TrustedCoreBootstrapLirOutput, CoreBootstrapLirStageError> {
+        let lir = scoop_lir_lower::lower(
+            &self.strong,
+            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            target_profile,
+        )
+        .map_err(CoreBootstrapLirStageError::Lowering)?;
+        let cross_cone_bridge = scoop_lir_lower::lower_cross_cone_bridge_section(
+            &self.strong,
+            &self.cross_cone_bridge,
+            &lir,
+        )
+        .map_err(CoreBootstrapLirStageError::CrossConeBridge)?;
+        Ok(TrustedCoreBootstrapLirOutput {
+            mir: self,
+            lir,
+            cross_cone_bridge,
+        })
+    }
+}
+
+/// Atomic trusted-core LIR product for the single-Cone strong pipeline.
+///
+/// Its LIR graph is inseparable from the strong MIR input that selected every
+/// persistent materialization root, and from the projected ODR-free
+/// foundation that proves lowering did not introduce an ODR-owned entity.
+pub struct TrustedCoreBootstrapLirOutput {
+    mir: TrustedCoreBootstrapMirOutput,
+    lir: scoop_lir::SingleConeStrongLirOutput,
+    cross_cone_bridge: scoop_lir::CrossConeLirBridgeSectionV1,
+}
+
+impl TrustedCoreBootstrapLirOutput {
+    pub const fn mir_stage(&self) -> &TrustedCoreBootstrapMirOutput {
+        &self.mir
+    }
+
+    pub const fn lir(&self) -> &scoop_lir::Module {
+        self.lir.module()
+    }
+
+    pub const fn strong_lir_output(&self) -> &scoop_lir::SingleConeStrongLirOutput {
+        &self.lir
+    }
+
+    pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
+        self.lir.foundation()
+    }
+
+    pub const fn core_shape_support(&self) -> &scoop_lir::StrongLirCoreShapeSupportPlan {
+        self.lir.core_shape_support()
+    }
+
+    pub const fn cross_cone_bridge(&self) -> &scoop_lir::CrossConeLirBridgeSectionV1 {
+        &self.cross_cone_bridge
+    }
+
+    /// Seals all three IR foundations under the strong profile's `RejectAll`
+    /// policy before object production can observe this lowering result.
+    pub fn seal_strong_profile(
+        self,
+    ) -> Result<CrossConeStrongIrProductionV1, CoreBootstrapStrongProfileError> {
+        let hir_foundation =
+            scoop_hir::OdrFreeHirFoundation::try_new(self.mir.hir.foundation.clone())
+                .map_err(CoreBootstrapStrongProfileError::HirOdr)?;
+        let Self {
+            mir,
+            lir,
+            cross_cone_bridge: lir_cross_cone,
+        } = self;
+        let TrustedCoreBootstrapMirOutput {
+            hir,
+            strong,
+            cross_cone_bridge: mir_cross_cone,
+        } = mir;
+        Ok(CrossConeStrongIrProductionV1::new(
+            hir_foundation,
+            hir.production_section,
+            hir.cross_cone_section,
+            strong.foundation().clone(),
+            strong.production().clone(),
+            mir_cross_cone,
+            lir,
+            lir_cross_cone,
+        ))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CoreBootstrapStrongProfileError {
+    HirOdr(scoop_hir::OdrFreeHirFoundationError),
+}
+
+impl fmt::Display for CoreBootstrapStrongProfileError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HirOdr(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapStrongProfileError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::HirOdr(source) => Some(source),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapLirStageError {
+    Lowering(scoop_lir_lower::StrongLirLoweringError),
+    CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
+}
+
+impl fmt::Display for CoreBootstrapLirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lowering(source) => source.fmt(formatter),
+            Self::CrossConeBridge(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapLirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Lowering(source) => Some(source),
+            Self::CrossConeBridge(source) => Some(source),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapMirStageError {
+    MissingCoreShapeSupportPlan,
+    Lowering(scoop_mir_lower::DefinedCoreMirLoweringError),
+    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
+    ProductionSection(scoop_mir_lower::MirProductionLoweringError),
+    CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
+    Sealing(scoop_mir::SingleConeStrongMirInputError),
+}
+
+impl fmt::Display for CoreBootstrapMirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingCoreShapeSupportPlan => {
+                formatter.write_str("trusted core HIR output has no core shape-support plan")
+            }
+            Self::Lowering(source) => source.fmt(formatter),
+            Self::Foundation(source) => source.fmt(formatter),
+            Self::ProductionSection(source) => source.fmt(formatter),
+            Self::CrossConeBridge(source) => source.fmt(formatter),
+            Self::Sealing(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapMirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::MissingCoreShapeSupportPlan => return None,
+            Self::Lowering(source) => source,
+            Self::Foundation(source) => source,
+            Self::ProductionSection(source) => source,
+            Self::CrossConeBridge(source) => source,
+            Self::Sealing(source) => source,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapHirStageError {
+    Lowering(Vec<scoop_ast::Diagnostic>),
+    Foundation(scoop_hir::HirFoundationBuildError),
+    ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
+    MissingCoreInterface,
+    CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
+    CrossConeSection(scoop_hir::CoreCrossConeHirInterfaceProductionError),
+}
+
+impl fmt::Display for CoreBootstrapHirStageError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lowering(diagnostics) => write!(
+                formatter,
+                "trusted core HIR lowering failed with {} diagnostic(s)",
+                diagnostics.len()
+            ),
+            Self::Foundation(source) => source.fmt(formatter),
+            Self::ProductionSection(source) => source.fmt(formatter),
+            Self::MissingCoreInterface => {
+                formatter.write_str("trusted core HIR output has no dedicated core interface")
+            }
+            Self::CoreClassifier(source) => source.fmt(formatter),
+            Self::CrossConeSection(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapHirStageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Lowering(_) => None,
+            Self::Foundation(source) => Some(source),
+            Self::ProductionSection(source) => Some(source),
+            Self::MissingCoreInterface => None,
+            Self::CoreClassifier(source) => Some(source),
+            Self::CrossConeSection(source) => Some(source),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CoreBootstrapHirInputError {
+    InvalidAuthorityIdentity(scoop_identity::ConeIdentity),
+    ArtifactSlotMismatch,
+    Sources(scoop_hir_lower::CoreBootstrapSourceError),
+}
+
+impl fmt::Display for CoreBootstrapHirInputError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidAuthorityIdentity(actual) => write!(
+                formatter,
+                "trusted core bootstrap authority names Cone {actual}, expected the reserved core Cone"
+            ),
+            Self::ArtifactSlotMismatch => formatter.write_str(
+                "trusted core bootstrap authority and configured artifact slot do not match",
+            ),
+            Self::Sources(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for CoreBootstrapHirInputError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Sources(source) => Some(source),
+            Self::InvalidAuthorityIdentity(_) | Self::ArtifactSlotMismatch => None,
+        }
+    }
+}

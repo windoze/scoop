@@ -188,18 +188,7 @@ fn reader_rejects_open_or_reordered_top_level_maps() {
 }
 
 fn empty_section() -> CrossConeHirInterfaceSectionV1 {
-    CrossConeHirInterfaceSectionV1::new(
-        CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
-        CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),
-        CanonicalCallableInterfacesV1::try_new(Vec::new()).unwrap(),
-        CanonicalPropertyInterfacesV1::try_new(Vec::new()).unwrap(),
-        CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),
-        CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
-        CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
-        CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
-        CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
-        CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
-    )
+    CrossConeHirInterfaceSectionV1::empty()
 }
 
 fn closure_section(

@@ -12,7 +12,8 @@ use super::{
 };
 use crate::{
     CanonicalDefinedLinkSymbolOwnerSetV1, DecodedSlibEnvelope, PublishableCrossConeArtifact,
-    ValidatedCrossConeStrongLinkArtifact, validate_self_describing_cross_cone_strong_link_artifact,
+    ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
+    validate_self_describing_cross_cone_strong_link_artifact,
 };
 
 mod definition;
@@ -72,6 +73,37 @@ pub struct ValidatedCrossConeArtifactClosure<'input> {
     links: Vec<ValidatedCrossConeStrongLinkArtifact<'input>>,
     publications: Vec<PublishableCrossConeArtifact>,
     positions: BTreeMap<ConeIdentity, usize>,
+}
+
+/// Closure proof produced only when the current artifact bytes participated
+/// in validation. The retained position makes all three current views total.
+pub struct ValidatedCompletedCrossConeArtifactClosure<'input> {
+    closure: ValidatedCrossConeArtifactClosure<'input>,
+    current_position: usize,
+}
+
+impl<'input> ValidatedCompletedCrossConeArtifactClosure<'input> {
+    pub const fn semantic(&self) -> &ValidatedCrossConeSemanticClosure<'input> {
+        &self.closure.semantic
+    }
+
+    pub fn current_compile(
+        &self,
+    ) -> &ValidatedCompileArtifact<'input, crate::CrossConeSemanticsStrongProfile> {
+        self.closure.semantic.artifact_at(self.current_position)
+    }
+
+    pub fn current_link(&self) -> &ValidatedCrossConeStrongLinkArtifact<'input> {
+        &self.closure.links[self.current_position]
+    }
+
+    pub fn current_publication(&self) -> &PublishableCrossConeArtifact {
+        &self.closure.publications[self.current_position]
+    }
+
+    pub fn into_current_publication(mut self) -> PublishableCrossConeArtifact {
+        self.closure.publications.swap_remove(self.current_position)
+    }
 }
 
 impl ValidatedCrossConeArtifactClosure<'_> {
@@ -226,6 +258,45 @@ pub fn validate_cross_cone_artifact_closure<'input>(
         links,
         publications,
         positions,
+    })
+}
+
+/// Validates a closure that necessarily includes the completed current
+/// artifact and returns a type with total current-view accessors.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_completed_cross_cone_artifact_closure<'input>(
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<&'input [u8]>,
+    current_artifact: &'input [u8],
+    limits: DecodeLimits,
+    c_bridge_profile: &CBridgeToolchainProfileV1,
+    session: &mut SemanticIdentitySession,
+) -> Result<
+    ValidatedCompletedCrossConeArtifactClosure<'input>,
+    CrossConeArtifactClosureValidationError,
+> {
+    let closure = validate_cross_cone_artifact_closure(
+        CrossConeArtifactClosureInput::completed(
+            current,
+            target,
+            direct,
+            dependency_first,
+            current_artifact,
+        ),
+        limits,
+        c_bridge_profile,
+        session,
+    )?;
+    let current_position = closure
+        .positions
+        .get(&current)
+        .copied()
+        .ok_or(CrossConeArtifactClosureValidationError::MissingCompletedCurrentArtifact)?;
+    Ok(ValidatedCompletedCrossConeArtifactClosure {
+        closure,
+        current_position,
     })
 }
 

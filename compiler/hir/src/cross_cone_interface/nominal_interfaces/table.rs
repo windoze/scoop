@@ -7,7 +7,7 @@ use super::{
     NominalInterfaceRecordResolver, NominalInterfaceRecordV1, SourceNominalId,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalNominalInterfacesV1 {
     records: Vec<NominalInterfaceRecordV1>,
 }

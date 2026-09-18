@@ -58,7 +58,7 @@ pub use signature_reference_closure::{
 };
 
 /// The complete canonical HIR interface exported across a Cone boundary.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CrossConeHirInterfaceSectionV1 {
     public_bindings: CanonicalPublicExportBindingsV1,
     nominal_interfaces: CanonicalNominalInterfacesV1,
@@ -73,6 +73,12 @@ pub struct CrossConeHirInterfaceSectionV1 {
 }
 
 impl CrossConeHirInterfaceSectionV1 {
+    /// The structurally complete general interface used by trusted core,
+    /// which exports only through its dedicated core branch.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         public_bindings: CanonicalPublicExportBindingsV1,

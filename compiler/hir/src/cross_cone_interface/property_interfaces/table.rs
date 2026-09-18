@@ -9,7 +9,7 @@ use super::{
 };
 use crate::PropertyDeclarationId;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalPropertyInterfacesV1 {
     records: Vec<PropertyInterfaceRecordV1>,
 }

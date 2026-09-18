@@ -16,7 +16,7 @@ use scoop_identity::{
 use scoop_lir::{
     ImportedLirCallableProjectionError, ImportedLirSelectionError,
     ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
-    StrongExternalLirBridgeSurfaceV1, ValidatedLirTargetSelection,
+    ValidatedLirTargetSelection,
 };
 use scoop_mir::{
     CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
@@ -24,17 +24,19 @@ use scoop_mir::{
 };
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
-    ConeSourceForm, DecodedSlibEnvelope, GraphValidationError, PublishViewMismatchError,
-    PublishableSingleConeArtifact, SingleConeStrongProfile, SlibClosureDecodeMeterV1,
-    SlibClosureResourceErrorV1, SlibReadError, StrongCompileArtifactValidationError,
-    StrongLinkArtifactValidationError, ValidatedCompileArtifact, ValidatedGraphArtifact,
-    ValidatedSingleConeStrongLinkArtifact, validate_single_cone_strong_compile_artifact,
-    validate_single_cone_strong_link_artifact,
+    ConeSourceForm, CrossConeArtifactClosureValidationError, CrossConeSemanticsStrongProfile,
+    DecodedSlibEnvelope, GraphValidationError, PublishableCrossConeArtifact,
+    SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1, SlibReadError, ValidatedCompileArtifact,
+    ValidatedCompletedCrossConeArtifactClosure, ValidatedGraphArtifact,
+    validate_completed_cross_cone_artifact_closure,
 };
 use scoop_toolchain::ResolvedTargetProfile;
 use scoop_wire::{DecodeLimits, sha256};
 
 use super::TrustedCoreArtifactInput;
+
+mod projection;
+pub use projection::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TrustedCoreArtifactLoadOperation {
@@ -224,56 +226,32 @@ impl LoadedTrustedCoreArtifact {
             ));
         }
 
-        let external_bridges = StrongExternalLirBridgeSurfaceV1::empty_core_bootstrap();
-        let empty_core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
-
-        let link_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
-            .map_err(|source| TrustedCoreArtifactValidationError::Envelope {
-                view: TrustedCoreArtifactView::Link,
-                source: Box::new(source),
-            })?
+        let authority_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
+            .map_err(|source| TrustedCoreArtifactValidationError::Envelope(Box::new(source)))?
             .validate_graph()
-            .map_err(|source| TrustedCoreArtifactValidationError::Graph {
-                view: TrustedCoreArtifactView::Link,
-                source: Box::new(source),
-            })?;
-        validate_graph_authority(&link_graph, &self.input)?;
-        let link = validate_single_cone_strong_link_artifact(
-            link_graph,
-            &external_bridges,
-            &empty_core_owners,
-            c_bridge_profile,
-        )
-        .map_err(|source| TrustedCoreArtifactValidationError::Link(Box::new(source)))?;
+            .map_err(|source| TrustedCoreArtifactValidationError::Graph(Box::new(source)))?;
+        validate_graph_authority(&authority_graph, &self.input)?;
 
-        let compile_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
-            .map_err(|source| TrustedCoreArtifactValidationError::Envelope {
-                view: TrustedCoreArtifactView::Compile,
-                source: Box::new(source),
-            })?
-            .validate_graph()
-            .map_err(|source| TrustedCoreArtifactValidationError::Graph {
-                view: TrustedCoreArtifactView::Compile,
-                source: Box::new(source),
-            })?;
-        validate_graph_authority(&compile_graph, &self.input)?;
         let mut semantic_session = SemanticIdentitySession::new();
-        let compile = validate_single_cone_strong_compile_artifact(
-            compile_graph,
-            &external_bridges,
+        let closure = validate_completed_cross_cone_artifact_closure(
+            ConeIdentity::CORE,
+            target_selection,
+            Vec::new(),
+            Vec::new(),
+            &self.bytes,
+            self.limits,
+            c_bridge_profile,
             &mut semantic_session,
         )
-        .map_err(|source| TrustedCoreArtifactValidationError::Compile(Box::new(source)))?;
-
-        let publication = PublishableSingleConeArtifact::from_validated_views(&compile, &link)
-            .map_err(TrustedCoreArtifactValidationError::ViewMismatch)?;
-        let interface = match compile.production().hir().core_interface() {
+        .map_err(|source| TrustedCoreArtifactValidationError::Closure(Box::new(source)))?;
+        let compile = closure.current_compile();
+        let interface = match compile.production().hir_core().core_interface() {
             CoreHirInterfaceBranchV1::Core(interface) => interface.as_ref().clone(),
             CoreHirInterfaceBranchV1::NotCore => {
                 return Err(TrustedCoreArtifactValidationError::MissingCoreInterface);
             }
         };
-        let strong_callable_bindings = match compile.production().mir().core_bridge() {
+        let strong_callable_bindings = match compile.production().mir_core().core_bridge() {
             CoreMirBridgeBranchV1::Core(bridge) => bridge
                 .callable_targets()
                 .iter()
@@ -289,57 +267,55 @@ impl LoadedTrustedCoreArtifact {
         };
 
         Ok(ValidatedTrustedCoreArtifact {
-            compile,
-            link,
+            closure,
             authority: TrustedCoreArtifactAuthority::from_input(&self.input),
             core_interface,
-            publication,
             _semantic_session: semantic_session,
         })
     }
 }
 
 fn validate_graph_authority(
-    graph: &ValidatedGraphArtifact<'_>,
+    artifact: &ValidatedGraphArtifact<'_>,
     input: &TrustedCoreArtifactInput,
 ) -> Result<(), TrustedCoreArtifactValidationError> {
-    if graph.coordinate() != &input.expected_coordinate {
+    if artifact.coordinate() != &input.expected_coordinate {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::Coordinate {
                 expected: input.expected_coordinate.clone(),
-                actual: graph.coordinate().clone(),
+                actual: artifact.coordinate().clone(),
             },
         ));
     }
-    if graph.identity() != ConeIdentity::CORE {
+    if artifact.identity() != ConeIdentity::CORE {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::Identity {
-                actual: graph.identity(),
+                actual: artifact.identity(),
             },
         ));
     }
-    if graph.kind() != ConeKind::Library {
+    if artifact.kind() != ConeKind::Library {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::Kind {
-                actual: graph.kind(),
+                actual: artifact.kind(),
             },
         ));
     }
-    if graph.source_form() != ConeSourceForm::Manifest {
+    if artifact.source_form() != ConeSourceForm::Manifest {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::SourceForm {
-                actual: graph.source_form(),
+                actual: artifact.source_form(),
             },
         ));
     }
-    if !graph.direct_dependencies().is_empty() {
+    if !artifact.direct_dependencies().is_empty() {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::Dependencies {
-                actual: graph.direct_dependencies().len(),
+                actual: artifact.direct_dependencies().len(),
             },
         ));
     }
-    let actual_abi = graph.compatibility().composite_identity_abi();
+    let actual_abi = artifact.compatibility().composite_identity_abi();
     if actual_abi != input.toolchain_compatibility {
         return Err(TrustedCoreArtifactValidationError::authority(
             TrustedCoreArtifactAuthorityError::ToolchainCompatibility {
@@ -393,437 +369,43 @@ struct ValidatedCoreInterface {
 }
 
 pub struct ValidatedTrustedCoreArtifact<'input> {
-    compile: ValidatedCompileArtifact<'input, SingleConeStrongProfile>,
-    link: ValidatedSingleConeStrongLinkArtifact<'input>,
+    closure: ValidatedCompletedCrossConeArtifactClosure<'input>,
     authority: TrustedCoreArtifactAuthority,
     core_interface: ValidatedCoreInterface,
-    publication: PublishableSingleConeArtifact,
     // Retained as the owner of the session-local identity world. It is not a
     // lookup surface and deliberately has no projection getter.
     _semantic_session: SemanticIdentitySession,
 }
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
+    fn compile(&self) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
+        self.closure.current_compile()
+    }
+
     pub const fn authority(&self) -> &TrustedCoreArtifactAuthority {
         &self.authority
     }
 
     pub fn dependency_record(&self) -> scoop_slib::DependencyRecord {
-        self.compile.dependency_record()
+        self.compile().dependency_record()
     }
 
     /// Atomically projects the only HIR lookup and compiler-protocol
     /// capabilities authorized for an M23-3 consumer from this artifact's
     /// own Compile proof and core interface.
     pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs<'_>, CoreInterfaceImportError> {
-        self.compile.hir().import_core_inputs(
+        self.compile().hir().import_core_inputs(
             &self.core_interface.interface,
             &self.core_interface.strong_callable_bindings,
         )
     }
 
-    /// Projects one checked param-free callable candidate through this exact
-    /// trusted artifact's HIR and MIR production surfaces.
-    pub fn project_core_callable_to_mir<'artifact>(
-        &'artifact self,
-        selected: SelectedImportedCoreTarget<'_>,
-    ) -> Result<SelectedImportedMirCallable<'artifact>, TrustedCoreCallableProjectionError> {
-        let ImportedCorePreludeTarget::Callable(selected_target) = selected.target() else {
-            return Err(TrustedCoreCallableProjectionError::NotCallable {
-                binding: selected.binding().persistent(),
-            });
-        };
-        let binding = selected.binding();
-        if !selected.belongs_to(
-            self.compile.hir(),
-            &self.core_interface.interface,
-            &self.core_interface.strong_callable_bindings,
-        ) {
-            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
-                binding: binding.persistent(),
-            });
-        }
-        let own_target = self
-            .core_interface
-            .interface
-            .callable_targets()
-            .targets()
-            .iter()
-            .find(|target| target.binding() == binding.persistent())
-            .ok_or(TrustedCoreCallableProjectionError::MissingHirCallable {
-                binding: binding.persistent(),
-            })?;
-        if own_target != selected_target {
-            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
-                binding: binding.persistent(),
-            });
-        }
-        let CoreCallableDefinitionV1::Function(definition) = own_target.definition() else {
-            return Err(
-                TrustedCoreCallableProjectionError::InvalidHirCallableDefinition {
-                    binding: binding.persistent(),
-                },
-            );
-        };
-        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = own_target.capability()
-        else {
-            return Err(TrustedCoreCallableProjectionError::UnavailableHirCallable {
-                binding: binding.persistent(),
-            });
-        };
-        self.compile
-            .mir()
-            .project_core_callable(
-                self.compile.production().mir(),
-                binding.persistent(),
-                definition,
-                signature.clone(),
-            )
-            .map_err(TrustedCoreCallableProjectionError::Mir)
+    pub fn publication(&self) -> &PublishableCrossConeArtifact {
+        self.closure.current_publication()
     }
 
-    /// Atomically projects every HIR-selected public callable and, when
-    /// requested, the initialization-cycle compiler protocol through this
-    /// artifact's MIR bridge. A foreign or partially projectable set does not
-    /// yield a MIR sidecar.
-    pub fn project_core_callables_to_mir<'artifact>(
-        &'artifact self,
-        selected: &SelectedImportedCoreSet<'_>,
-        include_initialization_cycle_thrower: bool,
-    ) -> Result<SelectedImportedMirSet<'artifact>, TrustedCoreCallableSetProjectionError> {
-        if !selected.belongs_to(
-            self.compile.hir(),
-            &self.core_interface.interface,
-            &self.core_interface.strong_callable_bindings,
-        ) {
-            return Err(TrustedCoreCallableSetProjectionError::ForeignHirSet);
-        }
-        let mut projected =
-            SelectedImportedMirSet::new(self.compile.mir(), self.compile.production().mir());
-        for selected in selected.callable_selections() {
-            let callable = self
-                .project_core_callable_to_mir(selected)
-                .map_err(TrustedCoreCallableSetProjectionError::Callable)?;
-            projected
-                .insert(callable)
-                .map_err(TrustedCoreCallableSetProjectionError::MirSet)?;
-        }
-        if include_initialization_cycle_thrower {
-            let cycle = self
-                .core_interface
-                .interface
-                .compiler_protocols()
-                .initialization_cycle_thrower();
-            let scoop_hir::CoreProtocolCallableDefinitionV1::Function(definition) =
-                cycle.definition()
-            else {
-                return Err(
-                    TrustedCoreCallableSetProjectionError::InvalidInitializationCycleThrower,
-                );
-            };
-            let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-                CoreBuiltinNominal::Unit.identity_record().id(),
-            ))
-            .map_err(TrustedCoreCallableSetProjectionError::InitializationCycleUnitIdentity)?;
-            let signature = ExactCallableSignature::new(
-                Effect::Ordinary,
-                None,
-                vec![
-                    self.core_interface
-                        .interface
-                        .string_capability()
-                        .exact_type(),
-                ],
-                unit,
-            );
-            let callable = self
-                .compile
-                .mir()
-                .project_initialization_cycle_thrower(
-                    self.compile.production().mir(),
-                    definition,
-                    signature,
-                )
-                .map_err(TrustedCoreCallableSetProjectionError::InitializationCycleMir)?;
-            projected
-                .insert(callable)
-                .map_err(TrustedCoreCallableSetProjectionError::MirSet)?;
-        }
-        Ok(projected)
-    }
-
-    /// Projects an MIR selection from this artifact into the exact LIR body,
-    /// symbol request, and strong definition authority supplied by the same
-    /// artifact. A value borrowed from another proof is rejected before any
-    /// persistent identity is reused, even if both artifacts have equal bytes.
-    pub fn project_core_callable_to_lir<'artifact>(
-        &'artifact self,
-        selected: &SelectedImportedMirCallable<'_>,
-    ) -> Result<SelectedImportedLirCallable<'artifact>, TrustedCoreCallableProjectionError> {
-        if !selected.belongs_to(self.compile.mir(), self.compile.production().mir()) {
-            return Err(TrustedCoreCallableProjectionError::ForeignMirSelection {
-                kind: selected.kind(),
-            });
-        }
-        let bridge = self
-            .compile
-            .production()
-            .lir()
-            .core_lir_bridge()
-            .core()
-            .expect("a validated trusted core artifact has a core LIR bridge");
-        let definitions = self.compile.production().lir().canonical_definitions();
-        match selected.kind() {
-            CoreImportedCallableKind::Prelude(binding) => self
-                .compile
-                .lir()
-                .project_core_callable(
-                    bridge,
-                    definitions,
-                    binding,
-                    selected.implementation(),
-                    selected.signature().clone(),
-                )
-                .map_err(TrustedCoreCallableProjectionError::Lir),
-            CoreImportedCallableKind::InitializationCycleThrower => self
-                .compile
-                .lir()
-                .project_initialization_cycle_thrower(
-                    bridge,
-                    definitions,
-                    selected.implementation(),
-                    selected.signature().clone(),
-                )
-                .map_err(TrustedCoreCallableProjectionError::Lir),
-        }
-    }
-
-    /// Atomically projects a MIR selection set into the exact LIR external
-    /// body/definition/symbol authority retained by this artifact.
-    pub fn project_core_callables_to_lir<'artifact>(
-        &'artifact self,
-        selected: &SelectedImportedMirSet<'_>,
-    ) -> Result<SelectedImportedLirSet<'artifact>, TrustedCoreLirSetProjectionError> {
-        if !selected.belongs_to(self.compile.mir(), self.compile.production().mir()) {
-            return Err(TrustedCoreLirSetProjectionError::ForeignMirSet);
-        }
-        let definitions = self.compile.production().lir().canonical_definitions();
-        let core_bridge = self
-            .compile
-            .production()
-            .lir()
-            .core_lir_bridge()
-            .core()
-            .expect("a validated trusted core artifact has a core LIR bridge");
-        let string_exact = self
-            .core_interface
-            .interface
-            .string_capability()
-            .exact_type();
-        let shape_support = self
-            .compile
-            .production()
-            .lir()
-            .core_shape_support()
-            .core()
-            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
-        let string_shape = shape_support
-            .closures()
-            .binary_search_by_key(&string_exact, |closure| closure.owner())
-            .ok()
-            .map(|index| &shape_support.closures()[index])
-            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
-        let string_descriptor = string_shape
-            .roles()
-            .type_descriptor()
-            .available()
-            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
-        if string_descriptor.semantic_id() != string_exact {
-            return Err(TrustedCoreLirSetProjectionError::RuntimeStringShapeSupportMismatch);
-        }
-        let runtime_string = self
-            .compile
-            .lir()
-            .project_core_type_descriptor(definitions, string_exact)
-            .map_err(TrustedCoreLirSetProjectionError::RuntimeString)?;
-        if runtime_string.expected_symbol() != string_descriptor.symbol()
-            || runtime_string.required_definition().persistent()
-                != string_descriptor.definition_plan()
-        {
-            return Err(TrustedCoreLirSetProjectionError::RuntimeStringShapeSupportMismatch);
-        }
-        let mut projected = SelectedImportedLirSet::try_new(
-            self.compile.lir(),
-            definitions,
-            core_bridge,
-            runtime_string,
-        )
-        .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
-        for selected in selected.callable_selections() {
-            let callable = self
-                .project_core_callable_to_lir(selected)
-                .map_err(TrustedCoreLirSetProjectionError::Callable)?;
-            projected
-                .insert(callable)
-                .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
-        }
-        Ok(projected)
-    }
-
-    pub const fn publication(&self) -> &PublishableSingleConeArtifact {
-        &self.publication
-    }
-
-    pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
-        self.link.link_identity_closure().defined_symbols()
-    }
-}
-
-#[derive(Debug)]
-pub enum TrustedCoreCallableSetProjectionError {
-    ForeignHirSet,
-    InvalidInitializationCycleThrower,
-    InitializationCycleUnitIdentity(scoop_wire::HashError),
-    InitializationCycleMir(ImportedMirCallableProjectionError),
-    Callable(TrustedCoreCallableProjectionError),
-    MirSet(ImportedMirSelectionError),
-}
-
-impl fmt::Display for TrustedCoreCallableSetProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ForeignHirSet => {
-                formatter.write_str("selected core HIR set belongs to another artifact projection")
-            }
-            Self::InvalidInitializationCycleThrower => formatter
-                .write_str("trusted core initialization-cycle protocol is not a source function"),
-            Self::InitializationCycleUnitIdentity(error) => error.fmt(formatter),
-            Self::InitializationCycleMir(error) => error.fmt(formatter),
-            Self::Callable(error) => error.fmt(formatter),
-            Self::MirSet(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreCallableSetProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ForeignHirSet | Self::InvalidInitializationCycleThrower => None,
-            Self::InitializationCycleUnitIdentity(error) => Some(error),
-            Self::InitializationCycleMir(error) => Some(error),
-            Self::Callable(error) => Some(error),
-            Self::MirSet(error) => Some(error),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum TrustedCoreLirSetProjectionError {
-    ForeignMirSet,
-    MissingRuntimeStringShapeSupport,
-    RuntimeStringShapeSupportMismatch,
-    RuntimeString(ImportedLirTypeDescriptorProjectionError),
-    Callable(TrustedCoreCallableProjectionError),
-    LirSet(ImportedLirSelectionError),
-}
-
-impl fmt::Display for TrustedCoreLirSetProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ForeignMirSet => {
-                formatter.write_str("selected core MIR set belongs to another artifact projection")
-            }
-            Self::MissingRuntimeStringShapeSupport => formatter.write_str(
-                "trusted core LIR shape support is missing the runtime String descriptor",
-            ),
-            Self::RuntimeStringShapeSupportMismatch => formatter.write_str(
-                "trusted core runtime String descriptor disagrees with its LIR shape support",
-            ),
-            Self::RuntimeString(error) => error.fmt(formatter),
-            Self::Callable(error) => error.fmt(formatter),
-            Self::LirSet(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreLirSetProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ForeignMirSet
-            | Self::MissingRuntimeStringShapeSupport
-            | Self::RuntimeStringShapeSupportMismatch => None,
-            Self::RuntimeString(error) => Some(error),
-            Self::Callable(error) => Some(error),
-            Self::LirSet(error) => Some(error),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum TrustedCoreCallableProjectionError {
-    NotCallable { binding: PersistentExportBindingId },
-    ForeignHirSelection { binding: PersistentExportBindingId },
-    MissingHirCallable { binding: PersistentExportBindingId },
-    InvalidHirCallableDefinition { binding: PersistentExportBindingId },
-    UnavailableHirCallable { binding: PersistentExportBindingId },
-    Mir(ImportedMirCallableProjectionError),
-    ForeignMirSelection { kind: CoreImportedCallableKind },
-    Lir(ImportedLirCallableProjectionError),
-}
-
-impl fmt::Display for TrustedCoreCallableProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NotCallable { binding } => {
-                write!(formatter, "selected core binding {binding} is not callable")
-            }
-            Self::ForeignHirSelection { binding } => write!(
-                formatter,
-                "selected core HIR binding {binding} belongs to another artifact projection"
-            ),
-            Self::MissingHirCallable { binding } => {
-                write!(formatter, "trusted core HIR callable {binding} is missing")
-            }
-            Self::InvalidHirCallableDefinition { binding } => write!(
-                formatter,
-                "trusted core HIR callable {binding} is not a param-free function definition"
-            ),
-            Self::UnavailableHirCallable { binding } => write!(
-                formatter,
-                "trusted core HIR callable {binding} is unavailable to this production profile"
-            ),
-            Self::Mir(error) => error.fmt(formatter),
-            Self::ForeignMirSelection { kind } => write!(
-                formatter,
-                "selected core MIR callable {kind:?} belongs to another artifact projection"
-            ),
-            Self::Lir(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreCallableProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Mir(error) => Some(error),
-            Self::Lir(error) => Some(error),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TrustedCoreArtifactView {
-    Compile,
-    Link,
-}
-
-impl fmt::Display for TrustedCoreArtifactView {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Compile => "Compile",
-            Self::Link => "Link",
-        })
+    pub fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
+        self.closure.current_link().defined_symbols()
     }
 }
 
@@ -896,17 +478,9 @@ impl std::error::Error for TrustedCoreArtifactAuthorityError {}
 #[derive(Debug)]
 pub enum TrustedCoreArtifactValidationError {
     Authority(Box<TrustedCoreArtifactAuthorityError>),
-    Envelope {
-        view: TrustedCoreArtifactView,
-        source: Box<SlibReadError>,
-    },
-    Graph {
-        view: TrustedCoreArtifactView,
-        source: Box<GraphValidationError>,
-    },
-    Compile(Box<StrongCompileArtifactValidationError>),
-    Link(Box<StrongLinkArtifactValidationError>),
-    ViewMismatch(PublishViewMismatchError),
+    Envelope(Box<SlibReadError>),
+    Graph(Box<GraphValidationError>),
+    Closure(Box<CrossConeArtifactClosureValidationError>),
     MissingCoreInterface,
     MissingCoreMirBridge,
 }
@@ -921,23 +495,18 @@ impl fmt::Display for TrustedCoreArtifactValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Authority(error) => error.fmt(formatter),
-            Self::Envelope { view, source } => {
+            Self::Envelope(error) => {
                 write!(
                     formatter,
-                    "trusted core {view} envelope validation failed: {source}"
+                    "trusted core envelope validation failed: {error}"
                 )
             }
-            Self::Graph { view, source } => {
-                write!(
-                    formatter,
-                    "trusted core {view} graph validation failed: {source}"
-                )
+            Self::Graph(error) => {
+                write!(formatter, "trusted core graph validation failed: {error}")
             }
-            Self::Compile(error) => {
-                write!(formatter, "trusted core Compile validation failed: {error}")
+            Self::Closure(error) => {
+                write!(formatter, "trusted core closure validation failed: {error}")
             }
-            Self::Link(error) => write!(formatter, "trusted core Link validation failed: {error}"),
-            Self::ViewMismatch(error) => error.fmt(formatter),
             Self::MissingCoreInterface => {
                 formatter.write_str("trusted core Compile proof has no Core HIR interface")
             }
@@ -952,11 +521,9 @@ impl std::error::Error for TrustedCoreArtifactValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Authority(error) => Some(error),
-            Self::Envelope { source, .. } => Some(source.as_ref()),
-            Self::Graph { source, .. } => Some(source.as_ref()),
-            Self::Compile(error) => Some(error.as_ref()),
-            Self::Link(error) => Some(error.as_ref()),
-            Self::ViewMismatch(error) => Some(error),
+            Self::Envelope(error) => Some(error.as_ref()),
+            Self::Graph(error) => Some(error.as_ref()),
+            Self::Closure(error) => Some(error.as_ref()),
             Self::MissingCoreInterface | Self::MissingCoreMirBridge => None,
         }
     }
@@ -1038,7 +605,7 @@ mod tests {
     }
 
     #[test]
-    fn validation_requires_the_complete_strong_profile_after_core_authority() {
+    fn validation_requires_the_cross_cone_strong_profile_after_core_authority() {
         let bytes = foundation_artifact(
             ConeRecord::new(
                 ConeCoordinate::reserved_core(),
@@ -1056,7 +623,7 @@ mod tests {
 
         assert!(matches!(
             loaded.validate_against(selection(), &c_bridge_profile()),
-            Err(TrustedCoreArtifactValidationError::Link(_))
+            Err(TrustedCoreArtifactValidationError::Closure(_))
         ));
     }
 

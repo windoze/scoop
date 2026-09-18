@@ -65,7 +65,7 @@ impl WireEncode for PublicExportBindingRecordV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalPublicExportBindingsV1 {
     records: Vec<PublicExportBindingRecordV1>,
 }

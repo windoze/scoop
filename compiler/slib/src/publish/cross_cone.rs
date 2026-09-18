@@ -12,11 +12,11 @@ use scoop_wire::DecodeLimits;
 
 use super::{CompileViewSummaryV1, LinkViewSummaryV1, PublishViewMismatchError, output_matches};
 use crate::{
-    ArtifactFingerprint, CrossConeArtifactClosureInput, CrossConeArtifactClosureValidationError,
+    ArtifactFingerprint, CrossConeArtifactClosureValidationError,
     CrossConeLinkSemanticImportBuildError, CrossConeLinkSemanticImportSetV1,
     CrossConeSemanticsStrongProfile, DependencyRecord, FingerprintAvailability,
     ValidatedCompileArtifact, ValidatedCrossConeStrongLinkArtifact,
-    validate_cross_cone_artifact_closure,
+    validate_completed_cross_cone_artifact_closure,
 };
 
 /// Immutable summary proving that one exact final archive passed the M23-5
@@ -288,21 +288,18 @@ pub fn publish_cross_cone_artifact(
         )
     })?;
     let mut session = SemanticIdentitySession::new();
-    let validation = validate_cross_cone_artifact_closure(
-        CrossConeArtifactClosureInput::completed(
-            current,
-            target,
-            direct,
-            dependency_first,
-            &round_trip_bytes,
-        ),
+    let validation = validate_completed_cross_cone_artifact_closure(
+        current,
+        target,
+        direct,
+        dependency_first,
+        &round_trip_bytes,
         limits,
         c_bridge_profile,
         &mut session,
     )
     .map_err(|source| CrossConeArtifactPublishError::Validation(Box::new(source)))?
-    .into_current_publication()
-    .ok_or(CrossConeArtifactPublishError::MissingCurrentPublication)?;
+    .into_current_publication();
     temporary.persist(destination).map_err(|error| {
         CrossConeArtifactPublishError::io(
             CrossConePublishIoOperation::RenameTemporary,
@@ -367,7 +364,6 @@ pub enum CrossConeArtifactPublishError {
         source: std::io::Error,
     },
     Validation(Box<CrossConeArtifactClosureValidationError>),
-    MissingCurrentPublication,
 }
 
 impl CrossConeArtifactPublishError {
@@ -394,9 +390,6 @@ impl fmt::Display for CrossConeArtifactPublishError {
                 source,
             } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
             Self::Validation(source) => source.fmt(formatter),
-            Self::MissingCurrentPublication => formatter.write_str(
-                "completed cross-Cone validation did not produce a current publication proof",
-            ),
         }
     }
 }
@@ -406,7 +399,7 @@ impl std::error::Error for CrossConeArtifactPublishError {
         match self {
             Self::Io { source, .. } => Some(source),
             Self::Validation(source) => Some(source.as_ref()),
-            Self::MissingParent { .. } | Self::MissingCurrentPublication => None,
+            Self::MissingParent { .. } => None,
         }
     }
 }

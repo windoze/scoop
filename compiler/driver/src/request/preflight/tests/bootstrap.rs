@@ -408,7 +408,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
 
     let production = real_lir
-        .lir
+        .strong_lir_output()
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_core(),
             scoop_lir::EntryProductionSourceV1::Library,
@@ -487,6 +487,10 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     assert_eq!(
         published.artifact().validation().source_form(),
         scoop_slib::ConeSourceForm::Manifest
+    );
+    assert_eq!(
+        published.artifact().validation().profile(),
+        &scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG.id()
     );
     assert!(
         published
