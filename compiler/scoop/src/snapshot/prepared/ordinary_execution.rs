@@ -110,7 +110,6 @@ impl PreparedBuildGraph {
             completed,
             success.warnings().to_vec(),
             self.context.limits.artifact_decode(),
-            self.target_selection,
             &c_bridge_profile,
             &mut self.meter,
         )

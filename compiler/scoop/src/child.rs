@@ -10,10 +10,10 @@ use scoop_protocol::{
     ScoopcSuccessV1, decode_request_frame_with_usage, decode_response_frame,
     decode_response_frame_with_usage, encode_request_frame, encode_response_frame,
 };
-use scoop_slib::{DualValidatedArtifactHandle, FingerprintAvailability};
+use scoop_slib::FingerprintAvailability;
 use scoop_wire::DecodeUsage;
 
-use crate::{PairedCompilerError, ResolvedPairedScoopc};
+use crate::{PairedCompilerError, ResolvedPairedScoopc, ValidatedCrossConeArtifactHandle};
 
 const FRAME_PREFIX_BYTES: usize = 8;
 const MAX_CHILD_STDERR_BYTES: u64 = 65_536;
@@ -259,7 +259,7 @@ impl std::error::Error for ChildSuccessArtifactMismatch {}
 
 pub(crate) fn validate_child_success_artifact(
     success: &ScoopcSuccessV1,
-    artifact: &DualValidatedArtifactHandle,
+    artifact: &ValidatedCrossConeArtifactHandle,
 ) -> Result<(), ChildSuccessArtifactMismatch> {
     let publication = artifact.publication();
     let semantic = publication.compile_summary().semantic_fingerprints();

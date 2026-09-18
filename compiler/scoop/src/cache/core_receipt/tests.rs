@@ -50,7 +50,7 @@ fn receipt() -> TrustedCoreSlotReceiptV1 {
             artifact.artifact_fingerprint(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             compiler(),
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             Vec::new(),
         )
         .unwrap(),
@@ -69,7 +69,7 @@ fn core_receipt_round_trips_with_independent_fingerprint() {
     assert!(usage.validation_work_units > 0);
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "cd936abb3fc10ca191bbd188f35fae2f44c9f8b7d34a3e77e00c401225ce733d"
+        "c0a3076ebb16df1ad87561a1e769a2eccb543a570744e77fb254f26e9c9ea4f1"
     );
 }
 

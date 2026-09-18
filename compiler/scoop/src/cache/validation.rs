@@ -7,28 +7,28 @@ use scoop_identity::{ArtifactCapabilityProfileId, ConeIdentity};
 use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
 use scoop_protocol::{DiagnosticOriginV1, ProtocolConeIdentity, StructuredDiagnosticV1};
 use scoop_slib::{
-    ArtifactFingerprint, ArtifactSnapshot, CanonicalDefinedLinkSymbolOwnerSetV1, ConeRecord,
-    ConeRecordError, DependencyRecord, DualValidatedArtifactError, DualValidatedArtifactHandle,
-    DualValidatedArtifactReopenError, SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1,
+    ArtifactFingerprint, ArtifactSnapshot, ConeRecord, ConeRecordError, DependencyRecord,
+    SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1,
 };
 use scoop_wire::DecodeLimits;
 
 use super::{CacheReceiptBodyV1, ConeCompileCacheKeyV1, RawCompileCacheEntryV1};
 use crate::artifact::{
     ArtifactClosurePlan, ArtifactClosureValidationError, CompletedNode,
+    CrossConeArtifactValidationError, ValidatedCrossConeArtifactHandle,
     ValidatedDualArtifactClosure,
 };
 use crate::{CompileCacheKeyError, PairedCompilerFingerprintV1, StagingError};
 
 pub(crate) struct ValidatedCacheHitV1 {
     identity: ConeIdentity,
-    artifact: Arc<DualValidatedArtifactHandle>,
+    artifact: Arc<ValidatedCrossConeArtifactHandle>,
     closures: ValidatedDualArtifactClosure,
     warnings: Vec<StructuredDiagnosticV1>,
 }
 
 impl ValidatedCacheHitV1 {
-    pub(crate) const fn artifact(&self) -> &Arc<DualValidatedArtifactHandle> {
+    pub(crate) const fn artifact(&self) -> &Arc<ValidatedCrossConeArtifactHandle> {
         &self.artifact
     }
 
@@ -100,26 +100,22 @@ pub(crate) fn validate_cache_entry(
             return Err(CacheCompletionError::DuplicateCompletedNode(node.cone()));
         }
     }
-    let core = artifacts
-        .get(&ConeIdentity::CORE)
-        .ok_or(CacheCompletionError::MissingTrustedCore)?;
-    let core_owners: CanonicalDefinedLinkSymbolOwnerSetV1 = core
-        .with_link_view(|view| view.link_identity_closure().defined_symbols().clone())
-        .map_err(CacheCompletionError::TrustedCoreReopen)?;
+    if !artifacts.contains_key(&ConeIdentity::CORE) {
+        return Err(CacheCompletionError::MissingTrustedCore);
+    }
     let artifact_snapshot = Arc::new(ArtifactSnapshot::from_shared(
         entry.artifact().shared_bytes(),
     ));
-    let artifact = Arc::new(
-        DualValidatedArtifactHandle::validate(
+    let artifact = plan
+        .validate_completed_artifact(
+            identity,
             artifact_snapshot,
+            &artifacts,
             limits,
-            target,
-            &core_owners,
             c_bridge_profile,
             meter,
         )
-        .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?,
-    );
+        .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
     let closures = plan
         .validate(identity, &artifacts)
@@ -263,8 +259,7 @@ pub enum CacheCompletionError {
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
     MissingTrustedCore,
-    TrustedCoreReopen(DualValidatedArtifactReopenError),
-    Artifact(Box<DualValidatedArtifactError>),
+    Artifact(Box<CrossConeArtifactValidationError>),
     Plan(Box<ArtifactClosureValidationError>),
     ConeRecord(ConeRecordError),
     ReceiptBinding(CacheReceiptBindingError),
@@ -304,12 +299,6 @@ impl fmt::Display for CacheCompletionError {
             }
             Self::MissingTrustedCore => {
                 formatter.write_str("cache validation requires completed trusted core")
-            }
-            Self::TrustedCoreReopen(source) => {
-                write!(
-                    formatter,
-                    "cannot reopen completed trusted core Link view: {source}"
-                )
             }
             Self::Artifact(source) => {
                 write!(
@@ -355,7 +344,6 @@ impl std::error::Error for CacheCompletionError {
         match self {
             Self::CacheKey(source) => Some(source),
             Self::Resource(source) => Some(source),
-            Self::TrustedCoreReopen(source) => Some(source),
             Self::Artifact(source) => Some(source),
             Self::Plan(source) => Some(source),
             Self::ConeRecord(source) => Some(source),

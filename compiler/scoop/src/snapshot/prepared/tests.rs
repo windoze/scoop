@@ -24,10 +24,9 @@ use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphOutcome, BuildGraphRequest,
     BuildLimitsProfileV1, BuildRootInput, ChildIoPlan, ChildTransportError, CompletedNodeOrigin,
-    DiagnosticsPolicy, OrdinarySourceExecutionError, PairedScoopcLocator,
-    ProductionSingleConeCompilerRunner, ResolvedPairedScoopc, SingleConeCompilerRunner,
-    TrustedCoreCompletionError, TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1,
-    TrustedSysrootRoot,
+    DiagnosticsPolicy, PairedScoopcLocator, ProductionSingleConeCompilerRunner,
+    ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedCoreCompletionError,
+    TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1, TrustedSysrootRoot,
 };
 
 struct FailureRunner;
@@ -605,7 +604,7 @@ fn core_receipt_binding_requires_the_actual_artifact_to_use_the_strong_profile()
             artifact,
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             compiler,
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             Vec::new(),
         )
         .unwrap(),
@@ -617,7 +616,7 @@ fn core_receipt_binding_requires_the_actual_artifact_to_use_the_strong_profile()
         compiler,
         artifact,
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &ArtifactCapabilityProfileId::single_cone_strong(),
+        &ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
     ));
     assert!(!core_receipt_matches(
         &receipt,
@@ -668,7 +667,7 @@ fn prepared_receipt_cannot_bypass_the_core_dual_view_gate() {
             artifact,
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             compiler,
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             Vec::new(),
         )
         .unwrap(),
@@ -944,7 +943,7 @@ fn real_process_builds_and_reuses_single_file() {
 }
 
 #[test]
-fn real_process_caches_upstream_before_non_core_capability_failure() {
+fn real_process_builds_and_reuses_a_source_dependency() {
     let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
         return;
     };
@@ -955,10 +954,18 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
     let dependency = workspace.join("dependency");
     let root = workspace.join("root");
     copy_real_core(&sysroot);
-    write_manifest(&dependency, "dependency", "");
-    write_manifest(
+    write_manifest_source(
+        &dependency,
+        "dependency",
+        "library",
+        "package dependency.api\n\npublic fun value(): Int = 1\n",
+        "",
+    );
+    write_manifest_source(
         &root,
         "root",
+        "library",
+        "package consumer\n\nimport dependency.api.value\n\npublic fun run(): Int = value()\n",
         "[dependencies]\n\"test:dependency\" = { version = \"1.0.0\", path = \"../dependency\" }\n",
     );
     let dependency_identity = ConeCoordinate::new("test", "dependency", "1.0.0")
@@ -972,7 +979,7 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
     let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
 
     let mut first_runner = RecordingProductionRunner::default();
-    let first_error = build_request()
+    let first = build_request()
         .load_root()
         .unwrap()
         .discover()
@@ -982,8 +989,7 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
         .prepare()
         .unwrap()
         .execute_with_runner(&mut first_runner)
-        .unwrap_err();
-    assert_non_core_capability_failure(first_error, root_identity);
+        .unwrap();
     assert_eq!(first_runner.current.len(), 3);
     assert_eq!(
         first_runner.current[0],
@@ -991,9 +997,32 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
     );
     assert_manifest_current_identity(&first_runner.current[1], dependency_identity);
     assert_manifest_current_identity(&first_runner.current[2], root_identity);
+    assert_eq!(
+        first.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::Compiled
+    );
+    let root_node = first.completed(root_identity).unwrap();
+    assert_eq!(
+        root_node
+            .compile_closure()
+            .with_view(root_identity, |view| view.identity())
+            .unwrap(),
+        Some(root_identity)
+    );
+    assert_eq!(
+        root_node
+            .link_closure()
+            .with_view(root_identity, |view| view.identity())
+            .unwrap(),
+        Some(root_identity)
+    );
+    assert!(matches!(
+        first.into_outcome(),
+        BuildGraphOutcome::Library { .. }
+    ));
 
     let mut second_runner = RecordingProductionRunner::default();
-    let second_error = build_request()
+    let second = build_request()
         .load_root()
         .unwrap()
         .discover()
@@ -1003,14 +1032,16 @@ fn real_process_caches_upstream_before_non_core_capability_failure() {
         .prepare()
         .unwrap()
         .execute_with_runner(&mut second_runner)
-        .unwrap_err();
-    assert_non_core_capability_failure(second_error, root_identity);
-    assert_eq!(second_runner.current.len(), 1);
-    assert!(matches!(
-        second_runner.current[0],
-        CurrentConeRequestV1::ManifestRoot { .. }
-    ));
-    assert_manifest_current_identity(&second_runner.current[0], root_identity);
+        .unwrap();
+    assert!(second_runner.current.is_empty());
+    assert_eq!(
+        second.completed(dependency_identity).unwrap().origin(),
+        CompletedNodeOrigin::CacheHit
+    );
+    assert_eq!(
+        second.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::CacheHit
+    );
 }
 
 #[test]
@@ -1050,7 +1081,7 @@ fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
     let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
 
     let mut first_runner = RecordingProductionRunner::default();
-    let first_error = build_request()
+    let first = build_request()
         .load_root()
         .unwrap()
         .discover()
@@ -1060,8 +1091,7 @@ fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
         .prepare()
         .unwrap()
         .execute_with_runner(&mut first_runner)
-        .unwrap_err();
-    assert_non_core_capability_failure(first_error, root_identity);
+        .unwrap();
     assert_eq!(first_runner.current.len(), 4);
     assert_eq!(
         first_runner.current[0],
@@ -1070,9 +1100,13 @@ fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
     assert_manifest_current_identity(&first_runner.current[1], alpha_identity);
     assert_manifest_current_identity(&first_runner.current[2], beta_identity);
     assert_manifest_current_identity(&first_runner.current[3], root_identity);
+    assert!(matches!(
+        first.into_outcome(),
+        BuildGraphOutcome::Library { .. }
+    ));
 
     let mut second_runner = RecordingProductionRunner::default();
-    let second_error = build_request()
+    let second = build_request()
         .load_root()
         .unwrap()
         .discover()
@@ -1082,25 +1116,12 @@ fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
         .prepare()
         .unwrap()
         .execute_with_runner(&mut second_runner)
-        .unwrap_err();
-    assert_non_core_capability_failure(second_error, root_identity);
-    assert_eq!(second_runner.current.len(), 1);
-    assert_manifest_current_identity(&second_runner.current[0], root_identity);
-}
-
-fn assert_non_core_capability_failure(error: BuildGraphExecutionError, root: ConeIdentity) {
-    assert!(matches!(
-        error,
-        BuildGraphExecutionError::Ordinary(identity, source)
-            if identity == root
-                && matches!(
-                    source.as_ref(),
-                    OrdinarySourceExecutionError::ChildFailure(diagnostics)
-                        if diagnostics.iter().any(|diagnostic|
-                            diagnostic.code()
-                                == "SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE")
-                )
-    ));
+        .unwrap();
+    assert!(second_runner.current.is_empty());
+    assert_eq!(
+        second.completed(root_identity).unwrap().origin(),
+        CompletedNodeOrigin::CacheHit
+    );
 }
 
 fn assert_manifest_current_identity(current: &CurrentConeRequestV1, identity: ConeIdentity) {

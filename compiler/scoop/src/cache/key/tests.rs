@@ -196,7 +196,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "687a9db05ac5486a7eee880f9e5545e82ded339d71c2d22e520e7ddb3070cea8"
+        "a5507b70c8dac30a10e2cc990ac87ca4c6705d4e46f7eb9d7d28a1be7c397cf7"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
 }

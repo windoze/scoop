@@ -69,7 +69,7 @@ fn receipt_with_warnings(warnings: Vec<StructuredDiagnosticV1>) -> CacheReceiptV
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             warnings,
         )
         .unwrap(),
@@ -94,8 +94,25 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
     assert!(usage.owned_bytes > 0);
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "02a8e8f6e13e98e8946d91f9d9c07f77fd4456a9f7c617a9827a7ca971f21aa8"
+        "7406e7747664d8a8b3d6d6e192bc5d18698a87f7d30befde291cd9fb95c1a874"
     );
+}
+
+#[test]
+fn receipt_rejects_the_legacy_single_cone_profile() {
+    assert!(matches!(
+        CacheReceiptBodyV1::new(
+            ConeCompileCacheKeyV1::from_digest(sha256(b"cache-key")),
+            artifact_fingerprint(),
+            core_cone(),
+            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+            Vec::new(),
+            compiler(),
+            ArtifactCapabilityProfileId::single_cone_strong(),
+            Vec::new(),
+        ),
+        Err(CacheReceiptValidationError::UnsupportedArtifactProfile)
+    ));
 }
 
 #[test]
@@ -142,7 +159,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             vec![duplicate.clone(), duplicate],
         ),
         Err(CacheReceiptValidationError::DuplicateWarningKey(_))
@@ -155,7 +172,7 @@ fn receipt_rejects_duplicate_and_conflicting_warning_keys() {
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             Vec::new(),
             compiler(),
-            ArtifactCapabilityProfileId::single_cone_strong(),
+            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
             vec![
                 warning("SCOOPC_WARNING", "first"),
                 warning("SCOOPC_WARNING", "second"),
@@ -225,7 +242,7 @@ fn receipt_body_with_warning(
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         Vec::new(),
         compiler(),
-        ArtifactCapabilityProfileId::single_cone_strong(),
+        ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
         vec![warning],
     )
 }

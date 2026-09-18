@@ -514,7 +514,6 @@ impl ClassifyBuildFailure for PrebuiltCompletionError {
             | Self::DuplicateCompletedNode(_)
             | Self::CurrentNodeAlreadyCompleted(_)
             | Self::MissingTrustedCore
-            | Self::TrustedCoreReopen(_)
             | Self::CandidateArtifact { .. }
             | Self::CandidatePlan { .. } => classified(
                 BuildFailurePhase::PrebuiltArtifact,

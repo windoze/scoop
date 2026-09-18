@@ -592,7 +592,7 @@ fn core_receipt_matches(
     actual_profile: &ArtifactCapabilityProfileId,
 ) -> bool {
     let body = receipt.body();
-    let expected_profile = ArtifactCapabilityProfileId::single_cone_strong();
+    let expected_profile = ArtifactCapabilityProfileId::cross_cone_semantics_strong();
     body.source_snapshot_key() == expected_source_key
         && body.artifact_fingerprint().matches(expected_artifact)
         && body.target_selection().selection() == expected_target

@@ -510,7 +510,6 @@ impl PreparedBuildGraph {
             candidates,
             completed,
             limits,
-            self.target_selection,
             &c_bridge_profile,
             &mut self.meter,
         )

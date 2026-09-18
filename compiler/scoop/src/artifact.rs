@@ -1,20 +1,27 @@
 //! Purpose-preserving artifact closure authority for an exact resolved graph.
 
+mod authority;
 mod completion;
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{
+    ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity, SemanticIdentitySession,
+};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_slib::{
-    ArtifactFingerprint, CompileArtifactPurpose, ConeKind, ConeSourceForm, DependencyRecord,
-    DualValidatedArtifactHandle, DualValidatedArtifactReopenError, LinkArtifactPurpose,
-    PurposeArtifactHandle, SingleConeStrongProfile, ValidatedCompileArtifact,
-    ValidatedSingleConeStrongLinkArtifact,
+    ArtifactFingerprint, CompileArtifactPurpose, ConeKind, ConeSourceForm,
+    CrossConeArtifactClosureValidationError, CrossConeSemanticsStrongProfile, DependencyRecord,
+    LinkArtifactPurpose, ValidatedCompileArtifact, ValidatedCompletedCrossConeArtifactClosure,
+    ValidatedCrossConeStrongLinkArtifact, validate_completed_cross_cone_artifact_closure,
 };
 
+pub use authority::{
+    CrossConeArtifactValidationError, CrossConePurposeArtifactHandle,
+    ValidatedCrossConeArtifactHandle,
+};
 pub use completion::{
     CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
     PrivateArtifactPath, TrustedCoreCompletionError, TrustedCoreReceiptBindingField,
@@ -122,7 +129,7 @@ impl ArtifactClosurePlan {
     pub fn validate(
         &self,
         root: ConeIdentity,
-        artifacts: &BTreeMap<ConeIdentity, Arc<DualValidatedArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<ValidatedDualArtifactClosure, ArtifactClosureValidationError> {
         if !self.nodes.contains_key(&root) {
             return Err(ArtifactClosureValidationError::UnknownRoot(root));
@@ -147,11 +154,13 @@ impl ArtifactClosurePlan {
             let artifact = Arc::clone(&artifacts[identity]);
             compile.insert(
                 *identity,
-                PurposeArtifactHandle::<CompileArtifactPurpose>::from_dual(Arc::clone(&artifact)),
+                CrossConePurposeArtifactHandle::<CompileArtifactPurpose>::from_validated(
+                    Arc::clone(&artifact),
+                ),
             );
             link.insert(
                 *identity,
-                PurposeArtifactHandle::<LinkArtifactPurpose>::from_dual(artifact),
+                CrossConePurposeArtifactHandle::<LinkArtifactPurpose>::from_validated(artifact),
             );
         }
         let edges = self.validated_edges(&reachable);
@@ -196,8 +205,8 @@ impl ArtifactClosurePlan {
     fn validate_node(
         &self,
         identity: ConeIdentity,
-        artifact: &DualValidatedArtifactHandle,
-        artifacts: &BTreeMap<ConeIdentity, Arc<DualValidatedArtifactHandle>>,
+        artifact: &ValidatedCrossConeArtifactHandle,
+        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         self.validate_artifact_shape(identity, artifact)?;
         self.validate_dependencies(
@@ -210,7 +219,7 @@ impl ArtifactClosurePlan {
     pub(crate) fn validate_artifact_shape(
         &self,
         identity: ConeIdentity,
-        artifact: &DualValidatedArtifactHandle,
+        artifact: &ValidatedCrossConeArtifactHandle,
     ) -> Result<(), ArtifactClosureValidationError> {
         let plan = &self.nodes[&identity];
         let actual = artifact.publication();
@@ -248,7 +257,7 @@ impl ArtifactClosurePlan {
                 actual: actual.target_selection(),
             });
         }
-        let expected_profile = ArtifactCapabilityProfileId::single_cone_strong();
+        let expected_profile = ArtifactCapabilityProfileId::cross_cone_semantics_strong();
         if actual.profile() != &expected_profile {
             return Err(ArtifactClosureValidationError::ProfileMismatch {
                 identity,
@@ -274,7 +283,7 @@ impl ArtifactClosurePlan {
         &self,
         dependent: ConeIdentity,
         records: &[DependencyRecord],
-        artifacts: &BTreeMap<ConeIdentity, Arc<DualValidatedArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let expected = &self.direct[&dependent];
         let expected_by_identity: BTreeMap<_, _> = expected
@@ -348,7 +357,7 @@ impl ArtifactClosurePlan {
     fn validate_versions(
         &self,
         reachable: &BTreeSet<ConeIdentity>,
-        artifacts: &BTreeMap<ConeIdentity, Arc<DualValidatedArtifactHandle>>,
+        artifacts: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
     ) -> Result<(), ArtifactClosureValidationError> {
         let mut versions = BTreeMap::<(String, String), String>::new();
         for identity in reachable {
@@ -432,7 +441,7 @@ impl ValidatedDependencyEdge {
 pub struct ValidatedArtifactClosure<P> {
     root: ConeIdentity,
     order: Vec<ConeIdentity>,
-    artifacts: BTreeMap<ConeIdentity, PurposeArtifactHandle<P>>,
+    artifacts: BTreeMap<ConeIdentity, CrossConePurposeArtifactHandle<P>>,
     edges: BTreeSet<ValidatedDependencyEdge>,
 }
 
@@ -445,13 +454,13 @@ impl<P> ValidatedArtifactClosure<P> {
         &self.order
     }
 
-    pub fn artifact(&self, identity: ConeIdentity) -> Option<&PurposeArtifactHandle<P>> {
+    pub fn artifact(&self, identity: ConeIdentity) -> Option<&CrossConePurposeArtifactHandle<P>> {
         self.artifacts.get(&identity)
     }
 
     pub fn artifacts(
         &self,
-    ) -> impl ExactSizeIterator<Item = (ConeIdentity, &PurposeArtifactHandle<P>)> {
+    ) -> impl ExactSizeIterator<Item = (ConeIdentity, &CrossConePurposeArtifactHandle<P>)> {
         self.order
             .iter()
             .map(|identity| (*identity, &self.artifacts[identity]))
@@ -460,17 +469,65 @@ impl<P> ValidatedArtifactClosure<P> {
     pub fn edges(&self) -> impl ExactSizeIterator<Item = ValidatedDependencyEdge> + '_ {
         self.edges.iter().copied()
     }
+
+    fn with_completed_closure<R>(
+        &self,
+        identity: ConeIdentity,
+        use_closure: impl for<'view> FnOnce(&ValidatedCompletedCrossConeArtifactClosure<'view>) -> R,
+    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
+        let Some(current) = self.artifact(identity) else {
+            return Ok(None);
+        };
+        let mut reachable = BTreeSet::new();
+        let mut pending = vec![identity];
+        while let Some(dependent) = pending.pop() {
+            if !reachable.insert(dependent) {
+                continue;
+            }
+            pending.extend(
+                self.edges
+                    .iter()
+                    .filter(|edge| edge.dependent == dependent)
+                    .map(|edge| edge.dependency),
+            );
+        }
+        let dependency_first = self
+            .order
+            .iter()
+            .filter(|candidate| reachable.contains(candidate) && **candidate != identity)
+            .map(|dependency| self.artifacts[dependency].snapshot().as_bytes())
+            .collect::<Vec<_>>();
+        let mut direct = self
+            .edges
+            .iter()
+            .filter(|edge| edge.dependent == identity)
+            .map(|edge| edge.dependency)
+            .collect::<Vec<_>>();
+        direct.sort_unstable();
+        let mut session = SemanticIdentitySession::new();
+        let closure = validate_completed_cross_cone_artifact_closure(
+            identity,
+            current.publication().target_selection(),
+            direct,
+            dependency_first,
+            current.snapshot().as_bytes(),
+            current.decode_limits(),
+            current.c_bridge_profile(),
+            &mut session,
+        )?;
+        Ok(Some(use_closure(&closure)))
+    }
 }
 
 impl ValidatedArtifactClosure<CompileArtifactPurpose> {
     pub fn with_view<R>(
         &self,
         identity: ConeIdentity,
-        use_view: impl for<'view> FnOnce(&ValidatedCompileArtifact<'view, SingleConeStrongProfile>) -> R,
-    ) -> Result<Option<R>, DualValidatedArtifactReopenError> {
-        self.artifact(identity)
-            .map(|artifact| artifact.with_view(use_view))
-            .transpose()
+        use_view: impl for<'view> FnOnce(
+            &ValidatedCompileArtifact<'view, CrossConeSemanticsStrongProfile>,
+        ) -> R,
+    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
+        self.with_completed_closure(identity, |closure| use_view(closure.current_compile()))
     }
 }
 
@@ -478,11 +535,9 @@ impl ValidatedArtifactClosure<LinkArtifactPurpose> {
     pub fn with_view<R>(
         &self,
         identity: ConeIdentity,
-        use_view: impl for<'view> FnOnce(&ValidatedSingleConeStrongLinkArtifact<'view>) -> R,
-    ) -> Result<Option<R>, DualValidatedArtifactReopenError> {
-        self.artifact(identity)
-            .map(|artifact| artifact.with_view(use_view))
-            .transpose()
+        use_view: impl for<'view> FnOnce(&ValidatedCrossConeStrongLinkArtifact<'view>) -> R,
+    ) -> Result<Option<R>, CrossConeArtifactClosureValidationError> {
+        self.with_completed_closure(identity, |closure| use_view(closure.current_link()))
     }
 }
 

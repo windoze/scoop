@@ -103,7 +103,7 @@ impl PreparedBuildGraph {
                 candidate.summary().artifact_fingerprint(),
                 self.target_selection,
                 self.compiler.fingerprint(),
-                ArtifactCapabilityProfileId::single_cone_strong(),
+                ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
                 success.warnings().to_vec(),
             )
             .map_err(CoreBootstrapExecutionError::ReceiptValidation)?,

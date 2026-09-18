@@ -7,16 +7,14 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
 use scoop_protocol::StructuredDiagnosticV1;
 use scoop_slib::{
-    ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1, CompileArtifactPurpose,
-    DependencyRecord, DualValidatedArtifactError, DualValidatedArtifactHandle,
-    DualValidatedArtifactReopenError, LinkArtifactPurpose, SemanticFingerprintRecord,
-    SlibClosureDecodeMeterV1,
+    ArtifactFingerprint, CompileArtifactPurpose, DependencyRecord, LinkArtifactPurpose,
+    SemanticFingerprintRecord, SlibClosureDecodeMeterV1,
 };
 use scoop_wire::DecodeLimits;
 
 use super::{
-    ArtifactClosurePlan, ArtifactClosureValidationError, ValidatedArtifactClosure,
-    ValidatedDualArtifactClosure,
+    ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
+    ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle, ValidatedDualArtifactClosure,
 };
 use crate::{
     CacheCompletionError, CoreSourceSnapshotKeyV1, PairedCompilerFingerprintV1,
@@ -52,7 +50,7 @@ impl PrivateArtifactPath {
 pub struct CompletedNode {
     cone: ConeIdentity,
     origin: CompletedNodeOrigin,
-    artifact: Arc<DualValidatedArtifactHandle>,
+    artifact: Arc<ValidatedCrossConeArtifactHandle>,
     compile_closure: ValidatedArtifactClosure<CompileArtifactPurpose>,
     link_closure: ValidatedArtifactClosure<LinkArtifactPurpose>,
     materialized_child_path: PrivateArtifactPath,
@@ -68,7 +66,7 @@ impl CompletedNode {
         self.origin
     }
 
-    pub fn artifact(&self) -> &DualValidatedArtifactHandle {
+    pub fn artifact(&self) -> &ValidatedCrossConeArtifactHandle {
         &self.artifact
     }
 
@@ -88,7 +86,7 @@ impl CompletedNode {
         &self.warnings
     }
 
-    pub(crate) fn shared_artifact(&self) -> Arc<DualValidatedArtifactHandle> {
+    pub(crate) fn shared_artifact(&self) -> Arc<ValidatedCrossConeArtifactHandle> {
         Arc::clone(&self.artifact)
     }
 
@@ -98,7 +96,7 @@ impl CompletedNode {
 
     pub(crate) fn from_cache_hit(
         cone: ConeIdentity,
-        artifact: Arc<DualValidatedArtifactHandle>,
+        artifact: Arc<ValidatedCrossConeArtifactHandle>,
         closures: ValidatedDualArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -116,7 +114,7 @@ impl CompletedNode {
     }
 
     fn from_trusted_core(
-        artifact: Arc<DualValidatedArtifactHandle>,
+        artifact: Arc<ValidatedCrossConeArtifactHandle>,
         closures: ValidatedDualArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -135,7 +133,7 @@ impl CompletedNode {
 
     fn from_compiled(
         cone: ConeIdentity,
-        artifact: Arc<DualValidatedArtifactHandle>,
+        artifact: Arc<ValidatedCrossConeArtifactHandle>,
         closures: ValidatedDualArtifactClosure,
         materialized_child_path: PathBuf,
         warnings: Vec<StructuredDiagnosticV1>,
@@ -158,8 +156,7 @@ pub enum CompiledCompletionError {
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
     MissingTrustedCore,
-    TrustedCoreReopen(DualValidatedArtifactReopenError),
-    Artifact(Box<DualValidatedArtifactError>),
+    Artifact(Box<CrossConeArtifactValidationError>),
     Plan(Box<ArtifactClosureValidationError>),
     Warnings(Box<CacheCompletionError>),
 }
@@ -176,10 +173,6 @@ impl fmt::Display for CompiledCompletionError {
             Self::MissingTrustedCore => {
                 formatter.write_str("compiled artifact validation requires completed trusted core")
             }
-            Self::TrustedCoreReopen(source) => write!(
-                formatter,
-                "cannot reopen completed trusted core Link view: {source}"
-            ),
             Self::Artifact(source) => {
                 write!(
                     formatter,
@@ -202,7 +195,6 @@ impl fmt::Display for CompiledCompletionError {
 impl std::error::Error for CompiledCompletionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::TrustedCoreReopen(source) => source,
             Self::Artifact(source) => source.as_ref(),
             Self::Plan(source) => source.as_ref(),
             Self::Warnings(source) => source.as_ref(),
@@ -222,7 +214,6 @@ pub(crate) fn complete_compiled_candidate(
     completed: &[&CompletedNode],
     warnings: Vec<StructuredDiagnosticV1>,
     limits: DecodeLimits,
-    target: ValidatedLirTargetSelection,
     c_bridge_profile: &CBridgeToolchainProfileV1,
     meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<CompletedNode, CompiledCompletionError> {
@@ -240,23 +231,19 @@ pub(crate) fn complete_compiled_candidate(
             return Err(CompiledCompletionError::DuplicateCompletedNode(node.cone));
         }
     }
-    let core = artifacts
-        .get(&ConeIdentity::CORE)
-        .ok_or(CompiledCompletionError::MissingTrustedCore)?;
-    let core_owners: CanonicalDefinedLinkSymbolOwnerSetV1 = core
-        .with_link_view(|view| view.link_identity_closure().defined_symbols().clone())
-        .map_err(CompiledCompletionError::TrustedCoreReopen)?;
-    let artifact = Arc::new(
-        DualValidatedArtifactHandle::validate(
+    if !artifacts.contains_key(&ConeIdentity::CORE) {
+        return Err(CompiledCompletionError::MissingTrustedCore);
+    }
+    let artifact = plan
+        .validate_completed_artifact(
+            identity,
             snapshot,
+            &artifacts,
             limits,
-            target,
-            &core_owners,
             c_bridge_profile,
             meter,
         )
-        .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?,
-    );
+        .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
     let closures = plan
         .validate(identity, &artifacts)
@@ -300,7 +287,7 @@ pub enum TrustedCoreCompletionError {
     BootstrapRequired,
     MissingPreparedCandidate,
     MissingPreparedReceipt,
-    Artifact(Box<DualValidatedArtifactError>),
+    Artifact(Box<CrossConeArtifactValidationError>),
     Plan(Box<ArtifactClosureValidationError>),
     ReceiptBinding(TrustedCoreReceiptBindingField),
 }
@@ -358,17 +345,16 @@ pub(crate) fn complete_trusted_core_candidate(
     c_bridge_profile: &CBridgeToolchainProfileV1,
     meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<CompletedNode, TrustedCoreCompletionError> {
-    let artifact = Arc::new(
-        DualValidatedArtifactHandle::validate(
+    let artifact = plan
+        .validate_completed_artifact(
+            ConeIdentity::CORE,
             Arc::clone(candidate.snapshot()),
+            &BTreeMap::new(),
             limits,
-            target,
-            &CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
             c_bridge_profile,
             meter,
         )
-        .map_err(|source| TrustedCoreCompletionError::Artifact(Box::new(source)))?,
-    );
+        .map_err(|source| TrustedCoreCompletionError::Artifact(Box::new(source)))?;
     let artifacts = BTreeMap::from([(ConeIdentity::CORE, Arc::clone(&artifact))]);
     let closures = plan
         .validate(ConeIdentity::CORE, &artifacts)
@@ -386,7 +372,7 @@ fn validate_trusted_core_receipt(
     receipt: &TrustedCoreSlotReceiptV1,
     source_key: CoreSourceSnapshotKeyV1,
     compiler: PairedCompilerFingerprintV1,
-    artifact: &DualValidatedArtifactHandle,
+    artifact: &ValidatedCrossConeArtifactHandle,
     target: ValidatedLirTargetSelection,
 ) -> Result<(), TrustedCoreCompletionError> {
     let body = receipt.body();
@@ -434,10 +420,9 @@ pub enum PrebuiltCompletionError {
     DuplicateCompletedNode(ConeIdentity),
     CurrentNodeAlreadyCompleted(ConeIdentity),
     MissingTrustedCore,
-    TrustedCoreReopen(DualValidatedArtifactReopenError),
     CandidateArtifact {
         path: PathBuf,
-        source: Box<DualValidatedArtifactError>,
+        source: Box<CrossConeArtifactValidationError>,
     },
     CandidatePlan {
         path: PathBuf,
@@ -478,12 +463,6 @@ impl fmt::Display for PrebuiltCompletionError {
             Self::MissingTrustedCore => {
                 formatter.write_str("prebuilt validation requires completed trusted core")
             }
-            Self::TrustedCoreReopen(error) => {
-                write!(
-                    formatter,
-                    "cannot reopen completed trusted core Link view: {error}"
-                )
-            }
             Self::CandidateArtifact { path, source } => write!(
                 formatter,
                 "prebuilt candidate {} failed dual-view validation: {source}",
@@ -517,7 +496,6 @@ impl fmt::Display for PrebuiltCompletionError {
 impl std::error::Error for PrebuiltCompletionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TrustedCoreReopen(error) => Some(error),
             Self::CandidateArtifact { source, .. } => Some(source),
             Self::CandidatePlan { source, .. } => Some(source),
             _ => None,
@@ -535,7 +513,7 @@ struct CandidateAgreement {
 struct ValidatedCandidate {
     source_locator: PathBuf,
     materialized_path: PathBuf,
-    artifact: Arc<DualValidatedArtifactHandle>,
+    artifact: Arc<ValidatedCrossConeArtifactHandle>,
     closures: ValidatedDualArtifactClosure,
     agreement: CandidateAgreement,
 }
@@ -547,7 +525,6 @@ pub(crate) fn complete_prebuilt_candidates(
     candidates: Vec<PreparedArtifactCandidate>,
     completed: &[&CompletedNode],
     limits: DecodeLimits,
-    target: ValidatedLirTargetSelection,
     c_bridge_profile: &CBridgeToolchainProfileV1,
     meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<CompletedNode, PrebuiltCompletionError> {
@@ -565,29 +542,25 @@ pub(crate) fn complete_prebuilt_candidates(
             return Err(PrebuiltCompletionError::DuplicateCompletedNode(node.cone));
         }
     }
-    let core = artifacts
-        .get(&ConeIdentity::CORE)
-        .ok_or(PrebuiltCompletionError::MissingTrustedCore)?;
-    let core_owners: CanonicalDefinedLinkSymbolOwnerSetV1 = core
-        .with_link_view(|view| view.link_identity_closure().defined_symbols().clone())
-        .map_err(PrebuiltCompletionError::TrustedCoreReopen)?;
+    if !artifacts.contains_key(&ConeIdentity::CORE) {
+        return Err(PrebuiltCompletionError::MissingTrustedCore);
+    }
 
     let mut validated = Vec::with_capacity(candidates.len());
     for candidate in candidates {
-        let artifact = Arc::new(
-            DualValidatedArtifactHandle::validate(
+        let artifact = plan
+            .validate_completed_artifact(
+                identity,
                 Arc::clone(candidate.snapshot()),
+                &artifacts,
                 limits,
-                target,
-                &core_owners,
                 c_bridge_profile,
                 meter,
             )
             .map_err(|source| PrebuiltCompletionError::CandidateArtifact {
                 path: candidate.source_locator().to_path_buf(),
                 source: Box::new(source),
-            })?,
-        );
+            })?;
         artifacts.insert(identity, Arc::clone(&artifact));
         let closures = plan
             .validate(identity, &artifacts)
