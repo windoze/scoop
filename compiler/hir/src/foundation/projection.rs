@@ -138,10 +138,33 @@ impl CanonicalHirFoundation {
         foundation.set_odr_members(local.callable_applications.odr_member_records().to_vec())?;
 
         let definition_origins = definition_origin_records(export, local);
-        foundation.set_sources(source_records(&export.source_files, &definition_origins)?)?;
+        foundation.set_sources(source_records(
+            &export.source_files,
+            &definition_origins,
+            &[],
+        )?)?;
         foundation.set_definition_origins(definition_origins)?;
         foundation.set_native_boundary_types(native_boundary_types.records().to_vec())?;
         Ok(foundation)
+    }
+
+    /// Completes the sparse source-point tables with every position embedded
+    /// in the already-projected cross-Cone definition-source table.
+    ///
+    /// The cross-Cone interface is projected after the identity foundation
+    /// because its external-reference closure needs that typed authority.
+    /// Calling this method closes the one intentional construction cycle
+    /// before either product is serialized or validated as an artifact.
+    pub fn complete_cross_cone_source_points(
+        &mut self,
+        export: &ExportHir,
+        required: &crate::CanonicalExportDefinitionSourcesV1,
+    ) -> Result<(), HirFoundationBuildError> {
+        self.set_sources(source_records(
+            &export.source_files,
+            &self.definition_origins,
+            required.sources(),
+        )?)
     }
 }
 
@@ -428,12 +451,18 @@ fn definition_origin_records(
 
 struct RequiredSourcePoints {
     offsets: Vec<u64>,
-    first_subject: scoop_identity::DefinitionOriginSubject,
+    first_origin: RequiredSourceOrigin,
+}
+
+enum RequiredSourceOrigin {
+    Foundation(scoop_identity::DefinitionOriginSubject),
+    CrossConeInterface,
 }
 
 fn source_records(
     source_files: &[crate::SourceFileMetadata],
     definitions: &[DefinitionOriginRecord],
+    interface_sources: &[crate::ExportDefinitionSourceV1],
 ) -> Result<Vec<SourceRecord>, HirFoundationBuildError> {
     let mut required = BTreeMap::<SourceIdentity, RequiredSourcePoints>::new();
     for record in definitions {
@@ -444,7 +473,19 @@ fn source_records(
                 .entry(origin.source().clone())
                 .or_insert_with(|| RequiredSourcePoints {
                     offsets: Vec::new(),
-                    first_subject: record.subject(),
+                    first_origin: RequiredSourceOrigin::Foundation(record.subject()),
+                });
+        points.offsets.extend([span.start_byte(), span.end_byte()]);
+    }
+    for source in interface_sources {
+        let origin = source.origin();
+        let span = origin.span();
+        let points =
+            required
+                .entry(origin.source().clone())
+                .or_insert_with(|| RequiredSourcePoints {
+                    offsets: Vec::new(),
+                    first_origin: RequiredSourceOrigin::CrossConeInterface,
                 });
         points.offsets.extend([span.start_byte(), span.end_byte()]);
     }
@@ -479,10 +520,17 @@ fn source_records(
         records.push(record);
     }
     if let Some((source, points)) = required.into_iter().next() {
-        return Err(HirFoundationBuildError::UnknownDefinitionSource {
-            source,
-            subject_tag: points.first_subject.kind_tag(),
-            subject: points.first_subject.raw_id(),
+        return Err(match points.first_origin {
+            RequiredSourceOrigin::Foundation(subject) => {
+                HirFoundationBuildError::UnknownDefinitionSource {
+                    source,
+                    subject_tag: subject.kind_tag(),
+                    subject: subject.raw_id(),
+                }
+            }
+            RequiredSourceOrigin::CrossConeInterface => {
+                HirFoundationBuildError::UnknownCrossConeDefinitionSource(source)
+            }
         });
     }
     Ok(records)
@@ -520,7 +568,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_projection_collects_exact_origin_endpoints() {
+    fn source_projection_collects_foundation_and_cross_cone_origin_endpoints() {
         let source = SourceIdentity::single_file();
         let context = SourceContextKey::File {
             source: source.clone(),
@@ -532,6 +580,10 @@ mod tests {
             DefinitionOriginSubject::Type(CoreBuiltinNominal::Unit.identity_record().id()),
             origin,
         );
+        let interface_source = crate::ExportDefinitionSourceV1::new(
+            DefinitionOrigin::new(source.clone(), SourceSpan::new(0, 4).unwrap(), &context)
+                .unwrap(),
+        );
         let metadata = crate::SourceFileMetadata {
             provider: crate::IntrinsicProviderId::from_raw(7),
             identity: source,
@@ -540,7 +592,7 @@ mod tests {
             canonical_record: None,
         };
 
-        let records = source_records(&[metadata], &[definition]).unwrap();
+        let records = source_records(&[metadata], &[definition], &[interface_source]).unwrap();
 
         assert_eq!(records.len(), 1);
         assert_eq!(
@@ -549,7 +601,7 @@ mod tests {
                 .iter()
                 .map(crate::SourcePointRecord::byte_offset)
                 .collect::<Vec<_>>(),
-            vec![1, 3]
+            vec![0, 1, 3, 4]
         );
         assert_eq!(records[0].point(1).unwrap().column(), 2);
         assert_eq!(records[0].point(3).unwrap().column(), 3);
@@ -568,7 +620,7 @@ mod tests {
                 .unwrap();
 
         assert!(matches!(
-            source_records(&[], &[DefinitionOriginRecord::new(subject, origin)]),
+            source_records(&[], &[DefinitionOriginRecord::new(subject, origin)], &[]),
             Err(HirFoundationBuildError::UnknownDefinitionSource {
                 source: actual_source,
                 subject_tag,
@@ -576,6 +628,24 @@ mod tests {
             }) if actual_source == source
                 && subject_tag == subject.kind_tag()
                 && actual_subject == subject.raw_id()
+        ));
+    }
+
+    #[test]
+    fn source_projection_rejects_a_cross_cone_origin_outside_the_module() {
+        let source = SourceIdentity::single_file();
+        let context = SourceContextKey::File {
+            source: source.clone(),
+        };
+        let required = crate::ExportDefinitionSourceV1::new(
+            DefinitionOrigin::new(source.clone(), SourceSpan::new(0, 0).unwrap(), &context)
+                .unwrap(),
+        );
+
+        assert!(matches!(
+            source_records(&[], &[], &[required]),
+            Err(HirFoundationBuildError::UnknownCrossConeDefinitionSource(actual))
+                if actual == source
         ));
     }
 }

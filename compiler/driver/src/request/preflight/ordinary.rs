@@ -37,7 +37,7 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             .map_err(OrdinaryConeHirStageError::Input)?;
         let hir = scoop_hir_lower::lower_ordinary(requested, &input)
             .map_err(OrdinaryConeHirStageError::Lowering)?;
-        let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&hir)
+        let mut foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&hir)
             .map_err(OrdinaryConeHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
@@ -51,6 +51,12 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             scoop_hir::CrossConeHirInterfaceSectionV1::from_ordinary_hir(&hir, &[], &mut authority)
                 .map_err(OrdinaryConeHirStageError::CrossConeSection)?
         };
+        foundation
+            .complete_cross_cone_source_points(
+                hir.output().export.module(),
+                cross_cone_section.definition_sources(),
+            )
+            .map_err(OrdinaryConeHirStageError::Foundation)?;
         Ok(OrdinaryConeHirOutput {
             trusted_core: self.trusted_core,
             dependencies: self.request.dependencies(),

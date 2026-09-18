@@ -858,6 +858,7 @@ pub enum HirFoundationBuildError {
         subject_tag: u8,
         subject: [u8; 32],
     },
+    UnknownCrossConeDefinitionSource(SourceIdentity),
     IdentityDerivation {
         table: HirFoundationTable,
         reason: String,
@@ -914,6 +915,10 @@ impl fmt::Display for HirFoundationBuildError {
                 formatter,
                 "definition subject {subject_tag}:{} refers to unknown source {source:?}",
                 HexIdentity(subject)
+            ),
+            Self::UnknownCrossConeDefinitionSource(source) => write!(
+                formatter,
+                "cross-Cone definition source refers to unknown source {source:?}"
             ),
             Self::IdentityDerivation { table, reason } => {
                 write!(
