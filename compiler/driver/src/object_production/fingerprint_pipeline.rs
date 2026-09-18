@@ -6,16 +6,17 @@ use super::*;
 /// provisional Scoop object set.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RegistrationObjectLeafFingerprintedProductionV1 {
-    production: PlannedBuiltinObjectProductionV1,
-    symbol_plan: PlannedStrongObjectSymbolSetV1,
-    safepoints: VerifiedStrongSafepointFingerprintSetV1,
-    callable_registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
-    type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
-    immortal_object_registration_objects:
+    pub(super) production: PlannedBuiltinObjectProductionV1,
+    pub(super) symbol_plan: PlannedStrongObjectSymbolSetV1,
+    pub(super) safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    pub(super) callable_registration_objects:
+        VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    pub(super) type_registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+    pub(super) immortal_object_registration_objects:
         VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
-    static_storage_registration_objects:
+    pub(super) static_storage_registration_objects:
         VerifiedStrongStaticStorageRegistrationObjectFingerprintSetV1,
-    initialization_registration_objects:
+    pub(super) initialization_registration_objects:
         VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
 }
 
@@ -533,7 +534,7 @@ impl FinalizedStrongObjectProductionV1 {
     }
 }
 
-fn final_link_object_members(
+pub(super) fn final_link_object_members(
     production: &PlannedBuiltinObjectProductionV1,
     final_objects: &VerifiedEntryPatchSetV1,
 ) -> Result<Vec<SlibMember>, BuiltinObjectProductionError> {

@@ -101,6 +101,14 @@ impl ValidatedCrossConeArtifactClosure<'_> {
     pub fn current_publication(&self) -> Option<&PublishableCrossConeArtifact> {
         self.publication(self.semantic.current())
     }
+
+    pub fn into_current_publication(mut self) -> Option<PublishableCrossConeArtifact> {
+        let current = self.semantic.current();
+        self.positions
+            .get(&current)
+            .copied()
+            .map(|position| self.publications.swap_remove(position))
+    }
 }
 
 /// Reopens all bytes through the M23-5 Compile and Link readers, commits the

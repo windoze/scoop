@@ -88,7 +88,9 @@ use scoop_slib::{
     verify_strong_static_storage_registrations_v1, verify_strong_type_registrations_v1,
 };
 
+mod cross_cone_pipeline;
 mod fingerprint_pipeline;
+pub use cross_cone_pipeline::*;
 pub use fingerprint_pipeline::*;
 
 /// Immutable bytes for one codegen member after its stable `.slib` identity
@@ -869,6 +871,7 @@ pub enum BuiltinObjectProductionError {
     CurrentConeRequirements(CurrentConeUndefinedRequirementValidationError),
     NativeRequirementSurface(CanonicalNativeExternalRequirementBuildError),
     CoreRequirements(CoreStrongRequirementValidationError),
+    CrossConeRequirements(scoop_slib::CrossConeStrongRequirementValidationError),
     SourceExternalRequirements(SourceExternalRequirementValidationError),
     RuntimeAndEhRequirements(RuntimeAndEhRequirementValidationError),
     GeneratedBridgeSemantics(GeneratedCBridgeSemanticValidationError),
@@ -953,6 +956,7 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::CurrentConeRequirements(source) => Some(source),
             Self::NativeRequirementSurface(source) => Some(source),
             Self::CoreRequirements(source) => Some(source),
+            Self::CrossConeRequirements(source) => Some(source),
             Self::SourceExternalRequirements(source) => Some(source),
             Self::RuntimeAndEhRequirements(source) => Some(source),
             Self::GeneratedBridgeSemantics(source) => Some(source),

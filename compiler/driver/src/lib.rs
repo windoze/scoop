@@ -9,13 +9,17 @@ mod request;
 mod trusted_core;
 
 pub use artifact_production::{
-    AssembledStrongArtifactProductionV1, StrongArtifactMetadataInputV1,
-    StrongArtifactProductionError,
+    AssembledCrossConeArtifactProductionV1, AssembledStrongArtifactProductionV1,
+    CrossConeArtifactProductionError, CrossConeStrongArtifactMetadataInputV1,
+    StrongArtifactMetadataInputV1, StrongArtifactProductionError,
 };
 pub use ir_production::{SingleConeStrongIrProductionV1, StrongIrArtifactProductionError};
 pub use object_production::{
     BuiltinObjectProducerV1, BuiltinObjectProductionError,
     CBridgeEnvelopeVerifiedObjectProductionV1, CodeFingerprintedObjectProductionV1,
+    CrossConeCodeFingerprintedObjectProductionV1, CrossConeFinalizedStrongObjectProductionV1,
+    CrossConeLinkSymbolVerifiedObjectProductionV1,
+    CrossConeRegistrationDependencyFingerprintedProductionV1,
     DigestPatchVerifiedObjectProductionV1, FinalizedStrongObjectProductionV1,
     LinkSymbolVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
     RegistrationDependencyFingerprintedProductionV1,
