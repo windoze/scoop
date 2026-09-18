@@ -75,16 +75,16 @@ impl std::error::Error for OrdinaryCoreOnlySourceError {}
 /// lowering cannot accidentally resolve dependency imports against a world
 /// belonging to another current Cone. It remains read-only throughout HIR
 /// lowering; candidate selection sidecars are introduced separately.
-pub struct OrdinarySources<'a> {
-    core_only: OrdinaryCoreOnlySources<'a>,
-    world: &'a hir::ImportedSemanticWorld<'a>,
+pub struct OrdinarySources<'input, 'world> {
+    core_only: OrdinaryCoreOnlySources<'input>,
+    world: &'world hir::ImportedSemanticWorld<'input>,
 }
 
-impl<'a> OrdinarySources<'a> {
+impl<'input, 'world> OrdinarySources<'input, 'world> {
     pub fn try_new(
-        sources: &'a ast::CurrentConeParsedSources,
-        core: hir::ImportedCoreInputs<'a>,
-        world: &'a hir::ImportedSemanticWorld<'a>,
+        sources: &'input ast::CurrentConeParsedSources,
+        core: hir::ImportedCoreInputs<'input>,
+        world: &'world hir::ImportedSemanticWorld<'input>,
     ) -> Result<Self, OrdinarySourceError> {
         let core_only = OrdinaryCoreOnlySources::try_new(sources, core)
             .map_err(|_| OrdinarySourceError::CurrentConeIsCore)?;
@@ -101,11 +101,11 @@ impl<'a> OrdinarySources<'a> {
         self.core_only.current_cone()
     }
 
-    pub const fn semantic_world(&self) -> &hir::ImportedSemanticWorld<'a> {
+    pub const fn semantic_world(&self) -> &hir::ImportedSemanticWorld<'input> {
         self.world
     }
 
-    pub(crate) const fn core_only(&self) -> &OrdinaryCoreOnlySources<'a> {
+    pub(crate) const fn core_only(&self) -> &OrdinaryCoreOnlySources<'input> {
         &self.core_only
     }
 }

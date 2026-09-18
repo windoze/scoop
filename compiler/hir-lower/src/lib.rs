@@ -419,7 +419,7 @@ pub fn lower_ordinary_core_only<'core>(
 /// selection and capability gates.
 pub fn lower_ordinary<'input>(
     requested: scoop_identity::RequestedConeKind,
-    input: &OrdinarySources<'input>,
+    input: &OrdinarySources<'input, '_>,
 ) -> Result<hir::OrdinaryHirOutput<'input>, Vec<Diagnostic>> {
     lower_ordinary_input(requested, input.core_only(), Some(input.semantic_world()))
 }
