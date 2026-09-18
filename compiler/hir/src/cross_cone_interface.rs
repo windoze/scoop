@@ -16,6 +16,7 @@ mod property_interfaces;
 mod public_bindings;
 mod route_closure;
 mod section;
+pub(crate) use section::signature_nominal_walk::SignatureNominalWalker;
 mod type_alias_interfaces;
 
 pub use binders::{

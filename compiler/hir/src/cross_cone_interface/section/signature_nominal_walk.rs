@@ -3,12 +3,12 @@ use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 
 /// Iteratively visits every nominal leaf in one signature tree while charging
 /// the artifact-wide semantic resource meter.
-pub(super) struct SignatureNominalWalker<'signature> {
+pub(crate) struct SignatureNominalWalker<'signature> {
     pending: Vec<(&'signature SignatureTypeKey, u64)>,
 }
 
 impl<'signature> SignatureNominalWalker<'signature> {
-    pub(super) fn new(
+    pub(crate) fn new(
         signature: &'signature SignatureTypeKey,
         meter: &mut BudgetMeter,
         path: &WirePath,
@@ -19,7 +19,7 @@ impl<'signature> SignatureNominalWalker<'signature> {
         Ok(Self { pending })
     }
 
-    pub(super) fn next(
+    pub(crate) fn next(
         &mut self,
         meter: &mut BudgetMeter,
         path: &WirePath,

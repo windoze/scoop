@@ -43,6 +43,8 @@ mod definition_sources;
 pub use definition_sources::{
     ExportDefinitionSourceProductionError, HirDefinitionSourceProjectionError,
 };
+mod external_references;
+pub use external_references::*;
 mod default_templates;
 pub use default_templates::*;
 mod nominal_interfaces;

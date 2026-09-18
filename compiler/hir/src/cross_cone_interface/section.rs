@@ -33,7 +33,7 @@ mod definition_source_closure;
 mod external_reference_closure;
 mod internal_closures;
 mod semantic_validation;
-mod signature_nominal_walk;
+pub(crate) mod signature_nominal_walk;
 mod signature_reference_closure;
 
 pub use alias_reference_closure::{
