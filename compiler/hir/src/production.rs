@@ -35,6 +35,10 @@ mod core_well_known;
 pub use core_well_known::*;
 mod const_values;
 pub use const_values::*;
+mod property_interfaces;
+pub use property_interfaces::*;
+mod signatures;
+pub use signatures::HirInterfaceSignatureProjectionError;
 mod type_alias_interfaces;
 pub use type_alias_interfaces::*;
 

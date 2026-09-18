@@ -1,0 +1,180 @@
+//! Shared projection of HIR types and type-parameter binders into public
+//! cross-Cone signatures.
+
+use std::fmt;
+
+use scoop_identity::{CanonicalIdentifier, CanonicalIdentifierError, SignatureTypeKey};
+
+use crate::{
+    CanonicalBinderListV1, CanonicalSignatureTypesV1, ExportHir, HirSignatureBinder,
+    HirSignatureTypeMapper, HirSignatureTypeMappingError, NominalTypeParameterBoundsV1,
+    SignatureTypeSetBuildError, TypeParamBounds, TypeParamDecl, TypeParameterBinderBuildError,
+    TypeParameterBinderV1, TypeParameterBoundsBuildError, TypeParameterBoundsV1,
+};
+
+pub(super) struct HirInterfaceSignatureProjector<'a> {
+    export: &'a ExportHir,
+    mapper: HirSignatureTypeMapper<'a>,
+}
+
+impl<'a> HirInterfaceSignatureProjector<'a> {
+    pub(super) fn new(export: &'a ExportHir) -> Self {
+        Self {
+            export,
+            mapper: HirSignatureTypeMapper::new(crate::HirTypeIdentityInputs::from_export(export)),
+        }
+    }
+
+    pub(super) fn map_type(
+        &self,
+        ty: crate::TypeId,
+        binders: &[HirSignatureBinder],
+    ) -> Result<SignatureTypeKey, HirInterfaceSignatureProjectionError> {
+        self.mapper
+            .map(ty, binders)
+            .map_err(HirInterfaceSignatureProjectionError::Type)
+    }
+
+    pub(super) fn binder_frame(
+        &self,
+        parameters: &[TypeParamDecl],
+        depth: u32,
+    ) -> Result<Vec<HirSignatureBinder>, HirInterfaceSignatureProjectionError> {
+        parameters
+            .iter()
+            .enumerate()
+            .map(|(index, parameter)| {
+                let index = u32::try_from(index)
+                    .map_err(|_| HirInterfaceSignatureProjectionError::TooManyTypeParameters)?;
+                Ok(HirSignatureBinder {
+                    parameter: parameter.id,
+                    depth,
+                    index,
+                })
+            })
+            .collect()
+    }
+
+    pub(super) fn project_binder_list(
+        &self,
+        parameters: &[TypeParamDecl],
+        visible_binders: &[HirSignatureBinder],
+    ) -> Result<CanonicalBinderListV1, HirInterfaceSignatureProjectionError> {
+        let mut projected = Vec::with_capacity(parameters.len());
+        for (index, parameter) in parameters.iter().enumerate() {
+            let index = u32::try_from(index)
+                .map_err(|_| HirInterfaceSignatureProjectionError::TooManyTypeParameters)?;
+            let name = CanonicalIdentifier::new(&parameter.name).map_err(|source| {
+                HirInterfaceSignatureProjectionError::ParameterName { index, source }
+            })?;
+            let bounds = self.project_bounds(&parameter.bounds, visible_binders)?;
+            projected.push(TypeParameterBinderV1::new(name, bounds));
+        }
+        CanonicalBinderListV1::try_new(projected)
+            .map_err(HirInterfaceSignatureProjectionError::BinderList)
+    }
+
+    fn project_bounds(
+        &self,
+        bounds: &TypeParamBounds,
+        binders: &[HirSignatureBinder],
+    ) -> Result<TypeParameterBoundsV1, HirInterfaceSignatureProjectionError> {
+        match bounds {
+            TypeParamBounds::Unconstrained => Ok(TypeParameterBoundsV1::Unconstrained),
+            TypeParamBounds::Value { .. } => Ok(TypeParameterBoundsV1::Value),
+            TypeParamBounds::Ref { .. } => Ok(TypeParameterBoundsV1::Ref),
+            TypeParamBounds::Nominal(bounds) => {
+                let class = bounds
+                    .class
+                    .as_ref()
+                    .map(|bound| {
+                        let index = raw_index(bound.application);
+                        if index as usize >= self.export.class_applications.len() {
+                            return Err(
+                                HirInterfaceSignatureProjectionError::UnknownClassApplication(
+                                    index,
+                                ),
+                            );
+                        }
+                        self.map_type(
+                            self.export.class_applications[bound.application].canonical_type,
+                            binders,
+                        )
+                    })
+                    .transpose()?;
+                let interfaces = bounds
+                    .interfaces
+                    .iter()
+                    .map(|bound| {
+                        let index = raw_index(bound.application);
+                        if index as usize >= self.export.interface_applications.len() {
+                            return Err(
+                                HirInterfaceSignatureProjectionError::UnknownInterfaceApplication(
+                                    index,
+                                ),
+                            );
+                        }
+                        self.map_type(
+                            self.export.interface_applications[bound.application].canonical_type,
+                            binders,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let interfaces = CanonicalSignatureTypesV1::try_new(interfaces)
+                    .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?;
+                NominalTypeParameterBoundsV1::try_new(class, interfaces)
+                    .map(TypeParameterBoundsV1::Nominal)
+                    .map_err(HirInterfaceSignatureProjectionError::NominalBounds)
+            }
+        }
+    }
+}
+
+fn raw_index<T>(id: la_arena::Idx<T>) -> u32 {
+    id.into_raw().into_u32()
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum HirInterfaceSignatureProjectionError {
+    TooManyTypeParameters,
+    ParameterName {
+        index: u32,
+        source: CanonicalIdentifierError,
+    },
+    Type(HirSignatureTypeMappingError),
+    UnknownClassApplication(u32),
+    UnknownInterfaceApplication(u32),
+    InterfaceBounds(SignatureTypeSetBuildError),
+    NominalBounds(TypeParameterBoundsBuildError),
+    BinderList(TypeParameterBinderBuildError),
+}
+
+impl fmt::Display for HirInterfaceSignatureProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TooManyTypeParameters => {
+                formatter.write_str("HIR type-parameter count exceeds u32")
+            }
+            Self::ParameterName { index, source } => {
+                write!(
+                    formatter,
+                    "invalid HIR type-parameter name at index {index}: {source}"
+                )
+            }
+            Self::Type(source) => source.fmt(formatter),
+            Self::UnknownClassApplication(application) => write!(
+                formatter,
+                "type-parameter bound references unknown class application {application}"
+            ),
+            Self::UnknownInterfaceApplication(application) => write!(
+                formatter,
+                "type-parameter bound references unknown interface application {application}"
+            ),
+            Self::InterfaceBounds(source) => source.fmt(formatter),
+            Self::NominalBounds(source) => source.fmt(formatter),
+            Self::BinderList(source) => source.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for HirInterfaceSignatureProjectionError {}
