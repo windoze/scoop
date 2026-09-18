@@ -2,8 +2,9 @@ use scoop_identity::{ConeCoordinate, SignatureTypeKey};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::{
-    Decl, bool_lit, call, extension_expr, file, fun, fun_expr, ident, int_lit, make_core_public,
-    method_call, sp, stmt, this_expr, tuple_lit, ty_named, ty_tuple,
+    Decl, assign_index, binary, bool_lit, call, extension_expr, file, fun, fun_expr, ident,
+    int_lit, make_core_public, method_call, sp, stmt, subscript, this_expr, tuple_lit, ty_named,
+    ty_tuple, unit_lit, val,
 };
 use crate::{OrdinarySources, lower_ordinary};
 

@@ -8,7 +8,7 @@ mod extensions;
 mod qualifiers;
 
 pub(crate) use extensions::{
-    ExtensionCallTarget, ExtensionPropertyIdentity, ExtensionPropertyTarget,
+    ExtensionCallTarget, ExtensionPropertyIdentity, ExtensionPropertyTarget, wire_operator,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

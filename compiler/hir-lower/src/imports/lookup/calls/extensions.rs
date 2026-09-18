@@ -7,6 +7,7 @@ use crate::imports::{
     CurrentUnitTarget, ImportLookupLayer, ImportedTargetBinding, ResolvedNamespace,
 };
 use crate::namespace::TopLevelLookupLayer;
+use scoop_ast as ast;
 use scoop_hir as hir;
 
 #[derive(Debug, Clone)]
@@ -177,7 +178,8 @@ impl Lowerer {
         &self,
         operator: hir::OperatorKind,
     ) -> Vec<LookupLayer<ExtensionCallTarget>> {
-        self.named_extension_operator_layers(operator)
+        let mut layers = self
+            .named_extension_operator_layers(operator)
             .into_iter()
             .map(|layer| LookupLayer {
                 kind: layer.kind,
@@ -188,7 +190,67 @@ impl Lowerer {
                     .collect(),
                 suppressed_callables: layer.suppressed_callables,
             })
-            .collect()
+            .collect::<Vec<_>>();
+        let TopLevelLookupLayer::CurrentPackage(package) = self
+            .top_level_namespaces
+            .source_namespace(self.current_file)
+        else {
+            return layers;
+        };
+        let imports = &self.imports.files[self.current_file];
+        let dependency_origins = [
+            (
+                ImportLookupLayer::Exact,
+                imports
+                    .exact
+                    .iter()
+                    .flat_map(|import| import.targets.iter())
+                    .filter_map(ImportedTargetBinding::direct_binding)
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ),
+            (
+                ImportLookupLayer::CurrentPackage(package),
+                imports
+                    .current_package_dependencies
+                    .values()
+                    .flatten()
+                    .cloned()
+                    .collect(),
+            ),
+            (
+                ImportLookupLayer::Star,
+                imports
+                    .stars
+                    .iter()
+                    .flat_map(|import| import.snapshot.values())
+                    .flat_map(ast::NonEmptyVec::iter)
+                    .filter_map(ImportedTargetBinding::direct_binding)
+                    .cloned()
+                    .collect(),
+            ),
+        ];
+        for (kind, bindings) in dependency_origins {
+            let layer = layers
+                .iter_mut()
+                .find(|layer| layer.kind == kind)
+                .expect("current sources have every non-core extension layer");
+            layer.candidates.extend(
+                self.imports
+                    .canonicalize_dependencies(bindings)
+                    .into_iter()
+                    .map(ExtensionCallTarget::Dependency)
+                    .filter(|target| {
+                        self.imported_dependency_callable_is_extension(match target {
+                            ExtensionCallTarget::Dependency(binding) => binding,
+                            ExtensionCallTarget::Current(_) => {
+                                unreachable!("the appended targets are dependencies")
+                            }
+                        }) && self.extension_target_has_operator(target, operator)
+                    }),
+            );
+        }
+        layers
     }
 
     pub(crate) fn named_extension_delegate_operator_layers(
@@ -299,6 +361,26 @@ impl Lowerer {
             })
     }
 
+    fn extension_target_has_operator(
+        &self,
+        target: &ExtensionCallTarget,
+        operator: hir::OperatorKind,
+    ) -> bool {
+        match target {
+            ExtensionCallTarget::Current(function) => {
+                self.signatures[function].modifiers.operator == Some(operator)
+            }
+            ExtensionCallTarget::Dependency(binding) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.callable_candidate(binding).ok())
+                .is_some_and(|candidate| {
+                    candidate.interface().effects().operator_role()
+                        == hir::CallableOperatorRoleV1::Language(wire_operator(operator))
+                }),
+        }
+    }
+
     /// The declaration candidates visible to an unqualified callable
     /// reference. Ordinary functions and extension functions intentionally
     /// remain in the same scope layer: the latter are interpreted as unbound
@@ -357,5 +439,35 @@ impl Lowerer {
                     .collect(),
             })
             .collect()
+    }
+}
+
+pub(crate) const fn wire_operator(operator: hir::OperatorKind) -> hir::CallableOperatorV1 {
+    match operator {
+        hir::OperatorKind::UnaryPlus => hir::CallableOperatorV1::UnaryPlus,
+        hir::OperatorKind::UnaryMinus => hir::CallableOperatorV1::UnaryMinus,
+        hir::OperatorKind::Not => hir::CallableOperatorV1::Not,
+        hir::OperatorKind::Inc => hir::CallableOperatorV1::Inc,
+        hir::OperatorKind::Dec => hir::CallableOperatorV1::Dec,
+        hir::OperatorKind::Plus => hir::CallableOperatorV1::Plus,
+        hir::OperatorKind::Minus => hir::CallableOperatorV1::Minus,
+        hir::OperatorKind::Times => hir::CallableOperatorV1::Times,
+        hir::OperatorKind::Div => hir::CallableOperatorV1::Div,
+        hir::OperatorKind::Rem => hir::CallableOperatorV1::Rem,
+        hir::OperatorKind::RangeTo => hir::CallableOperatorV1::RangeTo,
+        hir::OperatorKind::RangeUntil => hir::CallableOperatorV1::RangeUntil,
+        hir::OperatorKind::Contains => hir::CallableOperatorV1::Contains,
+        hir::OperatorKind::Get => hir::CallableOperatorV1::Get,
+        hir::OperatorKind::Set => hir::CallableOperatorV1::Set,
+        hir::OperatorKind::Invoke => hir::CallableOperatorV1::Invoke,
+        hir::OperatorKind::PlusAssign => hir::CallableOperatorV1::PlusAssign,
+        hir::OperatorKind::MinusAssign => hir::CallableOperatorV1::MinusAssign,
+        hir::OperatorKind::TimesAssign => hir::CallableOperatorV1::TimesAssign,
+        hir::OperatorKind::DivAssign => hir::CallableOperatorV1::DivAssign,
+        hir::OperatorKind::RemAssign => hir::CallableOperatorV1::RemAssign,
+        hir::OperatorKind::CompareTo => hir::CallableOperatorV1::CompareTo,
+        hir::OperatorKind::Equals => hir::CallableOperatorV1::Equals,
+        hir::OperatorKind::Component { index } => hir::CallableOperatorV1::Component { index },
+        hir::OperatorKind::Iterator => hir::CallableOperatorV1::Iterator,
     }
 }

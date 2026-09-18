@@ -150,6 +150,7 @@ impl Lowerer {
                             },
                             call,
                             expected,
+                            false,
                         ) {
                             Ok(probe) => {
                                 probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(

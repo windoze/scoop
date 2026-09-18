@@ -28,6 +28,7 @@ impl Lowerer {
             },
             expected,
             ImportedDependencyCallReceiver::Implicit,
+            false,
         )
     }
 
@@ -38,6 +39,7 @@ impl Lowerer {
         name: &ast::Ident,
         call: CallSite<'_>,
         expected: Option<hir::TypeId>,
+        operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         self.probe_imported_dependency_callable_with_receiver(
             binding,
@@ -45,6 +47,7 @@ impl Lowerer {
             call,
             expected,
             ImportedDependencyCallReceiver::Explicit(receiver),
+            operator_set,
         )
     }
 
@@ -55,6 +58,7 @@ impl Lowerer {
         call: CallSite<'_>,
         expected: Option<hir::TypeId>,
         receiver_source: ImportedDependencyCallReceiver,
+        operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         let mut state = self.clone();
         let candidate = match state
@@ -95,14 +99,17 @@ impl Lowerer {
             );
             return Err(Box::new(state));
         };
-        let argument_map =
-            match ImportedArgumentMap::source(source.parameters().parameters(), call.args) {
-                Ok(map) => map,
-                Err(error) => {
-                    state.imported_dependency_shape_error(name, call, error);
-                    return Err(Box::new(state));
-                }
-            };
+        let argument_map = match if operator_set {
+            ImportedArgumentMap::source_operator_set(source.parameters().parameters(), call.args)
+        } else {
+            ImportedArgumentMap::source(source.parameters().parameters(), call.args)
+        } {
+            Ok(map) => map,
+            Err(error) => {
+                state.imported_dependency_shape_error(name, call, error);
+                return Err(Box::new(state));
+            }
+        };
 
         let receiver = match interface.owner() {
             hir::PublicDeclarationOwnerV1::TopLevel => match receiver_source {

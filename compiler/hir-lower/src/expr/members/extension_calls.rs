@@ -1,6 +1,6 @@
 use super::*;
 use crate::call_resolution::named::NamedFunctionLikeProbe;
-use crate::imports::lookup::calls::ExtensionCallTarget;
+use crate::imports::lookup::calls::{ExtensionCallTarget, wire_operator};
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
 impl Lowerer {
@@ -23,7 +23,7 @@ impl Lowerer {
                 };
                 required.operator.is_none_or(|operator| {
                     candidate.interface().effects().operator_role()
-                        == hir::CallableOperatorRoleV1::Language(imported_operator(operator))
+                        == hir::CallableOperatorRoleV1::Language(wire_operator(operator))
                 }) && required.property_delegate_operator.is_none_or(|operator| {
                     candidate.interface().effects().operator_role()
                         == hir::CallableOperatorRoleV1::PropertyDelegate(
@@ -99,6 +99,7 @@ impl Lowerer {
                         name,
                         call,
                         expected,
+                        operator_set,
                     ) {
                         Ok(probe) => {
                             probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)))
@@ -164,36 +165,6 @@ impl Lowerer {
                 unreachable!("extension function partitions contain only callable candidates")
             }
         }
-    }
-}
-
-const fn imported_operator(operator: hir::OperatorKind) -> hir::CallableOperatorV1 {
-    match operator {
-        hir::OperatorKind::UnaryPlus => hir::CallableOperatorV1::UnaryPlus,
-        hir::OperatorKind::UnaryMinus => hir::CallableOperatorV1::UnaryMinus,
-        hir::OperatorKind::Not => hir::CallableOperatorV1::Not,
-        hir::OperatorKind::Inc => hir::CallableOperatorV1::Inc,
-        hir::OperatorKind::Dec => hir::CallableOperatorV1::Dec,
-        hir::OperatorKind::Plus => hir::CallableOperatorV1::Plus,
-        hir::OperatorKind::Minus => hir::CallableOperatorV1::Minus,
-        hir::OperatorKind::Times => hir::CallableOperatorV1::Times,
-        hir::OperatorKind::Div => hir::CallableOperatorV1::Div,
-        hir::OperatorKind::Rem => hir::CallableOperatorV1::Rem,
-        hir::OperatorKind::RangeTo => hir::CallableOperatorV1::RangeTo,
-        hir::OperatorKind::RangeUntil => hir::CallableOperatorV1::RangeUntil,
-        hir::OperatorKind::Contains => hir::CallableOperatorV1::Contains,
-        hir::OperatorKind::Get => hir::CallableOperatorV1::Get,
-        hir::OperatorKind::Set => hir::CallableOperatorV1::Set,
-        hir::OperatorKind::Invoke => hir::CallableOperatorV1::Invoke,
-        hir::OperatorKind::PlusAssign => hir::CallableOperatorV1::PlusAssign,
-        hir::OperatorKind::MinusAssign => hir::CallableOperatorV1::MinusAssign,
-        hir::OperatorKind::TimesAssign => hir::CallableOperatorV1::TimesAssign,
-        hir::OperatorKind::DivAssign => hir::CallableOperatorV1::DivAssign,
-        hir::OperatorKind::RemAssign => hir::CallableOperatorV1::RemAssign,
-        hir::OperatorKind::CompareTo => hir::CallableOperatorV1::CompareTo,
-        hir::OperatorKind::Equals => hir::CallableOperatorV1::Equals,
-        hir::OperatorKind::Component { index } => hir::CallableOperatorV1::Component { index },
-        hir::OperatorKind::Iterator => hir::CallableOperatorV1::Iterator,
     }
 }
 

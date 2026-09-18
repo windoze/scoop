@@ -168,6 +168,29 @@ impl ImportedArgumentMap {
         })
     }
 
+    pub(super) fn source_operator_set(
+        parameters: &[hir::CallableSourceParameterV1],
+        arguments: &[ast::CallArgument],
+    ) -> Result<Self, ArgumentShapeFailure> {
+        let Some(value_parameter) = parameters.last() else {
+            return Err(ArgumentShapeFailure::Arity {
+                expected: 1,
+                supplied: arguments.len(),
+            });
+        };
+        let mut arguments = arguments.to_vec();
+        let Some(value) = arguments.last_mut() else {
+            return Err(ArgumentShapeFailure::MissingRequired {
+                name: value_parameter.name().as_str().to_owned(),
+            });
+        };
+        value.name = ast::CallArgumentName::Named(ast::Ident {
+            text: value_parameter.name().as_str().to_owned(),
+            span: value.span,
+        });
+        Self::source(parameters, &arguments)
+    }
+
     pub(super) fn parameters(&self) -> &[ImportedParameterInput] {
         &self.parameters
     }
