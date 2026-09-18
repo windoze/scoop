@@ -99,7 +99,7 @@ impl ImportedTargetBinding {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct ImportSyntaxOrigin {
     pub(crate) source: SourceIdentity,
     pub(crate) span: ast::Span,

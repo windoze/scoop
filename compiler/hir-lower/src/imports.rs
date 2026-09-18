@@ -8,12 +8,14 @@ use std::collections::{BTreeMap, HashMap};
 mod bindings;
 mod collect;
 pub(crate) mod lookup;
+mod reexports;
 mod resolve;
 mod selector;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use bindings::*;
+pub(crate) use reexports::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ImportLookupLayer {
@@ -110,6 +112,7 @@ pub(crate) struct CurrentUnitImports {
     enum_variant_sources: HashMap<(hir::EnumId, u32), SourceVariantId>,
     resolved_variants: HashMap<SourceVariantId, hir::EnumVariantRef>,
     pub(crate) files: Vec<FrozenFileImports>,
+    pub(crate) reexports: Vec<FrozenReexportBinding>,
     diagnostic_suppressions: ImportDiagnosticSuppressions,
 }
 

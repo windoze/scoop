@@ -3,6 +3,7 @@ mod dependency;
 mod dependency_fixture;
 mod materialization;
 mod pipeline;
+mod reexports;
 mod resolution;
 mod type_lookup;
 mod value_lookup;
