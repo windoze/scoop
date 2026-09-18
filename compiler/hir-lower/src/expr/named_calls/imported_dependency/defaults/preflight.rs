@@ -7,7 +7,7 @@ use super::plan::{
     ImportedDefaultPlanError, PreparedImportedDefault, PreparedImportedDefaultCallable,
 };
 use crate::Lowerer;
-use crate::expr::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
+use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::imported_core::ImportedSignatureTypeError;
 
 impl Lowerer {
@@ -257,7 +257,7 @@ impl Lowerer {
             })?;
         if candidate.capability().is_none() {
             return Err(ImportedDefaultPlanError::Requires {
-                requirement: callable_requirement(&candidate, None),
+                requirement: callable_requirement(&candidate, false),
                 operation: "dependency default call",
             });
         }

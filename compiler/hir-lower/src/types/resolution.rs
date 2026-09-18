@@ -34,7 +34,7 @@ impl Lowerer {
         name: &str,
     ) -> Option<crate::namespace::TopLevelTypeTarget> {
         match self.lookup_type(name) {
-            crate::imports::lookup::LookupResult::Unique(candidate) => Some(candidate.target),
+            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
             crate::imports::lookup::LookupResult::Missing
             | crate::imports::lookup::LookupResult::Ambiguous { .. }
             | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
@@ -46,11 +46,11 @@ impl Lowerer {
         name: &str,
     ) -> Option<crate::namespace::TopLevelTypeTarget> {
         match self.lookup_type(name) {
-            crate::imports::lookup::LookupResult::Unique(candidate) => Some(candidate.target),
+            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
             crate::imports::lookup::LookupResult::Inaccessible(candidates)
                 if candidates.len() == 1 =>
             {
-                Some(candidates.first().target)
+                candidates.first().target.current()
             }
             crate::imports::lookup::LookupResult::Missing
             | crate::imports::lookup::LookupResult::Ambiguous { .. }
@@ -248,11 +248,37 @@ impl Lowerer {
                 return None;
             };
             let target = match binding {
-                crate::namespace::TopLevelTypeTarget::Nominal(target) => target,
-                crate::namespace::TopLevelTypeTarget::Alias(alias) => {
+                crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Nominal(target),
+                ) => target,
+                crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Alias(alias),
+                ) => {
                     let final_segment = package_length + 1 == path.len();
                     let ty = self.resolve_type_alias_id_reference(
                         alias,
+                        binding_name,
+                        final_segment && !arguments.is_empty(),
+                    )?;
+                    if final_segment {
+                        return Some(ty);
+                    }
+                    let Some(target) = self.nominal_target_for_type(ty) else {
+                        self.error(
+                            binding_name.span,
+                            format!(
+                                "typealias `{}` does not name a type qualifier",
+                                binding_name.text
+                            ),
+                        );
+                        return None;
+                    };
+                    target
+                }
+                crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
+                    let final_segment = package_length + 1 == path.len();
+                    let ty = self.resolve_imported_dependency_type_target(
+                        &binding,
                         binding_name,
                         final_segment && !arguments.is_empty(),
                     )?;
@@ -278,9 +304,28 @@ impl Lowerer {
                 target
             } else {
                 match self.resolve_type_lookup(first).ok()? {
-                    Some(crate::namespace::TopLevelTypeTarget::Nominal(target)) => target,
-                    Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) => {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Nominal(target),
+                    )) => target,
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Alias(alias),
+                    )) => {
                         let ty = self.resolve_type_alias_id_reference(alias, first, false)?;
+                        let Some(target) = self.nominal_target_for_type(ty) else {
+                            self.error(
+                                first.span,
+                                format!(
+                                    "typealias `{}` does not name a type qualifier",
+                                    first.text
+                                ),
+                            );
+                            return None;
+                        };
+                        target
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
+                        let ty =
+                            self.resolve_imported_dependency_type_target(&binding, first, false)?;
                         let Some(target) = self.nominal_target_for_type(ty) else {
                             self.error(
                                 first.span,
@@ -398,9 +443,17 @@ impl Lowerer {
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
-                self.resolve_type_lookup(name).ok()?;
-                if self.source_type_alias_named(&name.text).is_some() {
-                    return self.resolve_type_alias_reference(name, true);
+                match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Alias(alias),
+                    )) => return self.resolve_type_alias_id_reference(alias, name, true),
+                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
+                        return self.resolve_imported_dependency_type_target(&binding, name, true);
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Nominal(_),
+                    ))
+                    | None => {}
                 }
                 // Generic structs (M9, spec 3.2).
                 if let Some((struct_id, _)) = self.top_level_struct_named(&name.text) {
@@ -614,16 +667,23 @@ impl Lowerer {
                     );
                 }
                 match self.resolve_type_lookup(name).ok()? {
-                    Some(crate::namespace::TopLevelTypeTarget::Alias(alias)) => {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Alias(alias),
+                    )) => {
                         return self.resolve_type_alias_id_reference(alias, name, false);
                     }
-                    Some(crate::namespace::TopLevelTypeTarget::Nominal(target)) => {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Nominal(target),
+                    )) => {
                         return self.resolve_nested_nominal_application(
                             target,
                             &[],
                             name.span,
                             &name.text,
                         );
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
+                        return self.resolve_imported_dependency_type_target(&binding, name, false);
                     }
                     None => {}
                 }

@@ -165,6 +165,10 @@ fn concrete_dependency_witness_uses(
         ));
         append_concrete_dependency_witnesses(&mut uses, target, constant.binding());
     }
+    for alias in selected.type_aliases() {
+        let target = crate::ExternalHirTargetV1::TypeAlias(alias.interface().alias());
+        append_concrete_dependency_witnesses(&mut uses, target, alias.binding());
+    }
     uses.sort_unstable();
     uses.dedup();
     uses

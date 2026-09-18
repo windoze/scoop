@@ -17,9 +17,14 @@ pub enum ImportedDependencySelectionPlanBuildError {
     },
     DuplicateConstant(PersistentPropertyId),
     DuplicateProperty(PropertyOwner),
+    DuplicateTypeAlias(scoop_identity::PersistentTypeAliasId),
     TooManyConstants {
         count: usize,
     },
+    TooManyTypeAliases {
+        count: usize,
+    },
+    MissingTypeAliasExpansion(scoop_identity::PersistentTypeAliasId),
     MissingDefinitionSource {
         provider: ConeIdentity,
         source: SourceIdentity,
@@ -54,9 +59,21 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
                 formatter,
                 "dependency semantic world contains duplicate property {property:?}"
             ),
+            Self::DuplicateTypeAlias(alias) => write!(
+                formatter,
+                "dependency semantic world contains duplicate type alias {alias:?}"
+            ),
             Self::TooManyConstants { count } => write!(
                 formatter,
                 "dependency semantic world contains {count} constants, exceeding the u32 id domain"
+            ),
+            Self::TooManyTypeAliases { count } => write!(
+                formatter,
+                "dependency semantic world contains {count} type aliases, exceeding the u32 id domain"
+            ),
+            Self::MissingTypeAliasExpansion(alias) => write!(
+                formatter,
+                "dependency type alias {alias:?} has no validated closure expansion"
             ),
             Self::MissingDefinitionSource { provider, source } => write!(
                 formatter,
@@ -86,7 +103,10 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             | Self::TooManyCallables { .. }
             | Self::DuplicateConstant(_)
             | Self::DuplicateProperty(_)
+            | Self::DuplicateTypeAlias(_)
             | Self::TooManyConstants { .. }
+            | Self::TooManyTypeAliases { .. }
+            | Self::MissingTypeAliasExpansion(_)
             | Self::MissingDefinitionSource { .. }
             | Self::MissingDefinitionContext { .. } => None,
         }
@@ -98,11 +118,13 @@ pub enum ImportedDependencyCandidateError {
     NotCallable(ImportedTarget),
     NotConstant(ImportedTarget),
     NotProperty(ImportedTarget),
+    NotTypeAlias(ImportedTarget),
     ForeignWorld,
     ForeignProjection,
     MissingCallable(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
     MissingProperty(PropertyOwner),
+    MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
     MissingPropertySetter(PropertyOwner),
     RestrictedPropertySetter(PropertyOwner),
     TerminalProviderMismatch {
@@ -115,6 +137,10 @@ pub enum ImportedDependencyCandidateError {
     },
     PropertyTerminalProviderMismatch {
         property: PropertyOwner,
+        expected: ConeIdentity,
+    },
+    TypeAliasTerminalProviderMismatch {
+        alias: scoop_identity::PersistentTypeAliasId,
         expected: ConeIdentity,
     },
     MissingDefaultCallableBinding(CallableTemplateOrigin),
@@ -133,6 +159,9 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::NotProperty(target) => {
                 write!(formatter, "imported target {target:?} is not a property")
             }
+            Self::NotTypeAlias(target) => {
+                write!(formatter, "imported target {target:?} is not a type alias")
+            }
             Self::ForeignWorld => {
                 formatter.write_str("imported binding belongs to another semantic world")
             }
@@ -150,6 +179,10 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::MissingProperty(property) => write!(
                 formatter,
                 "imported property {property:?} is absent from the dependency selection catalog"
+            ),
+            Self::MissingTypeAlias(alias) => write!(
+                formatter,
+                "imported type alias {alias:?} is absent from the dependency selection catalog"
             ),
             Self::MissingPropertySetter(property) => {
                 write!(formatter, "imported property {property:?} is read-only")
@@ -172,6 +205,10 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::PropertyTerminalProviderMismatch { property, expected } => write!(
                 formatter,
                 "imported property {property:?} does not terminate at provider {expected}"
+            ),
+            Self::TypeAliasTerminalProviderMismatch { alias, expected } => write!(
+                formatter,
+                "imported type alias {alias:?} does not terminate at provider {expected}"
             ),
             Self::MissingDefaultCallableBinding(declaration) => write!(
                 formatter,

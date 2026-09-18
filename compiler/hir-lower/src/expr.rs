@@ -65,7 +65,6 @@ mod callbacks;
 mod generic_calls;
 mod generic_inference;
 mod imported_callables;
-mod imported_capabilities;
 mod imported_constants;
 mod imported_origins;
 mod imported_properties;

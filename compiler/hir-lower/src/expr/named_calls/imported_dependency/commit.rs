@@ -96,7 +96,7 @@ impl Lowerer {
                 ImportedParameterInput::Vararg => {
                     self.imported_dependency_capability_error(
                         &candidate,
-                        Some(&argument_map),
+                        argument_map.has_vararg(),
                         "dependency callable",
                         call_span,
                     );

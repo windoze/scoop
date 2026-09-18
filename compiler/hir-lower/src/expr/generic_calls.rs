@@ -54,13 +54,24 @@ impl Lowerer {
             crate::imports::lookup::LookupResult::Inaccessible(_)
         ) {
             match self.resolve_type_lookup(&call.callee) {
-                Ok(Some(crate::namespace::TopLevelTypeTarget::Alias(alias))) => {
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Alias(alias),
+                ))) => {
                     let _ = self.resolve_type_alias_id_reference(alias, &call.callee, false);
                 }
-                Ok(Some(crate::namespace::TopLevelTypeTarget::Nominal(_))) => self.error(
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Nominal(_),
+                ))) => self.error(
                     call.callee.span,
                     format!("type `{name}` is not accessible from this source location"),
                 ),
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding))) => {
+                    let _ = self.resolve_imported_dependency_type_target(
+                        &binding,
+                        &call.callee,
+                        !call.type_args.is_empty(),
+                    );
+                }
                 Ok(None) | Err(()) => {}
             }
         } else if self.has_top_level_function_candidate(name) && !found {

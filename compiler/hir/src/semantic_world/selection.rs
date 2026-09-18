@@ -40,6 +40,7 @@ pub struct ImportedDependencySelectionPlan {
     selection: DependencySelectionId,
     callables: BTreeMap<ImportedDependencyCallableId, SelectedImportedDependencyCallable>,
     constants: BTreeMap<ImportedDependencyConstantId, SelectedImportedDependencyConstant>,
+    type_aliases: BTreeMap<ImportedDependencyTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl ImportedDependencySelectionPlan {
@@ -60,11 +61,14 @@ impl ImportedDependencySelectionPlan {
                 properties: BTreeMap::new(),
                 constants: BTreeMap::new(),
                 constant_ids: BTreeMap::new(),
+                type_aliases: BTreeMap::new(),
+                type_alias_ids: BTreeMap::new(),
                 direct_callable_bindings: BTreeMap::new(),
             }),
             selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),
+            type_aliases: BTreeMap::new(),
         }
     }
 
@@ -197,6 +201,51 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
+    pub fn type_alias_candidate(
+        &self,
+        binding: &DirectImportedTargetBinding,
+    ) -> Result<ImportedDependencyTypeAliasCandidate, ImportedDependencyCandidateError> {
+        let alias = match binding.target() {
+            ImportedTarget::TypeAlias(id) => id.persistent(),
+            target => return Err(ImportedDependencyCandidateError::NotTypeAlias(target)),
+        };
+        if binding
+            .sources()
+            .any(|source| source.immediate_provider().brand() != self.catalog.world_brand)
+        {
+            return Err(ImportedDependencyCandidateError::ForeignWorld);
+        }
+        let entry = self
+            .catalog
+            .type_aliases
+            .get(&alias)
+            .ok_or(ImportedDependencyCandidateError::MissingTypeAlias(alias))?;
+        let selected_id = *self
+            .catalog
+            .type_alias_ids
+            .get(&alias)
+            .expect("every dependency type-alias snapshot has one stable id");
+        if binding.sources().any(|source| {
+            source.witness().terminal_declaration() != binding.target()
+                || source.witness().route().terminal().exporter() != entry.certificate.identity()
+        }) {
+            return Err(
+                ImportedDependencyCandidateError::TypeAliasTerminalProviderMismatch {
+                    alias,
+                    expected: entry.certificate.identity(),
+                },
+            );
+        }
+        Ok(ImportedDependencyTypeAliasCandidate {
+            projection: self.catalog.projection,
+            alias: selected_id,
+            binding: binding.clone(),
+            certificate: entry.certificate.clone(),
+            interface: entry.interface.clone(),
+            expansion: entry.expansion.clone(),
+        })
+    }
+
     pub fn select_callable(
         &mut self,
         candidate: ImportedDependencyCallableCandidate,
@@ -281,6 +330,42 @@ impl ImportedDependencySelectionPlan {
         })
     }
 
+    pub fn select_type_alias(
+        &mut self,
+        candidate: ImportedDependencyTypeAliasCandidate,
+    ) -> Result<ImportedDependencyTypeAliasRef, ImportedDependencySelectionError> {
+        if candidate.projection != self.catalog.projection {
+            return Err(ImportedDependencySelectionError::ForeignProjection);
+        }
+        let id = candidate.alias;
+        if let Some(selected) = self.type_aliases.get_mut(&id) {
+            if selected.provider() != candidate.provider()
+                || selected.interface.alias() != candidate.interface.alias()
+                || selected.expansion != candidate.expansion
+            {
+                return Err(ImportedDependencySelectionError::ForeignProjection);
+            }
+            selected
+                .binding
+                .try_merge(candidate.binding)
+                .map_err(ImportedDependencySelectionError::RouteMerge)?;
+        } else {
+            self.type_aliases.insert(
+                id,
+                SelectedImportedDependencyTypeAlias {
+                    binding: candidate.binding,
+                    certificate: candidate.certificate,
+                    interface: candidate.interface,
+                    expansion: candidate.expansion,
+                },
+            );
+        }
+        Ok(ImportedDependencyTypeAliasRef {
+            selection: self.selection,
+            alias: id,
+        })
+    }
+
     /// Resolves a reference already committed in this transaction.
     ///
     /// Lowering-side semantic checks consume the selected capability before
@@ -294,12 +379,22 @@ impl ImportedDependencySelectionPlan {
             .flatten()
     }
 
+    pub fn resolve_type_alias(
+        &self,
+        reference: ImportedDependencyTypeAliasRef,
+    ) -> Option<&SelectedImportedDependencyTypeAlias> {
+        (reference.selection == self.selection)
+            .then(|| self.type_aliases.get(&reference.alias))
+            .flatten()
+    }
+
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
             consumer: self.catalog.consumer,
             selection: self.selection,
             callables: self.callables,
             constants: self.constants,
+            type_aliases: self.type_aliases,
         }
     }
 
@@ -309,5 +404,9 @@ impl ImportedDependencySelectionPlan {
 
     pub fn selected_constant_count(&self) -> usize {
         self.constants.len()
+    }
+
+    pub fn selected_type_alias_count(&self) -> usize {
+        self.type_aliases.len()
     }
 }

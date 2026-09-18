@@ -1,5 +1,8 @@
+use std::collections::BTreeSet;
+
 use scoop_identity::{
     BindingNamespace, BindingTarget, ConeCoordinate, ConeIdentity, ExportBindingKey,
+    NominalDeclarationOwner,
 };
 
 use super::super::super::m23_ordinary_core_only::support::{
@@ -53,9 +56,11 @@ fn project_dependency_with_core_roles(
     let input = OrdinaryCoreOnlySources::try_new(&parsed, core_inputs).unwrap();
     let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
+    let current_nominals = current_nominal_targets(output.output().export.module());
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
     let mut authority = ProviderProjectionAuthority {
         provider: coordinate.identity().unwrap(),
+        current_nominals,
     };
     let interface = scoop_hir::CrossConeHirInterfaceSectionV1::from_ordinary_hir(
         &output,
@@ -111,6 +116,35 @@ fn core_type_witnesses(
 
 struct ProviderProjectionAuthority {
     provider: ConeIdentity,
+    current_nominals: BTreeSet<scoop_hir::ExternalHirTargetV1>,
+}
+
+fn current_nominal_targets(module: &scoop_hir::Module) -> BTreeSet<scoop_hir::ExternalHirTargetV1> {
+    let mut targets = BTreeSet::new();
+    let mut insert = |identity: &scoop_hir::HirNominalIdentity| {
+        let owner = match (identity.concrete_type_id(), identity.generic_type_id()) {
+            (Some(id), None) => NominalDeclarationOwner::Concrete(id),
+            (None, Some(id)) => NominalDeclarationOwner::GenericTemplate(id),
+            _ => unreachable!("a source nominal has exactly one persistent identity kind"),
+        };
+        targets.insert(scoop_hir::ExternalHirTargetV1::Nominal(owner));
+    };
+    for (id, _) in module.structs.iter() {
+        insert(&module.nominal_identities[id]);
+    }
+    for (id, _) in module.enums.iter() {
+        insert(&module.nominal_identities[id]);
+    }
+    for (id, _) in module.classes.iter() {
+        insert(&module.nominal_identities[id]);
+    }
+    for (id, _) in module.interfaces.iter() {
+        insert(&module.nominal_identities[id]);
+    }
+    for (id, _) in module.objects.iter() {
+        insert(&module.nominal_identities[id]);
+    }
+    targets
 }
 
 impl scoop_hir::PublicExportBindingClosureAuthority for ProviderProjectionAuthority {
@@ -148,6 +182,9 @@ impl scoop_hir::ExternalHirReferenceSemanticAuthority<&'static str>
         &mut self,
         target: scoop_hir::ExternalHirTargetV1,
     ) -> Result<ConeIdentity, &'static str> {
+        if self.current_nominals.contains(&target) {
+            return Ok(self.provider);
+        }
         Ok(match target {
             scoop_hir::ExternalHirTargetV1::Nominal(_) => ConeIdentity::CORE,
             _ => self.provider,

@@ -6,7 +6,7 @@ use scoop_identity::LocalValueSelector;
 
 use super::super::arguments::{ImportedArgumentMap, ImportedParameterInput};
 use crate::Lowerer;
-use crate::expr::imported_capabilities::ImportedCapabilityRequirement;
+use crate::imported_capabilities::ImportedCapabilityRequirement;
 
 #[derive(Clone)]
 pub(in super::super) struct ImportedDefaultPlan {

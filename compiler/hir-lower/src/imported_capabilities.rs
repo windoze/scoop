@@ -1,13 +1,12 @@
-//! Stable HIR capability gates shared by dependency calls and accessors.
+//! Stable capability gates shared by all ordinary dependency consumers.
 
 use scoop_hir as hir;
 use scoop_identity::{CallableTemplateOrigin, Effect};
 
-use super::named_calls::imported_dependency::ImportedArgumentMap;
 use crate::Lowerer;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::expr) enum ImportedCapabilityRequirement {
+pub(crate) enum ImportedCapabilityRequirement {
     Layout,
     Dispatch,
     Generic,
@@ -15,7 +14,7 @@ pub(in crate::expr) enum ImportedCapabilityRequirement {
 }
 
 impl ImportedCapabilityRequirement {
-    pub(in crate::expr) const fn code(self) -> &'static str {
+    pub(crate) const fn code(self) -> &'static str {
         match self {
             Self::Layout => "SCOOP_HIR_CROSS_CONE_LAYOUT_REQUIRED",
             Self::Dispatch => "SCOOP_HIR_CROSS_CONE_DISPATCH_REQUIRED",
@@ -33,14 +32,14 @@ impl ImportedCapabilityRequirement {
         }
     }
 
-    pub(in crate::expr) fn diagnostic(self, subject: &str) -> String {
+    pub(crate) fn diagnostic(self, subject: &str) -> String {
         format!("{}: {subject} requires {}", self.code(), self.description())
     }
 }
 
-pub(in crate::expr) fn callable_requirement(
+pub(crate) fn callable_requirement(
     candidate: &hir::ImportedDependencyCallableCandidate,
-    arguments: Option<&ImportedArgumentMap>,
+    has_vararg: bool,
 ) -> ImportedCapabilityRequirement {
     let interface = candidate.interface();
     if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
@@ -53,7 +52,7 @@ pub(in crate::expr) fn callable_requirement(
             CallableTemplateOrigin::GenericFunction(_)
         )
         || interface.effects().execution() == Effect::Suspend
-        || arguments.is_some_and(ImportedArgumentMap::has_vararg)
+        || has_vararg
     {
         ImportedCapabilityRequirement::Generic
     } else if interface.effects().implementation() != hir::CallableImplementationV1::Scoop {
@@ -64,14 +63,14 @@ pub(in crate::expr) fn callable_requirement(
 }
 
 impl Lowerer {
-    pub(in crate::expr) fn imported_dependency_capability_error(
+    pub(crate) fn imported_dependency_capability_error(
         &mut self,
         candidate: &hir::ImportedDependencyCallableCandidate,
-        arguments: Option<&ImportedArgumentMap>,
+        has_vararg: bool,
         subject: &str,
         span: scoop_ast::Span,
     ) {
-        let requirement = callable_requirement(candidate, arguments);
+        let requirement = callable_requirement(candidate, has_vararg);
         self.error(span, requirement.diagnostic(subject));
     }
 }

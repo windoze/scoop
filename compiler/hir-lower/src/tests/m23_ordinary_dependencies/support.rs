@@ -148,8 +148,13 @@ pub(crate) fn certificate(
 }
 
 pub(crate) fn empty_alias_expansions() -> scoop_hir::CanonicalTypeAliasExpansionsV1 {
-    scoop_hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new())
-        .unwrap()
+    alias_expansions(&scoop_hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap())
+}
+
+pub(crate) fn alias_expansions(
+    aliases: &scoop_hir::CanonicalTypeAliasInterfacesV1,
+) -> scoop_hir::CanonicalTypeAliasExpansionsV1 {
+    aliases
         .expand_alias_closure(
             &EmptyAliasAuthority,
             &mut BudgetMeter::new(DecodeLimits::default()),

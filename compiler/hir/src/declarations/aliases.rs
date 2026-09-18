@@ -1,4 +1,5 @@
 use super::*;
+use scoop_identity::PersistentTypeAliasId;
 
 /// Export-side identity and transparent target of one source `typealias`.
 ///
@@ -26,4 +27,6 @@ pub struct TypeAliasDecl {
 pub enum TypeAliasSourceTarget {
     Expanded,
     Alias(ExportTypeAliasId),
+    /// A public alias selected from the ordinary dependency surface.
+    ImportedAlias(PersistentTypeAliasId),
 }

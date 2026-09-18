@@ -84,6 +84,7 @@ impl CanonicalTypeAliasInterfacesV1 {
                     }
                     TypeAliasTargetV1::Alias(target_identity.id())
                 }
+                TypeAliasSourceTarget::ImportedAlias(target) => TypeAliasTargetV1::Alias(target),
             };
             let origin = export
                 .export_definition_origins

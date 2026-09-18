@@ -102,7 +102,9 @@ impl Lowerer {
                         Err(()) => return None,
                     };
                     match target {
-                        crate::namespace::TopLevelTypeTarget::Nominal(target) => {
+                        crate::imports::lookup::TypeLookupTarget::Current(
+                            crate::namespace::TopLevelTypeTarget::Nominal(target),
+                        ) => {
                             if !self.top_level_type_target_is_accessible(
                                 crate::namespace::TopLevelTypeTarget::Nominal(target),
                             ) {
@@ -119,9 +121,18 @@ impl Lowerer {
                                 return Some(PatternTarget::Struct(application));
                             }
                         }
-                        crate::namespace::TopLevelTypeTarget::Alias(alias) => {
+                        crate::imports::lookup::TypeLookupTarget::Current(
+                            crate::namespace::TopLevelTypeTarget::Alias(alias),
+                        ) => {
                             let target =
                                 self.resolve_type_alias_id_reference(alias, name, false)?;
+                            if self.types_equal(target, matched_ty) {
+                                return Some(PatternTarget::Struct(application));
+                            }
+                        }
+                        crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
+                            let target = self
+                                .resolve_imported_dependency_type_target(&binding, name, false)?;
                             if self.types_equal(target, matched_ty) {
                                 return Some(PatternTarget::Struct(application));
                             }

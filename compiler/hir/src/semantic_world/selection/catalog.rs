@@ -1,20 +1,23 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use scoop_identity::{CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PropertyOwner};
+use scoop_identity::{
+    CallableTemplateOrigin, ConeIdentity, PersistentPropertyId, PersistentTypeAliasId,
+    PropertyOwner,
+};
 
 use super::{
     DependencyProjectionId, DependencySelectionId, ImportedDependencyCallableId,
     ImportedDependencyConstantId, ImportedDependencyDefinitionSources,
-    ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError, NEXT_PROJECTION,
-    NEXT_SELECTION, next_id,
+    ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError,
+    ImportedDependencyTypeAliasId, NEXT_PROJECTION, NEXT_SELECTION, next_id,
 };
 use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, CoreClosedExactLeafClassifierV1,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
     ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
-    PropertyInterfaceRecordV1,
+    PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Debug)]
@@ -41,6 +44,13 @@ pub(super) struct PropertyCatalogEntry {
     pub(super) interface: PropertyInterfaceRecordV1,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct TypeAliasCatalogEntry {
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) interface: TypeAliasInterfaceRecordV1,
+    pub(super) expansion: scoop_identity::SignatureTypeKey,
+}
+
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
     pub(super) world_brand: u64,
@@ -51,6 +61,8 @@ pub(super) struct DependencyCatalog {
     pub(super) properties: BTreeMap<PropertyOwner, PropertyCatalogEntry>,
     pub(super) constants: BTreeMap<PersistentPropertyId, ConstantCatalogEntry>,
     pub(super) constant_ids: BTreeMap<PersistentPropertyId, ImportedDependencyConstantId>,
+    pub(super) type_aliases: BTreeMap<PersistentTypeAliasId, TypeAliasCatalogEntry>,
+    pub(super) type_alias_ids: BTreeMap<PersistentTypeAliasId, ImportedDependencyTypeAliasId>,
     pub(super) direct_callable_bindings:
         BTreeMap<CallableTemplateOrigin, DirectImportedTargetBinding>,
 }
@@ -64,6 +76,7 @@ impl ImportedSemanticWorld<'_> {
         let mut callables = BTreeMap::new();
         let mut properties = BTreeMap::new();
         let mut constants = BTreeMap::new();
+        let mut type_aliases = BTreeMap::new();
         for provider in &self.providers {
             if provider.identity() == ConeIdentity::CORE {
                 continue;
@@ -124,6 +137,24 @@ impl ImportedSemanticWorld<'_> {
                     );
                 }
             }
+            for alias in provider.interface().type_aliases().records() {
+                let declaration = alias.alias();
+                let expansion = provider.alias_expansions().get(declaration).ok_or(
+                    ImportedDependencySelectionPlanBuildError::MissingTypeAliasExpansion(
+                        declaration,
+                    ),
+                )?;
+                let entry = TypeAliasCatalogEntry {
+                    certificate: provider.certificate().clone(),
+                    interface: alias.clone(),
+                    expansion: expansion.target().clone(),
+                };
+                if type_aliases.insert(declaration, entry).is_some() {
+                    return Err(
+                        ImportedDependencySelectionPlanBuildError::DuplicateTypeAlias(declaration),
+                    );
+                }
+            }
         }
         let callable_ids = callables
             .keys()
@@ -153,6 +184,20 @@ impl ImportedSemanticWorld<'_> {
                     )
             })
             .collect::<Result<BTreeMap<_, _>, _>>()?;
+        let type_alias_ids = type_aliases
+            .keys()
+            .copied()
+            .enumerate()
+            .map(|(index, alias)| {
+                u32::try_from(index)
+                    .map(|index| (alias, ImportedDependencyTypeAliasId(index)))
+                    .map_err(
+                        |_| ImportedDependencySelectionPlanBuildError::TooManyTypeAliases {
+                            count: type_aliases.len(),
+                        },
+                    )
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
@@ -164,11 +209,14 @@ impl ImportedSemanticWorld<'_> {
                 properties,
                 constants,
                 constant_ids,
+                type_aliases,
+                type_alias_ids,
                 direct_callable_bindings,
             }),
             selection: DependencySelectionId(next_id(&NEXT_SELECTION, "dependency selection")),
             callables: BTreeMap::new(),
             constants: BTreeMap::new(),
+            type_aliases: BTreeMap::new(),
         })
     }
 

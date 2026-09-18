@@ -72,6 +72,9 @@ impl Lowerer {
                     .get(&source)
                     .expect("a resolved alias edge points to another publishable alias"),
             ),
+            ResolvedTypeAliasSource::ImportedAlias(source) => {
+                hir::TypeAliasSourceTarget::ImportedAlias(source)
+            }
         };
         let expected = publication_ids[&id];
         let declaration = self.type_aliases.alloc(hir::TypeAliasDecl {

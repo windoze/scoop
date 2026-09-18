@@ -20,8 +20,8 @@ impl Lowerer {
                 unreachable!("core blockers cannot carry ordinary dependency targets")
             }
             ValueOrigin::CoreNonValue(NonValueTarget::Type(target)) => self
-                .type_candidate_location(super::super::TypeLookupCandidate {
-                    target: *target,
+                .type_candidate_location(&super::super::TypeLookupCandidate {
+                    target: super::super::TypeLookupTarget::Current(*target),
                     origin: super::super::TypeLookupOrigin::ExistingM22Core,
                 }),
             ValueOrigin::CoreNonValue(NonValueTarget::ExtensionProperty(id)) => {

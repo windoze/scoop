@@ -42,6 +42,7 @@ struct ResolvedTypeAliasTarget {
 enum ResolvedTypeAliasSource {
     Expanded,
     Alias(SourceTypeAliasId),
+    ImportedAlias(scoop_identity::PersistentTypeAliasId),
 }
 
 impl Lowerer {
@@ -100,12 +101,16 @@ impl Lowerer {
         name: &ast::Ident,
         supplied_type_arguments: bool,
     ) -> Option<hir::TypeId> {
-        let crate::namespace::TopLevelTypeTarget::Alias(id) =
-            self.resolve_type_lookup(name).ok()??
-        else {
-            return None;
-        };
-        self.resolve_type_alias_id_reference(id, name, supplied_type_arguments)
+        match self.resolve_type_lookup(name).ok()?? {
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Alias(id),
+            ) => self.resolve_type_alias_id_reference(id, name, supplied_type_arguments),
+            crate::imports::lookup::TypeLookupTarget::Dependency(binding) => self
+                .resolve_imported_dependency_type_target(&binding, name, supplied_type_arguments),
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Nominal(_),
+            ) => None,
+        }
     }
 
     pub(crate) fn resolve_type_alias_id_reference(
@@ -225,13 +230,14 @@ impl Lowerer {
     /// alias uses remain represented by the fully expanded HIR `TypeId`.
     fn resolve_type_alias_source(&self, target: &ast::TypeRef) -> ResolvedTypeAliasSource {
         let alias = match &target.kind {
-            ast::TypeRefKind::Named(name) => {
-                self.top_level_type_target(&name.text)
-                    .and_then(|target| match target {
-                        crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
-                        crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
-                    })
-            }
+            ast::TypeRefKind::Named(name) => match self.lookup_type(&name.text) {
+                crate::imports::lookup::LookupResult::Unique(candidate) => {
+                    Self::classify_type_alias_source_target(candidate.target)
+                }
+                crate::imports::lookup::LookupResult::Missing
+                | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+            },
             ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
                 let (package, package_length) =
                     self.top_level_namespaces.longest_package_prefix(path);
@@ -241,10 +247,7 @@ impl Lowerer {
                     let binding = &path[package_length];
                     match self.lookup_package_type(package, &binding.text) {
                         crate::imports::lookup::LookupResult::Unique(candidate) => {
-                            match candidate.target {
-                                crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
-                                crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
-                            }
+                            Self::classify_type_alias_source_target(candidate.target)
                         }
                         crate::imports::lookup::LookupResult::Missing
                         | crate::imports::lookup::LookupResult::Ambiguous { .. }
@@ -259,10 +262,29 @@ impl Lowerer {
             | ast::TypeRefKind::Function(_)
             | ast::TypeRefKind::Nullable(_) => None,
         };
-        alias.map_or(
-            ResolvedTypeAliasSource::Expanded,
-            ResolvedTypeAliasSource::Alias,
-        )
+        alias.unwrap_or(ResolvedTypeAliasSource::Expanded)
+    }
+
+    fn classify_type_alias_source_target(
+        target: crate::imports::lookup::TypeLookupTarget,
+    ) -> Option<ResolvedTypeAliasSource> {
+        match target {
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Alias(alias),
+            ) => Some(ResolvedTypeAliasSource::Alias(alias)),
+            crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
+                match binding.target() {
+                    hir::ImportedTarget::TypeAlias(alias) => {
+                        Some(ResolvedTypeAliasSource::ImportedAlias(alias.persistent()))
+                    }
+                    hir::ImportedTarget::Type(_) | hir::ImportedTarget::GenericType(_) => None,
+                    _ => unreachable!("type lookup returns only dependency type targets"),
+                }
+            }
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Nominal(_),
+            ) => None,
+        }
     }
 
     pub(crate) fn resolve_all_type_aliases(&mut self) {

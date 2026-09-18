@@ -7,8 +7,8 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use super::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::Lowerer;
+use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 
 mod extension;
 mod read;
@@ -81,7 +81,7 @@ impl Lowerer {
             } else if !property.interface().type_parameters().is_empty() {
                 ImportedCapabilityRequirement::Generic
             } else {
-                callable_requirement(&candidate, None)
+                callable_requirement(&candidate, false)
             };
             self.error(span, requirement.diagnostic(subject));
             return None;

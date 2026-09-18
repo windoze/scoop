@@ -3,15 +3,15 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use scoop_identity::{
-    ConeIdentity, PersistentExactTypeId, PersistentSourceContextId, SourceContextKey,
-    SourceIdentity,
+    ConeIdentity, PersistentExactTypeId, PersistentSourceContextId, SignatureTypeKey,
+    SourceContextKey, SourceIdentity,
 };
 
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
     ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
-    PropertyInterfaceRecordV1, SourceRecord,
+    PropertyInterfaceRecordV1, SourceRecord, TypeAliasInterfaceRecordV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -25,6 +25,9 @@ pub(super) struct ImportedDependencyCallableId(pub(super) u32);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct ImportedDependencyConstantId(pub(super) u32);
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(super) struct ImportedDependencyTypeAliasId(pub(super) u32);
 
 #[derive(Clone, Debug)]
 pub(super) struct ImportedDependencyDefinitionSources {
@@ -146,6 +149,46 @@ pub struct ImportedDependencyPropertyCandidate {
     pub(super) binding: DirectImportedTargetBinding,
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: PropertyInterfaceRecordV1,
+}
+
+/// An owned transparent type-alias candidate reached through one direct
+/// dependency binding. Its final target was already expanded and validated
+/// over the complete dependency closure before this request-local snapshot
+/// was built.
+#[derive(Clone, Debug)]
+pub struct ImportedDependencyTypeAliasCandidate {
+    pub(super) projection: DependencyProjectionId,
+    pub(super) alias: ImportedDependencyTypeAliasId,
+    pub(super) binding: DirectImportedTargetBinding,
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) interface: TypeAliasInterfaceRecordV1,
+    pub(super) expansion: SignatureTypeKey,
+}
+
+impl ImportedDependencyTypeAliasCandidate {
+    pub const fn target(&self) -> ImportedTarget {
+        self.binding.target()
+    }
+
+    pub const fn provider(&self) -> ConeIdentity {
+        self.certificate.identity()
+    }
+
+    pub const fn certificate(&self) -> &ImportedProviderCertificate {
+        &self.certificate
+    }
+
+    pub const fn interface(&self) -> &TypeAliasInterfaceRecordV1 {
+        &self.interface
+    }
+
+    pub const fn expansion(&self) -> &SignatureTypeKey {
+        &self.expansion
+    }
+
+    pub const fn binding(&self) -> &DirectImportedTargetBinding {
+        &self.binding
+    }
 }
 
 impl ImportedDependencyPropertyCandidate {
@@ -290,6 +333,44 @@ pub struct ImportedDependencyConstantRef {
     pub(super) constant: ImportedDependencyConstantId,
 }
 
+/// Request-local reference to one committed transparent dependency alias.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedDependencyTypeAliasRef {
+    pub(super) selection: DependencySelectionId,
+    pub(super) alias: ImportedDependencyTypeAliasId,
+}
+
+/// Complete HIR-side proof for one committed dependency type alias.
+#[derive(Clone, Debug)]
+pub struct SelectedImportedDependencyTypeAlias {
+    pub(super) binding: DirectImportedTargetBinding,
+    pub(super) certificate: ImportedProviderCertificate,
+    pub(super) interface: TypeAliasInterfaceRecordV1,
+    pub(super) expansion: SignatureTypeKey,
+}
+
+impl SelectedImportedDependencyTypeAlias {
+    pub const fn provider(&self) -> ConeIdentity {
+        self.certificate.identity()
+    }
+
+    pub const fn certificate(&self) -> &ImportedProviderCertificate {
+        &self.certificate
+    }
+
+    pub const fn interface(&self) -> &TypeAliasInterfaceRecordV1 {
+        &self.interface
+    }
+
+    pub const fn expansion(&self) -> &SignatureTypeKey {
+        &self.expansion
+    }
+
+    pub const fn binding(&self) -> &DirectImportedTargetBinding {
+        &self.binding
+    }
+}
+
 /// Canonical request-local sidecar that owns all selected HIR dependency
 /// proofs and artifact reopen certificates.
 #[derive(Debug)]
@@ -300,6 +381,8 @@ pub struct SelectedImportedDependencySet {
         BTreeMap<ImportedDependencyCallableId, SelectedImportedDependencyCallable>,
     pub(super) constants:
         BTreeMap<ImportedDependencyConstantId, SelectedImportedDependencyConstant>,
+    pub(super) type_aliases:
+        BTreeMap<ImportedDependencyTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl SelectedImportedDependencySet {
@@ -337,6 +420,21 @@ impl SelectedImportedDependencySet {
         self.constants.values()
     }
 
+    pub fn resolve_type_alias(
+        &self,
+        reference: ImportedDependencyTypeAliasRef,
+    ) -> Option<&SelectedImportedDependencyTypeAlias> {
+        (reference.selection == self.selection)
+            .then(|| self.type_aliases.get(&reference.alias))
+            .flatten()
+    }
+
+    pub fn type_aliases(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &SelectedImportedDependencyTypeAlias> + '_ {
+        self.type_aliases.values()
+    }
+
     pub fn callable_count(&self) -> usize {
         self.callables.len()
     }
@@ -345,11 +443,15 @@ impl SelectedImportedDependencySet {
         self.constants.len()
     }
 
+    pub fn type_alias_count(&self) -> usize {
+        self.type_aliases.len()
+    }
+
     pub fn is_empty(&self) -> bool {
-        self.callables.is_empty() && self.constants.is_empty()
+        self.callables.is_empty() && self.constants.is_empty() && self.type_aliases.is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.callables.len() + self.constants.len()
+        self.callables.len() + self.constants.len() + self.type_aliases.len()
     }
 }

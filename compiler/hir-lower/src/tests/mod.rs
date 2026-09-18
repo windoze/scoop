@@ -68,6 +68,7 @@ mod m23_ordinary_dependencies;
 mod m23_ordinary_dependency_constants;
 mod m23_ordinary_dependency_defaults;
 mod m23_ordinary_dependency_properties;
+mod m23_ordinary_dependency_type_aliases;
 mod m23_output_kind;
 mod m23_pattern_paths;
 mod m23_property_interface_production;
