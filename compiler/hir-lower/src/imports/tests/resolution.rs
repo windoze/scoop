@@ -221,13 +221,21 @@ fn star_is_nonrecursive_and_exact_cannot_import_a_package() {
 fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
     let (mut lowerer, api, _) = lowerer();
     let mut surface = CurrentUnitImports::default();
-    let host = function(
+    let host = class(
         &mut surface,
         &lowerer,
         ResolvedNamespace::Package(api),
         "Host",
         1,
         1,
+    );
+    function(
+        &mut surface,
+        &lowerer,
+        ResolvedNamespace::Package(api),
+        "Host",
+        2,
+        4,
         false,
     );
     let static_owner = StaticNamespace::Class(hir::ClassId::from_raw(0.into()));
@@ -241,27 +249,28 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
         2,
         false,
     );
-    let shadowed = function(
+    let shadowed = class(
         &mut surface,
         &lowerer,
         ResolvedNamespace::Package(api),
         "child",
         1,
         3,
-        false,
     );
     surface.static_targets.insert(shadowed, static_owner);
     let mut valid_source = file(Vec::new());
     valid_source.imports = vec![
         exact(&["api", "Host", "factory"], None, false),
+        exact(&["api", "Host"], Some("Both"), false),
         star(&["api", "Host"], false),
     ];
     let resolved = surface.resolve_file(&mut lowerer, &valid_source);
-    assert_eq!(resolved.exact.len(), 1);
+    assert_eq!(resolved.exact.len(), 2);
     assert_eq!(
         resolved.exact[0].targets.first().current_binding(),
         Some(member)
     );
+    assert_eq!(resolved.exact[1].targets.len(), 2);
     assert_eq!(
         resolved.stars[0].snapshot["factory"]
             .first()
@@ -285,23 +294,21 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
 fn ambiguous_star_namespace_diagnostic_covers_the_complete_selector() {
     let (mut lowerer, api, _) = lowerer();
     let mut surface = CurrentUnitImports::default();
-    let first = function(
+    let first = class(
         &mut surface,
         &lowerer,
         ResolvedNamespace::Package(api),
         "Host",
         1,
         1,
-        false,
     );
-    let second = function(
+    let second = class(
         &mut surface,
         &lowerer,
         ResolvedNamespace::Package(api),
         "Host",
         2,
         2,
-        false,
     );
     surface.static_targets.insert(
         first,

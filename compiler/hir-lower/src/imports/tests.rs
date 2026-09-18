@@ -184,6 +184,29 @@ fn function_with_visibility(
     )
 }
 
+fn class(
+    surface: &mut CurrentUnitImports,
+    lowerer: &Lowerer,
+    namespace: ResolvedNamespace,
+    name: &str,
+    file: usize,
+    index: u32,
+) -> CurrentUnitBindingId {
+    surface.insert(
+        namespace,
+        CurrentUnitBinding {
+            target: CurrentUnitTarget::Class(hir::ClassId::from_raw(index.into())),
+            source: lowerer.visibility_file(file),
+            file,
+            span: ast::Span::new(index * 10, index * 10 + 3),
+            access: hir::EffectiveLookupDomain(
+                lowerer.top_level_domain(hir::DeclaredVisibility::Internal, file),
+            ),
+            name: name.to_string(),
+        },
+    )
+}
+
 fn lower_sources(sources: Vec<ast::SourceFile>) -> Result<hir::Output, Vec<ast::Diagnostic>> {
     lower_sources_with_core(sources, crate::tests::core_file())
 }

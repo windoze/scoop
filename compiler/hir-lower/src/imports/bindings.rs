@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use scoop_ast as ast;
 use scoop_hir as hir;
-use scoop_identity::{LocalBindingRole, PackagePath, SourceIdentity};
+use scoop_identity::{BindingNamespace, LocalBindingRole, PackagePath, SourceIdentity};
 
 use crate::{aliases::SourceTypeAliasId, namespace::PackageId};
 
@@ -28,6 +28,31 @@ pub(crate) enum CurrentUnitTarget {
     EnumVariant(hir::EnumVariantRef),
     SourceProperty(SourcePropertyId),
     SourceVariant(SourceVariantId),
+}
+
+impl CurrentUnitTarget {
+    pub(crate) const fn occupies_namespace(self, namespace: BindingNamespace) -> bool {
+        match namespace {
+            BindingNamespace::Type => matches!(
+                self,
+                Self::Class(_)
+                    | Self::Interface(_)
+                    | Self::Struct(_)
+                    | Self::Enum(_)
+                    | Self::Object(_)
+                    | Self::TypeAlias(_)
+            ),
+            BindingNamespace::Value => matches!(
+                self,
+                Self::Object(_)
+                    | Self::Function(_)
+                    | Self::Property(_)
+                    | Self::EnumVariant(_)
+                    | Self::SourceProperty(_)
+                    | Self::SourceVariant(_)
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
