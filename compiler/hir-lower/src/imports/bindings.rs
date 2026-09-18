@@ -105,8 +105,15 @@ pub(crate) struct ImportSyntaxOrigin {
     pub(crate) span: ast::Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedImportExposure {
+    Local,
+    PublicReexport,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedExactImport {
+    pub(crate) exposure: ResolvedImportExposure,
     pub(crate) local_name: String,
     pub(crate) source_role: LocalBindingRole,
     pub(crate) targets: ast::NonEmptyVec<ImportedTargetBinding>,
@@ -136,6 +143,7 @@ impl ResolvedImportNamespace {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedStarImport {
+    pub(crate) exposure: ResolvedImportExposure,
     pub(crate) namespace: ResolvedImportNamespace,
     pub(crate) snapshot: BTreeMap<String, ast::NonEmptyVec<ImportedTargetBinding>>,
     pub(crate) origin: ImportSyntaxOrigin,

@@ -84,7 +84,7 @@ fn exact_private_failure_has_a_declaration_note_and_commits_nothing() {
     ];
     let resolved = surface.resolve_file(&mut lowerer, &syntax);
     assert!(resolved.exact.is_empty());
-    assert!(resolved.stars[0].snapshot.is_empty());
+    assert!(resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
     let error = &lowerer.diagnostics[0];
     assert_eq!(
@@ -140,6 +140,7 @@ fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
         (0, star(&["api", "child"], true)),
         (0, star(&["api", "empty"], true)),
     ] {
+        let expected_span = selector_span(&import);
         lowerer.current_file = current_file;
         lowerer.diagnostics.clear();
         let mut syntax = file(Vec::new());
@@ -151,7 +152,7 @@ fn public_gate_precedes_visibility_and_never_publishes_local_bindings() {
             lowerer.diagnostics[0].message,
             "public import requires a direct dependency target"
         );
-        assert_eq!(lowerer.diagnostics[0].span, Some(ast::Span::new(0, 6)));
+        assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
         assert!(lowerer.diagnostics[0].notes.is_empty());
     }
 }
@@ -196,15 +197,20 @@ fn star_is_nonrecursive_and_exact_cannot_import_a_package() {
         1,
         false,
     );
-    let mut syntax = file(Vec::new());
-    syntax.imports = vec![star(&["api"], false), exact(&["api"], None, false)];
-    let resolved = surface.resolve_file(&mut lowerer, &syntax);
-    assert!(resolved.exact.is_empty());
+    let mut star_source = file(Vec::new());
+    star_source.imports = vec![star(&["api"], false)];
+    let resolved = surface.resolve_file(&mut lowerer, &star_source);
     assert_eq!(
         resolved.stars[0].namespace,
         ResolvedImportNamespace::Current(ResolvedNamespace::Package(api))
     );
     assert!(resolved.stars[0].snapshot.is_empty());
+    assert!(lowerer.diagnostics.is_empty());
+
+    let mut exact_source = file(Vec::new());
+    exact_source.imports = vec![exact(&["api"], None, false)];
+    let resolved = surface.resolve_file(&mut lowerer, &exact_source);
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(
         lowerer.diagnostics[0].message,
         "exact import requires an importable binding, not a package namespace"
@@ -245,13 +251,12 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
         false,
     );
     surface.static_targets.insert(shadowed, static_owner);
-    let mut syntax = file(Vec::new());
-    syntax.imports = vec![
+    let mut valid_source = file(Vec::new());
+    valid_source.imports = vec![
         exact(&["api", "Host", "factory"], None, false),
         star(&["api", "Host"], false),
-        exact(&["api", "child", "factory"], None, false),
     ];
-    let resolved = surface.resolve_file(&mut lowerer, &syntax);
+    let resolved = surface.resolve_file(&mut lowerer, &valid_source);
     assert_eq!(resolved.exact.len(), 1);
     assert_eq!(
         resolved.exact[0].targets.first().current_binding(),
@@ -263,6 +268,12 @@ fn static_paths_use_typed_edges_and_do_not_fall_back_from_longest_package() {
             .current_binding(),
         Some(member)
     );
+    assert!(lowerer.diagnostics.is_empty());
+
+    let mut shadowed_source = file(Vec::new());
+    shadowed_source.imports = vec![exact(&["api", "child", "factory"], None, false)];
+    let resolved = surface.resolve_file(&mut lowerer, &shadowed_source);
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
     assert_eq!(lowerer.diagnostics.len(), 1);
     assert_eq!(
         lowerer.diagnostics[0].message,

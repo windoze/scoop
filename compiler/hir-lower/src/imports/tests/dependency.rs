@@ -125,3 +125,80 @@ fn globally_longest_current_package_never_falls_back_to_direct_static_owner() {
         "import target is not available in the current compilation unit"
     );
 }
+
+#[test]
+fn public_exact_and_star_freeze_direct_reexport_plans() {
+    let (mut lowerer, _, _) = lowerer();
+    let fixture =
+        DependencyWorldFixture::with_nested_type(&["dependency", "api"], "Outer", "Nested");
+    let world = fixture.world(lowerer.current_cone());
+    let mut source = file(Vec::new());
+    source.imports = vec![
+        exact(&["dependency", "api", "Outer"], Some("Facade"), true),
+        star(&["dependency", "api", "Outer"], true),
+    ];
+
+    let resolved =
+        CurrentUnitImports::default().resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(lowerer.diagnostics.is_empty());
+    assert_eq!(resolved.exact.len(), 1);
+    assert_eq!(
+        resolved.exact[0].exposure,
+        ResolvedImportExposure::PublicReexport
+    );
+    assert_eq!(resolved.exact[0].local_name, "Facade");
+    assert!(
+        resolved.exact[0]
+            .targets
+            .iter()
+            .all(|target| target.direct_binding().is_some())
+    );
+    assert_eq!(resolved.stars.len(), 1);
+    assert_eq!(
+        resolved.stars[0].exposure,
+        ResolvedImportExposure::PublicReexport
+    );
+    assert!(
+        resolved.stars[0]
+            .snapshot
+            .values()
+            .flat_map(ast::NonEmptyVec::iter)
+            .all(|target| target.direct_binding().is_some())
+    );
+}
+
+#[test]
+fn public_split_star_rejects_the_whole_file_when_any_target_is_current() {
+    let (mut lowerer, api, _) = lowerer();
+    let fixture = DependencyWorldFixture::with_nested_type(&["api"], "Remote", "Nested");
+    let world = fixture.world(lowerer.current_cone());
+    let mut surface = CurrentUnitImports::default();
+    function(
+        &mut surface,
+        &lowerer,
+        ResolvedNamespace::Package(api),
+        "local",
+        1,
+        92,
+        false,
+    );
+    let invalid = star(&["api"], true);
+    let expected_span = selector_span(&invalid);
+    let mut source = file(Vec::new());
+    source.imports = vec![
+        exact(&["api", "Remote"], None, false),
+        invalid,
+        exact(&["api", "Remote"], Some("AfterFailure"), false),
+    ];
+
+    let resolved = surface.resolve_file_with_world(&mut lowerer, &source, Some(&world));
+
+    assert!(resolved.exact.is_empty() && resolved.stars.is_empty());
+    assert_eq!(lowerer.diagnostics.len(), 1);
+    assert_eq!(
+        lowerer.diagnostics[0].message,
+        "public import requires a direct dependency target"
+    );
+    assert_eq!(lowerer.diagnostics[0].span, Some(expected_span));
+}

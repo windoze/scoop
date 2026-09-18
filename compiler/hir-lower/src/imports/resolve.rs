@@ -4,17 +4,30 @@ use crate::SourceKind;
 use crate::{Lowerer, namespace::TopLevelLookupLayer};
 
 impl CurrentUnitImports {
-    fn public_gate(lowerer: &mut Lowerer, exposure: ast::ImportExposureSyntax) -> bool {
+    fn resolve_exposure<'a>(
+        lowerer: &mut Lowerer,
+        exposure: ast::ImportExposureSyntax,
+        selector_span: ast::Span,
+        allow_empty_direct_namespace: bool,
+        targets: impl IntoIterator<Item = &'a ImportedTargetBinding>,
+    ) -> Option<ResolvedImportExposure> {
         match exposure {
-            ast::ImportExposureSyntax::Local => true,
-            ast::ImportExposureSyntax::PublicReexport {
-                public_keyword_span,
-            } => {
-                lowerer.error(
-                    public_keyword_span,
-                    "public import requires a direct dependency target".to_string(),
-                );
-                false
+            ast::ImportExposureSyntax::Local => Some(ResolvedImportExposure::Local),
+            ast::ImportExposureSyntax::PublicReexport { .. } => {
+                let mut saw_target = false;
+                let all_direct = targets.into_iter().all(|target| {
+                    saw_target = true;
+                    matches!(target, ImportedTargetBinding::DirectDependency(_))
+                });
+                if all_direct && (saw_target || allow_empty_direct_namespace) {
+                    Some(ResolvedImportExposure::PublicReexport)
+                } else {
+                    lowerer.error(
+                        selector_span,
+                        "public import requires a direct dependency target".to_string(),
+                    );
+                    None
+                }
             }
         }
     }
@@ -33,6 +46,7 @@ impl CurrentUnitImports {
         source: &ast::SourceFile,
         world: Option<&hir::ImportedSemanticWorld<'_>>,
     ) -> FrozenFileImports {
+        let diagnostics_before = lowerer.diagnostics.len();
         let mut frozen = FrozenFileImports::default();
         debug_assert_eq!(
             lowerer.intrinsic_sources[lowerer.current_file].kind,
@@ -54,7 +68,15 @@ impl CurrentUnitImports {
                             unreachable!("exact selectors end in bindings")
                         }
                         Err(error) if !error.inaccessible().is_empty() => {
-                            if !Self::public_gate(lowerer, *exposure) {
+                            if matches!(exposure, ast::ImportExposureSyntax::PublicReexport { .. })
+                            {
+                                let _ = Self::resolve_exposure(
+                                    lowerer,
+                                    *exposure,
+                                    selector.span,
+                                    false,
+                                    std::iter::empty(),
+                                );
                                 continue;
                             }
                             let last = selector.segments().last().expect("selector is non-empty");
@@ -79,10 +101,17 @@ impl CurrentUnitImports {
                             continue;
                         }
                     };
-                    if !Self::public_gate(lowerer, *exposure) {
+                    let Some(exposure) = Self::resolve_exposure(
+                        lowerer,
+                        *exposure,
+                        selector.span,
+                        false,
+                        targets.iter(),
+                    ) else {
                         continue;
-                    }
+                    };
                     frozen.exact.push(ResolvedExactImport {
+                        exposure,
                         local_name: alias
                             .as_ref()
                             .map(|alias| alias.name.text.clone())
@@ -127,10 +156,19 @@ impl CurrentUnitImports {
                             continue;
                         }
                     };
-                    if !Self::public_gate(lowerer, *exposure) {
+                    let allow_empty_direct_namespace =
+                        !matches!(selected, ResolvedImportNamespace::Current(_));
+                    let Some(exposure) = Self::resolve_exposure(
+                        lowerer,
+                        *exposure,
+                        selector_span,
+                        allow_empty_direct_namespace,
+                        snapshot.values().flat_map(ast::NonEmptyVec::iter),
+                    ) else {
                         continue;
-                    }
+                    };
                     frozen.stars.push(ResolvedStarImport {
+                        exposure,
                         namespace: selected,
                         snapshot,
                         origin: ImportSyntaxOrigin {
@@ -141,7 +179,11 @@ impl CurrentUnitImports {
                 }
             }
         }
-        frozen
+        if lowerer.diagnostics.len() == diagnostics_before {
+            frozen
+        } else {
+            FrozenFileImports::default()
+        }
     }
 
     pub(super) fn validate_frozen_scopes(&self, lowerer: &Lowerer) {
@@ -202,6 +244,9 @@ impl CurrentUnitImports {
                 assert!(import.origin.span.start <= import.origin.span.end);
                 for target in import.targets.iter() {
                     check_target(target);
+                    if import.exposure == ResolvedImportExposure::PublicReexport {
+                        assert!(matches!(target, ImportedTargetBinding::DirectDependency(_)));
+                    }
                 }
                 let layers = self.layers(file, package, &import.local_name);
                 assert_eq!(layers[0].kind, ImportLookupLayer::Exact);
@@ -219,6 +264,9 @@ impl CurrentUnitImports {
                 for (name, targets) in &import.snapshot {
                     for target in targets.iter() {
                         check_target(target);
+                        if import.exposure == ResolvedImportExposure::PublicReexport {
+                            assert!(matches!(target, ImportedTargetBinding::DirectDependency(_)));
+                        }
                         if let Some(binding) = target.current_binding() {
                             assert!(
                                 namespace

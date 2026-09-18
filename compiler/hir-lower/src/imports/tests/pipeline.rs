@@ -297,39 +297,45 @@ fn public_import_pipeline_does_not_downgrade_to_an_ordinary_import() {
         &["privateApi"],
     );
 
+    let aliased_import = exact(&["publicApi", "published"], Some("renamed"), true);
+    let aliased_span = selector_span(&aliased_import);
     let mut aliased_consumer = file(vec![fun(
         "useAliased",
         vec![stmt(call("renamed", Vec::new()))],
     )]);
-    aliased_consumer
-        .imports
-        .push(exact(&["publicApi", "published"], Some("renamed"), true));
+    aliased_consumer.imports.push(aliased_import);
 
+    let private_exact_import = exact(&["privateApi", "secret"], None, true);
+    let private_exact_span = selector_span(&private_exact_import);
     let mut private_exact_consumer = file(vec![fun(
         "usePrivateExact",
         vec![stmt(call("secret", Vec::new()))],
     )]);
-    private_exact_consumer
-        .imports
-        .push(exact(&["privateApi", "secret"], None, true));
+    private_exact_consumer.imports.push(private_exact_import);
 
+    let private_star_import = star(&["privateApi"], true);
+    let private_star_span = selector_span(&private_star_import);
     let mut private_star_consumer = file(vec![fun(
         "usePrivateStar",
         vec![stmt(call("secret", Vec::new()))],
     )]);
-    private_star_consumer
-        .imports
-        .push(star(&["privateApi"], true));
+    private_star_consumer.imports.push(private_star_import);
 
-    for (case, sources) in [
-        ("public exact alias", vec![public_api, aliased_consumer]),
+    for (case, sources, expected_span) in [
+        (
+            "public exact alias",
+            vec![public_api, aliased_consumer],
+            aliased_span,
+        ),
         (
             "cross-file private public exact",
             vec![private_api.clone(), private_exact_consumer],
+            private_exact_span,
         ),
         (
             "private-only public star",
             vec![private_api, private_star_consumer],
+            private_star_span,
         ),
     ] {
         let errors = lower_sources(sources).expect_err(case);
@@ -338,6 +344,6 @@ fn public_import_pipeline_does_not_downgrade_to_an_ordinary_import() {
             errors[0].message, "public import requires a direct dependency target",
             "{case}: the public form must neither bind locally nor degrade to ordinary lookup"
         );
-        assert_eq!(errors[0].span, Some(ast::Span::new(0, 6)), "{case}");
+        assert_eq!(errors[0].span, Some(expected_span), "{case}");
     }
 }
