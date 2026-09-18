@@ -206,7 +206,7 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedCanonicalUndefinedRelocationUseV1 {
+pub(in crate::link_object) struct DecodedCanonicalUndefinedRelocationUseV1 {
     source_member: DecodedFixedBytesV1<SlibMemberId>,
     containing_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
     containing_atom_role: DefinitionAtomRole,

@@ -26,6 +26,7 @@ use crate::{
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
 
 mod wire;
+pub(in crate::link_object) use wire::DecodedCodeLinkObjectMemberSetV1;
 pub use wire::{
     DecodedCanonicalNativeExternalContractCodeSetV1, NativeExternalContractCodeSetValidationError,
 };

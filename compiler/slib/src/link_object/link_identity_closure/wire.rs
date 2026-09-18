@@ -11,16 +11,16 @@ use scoop_lir::{StrongDigestFinalizationPlanV1, StrongProducerUnitPartitionV1};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
+use crate::SlibMemberId;
 use crate::link_object::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
     CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
     DecodedCanonicalDefinedLinkSymbolOwnerSetV1, DecodedCanonicalUndefinedSymbolRequirementSetV1,
-    DecodedFixedBytesV1, DefinedLinkSymbolOwnerValidationError, LinkObjectMemberSetPlanError,
-    ObjectUnitSetError, PlannedLinkObjectMemberSetV1, ProvisionalDigestPatchSiteV1,
-    UndefinedSymbolRequirementValidationError, VerifiedCodeFingerprintV1,
-    VerifiedScoopLirDigestPatchSiteSetV1,
+    DecodedCodeLinkObjectMemberSetV1, DecodedFixedBytesV1, DefinedLinkSymbolOwnerValidationError,
+    LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedLinkObjectMemberSetV1,
+    ProvisionalDigestPatchSiteV1, UndefinedSymbolRequirementValidationError,
+    VerifiedCodeFingerprintV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
-use crate::{LinkMemberFingerprint, SlibMemberId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedLinkObjectMaterializationV1 {
@@ -186,25 +186,6 @@ impl WireDecode for DecodedMaterializedPatchSiteV1 {
             member: decoder.field(2, DecodedFixedBytesV1::decode)?,
             checked_offset: decoder.field(3, Decoder::unsigned)?,
         })
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedCodeLinkObjectMemberSetV1 {
-    members: Vec<DecodedFixedBytesV1<LinkMemberFingerprint>>,
-}
-
-impl WireEncode for DecodedCodeLinkObjectMemberSetV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode_array(encoder, &self.members)
-    }
-}
-
-impl WireDecode for DecodedCodeLinkObjectMemberSetV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|decoder, _| DecodedFixedBytesV1::decode(decoder))
-            .map(|members| Self { members })
     }
 }
 

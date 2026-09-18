@@ -17,6 +17,7 @@ use scoop_lir::{
 };
 
 mod wire;
+pub(in crate::link_object) use wire::DecodedCanonicalUndefinedRelocationUseV1;
 #[cfg(test)]
 use wire::DecodedFinalUndefinedSymbolRequirementV1;
 pub use wire::{

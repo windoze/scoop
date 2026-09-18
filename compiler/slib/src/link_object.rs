@@ -91,6 +91,9 @@ pub use current_cone_requirements::*;
 mod core_requirements;
 pub use core_requirements::*;
 
+mod cross_cone_link_closure;
+pub use cross_cone_link_closure::*;
+
 mod native_requirements;
 pub use native_requirements::*;
 

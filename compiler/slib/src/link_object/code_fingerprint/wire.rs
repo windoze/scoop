@@ -9,6 +9,31 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use super::CanonicalNativeExternalContractCodeSetV1;
+use crate::{LinkMemberFingerprint, link_object::DecodedFixedBytesV1};
+
+/// Untrusted wire form shared by Link closures that bind the final object set.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(in crate::link_object) struct DecodedCodeLinkObjectMemberSetV1 {
+    members: Vec<DecodedFixedBytesV1<LinkMemberFingerprint>>,
+}
+
+impl WireEncode for DecodedCodeLinkObjectMemberSetV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.members.len() as u64)?;
+        for member in &self.members {
+            member.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl WireDecode for DecodedCodeLinkObjectMemberSetV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder
+            .decode_array(|decoder, _| DecodedFixedBytesV1::decode(decoder))
+            .map(|members| Self { members })
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedNativeExternalContractCodeRecordV1 {
