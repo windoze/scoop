@@ -108,6 +108,7 @@ mod closures;
 mod context;
 mod coroutine;
 mod coroutine_registry;
+mod cross_cone_bridge;
 mod dispatch;
 mod globals;
 mod initialization;
@@ -125,6 +126,7 @@ mod strings;
 mod structured;
 mod types;
 
+pub use cross_cone_bridge::{CrossConeMirBridgeLoweringError, lower_cross_cone_bridge_section};
 pub use ordinary::{ImportedCoreMirLoweringError, lower_ordinary};
 pub use production::{MirProductionLoweringError, lower_production_section};
 
