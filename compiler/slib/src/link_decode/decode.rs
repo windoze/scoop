@@ -2,9 +2,41 @@ use super::*;
 
 impl<'input> ValidatedGraphArtifact<'input> {
     pub fn decode_single_cone_link_sections(
-        mut self,
+        self,
     ) -> Result<DecodedSingleConeLinkSections<'input>, SingleConeLinkSectionDecodeError> {
-        let profile = require_strong_profile(&self)?;
+        self.decode_link_sections_for_profile(ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+            .map(|(sections, cross_cone)| {
+                debug_assert!(cross_cone.is_none());
+                sections
+            })
+    }
+
+    pub(super) fn decode_cross_cone_link_sections(
+        self,
+    ) -> Result<DecodedCrossConeLinkSections<'input>, SingleConeLinkSectionDecodeError> {
+        self.decode_link_sections_for_profile(
+            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+        )
+        .map(
+            |(common, cross_cone_link_closure)| DecodedCrossConeLinkSections {
+                common,
+                cross_cone_link_closure: cross_cone_link_closure
+                    .expect("the cross-Cone profile requires its Link closure"),
+            },
+        )
+    }
+
+    fn decode_link_sections_for_profile(
+        mut self,
+        expected_profile: ArtifactCapabilityProfile,
+    ) -> Result<
+        (
+            DecodedSingleConeLinkSections<'input>,
+            Option<DecodedCrossConeLinkClosureSectionV1>,
+        ),
+        SingleConeLinkSectionDecodeError,
+    > {
+        let profile = require_strong_profile(&self, expected_profile)?;
         let production_manifest = decode_production_manifest(&mut self, profile)?;
 
         let hir_member_id = metadata_member_id(&self, MetadataLocation::Hir)?;
@@ -48,6 +80,19 @@ impl<'input> ValidatedGraphArtifact<'input> {
             required_metadata_section(&lir_envelope, &strong_production_capability)?;
         let closure_payload =
             required_metadata_section(&lir_envelope, &link_identity_closure_capability)?;
+        let cross_cone_link_closure =
+            if profile == ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG {
+                let capability = lir_cross_cone_link_closure_capability();
+                let payload = required_metadata_section(&lir_envelope, &capability)?;
+                Some(decode_inner(
+                    &mut self,
+                    MetadataLocation::Lir,
+                    capability,
+                    payload,
+                )?)
+            } else {
+                None
+            };
 
         let hir_foundation = decode_inner(
             &mut self,
@@ -93,17 +138,20 @@ impl<'input> ValidatedGraphArtifact<'input> {
         )?;
         validate_semantic_fingerprints(&mut self, &hir_envelope, &mir_envelope, &lir_envelope)?;
 
-        Ok(DecodedSingleConeLinkSections {
-            graph: self,
-            hir_foundation,
-            hir_production,
-            mir_foundation,
-            mir_production,
-            lir_foundation,
-            strong_production,
-            link_identity_closure,
-            production_manifest,
-        })
+        Ok((
+            DecodedSingleConeLinkSections {
+                graph: self,
+                hir_foundation,
+                hir_production,
+                mir_foundation,
+                mir_production,
+                lir_foundation,
+                strong_production,
+                link_identity_closure,
+                production_manifest,
+            },
+            cross_cone_link_closure,
+        ))
     }
 }
 

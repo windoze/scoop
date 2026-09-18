@@ -33,15 +33,17 @@ use crate::{
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
     CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintError,
     CodeLinkObjectMemberValidationError, ConeImageValidationError, ConeKind, ConeSourceForm,
-    CoreStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
+    CoreStrongRequirementValidationError, CrossConeLinkClosureSectionV1,
+    CrossConeLinkClosureSectionValidationError, CrossConeStrongRequirementValidationError,
+    CurrentConeUndefinedRequirementValidationError, DecodedCrossConeLinkClosureSectionV1,
     DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
     DecodedSingleConeProductionManifestV1, DefinedLinkSymbolOwnerBuildError,
     DigestPatchSiteValidationError, EntryPatchError, EntryProductionValidationError,
-    FinalObjectNormalizationError, GeneratedCBridgeObjectCandidateV1,
-    GeneratedCBridgeSemanticValidationError, LinkDigestPatchInputValidationError,
-    LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError,
-    LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError,
-    LinkSymbolProjectionValidationError, ManifestSection,
+    FinalObjectNormalizationError, FinalizedUndefinedSymbolRequirementPartitionsV1,
+    GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
+    LinkDigestPatchInputValidationError, LinkIdentityClosureSectionV1,
+    LinkIdentityClosureSectionValidationError, LinkObjectMaterializationValidationError,
+    LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
     ProductionCodeProjectionError, RuntimeAndEhRequirementValidationError,
@@ -80,9 +82,10 @@ use crate::{
     VerifiedStrongStaticStorageRegistrationSetV1, VerifiedStrongTypeFingerprintSetV1,
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1, VerifiedStrongTypeRegistrationSetV1,
     hir_core_bootstrap_interface_capability, hir_identity_foundation_capability,
-    lir_identity_foundation_capability, lir_link_identity_closure_capability,
-    lir_strong_production_capability, manifest_single_cone_production_capability,
-    mir_core_bootstrap_bridge_capability, mir_identity_foundation_capability,
+    lir_cross_cone_link_closure_capability, lir_identity_foundation_capability,
+    lir_link_identity_closure_capability, lir_strong_production_capability,
+    manifest_single_cone_production_capability, mir_core_bootstrap_bridge_capability,
+    mir_identity_foundation_capability,
 };
 
 const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
@@ -90,7 +93,9 @@ const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
 mod states;
 pub use states::*;
 
+mod cross_cone;
 mod decode;
+pub use cross_cone::*;
 mod fingerprinting;
 mod object_validation;
 
@@ -295,14 +300,15 @@ fn required_object_payload<'input>(
 
 fn require_strong_profile(
     graph: &ValidatedGraphArtifact<'_>,
+    expected: ArtifactCapabilityProfile,
 ) -> Result<ArtifactCapabilityProfile, SingleConeLinkSectionDecodeError> {
     let actual = graph.envelope.manifest().compatibility().artifact_profile();
-    if actual != &ArtifactCapabilityProfileId::single_cone_strong() {
+    if actual != &expected.id() {
         return Err(SingleConeLinkSectionDecodeError::WrongProfile {
             actual: actual.clone(),
         });
     }
-    Ok(ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
+    Ok(expected)
 }
 
 fn decode_production_manifest(
@@ -633,12 +639,14 @@ pub enum StrongLinkSymbolRequirementError {
     CurrentCone(CurrentConeUndefinedRequirementValidationError),
     NativeSurface(CanonicalNativeExternalRequirementBuildError),
     Core(CoreStrongRequirementValidationError),
+    CrossCone(CrossConeStrongRequirementValidationError),
     SourceExternal(SourceExternalRequirementValidationError),
     RuntimeAndEh(RuntimeAndEhRequirementValidationError),
     GeneratedBridgeSemantics(GeneratedCBridgeSemanticValidationError),
     CBridgeTargetSupport(CBridgeTargetSupportRequirementValidationError),
     UnclassifiedExternal(BuiltinObjectExternalRequirementClosureError),
     UndefinedSymbols(UndefinedSymbolRequirementFinalizationError),
+    CrossConeClosure(CrossConeLinkClosureSectionValidationError),
     ClosureProjection(LinkSymbolProjectionValidationError),
 }
 
@@ -655,12 +663,14 @@ impl std::error::Error for StrongLinkSymbolRequirementError {
             Self::CurrentCone(error) => error,
             Self::NativeSurface(error) => error,
             Self::Core(error) => error,
+            Self::CrossCone(error) => error,
             Self::SourceExternal(error) => error,
             Self::RuntimeAndEh(error) => error,
             Self::GeneratedBridgeSemantics(error) => error,
             Self::CBridgeTargetSupport(error) => error,
             Self::UnclassifiedExternal(error) => error,
             Self::UndefinedSymbols(error) => error,
+            Self::CrossConeClosure(error) => error,
             Self::ClosureProjection(error) => error,
         })
     }
@@ -748,6 +758,7 @@ pub enum StrongLinkFinalValidationError {
     SemanticFingerprintMismatch,
     ProductionManifest(SingleConeProductionManifestValidationError),
     LinkIdentityClosure(LinkIdentityClosureSectionValidationError),
+    CrossConeLinkClosure(CrossConeLinkClosureSectionValidationError),
 }
 
 impl fmt::Display for StrongLinkFinalValidationError {
@@ -766,6 +777,7 @@ impl std::error::Error for StrongLinkFinalValidationError {
             Self::SemanticFingerprintMismatch => None,
             Self::ProductionManifest(error) => Some(error),
             Self::LinkIdentityClosure(error) => Some(error),
+            Self::CrossConeLinkClosure(error) => Some(error),
         }
     }
 }
@@ -791,10 +803,7 @@ pub enum StrongLinkArtifactValidationError {
 
 impl fmt::Display for StrongLinkArtifactValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid SingleConeStrong Link artifact: {self:?}"
-        )
+        write!(formatter, "invalid strong Link artifact: {self:?}")
     }
 }
 
@@ -899,10 +908,7 @@ pub enum SingleConeLinkSectionDecodeError {
 
 impl fmt::Display for SingleConeLinkSectionDecodeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot decode single-Cone Link sections: {self:?}"
-        )
+        write!(formatter, "cannot decode strong Link sections: {self:?}")
     }
 }
 
