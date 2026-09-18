@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use scoop_identity::BindableEntity;
+use scoop_identity::{BindingNamespace, BindingTarget, CanonicalIdentifier};
 
 use super::super::{DirectImportedTargetBinding, ImportedPublicBinding};
 
@@ -10,6 +10,27 @@ use super::super::{DirectImportedTargetBinding, ImportedPublicBinding};
 pub struct DirectPublicBindingGroup<'world, 'input> {
     bindings: Vec<&'world ImportedPublicBinding<'input>>,
     targets: Vec<DirectImportedTargetBinding>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DirectNamedPublicBindingGroup {
+    namespace: BindingNamespace,
+    name: CanonicalIdentifier,
+    targets: Vec<DirectImportedTargetBinding>,
+}
+
+impl DirectNamedPublicBindingGroup {
+    pub const fn namespace(&self) -> BindingNamespace {
+        self.namespace
+    }
+
+    pub const fn name(&self) -> &CanonicalIdentifier {
+        &self.name
+    }
+
+    pub fn targets(&self) -> &[DirectImportedTargetBinding] {
+        &self.targets
+    }
 }
 
 impl<'world, 'input> DirectPublicBindingGroup<'world, 'input> {
@@ -47,16 +68,50 @@ pub(super) fn non_empty_group<'world, 'input>(
         return None;
     }
 
-    let mut targets = BTreeMap::<BindableEntity, _>::new();
-    for binding in &bindings {
+    let targets = normalized_targets(&bindings);
+    Some(DirectPublicBindingGroup { bindings, targets })
+}
+
+pub(super) fn named_groups<'world, 'input>(
+    bindings: impl IntoIterator<Item = &'world ImportedPublicBinding<'input>>,
+) -> Vec<DirectNamedPublicBindingGroup>
+where
+    'input: 'world,
+{
+    let mut groups = BTreeMap::<(BindingNamespace, CanonicalIdentifier), Vec<_>>::new();
+    for binding in bindings {
+        if !binding.lookup_sources().is_empty() {
+            groups
+                .entry((binding.key().namespace(), binding.key().name().clone()))
+                .or_default()
+                .push(binding);
+        }
+    }
+    groups
+        .into_iter()
+        .map(
+            |((namespace, name), bindings)| DirectNamedPublicBindingGroup {
+                namespace,
+                name,
+                targets: normalized_targets(&bindings),
+            },
+        )
+        .collect()
+}
+
+fn normalized_targets(bindings: &[&ImportedPublicBinding<'_>]) -> Vec<DirectImportedTargetBinding> {
+    let mut targets = BTreeMap::<BindingTarget, _>::new();
+    for binding in bindings {
+        let binding_target = binding.key().binding_target();
         let entry = targets
-            .entry(binding.target().persistent())
+            .entry(binding_target)
             .or_insert_with(|| (binding.target(), Vec::new()));
         entry.1.extend(binding.lookup_sources().iter().cloned());
     }
-    let targets = targets
-        .into_values()
-        .map(|(target, sources)| DirectImportedTargetBinding::new(target, sources))
-        .collect();
-    Some(DirectPublicBindingGroup { bindings, targets })
+    targets
+        .into_iter()
+        .map(|(binding_target, (target, sources))| {
+            DirectImportedTargetBinding::new(binding_target, target, sources)
+        })
+        .collect()
 }

@@ -259,6 +259,10 @@ impl ExportBindingKey {
     pub const fn role(&self) -> BindingRole {
         self.role
     }
+
+    pub const fn binding_target(&self) -> BindingTarget {
+        BindingTarget::new(self.namespace, self.target, self.role)
+    }
 }
 
 impl WireEncode for ExportBindingKey {

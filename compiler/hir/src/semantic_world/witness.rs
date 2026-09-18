@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use scoop_identity::{ConeIdentity, PersistentExportBindingId};
+use scoop_identity::{BindingTarget, ConeIdentity, PersistentExportBindingId};
 
 use super::{ImportedProviderCertificate, ImportedTarget, WorldConeId};
 use crate::{
@@ -135,12 +135,18 @@ fn coordinate_key(certificate: &ImportedProviderCertificate) -> (&str, &str, &st
 
 /// One typed target together with every direct source that authorizes it.
 /// The private source vector is always non-empty and canonical.
+#[derive(Clone, Debug)]
 pub struct DirectImportedTargetBinding {
+    binding_target: BindingTarget,
     target: ImportedTarget,
     sources: Vec<DirectDependencyImportSource>,
 }
 
 impl DirectImportedTargetBinding {
+    pub const fn binding_target(&self) -> BindingTarget {
+        self.binding_target
+    }
+
     pub const fn target(&self) -> ImportedTarget {
         self.target
     }
@@ -154,6 +160,7 @@ impl DirectImportedTargetBinding {
     }
 
     pub(super) fn new(
+        binding_target: BindingTarget,
         target: ImportedTarget,
         mut sources: Vec<DirectDependencyImportSource>,
     ) -> Self {
@@ -163,6 +170,10 @@ impl DirectImportedTargetBinding {
         );
         sources.sort_unstable_by(DirectDependencyImportSource::canonical_cmp);
         sources.dedup_by(|left, right| left.canonical_eq(right));
-        Self { target, sources }
+        Self {
+            binding_target,
+            target,
+            sources,
+        }
     }
 }

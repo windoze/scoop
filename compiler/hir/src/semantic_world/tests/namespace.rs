@@ -41,6 +41,11 @@ fn package_lookup_uses_static_edges_and_excludes_nested_bindings_from_package_sc
     let package_view = world.direct_package(&package(&["demo", "api"])).unwrap();
     assert_eq!(package_view.contribution_count(), 1);
     assert_eq!(package_view.bindings().count(), 1);
+    let snapshot = package_view.snapshot();
+    assert_eq!(snapshot.len(), 1);
+    assert_eq!(snapshot[0].namespace(), BindingNamespace::Type);
+    assert_eq!(snapshot[0].name().as_str(), "Outer");
+    assert_eq!(snapshot[0].targets().len(), 1);
     assert!(
         package_view
             .binding_group(BindingNamespace::Type, "Nested")

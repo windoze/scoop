@@ -1,4 +1,4 @@
-use scoop_identity::{BindingNamespace, ConeCoordinate, SemanticIdentitySession};
+use scoop_identity::{BindingNamespace, BindingRole, ConeCoordinate, SemanticIdentitySession};
 
 use super::super::*;
 use super::fixture::{
@@ -46,6 +46,8 @@ fn declared_direct_binding_produces_one_public_lookup_witness() {
     assert_eq!(group.len(), 1);
     assert_eq!(group.binding_count(), 1);
     assert_eq!(target.source_count(), 1);
+    assert_eq!(target.binding_target().namespace(), BindingNamespace::Type);
+    assert_eq!(target.binding_target().role(), BindingRole::TypeName);
     assert_eq!(source.provider_identity(), direct.identity());
     assert_eq!(
         source.exported_binding().persistent(),

@@ -9,8 +9,8 @@ use super::{
 use crate::SourceNominalId;
 
 mod group;
-pub use group::DirectPublicBindingGroup;
-use group::non_empty_group;
+pub use group::{DirectNamedPublicBindingGroup, DirectPublicBindingGroup};
+use group::{named_groups, non_empty_group};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct BindingLocator {
@@ -174,6 +174,10 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
                 .collect(),
         )
     }
+
+    pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
+        named_groups(self.bindings())
+    }
 }
 
 /// Public nested namespace of one exact imported nominal owner.
@@ -224,11 +228,24 @@ impl<'world, 'input> ImportedStaticNamespace<'world, 'input> {
                 .collect(),
         )
     }
+
+    pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
+        named_groups(self.bindings())
+    }
 }
 
 pub enum DirectNamespaceView<'world, 'input> {
     Package(DirectPackageView<'world, 'input>),
     Static(ImportedStaticNamespace<'world, 'input>),
+}
+
+impl DirectNamespaceView<'_, '_> {
+    pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
+        match self {
+            Self::Package(namespace) => namespace.snapshot(),
+            Self::Static(namespace) => namespace.snapshot(),
+        }
+    }
 }
 
 impl<'input> ImportedSemanticWorld<'input> {
