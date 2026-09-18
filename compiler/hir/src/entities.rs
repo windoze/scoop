@@ -39,8 +39,13 @@ pub struct Module {
     /// conversion sites.
     pub callback_registration_identities: HirCallbackRegistrationIdentities,
     /// Direct public package bindings derived from the typed declaration
-    /// surface. Member declarations remain reachable through their owners.
+    /// surface plus public re-export bindings. Member declarations remain
+    /// reachable through their owners.
     pub export_binding_identities: HirExportBindingIdentities,
+    /// Canonical source classification for every public export binding.
+    /// Declared-current entries form the legacy direct-public inventory;
+    /// re-exports retain their complete validated route set.
+    pub public_export_bindings: CanonicalPublicExportBindingsV1,
     /// Persistent current-Cone declaration/import bindings consumed by the
     /// identity foundation. These ids never replace request-local body
     /// `BindingId` values.

@@ -841,6 +841,8 @@ impl Harness {
             },
         )
         .expect("the empty MIR test public surface has no export bindings");
+        let public_export_bindings =
+            hir::CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap();
         let source_files = vec![hir::SourceFileMetadata {
             identity: scoop_identity::SourceIdentity::single_file(),
             provider: hir::IntrinsicProviderId::from_raw(0),
@@ -919,6 +921,7 @@ impl Harness {
             function_identities,
             callback_registration_identities,
             export_binding_identities,
+            public_export_bindings,
             local_binding_identities: hir::HirLocalBindingIdentities::default(),
             dispatch_slot_identities,
             source_context_identities,

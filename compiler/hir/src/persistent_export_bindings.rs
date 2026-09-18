@@ -16,7 +16,9 @@ use crate::{
 };
 
 mod error;
+mod surface;
 pub use error::{HirExportBindingEntityKind, HirExportBindingIdentityError};
+pub use surface::HirExportBindingSurfaceValidationError;
 
 pub type HirExportBindingIdentity = CborIdentityRecord<PersistentExportBindingId, ExportBindingKey>;
 
@@ -210,7 +212,13 @@ impl HirExportBindingIdentities {
             )?;
         }
 
-        records.sort_by_key(CborIdentityRecord::id);
+        Self::canonicalize(records)
+    }
+
+    pub fn canonicalize(
+        mut records: Vec<HirExportBindingIdentity>,
+    ) -> Result<Self, HirExportBindingIdentityError> {
+        records.sort_unstable_by_key(CborIdentityRecord::id);
         let mut seen = HashSet::with_capacity(records.len());
         for record in &records {
             if !seen.insert(record.id()) {

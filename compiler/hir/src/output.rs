@@ -12,8 +12,8 @@ use scoop_identity::{
 
 use crate::{
     ConeOutputKind, CoreProtocols, CoreShapeSupportRequirementsV1, ExportHir,
-    HirNativeBoundaryTypeDefinitions, LocalConcreteHir, LocalExecutableEntry,
-    LocalExecutableEntryError, concrete,
+    HirExportBindingSurfaceValidationError, HirNativeBoundaryTypeDefinitions, LocalConcreteHir,
+    LocalExecutableEntry, LocalExecutableEntryError, concrete,
 };
 
 /// Export HIR paired with its validated library/executable contract.
@@ -28,6 +28,10 @@ impl ExportHirOutput {
         module: ExportHir,
         output_kind: ConeOutputKind,
     ) -> Result<Self, ExportHirOutputError> {
+        module
+            .export_binding_identities
+            .validate_public_bindings(&module.public_export_bindings)
+            .map_err(ExportHirOutputError::PublicBindings)?;
         if let ConeOutputKind::Executable { local_entry } = &output_kind {
             let expected =
                 LocalExecutableEntry::try_new(&module, local_entry.local_function().function())
@@ -648,6 +652,7 @@ fn validate_concrete_entry(
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportHirOutputError {
+    PublicBindings(HirExportBindingSurfaceValidationError),
     InvalidEntry(LocalExecutableEntryError),
     EntryMismatch,
 }
@@ -655,6 +660,7 @@ pub enum ExportHirOutputError {
 impl fmt::Display for ExportHirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::PublicBindings(error) => error.fmt(formatter),
             Self::InvalidEntry(error) => error.fmt(formatter),
             Self::EntryMismatch => formatter
                 .write_str("the executable entry identity does not match its Export HIR function"),

@@ -10,7 +10,10 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
-use crate::{CanonicalHirFoundation, ConeOutputKind, ExportHir, ValidatedHirFoundation};
+use crate::{
+    CanonicalHirFoundation, CanonicalPublicExportBindingsV1, ConeOutputKind, ExportHir,
+    ValidatedHirFoundation,
+};
 
 mod core_interface;
 pub use core_interface::*;
@@ -258,10 +261,22 @@ impl CanonicalDirectPublicSurfaceV1 {
     }
 
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, DirectPublicSurfaceBuildError> {
-        let bindings = export
-            .export_binding_identities
+        Self::from_public_bindings(&export.public_export_bindings)
+    }
+
+    fn from_public_bindings(
+        public_bindings: &CanonicalPublicExportBindingsV1,
+    ) -> Result<Self, DirectPublicSurfaceBuildError> {
+        let bindings = public_bindings
+            .records()
             .iter()
-            .map(|record| record.id())
+            .filter_map(|record| {
+                matches!(
+                    record.source(),
+                    crate::ExportBindingSourceV1::DeclaredCurrent { .. }
+                )
+                .then_some(record.binding())
+            })
             .collect();
         Self::try_new(bindings)
     }
@@ -442,6 +457,10 @@ mod tests {
         HirOutputContractValidationError, direct_binding_matches_source,
     };
     use crate::CanonicalHirFoundation;
+    use crate::{
+        CanonicalPublicExportBindingsV1, CanonicalReexportRoutesV1, ExportBindingSourceV1,
+        PublicExportBindingRecordV1, ReexportRouteHopV1, ReexportRouteV1,
+    };
 
     #[test]
     fn output_contract_variants_have_fixed_wire_vectors() {
@@ -567,6 +586,39 @@ mod tests {
         assert_eq!(
             hex(&encode(&surface).unwrap()),
             "8258201a553b750119dac566230c7d5c98b447db36232899fc35706905821e88e766fa5820e95a6e2f6ceec0afeeb1e4ee1127cd5794a0a547ace61aacafd7951abe3019d4"
+        );
+    }
+
+    #[test]
+    fn direct_public_surface_excludes_reexports() {
+        let (_, direct) = function_and_binding("direct");
+        let (_, forwarded) = function_and_binding("forwarded");
+        let route = ReexportRouteV1::try_new(
+            ConeIdentity::CORE,
+            vec![ReexportRouteHopV1::new(ConeIdentity::CORE, forwarded.id())],
+        )
+        .unwrap();
+        let public = CanonicalPublicExportBindingsV1::try_new(vec![
+            PublicExportBindingRecordV1::new(
+                direct.id(),
+                ExportBindingSourceV1::DeclaredCurrent {
+                    declaration: direct.key().target(),
+                },
+            ),
+            PublicExportBindingRecordV1::new(
+                forwarded.id(),
+                ExportBindingSourceV1::Reexport {
+                    routes: CanonicalReexportRoutesV1::try_new(vec![route]).unwrap(),
+                },
+            ),
+        ])
+        .unwrap();
+
+        assert_eq!(
+            CanonicalDirectPublicSurfaceV1::from_public_bindings(&public)
+                .unwrap()
+                .bindings(),
+            &[direct.id()]
         );
     }
 

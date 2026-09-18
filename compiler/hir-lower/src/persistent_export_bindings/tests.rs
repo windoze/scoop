@@ -210,6 +210,36 @@ fn direct_public_package_bindings_use_typed_targets_and_ignore_members() {
             .any(|(_, key)| matches!(key.target(), BindableEntity::ObjectValue(_)))
     );
 
+    let all_identities = first
+        .export
+        .export_binding_identities
+        .iter()
+        .collect::<Vec<_>>();
+    let sources = first.export.public_export_bindings.records();
+    assert_eq!(sources.len(), all_identities.len());
+    assert!(sources.iter().all(|record| {
+        let identity = first
+            .export
+            .export_binding_identities
+            .iter()
+            .find(|identity| identity.id() == record.binding())
+            .unwrap();
+        matches!(
+            record.source(),
+            hir::ExportBindingSourceV1::DeclaredCurrent { declaration }
+                if *declaration == identity.key().target()
+        )
+    }));
+    assert_eq!(
+        hir::CanonicalDirectPublicSurfaceV1::from_export_hir(&first.export)
+            .unwrap()
+            .bindings(),
+        all_identities
+            .iter()
+            .map(|identity| identity.id())
+            .collect::<Vec<_>>()
+    );
+
     assert_eq!(records, current_records(&lower(true)));
 }
 
