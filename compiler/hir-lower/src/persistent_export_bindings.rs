@@ -46,7 +46,15 @@ pub(crate) fn build(
         })
         .map_err(PersistentExportBindingIdentityError::Direct)?;
 
-    merge::merge(lowerer, surface, functions, properties, direct)
+    merge::merge(
+        lowerer,
+        surface,
+        nominals,
+        object_values,
+        functions,
+        properties,
+        direct,
+    )
 }
 
 #[derive(Debug)]

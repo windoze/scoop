@@ -126,12 +126,13 @@ fn source_file(unrelated_prefix: bool) -> ast::SourceFile {
 }
 
 fn lower(unrelated_prefix: bool) -> hir::Output {
+    lower_source(source_file(unrelated_prefix))
+}
+
+fn lower_source(source: ast::SourceFile) -> hir::Output {
     let core = core_file();
     let parsed = ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
-        ast::IdentifiedParsedSource::new(
-            test_source_identity("src/bindings.scoop"),
-            source_file(unrelated_prefix),
-        ),
+        ast::IdentifiedParsedSource::new(test_source_identity("src/bindings.scoop"), source),
         Vec::new(),
     ))
     .expect("export binding test source is valid");
@@ -157,6 +158,36 @@ fn lower(unrelated_prefix: bool) -> hir::Output {
         crate::IntrinsicDeclarationPolicy::CoreOnly,
     )
     .expect("export binding fixture lowers")
+}
+
+fn public_class_with_nested(name: &str, nested_name: &str) -> ast::Decl {
+    let ast::Decl::Class(mut nested) = class_decl(
+        ast::ClassModifier::Final,
+        nested_name,
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+    ) else {
+        unreachable!("class fixture returns a class")
+    };
+    nested.visibility = explicit_public();
+
+    let ast::Decl::Class(mut outer) = class_decl(
+        ast::ClassModifier::Final,
+        name,
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+    ) else {
+        unreachable!("class fixture returns a class")
+    };
+    outer.visibility = explicit_public();
+    outer.members.push(ast::ClassMember::Nested(Box::new(
+        ast::NestedNominalDecl::Class(Box::new(nested)),
+    )));
+    ast::Decl::Class(outer)
 }
 
 fn current_records(output: &hir::Output) -> Vec<(PersistentExportBindingId, ExportBindingKey)> {
@@ -241,6 +272,53 @@ fn direct_public_package_bindings_use_typed_targets_and_ignore_members() {
     );
 
     assert_eq!(records, current_records(&lower(true)));
+}
+
+#[test]
+fn public_nested_nominals_get_owner_scoped_binding_records() {
+    let output = lower_source(package(
+        file(vec![
+            public_class_with_nested("First", "Nested"),
+            public_class_with_nested("Second", "Nested"),
+        ]),
+        "api",
+    ));
+    let nested = current_records(&output)
+        .into_iter()
+        .filter(|(_, key)| key.name().as_str() == "Nested")
+        .collect::<Vec<_>>();
+
+    assert_eq!(nested.len(), 2);
+    assert_ne!(nested[0].1.target(), nested[1].1.target());
+    assert!(nested.iter().all(|(binding, _)| {
+        matches!(
+            output
+                .export
+                .public_export_bindings
+                .get(*binding)
+                .map(|record| record.source()),
+            Some(hir::ExportBindingSourceV1::DeclaredCurrent { .. })
+        )
+    }));
+
+    let nested_declarations = output
+        .export
+        .classes
+        .iter()
+        .filter(|(_, declaration)| declaration.name == "Nested")
+        .map(|(id, _)| {
+            output.export.nominal_identities[id]
+                .source()
+                .unwrap()
+                .declaration()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(nested_declarations.len(), 2);
+    assert!(
+        nested_declarations
+            .iter()
+            .all(|declaration| declaration.owners().owners().len() == 1)
+    );
 }
 
 #[test]

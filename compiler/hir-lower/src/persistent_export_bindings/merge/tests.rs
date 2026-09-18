@@ -143,6 +143,7 @@ fn candidate(
         }
     };
     Candidate {
+        destination: binding_destination(identity.key(), None),
         identity,
         conflict,
         source,

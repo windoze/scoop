@@ -90,13 +90,11 @@ impl HirExportBindingIdentities {
                 },
             )?;
             let declaration = source.declaration();
-            if !is_direct_package_declaration(
+            require_public_binding_declaration(
                 declaration,
                 HirExportBindingEntityKind::Object,
                 raw_index(object),
-            )? {
-                continue;
-            }
+            )?;
             push_binding(
                 declaration,
                 BindingTarget::type_name(declaration),
@@ -263,9 +261,7 @@ where
                     index: raw_index(id),
                 })?;
         let declaration = source.declaration();
-        if !is_direct_package_declaration(declaration, kind, raw_index(id))? {
-            continue;
-        }
+        require_public_binding_declaration(declaration, kind, raw_index(id))?;
         push_binding(
             declaration,
             BindingTarget::type_name(declaration),
@@ -312,8 +308,16 @@ fn is_direct_package_declaration(
     if !declaration.owners().owners().is_empty() {
         return Ok(false);
     }
+    require_public_binding_declaration(declaration, kind, index).map(|()| true)
+}
+
+fn require_public_binding_declaration(
+    declaration: &SourceDeclarationKey,
+    kind: HirExportBindingEntityKind,
+    index: u32,
+) -> Result<(), HirExportBindingIdentityError> {
     if matches!(declaration.scope(), DeclarationScope::ConeWide) {
-        Ok(true)
+        Ok(())
     } else {
         Err(HirExportBindingIdentityError::NonPublicPackageDeclaration { kind, index })
     }

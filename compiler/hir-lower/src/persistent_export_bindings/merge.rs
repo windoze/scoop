@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use scoop_hir as hir;
 use scoop_identity::{
-    BindableEntity, BindingNamespace, BindingTarget, CanonicalIdentifier, PackagePath,
+    BindableEntity, BindingNamespace, BindingTarget, CanonicalIdentifier, DefinitionOwnerAtom,
+    PackagePath,
 };
 
 use super::{PersistentExportBindingIdentityError, PersistentExportBindings};
@@ -18,19 +19,29 @@ struct Candidate {
     identity: hir::HirExportBindingIdentity,
     conflict: hir::ImportedBindingConflictKey,
     source: hir::ExportBindingSourceV1,
+    destination: Destination,
     location: Option<SourceLocation>,
 }
 
-type Destination = (PackagePath, BindingNamespace, CanonicalIdentifier);
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum DestinationOwner {
+    Package(PackagePath),
+    Nominal(DefinitionOwnerAtom),
+}
+
+type Destination = (DestinationOwner, BindingNamespace, CanonicalIdentifier);
 
 pub(super) fn merge(
     lowerer: &Lowerer,
     surface: &hir::PublicSemanticSurface,
+    nominals: &hir::HirNominalIdentities,
+    object_values: &hir::HirObjectValueIdentities,
     functions: &hir::HirFunctionIdentities,
     properties: &hir::HirPropertyIdentities,
     direct: hir::HirExportBindingIdentities,
 ) -> Result<PersistentExportBindings, PersistentExportBindingIdentityError> {
     let overloads = direct_overload_signatures(surface, functions, properties);
+    let nested_owners = nested_binding_owners(lowerer, surface, nominals, object_values);
     let mut candidates = Vec::with_capacity(direct.len() + lowerer.imports.reexports.len());
     for identity in direct.iter() {
         let target = identity.key().target();
@@ -40,6 +51,7 @@ pub(super) fn merge(
             source: hir::ExportBindingSourceV1::DeclaredCurrent {
                 declaration: target,
             },
+            destination: binding_destination(identity.key(), nested_owners.get(&target)),
             location: None,
         });
     }
@@ -161,6 +173,7 @@ fn reexport_candidate(
         );
     }
     Ok(Candidate {
+        destination: binding_destination(binding.identity.key(), None),
         identity: binding.identity.clone(),
         conflict: binding.conflict.clone(),
         source: hir::ExportBindingSourceV1::Reexport {
@@ -200,8 +213,7 @@ fn validate_destinations(
     for (index, candidate) in candidates.iter().enumerate() {
         let key = candidate.identity.key();
         let target = key.binding_target();
-        let destination = (key.package().clone(), key.namespace(), key.name().clone());
-        let entries = occupied.entry(destination).or_default();
+        let entries = occupied.entry(candidate.destination.clone()).or_default();
         for (existing_target, existing_index) in entries.iter() {
             let existing = &candidates[*existing_index];
             if *existing_target == target {
@@ -218,6 +230,71 @@ fn validate_destinations(
         entries.push((target, index));
     }
     Ok(())
+}
+
+fn nested_binding_owners(
+    lowerer: &Lowerer,
+    surface: &hir::PublicSemanticSurface,
+    nominals: &hir::HirNominalIdentities,
+    object_values: &hir::HirObjectValueIdentities,
+) -> BTreeMap<BindableEntity, DefinitionOwnerAtom> {
+    let mut owners = BTreeMap::new();
+    for &id in &surface.structs {
+        collect_nested_nominal_owner(&mut owners, &nominals[id]);
+    }
+    for &id in &surface.enums {
+        collect_nested_nominal_owner(&mut owners, &nominals[id]);
+    }
+    for &id in &surface.classes {
+        collect_nested_nominal_owner(&mut owners, &nominals[id]);
+    }
+    for &id in &surface.interfaces {
+        collect_nested_nominal_owner(&mut owners, &nominals[id]);
+    }
+    for &id in &surface.objects {
+        let identity = &nominals[id];
+        collect_nested_nominal_owner(&mut owners, identity);
+        let Some(source) = identity.source() else {
+            continue;
+        };
+        let Some(owner) = source.declaration().owners().owners().last() else {
+            continue;
+        };
+        let object = &lowerer.objects[id];
+        owners.insert(
+            BindableEntity::ObjectValue(object_values[object.singleton_value].id()),
+            owner.clone(),
+        );
+    }
+    owners
+}
+
+fn collect_nested_nominal_owner(
+    owners: &mut BTreeMap<BindableEntity, DefinitionOwnerAtom>,
+    identity: &hir::HirNominalIdentity,
+) {
+    let Some(source) = identity.source() else {
+        return;
+    };
+    let Some(owner) = source.declaration().owners().owners().last() else {
+        return;
+    };
+    let target = match source {
+        hir::HirSourceNominalIdentity::Concrete(record) => BindableEntity::Type(record.id()),
+        hir::HirSourceNominalIdentity::Generic(record) => BindableEntity::GenericType(record.id()),
+    };
+    owners.insert(target, owner.clone());
+}
+
+fn binding_destination(
+    key: &scoop_identity::ExportBindingKey,
+    owner: Option<&DefinitionOwnerAtom>,
+) -> Destination {
+    let owner = owner
+        .cloned()
+        .map(DestinationOwner::Nominal)
+        .unwrap_or_else(|| DestinationOwner::Package(key.package().clone()));
+    (owner, key.namespace(), key.name().clone())
 }
 
 fn at_candidate(
