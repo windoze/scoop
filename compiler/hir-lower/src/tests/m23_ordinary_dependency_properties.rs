@@ -6,8 +6,9 @@ use super::m23_ordinary_dependencies::support::{
     project_dependency_without_default_roles,
 };
 use super::{
-    Decl, Expr, Statement, TypeRef, assign, assign_field, block, extension_expr, field, file, fun,
-    fun_expr, ident, int_lit, make_core_public, sp, this_expr, tuple_lit, ty_named, ty_tuple, var,
+    Decl, Expr, Statement, TypeRef, assign, assign_field, block, bool_lit, extension_expr, field,
+    file, fun, fun_expr, ident, int_lit, make_core_public, method_call, sp, this_expr, tuple_lit,
+    ty_named, ty_tuple, var,
 };
 use crate::{OrdinarySources, lower_ordinary};
 

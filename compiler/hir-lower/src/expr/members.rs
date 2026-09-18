@@ -20,14 +20,14 @@ pub(in crate::expr) enum PropertyExtensionInvokeOrigin {
 pub(in crate::expr) struct PropertyExtensionInvokeInput {
     origin: PropertyExtensionInvokeOrigin,
     property: SuccessfulExprLayer,
-    candidates: Vec<hir::FunctionId>,
+    candidates: Vec<crate::imports::lookup::calls::ExtensionCallTarget>,
 }
 
 impl PropertyExtensionInvokeInput {
     pub(in crate::expr) fn new(
         origin: PropertyExtensionInvokeOrigin,
         property: SuccessfulExprLayer,
-        candidates: Vec<hir::FunctionId>,
+        candidates: Vec<crate::imports::lookup::calls::ExtensionCallTarget>,
     ) -> Self {
         Self {
             origin,
@@ -422,43 +422,71 @@ impl Lowerer {
         let mut seen = Vec::new();
         let mut suppressed = false;
         for input in inputs {
-            for function in input.candidates {
-                if self.declaration_surface.rejects_function(function) {
-                    suppressed = true;
+            for target in input.candidates {
+                if seen.contains(&(input.origin, target.clone())) {
                     continue;
                 }
-                if seen.contains(&(input.origin, function)) {
-                    continue;
-                }
-                seen.push((input.origin, function));
-                let mut state = (*input.property.state).clone();
-                let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args) else {
-                    first_failure.get_or_insert(Box::new(state));
-                    continue;
-                };
-                let target = crate::CallableCandidate::function(
-                    function,
-                    Vec::new(),
-                    state.function_lookup_witness(function),
-                );
-                match state.probe_named_callable(
-                    "invoke",
-                    target,
-                    NamedCallReceiver::Extension(input.property.expression.clone()),
-                    OverloadCall {
-                        explicit_type_args: &explicit_type_args,
-                        arg_exprs: call.args,
-                        span: call.span,
-                        expected_result: expected,
-                        argument_protocol: CallArgumentProtocol::Ordinary,
-                    },
-                ) {
-                    Ok(probe) => {
-                        probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
-                        setups.push(input.property.sink.clone());
+                seen.push((input.origin, target.clone()));
+                match target {
+                    crate::imports::lookup::calls::ExtensionCallTarget::Current(function) => {
+                        if self.declaration_surface.rejects_function(function) {
+                            suppressed = true;
+                            continue;
+                        }
+                        let mut state = (*input.property.state).clone();
+                        let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args)
+                        else {
+                            first_failure.get_or_insert(Box::new(state));
+                            continue;
+                        };
+                        let target = crate::CallableCandidate::function(
+                            function,
+                            Vec::new(),
+                            state.function_lookup_witness(function),
+                        );
+                        match state.probe_named_callable(
+                            "invoke",
+                            target,
+                            NamedCallReceiver::Extension(input.property.expression.clone()),
+                            OverloadCall {
+                                explicit_type_args: &explicit_type_args,
+                                arg_exprs: call.args,
+                                span: call.span,
+                                expected_result: expected,
+                                argument_protocol: CallArgumentProtocol::Ordinary,
+                            },
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::Callable(Box::new(probe)));
+                                setups.push(input.property.sink.clone());
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
+                        }
                     }
-                    Err(failure) => {
-                        first_failure.get_or_insert(failure);
+                    crate::imports::lookup::calls::ExtensionCallTarget::Dependency(binding) => {
+                        let state = &input.property.state;
+                        match state.probe_imported_dependency_extension_callable(
+                            &binding,
+                            input.property.expression.clone(),
+                            &ast::Ident {
+                                text: "invoke".to_string(),
+                                span: call.span,
+                            },
+                            call,
+                            expected,
+                        ) {
+                            Ok(probe) => {
+                                probes.push(NamedFunctionLikeProbe::ImportedDependency(Box::new(
+                                    probe,
+                                )));
+                                setups.push(input.property.sink.clone());
+                            }
+                            Err(failure) => {
+                                first_failure.get_or_insert(failure);
+                            }
+                        }
                     }
                 }
             }
@@ -479,20 +507,34 @@ impl Lowerer {
         };
         let probe = probes.swap_remove(winner);
         let mut layer_sink = setups.swap_remove(winner);
-        let NamedFunctionLikeProbe::Callable(probe) = probe else {
-            unreachable!("property extension invoke probes contain only callable candidates")
-        };
-        let resolved = state.commit_named_callable(*probe, &mut layer_sink);
-        let callee = state.materialize_resolved_callee(&resolved);
-        state.check_call_effects(callee, call.span);
-        let expression = hir::Expr {
-            kind: hir::ExprKind::Call {
-                callee,
-                args: resolved.args,
-            },
-            ty: resolved.return_ty,
-            span: call.span,
-            origin: state.expression_origin(call.span),
+        let expression = match probe {
+            NamedFunctionLikeProbe::Callable(probe) => {
+                let resolved = state.commit_named_callable(*probe, &mut layer_sink);
+                let callee = state.materialize_resolved_callee(&resolved);
+                state.check_call_effects(callee, call.span);
+                hir::Expr {
+                    kind: hir::ExprKind::Call {
+                        callee,
+                        args: resolved.args,
+                    },
+                    ty: resolved.return_ty,
+                    span: call.span,
+                    origin: state.expression_origin(call.span),
+                }
+            }
+            NamedFunctionLikeProbe::ImportedDependency(probe) => {
+                let Some(expression) =
+                    state.commit_imported_dependency_callable(*probe, &mut layer_sink)
+                else {
+                    return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+                };
+                expression
+            }
+            NamedFunctionLikeProbe::ImportedDependencyProperty(_)
+            | NamedFunctionLikeProbe::Nominal(_)
+            | NamedFunctionLikeProbe::IntrinsicStruct(_) => {
+                unreachable!("property extension invoke partitions contain callable candidates")
+            }
         };
         PropertyExtensionInvokeOutcome::Resolved(SuccessfulExprLayer {
             state: Box::new(state),

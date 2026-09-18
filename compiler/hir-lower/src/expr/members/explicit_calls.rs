@@ -120,7 +120,7 @@ impl Lowerer {
             Some(operator) => self.named_executable_extension_operator_layers(operator),
             None => self.named_executable_extension_call_layers(&name.text),
         };
-        let mut invoke_layers = self.named_extension_call_layers("invoke");
+        let mut invoke_layers = self.named_executable_extension_call_layers("invoke");
         let mut extension_property_layers = self.named_extension_property_layers(&name.text);
         Self::retain_highest_rank_origins(&mut extension_layers);
         Self::retain_highest_rank_origins(&mut invoke_layers);
@@ -174,9 +174,9 @@ impl Lowerer {
                 }
             }
 
-            let invokes = Self::extension_candidates_at_rank(&invoke_layers, rank, |function| {
-                Self::matches_required_modifiers(
-                    self.signatures[function].modifiers,
+            let invokes = Self::extension_candidates_at_rank(&invoke_layers, rank, |target| {
+                self.extension_call_target_matches_required(
+                    target,
                     RequiredCallableModifiers {
                         operator: Some(hir::OperatorKind::Invoke),
                         infix: direct_required.infix,
@@ -277,10 +277,9 @@ impl Lowerer {
                     let invokes = invoke_layer
                         .candidates
                         .iter()
-                        .copied()
-                        .filter(|function| {
-                            Self::matches_required_modifiers(
-                                self.signatures[function].modifiers,
+                        .filter(|target| {
+                            self.extension_call_target_matches_required(
+                                target,
                                 RequiredCallableModifiers {
                                     operator: Some(hir::OperatorKind::Invoke),
                                     infix: direct_required.infix,
@@ -288,6 +287,7 @@ impl Lowerer {
                                 },
                             )
                         })
+                        .cloned()
                         .collect::<Vec<_>>();
                     if property_layer.candidates.is_empty() || invokes.is_empty() {
                         continue;

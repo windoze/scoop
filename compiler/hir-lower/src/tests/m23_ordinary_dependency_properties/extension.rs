@@ -68,6 +68,43 @@ fn getter_setter_and_update_support_explicit_and_implicit_receivers() {
 }
 
 #[test]
+fn dependency_extension_property_and_invoke_compose_in_one_call() {
+    let invoke = extension_expr(
+        ty_named("Int"),
+        "invoke",
+        Vec::new(),
+        vec![("flag", ty_named("Boolean"))],
+        Some(ty_named("Int")),
+        this_expr(),
+    );
+    let fixture = DependencyPropertyFixture::with_core_types(
+        vec![
+            computed_extension_property("route", ty_named("Int"), this_expr(), None),
+            as_operator(invoke),
+        ],
+        &["Boolean", "Int"],
+    );
+    let mut consumer = file(vec![fun_expr(
+        "callRoute",
+        Vec::new(),
+        Vec::new(),
+        Some(ty_named("Int")),
+        method_call(int_lit(3), "route", vec![bool_lit(true)]),
+    )]);
+    consumer.imports.extend([
+        exact_import(&["dependency", "api", "route"]),
+        exact_import(&["dependency", "api", "invoke"]),
+    ]);
+
+    fixture.inspect(consumer, |output| {
+        let output = output.expect("dependency property and extension invoke must compose");
+        assert_eq!(output.imported_dependencies().callable_count(), 2);
+        let dump = scoop_hir::dump(&output.output().export);
+        assert_eq!(dump.matches("ImportedDependencyCall").count(), 2, "{dump}");
+    });
+}
+
+#[test]
 fn direct_assignment_selects_only_the_dependency_setter() {
     let fixture = DependencyPropertyFixture::new(vec![computed_extension_property(
         "score",
@@ -231,4 +268,12 @@ fn generic_extension_property(name: &str) -> Decl {
     property.receiver_ty = Some(ty_named("T"));
     property.type_params = vec![type_param("T")];
     Decl::Global(property)
+}
+
+fn as_operator(mut declaration: Decl) -> Decl {
+    let Decl::Function(function) = &mut declaration else {
+        panic!("the test operator declaration is a function")
+    };
+    function.operator = Some(scoop_ast::OperatorModifier { span: sp() });
+    declaration
 }

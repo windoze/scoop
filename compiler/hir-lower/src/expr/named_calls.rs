@@ -412,7 +412,7 @@ impl Lowerer {
                 let candidates = property
                     .read
                     .state
-                    .named_extension_operator_layers(hir::OperatorKind::Invoke)
+                    .named_executable_extension_call_layers("invoke")
                     .into_iter()
                     .filter(|layer| {
                         let invoke_rank = layer.kind.call_rank();
@@ -423,6 +423,15 @@ impl Lowerer {
                         }
                     })
                     .flat_map(|layer| layer.candidates)
+                    .filter(|target| {
+                        property.read.state.extension_call_target_matches_required(
+                            target,
+                            RequiredCallableModifiers {
+                                operator: Some(hir::OperatorKind::Invoke),
+                                ..Default::default()
+                            },
+                        )
+                    })
                     .collect::<Vec<_>>();
                 (!candidates.is_empty()).then(|| {
                     PropertyExtensionInvokeInput::new(

@@ -45,6 +45,43 @@ fn dependency_extension_functions_support_explicit_and_implicit_receivers() {
 }
 
 #[test]
+fn dependency_extension_invoke_applies_to_a_current_property_value() {
+    let provider = extension_provider(
+        "invoke-extension-provider",
+        operator(extension_expr(
+            ty_named("Int"),
+            "invoke",
+            Vec::new(),
+            vec![("flag", ty_named("Boolean"))],
+            Some(ty_named("Int")),
+            this_expr(),
+        )),
+        &["Boolean", "Int"],
+        67,
+    );
+    let mut consumer = file(vec![
+        computed_int_property("choose", 7),
+        fun_expr(
+            "consumer",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_named("Int")),
+            call("choose", vec![bool_lit(true)]),
+        ),
+    ]);
+    consumer
+        .imports
+        .push(exact_import(&["dependency", "api", "invoke"]));
+
+    inspect_extensions(vec![provider], consumer, |output| {
+        let output = output.expect("dependency extension invoke applies after the property read");
+        assert_eq!(output.imported_dependencies().callable_count(), 1);
+        let dump = scoop_hir::dump(&output.output().export);
+        assert_eq!(dump.matches("ImportedDependencyCall").count(), 1, "{dump}");
+    });
+}
+
+#[test]
 fn inapplicable_exact_dependency_extension_falls_through_to_current_package() {
     let provider = extension_provider(
         "string-extension-provider",
@@ -333,4 +370,36 @@ fn qualified(parts: &[&str]) -> scoop_ast::QualifiedNameSyntax {
             .collect(),
         span: sp(),
     }
+}
+
+fn operator(mut declaration: Decl) -> Decl {
+    let Decl::Function(function) = &mut declaration else {
+        panic!("the test operator declaration is a function")
+    };
+    function.operator = Some(scoop_ast::OperatorModifier { span: sp() });
+    declaration
+}
+
+fn computed_int_property(name: &str, value: i64) -> Decl {
+    Decl::Global(scoop_ast::PropertyDecl {
+        annotations: Vec::new(),
+        visibility: scoop_ast::VisibilitySyntax::Omitted,
+        modifier: scoop_ast::MethodModifier::Final,
+        is_override: false,
+        mutable: false,
+        receiver_ty: None,
+        type_params: Vec::new(),
+        where_clause: None,
+        name: ident(name),
+        ty: ty_named("Int"),
+        body: scoop_ast::PropertyBodySyntax::Computed(scoop_ast::AccessorSyntax {
+            getter: Some(scoop_ast::GetterDecl {
+                annotations: Vec::new(),
+                body: scoop_ast::AccessorBodySyntax::Expr(Box::new(int_lit(value))),
+                span: sp(),
+            }),
+            setter: None,
+        }),
+        span: sp(),
+    })
 }
