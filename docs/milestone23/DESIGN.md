@@ -38,7 +38,7 @@
 | M23-3 | single-Cone artifact与core分离（[详细设计](stage3/DESIGN.md)） | `scoopc`请求、strong-only image/digest与基础Compile/Link view |
 | M23-4 | resolved build graph与调度（[详细设计](stage4/DESIGN.md)） | locator、DAG、artifact cache与child orchestration |
 | M23-5 | 多Cone名称语义（[详细设计](stage5/DESIGN.md)） | cross-Cone semantic world、import/re-export与access provenance |
-| M23-6 | 跨Cone layout、typed ABI与ZST | layout/scan/ABI section与运行时表示 |
+| M23-6 | 跨Cone layout、typed ABI与ZST（[详细设计](stage6/DESIGN.md)） | layout/scan/ABI section与运行时表示 |
 | M23-7 | 跨Cone generic、ODR与generic delegated extension | 完整ODR member closure、ABI/definition proof、materialization与跨Cone等价验证 |
 | M23-8 | runtime multi-image registry与启动 | program descriptor ABI、image消费契约、登记/初始化顺序与stackmap |
 | M23-9 | 基础artifact-only program-link | fixed target/runtime闭包、runtime-build、program object与真实链接 |
@@ -2539,6 +2539,8 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 完成门：direct与transitive可见性、split package、exact/star/alias冲突、链式re-export、public/internal/private access、default origin/evaluation source、non-generic alias和negative lookup observation/cache失效矩阵通过；所有成功用例产生双view有效artifact，所有暂未开放形态在HIR边界有唯一稳定诊断，不产生残缺IR。
 
 ### M23-6：跨Cone layout、typed ABI与ZST
+
+详细设计见`docs/milestone23/stage6/DESIGN.md`。新增`cross-cone-layout-strong/1` profile，以四条新增required section闭合HIR type/inheritance、MIR type bridge、LIR layout/ABI及Link-only layout-use proof，并把strong-production capability从1升级为2，以完整表示ordinary dependency TD parent、interface key和dispatch target。旧capability语义不变、三层outer schema仍为1；旧core与M23-5 callable authority不改义，新general physical use使用第三个互斥object分区。生产仍拒绝ODR，generic/structural表示的compiler/layout/object测试不授予其独立物化能力。
 
 依赖M23-5。实现第3.6节的`ValueStorageLayout`、Scoop ABI payload elision、C ABI拒绝规则、boxing、address/static token与`Array`/`MutableArray<ZST>`，并完成param-free跨Cone layout/scan/TypeDescriptor、inheritance/slot/dispatch bridge及receiver-dependent protected access witness。本阶段新增独立required layout/ABI/scan capability，在完整`ValidatedArtifactClosure<Compile>`上验证依赖witness后才返回通用layout API；M23-2 foundation中服务现有extern/callback闭包的`NativeBoundaryTypeDefinitionRecordV1`、canonical C storage/signature/layout leaf仍只是一条受限native-boundary proof，不能提前冒充本阶段能力。本阶段冻结新增section版本、layout、scan与typed Scoop ABI；既有canonical generated-C storage contract与extern fingerprint bytes不回改，M23-7的specialization只能实例化这些规则，不能重写它们。
 

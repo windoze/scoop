@@ -1,0 +1,737 @@
+# M23-6 设计：跨 Cone layout、typed ABI 与 ZST
+
+版本：1.0（设计完成，待实现；2026-09-19）
+
+依赖：M23-5
+
+上位设计：[M23 系列设计](../DESIGN.md)
+
+规范依据：
+
+- [语言规范](../../specs/SCOOP-SPEC.md) 第 3.3、4.7、7.4、9.1、10、12.5、13.4～13.10、14 章；
+- [Runtime 规范](../../specs/SCOOP-RUNTIME-SPEC.md) 第 2.1～2.8、3.1～3.3、3.6、4.2 节；
+- [实现大纲](../../specs/SCOOP-IMPL-SPEC.md) 第 2.2～2.6、2.9、2.11 节；
+- [M23 总设计](../DESIGN.md) 第 3.1～3.6、4.4～4.6、5.3、6.1、9.4～9.5、10 章；
+- [M23-2](../stage2/DESIGN.md) 的 exact identity、`ExactOwnerRoot`、native witness、target projection 与 canonical ABI 编码；
+- [M23-3](../stage3/DESIGN.md) 的 strong production、有限 shape-support、definition/image proof 与双 view；
+- [M23-5](../stage5/DESIGN.md) 的 semantic world、access provenance、selected metadata 与 cross-Cone object-use 分区。
+
+本文中的 runtime ABI 指 M23 基线：TypeDescriptor 最后一个字段是 `diagnostic_name`，callable body 使用 v1 identity，三层 metadata 的 `outer_schema` 均为 1。规范中已提前写出的 M24 `release_hook`、callable-body-v2 与 schema 2 不属于本阶段。
+
+## 0. 结论
+
+M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费的接口。成功解析到外部 nominal 之后，consumer 必须取得定义方的完整语义、layout、ABI、scan、TypeDescriptor 与 dispatch 证明，才能产生 machine use。
+
+1. 新增 `cross-cone-layout-strong/1` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure，并将强定义语义升级为 `strong-production/2`，以表达 ordinary dependency TD/dispatch 引用；仍拒绝全部 ODR production。
+2. 不改变 M23-2 的任何 persistent identity、native-boundary witness、extern/callback contract bytes，也不扩大 M23-3/M23-5 旧 capability 的含义。一般 layout 服务只能由新 required section 构造。
+3. HIR 输出每个 concrete type 完备的 `gc_free`、value `ZstStatus` 与继承/slot 语义；MIR 输出表示无关的类型、构造器、成员、slot 与生成 helper 关系；LIR 独占 target layout、Scoop ABI 与递归 scan 的生产权。
+4. 外部实体保持定义 Cone 的 Strong ownership。consumer 可以检查和在本地类型中内联外部 value 的表示，但不能重新定义其 body、layout constant、scan、TD、dispatch table、registration 或初始化 storage。
+5. 定义 Cone 为每个可跨 Cone 引用的 param-free source nominal 预物化完整、有限的 `BoxedValue`（仅 value）、`CoroutineStep`、`CoroutineSlot` shape-support。closure 从 source subject 展开一次，不递归把 helper 当作新 source subject。
+6. 通用 `ValueStorageLayout` 使用 `ZeroSized | NonZero`，zero-sized 分支不能携带 ref scan；未装箱 value layout 与五类 managed instance shape 分离。可分配操作只能接收排除 `AbstractRef` 的 refined descriptor。
+7. Scoop ABI 保留全部 logical exact type，并用 `ElidedZst` 删除物理 payload。`UnitVoid` 与用户 ZST result 分开；全部 direct、invoke、virtual/interface、adapter 与 Scoop extern 复用同一分类和 logical-to-physical 映射。
+8. ZST 的求值、异常、构造和方法语义不消失。需要地址的 local/parameter/value `this` 使用独立 token，static token 沿已有 persistent storage contract；每次 boxing 仍有 fresh managed identity。
+9. `Array`/`MutableArray<ZST>` 保留 logical size、bounds、求值和 index iteration，allocation 不随 length 增长，不能生成 zero-stride scan、payload copy 或逐元素 token。
+10. 开放 closure 完备的 param-free 跨 Cone 构造、value 投影、member/accessor、object value、继承、virtual/interface dispatch、`is/as` 与 protected access。protected bridge 是带用途证明的元数据通道，不是把 protected 声明提升成 public wrapper。
+11. 通用表示算法和 compiler/layout/object 测试本阶段覆盖 generic/structural shape；需要独立 Nominal/Structural ODR materialization 的生产请求仍留 M23-7。`Array<T>`、tuple、function、pointer 不因布局简单获得 Strong 特赦。
+12. 本阶段产出双 view 有效的多 Cone `.slib`，验证 local runtime 表示操作；真实 multi-image startup、artifact-only program-link 和多 Cone moving-GC 分别留 M23-8、M23-9、M23-11。
+
+核心关系为：
+
+```text
+source access proof + complete type/inheritance interface
+    -> committed exact external use
+    -> selected MIR representation/dispatch relation
+    -> selected LIR layout/ABI/scan/descriptor proof
+    -> metadata-only dependency | verified physical Strong use
+
+same size/alignment != same exact type
+same physical signature != same callable contract
+external layout knowledge != permission to emit an external definition
+ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
+```
+
+## 1. 范围、基线与阶段边界
+
+### 1.1 当前实现基线
+
+截至 M23-5，仓库已具备若干可复用的本地表示，但尚未形成一般跨 Cone authority：
+
+| 位置 | 已有能力 | 本阶段工作 |
+| --- | --- | --- |
+| `compiler/lir/src/abi.rs` | `AbiZst`、Direct/Indirect/ElidedZst、logical-to-physical 参数映射 | 绑定 persistent exact type 与 imported layout proof，统一全部调用入口 |
+| `compiler/lir/src/type_descriptor.rs` | checked value/array storage、五类 instance shape 与扫描约束 | 形成跨 Cone required wire、closure validator 和 refined external descriptor |
+| `compiler/lir/src/metadata.rs`、`compiler/lir-lower/src/metadata/layouts/` | 本地 aggregate/enum/field layout | 收口 raw size/alignment 构造，接入定义方布局与继承 prefix |
+| `compiler/lir/src/production/shape_support/` | core 的有限 shape-support proof | 推广到普通定义 Cone，保留 core 旧 proof 的唯一 authority |
+| `compiler/hir/src/visibility.rs`、`compiler/hir-lower/src/visibility.rs` | lookup/inheritance/slot domain 与本地 protected 规则 | 导出 persistent inheritance surface，生成跨 Cone receiver witness |
+| HIR/MIR/LIR 的 `cross_cone_*` 模块 | M23-5 core-closed callable 子集与 selected bridge | 增加一般类型、构造、slot/dispatch 和 object-value selection |
+| `compiler/lir-lower/src/function/expression.rs`、`runtime/src/rt.c` | 现有 box/unbox/array 执行路径 | 消除旧 payload/size/scan 多源调用与固定 header-offset 假设 |
+| `compiler/codegen/src/function.rs` | 本地地址存储发射 | 在 LIR 明确 token place，codegen 不再由 LLVM 空类型猜 ZST |
+
+本文的“首次冻结”指可跨 artifact 复用的通用契约，不表示重新实现所有本地算法。现有内部类型只有经过新 proof 构造器验证后才能进入导出表；Rust DTO 已存在不等于它已是稳定 wire。
+
+### 1.2 生产成功矩阵
+
+| 使用 | M23-6 结果 | 必要证明 |
+| --- | --- | --- |
+| M23-5 已成功的 const、top-level/extension callable | 继续成功 | 旧 route/bridge 原样保留 |
+| param-free public struct/enum 参数、返回、构造、模式、copy update | 成功 | public representation + MIR shape + LIR layout/ABI |
+| param-free class allocation、base constructor、member/accessor | 成功 | constructor access、完整 object shape、initializer bridge |
+| param-free interface/default/virtual dispatch、`is/as` | 成功 | 完整 ancestry、slot contract、唯一 implementation 与 TD |
+| public object/companion value及 runtime property | 成功 | provider ensure/value/accessor target 与初始化 ownership |
+| subclass 中合法 protected member/constructor/nested type 使用 | 成功 | inheritance route、用途专属 access witness 与完整所需 bridge |
+| imported value 嵌入本地 field/enum/capture | 成功 | representation closure；新生成实体的 ownership 也须通过 Strong gate |
+| generic nominal/callable application，generic delegated extension | M23-7 能力诊断 | 不生成 partial LocalConcrete/MIR |
+| 独立 tuple/function/raw/native-pointer TD 或其他 Structural ODR entity | M23-7 能力诊断 | 不因物理布局简单改成 Strong |
+| suspend external call、需要 `ContinuationShell`/`CoroutineStart` 的操作 | M23-7 能力诊断 | hidden ABI 依赖 generic nominal application |
+| direct foreign source `@Extern`/native storage 使用 | M23-10 能力诊断 | 完整 native closure 尚未开放 |
+
+所有“成功”格还要求传递物化闭包不包含 M23-7/10 能力。param-free declaration 不保证其字段、签名、默认参数或 generated dependency 也是 param-free；gate 必须检查实际闭包，不能只检查声明的 type-parameter count。
+
+### 1.3 表示覆盖与 ODR gate
+
+本阶段完整定义和验证 `Array<ZST>`、`Option<ZST>`、`Phantom<A/B>`、tuple/function/pointer 的表示，不据此开放这些 application 的 production ownership。
+
+- compiler/layout tests 可直接构造 fully concrete typed input，验证算法、IR、wire constituent 与 object emission；不能伪装成已通过 production profile 的 artifact。
+- runtime 单 image harness 可验证 box、array、scan、token 的真实行为；不得将它报告为多 Cone startup/program-link 验收。
+- production 继续应用 M23-3 §10.2～10.3：任何 ODR record、body、symbol、definition node 均拒绝，哪怕只有一个 producer。
+- source-owned aggregate 的嵌套结构只为计算外层 shape 时，可用无 persistent identity 的 transient layout value；结果吸收进外层 layout/scan。该例外不生成独立 TD、dispatch、box、callable 或 addressable entity，不授予 nested generic application 的源码执行能力。
+
+Stage 7 只补物化和一致性证明，不能再修改本阶段冻结的零尺寸、field offset、scan 或 typed ABI 规则。
+
+### 1.4 不属于本阶段
+
+不新增源码语法、泛型能力、target、C register classifier、runtime release hook、friend visibility、field/array-element `addressOf`、动态 image、最终 linker 或正式 `scoop run`。M23-4 locator/cache/调度和 M23-5 名称候选顺序保持既有契约。
+
+## 2. crate 与输入边界
+
+```text
+scoop-hir       type facts / inheritance interface / selected use / access witness
+scoop-hir-lower 语义检查、receiver proof、完整外部请求与 winner commit
+scoop-mir       representation-neutral type/callable/slot bridge
+scoop-mir-lower 外部构造、ensure、dispatch 和 helper 的机械 lowering
+scoop-lir       layout/ABI/scan/descriptor DTO、proof、wire 与 verifier
+scoop-lir-lower 唯一 target layout producer、外部 proof 消费与 root/place plan
+scoop-codegen   完整 LIR -> LLVM/object，不推导语言行为或缺失布局
+scoop-slib      section/profile、原子 closure 验证、双 view 与 publication
+scoopc          selected metadata 投影、stage 编排
+scoop           accepted profile/cache key 更新
+runtime         既定 shape ABI 下的 box/array/scan 执行与防御验证
+```
+
+不新增 stage 实现间依赖。导入算法需要的通用验证逻辑放在对应 IR crate；不能让 `scoop-slib` 调用 `hir-lower` 或 `lir-lower` 来重编译上游。target-aware layout 的纯数据验证与重放 API 由 `scoop-lir` 提供，lowering 调用相同构造器。
+
+输入链扩展为：
+
+```text
+ValidatedArtifactClosure<Compile>
+    -> ValidatedCrossConeSemanticClosure
+    -> ImportedTypeSemantics + ImportedInheritanceSurface
+    -> HIR winner + CrossConeUseSet
+    -> SelectedMirTypeBridgeSet
+    -> local MIR + SelectedLirLayoutAbiSet
+    -> complete local LIR + external typed definitions
+```
+
+`SelectedMirTypeBridgeSet`、`SelectedLirLayoutAbiSet` 是经过 dependency closure 检查的 branded handle，不接受裸 table、symbol 或任意 exact-id 列表。MIR 无法读取 default/import/access 语法，LIR 无法读取 Export HIR body，codegen 无法重新查询全部 dependency。
+
+## 3. profile、section 与 wire 演进
+
+### 3.1 新 production profile
+
+新增：
+
+```text
+org.scoop-lang.slib-profile/cross-cone-layout-strong/1
+```
+
+其 required inventory 从 M23-5 `cross-cone-semantics-strong/1` 出发，移除 `org.scoop-lang.lir/strong-production/1`，替换为 `/2`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、decode-cost model、extra-section policy 和 Link proof policy 原样继承，`odr = RejectAll`。
+
+| capability | location | required_for | sinks |
+| --- | --- | --- | --- |
+| `org.scoop-lang.hir/cross-cone-type-semantics/1` | HIR | Compile | Hir |
+| `org.scoop-lang.mir/cross-cone-type-bridge/1` | MIR | Compile | Mir |
+| `org.scoop-lang.lir/cross-cone-layout-abi/1` | LIR | Compile | Lir |
+| `org.scoop-lang.lir/cross-cone-layout-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
+| `org.scoop-lang.lir/strong-production/2` | LIR | Compile、Link | Lir + Code + RuntimeImage |
+
+新 HIR section 同时承载 type facts 与独立 inheritance surface；它不修改 `cross-cone-interface/1` 的 public-only record。前三条的完整 canonical inner bytes 分别进入对应 layer contribution。新增Link-only section仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly；strong-production/2沿用强定义section自己的三个sink。
+
+所有 source Cone、trusted core、single-file 与 cache 产物都写新 profile、四个新增section及strong-production/2，空集合也必须显式编码。旧 profile 可以被 Graph view 识别并报告，但不能成为本阶段 completed dependency；core receipt、compiler compatibility 与 cache key 绑定新 profile fingerprint，全部重建，不做内存升级。section自身major与outer schema是两个版本维度；本次strong-production/2不表示进入M24的outer schema2或runtime release ABI。
+
+### 3.2 不改义的既有 section
+
+- identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
+- `NativeBoundaryTypeDefinitionRecordV1` 只服务原 extern/callback witness，不通过它提供一般 field/scan/TD 查询。
+- core 既有 shape-support/bridge 仍由 core 专属字段拥有；新 section 为它补充完整表示证明并逐字段校验，不能形成另一份可独立修改的 core authority。新 `shape_support` 表只存 ordinary producer 的八 role，core 中必须为空；通用查询对 core 委托旧 `core_shape_support`，对 ordinary 委托新表，二者返回同一只读接口。
+- M23-5 最大 core-closed callable export 集不变，ordinary dependency 的该子集仍走旧 MIR/LIR bridge 和旧 Link 分区。
+- 新 callable bridge 只承载上述旧集合以外、现在可证明的 target；同一 callable 不能同时登记在旧、新 external arena。完整类型证明可以被两类 bridge 共用。分区优先检查冻结的 core bridge，其次检查 M23-5 ordinary bridge，剩余 target 才进入新 bridge；新开放的 core member/constructor/shape use 若不属于旧 bridge 的固定集合，也走新 bridge，不能借此扩大旧集合。
+- `strong-production/1` 保留旧格式和验证规则，新profile不再生产/要求它。`strong-production/2`保持既有top-level十字段及identity、definition plan、digest DAG、core shape/bridge、image plan结构，只把TD/dispatch语义中无法表示ordinary provider的引用sum版本化；runtime registration/image的C ABI不改变。
+
+本阶段不提升 container/outer schema，不改 `persistent-v1` mangler，不重分配既有 tag。新增 mandatory section 使旧 reader fail closed。
+
+`strong-production/2`中的三个版本化constituent固定为：
+
+```text
+StrongTypeDescriptorRefV2 =
+    Local(PersistentExactTypeId)                      // tag 1
+  | CoreExternal(PersistentExactTypeId)               // tag 2
+  | DependencyExternal { provider, exact }           // tag 3
+
+StrongTypeDispatchCallableRefV2 =
+    Local(PersistentCallableBodyId)                  // tag 1
+  | CoreExternal(PersistentCallableBodyId)            // tag 2
+  | Runtime(RuntimeFunction)                         // tag 3
+  | DependencyExternal { provider, body }            // tag 4
+
+OptionalStrongTypeDescriptorRefV2 =
+    Absent                                           // tag 1
+  | Local(PersistentExactTypeId)                      // tag 2
+  | CoreExternal(PersistentExactTypeId)               // tag 3
+  | DependencyExternal { provider, exact }           // tag 4
+```
+
+前述既有variant的payload逐byte复用V1实际编码，包括optional Absent的`{0:1,1:0}`；新增variant是`{0:tag,1:provider,2:exact_or_body}`。body是`PersistentCallableBodyId`，必须反向join同provider已验证的Strong owner、ABI export与definition，不能只比较symbol。TD parent、itable interface key、vtable/itable entry及引用它们的type-registration semantic plan统一使用V2，不保留另一个可矛盾的V1 plan。DependencyExternal必须由新layout/ABI bridge和Link import逐项证明；不允许把真实parent写成Absent再由sidecar补齐。core原ref仍按旧分区使用CoreExternal，新增core能力按3.2的分区规则使用新ref。descriptor/dispatch dependency fingerprint使用同一完整V2 relation；旧variant的canonical bytes保持，新variant追加tag，不能遗漏provider或把foreign target编码成local。
+
+其他strong-production constituent以及runtime registration的typed key/record不变。Compile/Link handler先按capability解码V1或V2，再取得不可降格的validated production view；旧Link identity section只消费其既有子集与同一member全集，新physical use由11.3覆盖。profile拒绝同时出现两个strong-production版本，避免两套definition authority。
+
+V2另扩展initialization dependency的验证域：wire仍是原顺序/排序契约下的`PersistentInitializationUnitId`序列，不改变id或record字段；内存证明改为`LocalUnit(ref) | DependencyExternalUnit { provider, unit_ref }`。旧V1只能解析本Cone producer unit的规则保留。V2的foreign id必须命中同一显式dependency closure中已选中的provider unit、对应initialization descriptor与required definition，producer unit表仍只含本地定义，不能复制foreign canonical unit record冒充本地。missing/错provider/跨closure dependency在artifact commit前拒绝；不允许省略真实edge来让旧validator通过。
+
+### 3.3 编码约定
+
+本文新 record 使用 M23-2 Wire CBOR v1 closed product：field 从 1 开始按文中声明顺序编号，sum 使用 field 0 的 tag，payload field 从 1 开始；新增 sum 的 tag 按列出顺序从 1 递增。所有引用既有类型的地方复用原编码，不重新给 `Effect`、`GcEffect`、exact key、symbol request、definition plan、scan fingerprint 或 canonical ABI 编号。
+
+table 按 kind-specific typed 主键的 canonical bytes 严格递增；set 排序去重，重复输入拒绝而非 reader 自动修复。参数、字段、variant、base prefix、slot position 是有序语义序列，不按名称重排。各 constituent 使用 foundation 的 text/bytes/count 限额和 deterministic logical budget；checked arithmetic、depth/cycle 与展开成本检查在分配前完成。
+
+文中 `Checked`、`Selected`、`Ref`、`Witness` 表示构造完成后的内存类型，不把 arena index 或“已验证”布尔值写入 wire。wire 只保存重建这些证明所需的 typed id 与 canonical facts；reader 重建后才返回 handle。
+
+## 4. HIR：type facts 与继承接口
+
+### 4.1 type semantics section
+
+```text
+CrossConeTypeSemanticsSectionV1 {
+    exact_facts: CanonicalVec<ExactTypeFactsV1>,
+    representation_support: CanonicalVec<NominalRepresentationSupportV1>,
+    inheritance: CanonicalVec<NominalInheritanceInterfaceV1>,
+    protected_declarations: CanonicalVec<ProtectedDeclarationInterfaceV1>,
+    protected_source_interfaces: CanonicalVec<ProtectedSourceInterfaceV1>,
+    protected_defaults: CanonicalVec<ProtectedDefaultTemplateV1>,
+    definition_sources: CanonicalVec<ExportDefinitionSourceV1>,
+    selected: CanonicalVec<SelectedExternalTypeUseV1>,
+}
+
+ExactTypeFactsV1 {
+    exact: PersistentExactTypeId,
+    kind: Value { zst: ZeroSized | NonZero } | Reference,
+    gc: GcFree | ContainsManagedReferences,
+}
+```
+
+这些事实覆盖本 Cone 导出的 param-free exact subject，以及其必须供下游检查的表示/继承 support；generic template 不能伪装成 concrete facts。`Reference` 的 `gc` 固定为 ContainsManagedReferences，描述的是该引用值；对象内部 `object_scan` 可以为空，二者不能混淆。`Value/ZeroSized` 必须是 GcFree。enum 每个 variant 的 gc flag另随 representation record保存，并重放 `gc_free(enum) = AND(gc_free(variant))`，不是对ContainsManagedReferences取AND。
+
+value `ZstStatus` 在 HIR 完成：只有 Unit 或全 ZST 的普通非 CLayout struct/tuple 为 ZeroSized，intrinsic scalar/pointer 与 enum 不从空字段推断。MIR 机械转写；LIR 验证 status 与 layout 一致，不能用 `size == 0` 为缺失 HIR 信息补值。
+
+`NominalRepresentationSupportV1` 的主键是 source nominal id，保存 kind-specific 源码表示：ordinary struct 的声明序 `{ field, exact/signature type }` 和 CLayout policy，enum 的声明序 variant/payload 与 variant gc，class 的已解析 base 及声明序 backing/delegate field，object 的 backing-class 关系，intrinsic 的 typed representation family。这里的 source/generic type 引用继续使用既有 typed key；只有实际 selected 的 fully concrete 闭包可进入后续 stage。
+
+其wire固定为 `{ 1: owner, 2: declaration_access, 3: shape }`。field type只保存一个`SignatureTypeKey`，不平行保存可矛盾的exact/signature字段；concrete消费通过已验证binder-free转换取得exact id。shape的tag1～6依次为：`Struct { fields, c_layout_policy }`、`Enum { variants }`、`Class { base, declared_fields }`、`Interface`、`Object { backing_class, declared_fields }`、`Intrinsic { representation }`。field是`{ field_id, value_type }`的declaration-order product，enum variant是`{ variant_id, fields, gc }`；三种field id分别使用source struct、class backing/delegate与enum-variant-field的既有kind-specific类型，不能混用。CLayout policy与intrinsic representation复用对应IR的封闭语义模型并显式wire映射，不以annotation文本、短名或bool替代。
+
+普通 public struct/enum 的 public representation 必须逐项等于 M23-5 source shape。class 的 private/internal backing field 仅供布局重放，不加入 `members`、import、default binding 或 source field lookup。读取 shape-support 的 authority 与源代码访问 field 的 authority 是两种不同 handle。
+
+### 4.2 inheritance surface
+
+```text
+NominalInheritanceInterfaceV1 {
+    owner: PersistentExactTypeId,
+    modality: Final | Open | Abstract | Interface,
+    direct_base: NoClassBase | ClassBase { exact },
+    direct_interfaces: CanonicalVec<PersistentExactTypeId>,
+    domains: NominalAccessDomainsV1,
+    constructors: CanonicalVec<InheritanceConstructorInterfaceV1>,
+    slots: CanonicalVec<InheritanceSlotContractV1>,
+    protected_members: CanonicalVec<ProtectedDeclarationRefV1>,
+}
+```
+
+该表是普通 public lookup surface之外的第二条接口。protected declaration record 携带与同类 public record 相同的完整 owner、source signature、source parameter/default interface、effect、modality 和 property/accessor 关系，但使用独立的 inheritance access proof，不能 cast 成 `PublicLookupAccessV1`。
+
+`NominalAccessDomainsV1` 分别保存 effective lookup、inheritance 和 slot contract 所需的域。persistent domain 是 `Empty | Conjunction(constraints)`，空 conjunction 表示 universal；constraint 仅为 `Cone(ConeIdentity)`、`File(SourceIdentity)`、`LexicalOwner(kind-specific nominal id)`、`SubclassesOf(exact class)`。约束按 tag/id 严格排序，owner intersection、不可居住性与包含关系由 reader 重放，不保存 session ClassId 或 visibility 数字大小。
+
+每个protected/support声明都保存 `DeclarationAccessSourceV1 { declared_visibility, lexical_owners, definition_origin }`：visibility是独立closed enum `Public=1 | Internal=2 | Private=3 | Protected=4`，owner链按outer→inner顺序保存typed nominal id，origin复用Stage5 `ExportDefinitionSourceV1`。reader从foundation的真实owner chain/source与这份declared visibility重算域，不能只比较producer给出的两个计算结果。`NominalAccessDomainsV1`的三个字段依次为lookup、inheritance、slot；用途不同的域不能互转。
+
+`ProtectedDeclarationInterfaceV1`的tag1～4依次为`Callable`、`Constructor`、`Property`、`NestedNominal`，每个variant field1为对应kind-specific声明id、field2为`DeclarationAccessSourceV1`、field3为完整接口payload。Callable/Constructor payload按顺序保存owner、own binder list、receiver、parameter shapes、result、effects、modality、source interface、slot relations；constructor own binder固定为空，signature scope压缩规则复用Stage5。Property保存owner、value type、getter、`ReadOnly | ReadWrite { setter, setter_access }`、representation与slot relations；NestedNominal保存source nominal id及其inheritance/representation表引用。protected owner必须是class；其visibility为Protected，随owner收窄后的effective domain仍须允许该inheritance路径。不可lookup的internal concrete slot只出现在`InheritanceSlotContractV1`的support target关系，不借此表取得protected声明身份。
+
+public property带protected setter时，旧public property仍保留`Restricted`，新表只以Callable分支登记该setter的`PersistentPropertyAccessorId`和protected access；不把整个property改成protected，也不向旧public callable表添加setter。consumer先选中public getter/property，再通过两表的同一property/accessor key取得setter witness。
+
+`InheritanceSlotContractV1` 保存：既有 `PersistentDispatchSlotId`、声明 owner、function/getter/setter 的 typed declaration origin、完整 signature/effect、slot contract domain，以及 `Abstract | Concrete(target) | InterfaceDefault(target)`。每条 slot 与 canonical slot key 关联；override 引用原 slot identity，不以相同方法名或新 owner 重造 base slot。
+
+必要的 internal concrete slot 可以作为不可 lookup/override 的继承 support 保留，使下游 table 保留其已有实现。private member 永不进入继承/dispatch；public owner 不得留下下游不可实现的 hidden abstract obligation。internal/private concrete owner 中的 public override 可以填充更宽 slot，但不因此成为普通 foreign lookup target。
+
+公开继承入口及其传递 base/interface/slot closure由定义方完整导出。protected nested type 同样保留自己的 identity 与 owner chain，通过合法 subclass scope取得访问证明；不能通过 `public import` 再导出成普通 binding。
+
+### 4.3 protected access 与 default
+
+HIR 依次证明：
+
+1. base/interface 来自合法 source route，或者是已授权 inheritance relation 的传递 support；support artifact 不因此成为普通 import 来源。
+2. 当前词法访问位置处于声明 class 或其 subclass body；有效 owner domain 同时满足。
+3. 显式 receiver 的 exact 静态 class 是当前访问 subclass 或其 subclass。仅“运行时对象可能是 derived”不够；`Base` 静态 receiver 不获准访问 Derived 作用域中的 protected member。
+4. constructor delegation、implicit `this`、explicit receiver、qualified `super` 分别产生用途专属 witness，不用一个可任意复用的 `is_protected_allowed` 标志。
+5. property 先选 getter/logical property，随后检查 setter domain。setter 不可见立即报 assignment 错误，不回退其他 overload。
+
+inherited protected callable 的 default 继续在定义处解析，使用 M17 的 kind-specific export-interface ref 和完整 call-domain coverage。consumer 只在合法 winner 提交后实例化；不把 private/internal hidden dependency装入 default，也不把 protected reference转换成 universal public witness。M23-5 的 public default wire 原样保留，新的 protected source-interface record单独引用相同表达式语义 constituent。
+
+具体使用独立 `ProtectedDefaultTemplateV1`：field1～10和field12逐项复用Stage5 `ExportDefaultTemplateV1`的key、definition root/path、locals、纯body、result、suspend、binder mapping、receiver、前置参数与origin；field11替换为`ProtectedDefaultReferenceSetV1`。不得把整个旧template/ref-set直接复用，因为旧witness只允许public/universal domain。
+
+新的reference set仍是六个按target排序的kind-specific集合：callable、constructor、type、global、singleton、field；target类型逐项复用Stage5，record为`{ target, definition_origin, witness, uses }`。witness为`{ owner, direct_call_domain, slot_call_domains, target_domain }`，domains使用本节persistent域；uses保留每个实际template occurrence的`{ expression_index, receiver_use }`。expression_index是body按wire字段序、source sequence序前序遍历的u32节点序号，不是arena index或新persistent identity；receiver_use是`None | ImplicitThis | Explicit { receiver_expression_index } | ConstructorDelegation`。
+
+reader重放完整body/reference闭包、definition-before-use及各receiver的静态type；每个occurrence必须命中相同typed target并满足4.3的词法/receiver规则。target domain必须覆盖direct call domain和每一个slot call domain；domain不是两个可比较visibility整数，也不能只覆盖当前某一个consumer调用点。default provider、参数位置、完整binder映射和definition/evaluation origin仍按Stage5规则验证。继承或扩大override调用域时重新检查coverage，不可把protected dependency藏进public default；constructor默认表达式仍遵守初始化receiver禁用规则。
+
+protected source-interface表额外保存其default template集合及definition_sources精确闭包，使用独立索引空间；不能把protected key插入旧public source-interface/default表。表的source parameter形状和省略类别复用Stage5规则，template引用由当前protected表的checked key/index解释。
+
+在本阶段，access bridge 指“source target → checked inheritance/receiver witness → MIR external target”的关系。只有已有 `DispatchAdjust`/`BoxingAdjust` 等语义确实要求时才生成 thunk，并使用既有 generated identity；不为绕过 visibility 新增 public wrapper 或新 persistent id 家族。
+
+### 4.4 HIR selected set
+
+`SelectedExternalTypeUseV1` 保存 terminal provider、exact/declaration target 与封闭的 use kind：`Signature`、`Representation`、`Construct`、`MemberCall`、`SlotCall`、`TypeTest`、`SingletonValue`、`Inheritance`、`ShapeSupport`。涉及 declaration 的分支携带相应 kind-specific declaration ref；slot 分支携带 exact receiver 与 slot；inheritance 分支携带当前 derived owner 和 direct base edge。
+
+`CrossConeUseSet` 对 type、constructor、member/accessor、slot、TD、object ensure/value 增加独立 typed request 家族，不把所有请求塞入 callable id。source use 的 lookup/access provenance 保留在 HIR；由 lowerer 产生的表示/dispatch support edge 携带选中语义 parent，不伪造 import route。
+
+capability gate 在 winner commit、default expansion 和 persistent materialization 前完成整个请求闭包。缺 source access 是语言错误，缺必需 section/record 是 artifact 错误，闭包需要 ODR/native 能力则使用相邻阶段诊断。成功 `LocalConcreteHir` 只包含 local body 与 external complete ref，不复制 provider param-free body。
+
+## 5. MIR：表示无关的 type/callable bridge
+
+### 5.1 section 结构
+
+```text
+CrossConeMirTypeBridgeSectionV1 {
+    types: CanonicalVec<ParamFreeMirTypeExportV1>,
+    callables: CanonicalVec<ParamFreeMirCallableBindingV1>,
+    dispatch: CanonicalVec<ParamFreeMirDispatchSchemaV1>,
+    object_values: CanonicalVec<ParamFreeMirObjectValueV1>,
+    shape_support: CanonicalVec<ParamFreeMirShapeSupportV1>,
+    initialization_uses: CanonicalVec<SelectedExternalInitializationUseV1>,
+    selected: SelectedDependencyMirTypeSetV1,
+}
+```
+
+所有 export 由 provider 的当前 HIR/LocalConcrete 与 MIR 输出逐项 join 产生；re-export Cone 只保存 selected relation，不复制 terminal provider 的 export。
+
+`ParamFreeMirTypeExportV1` 保存 `{ exact, origin, facts, representation, base_and_interfaces }`。origin是`SourceNominal(PersistentTypeId) | GeneratedNominal { nominal, role }`，generated role与foundation canonical key逐项相等，不伪装成source声明。representation 是 MIR 自有的 closed sum：scalar/intrinsic、struct、enum、class、interface、object backing 与 generated helper；field、variant、base、capture 使用对应 typed id 和 exact type。它包含可重放布局的完整顺序和 CLayout policy，但没有 byte offset、LLVM type、stride、scan 或 ABI pass mode。
+
+### 5.2 callable 与 constructor
+
+`ParamFreeMirCallableBindingV1` 保存 `{ source_or_generated_origin, implementation, semantic_signature, lowered_signature, lowering_role }`。implementation 只接受既有 `StrongCallableDefinitionOwner`；lowering role 为 ordinary、class initializer、struct value constructor、accessor、dispatch adjust、boxing adjust、object ensure/value 等已有 typed role，不根据 name 推断。
+
+source signature 与 lowered signature不能合成一个字段：class constructor 的源码结果为 class value，MIR initializer 取得同一个 initializing receiver并返回 Unit；enum variant construction 可以只有 representation operation而没有独立 machine body，使用专用 construction plan，不虚构 callable definition。
+
+class construction 固定为 exact allocation一次、同一 receiver direct调用 initializer；base/`this` delegation 不分配、不改 header，最派生 TD 从 allocation 起保持。abstract class可有供 derived调用的 initializer，但不能构造 allocation target。跨 Cone构造保留 base-before-derived、共同初始化一次、异常不发布结果及每次 call 后 receiver relocation。
+
+普通 member、extension、value constructor和adjust thunk都执行按值 receiver/参数语义。`@InteriorMutable` 或 `addressOf(this)`可观察时必须有方法局部 copy；即使 physical ABI使用 pointer，也不能把 caller/box内存变成方法的可修改 `this`。
+
+### 5.3 dispatch schema 与 table 构造
+
+`ParamFreeMirDispatchSchemaV1` 按 exact owner 保存 class vtable schema 与按 exact interface排序的 itable schema。每条 entry包含 `{ slot, position, slot_signature, implementation }`；implementation是 `AbstractObligation { declaration, trap_target } | DirectStrongTarget | InterfaceDefaultTarget | AdjustThunkTarget`。abstract分支沿用当前MIR的typed pure-virtual trap body，使用原abstract declaration对应的Strong callable identity与完整signature；它有明确fatal出口，不留下null/未解析function，也不授予源码direct call权限。
+
+- derived vtable保留完整 base prefix；既有 slot的 position保持，override只替换 target；新增 virtual family按当前owner的方法声明序首次出现时追加，保持现有MIR语义顺序。
+- interface保留既有“继承slot在前、当前声明slot随后”的schema顺序和去重规则，consumer调用携带interface TD + schema内position；不存在程序级global slot ordinal。按id查找的wire record table可以canonical排序，但position必须保留provider的语义序列，不能按id重排物理table。
+- 每个 concrete owner必须填满 obligation；abstract class可以保留 obligation，但 LIR allocation仍拒绝 abstract identity。
+- HIR完成“最近 class concrete override → 删除较不 specific interface candidate → 唯一 default或诊断”的选择；MIR只验证并机械构造，getter/setter分别选择。
+- `super`、`super<I>`保存强制 direct target；不会因为 callee属于 open family重新走 table。
+- value实现 interface时 table entry指向按 exact implementor/slot/target产生的 adjust thunk；ZST thunk产生 typed value与独立需要的 this token，无 payload load。
+
+slot调用签名与实现签名不同的任何合法情况必须由已有 typed adaptation relation闭合，不能用 LLVM function-pointer bitcast消除差异。没有语义允许的 adaptation时，在 HIR拒绝 override。
+
+### 5.4 object value 与初始化
+
+`ParamFreeMirObjectValueV1` 保存 object-value identity、backing exact class、provider-owned unit、ensure callable和value读取入口/已授权storage关系。consumer按普通语义先 ensure，再取得值；不复制 singleton allocation、init cell、failure root或 backing storage。top-level/delegated property继续经唯一 accessor；“有布局”不授权直接读取 private backing field。
+
+本阶段关闭 artifact中的所有 typed edge与registration关系，不执行全图 eager startup。M23-8会在登记全部image之后按这些既有unit关系启动，不回到名称解析补依赖。
+
+当前initializer中的显式external ensure通过`SelectedExternalInitializationUseV1 { local_unit, provider, dependency_unit, cause }`记录；cause是`ObjectValue(object_value_id) | PropertyAccessor(accessor_id) | InitializationSupport(unit_id)`，必须由已提交的typed ensure语义产生。LIR selected set保留同一edge，strong-production/2按3.2验证foreign unit，不要求它出现在本地unit arena。这里只记录现有语义的真实ensure dependency，不读取foreign body做跨Cone调用图推断；普通external callable内部自己的ensure继续由provider负责。image/runtime使用canonical unit id解析这些edge，相关真实descriptor/cell relocation按11.2验证。
+
+## 6. LIR：完整 layout 与 scan
+
+### 6.1 section 与 authority
+
+```text
+CrossConeLayoutAbiSectionV1 {
+    layouts: CanonicalVec<ExactLayoutExportV1>,
+    descriptors: CanonicalVec<ExactDescriptorExportV1>,
+    dispatch: CanonicalVec<ExactDispatchExportV1>,
+    callables: CanonicalVec<ExactCallableAbiExportV1>,
+    shape_support: CanonicalVec<ParamFreeShapeSupportExportV1>,
+    selected: SelectedDependencyLayoutAbiSetV1,
+}
+
+ExactLayoutExportV1 {
+    layout: PersistentLayoutId,
+    exact: PersistentExactTypeId,
+    target: TargetProfileWireId,
+    role: RepresentationRole,
+    body: Value { storage: ValueStorageLayout, representation: ExactRepresentationLayoutV1 }
+        | Instance { shape: TypeInstanceShape, representation: InstanceRepresentationV1 },
+    scan: PersistentScanId,
+    definition: StrongShapeDefinitionV1,
+}
+```
+
+layout 表以 `PersistentLayoutId` 为主键，同一 exact 可以有不同 representation role 的多项。`TargetProfileWireId`、`RepresentationRole` 原样复用 foundation 的 `LayoutKey`：ManagedValue/CValue/NativeFunctionPointer 必须匹配 Value body，ManagedObject 必须匹配 Instance body；scan key 的 layout/role 同样重放。target 必须等于同 artifact 已验证 LIR projection，不能仅比较可读名称。`StrongShapeDefinitionV1` 复用 M23-3 的 semantic-id/definition-plan/symbol product。每项 layout/scan/descriptor引用 foundation中的既有 key；definition必须在 provider strong production中有唯一primary atom。
+
+普通引用值的 Value body 是 managed pointer大小/对齐和单个 managed leaf；它指向的对象 field layout属于独立 ManagedObject layout 的 Instance body及object scan。`InstanceRepresentationV1`的tag1～5依次为`ClassObject { base_prefix, declared_fields, complete_fields }`、`BoxedPayload { payload_exact, value_layout }`、`InlineBytes`、`InlineArray { element_exact, element_storage }`、`AbstractReference`。class base prefix与新增字段只在ClassObject中拥有authority；complete_fields是从base prefix和declared_fields机械拼出的全序投影，reader逐项核对，不能自由提供一份不同的flattened list。不能把空 class误判为 size 0引用值。
+
+scan identity的role矩阵保持既有规则：ManagedValue、CValue、NativeFunctionPointer均配InlineValue；普通ManagedObject配ManagedObject；intrinsic array的ManagedObject layout配ArrayElement，其canonical scan描述单element。array descriptor的object scan另从该element scan与length/data offset/stride派生，不能把element scan当作object-relative scan，也不能为方便改写已冻结ScanKey。BoxedPayload的inline scan来自payload value layout，object scan来自checked平移。
+
+consumer只能通过 `ExternalExactLayoutRef`取得完整事实，并在本地 aggregate中重放外层布局。外部 layout/scan constant、TD和table全部保持 external definition；本地内联 field offsets不构成复制外部addressable constant的许可。
+
+### 6.2 storage 与 field layout
+
+```text
+ValueStorageLayout =
+    ZeroSized { alignment: NonZeroPow2 }
+  | NonZero { size: NonZeroU64, alignment: NonZeroPow2, scan: RefScan }
+
+ArrayElementStorage =
+    ZeroSized { alignment: NonZeroPow2 }
+  | Inline { stride: NonZeroU64, alignment: NonZeroPow2, scan: RefScan }
+
+FieldStorage =
+    ElidedZst { exact, offset: ByteOffset, alignment: NonZeroPow2 }
+  | Stored { exact, offset: ByteOffset, layout: NonZeroValueLayoutRef }
+```
+
+这些 sum具有封闭 checked constructor；raw wire不能直接实例化 `NonZeroPow2`、scan或 field ref。现有 `ValueStorageLayoutV1::Inline` 对应这里的 NonZero，内部命名可保留；新 wire只使用本节规定的 variant语义，不能直接序列化 Rust enum。
+
+普通 struct/tuple按声明序计算：ZST field的canonical offset为0，不推进 cursor；nonzero field按其alignment对齐cursor，再checked加size；outer alignment取全部field最大alignment，最后checked tail padding。空ordinary struct与Unit是0/1；全ZST aggregate为0/max-alignment。class以完整base instance size作为新增field cursor，不复用base tail padding，继承field offset保持不变；object alignment至少8，并包含16-byte header。这是本阶段统一的class ABI冻结：替换当前flatten全部base/derived fields再布局的做法，本地和外部base都使用同一prefix算法。仅含Int8的base size为24时，derived首个nonzero字段最早从offset24开始，不能占用旧算法的offset17；新profile重建与layout golden同步迁移。
+
+`ExactRepresentationLayoutV1` 穷尽 scalar、qualified pointer、struct、tuple、tagged enum、niche enum与intrinsic value family；class/interface/function等reference value使用managed qualified pointer分支。每个field/variant记录持久 typed field/variant identity、exact type与对应storage，source field sequence逐项匹配MIR。Instance的ClassObject保存 `NoBase | BasePrefix { exact, layout, byte_size, alignment }`，证明prefix和provider导出完全相等。
+
+enum继续使用已有tag宽度与分配规则；不新增discriminant elision。tagged enum保存tag、pure-value共享区和每个ref-bearing variant独占连续slot；construction清零全部value/padding/inactive slots后再写active内容。niche只适用于规范7.4的封闭同构形状；managed-ref niche有managed scan，raw/code-pointer niche无managed scan。`Option<ZST>`保持非零tagged layout。
+
+`@CLayout`只接受已通过source predicate的具体字段，按既有aligned/packed契约重放，并与canonical C layout逐字段一致。不得从一般Scoop layout反推出C pass classifier。所有size、offset、stride、alignUp使用checked内部machine scalar并受target capability约束。
+
+### 6.3 scan normal form 与预算
+
+scan完全复用runtime spec 2.2，普通node的offset相对明确的base：
+
+- References严格递增且无重复；Sequence flatten、删除None、合并同层References，并按 `(child fingerprint, canonical bytes)`排序去重。
+- Array只能是 `{ length_offset, first_element_offset, nonzero_stride, nonempty_element }`，两个offset相对object base；GC-free/ZST element直接为None。
+- tagged enum扫描所有独占ref-bearing slot，不读取tag；pure-value共享区不进入scan。
+- box的inline scan相对payload，object scan通过checked offset平移；Array node平移length/first offset，不平移其element child。
+
+五项限额固定复用：depth 64、distinct nodes 65536、distinct words 1048576、expanded nodes 1048576、canonical bytes 16777216。cycle检测使用active path；共享DAG的expanded cost按每条路径重计，用memoized checked subtree cost在展开前拒绝。producer正规化到fixed point，reader拒绝非canonical输入而非替它排序修补。
+
+`ScanFingerprint`继续使用既有 `scoop-scan-v1` 与runtime canonical typed bytes，不换成Wire CBOR hash。layout/TD reader重算scan及所有offset边界，不能只验证digest长度或“scan id已存在”。
+
+## 7. TypeDescriptor 与有限 shape-support
+
+### 7.1 descriptor record
+
+`ExactDescriptorExportV1` 保存 `{ exact, value_layout, instance_layout, shape, object_scan, ancestry, dispatch, diagnostic_name, definition, registration }`。两个layout引用分别指向该exact的ManagedValue与ManagedObject记录；shape/object_scan是跨record关系证明，必须与instance layout逐字段相等，不是可独立修改的第二authority。shape只接受下列checked sum；ancestry/table edge使用 typed external/local ref，不保存地址。
+
+| shape | allocation/inline规则 | object scan |
+| --- | --- | --- |
+| FixedObject | 含header、完整fields和tail padding的非零exact allocation | 完整object-relative scan |
+| BoxedValue | `inline_offset = alignUp(16, value alignment)`；minimum为`alignUp(offset + value size, max(8, alignment))` | inline scan checked平移 |
+| InlineBytes | minimum/offset 24，instance alignment 8，element size/stride/alignment 1 | None |
+| InlineArray | minimum/offset `alignUp(24, element alignment)`；ZeroSized与Inline分开 | 只有nonempty element scan才有Array node |
+| AbstractRef | 所有instance/inline size、alignment、offset为0 | None，不可分配 |
+
+`AllocatableTypeDescriptorRef`排除AbstractRef；box、array、class allocation再分别要求对应refined variant。运行时拒绝错误TD只是防御，正常LIR不可表达对AbstractRef分配。
+
+abstract class仍有完整FixedObject instance布局供derived prefix和initializer使用，不等于interface/纯reference identity的AbstractRef。`ClassAllocationTarget`必须同时持有FixedObject shape proof与`ConcreteClass` modality proof；abstract class不能构造该target，但可提供`BaseInitializerTarget`。仅检查shape不是合法class construction证明。
+
+`ExactDispatchExportV1`以`PersistentDispatchTableId`为主键，product固定为`{ table, owner_exact, role, entries, definition }`。role是`Vtable | Itable { interface_exact }`，必须匹配foundation DispatchTableKey；entries按物理position保存`{ position, slot, slot_signature, implementation, abi }`。implementation使用5.3的已验证target/adjust关系，abi引用同一local/external callable ABI export；abstract obligation只可出现在abstract owner允许的schema，物理entry必须指向同signature的既有trap target，concrete owner不得残留该分支。table及owner TD中的对应table ref、interface key、slot数和每项target逐字段相等；definition绑定同一Strong table atom。
+
+`CanonicalExactTypeDiagnosticName`由已验证exact key重算，遵守总设计3.1的grammar、generated role和16 MiB checked展开预算。import/re-export/typealias拼写不参与。name bytes按值进入descriptor definition，关联只读atom由同一definition plan覆盖；不能让consumer替外部TD提供本地display string。
+
+### 7.2 普通 Cone shape-support
+
+ordinary producer 的 `ParamFreeShapeSupportExportV1` 使用M23-3八role的closed product，语义和field顺序不变，provider限制从新section的当前producer证明取得。core只从旧record取得同一role集合，新表必须为空；两条authority不复制彼此的root/role记录：
+
+```text
+SourceNominal / ValueLayout / RefScan / TypeDescriptor / TypeRegistration
+BoxedValue / CoroutineStep / CoroutineSlot
+```
+
+source集合从已验证HIR public/inheritance接口的可跨Cone请求subject闭包独立重建，包括合法protected nested subject；不能从wire已有closure反向枚举“应有全集”。纯re-export不产生新的source obligation。
+
+前五项和Step/Slot总是Available。BoxedValue对value为Available，对reference nominal只允许既有 `ReferenceNominalRequiresNoBox`。不能增加泛化的Unavailable/Unsupported reason来掩盖缺项。
+
+Step为 `Completed(T) | Suspended`，Slot为 `Empty | Value(T)`；使用既有generated nominal/variant/field key、完整gc flag和tagged/niche规则。每个generated role包含自身layout、scan、TD、registration和definition proof；这些helper不能再次作为source root触发无限 `Box<Step<Slot<...>>>` 展开。
+
+owner严格由 `ExactOwnerRoot(subject)`决定：source nominal回定义Cone，application/structural回ODR。consumer请求source-root helper时仅导入provider definition；缺失closure直接使artifact无效，不能本地补Strong或伪造Structural组。
+
+`ContinuationShell`与`CoroutineStart`不在本closure中；它们依赖`Continuation<R>`/`SuspendTask<R>`，到M23-7完整ODR proof后才加入。box/interface语义需要的adjust thunk按MIR dispatch relation独立闭合，不把“非callable shape-support”当作免验证生成任意body的入口。
+
+## 8. Scoop typed ABI
+
+### 8.1 canonical contract
+
+`ExactCallableAbiExportV1` 保存 `{ target, canonical_signature, calling_convention, call_protocol, layout_dependencies, definition }`。target为既有Strong callable owner，definition由persistent规则派生；`call_protocol`封闭区分ordinary managed/NoGc与既有native transition，不能由effect字符串推断。
+
+canonical signature原样复用M23-2的 `CanonicalScoopAbiFunctionSignature`：field 1 exact signature、field 2 logical arguments、field 3 result、field 4 GcEffect；storage仍是exact type/byte size/alignment/scalar-or-aggregate的既有product。参数tag为ElidedZst=1、Direct=2、Indirect=3；result为UnitVoid=1、ElidedZst=2、Direct=3、Indirect=4。
+
+本section增加的是每个storage的完整layout/scan来源和可调用definition证明，不增加另一套extern signature编码。`layout_dependencies`按logical receiver/parameter/result位置保存typed layout ref，重复type允许重复位置，逐项与exact signature及storage相等。receiver在source logical signature中独立保存，降低时按既有规则作为第一个logical input；不能静默遗漏。
+
+当前Darwin/AArch64 classifier：scalar、qualified pointer、niche enum为Direct；非ZST tuple/ordinary struct/tagged enum/exception record为Indirect；ZST input为ElidedZst；Unit result为UnitVoid，其他ZST result为ElidedZst。不得按aggregate大小或system C classifier另选pass mode。
+
+### 8.2 physical signature与调用
+
+physical参数顺序只计算一次：若result indirect，首参数为result storage；随后按logical顺序跳过ZST、发出direct value或indirect pointer。每个indirect参数有fresh exact caller storage，callee遵循按值语义。
+
+LLVM definition、call、invoke、dispatch和Scoop extern在同一physical index使用 `byval(exact LLVM type) align N`；indirect result使用 `sret(exact LLVM type) align N`。显式statepoint wrapper把callee参数attribute平移到intrinsic参数 `5 + i`。codegen从同一checked signature计算，禁止维护第二张可独立修改的physical表。
+
+全部ZST实参仍按源码顺序求值。callee只在观察参数地址时分配token；用户ZST result产生typed logical value，不借Unit sentinel丢失exact type。两个source callable物理签名相同也不能共享identity、symbol、override slot或ABI fingerprint。
+
+### 8.3 GC与异常边界
+
+含ref aggregate按已验证scan和typed storage拆为AS1 leaf，不用byte array擦除provenance。ordinary managed call/invoke复用M15 root plan：invoke前root frame同时覆盖normal/unwind存活leaf及可移动实参，两个后继reload并pop，不产生exceptional gc.relocate。
+
+Indirect参数/结果storage、value receiver copy、外部field内联ref与dispatch receiver都参与同一活跃性/root plan。post-statepoint只使用relocated/reloaded值，不能从旧indirect temp缓存ref。
+
+普通NoGc与native Scoop NoGc不是一种callsite。Scoop extern无论GcEffect值均保持NativeBorrowed/caller-root publication；C bridge继续NativeSafe。effect轴不改变ordinary/suspend signature identity，也不使direct source-extern能力提前开放。
+
+## 9. ZST place、boxing 与 static storage
+
+### 9.1 logical value与place
+
+LIR区分 `LogicalZstValue { exact }`、`AddressableZstPlace { place, exact, alignment, lifetime }` 和nonzero storage。token需求在MIR保留、LIR定稿；codegen不由LLVM store size为0反向发明place。
+
+parameter/local/value `this`真正取址时分配non-null、至少1-byte、满足alignment的token。有效期重叠的不同semantic place不得共址；重复取同place地址稳定。token不能标成可合并的 `unnamed_addr` 常量，也不能通过共享零地址/singleton实现；不重叠lifetime允许复用。普通SSA ZST、field和array element不自动取得token。
+
+### 9.2 box/unbox执行路径
+
+```text
+BoxPayload = ZeroSized | NonZero { source_place }
+UnboxResult = ZeroSized | NonZero { destination_place }
+
+scoop_rt_box_zst(td)
+scoop_rt_box_value(td, source_place)
+scoop_rt_unbox_zst(object, expected_td)
+scoop_rt_unbox_value(object, expected_td, destination_place)
+```
+
+接口严格按runtime spec 2.3：size/alignment/inline_offset/scan只从TD读取，删除旧 `box(td, payload, size, scan)` 和固定`+16`路径。ZST入口没有payload/result pointer；box仍分配TD规定的非零managed object并取得fresh ref identity，unbox先检查exact TD再产生logical value。
+
+nonzero source place须地址稳定、对齐且在call前已写入完整值。inline scan非空时caller先经compiler-private NoGc leaf `PushRecursiveRegion`登记该temp，再进入box runtime和可能park的managed-entry handshake；root保持到分配、从collector更新后的同一temp复制及返回完成后才LIFO pop。所有非fatal出口配对；runtime只验证root已活跃，不在入口后补登记。空scan可以省略frame。
+
+box payload不能作为可观察的value `this`存储暴露；adjust thunk初始化独立方法局部值，ZST需要地址时另建token。moving GC依靠完整object scan与精确side-metadata size，不依赖payload非零。
+
+### 9.3 static token与初值
+
+compiler-managed ZST storage保留persistent storage/unit identity，logical `byte_size=0`、allocation extent=1、scan None、canonical token byte=0。两种静态初态仍严格区分：有runtime unit的storage/failure/published root使用ZeroedForRuntimeUnit；无unit的静态值使用EncodedStaticValue，即使bits全零也不改tag。
+
+EncodedStaticValue的template恰覆盖allocation extent，padding/pointer leaf初始归零，immortal relocation按offset排序且只指向已登记immutable object-start。ZST token没有relocation，None scan使用既有static sentinel。ordinary property不因有token开放`addressOf`；本地raw global/TLS遵守原GC-free和lvalue规则，C-boundary ZST storage仍拒绝。
+
+本阶段immortal仍限于既有String表示，`ImmortalObjectTypeRegistrationRefV1`保持Local/CoreExternal范围；imported const String继续按Stage5在consumer生成自己的literal/immortal，不引用provider immortal地址。`StaticImmortalRelocationPlanV1`继续只解析本Cone immortal producer表，不能因通用layout API已存在便扩大为任意foreign immortal relocation。
+
+## 10. Array、pointer 与 C 边界
+
+### 10.1 ZST array
+
+array type仍由core generic nominal提供identity，typed `ArrayTypeId`非可选地携带exact owner、mutable/immutable kind和element storage。offset16的count是内部u64 machine metadata，源码size/index是Long；logical count必须在`0..=INT64_MAX`。
+
+- `data_offset = alignUp(24, element alignment)`，ZST allocation恰为该offset，与count无关；Inline allocation按checked `alignUp(data_offset + count * stride, instance alignment)`。
+- get按receiver→index求值，再检查bounds，成功产生exact ZST；set按receiver→index→RHS求值，再检查bounds，成功不写payload。越界不能跳过RHS。
+- literal/assembly/spread/vararg保留每个part的求值与checked计数；不会因为element size为0删除producer或把length溢出隐藏成小allocation。
+- clone/互转验证source exact array TD、physical count与side metadata一致，再分配fresh target并复制logical size；ZST不发payload memcpy或write barrier。
+- iterator固定保存array ref和Long index，比较`index < size`、每次加1；禁止pointer-end/stride-progress实现。
+- GC-free/ZST element直接None scan，collector工作量不随logical count增长；含ref Inline使用真实data offset和nonzero stride的Array scan。
+
+String、Inline array的所有乘加/alignUp同时检查u64、target size_t和maximum_managed_object_size。非法内部count/layout或溢出沿既有fatal invariant/allocation路径，不按名称虚构IllegalArgumentException；不新增length-based源码constructor。
+
+### 10.2 pointer
+
+unsafe `Ptr<ZST>` plus/minus/load/store offset的byte displacement恒为0，pointer bits不变；receiver、offset、value仍求值。load/store不访问payload但继续要求non-null/alignment/lifetime和合法逻辑place。`Ptr<Unit>`是opaque void pointer，逐byte arithmetic必须显式使用`Ptr<UInt8>`。
+
+本节是通用表示规则；Ptr exact type和相关generic callable的生产物化仍受1.3 ODR gate约束。不得以“pointer只占8 bytes”为理由本地Strong发TD或绕过specialization。
+
+### 10.3 C ABI source规则
+
+HIR在source边界统一检查，不能推迟到LIR/generated C/native linker：
+
+| 边界 | 规则 |
+| --- | --- |
+| Unit result | 唯一void例外 |
+| ZST by-value parameter/result/callback | 拒绝，包括Unit参数 |
+| extern global/TLS ZST | 拒绝 |
+| 空CLayout或具体ZST字段 | 拒绝 |
+| `Ptr<Unit>`、`Option<Ptr<Unit>>` | opaque data pointer例外 |
+| `Ptr<其他ZST>`及其Option | 拒绝C pointee |
+
+generic CLayout的binder-dependent字段保留 `CFieldSafeAndNonZst { signature_type, declaration_field_path }` predicate，条件进入template fingerprint。无字段或与binder无关的非法字段在定义处报错；concretization检查在M23-7接入生产，本阶段在typed constituent测试锁定。不能把待替换条件提前编码为true，或在consumer丢弃字段路径。
+
+C端真实寄存器/aggregate lowering继续由validated generated-C toolchain完成。M23-2的canonical C storage/layout、extern contract与callback bytes保持；general layout proof只能与它们交叉验证，不能反向扩充旧native witness的授权范围。
+
+## 11. closure 验证、Link proof 与 fingerprint
+
+### 11.1 原子验证顺序
+
+```text
+envelope/profile/target/resource checks
+  -> foundation identities + direct/support role
+  -> HIR type facts / access / inheritance closure
+  -> MIR source-to-implementation / slot / helper relations
+  -> LIR layout replay / scan normal form / ABI / TD
+  -> complete source-root support obligation
+  -> selected request closure and external arena commit
+  -> final object verification + Link-only use closure
+  -> Compile/Link equality + publish
+```
+
+继承环和by-value representation环拒绝；通过managed reference的递归class合法，layout重放在reference leaf停止，不沿对象图无限展开。所有provider来自同一target-compatible显式artifact closure。记录存在、id匹配或digest相同都不能替代逐字段关系证明。
+
+错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
+
+### 11.2 semantic dependency与physical use分开
+
+编译只读取外部field offset、size或scan事实时，可以没有对provider layout constant的object relocation；metadata-only TD authority也不伪造地址使用。反之call、TD address、parent/interface table、dispatch target、registration与object ensure的实际relocation必须逐条验证。
+
+`SelectedDependencyLayoutAbiSetV1`完整保留两类use；新Link section只保存实际physical imports：
+
+```text
+CrossConeLayoutLinkClosureSectionV1 {
+    semantic_imports: CanonicalVec<ExternalShapeLinkImportV1>,
+    requirements: CanonicalVec<ExternalShapeUndefinedUseV1>,
+    object_coverage: ExternalShapeObjectCoverageV1,
+}
+
+ExternalShapeLinkImportV1 {
+    provider: ConeIdentity,
+    subject: ExternalStrongShapeSubjectV1,
+    expected_symbol: PersistentSymbolRequest,
+    required_definition: ObjectDefinitionPlanId,
+    contract: ShapeLinkContractV1,
+}
+```
+
+`ExternalStrongShapeSubjectV1` 精确采用下表，tag 是本新增sum的编号，不修改被引用identity的kind/tag：
+
+| tag | variant | payload |
+| --- | --- | --- |
+| 1 | Callable | `StrongCallableDefinitionOwner` |
+| 2 | Layout | `PersistentLayoutId` |
+| 3 | Scan | `PersistentScanId` |
+| 4 | TypeDescriptor | `PersistentExactTypeId` |
+| 5 | DispatchTable | `PersistentDispatchTableId` |
+| 6 | TypeRegistration | `PersistentExactTypeId` |
+| 7 | StaticStorage | `PersistentStaticStorageId` |
+| 8 | StaticStorageRegistration | `PersistentStaticStorageId` |
+| 9 | InitializationCell | `PersistentInitializationUnitId` |
+| 10 | InitializationDescriptor | `PersistentInitializationUnitId` |
+
+每项wire是 `{ 0: tag, 1: payload }`，定义和symbol role从variant唯一派生。7～10只可由provider已导出的object-value/initialization support relation选择；不得通过它们枚举私有storage，也不能引用任意其他unit的cell/failure root。ordinary property access依然只使用accessor，不以此公开backing storage。来源为已存在旧core bridge的subject按3.2留在旧分区，不能重复登记。foreign immortal不是本sum的variant，其现有String/constant路径遵守9.3。
+
+`ShapeLinkContractV1`精确分为七个variant：`CallableAbi { canonical_signature, calling_convention, protocol }`、`Layout { record }`、`Scan { layout, role, canonical_scan }`、`Type { descriptor_projection }`、`Dispatch { table_projection }`、`StaticStorage { storage_projection }`、`Initialization { unit_projection }`，tag按此顺序为1～7。subject1～5分别只能匹配contract1～5；subject6复用Type、7/8复用StaticStorage、9/10复用Initialization。
+
+Layout/Type/Dispatch分别复用6.1/7.1的canonical semantic record，去掉definition/registration的后置digest槽；Scan保存完整scan tree而非仅digest；storage/unit projection逐字段复用strong-production/2对应semantic plan，不包含member/range或后置object/registration digest。它们不是任意bytes，reader按subject取得provider同一plan并逐字段比较。required definition由subject和owner重算，provider必须真实Strong定义它，consumer defined-symbol set必须不包含它。
+
+requirements沿用M23-5 canonical relocation-use结构和排序，并引用本section import index；每个physical import至少一个use，每个actual relocation恰有一项。object coverage绑定全部最终LinkObject成员集合及canonical use set，digest使用 `DomainSeparatedCborHash("scoop-cross-cone-layout-object-coverage-v1", { verified_link_objects, relocation_uses })`，仅作LinkValidationOnly。
+
+### 11.3 三路 relocation分区
+
+最终object undefined-use集合被构造时分成三个互斥集合：
+
+1. M23-3原core/intra-Cone/generated/native/runtime/target分区；
+2. M23-5原ordinary core-closed callable分区；
+3. M23-6新增general callable/type/dispatch/shape分区。
+
+三者并集精确覆盖所有nonlocal undefined relocation。旧section继续验证自己的子集，不把新subject塞进`CoreStrong`或旧callable-only target。
+
+ObjectDefinition relocation规范化在既有tag1～11之后新增tag12 `DependencyShapeStrong { provider, subject }`；它只从新Link proof派生，不按symbol解析。该hash路径使用既有object-definition runtime scalar encoder：`u32(12) || provider.raw32 || u32(subject_tag) || subject_payload`；Callable payload复用既有StrongCallableDefinitionOwner runtime编码，其余payload是对应typed id的raw32。这里不是Wire CBOR，不套用3.3的map格式，也不改变只供callable-body identity使用的`RuntimeEncode(key)`契约。tag11继续仅表示M23-5的`DependencyStrong`。这是受新required capability保护的object-definition target扩展，不改persistent identity key或旧capability payload。
+
+object verifier既检查undefined target，也检查provider实际TD/scan/table bytes、alignment、field offset、ABI adapter和typed relocation。单靠object symbol table不能证明Scoop signature；ABI一致性由source→MIR→LIR→emission关系和object evidence共同证明。
+
+### 11.4 hash与cache
+
+新Link section的Code贡献沿M23-3 `KnownLinkExtensionCodeContributionV1`：capability为新section id，payload精确为canonical `semantic_imports` array，空时也存在。Compile selected的physical projection、Link section和Code contribution逐byte三方相等。
+
+layout、scan、LIR definition和registration沿既有 `scoop-layout-v1`、`scoop-scan-v1`、`scoop-lir-definition-v1` 与digest DAG算法；不改hash encoder。新semantic record覆盖exact identity、target layout projection、字段/variant/prefix、ABI、scan、TD name与dispatch relation。layout不依赖provider code digest，metadata/table间指向只用typed identity，避免互相引用TD/dispatch/function形成digest环。
+
+runtime-image fingerprint通过既有strong registration/digest graph覆盖新定义。MIR/LIR semantic bytes不包含SlibMemberId、object range、atom placement或host路径；object重新分片只改变对应physical/code/artifact部分。
+
+M23-4 cache继续保守纳入全部direct dependency各层fingerprint，不在本阶段按selected set裁剪。field、base prefix、slot、default/access域、ZST status、layout/scan/ABI或target变化必须使对应consumer层失效；provider body-only变化仍由provider code和后续program-link闭包跟踪，不复制body到consumer HIR。
+
+## 12. 诊断
+
+source错误仍在parser/HIR结束，并断言主span与必要的provider声明/字段路径note：
+
+- 非法protected receiver/词法位置、不可见setter或constructor；
+- final base继承、非法override、未实现abstract slot、冲突interface default；
+- C ABI ZST参数/result/global/TLS/pointee、空/含ZST CLayout；
+- 非lvalue addressOf、非法private backing access；
+- 实际请求依赖M23-7 ODR或M23-10 native能力。
+
+artifact错误以capability/table/typed key/field path报告：缺record或source obligation、错owner/provider、forged gc/zst、layout/scan/ABI不一致、slot重复/错position、非法TD shape、required capability/profile/target不符、physical-use coverage缺项或重叠。报告期不按FQN补查来源。
+
+target表示上限由LIR报告明确target/layout错误；内部array count、side metadata、box root-frame或runtime shape违反是fatal invariant，不转成源码异常。错误排序沿现有source顺序与typed key canonical顺序，provider路径只作diagnostic decorator。
+
+## 13. 测试与验收矩阵
+
+### 13.1 独立fixture与组合fixture
+
+生产fixture采用provider→consumer，另加facade re-export和diamond；provider源码在consumer编译时不可见。建议目录 `tests/fixtures/milestone23_stage6/`，每项同时检查HIR/MIR/LIR golden、selected metadata和双view artifact；运行行为在单image harness验证，并标出待M23-9/11复用的真实多Cone运行断言。
+
+| 主题 | 独立positive | 组合与negative |
+| --- | --- | --- |
+| 外部value | 空struct、嵌套ZST、混合integer/ref struct、enum | re-export/alias、嵌入本地class、模式/copy update；错field/variant identity |
+| ABI | 多个ZST参数、用户ZST/Unit result、nonzero indirect | mixed参数与sret、default求值、throw/invoke、member/dispatch；错exact/pass/effect |
+| constructor | public构造、protected base initializer、abstract base | base-before-derived、init异常、moving receiver；不可见/abstract allocation |
+| dispatch | class override、interface/default、getter/setter | diamond/default冲突、super direct、value boxing；缺slot、错position、窄override |
+| visibility | subclass implicit/explicit receiver、protected nested | Base静态receiver、同级subclass、非subclass、support-only import、setter拒绝 |
+| object/property | provider singleton/companion、runtime accessor | 跨facade访问、ensure identity、delegated storage；consumer重复storage/initializer |
+| support | provider未在自身body使用的公开value仍导出完整support | 缺任一role、错owner、递归helper展开、consumer重发Strong、shell/start提前加入 |
+
+每条编译错误规则都有独立negative fixture并断言span/message，不以单一“大型失败程序”覆盖全部规则。旧M23-5 narrow callable fixture应保持旧分区，用新增nominal/member fixture命中新分区。
+
+### 13.2 表示、GC与address测试
+
+- Unit、空struct、全ZSTtuple/struct为0/正alignment；不同exact ZST有不同identity/TD。内部typed case覆盖alignment>1及超过target上限。
+- Option<ZST>保留tag；enum含ref variant独占slot、inactive清零、scan不读tag；niche ref与raw/code pointer扫描分开。
+- 五种TD逐variant验证C/LLVM sizeof/offsetof、shape round-trip和所有非法组合；AbstractRef不可形成allocation LIR。
+- nonzero box包含ref及over-alignment，验证caller recursive root先于handshake、GC更新同一temp、异常cleanup配对；ZST box/unbox无payload pointer且每次fresh。
+- address-taken parameter/local/value this的non-null、alignment、有效期及同时存活place不共址；重复同place稳定，field/element仍不可取址。
+- static token extent1/logical0/scanNone；ZeroedForRuntimeUnit与全零EncodedStaticValue区分；错误template长度、relocation leaf/target/order以及跨identity range重叠拒绝。
+- Array<Unit>、MutableArray<Phantom<T>>的0/1/大合法count、literal/spread/assembly、越界set RHS副作用/异常、index iterator、clone fresh identity；ZST无copy/barrier/length相关扫描。
+- 含ref、alignment>8的array element使data offset不等于24，检查scan位置与relocation；篡改length offset/first offset/stride分别失败。
+- String/InlineArray/ZSTArray在INT64_MAX、u64乘加、alignUp、target size_t及对象上限边界的成功/失败；不引入signed-length源码API。
+- unsafe Ptr<ZST>正负offset bits不变、load/store求值保留；C ABI逐项测试10.3矩阵和generic CLayout deferred predicate。
+
+generic/structural cases使用1.3规定的typed test harness；对应production请求另有M23-7拒绝fixture，不能通过削弱profile让positive harness结果冒充生产成功。
+
+### 13.3 wire、object、cache与健壮性
+
+- 四个新增capability、strong-production/2和新profile fixed vectors，empty/nonempty、unknown required、错purpose、旧profile拒绝；M23-2 foundation/extern/callback与M23-3/5旧section vectors不变。V2的ordinary parent/itable key/dispatch target正反例必须经过真正的strong production wire round-trip，不能只在新layout sidecar中通过。
+- 每个record去掉/增加/错tag/错kind/错owner/乱序/重复逐项拒绝；reader独立重放字段layout、scan、ABI和source-root obligation。
+- scan/type-name共享DAG、cycle、深度/展开/bytes预算边界在分配前失败；合法递归ref class成功，by-value环失败。
+- 别名/re-export spelling改变不改变exact TD name/ABI；改变base prefix、ZST exact identity、slot contract或scan offset改变对应fingerprint。
+- metadata-only外部layout没有伪relocation也能成功；physical callable/TD/table use缺relocation、错definition或多归属失败。
+- 三路undefined-use分区两两不交且并集完整；consumer定义foreign Strong、weak/ODR symbol、错误TD/scan/table bytes或关联diagnostic atom均失败。
+- 相同semantic program换source枚举、dependency枚举、arena顺序、object分片不改变相应semantic fingerprint；physical/code/artifact变化遵守既有规则。
+- producer field/base/interface/ABI变化触发consumer cache miss；失败child/invalid artifact不得发布cache；source/direct/support graph回归不受影响。
+- consumer initializer读取provider object/property时保留external unit dependency；V2 round-trip验证provider与descriptor，缺unit、错provider、伪造local、省略真实edge逐项拒绝。callable内部provider自有ensure不被consumer复制。
+- class prefix单独覆盖base尾padding、derived更高alignment、ZST own field和abstract base；同Cone与跨Cone布局逐字段一致。slot位置锁定声明序语义，不受wire table按id排序、import或dependency枚举影响。
+- 运行M23-1～5及本地value/GC/constructor/property/FFI/closure/coroutine回归，检查stage crate依赖方向。
+
+## 14. 实现顺序
+
+1. 固定本文profile/section/wire constituent及测试vector；添加required capability gate和拒绝旧profile路径。先有验证入口，再放宽source能力。
+2. 收口HIR concrete facts与persistent inheritance surface，完成protected/domain/default witness和source negative；保留旧public section字节。
+3. 实现MIR type/constructor/object/slot bridge与selected closure；以golden锁定没有foreign body复制、layout offset或generic template。
+4. 收口LIR storage/refined shape、general layout replay、scan normal form和external exact arena；实现provider有限shape-support导出和consumer验证。
+5. 接入通用ABI及logical-to-physical映射，验证call/invoke/dispatch/byval/sret/root plan，再开放对应param-free source成功格。
+6. 完成box/unbox、ZST place/static、array/Ptr执行路径与C边界矩阵；删除被替代的旧size/scan/header-offset入口。
+7. 完成新Link-only closure、三路object coverage、definition规范化、Code贡献和双view发布；更新core、scheduler、cache accepted profile。
+8. 完成独立/组合/negative/golden/corruption与回归矩阵，将多Cone运行场景交给M23-9/11复用。
+
+每批代码变更完成后先 `cargo fmt --all`、`cargo clippy --workspace`，再运行相关test；最终运行完整workspace与runtime/fixture验证。不能用最终linker尚未实现为理由跳过本阶段object和双view证明。
+
+## 15. 完成门
+
+- source/access/inheritance、MIR relation、LIR layout/ABI/scan/TD、actual object use形成可从最终artifact独立重建的完整链；没有symbol/FQN/host layout fallback。
+- param-free跨Cone构造、value/member/object使用、inheritance/dispatch/protected成功矩阵全部能生成新profile双view有效artifact，未选中的foreign body不复制。
+- 每个合法source subject在定义Cone拥有完整有限shape-support；consumer只引用external typed definition，全部ODR生产继续拒绝。
+- ZST logical semantics、typed ABI、place/static token、box/array/Ptr/C边界及scan/TD矩阵全部锁定；codegen/runtime不再从size0或空LLVM struct猜语义。
+- nonzero box、indirect aggregate和跨Conefield的managed provenance/root/relocation完整；不存在握手后才登记root或从旧ref副本复制的路径。
+- 新required section/profile、strong-production/2的完整foreign TD/dispatch引用、fingerprint/cache迁移和三路Link coverage完整；既有identity、extern/callback bytes、旧capability语义保持。
+- 独立、组合、negative、各stage golden与corruption/determinism回归通过；文档明确M23-7/8/9/10/11交接，真实多Conemoving-GC不被提前宣称完成。
