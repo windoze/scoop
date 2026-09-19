@@ -70,6 +70,9 @@ pub use exact_descriptor::*;
 mod exact_dispatch;
 pub use exact_dispatch::*;
 
+mod exact_shape_support;
+pub use exact_shape_support::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 

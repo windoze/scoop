@@ -36,6 +36,14 @@ pub struct ExactDescriptorAncestryV1 {
 }
 
 impl ExactDescriptorAncestryV1 {
+    #[cfg(test)]
+    pub(crate) fn from_artifact(
+        parent: Option<StrongTypeDescriptorRefV2>,
+        interfaces: Vec<StrongTypeDescriptorRefV2>,
+    ) -> Self {
+        Self { parent, interfaces }
+    }
+
     pub const fn parent(&self) -> Option<StrongTypeDescriptorRefV2> {
         self.parent
     }
@@ -68,6 +76,14 @@ pub struct ExactDescriptorDispatchV1 {
 }
 
 impl ExactDescriptorDispatchV1 {
+    #[cfg(test)]
+    pub(crate) fn from_artifact(
+        vtable: PersistentDispatchTableId,
+        itables: Vec<ExactDescriptorItableV1>,
+    ) -> Self {
+        Self { vtable, itables }
+    }
+
     pub const fn vtable(&self) -> PersistentDispatchTableId {
         self.vtable
     }
@@ -78,7 +94,7 @@ impl ExactDescriptorDispatchV1 {
 }
 
 impl ExactDescriptorExportV1 {
-    pub(super) fn from_parts(parts: DescriptorBodyPartsV1) -> Self {
+    pub(crate) fn from_parts(parts: DescriptorBodyPartsV1) -> Self {
         Self(Arc::new(ExactDescriptorBodyV1 {
             exact: parts.exact,
             value_layout: parts.value_layout,
@@ -143,7 +159,7 @@ impl ExactDescriptorExportV1 {
     }
 }
 
-pub(super) struct DescriptorBodyPartsV1 {
+pub(crate) struct DescriptorBodyPartsV1 {
     pub exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
     pub value_layout: Arc<ExactValueLayoutV1>,
     pub instance_layout: Arc<ExactInstanceLayoutV1>,

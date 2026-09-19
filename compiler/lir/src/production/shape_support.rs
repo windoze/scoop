@@ -173,6 +173,24 @@ pub struct StrongExactShapeSupportV1 {
 }
 
 impl StrongExactShapeSupportV1 {
+    pub(crate) const fn from_artifact(
+        nominal: PersistentTypeId,
+        exact: PersistentExactTypeId,
+        layout: StrongShapeDefinitionV1<PersistentLayoutId>,
+        scan: StrongShapeDefinitionV1<PersistentScanId>,
+        descriptor: StrongShapeDefinitionV1<PersistentExactTypeId>,
+        registration: StrongShapeRegistrationV1<PersistentExactTypeId>,
+    ) -> Self {
+        Self {
+            nominal,
+            exact,
+            layout,
+            scan,
+            descriptor,
+            registration,
+        }
+    }
+
     pub const fn nominal(&self) -> PersistentTypeId {
         self.nominal
     }
@@ -228,7 +246,32 @@ pub struct ParamFreeShapeSupportRolesV1 {
     coroutine_slot: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
 }
 
+pub(crate) struct ParamFreeShapeSupportRolePartsV1 {
+    pub source_nominal: ShapeSupportAvailabilityV1<PersistentTypeId>,
+    pub value_layout: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentLayoutId>>,
+    pub ref_scan: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentScanId>>,
+    pub type_descriptor: ShapeSupportAvailabilityV1<StrongShapeDefinitionV1<PersistentExactTypeId>>,
+    pub type_registration:
+        ShapeSupportAvailabilityV1<StrongShapeRegistrationV1<PersistentExactTypeId>>,
+    pub boxed_value: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+    pub coroutine_step: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+    pub coroutine_slot: ShapeSupportAvailabilityV1<StrongExactShapeSupportV1>,
+}
+
 impl ParamFreeShapeSupportRolesV1 {
+    pub(crate) const fn from_artifact(parts: ParamFreeShapeSupportRolePartsV1) -> Self {
+        Self {
+            source_nominal: parts.source_nominal,
+            value_layout: parts.value_layout,
+            ref_scan: parts.ref_scan,
+            type_descriptor: parts.type_descriptor,
+            type_registration: parts.type_registration,
+            boxed_value: parts.boxed_value,
+            coroutine_step: parts.coroutine_step,
+            coroutine_slot: parts.coroutine_slot,
+        }
+    }
+
     pub const fn source_nominal(&self) -> &ShapeSupportAvailabilityV1<PersistentTypeId> {
         &self.source_nominal
     }
@@ -502,7 +545,7 @@ impl<T: WireDecode> WireDecode for DecodedShapeSupportAvailabilityV1<T> {
 }
 
 #[derive(Debug)]
-struct DecodedParamFreeShapeSupportRolesV1 {
+pub(crate) struct DecodedParamFreeShapeSupportRolesV1 {
     source_nominal: DecodedShapeSupportAvailabilityV1<DecodedPersistentId<PersistentTypeId>>,
     value_layout:
         DecodedShapeSupportAvailabilityV1<DecodedStrongShapeDefinitionV1<PersistentLayoutId>>,
