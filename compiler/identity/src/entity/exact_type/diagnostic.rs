@@ -1,6 +1,6 @@
 //! Canonical diagnostic bytes derived from persistent exact-type identities.
 
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
+use scoop_wire::{BudgetMeter, DecodeLimits, HashError, WireError, WirePath};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
@@ -34,6 +34,99 @@ pub trait ExactTypeDiagnosticGraph {
 
     fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate>;
 }
+
+/// A checked read-only view over canonical identities and the manifest
+/// coordinates that name their defining Cones.
+pub struct ExactTypeDiagnosticCatalog<'a> {
+    identities: &'a crate::ValidatedIdentityGraph,
+    coordinates: Vec<(ConeIdentity, &'a ConeCoordinate)>,
+}
+
+impl<'a> ExactTypeDiagnosticCatalog<'a> {
+    pub fn try_new(
+        identities: &'a crate::ValidatedIdentityGraph,
+        coordinates: &'a [ConeCoordinate],
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ExactTypeDiagnosticCatalogError> {
+        let path = WirePath::root();
+        let count = coordinates.len() as u64;
+        meter.check_table_entries(count, &path)?;
+        let comparisons = count
+            .checked_mul(u64::from(count.max(1).ilog2()) + 1)
+            .ok_or(ExactTypeDiagnosticCatalogError::CountOverflow)?;
+        meter.charge_work(comparisons, &path)?;
+        let mut indexed = Vec::new();
+        meter.try_reserve_collection_slots(&mut indexed, coordinates.len(), &path)?;
+        for coordinate in coordinates {
+            let id = coordinate
+                .identity()
+                .map_err(ExactTypeDiagnosticCatalogError::Hash)?;
+            if !identities.contains_resolved_identity(id) {
+                return Err(ExactTypeDiagnosticCatalogError::UnknownCone(id));
+            }
+            indexed.push((id, coordinate));
+        }
+        indexed.sort_unstable_by_key(|(id, _)| *id);
+        if let Some(pair) = indexed.windows(2).find(|pair| pair[0].0 == pair[1].0) {
+            return Err(ExactTypeDiagnosticCatalogError::DuplicateCone(pair[0].0));
+        }
+        Ok(Self {
+            identities,
+            coordinates: indexed,
+        })
+    }
+}
+
+impl ExactTypeDiagnosticGraph for ExactTypeDiagnosticCatalog<'_> {
+    fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey> {
+        self.identities.canonical_key_ref(id)
+    }
+
+    fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey> {
+        self.identities.canonical_key_ref(id)
+    }
+
+    fn generated_nominal_key(&self, id: PersistentTypeId) -> Option<&crate::GeneratedNominalKey> {
+        self.identities.canonical_key_ref(id)
+    }
+
+    fn source_generic_type_declaration(
+        &self,
+        id: PersistentGenericTypeId,
+    ) -> Option<&SourceDeclarationKey> {
+        self.identities.canonical_key_ref(id)
+    }
+
+    fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate> {
+        self.coordinates
+            .binary_search_by_key(&id, |(candidate, _)| *candidate)
+            .ok()
+            .map(|index| self.coordinates[index].1)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExactTypeDiagnosticCatalogError {
+    CountOverflow,
+    UnknownCone(ConeIdentity),
+    DuplicateCone(ConeIdentity),
+    Hash(HashError),
+    Resource(WireError),
+}
+
+impl From<WireError> for ExactTypeDiagnosticCatalogError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
+
+impl fmt::Display for ExactTypeDiagnosticCatalogError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "invalid exact-type diagnostic catalog: {self:?}")
+    }
+}
+
+impl std::error::Error for ExactTypeDiagnosticCatalogError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalExactTypeDiagnosticName(String);

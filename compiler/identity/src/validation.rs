@@ -1482,6 +1482,27 @@ impl ValidatedIdentityGraph {
             })
     }
 
+    pub(crate) fn canonical_key_ref<I, K>(&self, id: I) -> Option<&K>
+    where
+        I: PersistentId + 'static,
+        K: Send + Sync + 'static,
+    {
+        let node = IdentityNode::trusted(id);
+        self.candidates
+            .get(&node)
+            .filter(|candidate| candidate.resolved)?;
+        self.canonical_keys
+            .get(&CanonicalKeySlot::new::<I, K>(node.bytes))?
+            .as_any()
+            .downcast_ref::<K>()
+    }
+
+    pub(crate) fn contains_resolved_identity<I: PersistentId>(&self, id: I) -> bool {
+        self.candidates
+            .get(&IdentityNode::trusted(id))
+            .is_some_and(|candidate| candidate.resolved)
+    }
+
     /// Returns the already checked record while sharing its canonical key.
     /// This does not introduce another identity or resolve an unchecked id.
     pub fn canonical_record<I, K>(

@@ -142,6 +142,70 @@ fn trusted_typed_id_retrieves_only_its_validated_canonical_key() {
 }
 
 #[test]
+fn canonical_diagnostic_name_reads_the_committed_identity_graph() {
+    let source = decoded_source_type();
+    let exact = decoded_exact_type();
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register(IdentityLayer::Hir, &source).unwrap();
+    pending.register(IdentityLayer::Hir, &exact).unwrap();
+    pending.resolve(&source).unwrap();
+    pending.resolve(&exact).unwrap();
+    let graph = pending.finish().unwrap();
+
+    let coordinates = [ConeCoordinate::reserved_core()];
+    let catalog = crate::ExactTypeDiagnosticCatalog::try_new(
+        &graph,
+        &coordinates,
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+    .unwrap();
+    let name = crate::CanonicalExactTypeDiagnosticName::from_validated_graph(
+        exact_type_record().id(),
+        &catalog,
+    )
+    .unwrap();
+    assert_eq!(
+        name.as_str(),
+        "n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Widget)"
+    );
+}
+
+#[test]
+fn diagnostic_catalog_rejects_untrusted_duplicate_and_unbudgeted_coordinates() {
+    let graph = validated_source_type_graph();
+    let core = ConeCoordinate::reserved_core();
+    let single_file = ConeCoordinate::reserved_single_file();
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
+
+    assert!(matches!(
+        crate::ExactTypeDiagnosticCatalog::try_new(&graph, &[single_file], &mut meter),
+        Err(crate::ExactTypeDiagnosticCatalogError::UnknownCone(id))
+            if id == ConeIdentity::SINGLE_FILE
+    ));
+    assert!(matches!(
+        crate::ExactTypeDiagnosticCatalog::try_new(
+            &graph,
+            &[core.clone(), core],
+            &mut BudgetMeter::new(DecodeLimits::default())
+        ),
+        Err(crate::ExactTypeDiagnosticCatalogError::DuplicateCone(id))
+            if id == ConeIdentity::CORE
+    ));
+    assert!(matches!(
+        crate::ExactTypeDiagnosticCatalog::try_new(
+            &graph,
+            &[ConeCoordinate::reserved_core()],
+            &mut BudgetMeter::new(DecodeLimits {
+                semantic_table_entries: 0,
+                ..DecodeLimits::default()
+            })
+        ),
+        Err(crate::ExactTypeDiagnosticCatalogError::Resource(_))
+    ));
+}
+
+#[test]
 fn trusted_typed_id_lookup_includes_imported_external_authority() {
     let expected = source_function_record();
     let external = validated_function_graph();

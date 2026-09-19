@@ -145,7 +145,8 @@ fn encode_ids(
 
 mod diagnostic;
 pub use diagnostic::{
-    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticError, ExactTypeDiagnosticGraph,
+    CanonicalExactTypeDiagnosticName, ExactTypeDiagnosticCatalog, ExactTypeDiagnosticCatalogError,
+    ExactTypeDiagnosticError, ExactTypeDiagnosticGraph,
 };
 
 #[cfg(test)]
