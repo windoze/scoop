@@ -6,7 +6,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 mod objects;
-mod support;
+pub(in crate::cross_cone_type_bridge) mod support;
 mod validation;
 mod wire;
 use support::*;

@@ -11,7 +11,7 @@ type NominalRecord = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type ExactRecord = CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>;
 type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
 
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_bridge) struct Fixture {
     pub graph: ValidatedIdentityGraph,
     pub foundation: OdrFreeMirFoundation,
     pub empty: NominalRecord,
@@ -33,7 +33,10 @@ pub(super) struct Fixture {
 }
 impl Fixture {
     pub fn new() -> Self {
-        let empty = nominal("Empty", SourceNominalKind::Struct);
+        Self::with_source("Empty", SourceNominalKind::Struct)
+    }
+    pub fn with_source(name: &str, kind: SourceNominalKind) -> Self {
+        let empty = nominal(name, kind);
         let other = nominal("Other", SourceNominalKind::Struct);
         let class = nominal("Base", SourceNominalKind::Class);
         let interface = nominal("Interface", SourceNominalKind::Interface);
@@ -61,10 +64,15 @@ impl Fixture {
         })
         .unwrap();
         let payload = exact(empty.id());
+        let field_owner = if kind == SourceNominalKind::Struct {
+            empty.key()
+        } else {
+            other.key()
+        };
         let fields = ["second", "first"].map(|name| {
             CborIdentityRecord::from_key(
                 FieldIdentityKey::source_declared(
-                    empty.key(),
+                    field_owner,
                     CanonicalIdentifier::new(name).unwrap(),
                 )
                 .unwrap(),

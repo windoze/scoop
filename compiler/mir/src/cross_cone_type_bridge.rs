@@ -20,6 +20,7 @@ mod origin;
 mod record;
 mod representation;
 mod representation_wire;
+mod shape_support;
 mod table;
 #[cfg(test)]
 mod tests;
@@ -34,6 +35,7 @@ pub use origin::*;
 pub use record::*;
 pub use representation::*;
 pub use representation_wire::DecodedMirTypeRepresentationV1;
+pub use shape_support::*;
 pub use table::*;
 pub use validation::MirTypeBridgeError;
 pub use wire::DecodedParamFreeMirTypeExportV1;
