@@ -18,6 +18,7 @@ pub(super) mod fixture;
 use fixture::{Provider, TARGET, empty_section, meter};
 
 mod partitions;
+mod terminal;
 
 fn legacy_for(
     strong: VerifiedCurrentConeStrongRelocationClosureV1,

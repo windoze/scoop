@@ -9,11 +9,13 @@ use super::{CanonicalUndefinedRelocationUseV1, VerifiedCodeLinkObjectMemberSetV1
 mod classification;
 mod coverage;
 mod error;
+mod terminal;
 mod wire;
 
 pub use classification::*;
 pub use coverage::{ExternalShapeObjectCoverageV1, ExternalShapeRelocationUseSetDigestV1};
 pub use error::LayoutLinkClosureError;
+pub use terminal::*;
 pub use wire::DecodedCrossConeLayoutLinkClosureSectionV1;
 
 type EncodeResult = Result<(), scoop_wire::cbor::EncodeError>;

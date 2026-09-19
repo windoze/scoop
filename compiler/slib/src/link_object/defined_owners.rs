@@ -239,6 +239,43 @@ impl CanonicalDefinedLinkSymbolOwnerSetV1 {
     pub fn owners(&self) -> &[DefinedLinkSymbolOwnerV1] {
         &self.owners
     }
+
+    #[cfg(test)]
+    pub(in crate::link_object) fn replace_owner_for_test(
+        &self,
+        symbol: &[u8],
+        owner: LinkDefinitionOwnerV1,
+    ) -> Self {
+        let mut changed = self.clone();
+        let record = changed
+            .owners
+            .iter_mut()
+            .find(|record| record.symbol() == symbol)
+            .expect("test symbol belongs to the verified owner set");
+        record.owner = owner;
+        changed.owners.sort_unstable_by(|left, right| {
+            (&left.symbol, left.member, left.owner).cmp(&(&right.symbol, right.member, right.owner))
+        });
+        changed
+    }
+
+    #[cfg(test)]
+    pub(in crate::link_object) fn insert_foreign_owner_for_test(
+        &self,
+        symbol: Vec<u8>,
+        owner: LinkDefinitionOwnerV1,
+    ) -> Self {
+        let mut changed = self.clone();
+        changed.owners.push(DefinedLinkSymbolOwnerV1 {
+            member: changed.owners[0].member,
+            symbol,
+            owner,
+        });
+        changed.owners.sort_unstable_by(|left, right| {
+            (&left.symbol, left.member, left.owner).cmp(&(&right.symbol, right.member, right.owner))
+        });
+        changed
+    }
 }
 
 impl WireEncode for CanonicalDefinedLinkSymbolOwnerSetV1 {

@@ -77,6 +77,13 @@ impl<'a> ShapeLinkProviderV1<'a> {
         self.parts.foundation.producer()
     }
 
+    /// The complete local Strong definition surface used by import replay.
+    /// Closure validators use this exact surface for the consumer-side
+    /// foreign-definition exclusion; it is not reconstructed from symbols.
+    pub fn canonical_definitions(&self) -> &'a StrongObjectSymbolSurfaceV1 {
+        self.parts.production.definitions()
+    }
+
     pub(super) fn import(
         &self,
         subject: ExternalStrongShapeSubjectV1,

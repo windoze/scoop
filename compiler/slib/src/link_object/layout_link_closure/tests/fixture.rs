@@ -209,7 +209,7 @@ pub(in crate::link_object::layout_link_closure) fn empty_section(
     CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &source, &mut meter()).unwrap()
 }
 
-fn exports(
+pub(in crate::link_object::layout_link_closure) fn exports(
     foundation: &OdrFreeLirFoundation,
     values: Vec<ExactLayoutExportV1>,
 ) -> LayoutAbiExportConstituentsV1 {
