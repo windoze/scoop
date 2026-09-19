@@ -7,6 +7,8 @@ use crate::{
     StrongTypeReferenceDefinitionsV2,
 };
 
+mod section;
+
 fn surface(fixture: &Fixture, foreign: bool) -> StrongRegistrationProductionSurfaceV2 {
     let producer = fixture.foundation.producer();
     StrongRegistrationProductionSurfaceV2::from_semantics(

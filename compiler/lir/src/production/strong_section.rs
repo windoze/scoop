@@ -211,6 +211,9 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
 mod decoded;
 pub use decoded::*;
 
+mod replay;
+pub use replay::ReplayedStrongProductionSectionV2;
+
 impl DecodedStrongProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn validate(
@@ -291,6 +294,7 @@ impl std::error::Error for StrongProductionSectionBuildError {}
 #[derive(Debug)]
 pub enum StrongProductionSectionValidationError {
     Encode(scoop_wire::cbor::EncodeError),
+    Resource(WireError),
     DigestPlan(StrongDigestPlanValidationError),
     Registrations(StrongRegistrationProductionValidationError),
     CoreLirBridge(CoreLirBridgeValidationError),
@@ -310,4 +314,4 @@ impl fmt::Display for StrongProductionSectionValidationError {
 impl std::error::Error for StrongProductionSectionValidationError {}
 
 #[cfg(test)]
-mod tests;
+pub(in crate::production) mod tests;

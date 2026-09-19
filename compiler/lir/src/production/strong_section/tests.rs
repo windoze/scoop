@@ -9,7 +9,10 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
+
+mod complete_image;
 use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
+pub(in crate::production) use complete_image::attach_image;
 
 #[test]
 fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
