@@ -189,6 +189,24 @@ pub struct DecodedNominalInheritanceEdgesV1 {
     direct_interfaces: Vec<DecodedPersistentId<PersistentExactTypeId>>,
 }
 impl DecodedNominalInheritanceEdgesV1 {
+    pub fn resolve_metered<R: PersistentIdResolver<PersistentExactTypeId>>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<NominalInheritanceEdgesV1, InheritanceEdgeResolutionError<R::Error>> {
+        let path = scoop_wire::WirePath::root();
+        let count = self.direct_interfaces.len() as u64;
+        meter
+            .charge_nodes(count.saturating_add(1), &path)
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        meter
+            .charge_collection_slots(count, &path)
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        meter
+            .charge_work(count.saturating_add(2), &path)
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        self.resolve(resolver)
+    }
     pub fn resolve<R: PersistentIdResolver<PersistentExactTypeId>>(
         self,
         resolver: &mut R,
@@ -226,9 +244,11 @@ impl WireDecode for DecodedNominalInheritanceEdgesV1 {
         Self::decode_fields(decoder)
     }
 }
-impl WireEncode for DecodedNominalInheritanceEdgesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+impl DecodedNominalInheritanceEdgesV1 {
+    pub(super) fn encode_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
@@ -237,6 +257,12 @@ impl WireEncode for DecodedNominalInheritanceEdgesV1 {
         self.direct_base.encode(encoder)?;
         encoder.field(4)?;
         wire::sequence(encoder, &self.direct_interfaces)
+    }
+}
+impl WireEncode for DecodedNominalInheritanceEdgesV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        self.encode_fields(encoder)
     }
 }
 
@@ -256,12 +282,14 @@ impl fmt::Display for InheritanceEdgeOrderError {
 impl std::error::Error for InheritanceEdgeOrderError {}
 #[derive(Debug)]
 pub enum InheritanceEdgeResolutionError<E> {
+    Resource(WireError),
     Identity(E),
     Order(InheritanceEdgeOrderError),
 }
 impl<E: fmt::Display> fmt::Display for InheritanceEdgeResolutionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(f),
             Self::Identity(error) => error.fmt(f),
             Self::Order(error) => error.fmt(f),
         }

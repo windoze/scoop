@@ -180,6 +180,20 @@ pub struct DecodedNominalAccessDomainsV1 {
 }
 
 impl DecodedNominalAccessDomainsV1 {
+    pub fn resolve_metered<R: PersistentAccessResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<NominalAccessDomainsV1, PersistentAccessResolutionError<E>> {
+        meter
+            .charge_nodes(1, &scoop_wire::WirePath::root())
+            .map_err(PersistentAccessResolutionError::Resource)?;
+        Ok(NominalAccessDomainsV1::new(
+            PersistentLookupDomainV1::new(self.lookup.resolve_metered(resolver, meter)?),
+            PersistentInheritanceDomainV1::new(self.inheritance.resolve_metered(resolver, meter)?),
+            PersistentSlotContractDomainV1::new(self.slot.resolve_metered(resolver, meter)?),
+        ))
+    }
     pub fn resolve<R: PersistentAccessResolver<E>, E>(
         self,
         resolver: &mut R,

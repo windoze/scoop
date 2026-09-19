@@ -6,12 +6,14 @@ use crate::{DeclarationAccessSourceV1, SourceNominalId};
 
 mod edges;
 mod graph;
+mod interface;
 mod objects;
 mod queries;
 mod source;
 
 pub use edges::*;
 pub use graph::{InheritanceGraphError, NominalInheritanceSemanticAuthority};
+pub use interface::*;
 pub use objects::CheckedObjectInheritanceRelationV1;
 pub use queries::InheritanceQueryError;
 

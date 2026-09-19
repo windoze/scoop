@@ -7,6 +7,8 @@ use scoop_identity::{GcEffect, PropertyOwner};
 use std::collections::BTreeMap;
 
 mod authority;
+mod inheritance_interfaces;
+use inheritance_interfaces::InheritanceInterfaceFixtureData;
 
 #[derive(Clone)]
 pub(in crate::cross_cone_type_semantics) struct Fixture {
@@ -24,6 +26,7 @@ pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub nominal_sources: BTreeMap<SourceNominalId, ProtectedNestedSourceInterfaceV1>,
     pub struct_fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
     pub protected_roots: CanonicalProtectedDeclarationRefsV1,
+    pub inheritance_interfaces: InheritanceInterfaceFixtureData,
 }
 impl Default for Fixture {
     fn default() -> Self {
@@ -44,6 +47,7 @@ impl Default for Fixture {
             nominal_sources: BTreeMap::new(),
             struct_fields: BTreeMap::new(),
             protected_roots: CanonicalProtectedDeclarationRefsV1::default(),
+            inheritance_interfaces: InheritanceInterfaceFixtureData::default(),
         }
     }
 }
