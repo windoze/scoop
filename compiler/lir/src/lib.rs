@@ -58,6 +58,9 @@ pub use scan::*;
 mod value_layout;
 pub use value_layout::*;
 
+mod exact_layout;
+pub use exact_layout::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 
