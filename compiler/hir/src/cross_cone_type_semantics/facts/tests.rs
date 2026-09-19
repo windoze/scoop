@@ -1,15 +1,24 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{
-    CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
-    PackagePath, PersistentIdMismatch, PersistentTypeId, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind,
+    CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
+    EnumVariantIdentityKey, ExactTypeKey, PackagePath, PersistentEnumVariantId,
+    PersistentIdMismatch, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
 
 fn exact(name: &str) -> PersistentExactTypeId {
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        PersistentTypeId::from_source_declaration(&declaration(name, SourceNominalKind::Struct))
+            .unwrap(),
+    ))
+    .unwrap()
+}
+
+fn declaration(name: &str, kind: SourceNominalKind) -> SourceDeclarationKey {
     let site = SourceDeclarationSite::new(
         ConeIdentity::CORE,
         PackagePath::root(),
@@ -17,16 +26,7 @@ fn exact(name: &str) -> PersistentExactTypeId {
         DeclarationScope::ConeWide,
     )
     .unwrap();
-    let key = SourceDeclarationKey::nominal(
-        site,
-        CanonicalIdentifier::new(name).unwrap(),
-        SourceNominalKind::Struct,
-        0,
-    );
-    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-        PersistentTypeId::from_source_declaration(&key).unwrap(),
-    ))
-    .unwrap()
+    SourceDeclarationKey::nominal(site, CanonicalIdentifier::new(name).unwrap(), kind, 0)
 }
 
 fn facts(name: &str, zst: ZstStatus) -> ExactTypeFactsV1 {
@@ -242,5 +242,84 @@ fn replay_respects_shared_logical_budget_before_traversal() {
     assert!(matches!(
         table.validate_semantics(&shapes, &mut budget),
         Err(ExactTypeFactsSemanticError::Resource(_))
+    ));
+}
+
+#[test]
+fn enum_gc_is_the_and_of_variant_gc_and_reference_values_remain_managed() {
+    let enum_key = declaration("Mixed", SourceNominalKind::Enum);
+    let enum_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        PersistentTypeId::from_source_declaration(&enum_key).unwrap(),
+    ))
+    .unwrap();
+    let reference_key = declaration("Node", SourceNominalKind::Class);
+    let reference_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        PersistentTypeId::from_source_declaration(&reference_key).unwrap(),
+    ))
+    .unwrap();
+    let variant_id = |name| {
+        PersistentEnumVariantId::from_key(
+            &EnumVariantIdentityKey::source(&enum_key, CanonicalIdentifier::new(name).unwrap())
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let reference = ExactTypeFactsV1::try_new(
+        reference_exact,
+        ExactTypeKindV1::Reference,
+        ExactTypeGcV1::ContainsManagedReferences,
+    )
+    .unwrap();
+    let enumeration = ExactTypeFactsV1::try_new(
+        enum_exact,
+        ExactTypeKindV1::Value {
+            zst: ZstStatus::NonZero,
+        },
+        ExactTypeGcV1::ContainsManagedReferences,
+    )
+    .unwrap();
+    let empty = ExactEnumVariantFactsV1 {
+        variant: variant_id("Empty"),
+        fields: vec![],
+        gc: ExactTypeGcV1::GcFree,
+    };
+    let payload = ExactEnumVariantFactsV1 {
+        variant: variant_id("Payload"),
+        fields: vec![reference_exact],
+        gc: ExactTypeGcV1::ContainsManagedReferences,
+    };
+    let mut shapes = Shapes(BTreeMap::from([
+        (reference_exact, ExactTypeFactShapeV1::Reference),
+        (
+            enum_exact,
+            ExactTypeFactShapeV1::Enum {
+                variants: vec![empty.clone(), payload.clone()],
+            },
+        ),
+    ]));
+    let table = CanonicalExactTypeFactsV1::try_new(vec![enumeration, reference]).unwrap();
+    table.validate_semantics(&shapes, &mut budget()).unwrap();
+    let gc_free_enum =
+        ExactTypeFactsV1::try_new(enum_exact, enumeration.kind(), ExactTypeGcV1::GcFree).unwrap();
+    let forged = CanonicalExactTypeFactsV1::try_new(vec![gc_free_enum, reference]).unwrap();
+    assert!(matches!(
+        forged.validate_semantics(&shapes, &mut budget()),
+        Err(ExactTypeFactsSemanticError::Mismatch { .. })
+    ));
+    shapes.0.insert(
+        enum_exact,
+        ExactTypeFactShapeV1::Enum {
+            variants: vec![
+                empty,
+                ExactEnumVariantFactsV1 {
+                    gc: ExactTypeGcV1::GcFree,
+                    ..payload
+                },
+            ],
+        },
+    );
+    assert!(matches!(
+        table.validate_semantics(&shapes, &mut budget()),
+        Err(ExactTypeFactsSemanticError::VariantGc { .. })
     ));
 }
