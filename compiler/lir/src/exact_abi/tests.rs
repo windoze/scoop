@@ -8,6 +8,7 @@ use crate::*;
 mod fixtures;
 mod physical;
 mod reader;
+mod table;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 

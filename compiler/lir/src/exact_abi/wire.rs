@@ -3,7 +3,10 @@ use scoop_wire::{Encoder, WireEncode};
 use super::*;
 
 mod read;
-pub use read::{DecodedExactCallableAbiExportV1, ExactCallableAbiWireError};
+pub use read::{
+    DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1,
+    ExactCallableAbiWireError,
+};
 
 impl WireEncode for ExactCallableAbiExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -20,6 +23,16 @@ impl WireEncode for ExactCallableAbiExportV1 {
         self.layout_dependencies().encode(encoder)?;
         encoder.field(6)?;
         self.definition().encode(encoder)
+    }
+}
+
+impl WireEncode for CanonicalExactCallableAbiExportsV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.records().len() as u64)?;
+        for record in self.records() {
+            record.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

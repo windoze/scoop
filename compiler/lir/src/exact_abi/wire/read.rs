@@ -19,6 +19,11 @@ pub struct DecodedExactCallableAbiExportV1 {
     definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentCallableBodyId>,
 }
 
+#[derive(Debug)]
+pub struct DecodedCanonicalExactCallableAbiExportsV1 {
+    records: Vec<DecodedExactCallableAbiExportV1>,
+}
+
 impl DecodedExactCallableAbiExportV1 {
     pub fn validate_against(
         self,
@@ -71,6 +76,27 @@ impl DecodedExactCallableAbiExportV1 {
     }
 }
 
+impl DecodedCanonicalExactCallableAbiExportsV1 {
+    pub fn validate_against(
+        self,
+        expected: &CanonicalExactCallableAbiExportsV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<CanonicalExactCallableAbiExportsV1, ExactCallableAbiTableError> {
+        meter.charge_work(self.records.len() as u64, &WirePath::root())?;
+        if self.records.len() != expected.records().len() {
+            return Err(ExactCallableAbiTableError::Count);
+        }
+        for (index, (actual, expected)) in
+            self.records.into_iter().zip(expected.records()).enumerate()
+        {
+            actual
+                .validate_against(expected, meter)
+                .map_err(|source| ExactCallableAbiTableError::Record { index, source })?;
+        }
+        Ok(expected.clone())
+    }
+}
+
 fn target_matches(
     raw: DecodedStrongCallableDefinitionOwner,
     expected: StrongCallableDefinitionOwner,
@@ -115,6 +141,14 @@ impl WireDecode for DecodedExactCallableAbiExportV1 {
         })
     }
 }
+
+impl WireDecode for DecodedCanonicalExactCallableAbiExportsV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder
+            .decode_array(|decoder, _| DecodedExactCallableAbiExportV1::decode(decoder))
+            .map(|records| Self { records })
+    }
+}
 impl WireEncode for DecodedExactCallableAbiExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
@@ -130,6 +164,16 @@ impl WireEncode for DecodedExactCallableAbiExportV1 {
         self.layouts.encode(encoder)?;
         encoder.field(6)?;
         self.definition.encode(encoder)
+    }
+}
+
+impl WireEncode for DecodedCanonicalExactCallableAbiExportsV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.records.len() as u64)?;
+        for record in &self.records {
+            record.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 

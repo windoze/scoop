@@ -1,0 +1,156 @@
+use super::*;
+
+fn records() -> (
+    OdrFreeLirFoundation,
+    Vec<ExactCallableAbiExportV1>,
+    Vec<StrongCallableDefinitionOwner>,
+) {
+    let (first, first_foundation) = fixtures::foundation("first", true);
+    let (second, second_foundation) = fixtures::foundation("second", true);
+    let mut canonical = CanonicalLirFoundation::empty();
+    canonical
+        .set_callable_bodies(
+            first_foundation
+                .callable_bodies()
+                .iter()
+                .chain(second_foundation.callable_bodies())
+                .cloned()
+                .collect(),
+        )
+        .unwrap();
+    canonical
+        .set_definition_plans(
+            first_foundation
+                .definition_plans()
+                .iter()
+                .chain(second_foundation.definition_plans())
+                .cloned()
+                .collect(),
+        )
+        .unwrap();
+    canonical
+        .set_definition_atoms(
+            first_foundation
+                .definition_atoms()
+                .iter()
+                .chain(second_foundation.definition_atoms())
+                .cloned()
+                .collect(),
+        )
+        .unwrap();
+    canonical.set_symbol_requests(
+        PersistentSymbolRequestTable::new(
+            first_foundation
+                .symbol_requests()
+                .iter()
+                .chain(second_foundation.symbol_requests())
+                .copied()
+                .collect(),
+        )
+        .unwrap(),
+    );
+    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
+    let unit: ExactLayoutExportV1 = unit().into();
+    let make = |target| {
+        ExactCallableAbiExportV1::replay(
+            TARGET,
+            target,
+            ExactCallableSignature::new(
+                Effect::Ordinary,
+                None,
+                Vec::new(),
+                unit.identity().exact(),
+            ),
+            ExactCallableProtocolV1::OrdinaryNoGc,
+            CallableAbiLayoutInputsV1 {
+                receiver: CallableAbiReceiverInputV1::NoReceiver,
+                parameters: &[],
+                result: &unit,
+            },
+            &foundation,
+            &mut meter(),
+        )
+        .unwrap()
+    };
+    let records = vec![make(second), make(first)];
+    (foundation, records, vec![first, second])
+}
+
+#[test]
+fn table_canonicalizes_targets_and_round_trips_complete_records() {
+    let (foundation, records, mut targets) = records();
+    let table =
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, records, &mut meter())
+            .unwrap();
+    targets.sort_unstable();
+    assert_eq!(table.provider(), ConeIdentity::SINGLE_FILE);
+    assert_eq!(table.target(), TARGET);
+    assert_eq!(
+        table
+            .records()
+            .iter()
+            .map(ExactCallableAbiExportV1::target)
+            .collect::<Vec<_>>(),
+        targets
+    );
+    for target in targets {
+        assert_eq!(
+            table.get(target).map(ExactCallableAbiExportV1::target),
+            Some(target)
+        );
+    }
+    let bytes = encode(&table).unwrap();
+    let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(
+        &bytes,
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    assert_eq!(
+        decoded.validate_against(&table, &mut meter()).unwrap(),
+        table
+    );
+}
+
+#[test]
+fn table_rejects_duplicate_omitted_and_unbudgeted_records() {
+    let (foundation, records, _) = records();
+    let duplicate = records[0].clone();
+    assert!(matches!(
+        CanonicalExactCallableAbiExportsV1::try_new(
+            TARGET,
+            &foundation,
+            vec![duplicate.clone(), duplicate],
+            &mut meter(),
+        ),
+        Err(ExactCallableAbiTableError::Duplicate(_))
+    ));
+    let table =
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, records, &mut meter())
+            .unwrap();
+    let one = encode(table.records().first().unwrap()).unwrap();
+    let mut bytes = vec![0x81];
+    bytes.extend(one);
+    let decoded = decode_canonical::<DecodedCanonicalExactCallableAbiExportsV1>(
+        &bytes,
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        decoded.validate_against(&table, &mut meter()),
+        Err(ExactCallableAbiTableError::Count)
+    ));
+    let limits = DecodeLimits {
+        semantic_table_entries: 0,
+        ..DecodeLimits::default()
+    };
+    assert!(matches!(
+        CanonicalExactCallableAbiExportsV1::try_new(
+            TARGET,
+            &foundation,
+            table.records().to_vec(),
+            &mut BudgetMeter::new(limits),
+        ),
+        Err(ExactCallableAbiTableError::Resource(_))
+    ));
+}

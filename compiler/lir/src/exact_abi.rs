@@ -21,8 +21,14 @@ pub use replay::ExactCallableAbiError;
 mod physical;
 pub use physical::ExactCallablePhysicalAbiError;
 
+mod table;
+pub use table::*;
+
 mod wire;
-pub use wire::{DecodedExactCallableAbiExportV1, ExactCallableAbiWireError};
+pub use wire::{
+    DecodedCanonicalExactCallableAbiExportsV1, DecodedExactCallableAbiExportV1,
+    ExactCallableAbiWireError,
+};
 
 #[cfg(test)]
 mod tests;
