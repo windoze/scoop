@@ -113,6 +113,19 @@ fn build(
     fixture: &Fixture,
     provider: Option<ConeIdentity>,
 ) -> Result<StrongTypeRegistrationPlanSetV2, StrongTypeRegistrationPlanBuildError> {
+    StrongTypeRegistrationPlanSetV2::new(
+        crate::LirTargetProfile::DARWIN_AARCH64,
+        &fixture.foundation,
+        &fixture.identities,
+        &semantics(fixture, provider),
+        &fixture.digests,
+    )
+}
+
+fn semantics(
+    fixture: &Fixture,
+    provider: Option<ConeIdentity>,
+) -> StrongTypeDescriptorSemanticPlanSetV2 {
     let body = foreign_body();
     let descriptors = fixture
         .semantics
@@ -151,17 +164,10 @@ fn build(
             )
         })
         .collect();
-    let semantics = StrongTypeDescriptorSemanticPlanSetV2::from_artifact(
+    StrongTypeDescriptorSemanticPlanSetV2::from_artifact(
         fixture.semantics.producer(),
         fixture.semantics.target().clone(),
         descriptors,
-    );
-    StrongTypeRegistrationPlanSetV2::new(
-        crate::LirTargetProfile::DARWIN_AARCH64,
-        &fixture.foundation,
-        &fixture.identities,
-        &semantics,
-        &fixture.digests,
     )
 }
 
@@ -189,4 +195,54 @@ fn foreign_body() -> scoop_identity::PersistentCallableBodyId {
         StrongCallableDefinitionOwner::Function(declaration),
     ))
     .unwrap()
+}
+
+#[test]
+fn complete_registration_surface_preserves_the_new_reference_sums() {
+    let fixture = Fixture::new(Options {
+        first_type_has_itable: true,
+        ..Options::default()
+    });
+    let producer = fixture.foundation.producer();
+    let surface = crate::StrongRegistrationProductionSurfaceV2::from_semantics(
+        crate::LirTargetProfile::DARWIN_AARCH64,
+        &fixture.foundation,
+        &fixture.digests,
+        fixture.identities.clone(),
+        crate::StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(
+            &fixture.foundation,
+        )
+        .unwrap(),
+        semantics(&fixture, Some(ConeIdentity::CORE)),
+        crate::StrongSafepointSemanticPlanSetV1::from_artifact(producer, Vec::new()),
+        crate::StrongImmortalObjectSemanticPlanSetV1::from_artifact(producer, Vec::new()),
+        crate::StrongInitializationUnitSemanticPlanSetV2::from_artifact(
+            crate::StrongStaticStorageSemanticPlanSetV1::from_artifact(producer, Vec::new()),
+            Vec::new(),
+        ),
+    )
+    .unwrap();
+    let bytes = encode(&surface).unwrap();
+    assert_eq!(bytes[0], 0xa8);
+    let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    assert!(
+        decode_canonical::<crate::DecodedStrongRegistrationProductionSurfaceV1>(
+            &bytes,
+            DecodeLimits::default()
+        )
+        .is_err()
+    );
+    for field_count in [0xa7, 0xa9] {
+        let mut malformed = bytes.clone();
+        malformed[0] = field_count;
+        assert!(
+            decode_canonical::<crate::DecodedStrongRegistrationProductionSurfaceV2>(
+                &malformed,
+                DecodeLimits::default()
+            )
+            .is_err()
+        );
+    }
 }

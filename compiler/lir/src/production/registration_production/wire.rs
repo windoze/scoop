@@ -11,71 +11,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::DecodedStrongRegistrationIdentitySurfaceV1;
 
-#[derive(Debug)]
-pub struct DecodedStrongRegistrationProductionSurfaceV1 {
-    pub(super) identities: DecodedStrongRegistrationIdentitySurfaceV1,
-    pub(super) safepoints: Vec<DecodedStrongSafepointRegistrationPlanV1>,
-    pub(super) callables: Vec<DecodedStrongCallableRegistrationPlanV1>,
-    pub(super) types: Vec<DecodedStrongTypeRegistrationPlanV1>,
-    pub(super) immortal_objects: Vec<DecodedStrongImmortalObjectRegistrationPlanV1>,
-    pub(super) static_storages: Vec<DecodedStrongStaticStorageRegistrationPlanV1>,
-    pub(super) initialization_units: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
-    pub(super) callable_runtime_scans: Vec<DecodedStrongCallableRuntimeScanPlanV1>,
-}
-
-impl WireEncode for DecodedStrongRegistrationProductionSurfaceV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
-        encode_field(encoder, 1, &self.identities)?;
-        encode_array_field(encoder, 2, &self.safepoints)?;
-        encode_array_field(encoder, 3, &self.callables)?;
-        encode_array_field(encoder, 4, &self.types)?;
-        encode_array_field(encoder, 5, &self.immortal_objects)?;
-        encode_array_field(encoder, 6, &self.static_storages)?;
-        encode_array_field(encoder, 7, &self.initialization_units)?;
-        encode_array_field(encoder, 8, &self.callable_runtime_scans)
-    }
-}
-
-impl WireDecode for DecodedStrongRegistrationProductionSurfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(8)?;
-        Ok(Self {
-            identities: decoder.field(1, DecodedStrongRegistrationIdentitySurfaceV1::decode)?,
-            safepoints: decode_array_field(
-                decoder,
-                2,
-                DecodedStrongSafepointRegistrationPlanV1::decode,
-            )?,
-            callables: decode_array_field(
-                decoder,
-                3,
-                DecodedStrongCallableRegistrationPlanV1::decode,
-            )?,
-            types: decode_array_field(decoder, 4, DecodedStrongTypeRegistrationPlanV1::decode)?,
-            immortal_objects: decode_array_field(
-                decoder,
-                5,
-                DecodedStrongImmortalObjectRegistrationPlanV1::decode,
-            )?,
-            static_storages: decode_array_field(
-                decoder,
-                6,
-                DecodedStrongStaticStorageRegistrationPlanV1::decode,
-            )?,
-            initialization_units: decode_array_field(
-                decoder,
-                7,
-                DecodedStrongInitializationUnitRegistrationPlanV1::decode,
-            )?,
-            callable_runtime_scans: decode_array_field(
-                decoder,
-                8,
-                DecodedStrongCallableRuntimeScanPlanV1::decode,
-            )?,
-        })
-    }
-}
+mod surface;
+pub use surface::*;
 
 #[derive(Debug)]
 pub struct DecodedStrongSafepointRegistrationPlanV1 {

@@ -14,16 +14,15 @@ use crate::{
     StrongImmortalObjectSemanticPlanBuildError, StrongImmortalObjectSemanticPlanSetV1,
     StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
     StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlanBuildError,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongInitializationUnitSemanticPlanBuildError,
-    StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationIdentityBuildError,
-    StrongRegistrationIdentitySurfaceV1, StrongSafepointRegistrationPlanBuildError,
-    StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1,
-    StrongSafepointSemanticPlanError, StrongSafepointSemanticPlanSetV1,
-    StrongSafepointSemanticPlanV1, StrongStaticStorageInitialArtifactPlanV1,
-    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageRegistrationPlanBuildError,
-    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanV1,
-    StrongTypeDescriptorSemanticPlanBuildError, StrongTypeDescriptorSemanticPlanSetV1,
-    StrongTypeRegistrationPlanBuildError, StrongTypeRegistrationPlanSetV1,
+    StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSetV1,
+    StrongRegistrationIdentityBuildError, StrongRegistrationIdentitySurfaceV1,
+    StrongSafepointRegistrationPlanBuildError, StrongSafepointRegistrationPlanSetV1,
+    StrongSafepointRegistrationPlanV1, StrongSafepointSemanticPlanError,
+    StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
+    StrongStaticStorageInitialArtifactPlanV1, StrongStaticStorageInitialStatePlanV1,
+    StrongStaticStorageRegistrationPlanBuildError, StrongStaticStorageRegistrationPlanSetV1,
+    StrongStaticStorageRegistrationPlanV1, StrongTypeDescriptorSemanticPlanBuildError,
+    StrongTypeDescriptorSemanticPlanSetV1, StrongTypeRegistrationPlanBuildError,
 };
 
 mod wire;
@@ -32,19 +31,8 @@ pub use wire::*;
 mod validation;
 pub use validation::*;
 
-/// Complete member-independent registration authority produced from one final
-/// LIR module. Every table has already been checked against the same foundation
-/// and digest graph.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongRegistrationProductionSurfaceV1 {
-    identities: StrongRegistrationIdentitySurfaceV1,
-    safepoints: StrongSafepointRegistrationPlanSetV1,
-    callables: StrongCallableRegistrationPlanSetV1,
-    types: StrongTypeRegistrationPlanSetV1,
-    immortal_objects: StrongImmortalObjectRegistrationPlanSetV1,
-    static_storages: StrongStaticStorageRegistrationPlanSetV1,
-    initialization_units: StrongInitializationUnitRegistrationPlanSetV1,
-}
+mod model;
+pub use model::*;
 
 impl StrongRegistrationProductionSurfaceV1 {
     pub fn empty(
@@ -119,121 +107,9 @@ impl StrongRegistrationProductionSurfaceV1 {
             initialization_semantics,
         )
     }
-
-    #[allow(clippy::too_many_arguments)]
-    fn from_semantics(
-        target: crate::LirTargetProfile,
-        foundation: &OdrFreeLirFoundation,
-        digests: &StrongDigestFinalizationPlanV1,
-        identities: StrongRegistrationIdentitySurfaceV1,
-        callable_runtime_scans: StrongCallableRuntimeScanPlanSetV1,
-        type_semantics: StrongTypeDescriptorSemanticPlanSetV1,
-        safepoint_semantics: StrongSafepointSemanticPlanSetV1,
-        immortal_semantics: StrongImmortalObjectSemanticPlanSetV1,
-        initialization_semantics: StrongInitializationUnitSemanticPlanSetV1,
-    ) -> Result<Self, StrongRegistrationProductionBuildError> {
-        let safepoints = StrongSafepointRegistrationPlanSetV1::new(
-            foundation,
-            &identities,
-            &safepoint_semantics,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::Safepoints)?;
-        let callables = StrongCallableRegistrationPlanSetV1::new(
-            foundation,
-            &identities,
-            callable_runtime_scans,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::Callables)?;
-        let types = StrongTypeRegistrationPlanSetV1::new(
-            target,
-            foundation,
-            &identities,
-            &type_semantics,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::Types)?;
-        let immortal_objects = StrongImmortalObjectRegistrationPlanSetV1::new(
-            foundation,
-            &identities,
-            &immortal_semantics,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::ImmortalObjects)?;
-        let static_storages = StrongStaticStorageRegistrationPlanSetV1::new(
-            foundation,
-            &identities,
-            initialization_semantics.static_storages(),
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::StaticStorages)?;
-        let initialization_units = StrongInitializationUnitRegistrationPlanSetV1::new(
-            foundation,
-            &identities,
-            &initialization_semantics,
-            digests,
-        )
-        .map_err(StrongRegistrationProductionBuildError::InitializationUnits)?;
-
-        Ok(Self {
-            identities,
-            safepoints,
-            callables,
-            types,
-            immortal_objects,
-            static_storages,
-            initialization_units,
-        })
-    }
-
-    pub const fn identities(&self) -> &StrongRegistrationIdentitySurfaceV1 {
-        &self.identities
-    }
-
-    pub const fn safepoints(&self) -> &StrongSafepointRegistrationPlanSetV1 {
-        &self.safepoints
-    }
-
-    pub const fn callables(&self) -> &StrongCallableRegistrationPlanSetV1 {
-        &self.callables
-    }
-
-    pub const fn types(&self) -> &StrongTypeRegistrationPlanSetV1 {
-        &self.types
-    }
-
-    pub const fn immortal_objects(&self) -> &StrongImmortalObjectRegistrationPlanSetV1 {
-        &self.immortal_objects
-    }
-
-    pub const fn static_storages(&self) -> &StrongStaticStorageRegistrationPlanSetV1 {
-        &self.static_storages
-    }
-
-    pub const fn initialization_units(&self) -> &StrongInitializationUnitRegistrationPlanSetV1 {
-        &self.initialization_units
-    }
-
-    pub fn safepoint_semantics(&self) -> StrongSafepointSemanticPlanSetV1 {
-        StrongSafepointSemanticPlanSetV1::from_artifact(
-            self.safepoints.producer(),
-            self.safepoints
-                .registrations()
-                .iter()
-                .map(|plan| {
-                    StrongSafepointSemanticPlanV1::from_artifact(
-                        plan.site(),
-                        plan.safepoint(),
-                        plan.owner(),
-                        plan.role(),
-                        plan.root_pair_count(),
-                    )
-                })
-                .collect(),
-        )
-    }
 }
+
+mod build;
 
 mod encode;
 

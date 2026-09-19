@@ -23,14 +23,25 @@ use crate::{
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
 
+pub type StrongProductionSectionV1 = StrongProductionSection<
+    crate::StrongTypeDescriptorRefV1,
+    crate::StrongTypeDispatchCallableRefV1,
+    scoop_identity::PersistentInitializationUnitId,
+>;
+pub type StrongProductionSectionV2 = StrongProductionSection<
+    crate::StrongTypeDescriptorRefV2,
+    crate::StrongTypeDispatchCallableRefV2,
+    crate::StrongInitializationDependencyRefV2,
+>;
+
 /// Every canonical LIR production input required by the strong-only profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongProductionSectionV1 {
+pub struct StrongProductionSection<D, C, I> {
     external_bridges: StrongExternalLirBridgeSurfaceV1,
     canonical_definitions: StrongObjectSymbolSurfaceV1,
     object_definition_plans: StrongObjectDefinitionPlanSurfaceV1,
     digest_finalization_plan: StrongDigestFinalizationPlanV1,
-    registration_production: StrongRegistrationProductionSurfaceV1,
+    registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
     image_plan: ConeImagePlanV1,
     entry_plan: EntryProductionPlanV1,
     core_shape_support: CoreShapeSupportPlanV1,
@@ -46,6 +57,31 @@ impl StrongProductionSectionV1 {
         external_bridges: StrongExternalLirBridgeSurfaceV1,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: StrongRegistrationProductionSurfaceV1,
+        entry_source: EntryProductionSourceV1,
+        core_shape_sources: &[SourceDeclarationKey],
+        core_lir_bridge: CoreLirBridgeBranchV1,
+    ) -> Result<Self, StrongProductionSectionBuildError> {
+        Self::from_parts(
+            coordinate,
+            foundation,
+            external_bridges,
+            digest_finalization_plan,
+            registration_production,
+            entry_source,
+            core_shape_sources,
+            core_lir_bridge,
+        )
+    }
+}
+
+impl<D, C, I> StrongProductionSection<D, C, I> {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_parts(
+        coordinate: ConeCoordinate,
+        foundation: &OdrFreeLirFoundation,
+        external_bridges: StrongExternalLirBridgeSurfaceV1,
+        digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
         core_shape_sources: &[SourceDeclarationKey],
         core_lir_bridge: CoreLirBridgeBranchV1,
@@ -117,7 +153,9 @@ impl StrongProductionSectionV1 {
         &self.digest_finalization_plan
     }
 
-    pub const fn registration_production(&self) -> &StrongRegistrationProductionSurfaceV1 {
+    pub const fn registration_production(
+        &self,
+    ) -> &crate::StrongRegistrationProductionSurface<D, C, I> {
         &self.registration_production
     }
 
@@ -142,7 +180,9 @@ impl StrongProductionSectionV1 {
     }
 }
 
-impl WireEncode for StrongProductionSectionV1 {
+impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> WireEncode
+    for StrongProductionSection<D, C, I>
+{
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
         encoder.field(1)?;
@@ -168,29 +208,10 @@ impl WireEncode for StrongProductionSectionV1 {
     }
 }
 
-#[derive(Debug)]
-pub struct DecodedStrongProductionSectionV1 {
-    external_bridges: DecodedStrongExternalLirBridgeSurfaceV1,
-    canonical_definitions: DecodedStrongObjectSymbolSurfaceV1,
-    object_definition_plans: DecodedStrongObjectDefinitionPlanSurfaceV1,
-    digest_finalization_plan: DecodedStrongDigestFinalizationPlanV1,
-    registration_production: DecodedStrongRegistrationProductionSurfaceV1,
-    image_plan: DecodedConeImagePlanV1,
-    entry_plan: DecodedEntryProductionPlanV1,
-    core_shape_support: DecodedCoreShapeSupportPlanV1,
-    generated_bridge_plan: DecodedGeneratedBridgePlanSetV1,
-    core_lir_bridge: DecodedCoreLirBridgeBranchV1,
-}
+mod decoded;
+pub use decoded::*;
 
 impl DecodedStrongProductionSectionV1 {
-    pub fn reconstruct_external_bridges(
-        &self,
-        producer: scoop_identity::ConeIdentity,
-        identities: &mut ValidatedIdentityGraph,
-    ) -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeReconstructionError> {
-        self.external_bridges.reconstruct(producer, identities)
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn validate(
         self,
@@ -243,53 +264,6 @@ impl DecodedStrongProductionSectionV1 {
             return Err(StrongProductionSectionValidationError::SectionMismatch);
         }
         Ok(expected)
-    }
-}
-
-impl WireEncode for DecodedStrongProductionSectionV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
-        encoder.field(1)?;
-        self.external_bridges.encode(encoder)?;
-        encoder.field(2)?;
-        self.canonical_definitions.encode(encoder)?;
-        encoder.field(3)?;
-        self.object_definition_plans.encode(encoder)?;
-        encoder.field(4)?;
-        self.digest_finalization_plan.encode(encoder)?;
-        encoder.field(5)?;
-        self.registration_production.encode(encoder)?;
-        encoder.field(6)?;
-        self.image_plan.encode(encoder)?;
-        encoder.field(7)?;
-        self.entry_plan.encode(encoder)?;
-        encoder.field(8)?;
-        self.core_shape_support.encode(encoder)?;
-        encoder.field(9)?;
-        self.generated_bridge_plan.encode(encoder)?;
-        encoder.field(10)?;
-        self.core_lir_bridge.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStrongProductionSectionV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
-        Ok(Self {
-            external_bridges: decoder.field(1, DecodedStrongExternalLirBridgeSurfaceV1::decode)?,
-            canonical_definitions: decoder.field(2, DecodedStrongObjectSymbolSurfaceV1::decode)?,
-            object_definition_plans: decoder
-                .field(3, DecodedStrongObjectDefinitionPlanSurfaceV1::decode)?,
-            digest_finalization_plan: decoder
-                .field(4, DecodedStrongDigestFinalizationPlanV1::decode)?,
-            registration_production: decoder
-                .field(5, DecodedStrongRegistrationProductionSurfaceV1::decode)?,
-            image_plan: decoder.field(6, DecodedConeImagePlanV1::decode)?,
-            entry_plan: decoder.field(7, DecodedEntryProductionPlanV1::decode)?,
-            core_shape_support: decoder.field(8, DecodedCoreShapeSupportPlanV1::decode)?,
-            generated_bridge_plan: decoder.field(9, DecodedGeneratedBridgePlanSetV1::decode)?,
-            core_lir_bridge: decoder.field(10, DecodedCoreLirBridgeBranchV1::decode)?,
-        })
     }
 }
 

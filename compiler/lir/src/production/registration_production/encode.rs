@@ -4,7 +4,9 @@ mod initialization;
 mod types;
 use initialization::{encode_static_initial_artifacts, encode_static_initial_state};
 
-impl WireEncode for StrongRegistrationProductionSurfaceV1 {
+impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> WireEncode
+    for StrongRegistrationProductionSurface<D, C, I>
+{
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(8)?;
         encode_field(encoder, 1, &self.identities)?;

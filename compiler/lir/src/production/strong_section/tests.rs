@@ -184,3 +184,5 @@ fn identities(foundation: &OdrFreeLirFoundation) -> scoop_identity::ValidatedIde
     }
     pending.finish().unwrap()
 }
+
+mod v2;
