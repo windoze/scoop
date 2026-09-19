@@ -42,7 +42,7 @@ pub struct DecodedMirBridgeCallableSignatureV1 {
     gc_effect: crate::GcEffect,
 }
 impl DecodedMirBridgeCallableSignatureV1 {
-    pub(super) fn resolve(
+    pub(in crate::cross_cone_type_bridge) fn resolve(
         self,
         graph: &mut ValidatedIdentityGraph,
         meter: &mut BudgetMeter,

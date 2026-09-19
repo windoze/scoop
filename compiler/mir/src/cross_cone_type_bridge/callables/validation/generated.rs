@@ -66,7 +66,21 @@ impl MirCallableBridgeAuthority<'_> {
                 {
                     return Err(MirCallableBridgeError::InvalidAdjustTarget);
                 }
-                self.adjust(binding, *slot, *payload, target)
+                let receiver = semantic
+                    .receiver()
+                    .into_option()
+                    .ok_or(MirCallableBridgeError::InvalidAdjustTarget)?;
+                if receiver != *payload
+                    && !matches!(
+                        self.type_export(receiver)?.representation(),
+                        MirTypeRepresentationV1::Interface
+                    )
+                {
+                    return Err(MirCallableBridgeError::InvalidAdjustTarget);
+                }
+                // A default body receives the interface view of the same box.
+                // The dispatch schema proves the payload-to-interface path.
+                self.adjust(binding, *slot, receiver, target)
             }
             (
                 GeneratedCallableKey::DerivedEquality { exact_owner },

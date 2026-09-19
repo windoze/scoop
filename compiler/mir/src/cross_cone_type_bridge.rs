@@ -13,6 +13,7 @@ use scoop_wire::{
 };
 
 mod callables;
+mod dispatch;
 mod facts;
 mod origin;
 mod record;
@@ -25,6 +26,7 @@ mod validation;
 mod wire;
 
 pub use callables::*;
+pub use dispatch::*;
 pub use facts::*;
 pub use origin::*;
 pub use record::*;
