@@ -7,6 +7,7 @@ use crate::*;
 mod c_layout;
 mod enums;
 mod instances;
+mod value_descriptors;
 mod values;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;

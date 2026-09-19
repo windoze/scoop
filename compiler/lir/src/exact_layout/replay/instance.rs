@@ -97,6 +97,8 @@ impl ExactInstanceLayoutV1 {
         )
     }
 
+    /// Replays either a value's own descriptor or its generated box helper.
+    /// The containing section joins the representation to the source facts.
     pub fn boxed_payload(
         identity: ExactLayoutIdentityV1,
         payload: &ExactValueLayoutV1,
@@ -104,11 +106,20 @@ impl ExactInstanceLayoutV1 {
         meter: &mut BudgetMeter,
     ) -> Result<Self, ExactLayoutReplayError> {
         require_roles(&identity, &[RepresentationRole::ManagedObject])?;
+        require_roles(&payload.identity, &[RepresentationRole::ManagedValue])?;
+        if matches!(
+            payload.representation.kind(),
+            ExactRepresentationKindV1::QualifiedPointer(crate::NichePointerKind::Managed)
+        ) {
+            return Err(ExactLayoutReplayError::BoxPayloadKind);
+        }
         let expected = PersistentTypeId::from_generated_key(&GeneratedNominalKey::BoxedValue {
             payload: payload.identity.exact(),
         })
         .map_err(ExactLayoutReplayError::GeneratedNominal)?;
-        if identity.exact_key() != &ExactTypeKey::Nominal(expected) {
+        if identity.exact() != payload.identity.exact()
+            && identity.exact_key() != &ExactTypeKey::Nominal(expected)
+        {
             return Err(ExactLayoutReplayError::BoxPayloadIdentity);
         }
         if payload.identity.target() != identity.target() {

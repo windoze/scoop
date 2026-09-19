@@ -121,7 +121,7 @@ pub(super) fn array(zst: bool) -> ExactLayoutExportV1 {
 }
 
 pub(super) fn boxed() -> ExactLayoutExportV1 {
-    let value = managed();
+    let value = aggregate().value_handle().unwrap();
     let boxed = PersistentTypeId::from_generated_key(&GeneratedNominalKey::BoxedValue {
         payload: value.identity().exact(),
     })
