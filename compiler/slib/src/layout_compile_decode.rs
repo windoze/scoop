@@ -1,6 +1,7 @@
 //! Exact Compile-view section decoding for the M23-6 layout profile.
 
 use scoop_hir::{
+    CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
     DecodedCrossConeTypeSemanticsSectionV1, DecodedHirFoundation,
 };
@@ -18,8 +19,10 @@ use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundati
 
 mod accessors;
 mod decode;
+mod hir_resolution;
 mod transitions;
 pub use decode::CrossConeLayoutCompileSectionDecodeError;
+pub use hir_resolution::CrossConeLayoutHirResolutionError;
 
 /// Canonically decoded payloads from one exact
 /// `cross-cone-layout-strong/1` Compile view.
@@ -74,6 +77,24 @@ pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
     hir_interface: DecodedCrossConeHirInterfaceSectionV1,
     hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+}
+
+/// Foundation-validated M23-6 payloads whose old and new HIR transports were
+/// resolved through the same typed identity graph. Their cross-table and
+/// dependency semantics remain separate obligations.
+pub struct ResolvedCrossConeLayoutHirSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    hir_type_semantics: CrossConeTypeSemanticsSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,

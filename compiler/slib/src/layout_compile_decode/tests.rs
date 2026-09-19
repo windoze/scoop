@@ -77,6 +77,62 @@ fn layout_profile_validates_all_foundations_before_exposing_new_payloads() {
 }
 
 #[test]
+fn layout_profile_resolves_both_hir_transports_with_one_identity_graph() {
+    let bytes = layout_artifact(false, None);
+    let sections = open_graph(&bytes)
+        .decode_cross_cone_layout_compile_sections()
+        .unwrap()
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .resolve_hir_sections()
+        .unwrap();
+
+    assert_eq!(sections.coordinate(), cone().coordinate());
+    assert_eq!(sections.identity(), cone().identity());
+    assert_eq!(sections.identity_count(), 19);
+    assert!(
+        sections
+            .hir_interface()
+            .public_bindings()
+            .records()
+            .is_empty()
+    );
+    assert!(
+        sections
+            .hir_type_semantics()
+            .exact_facts()
+            .records()
+            .is_empty()
+    );
+    assert!(
+        sections
+            .hir_type_semantics()
+            .representation_support()
+            .records()
+            .is_empty()
+    );
+    assert!(
+        sections
+            .hir_type_semantics()
+            .selected()
+            .records()
+            .is_empty()
+    );
+    let _ = sections.hir_foundation();
+    let _ = sections.mir_foundation();
+    let _ = sections.lir_foundation();
+    let _ = sections.hir_core_production_wire();
+    let _ = sections.mir_core_production_wire();
+    let _ = sections.mir_cross_cone_bridge_wire();
+    let _ = sections.mir_type_bridge_wire();
+    let _ = sections.lir_strong_production_wire();
+    let _ = sections.lir_cross_cone_bridge_wire();
+    let _ = sections.lir_layout_abi_wire();
+}
+
+#[test]
 fn layout_profile_rejects_the_m23_5_profile_before_payloads() {
     let bytes = crate::cross_cone_compile_decode::tests::cross_cone_artifact(
         crate::cross_cone_compile_decode::tests::empty_cross_cone_hir_interface(),
