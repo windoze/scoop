@@ -97,7 +97,8 @@ pub use enum_variant::{
 };
 pub use exact_signature::{
     DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignature,
-    ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature, OptionalExactOwner,
+    ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature,
+    MeteredExactCallableSignatureResolutionError, OptionalExactOwner,
 };
 pub use field::{
     DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey, FieldIdentityError,

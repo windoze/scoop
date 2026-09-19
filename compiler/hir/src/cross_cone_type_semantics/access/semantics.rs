@@ -10,11 +10,13 @@ use super::{
 use crate::{CheckedNominalInheritanceGraphV1, InheritanceQueryError, SourceNominalId};
 
 mod implication;
+mod nominal;
 mod normalization;
 mod protected;
 #[cfg(test)]
 mod tests;
 
+pub use nominal::*;
 pub use protected::*;
 
 /// A domain whose identities and semantic normal form were replayed against
@@ -200,6 +202,7 @@ pub enum AccessDomainSemanticError {
     InvalidDelegation,
     InvalidSuper,
     InvalidPurpose,
+    NominalDomains,
 }
 impl From<InheritanceQueryError> for AccessDomainSemanticError {
     fn from(error: InheritanceQueryError) -> Self {
@@ -209,6 +212,9 @@ impl From<InheritanceQueryError> for AccessDomainSemanticError {
 impl fmt::Display for AccessDomainSemanticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NominalDomains => {
+                f.write_str("nominal access domains disagree with source visibility or modality")
+            }
             Self::Resource(error) => error.fmt(f),
             Self::Inheritance(error) => error.fmt(f),
             Self::Encoding(error) => error.fmt(f),

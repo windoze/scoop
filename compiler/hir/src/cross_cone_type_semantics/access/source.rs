@@ -217,6 +217,29 @@ pub struct DecodedDeclarationAccessSourceV1 {
 }
 
 impl DecodedDeclarationAccessSourceV1 {
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<DeclarationAccessSourceV1, DeclarationAccessSourceResolutionError<E>>
+    where
+        R: SourceNominalIdResolver<E>
+            + PersistentIdResolver<ConeIdentity, Error = E>
+            + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>,
+    {
+        let path = scoop_wire::WirePath::root();
+        meter
+            .charge_nodes(1, &path)
+            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
+        meter
+            .charge_collection_slots((self.lexical_owners.len() as u64).saturating_mul(2), &path)
+            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
+        meter
+            .charge_work(self.lexical_owners.len() as u64, &path)
+            .map_err(DeclarationAccessSourceResolutionError::Resource)?;
+        self.resolve(resolver)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -289,6 +312,7 @@ impl std::error::Error for DeclarationAccessSourceBuildError {}
 
 #[derive(Debug)]
 pub enum DeclarationAccessSourceResolutionError<E> {
+    Resource(WireError),
     Owner { index: usize, error: E },
     Origin(SourceOriginResolutionError<E>),
     Source(DeclarationAccessSourceBuildError),
@@ -296,6 +320,7 @@ pub enum DeclarationAccessSourceResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for DeclarationAccessSourceResolutionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(f),
             Self::Owner { index, error } => {
                 write!(f, "invalid lexical owner at index {index}: {error}")
             }

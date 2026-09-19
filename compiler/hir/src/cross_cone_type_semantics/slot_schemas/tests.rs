@@ -5,7 +5,7 @@ use super::*;
 use crate::CheckedNominalInheritanceGraphV1;
 use crate::cross_cone_type_semantics::inheritance::tests::support::Node;
 
-mod support;
+pub(in crate::cross_cone_type_semantics) mod support;
 use support::Fixture;
 
 fn meter() -> BudgetMeter {

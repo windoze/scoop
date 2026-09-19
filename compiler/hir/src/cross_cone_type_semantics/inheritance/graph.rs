@@ -219,6 +219,7 @@ fn validate_kind<E>(
 
 #[derive(Debug)]
 pub enum InheritanceGraphError<E> {
+    DeclarationSource(DeclarationAccessSourceSemanticError<E>),
     Resource(WireError),
     Foundation(E),
     Source {
@@ -250,6 +251,7 @@ pub enum InheritanceGraphError<E> {
 impl<E: fmt::Display> fmt::Display for InheritanceGraphError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DeclarationSource(error) => error.fmt(f),
             Self::Resource(error) => error.fmt(f),
             Self::Foundation(error) => write!(f, "invalid inheritance foundation: {error}"),
             Self::Source { owner, error } => {

@@ -136,4 +136,4 @@ impl fmt::Display for InheritanceSlotSchemaBuildError {
 impl std::error::Error for InheritanceSlotSchemaBuildError {}
 
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_semantics) mod tests;

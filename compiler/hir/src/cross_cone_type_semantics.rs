@@ -9,6 +9,7 @@ mod inheritance;
 mod representation;
 mod representation_fields;
 mod representation_policy;
+mod slot_contracts;
 mod slot_schemas;
 mod wire;
 
@@ -18,4 +19,5 @@ pub use inheritance::*;
 pub use representation::*;
 pub use representation_fields::*;
 pub use representation_policy::*;
+pub use slot_contracts::*;
 pub use slot_schemas::*;

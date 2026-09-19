@@ -4,6 +4,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits};
 use super::*;
 use crate::cross_cone_type_semantics::inheritance::tests::support::Fixture;
 
+mod nominal;
 mod objects;
 mod protected;
 

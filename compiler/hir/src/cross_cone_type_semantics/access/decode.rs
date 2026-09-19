@@ -98,6 +98,26 @@ pub enum DecodedPersistentAccessDomainV1 {
 }
 
 impl DecodedPersistentAccessDomainV1 {
+    pub fn resolve_metered<R: PersistentAccessResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<PersistentAccessDomainV1, PersistentAccessResolutionError<E>> {
+        let path = scoop_wire::WirePath::root();
+        meter
+            .charge_nodes(1, &path)
+            .map_err(PersistentAccessResolutionError::Resource)?;
+        if let Self::Conjunction(constraints) = &self {
+            meter
+                .charge_collection_slots(constraints.len() as u64, &path)
+                .map_err(PersistentAccessResolutionError::Resource)?;
+            meter
+                .charge_work(constraints.len() as u64, &path)
+                .map_err(PersistentAccessResolutionError::Resource)?;
+        }
+        self.resolve(resolver)
+    }
+
     pub fn resolve<R: PersistentAccessResolver<E>, E>(
         self,
         resolver: &mut R,
@@ -197,6 +217,7 @@ impl WireDecode for DecodedNominalAccessDomainsV1 {
 
 #[derive(Debug)]
 pub enum PersistentAccessResolutionError<E> {
+    Resource(WireError),
     Identity(E),
     Source(SourceIdentityResolutionError<E>),
     Domain(PersistentAccessDomainError),
@@ -204,6 +225,7 @@ pub enum PersistentAccessResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for PersistentAccessResolutionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(f),
             Self::Identity(error) => write!(f, "invalid persistent access identity: {error}"),
             Self::Source(error) => write!(f, "invalid persistent access source: {error}"),
             Self::Domain(error) => error.fmt(f),

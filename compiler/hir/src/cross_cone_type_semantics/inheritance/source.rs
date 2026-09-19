@@ -6,11 +6,44 @@ use super::{
     NominalInheritanceSemanticAuthority,
 };
 use crate::{
-    DeclarationAccessSourceSemanticAuthority, ExportDefinitionSourceSemanticAuthority,
-    ExportDefinitionSourceV1, SourceNominalId,
+    CheckedDeclarationAccessSourceV1, DeclarationAccessSourceSemanticAuthority,
+    DeclarationAccessSourceSemanticError, DeclarationAccessSourceV1,
+    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1, SourceNominalId,
 };
 
 impl<'a> CheckedNominalInheritanceGraphV1<'a> {
+    pub fn check_declaration_source<'s, A: NominalInheritanceSemanticAuthority<E>, E>(
+        &self,
+        source: &'s DeclarationAccessSourceV1,
+        key: &'s SourceDeclarationKey,
+        authority: &A,
+        meter: &mut BudgetMeter,
+    ) -> Result<CheckedDeclarationAccessSourceV1<'s>, InheritanceGraphError<E>> {
+        let count = source.lexical_owners().len() as u64;
+        let path = WirePath::root();
+        meter
+            .check_semantic_depth(count.saturating_add(1), &path)
+            .map_err(InheritanceGraphError::Resource)?;
+        meter
+            .charge_work(count.saturating_add(1).saturating_pow(2), &path)
+            .map_err(InheritanceGraphError::Resource)?;
+        for owner in source.lexical_owners() {
+            if self.source(*owner).is_none() {
+                return Err(InheritanceGraphError::Source {
+                    owner: *owner,
+                    error: DeclarationAccessSourceSemanticError::OwnerChain,
+                });
+            }
+        }
+        let mut scoped = SourceAuthority {
+            authority,
+            cone: key.origin(),
+        };
+        source
+            .validate_for_declaration(key, &mut scoped)
+            .map_err(InheritanceGraphError::DeclarationSource)
+    }
+
     pub(super) fn validate_source<A, E>(
         &mut self,
         owner: SourceNominalId,

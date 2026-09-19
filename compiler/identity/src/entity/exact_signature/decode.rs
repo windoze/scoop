@@ -5,6 +5,9 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{ExactCallableSignature, OptionalExactOwner};
 use crate::{DecodedPersistentId, Effect, PersistentExactTypeId, PersistentIdResolver};
 
+#[cfg(test)]
+mod metered_tests;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DecodedOptionalExactOwner {
     Absent,
@@ -61,6 +64,32 @@ pub struct DecodedExactCallableSignature {
 }
 
 impl DecodedExactCallableSignature {
+    /// Charges the shared semantic budget before allocating resolved parameters.
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<ExactCallableSignature, MeteredExactCallableSignatureResolutionError<E>>
+    where
+        R: PersistentIdResolver<PersistentExactTypeId, Error = E>,
+    {
+        let path = scoop_wire::WirePath::root();
+        meter
+            .charge_nodes(1, &path)
+            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
+        meter
+            .charge_collection_slots(self.parameters.len() as u64, &path)
+            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
+        meter
+            .charge_edges(self.parameters.len() as u64 + 2, &path)
+            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
+        meter
+            .charge_work(self.parameters.len() as u64 + 2, &path)
+            .map_err(MeteredExactCallableSignatureResolutionError::Resource)?;
+        self.resolve(resolver)
+            .map_err(MeteredExactCallableSignatureResolutionError::Signature)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,
@@ -87,6 +116,24 @@ impl DecodedExactCallableSignature {
             result,
         ))
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MeteredExactCallableSignatureResolutionError<E> {
+    Resource(WireError),
+    Signature(ExactCallableSignatureResolutionError<E>),
+}
+impl<E: fmt::Display> fmt::Display for MeteredExactCallableSignatureResolutionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Resource(error) => error.fmt(formatter),
+            Self::Signature(error) => error.fmt(formatter),
+        }
+    }
+}
+impl<E: std::error::Error + 'static> std::error::Error
+    for MeteredExactCallableSignatureResolutionError<E>
+{
 }
 
 impl WireEncode for DecodedExactCallableSignature {

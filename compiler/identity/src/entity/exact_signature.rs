@@ -7,7 +7,8 @@ use crate::{PersistentExactTypeId, SourceSignatureFingerprint};
 mod decode;
 
 pub use decode::{
-    DecodedExactCallableSignature, DecodedOptionalExactOwner, ExactCallableSignatureResolutionError,
+    DecodedExactCallableSignature, DecodedOptionalExactOwner,
+    ExactCallableSignatureResolutionError, MeteredExactCallableSignatureResolutionError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

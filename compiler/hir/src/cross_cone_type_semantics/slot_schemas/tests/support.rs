@@ -13,7 +13,7 @@ use crate::cross_cone_type_semantics::inheritance::tests::support::{
 };
 
 #[derive(Default)]
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub inheritance: InheritanceFixture,
     pub schemas: BTreeMap<PersistentExactTypeId, CanonicalInheritanceSlotSchemasV1>,
     pub slots: BTreeMap<PersistentDispatchSlotId, DispatchSlotKey>,
