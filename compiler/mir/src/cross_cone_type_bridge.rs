@@ -12,6 +12,7 @@ use scoop_wire::{
     BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, WirePath,
 };
 
+mod callables;
 mod facts;
 mod origin;
 mod record;
@@ -23,6 +24,7 @@ mod tests;
 mod validation;
 mod wire;
 
+pub use callables::*;
 pub use facts::*;
 pub use origin::*;
 pub use record::*;

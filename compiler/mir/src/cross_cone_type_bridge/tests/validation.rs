@@ -223,6 +223,21 @@ fn bases_and_interfaces_keep_exact_kind_and_do_not_accept_duplicates() {
         interfaces: vec![interface],
     })
     .unwrap();
+    let mut interfaces = vec![interface, exact(fixture.other_interface.id()).id()];
+    interfaces.sort_unstable();
+    rebuild(MirBaseAndInterfacesV1 {
+        base: MirBaseClassV1::None,
+        interfaces: interfaces.clone(),
+    })
+    .unwrap();
+    interfaces.reverse();
+    assert!(matches!(
+        rebuild(MirBaseAndInterfacesV1 {
+            base: MirBaseClassV1::None,
+            interfaces
+        }),
+        Err(MirTypeBridgeError::NonCanonicalInterfaces { index: 1 })
+    ));
     assert!(matches!(
         rebuild(MirBaseAndInterfacesV1 {
             base: MirBaseClassV1::None,

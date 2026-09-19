@@ -65,6 +65,9 @@ pub enum MirTypeBridgeError {
     DuplicateInterface {
         exact: PersistentExactTypeId,
     },
+    NonCanonicalInterfaces {
+        index: usize,
+    },
     DuplicateType {
         exact: PersistentExactTypeId,
     },
@@ -215,6 +218,14 @@ impl MirTypeBridgeAuthority<'_> {
 
     fn validate_bases(&self, record: &ParamFreeMirTypeExportV1) -> Result<(), MirTypeBridgeError> {
         let relation = record.base_and_interfaces();
+        if let Some((index, _)) = relation
+            .interfaces
+            .windows(2)
+            .enumerate()
+            .find(|(_, pair)| pair[0] > pair[1])
+        {
+            return Err(MirTypeBridgeError::NonCanonicalInterfaces { index: index + 1 });
+        }
         if let MirBaseClassV1::Base(base) = relation.base {
             if base == record.exact()
                 || !matches!(

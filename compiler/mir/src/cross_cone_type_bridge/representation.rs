@@ -111,7 +111,6 @@ pub enum MirBaseClassV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MirBaseAndInterfacesV1 {
     pub base: MirBaseClassV1,
-    /// Source schema order, including inherited-interface order when supplied
-    /// by the provider's completed inheritance relation.
+    /// Canonical direct-interface set; dispatch order lives in its own schema.
     pub interfaces: Vec<PersistentExactTypeId>,
 }

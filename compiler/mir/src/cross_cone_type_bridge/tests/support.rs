@@ -18,6 +18,7 @@ pub(super) struct Fixture {
     pub other: NominalRecord,
     pub class: NominalRecord,
     pub interface: NominalRecord,
+    pub other_interface: NominalRecord,
     pub enumeration: NominalRecord,
     pub object: NominalRecord,
     pub backing: crate::GeneratedNominalRecord,
@@ -36,6 +37,7 @@ impl Fixture {
         let other = nominal("Other", SourceNominalKind::Struct);
         let class = nominal("Base", SourceNominalKind::Class);
         let interface = nominal("Interface", SourceNominalKind::Interface);
+        let other_interface = nominal("OtherInterface", SourceNominalKind::Interface);
         let enumeration = nominal("Choice", SourceNominalKind::Enum);
         let object = nominal("Registry", SourceNominalKind::Object);
         let backing = CborIdentityRecord::from_key(GeneratedNominalKey::ObjectBackingClass {
@@ -92,6 +94,7 @@ impl Fixture {
             other.clone(),
             class.clone(),
             interface.clone(),
+            other_interface.clone(),
             enumeration.clone(),
             object.clone(),
         ];
@@ -158,6 +161,7 @@ impl Fixture {
             other,
             class,
             interface,
+            other_interface,
             enumeration,
             object,
             backing,
