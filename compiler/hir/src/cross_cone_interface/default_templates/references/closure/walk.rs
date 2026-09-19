@@ -1,44 +1,37 @@
-use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
-use scoop_wire::{WireError, WireErrorKind};
-
-use super::{
-    CallableTargetView, ConstructorTargetView, ExportDefaultReferenceClosureValidationError,
-    ExportDefaultReferenceOccurrenceSiteV1, FieldTargetView, Validator,
+use super::visitor::{
+    DefaultBodyReferenceAttachmentV1, DefaultBodyReferenceTargetV1 as Target,
+    DefaultBodyReferenceVisitorV1, ReferenceWalker,
 };
-use crate::{
-    DefaultAnonymousFunctionV1, DefaultAppliedOptionV1, DefaultArrayAssemblyV1,
-    DefaultAssignTargetV1, DefaultBindingActionV1, DefaultBindingPlanV1,
-    DefaultBindingProjectionV1, DefaultBindingShapeV1, DefaultBoundCallableRefV1,
-    DefaultCallableRefV1, DefaultCallableReferenceV1, DefaultCaptureV1, DefaultCatchV1,
-    DefaultExpressionV1, DefaultForIterationPlanV1, DefaultIntegerArgumentsV1,
-    DefaultIntegerOperationV1, DefaultIteratorConformanceV1, DefaultIteratorNextV1,
-    DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1, DefaultMethodCalleeV1,
-    DefaultPatternV1, DefaultStatementV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
-    DefaultWhenGuardV1, DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1,
-};
+use crate::ExportDefaultBodyV1;
 
+mod model;
+mod schedule;
+pub(super) use model::BodyNode;
+use model::{ScheduledWork, WorkItem};
 mod expression;
 mod nested;
 mod statement;
 
-impl Validator<'_> {
-    pub(super) fn walk_body(
-        &mut self,
-        body: &ExportDefaultBodyV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    pub(super) fn walk_body(&mut self, body: &'body ExportDefaultBodyV1) -> Result<(), V::Error> {
         let mut pending = Vec::new();
         self.meter
             .try_reserve_collection_slots(&mut pending, 1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        pending.push(WorkItem::Body {
-            node: BodyNode::Body(body),
-            depth: 1,
+            .map_err(V::Error::from)?;
+        pending.push(ScheduledWork {
+            work: WorkItem::Body {
+                node: BodyNode::Body(body),
+                depth: 1,
+            },
+            attachment: self.current,
         });
 
-        while let Some(work) = pending.pop() {
+        while let Some(ScheduledWork { work, attachment }) = pending.pop() {
+            self.current = attachment;
             match work {
                 WorkItem::Body { node, depth } => {
                     self.enter_node(depth)?;
+                    self.attach_node(node)?;
                     self.process_node(node, depth, &mut pending)?;
                 }
                 WorkItem::Type {
@@ -46,60 +39,60 @@ impl Validator<'_> {
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.match_type(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Type(target), origin, site)?;
                 }
                 WorkItem::Callable {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.observe_callable(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Callable(target), origin, site)?;
                 }
                 WorkItem::Constructor {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.observe_constructor(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Constructor(target), origin, site)?;
                 }
                 WorkItem::Global {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.observe_global(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Global(target), origin, site)?;
                 }
                 WorkItem::Singleton {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.observe_singleton(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Singleton(target), origin, site)?;
                 }
                 WorkItem::Field {
                     target,
                     origin,
                     site,
                 } => {
-                    self.enter_scheduled_leaf()?;
-                    self.observe_field(target, origin, site)?;
+                    self.enter_node(1)?;
+                    self.observe(Target::Field(target), origin, site)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn process_node<'body>(
+    fn process_node(
         &mut self,
         node: BodyNode<'body>,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match node {
             BodyNode::Body(body) => self.process_body(body, depth, pending),
             BodyNode::Statement(statement) => self.process_statement(statement, depth, pending),
@@ -209,329 +202,13 @@ impl Validator<'_> {
         }
     }
 
-    fn process_body<'body>(
+    fn process_body(
         &mut self,
         body: &'body ExportDefaultBodyV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
         self.push_statements(pending, depth, body.statements())
     }
-
-    pub(super) fn push_child<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        parent_depth: u64,
-        node: BodyNode<'body>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        let depth = parent_depth.checked_add(1).ok_or_else(|| {
-            ExportDefaultReferenceClosureValidationError::Resource(integer_out_of_range(self.path))
-        })?;
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.reserve_edge(pending)?;
-        pending.push(WorkItem::Body { node, depth });
-        Ok(())
-    }
-
-    pub(super) fn push_type<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: &'body SignatureTypeKey,
-        origin: &'body ExportDefinitionSourceV1,
-        site: crate::DefaultBodyProviderTypeSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Type {
-                target,
-                origin,
-                site: ExportDefaultReferenceOccurrenceSiteV1::BodyType(site),
-            },
-        )
-    }
-
-    pub(super) fn push_callable<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: CallableTargetView<'body>,
-        origin: &'body ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Callable {
-                target,
-                origin,
-                site,
-            },
-        )
-    }
-
-    pub(super) fn push_constructor<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: ConstructorTargetView<'body>,
-        origin: &'body ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Constructor {
-                target,
-                origin,
-                site,
-            },
-        )
-    }
-
-    pub(super) fn push_global<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: PersistentPropertyId,
-        origin: &'body ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Global {
-                target,
-                origin,
-                site,
-            },
-        )
-    }
-
-    pub(super) fn push_singleton<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: PersistentObjectValueId,
-        origin: &'body ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Singleton {
-                target,
-                origin,
-                site,
-            },
-        )
-    }
-
-    pub(super) fn push_field<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        target: FieldTargetView<'body>,
-        origin: &'body ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.push_leaf(
-            pending,
-            WorkItem::Field {
-                target,
-                origin,
-                site,
-            },
-        )
-    }
-
-    fn push_leaf<'body>(
-        &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
-        work: WorkItem<'body>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.meter
-            .check_semantic_depth(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.reserve_edge(pending)?;
-        pending.push(work);
-        Ok(())
-    }
-
-    fn reserve_edge<T>(
-        &mut self,
-        pending: &mut Vec<T>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .try_reserve_collection_slots(pending, 1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum WorkItem<'a> {
-    Body {
-        node: BodyNode<'a>,
-        depth: u64,
-    },
-    Type {
-        target: &'a SignatureTypeKey,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    Callable {
-        target: CallableTargetView<'a>,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    Constructor {
-        target: ConstructorTargetView<'a>,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    Global {
-        target: PersistentPropertyId,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    Singleton {
-        target: PersistentObjectValueId,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    Field {
-        target: FieldTargetView<'a>,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum BodyNode<'a> {
-    Body(&'a ExportDefaultBodyV1),
-    Statement(&'a DefaultStatementV1),
-    Expression(&'a DefaultExpressionV1),
-    Pattern {
-        pattern: &'a DefaultPatternV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    AssignTarget {
-        target: &'a DefaultAssignTargetV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    When {
-        value: &'a DefaultWhenV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    WhenArm(&'a DefaultWhenArmV1),
-    WhenGuard(&'a DefaultWhenGuardV1),
-    WhenFallback {
-        fallback: &'a DefaultWhenFallbackV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    Try(&'a DefaultTryV1),
-    Catch(&'a DefaultCatchV1),
-    For {
-        plan: &'a DefaultForIterationPlanV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingPlan {
-        plan: &'a DefaultBindingPlanV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingAction(&'a DefaultBindingActionV1),
-    BindingShape {
-        shape: &'a DefaultBindingShapeV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingProjection {
-        projection: &'a DefaultBindingProjectionV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingTemporary {
-        value_type: &'a SignatureTypeKey,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingLeaf {
-        value_type: &'a SignatureTypeKey,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    IteratorConformance(&'a DefaultIteratorConformanceV1),
-    IteratorNext(&'a DefaultIteratorNextV1),
-    AppliedOption {
-        option: &'a DefaultAppliedOptionV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    LocalFunction {
-        function: &'a DefaultLocalFunctionV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    Lambda {
-        lambda: &'a DefaultLambdaV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    Anonymous {
-        function: &'a DefaultAnonymousFunctionV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    CallableReference {
-        reference: &'a DefaultCallableReferenceV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    Capture(&'a DefaultCaptureV1),
-    CallableUse {
-        callable: &'a DefaultCallableRefV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    CallableShape {
-        callable: &'a DefaultCallableRefV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BoundCallableUse {
-        callable: &'a DefaultBoundCallableRefV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    BoundCallableShape {
-        callable: &'a DefaultBoundCallableRefV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    MethodCallee {
-        callee: &'a DefaultMethodCalleeV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    MethodCalleeShape {
-        callee: &'a DefaultMethodCalleeV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    ConstructorUse {
-        target: ConstructorTargetView<'a>,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    VariantFieldShape {
-        field: &'a crate::DefaultEnumVariantFieldRefV1,
-        origin: &'a ExportDefinitionSourceV1,
-        site: crate::DefaultBodyProviderTypeSiteV1,
-    },
-    FieldUse {
-        target: FieldTargetView<'a>,
-        origin: &'a ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-    },
-    LiteralEquality {
-        equality: &'a DefaultLiteralEqualityV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    ArrayAssembly {
-        assembly: &'a DefaultArrayAssemblyV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    IntegerOperation {
-        operation: &'a DefaultIntegerOperationV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    IntegerArguments(&'a DefaultIntegerArgumentsV1),
-}
-
-fn integer_out_of_range(path: &scoop_wire::WirePath) -> WireError {
-    WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None)
 }

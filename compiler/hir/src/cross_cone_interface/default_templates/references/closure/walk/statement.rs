@@ -1,8 +1,7 @@
-use super::super::ExportDefaultReferenceClosureValidationError;
 use super::super::{
     ConstructorTargetView, ExportDefaultReferenceOccurrenceSiteV1, FieldTargetView,
 };
-use super::{BodyNode, Validator, WorkItem};
+use super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::{
     DefaultAssignTargetV1, DefaultBodyProviderTypeSiteV1, DefaultPatternV1, DefaultPatternViewV1,
     DefaultStatementKindV1, DefaultStatementV1, ExportDefinitionSourceV1,
@@ -12,13 +11,13 @@ use crate::{
 mod bindings;
 mod control_flow;
 
-impl Validator<'_> {
-    pub(super) fn process_statement<'body>(
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    pub(super) fn process_statement(
         &mut self,
         statement: &'body DefaultStatementV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         let origin = statement.definition_origin();
         match statement.kind() {
             DefaultStatementKindV1::Expr(expression)
@@ -77,13 +76,13 @@ impl Validator<'_> {
         }
     }
 
-    pub(super) fn process_pattern<'body>(
+    pub(super) fn process_pattern(
         &mut self,
         pattern: &'body DefaultPatternV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match pattern.view() {
             DefaultPatternViewV1::Binding { .. } | DefaultPatternViewV1::Wildcard => Ok(()),
             DefaultPatternViewV1::Literal {
@@ -148,26 +147,26 @@ impl Validator<'_> {
         }
     }
 
-    fn push_patterns<'body>(
+    fn push_patterns(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<ScheduledWork<'body>>,
         depth: u64,
         patterns: &'body [DefaultPatternV1],
         origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+    ) -> Result<(), V::Error> {
         for pattern in patterns.iter().rev() {
             self.push_child(pending, depth, BodyNode::Pattern { pattern, origin })?;
         }
         Ok(())
     }
 
-    pub(super) fn process_assign_target<'body>(
+    pub(super) fn process_assign_target(
         &mut self,
         target: &'body DefaultAssignTargetV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match target {
             DefaultAssignTargetV1::Local { .. } => Ok(()),
             DefaultAssignTargetV1::Global { property } => self.push_global(
@@ -195,12 +194,12 @@ impl Validator<'_> {
         }
     }
 
-    pub(super) fn push_statements<'body>(
+    pub(super) fn push_statements(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<ScheduledWork<'body>>,
         depth: u64,
         statements: &'body [DefaultStatementV1],
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+    ) -> Result<(), V::Error> {
         for statement in statements.iter().rev() {
             self.push_child(pending, depth, BodyNode::Statement(statement))?;
         }

@@ -4,19 +4,18 @@ use crate::{
 };
 
 use super::super::{
-    CallableTargetView, ConstructorTargetView, ExportDefaultReferenceClosureValidationError,
-    ExportDefaultReferenceOccurrenceSiteV1,
+    CallableTargetView, ConstructorTargetView, ExportDefaultReferenceOccurrenceSiteV1,
 };
-use super::{BodyNode, Validator, WorkItem};
+use super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::DefaultBodyProviderTypeSiteV1;
 
-impl Validator<'_> {
-    pub(super) fn process_expression<'body>(
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    pub(super) fn process_expression(
         &mut self,
         expression: &'body DefaultExpressionV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         self.process_expression_kind(
             expression.kind(),
             expression.definition_origin(),
@@ -31,13 +30,13 @@ impl Validator<'_> {
         )
     }
 
-    fn process_expression_kind<'body>(
+    fn process_expression_kind(
         &mut self,
         kind: &'body DefaultExpressionKindV1,
         origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match kind {
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
@@ -358,37 +357,37 @@ impl Validator<'_> {
         }
     }
 
-    fn push_optional_expression<'body>(
+    fn push_optional_expression(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<ScheduledWork<'body>>,
         depth: u64,
         expression: Option<&'body DefaultExpressionV1>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+    ) -> Result<(), V::Error> {
         match expression {
             Some(expression) => self.push_child(pending, depth, BodyNode::Expression(expression)),
             None => Ok(()),
         }
     }
 
-    pub(super) fn push_expressions<'body>(
+    pub(super) fn push_expressions(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<ScheduledWork<'body>>,
         depth: u64,
         expressions: &'body [DefaultExpressionV1],
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+    ) -> Result<(), V::Error> {
         for expression in expressions.iter().rev() {
             self.push_child(pending, depth, BodyNode::Expression(expression))?;
         }
         Ok(())
     }
 
-    pub(super) fn process_array_assembly<'body>(
+    pub(super) fn process_array_assembly(
         &mut self,
         assembly: &'body DefaultArrayAssemblyV1,
         origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         self.push_type(
             pending,
             assembly.result_type(),
@@ -410,13 +409,13 @@ impl Validator<'_> {
         )
     }
 
-    pub(super) fn process_integer_operation<'body>(
+    pub(super) fn process_integer_operation(
         &mut self,
         operation: &'body DefaultIntegerOperationV1,
         origin: &'body crate::ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         let callable = match operation {
             DefaultIntegerOperationV1::NoGc { target, .. }
             | DefaultIntegerOperationV1::Managed { target, .. } => target,
@@ -424,12 +423,12 @@ impl Validator<'_> {
         self.push_child(pending, depth, BodyNode::CallableUse { callable, origin })
     }
 
-    pub(super) fn process_integer_arguments<'body>(
+    pub(super) fn process_integer_arguments(
         &mut self,
         arguments: &'body DefaultIntegerArgumentsV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match arguments {
             DefaultIntegerArgumentsV1::Unary(operand) => {
                 self.push_child(pending, depth, BodyNode::Expression(operand))

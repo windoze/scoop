@@ -13,11 +13,15 @@ use super::{
 use crate::{
     CallableInterfaceRecordV1, DefaultBodyProviderTypeSiteV1, DefaultConstructorRefV1,
     DefaultFieldRefV1, ExportDefaultTemplateV1, ExportDefinitionSourceV1, PublicLookupAccessV1,
-    TemplateLocalDefinitionV1,
 };
 
 mod compare;
+mod visitor;
 mod walk;
+
+pub use visitor::*;
+
+use visitor::DefaultBodyReferenceTargetV1 as Target;
 
 use compare::{
     CallableTargetView, ConstructorTargetView, FieldTargetView, callable_target,
@@ -53,53 +57,33 @@ impl ExportDefaultTemplateV1 {
             expected_owner,
             call_domain(owner_interface.access()),
         );
-        Validator::new(self, witness, meter, path)?.run()
-    }
-}
-
-struct Validator<'a> {
-    template: &'a ExportDefaultTemplateV1,
-    witness: ExportDefaultAccessWitnessV1,
-    domains: ReferenceDomains<'a>,
-    meter: &'a mut BudgetMeter,
-    path: &'a WirePath,
-}
-
-impl<'a> Validator<'a> {
-    fn new(
-        template: &'a ExportDefaultTemplateV1,
-        witness: ExportDefaultAccessWitnessV1,
-        meter: &'a mut BudgetMeter,
-        path: &'a WirePath,
-    ) -> Result<Self, ExportDefaultReferenceClosureValidationError> {
-        let domains = ReferenceDomains::new(template.references(), meter, path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        Ok(Self {
-            template,
-            witness,
-            domains,
+        let mut observer = PublicClosureObserver::new(self.references(), witness, meter, path)?;
+        self.body().visit_direct_references(
+            self.locals(),
+            self.definition_origin(),
+            &mut observer,
             meter,
             path,
-        })
+        )?;
+        observer.domains.finish(meter, path)
     }
+}
 
-    fn run(mut self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        let template = self.template;
-        for (index, local) in template.locals().records().iter().enumerate() {
-            self.enter_node(1)?;
-            let origin = match local.definition() {
-                TemplateLocalDefinitionV1::Source(origin) => origin,
-                TemplateLocalDefinitionV1::Synthetic => template.definition_origin(),
-            };
-            self.enter_leaf()?;
-            self.match_type(
-                local.value_type(),
-                origin,
-                ExportDefaultReferenceOccurrenceSiteV1::TemplateLocalType { index },
-            )?;
-        }
-        self.walk_body(template.body())?;
-        self.domains.finish(self.meter, self.path)
+struct PublicClosureObserver<'a> {
+    witness: ExportDefaultAccessWitnessV1,
+    domains: ReferenceDomains<'a>,
+}
+
+impl<'a> PublicClosureObserver<'a> {
+    fn new(
+        references: &'a ExportDefaultReferenceSetV1,
+        witness: ExportDefaultAccessWitnessV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Self, ExportDefaultReferenceClosureValidationError> {
+        let domains = ReferenceDomains::new(references, meter, path)
+            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
+        Ok(Self { witness, domains })
     }
 
     fn observe_callable(
@@ -107,6 +91,8 @@ impl<'a> Validator<'a> {
         target: CallableTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
             self.domains.callables.records,
@@ -116,8 +102,8 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Callable,
             site,
             |declared, meter, path| callable_target(declared, target, meter, path),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
 
@@ -126,6 +112,8 @@ impl<'a> Validator<'a> {
         target: ConstructorTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
             self.domains.constructors.records,
@@ -135,8 +123,8 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Constructor,
             site,
             |declared, meter, path| constructor_target(declared, target, meter, path),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
 
@@ -145,6 +133,8 @@ impl<'a> Validator<'a> {
         target: &SignatureTypeKey,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         if matches!(target, SignatureTypeKey::Binder { .. }) {
             return Ok(());
@@ -157,8 +147,8 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Type,
             site,
             |declared, meter, path| signature_type(declared, target, meter, path),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
 
@@ -167,6 +157,8 @@ impl<'a> Validator<'a> {
         target: PersistentPropertyId,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
             self.domains.globals.records,
@@ -176,8 +168,8 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Global,
             site,
             |declared, _, _| Ok(declared.cmp(&target)),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
 
@@ -186,6 +178,8 @@ impl<'a> Validator<'a> {
         target: PersistentObjectValueId,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
             self.domains.singletons.records,
@@ -195,8 +189,8 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Singleton,
             site,
             |declared, _, _| Ok(declared.cmp(&target)),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
 
@@ -205,6 +199,8 @@ impl<'a> Validator<'a> {
         target: FieldTargetView<'_>,
         origin: &ExportDefinitionSourceV1,
         site: ExportDefaultReferenceOccurrenceSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
     ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
         observe_record(
             self.domains.fields.records,
@@ -214,41 +210,47 @@ impl<'a> Validator<'a> {
             ExportDefaultReferenceKindV1::Field,
             site,
             |declared, meter, path| field_target(declared, target, meter, path),
-            self.meter,
-            self.path,
+            meter,
+            path,
         )
     }
+}
 
-    fn enter_leaf(&mut self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.meter
-            .check_semantic_depth(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .charge_edges(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.enter_node(1)
-    }
+impl<'body> DefaultBodyReferenceVisitorV1<'body> for PublicClosureObserver<'_> {
+    type Error = ExportDefaultReferenceClosureValidationError;
 
-    fn enter_scheduled_leaf(&mut self) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.enter_node(1)
-    }
-
-    fn enter_node(
+    fn expression(
         &mut self,
-        depth: u64,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        self.meter
-            .check_semantic_depth(depth, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .charge_nodes(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        self.meter
-            .charge_work(1, self.path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)
+        _: u32,
+        _: &crate::DefaultExpressionV1,
+        _: &mut BudgetMeter,
+        _: &WirePath,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn reference(
+        &mut self,
+        occurrence: DefaultBodyReferenceOccurrenceV1<'body>,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), Self::Error> {
+        let DefaultBodyReferenceOccurrenceV1 {
+            target,
+            definition_origin: origin,
+            site,
+            ..
+        } = occurrence;
+        match target {
+            Target::Callable(target) => self.observe_callable(target, origin, site, meter, path),
+            Target::Constructor(target) => {
+                self.observe_constructor(target, origin, site, meter, path)
+            }
+            Target::Type(target) => self.match_type(target, origin, site, meter, path),
+            Target::Global(target) => self.observe_global(target, origin, site, meter, path),
+            Target::Singleton(target) => self.observe_singleton(target, origin, site, meter, path),
+            Target::Field(target) => self.observe_field(target, origin, site, meter, path),
+        }
     }
 }
 
@@ -466,6 +468,12 @@ impl fmt::Display for ExportDefaultReferenceClosureValidationError {
 }
 
 impl std::error::Error for ExportDefaultReferenceClosureValidationError {}
+
+impl From<WireError> for ExportDefaultReferenceClosureValidationError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
 
 #[cfg(test)]
 mod tests;

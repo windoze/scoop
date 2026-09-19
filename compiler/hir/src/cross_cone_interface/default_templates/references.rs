@@ -14,7 +14,11 @@ pub use callable_target::{
     ExportDefaultCallableTargetResolutionError, ExportDefaultCallableTargetV1,
 };
 pub use closure::{
-    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceOccurrenceSiteV1,
+    DefaultBodyReferenceAttachmentV1, DefaultBodyReferenceMetadataV1,
+    DefaultBodyReferenceOccurrenceV1, DefaultBodyReferenceTargetV1, DefaultBodyReferenceVisitorV1,
+    DefaultCallableReferenceTargetViewV1, DefaultConstructorReferenceTargetViewV1,
+    DefaultFieldReferenceTargetViewV1, ExportDefaultReferenceClosureValidationError,
+    ExportDefaultReferenceOccurrenceSiteV1,
 };
 pub use record::{
     DecodedExportDefaultCallableReferenceV1, DecodedExportDefaultConstructorReferenceV1,

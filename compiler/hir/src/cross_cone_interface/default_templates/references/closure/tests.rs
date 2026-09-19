@@ -485,3 +485,5 @@ fn origin_at(path: &str, point: u64) -> ExportDefinitionSourceV1 {
             .unwrap(),
     )
 }
+
+mod visitor;

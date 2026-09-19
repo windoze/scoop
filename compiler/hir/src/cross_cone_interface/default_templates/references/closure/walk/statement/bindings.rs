@@ -1,8 +1,7 @@
-use super::super::super::ExportDefaultReferenceClosureValidationError;
 use super::super::super::{
     ConstructorTargetView, ExportDefaultReferenceOccurrenceSiteV1, FieldTargetView,
 };
-use super::super::{BodyNode, Validator, WorkItem};
+use super::super::{BodyNode, DefaultBodyReferenceVisitorV1, ReferenceWalker, ScheduledWork};
 use crate::{
     DefaultAppliedOptionV1, DefaultBindingActionV1, DefaultBindingActionViewV1,
     DefaultBindingPlanV1, DefaultBindingProjectionV1, DefaultBindingProjectionViewV1,
@@ -11,14 +10,14 @@ use crate::{
     ExportDefinitionSourceV1,
 };
 
-impl Validator<'_> {
-    pub(in super::super) fn process_for<'body>(
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    pub(in super::super) fn process_for(
         &mut self,
         plan: &'body DefaultForIterationPlanV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         self.push_statements(pending, depth, plan.body())?;
         self.push_child(
             pending,
@@ -48,13 +47,13 @@ impl Validator<'_> {
         self.push_statements(pending, depth, plan.source_setup())
     }
 
-    pub(in super::super) fn process_binding_plan<'body>(
+    pub(in super::super) fn process_binding_plan(
         &mut self,
         plan: &'body DefaultBindingPlanV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         for action in plan.actions().iter().rev() {
             self.push_child(pending, depth, BodyNode::BindingAction(action))?;
         }
@@ -76,12 +75,12 @@ impl Validator<'_> {
         )
     }
 
-    pub(in super::super) fn process_binding_action<'body>(
+    pub(in super::super) fn process_binding_action(
         &mut self,
         action: &'body DefaultBindingActionV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match action.view() {
             DefaultBindingActionViewV1::Project {
                 source,
@@ -166,13 +165,13 @@ impl Validator<'_> {
         }
     }
 
-    pub(in super::super) fn process_binding_shape<'body>(
+    pub(in super::super) fn process_binding_shape(
         &mut self,
         shape: &'body DefaultBindingShapeV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match shape.view() {
             DefaultBindingShapeViewV1::Binding(leaf) => self.push_child(
                 pending,
@@ -228,26 +227,26 @@ impl Validator<'_> {
         }
     }
 
-    fn push_binding_shapes<'body>(
+    fn push_binding_shapes(
         &mut self,
-        pending: &mut Vec<WorkItem<'body>>,
+        pending: &mut Vec<ScheduledWork<'body>>,
         depth: u64,
         shapes: &'body [DefaultBindingShapeV1],
         origin: &'body ExportDefinitionSourceV1,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+    ) -> Result<(), V::Error> {
         for shape in shapes.iter().rev() {
             self.push_child(pending, depth, BodyNode::BindingShape { shape, origin })?;
         }
         Ok(())
     }
 
-    pub(in super::super) fn process_binding_projection<'body>(
+    pub(in super::super) fn process_binding_projection(
         &mut self,
         projection: &'body DefaultBindingProjectionV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         match projection.view() {
             DefaultBindingProjectionViewV1::TupleIndex(_) => Ok(()),
             DefaultBindingProjectionViewV1::StructField {
@@ -268,12 +267,12 @@ impl Validator<'_> {
         }
     }
 
-    pub(in super::super) fn process_iterator_conformance<'body>(
+    pub(in super::super) fn process_iterator_conformance(
         &mut self,
         conformance: &'body DefaultIteratorConformanceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         let origin = conformance.definition_origin();
         self.push_type(
             pending,
@@ -299,12 +298,12 @@ impl Validator<'_> {
         )
     }
 
-    pub(in super::super) fn process_iterator_next<'body>(
+    pub(in super::super) fn process_iterator_next(
         &mut self,
         next: &'body DefaultIteratorNextV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         let origin = next.definition_origin();
         self.push_child(
             pending,
@@ -340,13 +339,13 @@ impl Validator<'_> {
         )
     }
 
-    pub(in super::super) fn process_applied_option<'body>(
+    pub(in super::super) fn process_applied_option(
         &mut self,
         option: &'body DefaultAppliedOptionV1,
         origin: &'body ExportDefinitionSourceV1,
         depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
         self.push_child(
             pending,
             depth,

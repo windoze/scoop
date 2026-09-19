@@ -12,8 +12,8 @@ use crate::{
     ExportDefaultCallableTargetV1,
 };
 
-#[derive(Clone, Copy)]
-pub(super) enum CallableTargetView<'a> {
+#[derive(Clone, Copy, Debug)]
+pub enum CallableTargetView<'a> {
     Callable(&'a DefaultCallableRefV1),
     Bound(&'a DefaultBoundCallableRefV1),
     DerivedEquality(&'a SignatureTypeKey),
@@ -94,8 +94,8 @@ pub(super) fn callable_target(
     }
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum ConstructorTargetView<'a> {
+#[derive(Clone, Copy, Debug)]
+pub enum ConstructorTargetView<'a> {
     Constructor(&'a DefaultConstructorRefV1),
     Variant(&'a DefaultEnumVariantRefV1),
 }
@@ -132,8 +132,8 @@ pub(super) fn constructor_target(
     }
 }
 
-#[derive(Clone, Copy)]
-pub(super) enum FieldTargetView<'a> {
+#[derive(Clone, Copy, Debug)]
+pub enum FieldTargetView<'a> {
     Field(&'a DefaultFieldRefV1),
     Struct {
         declaration: PersistentFieldId,
