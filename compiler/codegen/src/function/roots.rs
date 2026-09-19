@@ -40,7 +40,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .get(index as usize)
                 .map(scoop_lir::AbiArgument::logical_storage_type)
                 .ok_or_else(|| CodegenError(format!("statepoint param {index} is out of range"))),
-            scoop_lir::CallerRootSource::Local(id) => Ok(&self.function.locals[id].ty),
+            scoop_lir::CallerRootSource::Local(id) => Ok(self.function.locals[id].ty()),
             scoop_lir::CallerRootSource::Temp(id) => Ok(&self.function.temps[id].ty),
         }
     }
@@ -58,13 +58,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         match source {
             scoop_lir::CallerRootSource::Local(id) => Ok(RootStorage {
-                pointer: self.allocas[arena_index(id)],
+                pointer: self.local_pointer(id)?,
                 ty: basic_ty(
                     self.context,
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &self.function.locals[id].ty,
+                    self.function.locals[id].ty(),
                 )?,
             }),
             scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => self
@@ -108,7 +108,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 &item.ty,
             )?;
             let storage = match item.source {
-                scoop_lir::CallerRootSource::Local(id) => self.allocas[arena_index(id)],
+                scoop_lir::CallerRootSource::Local(id) => self.local_pointer(id)?,
                 scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => {
                     let canonical = self.root_storage.get(&item.source).ok_or_else(|| {
                         CodegenError(format!(

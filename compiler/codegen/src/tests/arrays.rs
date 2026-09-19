@@ -44,10 +44,7 @@ fn arrays_module() -> Module {
     );
 
     let mut locals = Arena::default();
-    let numbers = locals.alloc(Local {
-        name: "numbers".to_string(),
-        ty: MANAGED_PTR,
-    });
+    let numbers = locals.alloc(test_local("numbers", MANAGED_PTR));
 
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_alloc (1, 2, 3)

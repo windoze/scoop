@@ -391,7 +391,7 @@ fn checked_value_type(
             if index >= function.locals.len() {
                 return Err(invalid("local", index));
             }
-            Ok(function.locals[id].ty.clone())
+            Ok(function.locals[id].ty().clone())
         }
         Value::Param(index) => function
             .signature
@@ -592,7 +592,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             validate_value_type(
                 function,
                 &format!("local {}", id.into_raw().into_u32()),
-                &local.ty,
+                local.ty(),
             )?;
         }
         for (id, temp) in function.temps.iter() {

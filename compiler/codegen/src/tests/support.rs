@@ -1,4 +1,7 @@
 use super::*;
+
+mod locals;
+pub(super) use locals::*;
 use scoop_lir::LirIntegerConstant;
 use std::collections::{BTreeMap, HashSet};
 
@@ -1008,18 +1011,12 @@ pub(super) fn values_module() -> Module {
     });
 
     let mut locals = Arena::default();
-    let n = locals.alloc(Local {
-        name: "n".to_string(),
-        ty: LirType::I64,
-    });
-    let point = locals.alloc(Local {
-        name: "p".to_string(),
-        ty: LirType::Aggregate(vec![LirType::I64, LirType::I64]),
-    });
-    let unit = locals.alloc(Local {
-        name: "u".to_string(),
-        ty: LirType::Aggregate(vec![]),
-    });
+    let n = locals.alloc(test_local("n", LirType::I64));
+    let point = locals.alloc(test_local(
+        "p",
+        LirType::Aggregate(vec![LirType::I64, LirType::I64]),
+    ));
+    let unit = locals.alloc(test_local("u", LirType::Aggregate(vec![])));
 
     let mut temps = Arena::default();
     let temp = |temps: &mut Arena<Temp>, ty: LirType| temps.alloc(Temp { ty });

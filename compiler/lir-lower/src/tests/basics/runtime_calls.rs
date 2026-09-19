@@ -86,7 +86,7 @@ fn string_compare_uses_the_closed_signed_64_runtime_abi() {
     );
     assert_eq!(function.temps[out].ty, lir::LirType::I64);
     let (_, result_local) = function.locals.iter().next().expect("one result local");
-    assert_eq!(result_local.ty, lir::LirType::I64);
+    assert_eq!(result_local.ty(), &lir::LirType::I64);
 }
 
 #[test]

@@ -9,22 +9,16 @@ fn closure_abi_module() -> Module {
     let suspend_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
     let aggregate_argument_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64, LirType::I64]);
     let mut locals = Arena::default();
-    let ordinary_result = locals.alloc(Local {
-        name: "ordinary_result".to_string(),
-        ty: ordinary_result_ty.clone(),
-    });
-    let suspend_result = locals.alloc(Local {
-        name: "suspend_result".to_string(),
-        ty: suspend_result_ty.clone(),
-    });
-    let aggregate_argument = locals.alloc(Local {
-        name: "aggregate_argument".to_string(),
-        ty: aggregate_argument_ty.clone(),
-    });
-    let aggregate_suspend_result = locals.alloc(Local {
-        name: "aggregate_suspend_result".to_string(),
-        ty: suspend_result_ty.clone(),
-    });
+    let ordinary_result = locals.alloc(test_local("ordinary_result", ordinary_result_ty.clone()));
+    let suspend_result = locals.alloc(test_local("suspend_result", suspend_result_ty.clone()));
+    let aggregate_argument = locals.alloc(test_local(
+        "aggregate_argument",
+        aggregate_argument_ty.clone(),
+    ));
+    let aggregate_suspend_result = locals.alloc(test_local(
+        "aggregate_suspend_result",
+        suspend_result_ty.clone(),
+    ));
     let mut call_targets = CallTargets::default();
     let ordinary_dispatch = closure_dispatch_destination(&mut call_targets, Value::Param(0), 2);
     let mut ordinary_site = indirect_result_site(
@@ -54,7 +48,7 @@ fn closure_abi_module() -> Module {
         abi_value_with_layout(aggregate_argument_ty.clone(), 24, 8, RefScan::None);
     let aggregate_storage = scoop_lir::AbiArgumentStorage::new(
         aggregate_argument,
-        &locals[aggregate_argument].ty,
+        locals[aggregate_argument].ty(),
         &aggregate_value,
     )
     .expect("aggregate closure argument storage has its exact ABI type");
@@ -240,10 +234,7 @@ fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
 fn elided_zst_calls_keep_logical_values_without_physical_abi_slots() {
     let zst = LirType::Aggregate(Vec::new());
     let mut callee_locals = Arena::default();
-    let parameter_place = callee_locals.alloc(Local {
-        name: "zst_parameter_place".to_string(),
-        ty: zst.clone(),
-    });
+    let parameter_place = callee_locals.alloc(test_zst_place("zst_parameter_place"));
     let mut callee_temps = Arena::default();
     let parameter_address = callee_temps.alloc(Temp { ty: RAW_PTR });
     let mut callee_blocks = Arena::default();

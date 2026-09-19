@@ -282,10 +282,10 @@ pub(super) fn heap_module() -> Module {
     let t7 = temps.alloc(Temp { ty: LirType::I1 });
     let t8 = temps.alloc(Temp { ty: RAW_PTR });
     let mut locals = Arena::default();
-    let payload = locals.alloc(Local {
-        name: "box_payload".to_string(),
-        ty: LirType::Aggregate(vec![LirType::I64]),
-    });
+    let payload = locals.alloc(test_local(
+        "box_payload",
+        LirType::Aggregate(vec![LirType::I64]),
+    ));
     let byte_size_ty = LirType::MachineScalar(MachineScalarKind::ByteSize);
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(

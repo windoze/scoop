@@ -135,7 +135,7 @@ pub(super) fn live_value_ty(value: LiveValue, function: &lir::Function) -> &lir:
         LiveValue::Param(index) => {
             function.signature.arguments()[index as usize].logical_storage_type()
         }
-        LiveValue::Local(id) => &function.locals[id].ty,
+        LiveValue::Local(id) => function.locals[id].ty(),
         LiveValue::Temp(id) => &function.temps[id].ty,
     }
 }

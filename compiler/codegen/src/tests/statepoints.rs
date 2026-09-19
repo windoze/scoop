@@ -201,10 +201,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     };
 
     let mut borrowed_locals = Arena::default();
-    let result_root = borrowed_locals.alloc(Local {
-        name: "native_result_root".to_string(),
-        ty: MANAGED_PTR,
-    });
+    let result_root = borrowed_locals.alloc(test_local("native_result_root", MANAGED_PTR));
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();

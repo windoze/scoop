@@ -17,11 +17,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &function.locals[id].ty,
+                    function.locals[id].ty(),
                 )?;
-                self.builder
-                    .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
-                    .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
+                if function.locals[id].storage().is_zst() {
+                    ty.const_zero()
+                } else {
+                    self.builder
+                        .build_load(ty, self.local_pointer(id)?, &function.locals[id].name)
+                        .map_err(|e| {
+                            CodegenError(format!("load %{}: {e}", function.locals[id].name))
+                        })?
+                }
             }
             Value::Param(index) => {
                 let source = scoop_lir::CallerRootSource::Param(index);
@@ -178,9 +184,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         live: Option<&MaterializedStatepointLive<'ctx>>,
     ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
         match value {
-            Value::CArgumentStorage(storage) => {
-                Ok(self.allocas[arena_index(storage.local())].into())
-            }
+            Value::CArgumentStorage(storage) => Ok(self.local_pointer(storage.local())?.into()),
             _ => match live {
                 Some(live) => self.statepoint_value(value, live),
                 None => self.value(value),

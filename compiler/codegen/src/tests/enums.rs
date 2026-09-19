@@ -106,10 +106,12 @@ fn enum_module_with(
     // instructions on the tagged representation, including a local
     // of enum type (alloca + store + load).
     let mut tagged_locals = Arena::default();
-    let s2 = tagged_locals.alloc(Local {
-        name: "s2".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let s2 = tagged_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "s2",
+        shape_ty.clone(),
+    ));
     let mut tagged_temps = Arena::default();
     let t0 = tagged_temps.alloc(Temp {
         ty: shape_ty.clone(),
@@ -216,10 +218,12 @@ fn enum_module_with(
     // fun @scoop.niche(o: Option<String>) -> i64: all three enum
     // instructions on the niche representation (null ↔ variant 0).
     let mut niche_locals = Arena::default();
-    let o2 = niche_locals.alloc(Local {
-        name: "o2".to_string(),
-        ty: option_ty.clone(),
-    });
+    let o2 = niche_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "o2",
+        option_ty.clone(),
+    ));
     let mut niche_temps = Arena::default();
     let n0 = niche_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),
@@ -366,10 +370,12 @@ fn enum_module_with(
         entry: produce_entry,
     };
     let mut consume_locals = Arena::default();
-    let received = consume_locals.alloc(Local {
-        name: "received".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let received = consume_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "received",
+        shape_ty.clone(),
+    ));
     let mut consume_temps = Arena::default();
     let tag = consume_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),
@@ -413,10 +419,12 @@ fn enum_module_with(
         entry: consume_entry,
     };
     let mut indirect_locals = Arena::default();
-    let indirect_received = indirect_locals.alloc(Local {
-        name: "indirect_received".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let indirect_received = indirect_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "indirect_received",
+        shape_ty.clone(),
+    ));
     let mut indirect_temps = Arena::default();
     let indirect_tag = indirect_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),

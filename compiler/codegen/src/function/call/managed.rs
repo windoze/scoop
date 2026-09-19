@@ -14,7 +14,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             arguments.len() + usize::from(matches!(result, TypedCallResult::Indirect { .. })),
         );
         if let TypedCallResult::Indirect { storage, .. } = result {
-            values.push(self.allocas[arena_index(*storage)].into());
+            values.push(self.local_pointer(*storage)?.into());
         }
         for argument in arguments {
             match *argument {
@@ -23,7 +23,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     values.push(self.typed_call_argument_value(value, live)?);
                 }
                 scoop_lir::AbiCallArgument::Indirect(storage) => {
-                    values.push(self.allocas[arena_index(storage.local())].into());
+                    values.push(self.local_pointer(storage.local())?.into());
                 }
             }
         }
@@ -180,9 +180,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             self.structs,
                             self.enums,
                             self.managed_address_space,
-                            &self.function.locals[storage].ty,
+                            self.function.locals[storage].ty(),
                         )?;
-                        let pointer = self.allocas[arena_index(storage)];
+                        let pointer = self.local_pointer(storage)?;
                         self.builder
                             .build_store(pointer, llvm_ty.const_zero())
                             .map_err(|error| {
@@ -420,7 +420,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             TypedCallResult::Indirect { storage, .. } => {
                 if let Some(value) = rooted_native_result {
                     self.builder
-                        .build_store(self.allocas[arena_index(storage)], value)
+                        .build_store(self.local_pointer(storage)?, value)
                         .map_err(|error| {
                             CodegenError(format!("preserve reloaded native result: {error}"))
                         })?;

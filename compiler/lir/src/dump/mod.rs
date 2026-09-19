@@ -277,11 +277,21 @@ pub fn dump(module: &Module) -> String {
             }
         ));
         for (id, local) in function.locals.iter() {
+            let storage = match local.storage() {
+                LocalStorage::LogicalZst(value) => format!(" <logical-zst {}>", value.exact()),
+                LocalStorage::AddressableZst(place) => format!(
+                    " <zst-token {} align={} lifetime=function>",
+                    place.value().exact(),
+                    place.value().representation().layout().alignment(),
+                ),
+                LocalStorage::NonZero(_) => String::new(),
+            };
             out.push_str(&format!(
-                "    local %{} {}: {}\n",
+                "    local %{} {}: {}{}\n",
                 id.into_raw(),
                 local.name,
-                local.ty.dump()
+                local.ty().dump(),
+                storage,
             ));
         }
         for (block_id, block) in function.blocks.iter() {

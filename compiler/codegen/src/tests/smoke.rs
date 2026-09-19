@@ -361,10 +361,10 @@ fn raw_store_rejects_machine_scalar_value() {
 fn local_address_rejects_machine_scalar_storage() {
     let mut module = values_module();
     let function = &mut module.functions[0];
-    let local = function.locals.alloc(Local {
-        name: "machine_state".to_string(),
-        ty: LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
-    });
+    let local = function.locals.alloc(test_local(
+        "machine_state",
+        LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
+    ));
     let out = function.temps.alloc(Temp { ty: RAW_PTR });
     function.blocks[function.entry]
         .instructions
@@ -692,10 +692,10 @@ fn foreign_callback_operation_rejects_machine_scalar_operand_before_llvm_cast() 
 fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     let mut module = values_module();
     let function = &mut module.functions[0];
-    let local = function.locals.alloc(Local {
-        name: "machine_root".to_string(),
-        ty: LirType::MachineScalar(MachineScalarKind::EnumTag),
-    });
+    let local = function.locals.alloc(test_local(
+        "machine_root",
+        LirType::MachineScalar(MachineScalarKind::EnumTag),
+    ));
     let mut call = void_site(
         &mut function.call_targets,
         TestCallProtocol::Managed {

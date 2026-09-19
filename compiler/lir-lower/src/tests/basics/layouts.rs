@@ -35,8 +35,11 @@ fn struct_values_keep_named_lir_identity() {
     let module = lower(b.finish(main));
 
     let function = &module.functions[0];
-    let local_types: Vec<lir::LirType> =
-        function.locals.iter().map(|(_, l)| l.ty.clone()).collect();
+    let local_types: Vec<lir::LirType> = function
+        .locals
+        .iter()
+        .map(|(_, l)| l.ty().clone())
+        .collect();
     assert_eq!(
         local_types,
         [
@@ -122,7 +125,7 @@ fn unit_is_the_empty_aggregate() {
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
-    assert_eq!(u_local.ty, lir::LirType::Aggregate(Vec::new()));
+    assert_eq!(u_local.ty(), &lir::LirType::Aggregate(Vec::new()));
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::MakeAggregate { out, elements } = instructions[0] else {
         panic!("Unit must be an empty aggregate")
@@ -243,7 +246,7 @@ fn uint_and_int_are_exact_32_bit_scalars() {
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
-    assert_eq!(u_local.ty, lir::LirType::I32);
+    assert_eq!(u_local.ty(), &lir::LirType::I32);
 
     let c_layout = layout_values(&module)
         .find(|l| l.name == "C")

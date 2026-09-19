@@ -670,7 +670,7 @@ fn c_extern_arguments_keep_their_exact_backing_storage_in_lir() {
             lir::CArgumentStorage::address_of(local)
         ))]
     );
-    assert_eq!(function.locals[local].ty, lir::LirType::I8);
+    assert_eq!(function.locals[local].ty(), &lir::LirType::I8);
     assert!(lir::dump(&module).contains("extern0(c-arg-address(local0))"));
     assert!(
         !instructions

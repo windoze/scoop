@@ -231,7 +231,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                         local_index
                                     )));
                                 }
-                                let actual = &self.function.locals[storage.local()].ty;
+                                let actual = self.function.locals[storage.local()].ty();
                                 let expected = parameter.storage_type();
                                 if actual != &expected {
                                     return Err(CodegenError(format!(
@@ -427,7 +427,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
             }
             TypedCallResult::Indirect { storage, value, .. } => {
-                if &self.function.locals[*storage].ty != value.storage_type() {
+                if self.function.locals[*storage].ty() != value.storage_type() {
                     return Err(CodegenError(format!(
                         "typed call @{}: result storage does not match its signature",
                         self.function.symbol()

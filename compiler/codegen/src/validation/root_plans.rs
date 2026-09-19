@@ -413,7 +413,7 @@ fn live_value_type<'a>(
                     function.symbol()
                 )));
             }
-            Ok(&function.locals[id].ty)
+            Ok(function.locals[id].ty())
         }
         LiveValue::Temp(id) => {
             let index = arena_index(id);

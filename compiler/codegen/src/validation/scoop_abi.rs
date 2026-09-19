@@ -47,6 +47,20 @@ impl<'a> AbiMetadataValidator<'a> {
                 &format!("function @{}", function.symbol()),
             )?;
             self.validate_call_signatures(function)?;
+            for (id, local) in function.locals.iter() {
+                let owner = format!("function @{} local {}", function.symbol(), id.into_raw());
+                match local.storage() {
+                    scoop_lir::LocalStorage::LogicalZst(value) => {
+                        self.validate_zst(value.representation(), &owner)?;
+                    }
+                    scoop_lir::LocalStorage::AddressableZst(place) => {
+                        self.validate_zst(place.value().representation(), &owner)?;
+                    }
+                    scoop_lir::LocalStorage::NonZero(value) => {
+                        self.validate_value(value, &owner)?;
+                    }
+                }
+            }
         }
         for (_, function) in self.module.extern_functions.iter() {
             if let ExternFunctionKind::Scoop { signature, .. } = &function.kind {
@@ -1139,7 +1153,7 @@ fn validate_argument(
                     format!("indirect argument {index} references invalid local {local_index}"),
                 ));
             }
-            let actual_type = &function.locals[local].ty;
+            let actual_type = function.locals[local].ty();
             if actual_type != expected.storage_type() {
                 return Err(call_error(
                     function,
@@ -1242,7 +1256,7 @@ fn require_local_type(
             format!("{owner} references invalid local {index}"),
         ));
     }
-    let actual = &function.locals[local].ty;
+    let actual = function.locals[local].ty();
     if actual != expected {
         return Err(call_error(
             function,

@@ -967,10 +967,7 @@ fn managed_indirect_argument_root_module() -> Module {
     };
 
     let mut locals = Arena::new();
-    let argument = locals.alloc(Local {
-        name: "indirect_argument".to_string(),
-        ty: aggregate.clone(),
-    });
+    let argument = locals.alloc(test_local("indirect_argument", aggregate.clone()));
     let mut temps = Arena::new();
     let value = temps.alloc(Temp {
         ty: aggregate.clone(),
@@ -980,7 +977,7 @@ fn managed_indirect_argument_root_module() -> Module {
         vec![scoop_lir::AbiArgument::Indirect(abi_value.clone())],
         scoop_lir::CallingConvention::Cdecl,
     ));
-    let storage = scoop_lir::AbiArgumentStorage::new(argument, &locals[argument].ty, &abi_value)
+    let storage = scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &abi_value)
         .expect("test indirect argument has exact storage");
     let site = protocol_site(
         &mut targets,

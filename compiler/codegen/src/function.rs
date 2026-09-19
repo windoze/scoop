@@ -2,6 +2,7 @@ use super::*;
 
 mod call;
 mod instruction;
+mod local_storage;
 mod memory;
 mod roots;
 
@@ -46,7 +47,7 @@ struct FnEmitter<'a, 'ctx> {
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
-    allocas: Vec<PointerValue<'ctx>>,
+    allocas: Vec<local_storage::LocalAllocation<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
     /// Canonical addressable storage for every parameter/temporary named by
     /// a complete LIR root plan. Locals reuse their ordinary alloca. All
@@ -309,34 +310,7 @@ pub(super) fn emit_function<'ctx>(
     // LLVM's mem2reg promotes them. Entry is empty at this point, so
     // positioning at its end places the allocas before every instruction.
     builder.position_at_end(blocks[arena_index(function.entry)]);
-    for (_, local) in function.locals.iter() {
-        let ty = basic_ty(
-            context,
-            module_ctx.structs,
-            module_ctx.enums,
-            module_ctx.managed_address_space,
-            &local.ty,
-        )?;
-        let is_zero_sized = module_ctx.target_data.get_store_size(&ty) == 0;
-        let allocation_type = if is_zero_sized {
-            context.i8_type().into()
-        } else {
-            ty
-        };
-        let storage = builder
-            .build_alloca(allocation_type, &local.name)
-            .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?;
-        if is_zero_sized {
-            storage
-                .as_instruction_value()
-                .expect("alloca is an instruction")
-                .set_alignment(module_ctx.target_data.get_abi_alignment(&ty))
-                .map_err(|e| {
-                    CodegenError(format!("align zero-sized place %{}: {e}", local.name))
-                })?;
-        }
-        emitter.allocas.push(storage);
-    }
+    emitter.allocate_locals()?;
     emitter.prepare_root_storage()?;
     for (block_id, block) in function.blocks.iter() {
         emitter.current_block = block_id;

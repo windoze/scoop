@@ -57,6 +57,7 @@ mod smoke;
 mod statepoints;
 mod strong_shapes;
 mod validation_boundaries;
+mod zst_places;
 
 use enums::enum_module;
 use exceptions::exceptions_module;

@@ -881,10 +881,7 @@ fn append_c_void_call(
         },
     });
     let caller = &mut module.functions[0];
-    let storage = caller.locals.alloc(Local {
-        name: "c_argument".to_string(),
-        ty: storage_type,
-    });
+    let storage = caller.locals.alloc(test_local("c_argument", storage_type));
     let site = void_site(
         &mut caller.call_targets,
         TestCallProtocol::NativeSafe {
@@ -948,10 +945,9 @@ fn c_extern_call_binds_each_argument_to_its_exact_c_storage_type() {
 fn c_argument_storage_address_cannot_escape_to_another_call_protocol() {
     let mut module = values_module();
     let caller = &mut module.functions[0];
-    let storage = caller.locals.alloc(Local {
-        name: "escaped_c_argument".to_string(),
-        ty: LirType::I8,
-    });
+    let storage = caller
+        .locals
+        .alloc(test_local("escaped_c_argument", LirType::I8));
     let site = void_site(
         &mut caller.call_targets,
         TestCallProtocol::NoGc {

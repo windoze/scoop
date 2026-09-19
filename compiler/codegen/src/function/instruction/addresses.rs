@@ -176,7 +176,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, result.into());
             }
             Instruction::LocalAddress { out, local } => {
-                let local_ty = &function.locals[*local].ty;
+                let local_ty = function.locals[*local].ty();
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
                     || validation::contains_machine_scalar(self.structs, self.enums, local_ty)
                 {
@@ -186,8 +186,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         local_ty.dump()
                     )));
                 }
-                self.temps
-                    .insert(*out, self.allocas[arena_index(*local)].into());
+                self.temps.insert(*out, self.local_pointer(*local)?.into());
             }
             Instruction::GlobalLoad { out, global } => {
                 let GlobalInit::Storage { ty: storage_ty, .. } = &self.globals_arena[*global].init
@@ -411,18 +410,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::Store { local, value: v } => {
                 let value_ty = function.value_ty(self.globals_arena, *v);
-                if value_ty != function.locals[*local].ty {
+                if &value_ty != function.locals[*local].ty() {
                     return Err(CodegenError(format!(
                         "store @{} has value type {}, but %{} stores {}",
                         function.symbol(),
                         value_ty.dump(),
                         function.locals[*local].name,
-                        function.locals[*local].ty.dump()
+                        function.locals[*local].ty().dump()
                     )));
                 }
                 let operand = self.value(*v)?;
+                if function.locals[*local].storage().is_zst() {
+                    return Ok(());
+                }
                 builder
-                    .build_store(self.allocas[arena_index(*local)], operand)
+                    .build_store(self.local_pointer(*local)?, operand)
                     .map_err(|e| {
                         CodegenError(format!("store %{}: {e}", function.locals[*local].name))
                     })?;

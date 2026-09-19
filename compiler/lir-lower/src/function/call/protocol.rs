@@ -209,7 +209,7 @@ impl<'a> FunctionLowerer<'a> {
                         value,
                     });
                     lir::AbiCallArgument::Indirect(
-                        lir::AbiArgumentStorage::new(storage, &self.locals[storage].ty, expected)
+                        lir::AbiArgumentStorage::new(storage, self.locals[storage].ty(), expected)
                             .expect("fresh indirect argument storage has its exact ABI type"),
                     )
                 }

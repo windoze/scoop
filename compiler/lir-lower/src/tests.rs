@@ -5,6 +5,7 @@ mod support;
 use support::*;
 
 mod dependency_external;
+mod zst_places;
 
 use scoop_identity::{
     CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,

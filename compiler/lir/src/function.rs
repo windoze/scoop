@@ -1,5 +1,8 @@
 use super::*;
 
+mod place;
+pub use place::*;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableBodyIdentity {
     record: scoop_identity::RuntimeIdentityRecord<scoop_identity::PersistentCallableBodyId>,
@@ -109,13 +112,6 @@ impl CallableBodyIdentity {
 pub type CallableBodyIdentityBuildError =
     scoop_identity::RuntimeIdentityRecordBuildError<scoop_wire::HashError>;
 
-/// A local variable's stack slot.
-#[derive(Debug)]
-pub struct Local {
-    pub name: String,
-    pub ty: LirType,
-}
-
 /// A temporary SSA-ish value produced by an instruction.
 #[derive(Debug)]
 pub struct Temp {
@@ -154,7 +150,7 @@ impl Function {
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
         match value {
-            Value::Local(id) => self.locals[id].ty.clone(),
+            Value::Local(id) => self.locals[id].ty().clone(),
             Value::Temp(id) => self.temps[id].ty.clone(),
             Value::Param(index) => self.signature.arguments()[index as usize]
                 .logical_storage_type()

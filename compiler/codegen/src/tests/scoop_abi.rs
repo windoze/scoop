@@ -1,5 +1,7 @@
 use super::*;
 
+mod zst;
+
 fn aggregate_type() -> LirType {
     LirType::Aggregate(vec![LirType::I64, LirType::I64, LirType::I64])
 }
@@ -55,7 +57,7 @@ fn aggregate_call(
                 value.clone(),
                 scoop_lir::CallingConvention::Cdecl,
             ));
-    let storage = scoop_lir::AbiArgumentStorage::new(argument, &locals[argument].ty, &value)
+    let storage = scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &value)
         .expect("test aggregate argument storage has its exact ABI type");
     protocol_site(
         targets,
@@ -70,14 +72,8 @@ fn aggregate_call(
 
 fn aggregate_call_storage() -> (Arena<Local>, scoop_lir::LocalId, scoop_lir::LocalId) {
     let mut locals = Arena::new();
-    let argument = locals.alloc(Local {
-        name: "aggregate_argument".to_string(),
-        ty: aggregate_type(),
-    });
-    let result = locals.alloc(Local {
-        name: "aggregate_result".to_string(),
-        ty: aggregate_type(),
-    });
+    let argument = locals.alloc(test_local("aggregate_argument", aggregate_type()));
+    let result = locals.alloc(test_local("aggregate_result", aggregate_type()));
     (locals, argument, result)
 }
 
@@ -327,14 +323,8 @@ fn native_aggregate_module() -> Module {
     });
 
     let mut locals = Arena::new();
-    let argument = locals.alloc(Local {
-        name: "native_argument".to_string(),
-        ty: managed_aggregate_type(),
-    });
-    let result = locals.alloc(Local {
-        name: "native_result".to_string(),
-        ty: managed_aggregate_type(),
-    });
+    let argument = locals.alloc(test_local("native_argument", managed_aggregate_type()));
+    let result = locals.alloc(test_local("native_result", managed_aggregate_type()));
     let mut temps = Arena::new();
     let literal = temps.alloc(Temp {
         ty: managed_aggregate_type(),
@@ -350,7 +340,7 @@ fn native_aggregate_module() -> Module {
                 scoop_lir::CallingConvention::Cdecl,
             ));
     let argument_storage =
-        scoop_lir::AbiArgumentStorage::new(argument, &locals[argument].ty, &abi_value)
+        scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &abi_value)
             .expect("native aggregate argument storage has its exact ABI type");
     let mut site = protocol_site(
         &mut call_targets,
