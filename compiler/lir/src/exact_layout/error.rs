@@ -22,6 +22,7 @@ pub enum ExactLayoutReplayError {
     MissingCLayout,
     ProviderMismatch,
     BaseKind,
+    ObjectBackingIdentity,
     BoxPayloadIdentity,
     BoxPayloadKind,
     ArrayElementIdentity,

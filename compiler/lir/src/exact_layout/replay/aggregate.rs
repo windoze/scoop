@@ -20,6 +20,15 @@ pub(super) fn nominal_fields<'a>(
     meter: &mut BudgetMeter,
 ) -> Result<Vec<DeclaredFieldStorageV1<'a>>, ExactLayoutReplayError> {
     let owner = nominal(identity.exact_key())?;
+    nominal_fields_for_owner(identity, owner, fields, meter)
+}
+
+pub(super) fn nominal_fields_for_owner<'a>(
+    identity: &ExactLayoutIdentityV1,
+    owner: NominalDeclarationOwner,
+    fields: &[NominalLayoutFieldInputV1<'a>],
+    meter: &mut BudgetMeter,
+) -> Result<Vec<DeclaredFieldStorageV1<'a>>, ExactLayoutReplayError> {
     let mut declared = reserve(fields.len(), meter)?;
     meter.charge_work(fields.len() as u64, &WirePath::root())?;
     // The storage replay allocates its placed fields and duplicate-id set.

@@ -1,16 +1,10 @@
 use scoop_identity::{GeneratedNominalKey, PersistentTypeId};
 
 use super::*;
-use crate::{
-    ArrayElementStorageV1, ClassBaseStorageV1, ClassStorageLayoutV1, FieldStorageKindV1,
-    TypeInstanceShapeV1,
-};
+use crate::{ArrayElementStorageV1, TypeInstanceShapeV1};
 
-#[derive(Clone, Copy, Debug)]
-pub enum ClassLayoutBaseV1<'a> {
-    NoBase,
-    Base(&'a ExactInstanceLayoutV1),
-}
+mod class;
+pub use class::ClassLayoutBaseV1;
 
 fn finish_instance(
     identity: ExactLayoutIdentityV1,
@@ -30,73 +24,6 @@ fn finish_instance(
 }
 
 impl ExactInstanceLayoutV1 {
-    pub fn class(
-        identity: ExactLayoutIdentityV1,
-        base: ClassLayoutBaseV1<'_>,
-        fields: &[NominalLayoutFieldInputV1<'_>],
-        foundation: &OdrFreeLirFoundation,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, ExactLayoutReplayError> {
-        require_roles(&identity, &[RepresentationRole::ManagedObject])?;
-        let declared = aggregate::nominal_fields(&identity, fields, meter)?;
-        let base = match base {
-            ClassLayoutBaseV1::NoBase => ClassBaseStorageV1::NoBase,
-            ClassLayoutBaseV1::Base(base) => {
-                if base.identity.target() != identity.target() {
-                    return Err(ExactLayoutReplayError::DependencyTarget);
-                }
-                let InstanceRepresentation::ClassObject(layout) = &base.representation.0 else {
-                    return Err(ExactLayoutReplayError::BaseKind);
-                };
-                meter.check_semantic_depth(
-                    layout.inheritance_depth() as u64 + 1,
-                    &WirePath::root(),
-                )?;
-                meter.charge_work(layout.inheritance_depth() as u64, &WirePath::root())?;
-                meter.charge_collection_slots(
-                    layout.inheritance_depth() as u64 + 1,
-                    &WirePath::root(),
-                )?;
-                // Reserve the inherited projection and duplicate-id set before
-                // ClassStorageLayoutV1 clones either collection.
-                meter.charge_collection_slots(
-                    layout.complete_fields().len() as u64,
-                    &WirePath::root(),
-                )?;
-                meter.charge_collection_slots(
-                    layout.complete_fields().len() as u64,
-                    &WirePath::root(),
-                )?;
-                for field in layout.complete_fields() {
-                    if let FieldStorageKindV1::Stored { layout, .. } = field.storage().kind() {
-                        charge_scan(layout.storage().scan(), meter)?;
-                    }
-                }
-                ClassBaseStorageV1::Base(layout)
-            }
-        };
-        meter.charge_collection_slots(fields.len() as u64, &WirePath::root())?;
-        let layout = ClassStorageLayoutV1::replay(
-            identity.target(),
-            identity.layout_key().clone(),
-            base,
-            &declared,
-        )?;
-        for field in layout.complete_fields() {
-            if let FieldStorageKindV1::Stored { layout, .. } = field.storage().kind() {
-                charge_scan(layout.storage().scan(), meter)?;
-            }
-        }
-        finish_instance(
-            identity,
-            layout.shape().clone(),
-            InstanceRepresentation::ClassObject(layout),
-            ScanRole::ManagedObject,
-            foundation,
-            meter,
-        )
-    }
-
     /// Replays either a value's own descriptor or its generated box helper.
     /// The containing section joins the representation to the source facts.
     pub fn boxed_payload(

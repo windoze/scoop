@@ -7,6 +7,7 @@ use crate::*;
 mod c_layout;
 mod enums;
 mod instances;
+mod objects;
 mod value_descriptors;
 mod values;
 
