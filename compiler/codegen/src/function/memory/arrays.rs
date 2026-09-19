@@ -11,21 +11,37 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     }
 
     /// Address of element `index` of an array object: the element
-    /// area starts after the 16-byte header (M9) + size field, rounded
-    /// up to the element type's ABI alignment.
+    /// area and nonzero stride come from the checked LIR instance layout.
     pub(in crate::function) fn element_ptr(
         &self,
         array: PointerValue<'ctx>,
-        element_ty: BasicTypeEnum<'ctx>,
+        layout: &scoop_lir::ArrayLayoutV1,
         index: IntValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
-        let data_offset = array_data_offset(self.target_data.get_abi_alignment(&element_ty) as u64);
+        let scoop_lir::ArrayElementStorageV1::Inline { stride, .. } = layout.storage() else {
+            return Err(CodegenError(
+                "zero-sized array elements have no payload address".to_string(),
+            ));
+        };
+        let data_offset = layout.instance().inline_offset();
+        let offset = self
+            .builder
+            .build_int_mul(
+                index,
+                self.context.i64_type().const_int(stride.get(), false),
+                "element_offset",
+            )
+            .map_err(|error| CodegenError(format!("array element offset: {error}")))?;
         let base = self.byte_gep(array, data_offset, "elements")?;
         // SAFETY: `base` addresses the element area of an array whose
-        // elements have layout `element_ty`; `index` was bounds-checked
+        // elements have the checked LIR storage; `index` was bounds-checked
         // against the array size (or is a valid constant index).
-        unsafe { self.builder.build_gep(element_ty, base, &[index], name) }.map_err(|e| {
+        unsafe {
+            self.builder
+                .build_gep(self.context.i8_type(), base, &[offset], name)
+        }
+        .map_err(|e| {
             CodegenError(format!(
                 "element gep @{symbol}: {e}",
                 symbol = self.function.symbol()

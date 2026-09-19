@@ -53,6 +53,16 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    BoxValue {
+        out: TempId,
+        payload: BoxPayload,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
+    UnboxValue {
+        object: Value,
+        result: UnboxResult,
+    },
     /// Equality over Boolean, raw pointer-shaped values, or one internal
     /// machine scalar domain. Source integer operations use the typed variants
     /// below and cannot enter this generic path.
@@ -357,10 +367,12 @@ pub enum Instruction {
         value: Value,
         array_type: ArrayTypeId,
     },
-    /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
+    /// `Array(m)` / `MutableArray(a)` conversion with fresh reference identity.
     ArrayClone {
         out: TempId,
         operand: Value,
+        /// Exact source array application, checked before reading its payload.
+        source_type: ArrayTypeId,
         /// Target array application (`Array<T>` or `MutableArray<T>`).
         array_type: ArrayTypeId,
         safepoint: SafepointSiteRef,
@@ -441,7 +453,8 @@ impl Instruction {
             } => Some((SafepointSiteRole::ManagedInvoke, site.safepoint)),
             Self::ArrayAlloc { safepoint, .. }
             | Self::ArrayAssembly { safepoint, .. }
-            | Self::ArrayClone { safepoint, .. } => {
+            | Self::ArrayClone { safepoint, .. }
+            | Self::BoxValue { safepoint, .. } => {
                 Some((SafepointSiteRole::ManagedCall, *safepoint))
             }
             _ => None,

@@ -952,20 +952,21 @@ pub(super) fn array_type(
     scan: RefScan,
 ) -> ArrayTypeId {
     let element_scan = scan.clone();
+    let layout = scoop_lir::ArrayLayoutV1::new(
+        meta.target_profile,
+        if element_size == 0 {
+            ArrayElementStorageV1::zero_sized(element_align)
+        } else {
+            ArrayElementStorageV1::inline(element_size, element_align, scan)
+        }
+        .unwrap(),
+    )
+    .unwrap();
     let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
         diagnostic_name: name.to_string(),
         identity: type_descriptor_identity(name),
         instance_layout: layout_identity(name, scoop_identity::RepresentationRole::ManagedObject),
-        instance_shape: TypeInstanceShapeV1::inline_array(
-            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-            if element_size == 0 {
-                ArrayElementStorageV1::zero_sized(element_align)
-            } else {
-                ArrayElementStorageV1::inline(element_size, element_align, scan)
-            }
-            .unwrap(),
-        )
-        .unwrap(),
+        instance_shape: layout.instance().clone(),
         inline_scan: if element_scan.contains_reference() {
             scoop_lir::TypeDescriptorInlineScanV1::Defined(
                 array_layout_identity(name).scan_record().id(),
@@ -980,10 +981,9 @@ pub(super) fn array_type(
     meta.arrays.alloc(ArrayType {
         identity: array_layout_identity(name),
         kind,
+        element_exact: test_exact_type(&format!("array-element:{}", element.dump())),
         element,
-        element_size,
-        element_align,
-        element_scan,
+        layout,
         type_descriptor: TypeDescriptorRef::Local(type_descriptor),
     })
 }

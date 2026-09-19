@@ -82,6 +82,9 @@ pub use cross_cone_bridge::*;
 mod function;
 pub use function::*;
 
+mod boxing;
+pub use boxing::*;
+
 mod integer;
 pub use integer::*;
 

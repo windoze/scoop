@@ -3,6 +3,10 @@
 The C runtime implements M15's exact moving Immix collector and M25's
 runtime-owned exception ABI:
 
+- `src/boxing.c` and `src/arrays.c` execute descriptor-checked boxing,
+  unboxing and array cloning, including zero-sized payloads;
+- `src/value_shape.c` and `src/value_scan.c` check managed shape arithmetic,
+  scan translation and storage bounds before allocation or copying;
 - `src/gc/heap.c` owns arena-external block/object metadata;
 - `src/gc/allocation.c` owns mutator TLAB and large-object allocation;
 - `src/gc/evacuation.c` owns forwarding, to-space allocation and current-object

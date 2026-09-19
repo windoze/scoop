@@ -130,7 +130,11 @@ fn rejects_array_descriptor_without_its_exact_element_scan_definition() {
         8,
         RefScan::References(vec![0]),
     );
-    module.meta.arrays[array].element_scan = RefScan::None;
+    module.meta.arrays[array].layout = scoop_lir::ArrayLayoutV1::new(
+        module.meta.target_profile,
+        scoop_lir::ArrayElementStorageV1::inline(8, 8, RefScan::None).unwrap(),
+    )
+    .unwrap();
 
     let validation_error = validation::validate_module(&module)
         .expect_err("array metadata and descriptor shape must agree before emission");

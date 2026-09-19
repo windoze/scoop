@@ -177,7 +177,10 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     assert!(outer_layout.interior_mutable);
     let array_layout = array_metadata(&module, "Array<Outer>");
     assert_eq!(
-        (array_layout.element_size, array_layout.element_align),
+        (
+            array_layout.layout.instance().inline_size(),
+            array_layout.layout.instance().inline_alignment()
+        ),
         (16, 16)
     );
     let wrapped_layout = layout_values(&module)
@@ -186,7 +189,10 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     assert_eq!((wrapped_layout.size, wrapped_layout.align), (32, 16));
     let wrapped_array = array_metadata(&module, "Array<Wrapped>");
     assert_eq!(
-        (wrapped_array.element_size, wrapped_array.element_align),
+        (
+            wrapped_array.layout.instance().inline_size(),
+            wrapped_array.layout.instance().inline_alignment()
+        ),
         (32, 16)
     );
     assert!(lir::dump(&module).contains(
@@ -343,11 +349,11 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     let array_scan = |name: &str| {
         let array = array_metadata(&module, name);
         assert_eq!(
-            array.element_scan,
+            *array.layout.instance().inline_scan(),
             *array_scan(descriptor(&module, array.type_descriptor)),
             "array metadata and its descriptor must carry one closed element scan"
         );
-        array.element_scan.clone()
+        array.layout.instance().inline_scan().clone()
     };
     assert_eq!(
         array_scan("Array<Msg>"),

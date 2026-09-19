@@ -3,7 +3,7 @@ use super::*;
 /// An M5-shaped module: ArrayAlloc with i64 and aggregate (Point)
 /// elements, ArrayLen, bounds-checked ArrayGet / ArraySet, and
 /// ArrayClone on both element shapes.
-fn arrays_module() -> Module {
+pub(super) fn arrays_module() -> Module {
     let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
     let mut meta = string_metadata();
     let int_array = array_type(
@@ -95,6 +95,7 @@ fn arrays_module() -> Module {
             Instruction::ArrayClone {
                 out: t3,
                 operand: Value::Local(numbers),
+                source_type: int_array,
                 array_type: mutable_int_array,
                 safepoint: test_safepoint(2),
                 live: statepoint_live(vec![statepoint_value(
@@ -138,6 +139,7 @@ fn arrays_module() -> Module {
             Instruction::ArrayClone {
                 out: t8,
                 operand: Value::Temp(t5),
+                source_type: point_array,
                 array_type: mutable_point_array,
                 safepoint: test_safepoint(4),
                 live: statepoint_live(vec![

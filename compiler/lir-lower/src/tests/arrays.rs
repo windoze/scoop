@@ -180,7 +180,7 @@ Module
     store t1 -> local1
     t2 = array_len array0 local0 : i64
     store t2 -> local2
-    t3 = array_clone array1 local0 sp<managed-call:1> live local0:ptr<managed>@0 : ptr<managed>
+    t3 = array_clone array0 -> array1 local0 sp<managed-call:1> live local0:ptr<managed>@0 : ptr<managed>
     store t3 -> local3
     array_set array1 local3 integer<Long>(0x0000000000000000) integer<Int>(0x00000028)
     ret
@@ -296,14 +296,14 @@ fn array_layouts_mark_reference_elements() {
     let array_layout = |name: &str| {
         let array = array_metadata(&module, name);
         assert_eq!(
-            array.element_scan,
+            *array.layout.instance().inline_scan(),
             *array_scan(descriptor(&module, array.type_descriptor)),
             "array metadata and its descriptor must carry one closed element scan"
         );
         (
-            array.element_size,
-            array.element_align,
-            array.element_scan.clone(),
+            array.layout.instance().inline_size(),
+            array.layout.instance().inline_alignment(),
+            array.layout.instance().inline_scan().clone(),
         )
     };
     // size / align are element-level: the element stride and

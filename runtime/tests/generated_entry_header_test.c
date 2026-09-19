@@ -28,7 +28,10 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_safepoint;
     (void)scoop_rt_string_concat;
     (void)scoop_rt_array_clone;
-    (void)scoop_rt_box;
+    (void)scoop_rt_box_zst;
+    (void)scoop_rt_box_value;
+    (void)scoop_rt_unbox_zst;
+    (void)scoop_rt_unbox_value;
     (void)scoop_rt_gc_collect;
     (void)scoop_rt_materialize_exception;
     (void)scoop_rt_throw;

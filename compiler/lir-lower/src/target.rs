@@ -100,12 +100,6 @@ impl LoweringContext {
         .0[0]
     }
 
-    pub(crate) fn object_payload_offset(self, payload_align: u64) -> u64 {
-        self.object_header_layout()
-            .size
-            .next_multiple_of(payload_align)
-    }
-
     /// Runtime String fixed prefix `{ object-header, i64 length }`.
     pub(crate) fn string_layout(self) -> PhysicalLayout {
         self.aggregate_layout([

@@ -3,6 +3,7 @@ use super::*;
 mod addresses;
 mod aggregates;
 mod arrays;
+mod boxing;
 mod callbacks;
 mod enums;
 mod exceptions;
@@ -13,6 +14,9 @@ mod values;
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         match instruction {
+            Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
+                self.emit_boxing(instruction)
+            }
             Instruction::BinOp { .. }
             | Instruction::UnaryOp { .. }
             | Instruction::IntegerUnary { .. }

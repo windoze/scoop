@@ -46,7 +46,8 @@
 /* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
  * carries the pin bit; mark, exact size and forwarding state live in the
  * arena-external side table. The remaining bits are reserved (hash cache
- * etc.). Mutator code must not touch it. All payloads start at offset 16. */
+ * etc.). Mutator code must not touch it. TypeDescriptor shape determines each
+ * aligned payload offset. */
 typedef struct ScoopObjectHeader {
     const ScoopTypeDescriptor *td;
     uint64_t gc_word;

@@ -233,7 +233,7 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::ExprKind::ArrayClone {
-                source_type: _,
+                source_type,
                 target_type,
                 operand,
             } => {
@@ -244,6 +244,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.push(lir::Instruction::ArrayClone {
                     out,
                     operand,
+                    source_type: self.array_type_id(*source_type),
                     array_type: self.array_type_id(*target_type),
                     safepoint,
                     live: lir::StatepointLiveSet::default(),
@@ -658,56 +659,8 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
-            // `scoop_rt_box(td, payload, size, scan)` (runtime spec 2.3): LIR
-            // materializes the payload storage and carries its complete
-            // recursive scan program into the managed runtime entry.
-            mir::ExprKind::Box(operand) => {
-                let payload_ty = operand.ty.clone();
-                let payload = self.lower_expr(operand);
-                let payload_lir_type = self.value_type(&payload_ty);
-                let payload_storage = self.new_hidden_local(payload_lir_type);
-                self.push(lir::Instruction::Store {
-                    local: payload_storage,
-                    value: payload,
-                });
-                let payload_address = self.new_temp(lir::RAW_PTR);
-                self.push(lir::Instruction::LocalAddress {
-                    out: payload_address,
-                    local: payload_storage,
-                });
-                let td = self.td_ref(&payload_ty);
-                let (size, _) = self.value_layout(&payload_ty);
-                let payload_scan = self
-                    .call_targets
-                    .root_scans
-                    .alloc(self.value_ref_scan(&payload_ty));
-                self.emit_plain_call(
-                    LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Box),
-                    vec![
-                        lir::METADATA_PTR,
-                        lir::RAW_PTR,
-                        lir::LirType::MachineScalar(lir::MachineScalarKind::ByteSize),
-                        lir::METADATA_PTR,
-                    ],
-                    lir::MANAGED_PTR,
-                    vec![
-                        td,
-                        lir::Value::Temp(payload_address),
-                        lir::Value::MachineScalar(lir::MachineScalarValue::ByteSize(size)),
-                        lir::Value::RootScan(payload_scan),
-                    ],
-                )
-            }
-            // The payload follows the target-derived object header at its
-            // own natural alignment.
-            mir::ExprKind::Unbox(operand) => {
-                let object = self.lower_expr(operand);
-                let (_, payload_align) = self.value_layout(ty);
-                let payload_offset = self.context.object_payload_offset(payload_align);
-                let ty = self.value_type(ty);
-                let out = self.load_at_offset(object, payload_offset, ty);
-                lir::Value::Temp(out)
-            }
+            mir::ExprKind::Box(operand) => self.lower_box(operand),
+            mir::ExprKind::Unbox(operand) => self.lower_unbox(operand, ty),
             // `scoop_rt_is_instance(obj, td)` (runtime spec 2.3).
             mir::ExprKind::IsInstance { operand, check_ty } => {
                 let object = self.lower_expr(operand);

@@ -7,6 +7,9 @@ pub(super) fn dump_instruction(
     buf: &mut String,
 ) {
     match instruction {
+        Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
+            super::boxing::dump_boxing(function, instruction, buf)
+        }
         Instruction::BinOp { out, op, lhs, rhs } => buf.push_str(&format!(
             "    t{} = {:?} {}, {} : {}\n",
             out.into_raw(),
@@ -523,14 +526,16 @@ pub(super) fn dump_instruction(
             value_name(*value)
         )),
         Instruction::ArrayClone {
+            source_type,
             out,
             operand,
             array_type,
             safepoint,
             live,
         } => buf.push_str(&format!(
-            "    t{} = array_clone array{} {} sp{} live {} : {}\n",
+            "    t{} = array_clone array{} -> array{} {} sp{} live {} : {}\n",
             out.into_raw(),
+            source_type.into_raw(),
             array_type.into_raw(),
             value_name(*operand),
             safepoint_name(function, *safepoint),

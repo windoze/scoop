@@ -270,6 +270,11 @@ impl TypeInstanceShapeV1 {
                     alignment,
                     scan,
                 } => {
+                    checked_alignment(alignment.get())?;
+                    require_aligned_inline_size(size, alignment)?;
+                    if size != stride {
+                        return Err(TypeInstanceShapeError::ArrayStrideMismatch);
+                    }
                     validate_scan(&scan)?;
                     (
                         InlineStorageKindV1::Inline,
@@ -280,6 +285,7 @@ impl TypeInstanceShapeV1 {
                     )
                 }
             };
+        checked_alignment(inline_alignment.get())?;
         let inline_offset = checked_align_up(prefix, inline_alignment.get())?;
         let instance_alignment = managed_header_alignment(target).max(inline_alignment.get());
         require_maximum_managed_alignment(target, inline_alignment)?;
@@ -386,6 +392,7 @@ pub enum TypeInstanceShapeError {
     EmptySequence,
     EmptySequenceChild,
     ZeroArrayScanStride,
+    ArrayStrideMismatch,
 }
 
 fn checked_alignment(value: u64) -> Result<NonZeroU64, TypeInstanceShapeError> {

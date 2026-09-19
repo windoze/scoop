@@ -133,15 +133,6 @@ use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};
 pub(crate) use type_descriptors::type_descriptor_global;
 
-fn align_up(value: u64, align: u64) -> u64 {
-    debug_assert!(align.is_power_of_two());
-    (value + align - 1) & !(align - 1)
-}
-
-fn array_data_offset(element_align: u64) -> u64 {
-    align_up(24, element_align)
-}
-
 fn mark_typed_managed_pointer_boundary(
     context: &Context,
     instruction: InstructionValue<'_>,

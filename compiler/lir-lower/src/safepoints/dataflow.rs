@@ -5,6 +5,12 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
+        lir::Instruction::BoxValue { payload, .. } => payload
+            .source()
+            .map(lir::Value::Local)
+            .into_iter()
+            .collect(),
+        lir::Instruction::UnboxValue { object, .. } => vec![*object],
         lir::Instruction::BinOp { lhs, rhs, .. }
         | lir::Instruction::IntegerBinary { lhs, rhs, .. }
         | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
@@ -117,7 +123,14 @@ pub(super) fn call_uses(
 
 pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
     let out = match instruction {
-        lir::Instruction::BinOp { out, .. }
+        lir::Instruction::UnboxValue { result, .. } => {
+            return match result {
+                lir::UnboxResult::ZeroSized { out, .. } => vec![LiveValue::Temp(*out)],
+                lir::UnboxResult::NonZero(place) => vec![LiveValue::Local(place.local())],
+            };
+        }
+        lir::Instruction::BoxValue { out, .. }
+        | lir::Instruction::BinOp { out, .. }
         | lir::Instruction::UnaryOp { out, .. }
         | lir::Instruction::IntegerUnary { out, .. }
         | lir::Instruction::IntegerBinary { out, .. }

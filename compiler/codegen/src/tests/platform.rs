@@ -229,8 +229,12 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
-            "_scoop_rt_box:",
-            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+            "_scoop_rt_box_zst:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_box_value:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
             "_scoop_rt_materialize_exception:",
@@ -258,7 +262,7 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         ),
         (
             "_scoop_rt_array_clone:",
-            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+            ["mov\tx3, x30", "mov\tx4, sp", "mov\tx5, x29"],
         ),
         (
             "_scoop_rt_enter_native_safe:",
@@ -300,7 +304,8 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_runtime_alloc_slow_impl",
         "_scoop_rt_gc_collect_impl",
         "_scoop_rt_string_concat_impl",
-        "_scoop_rt_box_impl",
+        "_scoop_rt_box_zst_impl",
+        "_scoop_rt_box_value_impl",
         "_scoop_rt_materialize_exception_impl",
         "_scoop_rt_init_enter_impl",
         "_scoop_rt_init_succeed_impl",
@@ -318,5 +323,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 14);
+    assert_eq!(relocations.matches("BR26").count(), 15);
 }

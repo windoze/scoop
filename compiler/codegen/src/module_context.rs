@@ -43,7 +43,8 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 Instruction::ManagedPoll { site } => {
                     sources.extend(site.live.as_slice().iter().map(|value| value.source));
                 }
-                Instruction::ArrayAlloc { live, .. }
+                Instruction::BoxValue { live, .. }
+                | Instruction::ArrayAlloc { live, .. }
                 | Instruction::ArrayAssembly { live, .. }
                 | Instruction::ArrayClone { live, .. } => {
                     sources.extend(live.as_slice().iter().map(|value| value.source));
@@ -84,7 +85,12 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
 
 pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId>; 2] {
     let first = match instruction {
-        Instruction::BinOp { out, .. }
+        Instruction::UnboxValue { result, .. } => match result {
+            scoop_lir::UnboxResult::ZeroSized { out, .. } => Some(*out),
+            scoop_lir::UnboxResult::NonZero(_) => None,
+        },
+        Instruction::BoxValue { out, .. }
+        | Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
         | Instruction::IntegerUnary { out, .. }
         | Instruction::IntegerBinary { out, .. }

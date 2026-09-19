@@ -302,11 +302,9 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::InitializationFail => 2,
                     mir::RuntimeFn::GcCollect | mir::RuntimeFn::GcStats => 0,
                     // The M6 runtime functions are emitted by dedicated
-                    // Box / IsInstance / dispatch lowerings, never as plain
+                    // IsInstance / dispatch lowerings, never as plain
                     // MIR calls.
-                    mir::RuntimeFn::Box
-                    | mir::RuntimeFn::IsInstance
-                    | mir::RuntimeFn::ITableLookup => {
+                    mir::RuntimeFn::IsInstance | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     // Handled by the arm above.
@@ -367,9 +365,7 @@ impl<'a> FunctionLowerer<'a> {
                         (vec![lir::METADATA_PTR], lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::GcCollect => (Vec::new(), lir::LirType::Void),
-                    mir::RuntimeFn::Box
-                    | mir::RuntimeFn::IsInstance
-                    | mir::RuntimeFn::ITableLookup => {
+                    mir::RuntimeFn::IsInstance | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),

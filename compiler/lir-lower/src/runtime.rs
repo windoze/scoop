@@ -2,7 +2,6 @@ use super::*;
 
 pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFunction {
     match function {
-        mir::RuntimeFn::Box => lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::Box),
         mir::RuntimeFn::IsInstance => {
             lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::IsInstance)
         }

@@ -14,8 +14,7 @@ void run_core_runtime_tests(void) {
     scoop_rt_println_boolean(scoop_rt_string_eq(concat, copy));
     scoop_rt_println_boolean(scoop_rt_string_eq(a, b));
     scoop_rt_println_boolean(scoop_rt_string_eq(a, concat));
-    if (scoop_rt_string_compare(a, b) >= 0 ||
-        scoop_rt_string_compare(b, a) <= 0 ||
+    if (scoop_rt_string_compare(a, b) >= 0 || scoop_rt_string_compare(b, a) <= 0 ||
         scoop_rt_string_compare(a, a) != 0) {
         abort();
     }
@@ -40,57 +39,59 @@ void run_core_runtime_tests(void) {
 
     /* scoop_rt_array_clone (M5/M14): independent snapshot — mutating the
      * original after the clone must not affect the copy, and the copy
-     * receives the complete target nominal descriptor. The source is a stack object
-     * laid out like a codegen array (16-byte header). */
+     * receives the complete target nominal descriptor. The source is a registered
+     * managed array with exact side metadata. */
     const ScoopTypeDescriptor array_td = {
         .type_id = 100,
-        .instance_shape = {
-            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
-            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
-            .minimum_size = 24,
-            .instance_alignment = 8,
-            .inline_offset = 24,
-            .inline_size = 8,
-            .inline_stride = 8,
-            .inline_alignment = 8,
-        },
-        .diagnostic_name = {
-            (const uint8_t *)"Array<Long>", sizeof("Array<Long>") - 1},
+        .instance_shape =
+            {
+                .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+                .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+                .minimum_size = 24,
+                .instance_alignment = 8,
+                .inline_offset = 24,
+                .inline_size = 8,
+                .inline_stride = 8,
+                .inline_alignment = 8,
+            },
+        .diagnostic_name = {(const uint8_t *)"Array<Long>", sizeof("Array<Long>") - 1},
     };
     const ScoopTypeDescriptor mutable_array_td = {
         .type_id = 101,
-        .instance_shape = {
-            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
-            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
-            .minimum_size = 24,
-            .instance_alignment = 8,
-            .inline_offset = 24,
-            .inline_size = 8,
-            .inline_stride = 8,
-            .inline_alignment = 8,
-        },
+        .instance_shape =
+            {
+                .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
+                .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+                .minimum_size = 24,
+                .instance_alignment = 8,
+                .inline_offset = 24,
+                .inline_size = 8,
+                .inline_stride = 8,
+                .inline_alignment = 8,
+            },
         .diagnostic_name = {(const uint8_t *)"MutableArray<Long>",
                             sizeof("MutableArray<Long>") - 1},
     };
-    struct {
-        const ScoopTypeDescriptor *td;
-        uint64_t gc_word;
-        uint64_t size;
-        int64_t data[3];
-    } original = {&array_td, 0, 3, {10, 20, 30}};
+    ScoopArray *original = scoop_rt_alloc(&array_td, 48);
+    original->size = 3;
+    int64_t *original_elements = (int64_t *)original->elements;
+    original_elements[0] = 10;
+    original_elements[1] = 20;
+    original_elements[2] = 30;
     const ScoopArray *clone =
-        scoop_rt_array_clone(&original, &mutable_array_td, sizeof(int64_t), 24);
-    original.data[0] = 99;
+        scoop_rt_array_clone(original, &array_td, &mutable_array_td);
+    original_elements[0] = 99;
     const int64_t *snapshot = (const int64_t *)clone->elements;
-    scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 && snapshot[2] == 30);
+    scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 &&
+                             snapshot[2] == 30);
     scoop_rt_println_boolean(clone->size == 3 && clone->header.td == &mutable_array_td);
 
-    /* scoop_rt_box (M6): header + payload copy. */
+    /* Descriptor-driven boxing preserves the complete payload. */
     int64_t payload[2] = {1, 2};
-    const ScoopObjectHeader *boxed =
-        scoop_rt_box(&point_td, payload, sizeof payload, NULL);
+    const ScoopObjectHeader *boxed = scoop_rt_box_value(&point_td, payload);
     scoop_rt_println_boolean(boxed->td == &point_td);
-    const int64_t *boxed_payload = (const int64_t *)((const char *)boxed + sizeof(ScoopObjectHeader));
+    const int64_t *boxed_payload =
+        (const int64_t *)((const char *)boxed + sizeof(ScoopObjectHeader));
     scoop_rt_println_boolean(boxed_payload[0] == 1 && boxed_payload[1] == 2);
 
     /* scoop_rt_is_instance (M6): own td, parent chain, itable key;

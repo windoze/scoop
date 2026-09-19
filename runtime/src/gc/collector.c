@@ -8,10 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "scoop_rt.h"
 #include "../managed_entries.h"
 #include "../thread.h"
+#include "../value_shape.h"
 #include "gc_internal.h"
+#include "scoop_rt.h"
 
 typedef enum ScoopGcVisitMode {
     SCOOP_GC_VISIT_MARK,
@@ -59,8 +60,8 @@ static void visit_managed_slot(void **slot, void *raw_context) {
     }
     if (!scoop_gc_is_object_start_locked(target)) {
         if (!stable_object(target)) {
-            collector_fatal(
-                "managed slot points outside the current heap and stable object tables");
+            collector_fatal("managed slot points outside the current heap and stable "
+                            "object tables");
         }
         return;
     }
@@ -93,8 +94,7 @@ static void visit_managed_slot(void **slot, void *raw_context) {
 }
 
 /* Every descriptor is complete and relative to base. Array descriptors are
- * object scans: their length and inline element storage follow the runtime
- * Array layout at offsets 16 and 24. */
+ * object scans: count and inline storage offsets are carried by the scan. */
 static void visit_descriptor(void *base, const uint64_t *table,
                              ScoopGcVisitContext *context) {
     if (table == NULL) {
@@ -104,41 +104,38 @@ static void visit_descriptor(void *base, const uint64_t *table,
         uint64_t length_offset = table[1];
         uint64_t first_element_offset = table[2];
         uint64_t stride = table[3];
-        const uint64_t *element_scan =
-            (const uint64_t *)(uintptr_t)table[4];
+        const uint64_t *element_scan = (const uint64_t *)(uintptr_t)table[4];
         if (stride == 0 || element_scan == NULL) {
             collector_fatal("array scan has an invalid element program");
         }
-        uint64_t count =
-            *(const uint64_t *)((char *)base + length_offset);
+        uint64_t count = *(const uint64_t *)((char *)base + length_offset);
         char *elements = (char *)base + first_element_offset;
         for (uint64_t index = 0; index < count; index++) {
-            visit_descriptor(elements + index * stride, element_scan,
-                             context);
+            visit_descriptor(elements + index * stride, element_scan, context);
         }
         return;
     }
     if (table[0] == SCOOP_REFS_SEQUENCE) {
         uint64_t child_count = table[1];
         for (uint64_t index = 0; index < child_count; index++) {
-            visit_descriptor(
-                base, (const uint64_t *)(uintptr_t)table[2 + index],
-                context);
+            visit_descriptor(base, (const uint64_t *)(uintptr_t)table[2 + index],
+                             context);
         }
         return;
     }
     uint64_t count = table[0];
     for (uint64_t index = 0; index < count; index++) {
-        visit_managed_slot((void **)((char *)base + table[1 + index]),
-                           context);
+        visit_managed_slot((void **)((char *)base + table[1 + index]), context);
     }
 }
 
 static void visit_object(void *object, ScoopGcVisitContext *context) {
-    const ScoopTypeDescriptor *td =
-        ((const ScoopObjectHeader *)object)->td;
+    const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
     if (td == NULL) {
         collector_fatal("managed object has no TypeDescriptor");
+    }
+    if (scoop_gc_is_object_start_locked(object)) {
+        scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));
     }
     visit_descriptor(object, td->object_scan, context);
 }
@@ -147,8 +144,7 @@ static void visit_external_root(const void *object, void *raw_context) {
     visit_object((void *)object, raw_context);
 }
 
-static void visit_root_region(void *base, const uint64_t *scan,
-                              void *raw_context) {
+static void visit_root_region(void *base, const uint64_t *scan, void *raw_context) {
     visit_descriptor(base, scan, raw_context);
 }
 
@@ -173,11 +169,11 @@ static void scan_native_roots(const ScoopThreadState *thread,
 
 static void scan_native_region_roots(const ScoopThreadState *thread,
                                      ScoopGcVisitContext *context) {
-    for (ScoopNativeRegionRootFrame *frame = thread->native_region_roots;
-         frame != NULL; frame = frame->previous) {
+    for (ScoopNativeRegionRootFrame *frame = thread->native_region_roots; frame != NULL;
+         frame = frame->previous) {
         for (uint64_t index = 0; index < frame->count; index++) {
-            visit_descriptor(frame->entries[index].base,
-                             frame->entries[index].scan, context);
+            visit_descriptor(frame->entries[index].base, frame->entries[index].scan,
+                             context);
         }
     }
 }
@@ -187,8 +183,8 @@ static void scan_caller_roots(const ScoopThreadState *thread,
     for (ScoopCallerRootFrame *frame = thread->caller_roots; frame != NULL;
          frame = frame->previous) {
         for (uint64_t index = 0; index < frame->count; index++) {
-            visit_descriptor(frame->entries[index].base,
-                             frame->entries[index].scan, context);
+            visit_descriptor(frame->entries[index].base, frame->entries[index].scan,
+                             context);
         }
     }
 }
@@ -198,20 +194,18 @@ static void scan_compiler_roots(const ScoopThreadState *thread,
     for (ScoopCompilerRootFrame *frame = thread->compiler_roots; frame != NULL;
          frame = frame->previous) {
         for (uint64_t index = 0; index < frame->count; index++) {
-            visit_descriptor(frame->entries[index].base,
-                             frame->entries[index].scan, context);
+            visit_descriptor(frame->entries[index].base, frame->entries[index].scan,
+                             context);
         }
     }
 }
 
-static void scan_frozen_managed_segments(
-    const ScoopThreadState *thread, ScoopGcVisitContext *context) {
+static void scan_frozen_managed_segments(const ScoopThreadState *thread,
+                                         ScoopGcVisitContext *context) {
     ScoopGcRootVisitor visitor = root_visitor(context);
-    for (const ScoopThreadTransition *transition =
-             thread->current_transition;
+    for (const ScoopThreadTransition *transition = thread->current_transition;
          transition != NULL; transition = transition->previous) {
-        if (transition->caller_roots == NULL ||
-            transition->managed_return_pc == 0 ||
+        if (transition->caller_roots == NULL || transition->managed_return_pc == 0 ||
             transition->managed_stack_pointer == 0 ||
             transition->managed_frame_pointer == 0 ||
             transition->managed_stack_high == 0) {
@@ -219,17 +213,13 @@ static void scan_frozen_managed_segments(
                 "native transition has no exact frozen-segment publication");
         }
         scoop_gc_visit_managed_segment(
-            thread, transition->managed_return_pc,
-            transition->managed_stack_pointer,
-            transition->managed_frame_pointer,
-            transition->managed_stack_high, visitor);
+            thread, transition->managed_return_pc, transition->managed_stack_pointer,
+            transition->managed_frame_pointer, transition->managed_stack_high, visitor);
     }
 }
 
-static void scan_thread(const ScoopThreadState *thread,
-                        ScoopGcVisitContext *context) {
-    ScoopThreadMode mode =
-        atomic_load_explicit(&thread->mode, memory_order_acquire);
+static void scan_thread(const ScoopThreadState *thread, ScoopGcVisitContext *context) {
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
         if (thread->parked_from == SCOOP_THREAD_MANAGED) {
             ScoopGcRootVisitor visitor = root_visitor(context);
@@ -313,8 +303,7 @@ void scoop_gc_collect_internal(void) {
 void scoop_rt_gc_collect_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                               uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
     scoop_gc_collect_internal();
     scoop_thread_pop_managed_anchor(&anchor);
 }
@@ -327,8 +316,7 @@ void scoop_runtime_gc_collect(void) {
 void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
                              uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
     scoop_thread_poll();
     scoop_thread_pop_managed_anchor(&anchor);
 }

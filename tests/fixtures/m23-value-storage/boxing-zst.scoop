@@ -1,0 +1,21 @@
+// EXPECT-COMPILE
+// Expected output: 1, true, false, true, true, true (one per line).
+struct Empty()
+struct OtherEmpty()
+
+fun observedEmpty(): Empty {
+    println(1)
+    return Empty()
+}
+
+fun main() {
+    val boxed: Any = observedEmpty()
+    println(boxed is Empty)
+    println(boxed is OtherEmpty)
+    val restored = boxed as Empty
+    println(restored == Empty())
+    val unitBox: Any = Unit
+    println(unitBox is Unit)
+    val unitValue = unitBox as Unit
+    println(unitValue == Unit)
+}

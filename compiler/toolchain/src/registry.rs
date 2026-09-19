@@ -41,6 +41,10 @@ impl ResolvedTargetProfile {
                 canonical_triple: "aarch64-apple-darwin",
                 runtime_sources: &[
                     "runtime/src/rt.c",
+                    "runtime/src/boxing.c",
+                    "runtime/src/arrays.c",
+                    "runtime/src/value_shape.c",
+                    "runtime/src/value_scan.c",
                     "runtime/src/eh.c",
                     "runtime/src/eh_personality.c",
                     "runtime/src/initialization.c",

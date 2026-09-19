@@ -8,6 +8,8 @@ use super::super::*;
 use scoop_lir::{EnumDefId, StructDefId};
 use std::collections::HashSet;
 
+mod boxing;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct StorageFacts {
     size: u64,
@@ -47,6 +49,7 @@ impl<'a> AbiMetadataValidator<'a> {
                 &format!("function @{}", function.symbol()),
             )?;
             self.validate_call_signatures(function)?;
+            self.validate_boxing(function)?;
             for (id, local) in function.locals.iter() {
                 let owner = format!("function @{} local {}", function.symbol(), id.into_raw());
                 match local.storage() {
@@ -1583,6 +1586,12 @@ fn validate_runtime_call(
     protocol: CallProtocol,
     runtime: scoop_lir::RuntimeFunction,
 ) -> Result<(), CodegenError> {
+    if runtime.requires_dedicated_operation() {
+        return Err(call_error(
+            function,
+            "boxing runtime calls require a descriptor-refined operation",
+        ));
+    }
     let (expected_arguments, expected_result, expected_protocol) = runtime_signature(runtime);
     let arguments_match = call.arguments().len() == expected_arguments.len()
         && call
@@ -1628,14 +1637,8 @@ fn runtime_signature(
                     ],
                     Some(scoop_lir::MANAGED_PTR),
                 ),
-                Managed::Box => (
-                    vec![
-                        scoop_lir::METADATA_PTR,
-                        scoop_lir::RAW_PTR,
-                        LirType::MachineScalar(MachineScalarKind::ByteSize),
-                        scoop_lir::METADATA_PTR,
-                    ],
-                    Some(scoop_lir::MANAGED_PTR),
+                Managed::BoxZst | Managed::BoxValue => unreachable!(
+                    "dedicated operations are rejected before runtime signature lookup"
                 ),
                 Managed::MaterializeException => {
                     (vec![scoop_lir::MANAGED_PTR], Some(scoop_lir::MANAGED_PTR))
@@ -1682,6 +1685,12 @@ fn runtime_signature(
                 NoGc::Trap => (vec![scoop_lir::RAW_PTR], None),
                 NoGc::Throw => (vec![scoop_lir::MANAGED_PTR], None),
                 NoGc::Rethrow => (Vec::new(), None),
+                NoGc::UnboxZst
+                | NoGc::UnboxValue
+                | NoGc::PushRecursiveRegion
+                | NoGc::PopRecursiveRegion => unreachable!(
+                    "dedicated operations are rejected before runtime signature lookup"
+                ),
             };
             (arguments, result, CallProtocol::NoGc)
         }

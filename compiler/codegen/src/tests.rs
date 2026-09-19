@@ -40,6 +40,8 @@ mod runtime_eh_lifecycle_tests;
 mod runtime_eh_personality_tests;
 
 mod arrays;
+mod arrays_zst;
+mod boxing;
 mod c_bridge_objects;
 mod c_layout;
 mod closures;

@@ -104,6 +104,23 @@ fn validate_function(module: &Module, function: &Function) -> Result<(), Codegen
                     site.live.as_slice(),
                     &live,
                 )?,
+                Instruction::BoxValue {
+                    payload,
+                    live: actual,
+                    ..
+                } => {
+                    let mut expected = live.clone();
+                    if let Some(source) = payload.source() {
+                        expected.insert(LiveValue::Local(source));
+                    }
+                    validate_statepoint_roots(
+                        module,
+                        function,
+                        &site_owner(function, block_id, instruction_index, "box value"),
+                        actual.as_slice(),
+                        &expected,
+                    )?;
+                }
                 Instruction::Call { site } => {
                     validate_call_plan(module, function, block_id, instruction_index, site, &live)?
                 }

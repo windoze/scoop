@@ -203,8 +203,8 @@ fn emits_m6_type_descriptors_and_call_indirect() {
 
 /// An M6 heap-access module with a typed TypeDescriptor operand,
 /// HeapStore field writes, HeapLoad reads (header, i64
-/// field, ptr field, TD vtable pointer), and a `scoop_rt_box` call
-/// with a by-value aggregate payload.
+/// field, ptr field, TD vtable pointer), and a descriptor-refined box operation
+/// with a typed aggregate payload local.
 pub(super) fn heap_module() -> Module {
     let globals = Arena::default();
     let mut meta = string_metadata();
@@ -266,7 +266,7 @@ pub(super) fn heap_module() -> Module {
     //   t3 = heap_load t0 +24 : ptr  (field 2)
     //   t4 = heap_load t1 +40 : ptr  (TD field 5: the vtable pointer)
     //   t5 = aggregate (t2) : {i64}
-    //   t6 = scoop_rt_box(@TypeDescriptor(Point), t5, 8, none)  (by-value payload)
+    //   t6 = box_value(@TypeDescriptor(BoxedPayload), payload)
     //   t7 = scoop_rt_is_instance(t6, @TypeDescriptor(Point)) : i1
     //   call_indirect t4[0](t3); println_int t2; println_boolean t7
     let mut temps = Arena::default();
@@ -280,7 +280,6 @@ pub(super) fn heap_module() -> Module {
     });
     let t6 = temps.alloc(Temp { ty: MANAGED_PTR });
     let t7 = temps.alloc(Temp { ty: LirType::I1 });
-    let t8 = temps.alloc(Temp { ty: RAW_PTR });
     let mut locals = Arena::default();
     let payload = locals.alloc(test_local(
         "box_payload",
@@ -302,31 +301,25 @@ pub(super) fn heap_module() -> Module {
             Value::MachineScalar(MachineScalarValue::ByteSize(32)),
         ],
     );
-    let payload_scan = call_targets.root_scans.alloc(RefScan::None);
-    let mut box_site = direct_site(
-        &mut call_targets,
-        TestCallProtocol::Managed {
-            safepoint: 2,
-            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
-        },
-        vec![METADATA_PTR, RAW_PTR, byte_size_ty, METADATA_PTR],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        t6,
-        vec![
-            Value::TypeDescriptor(point_descriptor),
-            Value::Temp(t8),
-            Value::MachineScalar(MachineScalarValue::ByteSize(8)),
-            Value::RootScan(payload_scan),
-        ],
+    let boxed = super::boxing::descriptor(
+        &mut meta,
+        "BoxedPayload",
+        LirType::Aggregate(vec![LirType::I64]),
+        scoop_lir::ValueStorageLayoutV1::inline(8, 8, RefScan::None).unwrap(),
     );
-    set_managed_live(
-        &mut box_site,
-        statepoint_live(vec![statepoint_value(
+    let scoop_lir::BoxedValueDescriptor::NonZero(boxed) = boxed else {
+        unreachable!()
+    };
+    let box_instruction = Instruction::BoxValue {
+        out: t6,
+        payload: scoop_lir::BoxPayload::NonZero(boxed.bind_place(&locals, payload).unwrap()),
+        safepoint: test_safepoint(2),
+        live: statepoint_live(vec![statepoint_value(
             scoop_lir::CallerRootSource::Temp(t3),
             MANAGED_PTR,
             &[0],
         )]),
-    );
+    };
     let is_instance_site = direct_site(
         &mut call_targets,
         TestCallProtocol::NoGc {
@@ -398,11 +391,7 @@ pub(super) fn heap_module() -> Module {
                 local: payload,
                 value: Value::Temp(t5),
             },
-            Instruction::LocalAddress {
-                out: t8,
-                local: payload,
-            },
-            Instruction::Call { site: box_site },
+            box_instruction,
             Instruction::Call {
                 site: is_instance_site,
             },
@@ -449,27 +438,30 @@ pub(super) fn heap_module() -> Module {
 fn keep_heap_object_live_for_appended_access(function: &mut Function, object: TempId) {
     let mut object_defined = false;
     for instruction in &mut function.blocks[function.entry].instructions {
-        let Instruction::Call { site } = instruction else {
-            continue;
-        };
-        if site.result() == scoop_lir::TypedCallResult::Direct(object) {
+        if let Instruction::Call { site } = instruction
+            && site.result() == scoop_lir::TypedCallResult::Direct(object)
+        {
             object_defined = true;
             continue;
         }
-        let CallSite::Managed(site) = site else {
-            continue;
-        };
         if !object_defined {
             continue;
         }
+        let roots = match instruction {
+            Instruction::Call {
+                site: CallSite::Managed(site),
+            } => &mut site.live,
+            Instruction::BoxValue { live, .. } => live,
+            _ => continue,
+        };
 
         let mut live = vec![statepoint_value(
             scoop_lir::CallerRootSource::Temp(object),
             MANAGED_PTR,
             &[0],
         )];
-        live.extend_from_slice(site.live.as_slice());
-        site.live = statepoint_live(live);
+        live.extend_from_slice(roots.as_slice());
+        *roots = statepoint_live(live);
     }
     assert!(
         object_defined,
@@ -494,7 +486,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "generated code must not route every allocation through the compatibility entry:\n{ir}"
     );
     assert!(
-        ir.contains("and i64 %tlab_cursor_int, -128")
+        ir.contains("and i64 %tlab_aligned_cursor, -128")
             && ir.contains("add i64 %tlab_line_base, 128"),
         "the inline allocator must use runtime's 128-byte Immix line boundary:\n{ir}"
     );

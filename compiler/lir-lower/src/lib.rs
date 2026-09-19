@@ -70,9 +70,8 @@
 //!   therefore independent of its final linker symbol and cannot be
 //!   confused with an ordinary global. Codegen resolves that typed
 //!   reference directly from `LirMeta::type_descriptors`.
-//!   For `scoop_rt_box` codegen materializes the by-value aggregate
-//!   payload behind a stack pointer (the "临时 alloca 取地址" of the
-//!   lowering contract).
+//!   Boxing carries a refined BoxedValue descriptor and a complete typed
+//!   payload local or logical ZST. Unboxing validates exact runtime identity.
 //!
 //! M19's `mir::ExprKind::ClassAlloc` is the exact allocation primitive and
 //! only calls `scoop_rt_alloc(td, size)`. Initializer functions receive the

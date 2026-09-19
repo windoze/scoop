@@ -11692,7 +11692,7 @@ Module
     t23 = aggregate () : {}
     store local10 -> local21
     store local21 -> local22
-    t24 = array_clone array0 local22 sp<managed-call:4> live local10:ptr<managed>@0, local22:ptr<managed>@0 : ptr<managed>
+    t24 = array_clone array1 -> array0 local22 sp<managed-call:4> live local10:ptr<managed>@0, local22:ptr<managed>@0 : ptr<managed>
     store t24 -> local23
     store local10 -> local24
     store integer<Long>(0x0000000000000000) -> local25

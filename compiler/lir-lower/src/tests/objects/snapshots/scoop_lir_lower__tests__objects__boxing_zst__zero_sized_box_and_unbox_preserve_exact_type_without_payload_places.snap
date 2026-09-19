@@ -1,0 +1,6 @@
+---
+source: compiler/lir-lower/src/tests/objects/boxing_zst.rs
+expression: "operations.join(\"\\n\")"
+---
+    t2 = box_zst td0 sp<managed-call:1> live=[]
+    unbox_zst td0, local0 -> t3

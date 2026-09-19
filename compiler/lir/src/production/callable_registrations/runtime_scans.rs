@@ -190,6 +190,15 @@ fn append_instruction_scans(
     output: &mut Vec<RefScan>,
 ) -> Result<(), StrongCallableRuntimeScanPlanError> {
     match instruction {
+        Instruction::BoxValue {
+            payload: crate::BoxPayload::NonZero(place),
+            ..
+        } => {
+            if let crate::BoxPayloadRooting::RecursiveRegion(scan) = place.rooting() {
+                append_scan_tree(scan.as_ref_scan(), body, output)?;
+            }
+        }
+
         Instruction::NativeGlobalLoad { roots, .. }
         | Instruction::NativeGlobalStore { roots, .. }
         | Instruction::NativeGlobalAddress { roots, .. } => {

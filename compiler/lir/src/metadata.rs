@@ -2,6 +2,9 @@ use std::num::NonZeroU64;
 
 use super::*;
 
+mod arrays;
+pub use arrays::ArrayLayoutV1;
+
 #[derive(Debug)]
 pub struct StructDef {
     pub name: String,
@@ -294,8 +297,7 @@ pub enum ArrayKind {
 }
 
 /// Complete LIR metadata for one concrete intrinsic array application.
-/// `element_size` / `element_align` are fixed by lir-lower rather than
-/// recomputed from LLVM ABI queries in codegen.
+/// Element storage and offsets are fixed by lir-lower and checked together.
 #[derive(Debug)]
 pub struct ArrayType {
     /// Persistent managed-object layout and array-element scan identities for
@@ -304,12 +306,9 @@ pub struct ArrayType {
     /// fixed-size [`Layout`].
     pub identity: LayoutIdentity,
     pub kind: ArrayKind,
+    pub element_exact: scoop_identity::PersistentExactTypeId,
     pub element: LirType,
-    pub element_size: u64,
-    pub element_align: u64,
-    /// Canonical scan of one inline element. Codegen consumes this closed
-    /// shape directly instead of reconstructing GC metadata from `LirType`.
-    pub element_scan: RefScan,
+    pub layout: ArrayLayoutV1,
     /// The descriptor owns the recursive repeated-element scan program.
     pub type_descriptor: TypeDescriptorRef,
 }

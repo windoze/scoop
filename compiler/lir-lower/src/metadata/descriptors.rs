@@ -19,11 +19,18 @@ pub(crate) struct TypeDescriptorRefs {
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
     interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
     closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
-    boxed: Vec<(mir::Type, lir::TypeDescriptorRef)>,
+    boxed: Vec<(mir::Type, lir::BoxedValueDescriptor)>,
     string: Option<lir::TypeDescriptorRef>,
 }
 
 impl TypeDescriptorRefs {
+    pub(crate) fn for_boxed_type(&self, ty: &mir::Type) -> lir::BoxedValueDescriptor {
+        self.boxed
+            .iter()
+            .find_map(|(payload, descriptor)| (payload == ty).then(|| descriptor.clone()))
+            .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}"))
+    }
+
     pub(crate) fn for_closure(&self, id: mir::ClosureClassId) -> lir::TypeDescriptorRef {
         self.closures[&id]
     }
@@ -44,7 +51,18 @@ impl TypeDescriptorRefs {
             | mir::Type::FunPtr(_) => self
                 .boxed
                 .iter()
-                .find_map(|(payload, descriptor)| (payload == ty).then_some(*descriptor))
+                .find_map(|(payload, descriptor)| {
+                    (payload == ty).then(|| {
+                        lir::TypeDescriptorRef::Local(match descriptor {
+                            lir::BoxedValueDescriptor::ZeroSized(descriptor) => {
+                                descriptor.descriptor()
+                            }
+                            lir::BoxedValueDescriptor::NonZero(descriptor) => {
+                                descriptor.descriptor()
+                            }
+                        })
+                    })
+                })
                 .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}")),
             mir::Type::Function(_) | mir::Type::Any => {
                 unreachable!("the strong capability gate rejects this TypeDescriptor request")
@@ -237,10 +255,19 @@ pub(crate) fn type_descriptors(
         .boxed_types
         .iter()
         .filter_map(|boxed| {
-            refs.classes
-                .get(&boxed.class())
-                .copied()
-                .map(|descriptor| (boxed.payload().clone(), descriptor))
+            refs.classes.get(&boxed.class()).copied().map(|descriptor| {
+                let lir::TypeDescriptorRef::Local(descriptor) = descriptor else {
+                    unreachable!("local MIR boxed helpers have local descriptors")
+                };
+                let proof = lir::BoxedValueDescriptor::from_local(
+                    &descriptors,
+                    descriptor,
+                    exact_type_record(module, boxed.payload()).id(),
+                    lir_type(boxed.payload()),
+                )
+                .expect("MIR boxed helper descriptor proves its complete payload storage");
+                (boxed.payload().clone(), proof)
+            })
         })
         .collect();
     let string = refs
@@ -551,10 +578,19 @@ pub(crate) fn array_types(
             )
             .expect("validated array exact type and target must derive layout identities"),
             kind,
+            element_exact: exact_type_record(module, element).id(),
             element: lir_type(element),
-            element_size,
-            element_align,
-            element_scan,
+            layout: lir::ArrayLayoutV1::new(
+                context.target_profile(),
+                if element_size == 0 {
+                    assert!(!element_scan.contains_reference());
+                    lir::ArrayElementStorageV1::zero_sized(element_align)
+                } else {
+                    lir::ArrayElementStorageV1::inline(element_size, element_align, element_scan)
+                }
+                .expect("concrete array has valid element storage"),
+            )
+            .expect("concrete array has a complete target layout"),
             type_descriptor: descriptors.classes[&class_id],
         });
         assert!(ids.insert(class_id, id).is_none());

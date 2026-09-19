@@ -11398,10 +11398,10 @@ Module
     store t13 -> local12
     store local12 -> local13
     store local13 -> local14
-    t14 = array_clone array1 local14 sp<managed-call:8> live local14:ptr<managed>@0 : ptr<managed>
+    t14 = array_clone array0 -> array1 local14 sp<managed-call:8> live local14:ptr<managed>@0 : ptr<managed>
     store t14 -> local15
     store local15 -> local16
-    t15 = array_clone array0 local16 sp<managed-call:9> live local16:ptr<managed>@0 : ptr<managed>
+    t15 = array_clone array1 -> array0 local16 sp<managed-call:9> live local16:ptr<managed>@0 : ptr<managed>
     store t15 -> local17
     store local17 -> local18
     store integer<Long>(0x0000000000000000) -> local19

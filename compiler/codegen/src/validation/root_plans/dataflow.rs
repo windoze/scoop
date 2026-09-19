@@ -46,6 +46,10 @@ impl LiveValue {
 
 pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -> Vec<Value> {
     match instruction {
+        Instruction::BoxValue { payload, .. } => {
+            payload.source().map(Value::Local).into_iter().collect()
+        }
+        Instruction::UnboxValue { object, .. } => vec![*object],
         Instruction::BinOp { lhs, rhs, .. }
         | Instruction::IntegerBinary { lhs, rhs, .. }
         | Instruction::SafeIntegerDivRem { lhs, rhs, .. }
@@ -159,7 +163,14 @@ fn call_uses(
 
 pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
     let out = match instruction {
-        Instruction::BinOp { out, .. }
+        Instruction::UnboxValue { result, .. } => {
+            return match result {
+                scoop_lir::UnboxResult::ZeroSized { out, .. } => vec![LiveValue::Temp(*out)],
+                scoop_lir::UnboxResult::NonZero(place) => vec![LiveValue::Local(place.local())],
+            };
+        }
+        Instruction::BoxValue { out, .. }
+        | Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
         | Instruction::IntegerUnary { out, .. }
         | Instruction::IntegerBinary { out, .. }

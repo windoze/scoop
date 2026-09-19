@@ -1,5 +1,6 @@
 use super::*;
 
+mod boxing;
 mod instruction;
 mod names;
 
@@ -389,8 +390,8 @@ pub fn dump(module: &Module) -> String {
                 ArrayKind::Mutable => "mutable",
             },
             array.element.dump(),
-            array.element_size,
-            array.element_align,
+            array.layout.instance().inline_size(),
+            array.layout.instance().inline_alignment(),
             descriptor.instance_shape.inline_scan().dump(),
             type_descriptor_ref_name(array.type_descriptor),
         ));

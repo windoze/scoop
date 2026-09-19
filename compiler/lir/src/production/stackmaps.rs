@@ -201,7 +201,8 @@ fn stackmap_semantics(
         Instruction::Call {
             site: crate::CallSite::Managed(site),
         } => Some(&site.live),
-        Instruction::ArrayAlloc { live, .. }
+        Instruction::BoxValue { live, .. }
+        | Instruction::ArrayAlloc { live, .. }
         | Instruction::ArrayAssembly { live, .. }
         | Instruction::ArrayClone { live, .. } => Some(live),
         Instruction::Invoke {

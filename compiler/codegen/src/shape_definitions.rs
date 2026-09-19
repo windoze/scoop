@@ -241,7 +241,7 @@ fn collect_scans(module: &Module) -> Result<BTreeMap<PersistentScanId, RefScan>,
         insert_scan(
             &mut scans,
             array.identity.scan_record().id(),
-            array.element_scan.clone(),
+            array.layout.instance().inline_scan().clone(),
         )?;
     }
     for (_, descriptor) in module.meta.type_descriptors.iter() {

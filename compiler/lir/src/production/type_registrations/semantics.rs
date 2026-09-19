@@ -362,7 +362,7 @@ fn validate_inline_scan(
             arrays
                 .iter()
                 .filter(|(_, array)| array.identity.scan_record().id() == scan)
-                .map(|(_, array)| array.element_scan.clone()),
+                .map(|(_, array)| array.layout.instance().inline_scan().clone()),
         );
     let Some(payload) = payloads.next() else {
         return Err(

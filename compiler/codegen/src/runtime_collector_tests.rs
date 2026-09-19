@@ -25,6 +25,10 @@ fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Outp
         .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
+        "runtime/src/boxing.c",
+        "runtime/src/arrays.c",
+        "runtime/src/value_shape.c",
+        "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
         "runtime/src/gc/evacuation.c",
@@ -194,4 +198,23 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
             );
         }
     }
+}
+
+#[test]
+fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "value_representation_test",
+        "runtime/tests/value_representation_test.c",
+    );
+    assert!(
+        output.status.success(),
+        "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    assert_eq!(
+        output.stdout,
+        b"descriptor-driven representation tests passed\n"
+    );
 }

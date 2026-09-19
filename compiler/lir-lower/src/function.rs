@@ -1,5 +1,6 @@
 use super::*;
 
+mod boxing;
 mod call;
 mod expression;
 mod places;
@@ -298,8 +299,7 @@ struct FunctionLowerer<'a> {
     cstr_count: u32,
     /// Complete value layouts used to classify return conventions and scans.
     structs: &'a lir::StructDefs,
-    /// Enum definitions with fixed representations (enum value
-    /// sizing, e.g. for `scoop_rt_box` payload sizes).
+    /// Enum definitions with complete fixed value representations.
     enums: &'a lir::EnumDefs,
     /// Complete class-application to array-metadata mapping produced before
     /// any function is lowered.
@@ -350,10 +350,6 @@ impl<'a> FunctionLowerer<'a> {
         let enum_shape =
             |id: mir::EnumId| repr_shape(self.context, &self.enums[enum_def_id(id)].repr);
         size_align(self.context, self.module, &enum_shape, ty)
-    }
-
-    fn value_ref_scan(&self, ty: &mir::Type) -> lir::RefScan {
-        ref_scan(self.context, self.module, self.enums, ty, 0)
     }
 
     fn new_block(&mut self, base: &str) -> lir::BlockId {

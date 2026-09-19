@@ -496,7 +496,8 @@ pub enum DispatchKind {
 pub enum ManagedRuntimeFunction {
     Safepoint,
     Alloc,
-    Box,
+    BoxZst,
+    BoxValue,
     GcCollect,
     MaterializeException,
     StringConcat,
@@ -520,6 +521,10 @@ pub enum NoGcRuntimeFunction {
     Trap,
     Throw,
     Rethrow,
+    UnboxZst,
+    UnboxValue,
+    PushRecursiveRegion,
+    PopRecursiveRegion,
 }
 
 /// Read-only common view used by mechanical dump/codegen logic. Runtime
@@ -532,6 +537,19 @@ pub enum RuntimeFunction {
 }
 
 impl RuntimeFunction {
+    pub const fn requires_dedicated_operation(self) -> bool {
+        matches!(
+            self,
+            Self::Managed(ManagedRuntimeFunction::BoxZst | ManagedRuntimeFunction::BoxValue)
+                | Self::NoGc(
+                    NoGcRuntimeFunction::UnboxZst
+                        | NoGcRuntimeFunction::UnboxValue
+                        | NoGcRuntimeFunction::PushRecursiveRegion
+                        | NoGcRuntimeFunction::PopRecursiveRegion
+                )
+        )
+    }
+
     pub const fn symbol(self) -> &'static str {
         crate::RuntimeAbiSymbolV1::LirCall(self).logical_symbol()
     }
@@ -548,7 +566,6 @@ impl RuntimeFunction {
             Self::Managed(function) => match function {
                 ManagedRuntimeFunction::Safepoint => 1,
                 ManagedRuntimeFunction::Alloc => 2,
-                ManagedRuntimeFunction::Box => 3,
                 ManagedRuntimeFunction::GcCollect => 4,
                 ManagedRuntimeFunction::MaterializeException => 5,
                 ManagedRuntimeFunction::StringConcat => 6,
@@ -557,6 +574,8 @@ impl RuntimeFunction {
                 ManagedRuntimeFunction::InitializationFail => 9,
                 ManagedRuntimeFunction::InitializationFailure => 10,
                 ManagedRuntimeFunction::InitializationCycleMessage => 11,
+                ManagedRuntimeFunction::BoxZst => 12,
+                ManagedRuntimeFunction::BoxValue => 13,
             },
             Self::NoGc(function) => match function {
                 NoGcRuntimeFunction::IsInstance => 1,
@@ -570,6 +589,10 @@ impl RuntimeFunction {
                 NoGcRuntimeFunction::Trap => 9,
                 NoGcRuntimeFunction::Throw => 10,
                 NoGcRuntimeFunction::Rethrow => 11,
+                NoGcRuntimeFunction::UnboxZst => 12,
+                NoGcRuntimeFunction::UnboxValue => 13,
+                NoGcRuntimeFunction::PushRecursiveRegion => 14,
+                NoGcRuntimeFunction::PopRecursiveRegion => 15,
             },
         }
     }
@@ -578,7 +601,6 @@ impl RuntimeFunction {
         match (family, function) {
             (1, 1) => Some(Self::Managed(ManagedRuntimeFunction::Safepoint)),
             (1, 2) => Some(Self::Managed(ManagedRuntimeFunction::Alloc)),
-            (1, 3) => Some(Self::Managed(ManagedRuntimeFunction::Box)),
             (1, 4) => Some(Self::Managed(ManagedRuntimeFunction::GcCollect)),
             (1, 5) => Some(Self::Managed(ManagedRuntimeFunction::MaterializeException)),
             (1, 6) => Some(Self::Managed(ManagedRuntimeFunction::StringConcat)),
@@ -589,6 +611,8 @@ impl RuntimeFunction {
             (1, 11) => Some(Self::Managed(
                 ManagedRuntimeFunction::InitializationCycleMessage,
             )),
+            (1, 12) => Some(Self::Managed(ManagedRuntimeFunction::BoxZst)),
+            (1, 13) => Some(Self::Managed(ManagedRuntimeFunction::BoxValue)),
             (2, 1) => Some(Self::NoGc(NoGcRuntimeFunction::IsInstance)),
             (2, 2) => Some(Self::NoGc(NoGcRuntimeFunction::ITableLookup)),
             (2, 3) => Some(Self::NoGc(NoGcRuntimeFunction::Pin)),
@@ -600,6 +624,10 @@ impl RuntimeFunction {
             (2, 9) => Some(Self::NoGc(NoGcRuntimeFunction::Trap)),
             (2, 10) => Some(Self::NoGc(NoGcRuntimeFunction::Throw)),
             (2, 11) => Some(Self::NoGc(NoGcRuntimeFunction::Rethrow)),
+            (2, 12) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxZst)),
+            (2, 13) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxValue)),
+            (2, 14) => Some(Self::NoGc(NoGcRuntimeFunction::PushRecursiveRegion)),
+            (2, 15) => Some(Self::NoGc(NoGcRuntimeFunction::PopRecursiveRegion)),
             _ => None,
         }
     }

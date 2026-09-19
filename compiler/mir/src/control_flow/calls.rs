@@ -222,9 +222,6 @@ pub enum Callee {
 /// they do not acquire entries in this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
-    /// Box one value; LIR supplies the addressable payload and its complete
-    /// recursive scan program to the managed runtime entry.
-    Box,
     /// `scoop_rt_is_instance(obj, td)`
     IsInstance,
     /// `scoop_rt_itable_lookup(td, iface_td)`
@@ -255,7 +252,6 @@ pub enum RuntimeFn {
 impl RuntimeFn {
     pub fn symbol(self) -> &'static str {
         match self {
-            RuntimeFn::Box => "scoop_rt_box",
             RuntimeFn::IsInstance => "scoop_rt_is_instance",
             RuntimeFn::ITableLookup => "scoop_rt_itable_lookup",
             RuntimeFn::Pin => "scoop_rt_pin",

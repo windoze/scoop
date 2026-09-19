@@ -310,15 +310,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ],
                             scoop_lir::MANAGED_PTR,
                         ),
-                        scoop_lir::ManagedRuntimeFunction::Box => (
-                            vec![
-                                scoop_lir::METADATA_PTR,
-                                scoop_lir::RAW_PTR,
-                                LirType::MachineScalar(MachineScalarKind::ByteSize),
-                                scoop_lir::METADATA_PTR,
-                            ],
-                            scoop_lir::MANAGED_PTR,
-                        ),
+                        scoop_lir::ManagedRuntimeFunction::BoxZst
+                        | scoop_lir::ManagedRuntimeFunction::BoxValue => {
+                            return Err(CodegenError(
+                                "boxing runtime calls require a descriptor-refined operation"
+                                    .into(),
+                            ));
+                        }
                         scoop_lir::ManagedRuntimeFunction::MaterializeException => {
                             (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
                         }
@@ -353,6 +351,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 scoop_lir::RuntimeFunction::NoGc(function) => {
                     let shape = match function {
+                        scoop_lir::NoGcRuntimeFunction::UnboxZst
+                        | scoop_lir::NoGcRuntimeFunction::UnboxValue
+                        | scoop_lir::NoGcRuntimeFunction::PushRecursiveRegion
+                        | scoop_lir::NoGcRuntimeFunction::PopRecursiveRegion => {
+                            return Err(CodegenError(
+                                "boxing runtime calls require a descriptor-refined operation"
+                                    .into(),
+                            ));
+                        }
                         scoop_lir::NoGcRuntimeFunction::IsInstance => (
                             vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
                             LirType::I1,

@@ -193,6 +193,12 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
 
 fn validate_array_metadata(module: &Module) -> Result<(), CodegenError> {
     for (_, array) in module.meta.arrays.iter() {
+        if contains_machine_scalar(&module.structs, &module.enums, &array.element) {
+            return Err(CodegenError(format!(
+                "array element type {} contains an internal machine scalar",
+                array.element.dump()
+            )));
+        }
         let TypeDescriptorRef::Local(descriptor_id) = array.type_descriptor else {
             return Err(CodegenError(
                 "array metadata requires a complete local TypeDescriptor".to_string(),
@@ -215,40 +221,43 @@ fn validate_array_metadata(module: &Module) -> Result<(), CodegenError> {
                 descriptor.diagnostic_name
             )));
         }
-        let storage = if array.element_size == 0 {
-            if array.element_scan.contains_reference() {
-                return Err(CodegenError(format!(
-                    "array TypeDescriptor `{}` has a reference-bearing zero-sized element scan",
-                    descriptor.diagnostic_name
-                )));
-            }
-            scoop_lir::ArrayElementStorageV1::zero_sized(array.element_align)
-        } else {
-            scoop_lir::ArrayElementStorageV1::inline(
-                array.element_size,
-                array.element_align,
-                array.element_scan.clone(),
-            )
-        }
-        .map_err(|error| {
-            CodegenError(format!(
-                "array TypeDescriptor `{}` has invalid element storage: {error:?}",
-                descriptor.diagnostic_name
-            ))
-        })?;
-        let expected =
-            scoop_lir::TypeInstanceShapeV1::inline_array(module.meta.target_profile, storage)
-                .map_err(|error| {
-                    CodegenError(format!(
-                        "array TypeDescriptor `{}` has invalid instance shape: {error:?}",
-                        descriptor.diagnostic_name
-                    ))
-                })?;
-        if descriptor.instance_shape != expected {
+        let expected = array.layout.instance();
+        if &descriptor.instance_shape != expected {
             return Err(CodegenError(format!(
                 "array TypeDescriptor `{}` does not match its closed element size, alignment, and scan shape",
                 descriptor.diagnostic_name
             )));
+        }
+    }
+    for function in &module.functions {
+        for (_, block) in function.blocks.iter() {
+            for instruction in &block.instructions {
+                let Instruction::ArrayClone {
+                    source_type,
+                    array_type,
+                    ..
+                } = instruction
+                else {
+                    continue;
+                };
+                if arena_index(*source_type) >= module.meta.arrays.len()
+                    || arena_index(*array_type) >= module.meta.arrays.len()
+                {
+                    return Err(CodegenError(
+                        "array clone source or target metadata is missing".into(),
+                    ));
+                }
+                let source = &module.meta.arrays[*source_type];
+                let target = &module.meta.arrays[*array_type];
+                if source.element_exact != target.element_exact
+                    || source.element != target.element
+                    || source.layout != target.layout
+                {
+                    return Err(CodegenError(
+                        "array clone exact element type or storage disagrees".into(),
+                    ));
+                }
+            }
         }
     }
     Ok(())
@@ -491,11 +500,19 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
                           entry: &DispatchEntry|
      -> Result<(), CodegenError> {
         let CallableRef::Local(id) = entry.callable else {
+            if let CallableRef::Runtime(runtime) = entry.callable
+                && runtime.requires_dedicated_operation()
+            {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` dispatches to a dedicated boxing operation",
+                    descriptor.diagnostic_name
+                )));
+            }
+
             if matches!(
                 entry.callable,
                 CallableRef::Runtime(scoop_lir::RuntimeFunction::Managed(
                     scoop_lir::ManagedRuntimeFunction::Alloc
-                        | scoop_lir::ManagedRuntimeFunction::Box
                         | scoop_lir::ManagedRuntimeFunction::InitializationEnter
                 ))
             ) {
@@ -612,20 +629,6 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
                 "storage global `{}` has internal machine-scalar type {}",
                 global.symbol(),
                 ty.dump()
-            )));
-        }
-    }
-    for (_, array) in module.meta.arrays.iter() {
-        if array.element_align == 0 || !array.element_align.is_power_of_two() {
-            return Err(CodegenError(format!(
-                "array element layout has invalid size/alignment {}/{}",
-                array.element_size, array.element_align
-            )));
-        }
-        if contains_machine_scalar(&module.structs, &module.enums, &array.element) {
-            return Err(CodegenError(format!(
-                "array element type {} contains an internal machine scalar",
-                array.element.dump()
             )));
         }
     }

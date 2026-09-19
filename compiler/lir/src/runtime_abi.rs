@@ -103,10 +103,11 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 45] = [
+    pub const ALL: [Self; 50] = [
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Safepoint)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Alloc)),
-        Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Box)),
+        Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst)),
+        Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxValue)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)),
         Self::LirCall(RuntimeFunction::Managed(
             ManagedRuntimeFunction::MaterializeException,
@@ -140,6 +141,14 @@ impl RuntimeAbiSymbolV1 {
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Rethrow)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxZst)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxValue)),
+        Self::LirCall(RuntimeFunction::NoGc(
+            NoGcRuntimeFunction::PushRecursiveRegion,
+        )),
+        Self::LirCall(RuntimeFunction::NoGc(
+            NoGcRuntimeFunction::PopRecursiveRegion,
+        )),
         Self::CoreStringTypeDescriptor,
         Self::ArrayClone,
         Self::AllocationContext,
@@ -173,7 +182,12 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Alloc)) => {
                 "scoop_rt_alloc"
             }
-            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Box)) => "scoop_rt_box",
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst)) => {
+                "scoop_rt_box_zst"
+            }
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxValue)) => {
+                "scoop_rt_box_value"
+            }
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::GcCollect)) => {
                 "scoop_rt_gc_collect"
             }
@@ -222,6 +236,18 @@ impl RuntimeAbiSymbolV1 {
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)) => "scoop_rt_throw",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Rethrow)) => {
                 "scoop_rt_rethrow"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxZst)) => {
+                "scoop_rt_unbox_zst"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxValue)) => {
+                "scoop_rt_unbox_value"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::PushRecursiveRegion)) => {
+                "scoop_rt_push_native_region_roots"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::PopRecursiveRegion)) => {
+                "scoop_rt_pop_native_region_roots"
             }
             Self::CoreStringTypeDescriptor => "scoop_td_String",
             Self::ArrayClone => "scoop_rt_array_clone",
@@ -685,6 +711,57 @@ mod tests {
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
             "72be5e11c123875bccf1dcad1d91fd5ae870e076ae91c1c2a264a3dcc0e56a8e"
         );
+    }
+
+    #[test]
+    fn boxing_runtime_entries_retire_the_old_tag_without_reusing_it() {
+        assert_eq!(RuntimeFunction::from_wire_tags(1, 3), None);
+        let entries = [
+            (
+                RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst),
+                1,
+                12,
+                "scoop_rt_box_zst",
+            ),
+            (
+                RuntimeFunction::Managed(ManagedRuntimeFunction::BoxValue),
+                1,
+                13,
+                "scoop_rt_box_value",
+            ),
+            (
+                RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxZst),
+                2,
+                12,
+                "scoop_rt_unbox_zst",
+            ),
+            (
+                RuntimeFunction::NoGc(NoGcRuntimeFunction::UnboxValue),
+                2,
+                13,
+                "scoop_rt_unbox_value",
+            ),
+            (
+                RuntimeFunction::NoGc(NoGcRuntimeFunction::PushRecursiveRegion),
+                2,
+                14,
+                "scoop_rt_push_native_region_roots",
+            ),
+            (
+                RuntimeFunction::NoGc(NoGcRuntimeFunction::PopRecursiveRegion),
+                2,
+                15,
+                "scoop_rt_pop_native_region_roots",
+            ),
+        ];
+        for (function, protocol, tag, symbol) in entries {
+            assert_eq!(
+                RuntimeFunction::from_wire_tags(protocol, tag),
+                Some(function)
+            );
+            assert_eq!(function.symbol(), symbol);
+            assert!(function.requires_dedicated_operation());
+        }
     }
 
     #[test]

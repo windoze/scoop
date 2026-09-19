@@ -55,8 +55,7 @@ typedef struct ScoopAllocationContext {
 
 extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 
-void scoop_runtime_finish_tlab_alloc(void *object,
-                                     const ScoopTypeDescriptor *td,
+void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td,
                                      size_t size);
 
 /* ManagedEntry functions. The target-specific entry stub captures the direct
@@ -67,11 +66,14 @@ void scoop_rt_safepoint(void);
 const ScoopString *scoop_rt_string_concat(const ScoopString *left,
                                           const ScoopString *right);
 const void *scoop_rt_array_clone(const void *object,
-                                 const ScoopTypeDescriptor *target_td,
-                                 uint64_t element_size,
-                                 uint64_t data_offset);
-void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
-                   uint64_t payload_size, const uint64_t *payload_scan);
+                                 const ScoopTypeDescriptor *source_td,
+                                 const ScoopTypeDescriptor *target_td);
+void *scoop_rt_box_zst(const ScoopTypeDescriptor *td);
+void *scoop_rt_box_value(const ScoopTypeDescriptor *td, const void *source);
+/* NoGC leaves: exact type validation and copying cannot safepoint. */
+void scoop_rt_unbox_zst(const void *object, const ScoopTypeDescriptor *expected_td);
+void scoop_rt_unbox_value(const void *object, const ScoopTypeDescriptor *expected_td,
+                          void *destination);
 void scoop_rt_gc_collect(void);
 void *scoop_rt_materialize_exception(const void *caught);
 _Noreturn void scoop_rt_throw(const void *object);
@@ -80,8 +82,7 @@ void *scoop_rt_begin_catch(void *raw_exception);
 void scoop_rt_end_catch(void);
 uint64_t scoop_rt_init_enter(const ScoopInitializationUnitDescriptor *unit);
 void scoop_rt_init_succeed(const ScoopInitializationUnitDescriptor *unit);
-void scoop_rt_init_fail(const ScoopInitializationUnitDescriptor *unit,
-                        void *exception);
+void scoop_rt_init_fail(const ScoopInitializationUnitDescriptor *unit, void *exception);
 void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptor *unit);
 const ScoopString *
 scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptor *unit);
@@ -122,12 +123,10 @@ typedef struct ScoopThreadTransition {
 } ScoopThreadTransition;
 
 void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
-                                ScoopCallerRootEntry *entries,
-                                uint64_t count);
+                                ScoopCallerRootEntry *entries, uint64_t count);
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
 void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
-                                  ScoopCallerRootEntry *entries,
-                                  uint64_t count);
+                                  ScoopCallerRootEntry *entries, uint64_t count);
 void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
 void scoop_rt_pop_top_compiler_roots(void);
 void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
