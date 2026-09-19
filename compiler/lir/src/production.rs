@@ -74,3 +74,6 @@ pub use strong_section::*;
 
 mod strong_refs_v2;
 pub use strong_refs_v2::*;
+
+mod initialization_dependencies;
+pub use initialization_dependencies::*;

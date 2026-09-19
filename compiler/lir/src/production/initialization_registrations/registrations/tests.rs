@@ -793,3 +793,5 @@ fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
 fn node(plan: &StrongDigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
     plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
+
+mod dependencies_v2;
