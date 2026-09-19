@@ -47,6 +47,7 @@ pub enum SingleConeStrongMirInputError {
     UnreferencedImportedDependencyCallable {
         index: u32,
     },
+    Initialization(super::StrongInitializationUnitError),
     Foundation(MirFoundationBuildError),
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
@@ -113,6 +114,7 @@ impl fmt::Display for SingleConeStrongMirInputError {
 impl std::error::Error for SingleConeStrongMirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Initialization(source) => Some(source),
             Self::Foundation(source) => Some(source),
             Self::CoreShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::CoreShapeSupportExactIdentity { error, .. } => Some(error),

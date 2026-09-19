@@ -17,6 +17,10 @@ use crate::{
 
 mod errors;
 pub use errors::*;
+mod initialization;
+pub use initialization::{
+    StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
+};
 mod imported_core;
 use imported_core::validate_imported_core_callables;
 mod imported_dependency;
@@ -166,6 +170,7 @@ pub struct SingleConeStrongMaterializationPlan {
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
     initialization_units: Vec<InitializationUnitId>,
+    initialization_roots: Vec<StrongInitializationUnitMaterializationRoot>,
     objects: Vec<ObjectId>,
     strings: Vec<StringConstId>,
 }
@@ -221,6 +226,10 @@ impl SingleConeStrongMaterializationPlan {
 
     pub fn globals(&self) -> &[GlobalId] {
         &self.globals
+    }
+
+    pub fn initialization_roots(&self) -> &[StrongInitializationUnitMaterializationRoot] {
+        &self.initialization_roots
     }
 
     pub fn initialization_units(&self) -> &[InitializationUnitId] {
@@ -322,6 +331,8 @@ impl SingleConeStrongMirInput {
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, &expected_bridges)?;
         validate_output(&module, &production, &callable_roots)?;
+        let initialization_roots = initialization::validate(&module, &callable_roots)
+            .map_err(SingleConeStrongMirInputError::Initialization)?;
 
         let mut source_nominal_shapes = module
             .meta
@@ -424,11 +435,11 @@ impl SingleConeStrongMirInput {
             core_shape_support_sources,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
-            initialization_units: module
-                .initialization_units
+            initialization_units: initialization_roots
                 .iter()
-                .map(|(id, _)| id)
+                .map(|root| root.unit())
                 .collect(),
+            initialization_roots,
             objects: module.objects.iter().map(|(id, _)| id).collect(),
             strings: module.strings.iter().map(|(id, _)| id).collect(),
         };

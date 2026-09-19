@@ -1342,4 +1342,4 @@ fn try_visit_expr(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -408,7 +408,7 @@ fn install_callable_signatures(module: &mut Module) {
     module.meta.callable_signatures = MirCallableSignatures::checked(entries).unwrap();
 }
 
-fn register_test_exact_type(module: &mut Module, ty: &Type) {
+pub(crate) fn register_test_exact_type(module: &mut Module, ty: &Type) {
     if let Some(found) = module.meta.source_exact_types.get(ty) {
         assert_eq!(found.identity_record().id(), test_exact_type(ty).id());
         return;
@@ -566,7 +566,7 @@ fn test_local_value(
     .unwrap()
 }
 
-fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
+pub(crate) fn module_with_variants(variants: Vec<VariantDef>) -> (Module, EnumId) {
     let mut enums = Arena::new();
     let enum_id = enums.alloc(EnumDef {
         name: "Choice".to_string(),
