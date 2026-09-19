@@ -9,20 +9,21 @@ use super::*;
 pub(crate) fn aggregate_shape(
     context: &LoweringContext,
     module: &mir::Module,
-    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
     fields: &[mir::Type],
-) -> (Vec<u64>, u64, u64) {
+) -> StorageResult<(Vec<u64>, u64, u64)> {
     let mut offsets = Vec::with_capacity(fields.len());
-    let mut size = 0u64;
-    let mut align = 1u64;
+    let mut cursor = lir::StorageLayoutCursorV1::new(
+        context.target_profile(),
+        lir::StoragePlacementPolicyV1::Ordinary,
+    )?;
     for field in fields {
-        let (field_size, field_align) = size_align(context, module, enum_shape, field);
-        let offset = size.next_multiple_of(field_align);
-        offsets.push(offset);
-        size = offset + field_size;
-        align = align.max(field_align);
+        let (size, align) = size_align(context, module, enum_shape, field)?;
+        let geometry = lir::StorageGeometryV1::new(context.target_profile(), size, align)?;
+        offsets.push(cursor.push(geometry)?.offset());
     }
-    (offsets, size.next_multiple_of(align), align)
+    let geometry = cursor.finish()?;
+    Ok((offsets, geometry.size(), geometry.alignment().get()))
 }
 
 /// Exact layout of one named struct. Ordinary structs use natural field
@@ -31,14 +32,14 @@ pub(crate) fn aggregate_shape(
 pub(crate) fn struct_shape(
     context: &LoweringContext,
     module: &mir::Module,
-    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
     definition: &mir::StructDef,
-) -> (Vec<lir::FieldLayout>, u64, u64) {
+) -> StorageResult<(Vec<lir::FieldLayout>, u64, u64)> {
     let mir::StructRepresentation::Declared {
         c_layout, fields, ..
     } = &definition.representation
     else {
-        return match definition.representation {
+        return Ok(match definition.representation {
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Integer(
                 kind,
             )) => {
@@ -69,35 +70,27 @@ pub(crate) fn struct_shape(
                 unreachable!("the registry fixes intrinsic declaration targets")
             }
             mir::StructRepresentation::Declared { .. } => unreachable!(),
-        };
-    };
-    let packed = c_layout
-        .and_then(|layout| layout.packed.bytes())
-        .map(u64::from)
-        .unwrap_or(0);
-    let explicit_align = c_layout
-        .and_then(|layout| layout.aligned.bytes())
-        .map(u64::from)
-        .unwrap_or(0);
-    let mut layouts = Vec::with_capacity(fields.len());
-    let mut size = 0u64;
-    let mut align = explicit_align.max(1);
-    for field in fields {
-        let (field_size, natural_align) = size_align(context, module, enum_shape, &field.ty);
-        let access_align = if packed == 0 {
-            natural_align
-        } else {
-            natural_align.min(packed)
-        };
-        let offset = size.next_multiple_of(access_align);
-        layouts.push(lir::FieldLayout {
-            offset,
-            access_align,
         });
-        size = offset + field_size;
-        align = align.max(access_align);
+    };
+    if c_layout.is_some() && fields.is_empty() {
+        return Err(lir::StorageReplayError::EmptyCLayout.into());
     }
-    (layouts, size.next_multiple_of(align), align)
+    let policy = c_layout.map_or(lir::StoragePlacementPolicyV1::Ordinary, |contract| {
+        lir::StoragePlacementPolicyV1::CLayout(lower_c_layout(contract))
+    });
+    let mut cursor = lir::StorageLayoutCursorV1::new(context.target_profile(), policy)?;
+    let mut layouts = Vec::with_capacity(fields.len());
+    for field in fields {
+        let (size, align) = size_align(context, module, enum_shape, &field.ty)?;
+        let geometry = lir::StorageGeometryV1::new(context.target_profile(), size, align)?;
+        let placement = cursor.push(geometry)?;
+        layouts.push(lir::FieldLayout {
+            offset: placement.offset(),
+            access_align: placement.access_alignment().get(),
+        });
+    }
+    let geometry = cursor.finish()?;
+    Ok((layouts, geometry.size(), geometry.alignment().get()))
 }
 
 /// Size and alignment of a value of type `ty`. `String` and the M6
@@ -106,10 +99,10 @@ pub(crate) fn struct_shape(
 pub(crate) fn size_align(
     context: &LoweringContext,
     module: &mir::Module,
-    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
     ty: &mir::Type,
-) -> (u64, u64) {
-    match ty {
+) -> StorageResult<(u64, u64)> {
+    let (size, align) = match ty {
         mir::Type::Unit => (0, 1),
         mir::Type::Integer(kind) => {
             let layout = context.integer_layout(integer_kind(*kind));
@@ -140,13 +133,15 @@ pub(crate) fn size_align(
             (layout.size, layout.align)
         }
         mir::Type::Struct(id) => {
-            let (_, size, align) = struct_shape(context, module, enum_shape, &module.structs[*id]);
+            let (_, size, align) = struct_shape(context, module, enum_shape, &module.structs[*id])?;
             (size, align)
         }
         mir::Type::Tuple(elements) => {
-            let (_, size, align) = aggregate_shape(context, module, enum_shape, elements);
+            let (_, size, align) = aggregate_shape(context, module, enum_shape, elements)?;
             (size, align)
         }
-        mir::Type::Enum(id, _) => enum_shape(*id),
-    }
+        mir::Type::Enum(id, _) => enum_shape(*id)?,
+    };
+    let geometry = lir::StorageGeometryV1::new(context.target_profile(), size, align)?;
+    Ok((geometry.size(), geometry.alignment().get()))
 }

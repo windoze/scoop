@@ -7,8 +7,8 @@ pub(super) fn source_local(
     address_taken: bool,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::Local {
-    let storage = match abi::classify_argument(context, lir_type(&local.ty), structs, enums) {
+) -> StorageResult<lir::Local> {
+    let storage = match abi::classify_argument(context, lir_type(&local.ty), structs, enums)? {
         lir::AbiArgument::ElidedZst(representation) => {
             let value = lir::LogicalZstValue::new(
                 exact_type_record(module, &local.ty).id(),
@@ -27,5 +27,5 @@ pub(super) fn source_local(
             lir::LocalStorage::NonZero(value)
         }
     };
-    lir::Local::new(local.name.clone(), storage)
+    Ok(lir::Local::new(local.name.clone(), storage))
 }

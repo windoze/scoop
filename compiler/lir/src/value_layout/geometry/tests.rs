@@ -50,3 +50,46 @@ fn target_limit_applies_to_tail_padding_before_a_geometry_is_returned() {
         Err(TypeInstanceShapeError::ManagedObjectTooLarge { .. })
     ));
 }
+
+#[test]
+fn enum_region_preserves_unpadded_shared_size_and_an_empty_region_position() {
+    let mut cursor =
+        StorageLayoutCursorV1::new(TARGET, StoragePlacementPolicyV1::Ordinary).unwrap();
+    cursor
+        .push(StorageGeometryV1::new(TARGET, 8, 8).unwrap())
+        .unwrap();
+    assert_eq!(
+        cursor
+            .reserve_region(0, NonZeroPow2::new(8).unwrap())
+            .unwrap()
+            .offset(),
+        8
+    );
+    assert_eq!(
+        cursor
+            .reserve_region(24, NonZeroPow2::new(16).unwrap())
+            .unwrap()
+            .offset(),
+        16
+    );
+    assert_eq!(
+        cursor
+            .push(StorageGeometryV1::new(TARGET, 8, 8).unwrap())
+            .unwrap()
+            .offset(),
+        40
+    );
+    let shape = cursor.finish().unwrap();
+    assert_eq!((shape.size(), shape.alignment().get()), (48, 16));
+}
+
+#[test]
+fn rejected_region_alignment_leaves_the_complete_prefix_unchanged() {
+    let prefix = StorageGeometryV1::new(TARGET, 24, 8).unwrap();
+    let mut cursor = StorageLayoutCursorV1::with_prefix(prefix);
+    assert!(matches!(
+        cursor.reserve_region(1, NonZeroPow2::new(32).unwrap()),
+        Err(TypeInstanceShapeError::ManagedAlignmentTooLarge { .. })
+    ));
+    assert_eq!(cursor.finish().unwrap(), prefix);
+}

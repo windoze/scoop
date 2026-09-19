@@ -5,6 +5,8 @@ mod support;
 use support::*;
 
 mod dependency_external;
+mod native_storage;
+mod storage_replay;
 mod zst_places;
 
 use scoop_identity::{
@@ -547,7 +549,7 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
         mir::MirCLayoutValue::Natural,
         mir::MirCLayoutValue::Natural,
         false,
-        &[],
+        &[("value", LONG)],
     );
     let main = builder.main(Arena::new(), Vec::new());
     let source = builder.finish(main);
@@ -1029,11 +1031,11 @@ fn profile_layout_drives_aggregate_root_scan_offsets() {
     let (offsets, expected) = context.aggregate_layout([bool_layout, pointer_layout]);
 
     assert_eq!(
-        safepoints::lir_size_align(&context, &ty, &structs, &enums),
+        safepoints::lir_size_align(&context, &ty, &structs, &enums).unwrap(),
         (expected.size, expected.align)
     );
     assert_eq!(
-        safepoints::root_scan(&context, &ty, &structs, &enums, 0),
+        safepoints::root_scan(&context, &ty, &structs, &enums, 0).unwrap(),
         lir::RefScan::References(vec![offsets[1]])
     );
 }
@@ -1501,7 +1503,6 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
 }
 
 #[test]
-#[should_panic(expected = "HIR C-FFI classification rejects")]
 fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     let mut builder = Builder::new();
     let payload = mir::Type::Ptr(Box::new(INT));
@@ -1538,7 +1539,14 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     });
     let main = builder.main(Arena::new(), Vec::new());
 
-    let _ = lower(builder.finish(main));
+    assert!(matches!(
+        try_lower(builder.finish(main)),
+        Err(StrongLirLoweringError::StorageReplay(
+            StorageLoweringError::InvalidRepresentation(
+                "the source type has no C object representation"
+            )
+        )),
+    ));
 }
 
 #[test]

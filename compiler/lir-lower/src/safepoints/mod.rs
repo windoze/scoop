@@ -10,25 +10,31 @@ use std::collections::HashSet;
 use la_arena::{Arena, Idx};
 use scoop_lir as lir;
 
-use super::LoweringContext;
 use super::function::{LoweredFunction, MappedLoopHeaderPollTarget};
 use super::metadata::{repr_shape, sequence};
+use super::{LoweringContext, StorageLoweringError, StorageResult};
 
 mod cfg;
 mod dataflow;
 mod identity;
+mod layout;
 mod plans;
+mod roots;
 mod scans;
+
+#[cfg(test)]
+mod tests;
 
 use cfg::*;
 use dataflow::*;
 use identity::*;
+pub(crate) use layout::lir_size_align;
 use plans::*;
-use scans::{
+use roots::{
     caller_roots, exceptional_root_set, include_managed_operands, live_value_ty,
     statepoint_live_set,
 };
-pub(crate) use scans::{lir_size_align, root_scan};
+pub(crate) use scans::root_scan;
 
 #[derive(Debug, Default)]
 pub(super) struct PendingSafepointSites {
@@ -95,7 +101,7 @@ pub(super) fn complete_function(
     mut lowered: LoweredFunction,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::Function {
+) -> StorageResult<lir::Function> {
     fold_constant_branches(&mut lowered.function);
     prune_unreachable_blocks(&mut lowered);
     insert_polls(
@@ -103,9 +109,9 @@ pub(super) fn complete_function(
         &lowered.loop_header_polls,
         &mut lowered.pending_safepoints,
     );
-    annotate_root_plans(context, &mut lowered.function, structs, enums);
+    annotate_root_plans(context, &mut lowered.function, structs, enums)?;
     assign_safepoint_identities(&mut lowered.function, &lowered.pending_safepoints);
-    lowered.function
+    Ok(lowered.function)
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {

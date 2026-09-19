@@ -172,7 +172,7 @@ pub(super) fn lower_imported_core_callables(
                 exact: root.signature().result(),
             })?;
         let signature =
-            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums);
+            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums)?;
         let callable = authority
             .materialize(signature)
             .map_err(StrongLirLoweringError::ImportedCoreCallable)?;

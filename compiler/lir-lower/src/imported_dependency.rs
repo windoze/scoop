@@ -141,7 +141,7 @@ pub(super) fn lower_imported_dependency_callables(
                 },
             )?;
         let signature =
-            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums);
+            abi::classify_mir_signature(context, parameters, result.ty(), structs, enums)?;
         let callable = authority
             .materialize(signature)
             .map_err(StrongLirLoweringError::ImportedDependencyCallable)?;

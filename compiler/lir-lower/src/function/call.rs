@@ -1,5 +1,6 @@
 use super::*;
 
+mod emission;
 mod protocol;
 
 pub(super) use protocol::LoweredCallDestination;
@@ -10,7 +11,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         call: &mir::Call,
         result_ty: &mir::Type,
-    ) -> Option<lir::Value> {
+    ) -> StorageResult<Option<lir::Value>> {
         let value = match call.target.callee {
             mir::Callee::Extern(id) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -22,7 +23,7 @@ impl<'a> FunctionLowerer<'a> {
                     .args
                     .iter()
                     .map(|arg| self.lower_expr(arg))
-                    .collect::<Vec<_>>();
+                    .collect::<StorageResult<Vec<_>>>()?;
                 match self.extern_function_refs[&id] {
                     LoweredExternFunctionRef::C(function) => {
                         let destination = NativeCallDestination::Safe(
@@ -31,7 +32,7 @@ impl<'a> FunctionLowerer<'a> {
                         let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {
                             let ty = self.value_type(&ty);
-                            let local = self.new_hidden_local(ty);
+                            let local = self.new_hidden_local(ty)?;
                             self.push(lir::Instruction::Store { local, value });
                             bridge_args.push(lir::Value::CArgumentStorage(
                                 lir::CArgumentStorage::address_of(local),
@@ -44,7 +45,7 @@ impl<'a> FunctionLowerer<'a> {
                                 bridge_parameter_types,
                                 lir::LirType::Void,
                                 bridge_args,
-                            )
+                            )?
                         } else {
                             let result_type = self.value_type(result_ty);
                             self.emit_native_storage_call(
@@ -53,7 +54,7 @@ impl<'a> FunctionLowerer<'a> {
                                 result_type,
                                 lir::RefScan::None,
                                 bridge_args,
-                            )
+                            )?
                         }
                     }
                     LoweredExternFunctionRef::Scoop(function) => {
@@ -66,7 +67,7 @@ impl<'a> FunctionLowerer<'a> {
                                 unreachable!("Scoop extern reference names a Scoop declaration")
                             }
                         };
-                        self.emit_native_call_with_signature(destination, &signature, args)
+                        self.emit_native_call_with_signature(destination, &signature, args)?
                     }
                 }
             }
@@ -83,8 +84,11 @@ impl<'a> FunctionLowerer<'a> {
                     parameter_types.len(),
                     "only suspend function bridges add a hidden continuation argument"
                 );
-                let args: Vec<lir::Value> =
-                    call.args.iter().map(|arg| self.lower_expr(arg)).collect();
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .map(|arg| self.lower_expr(arg))
+                    .collect::<StorageResult<Vec<_>>>()?;
                 let td = self.load_at_offset(
                     args[0],
                     self.context.object_type_descriptor_offset(),
@@ -96,7 +100,7 @@ impl<'a> FunctionLowerer<'a> {
                     vec![lir::METADATA_PTR, lir::METADATA_PTR],
                     lir::METADATA_PTR,
                     vec![lir::Value::Temp(td), target_td],
-                );
+                )?;
                 let destination =
                     self.managed_dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
                 let returns_unit =
@@ -111,8 +115,8 @@ impl<'a> FunctionLowerer<'a> {
                     },
                     self.structs,
                     self.enums,
-                );
-                self.finish_indirect(destination, args, &call_signature)
+                )?;
+                self.finish_indirect(destination, args, &call_signature)?
             }
             mir::Callee::CoreExternal(source) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -127,12 +131,12 @@ impl<'a> FunctionLowerer<'a> {
                     .args
                     .iter()
                     .map(|argument| self.lower_expr(argument))
-                    .collect();
+                    .collect::<StorageResult<Vec<_>>>()?;
                 self.emit_non_native_call_with_signature(
                     LoweredCallDestination::core_external(id, callable.gc_effect()),
                     callable.signature(),
                     args,
-                )
+                )?
             }
             mir::Callee::DependencyStrong(source) => {
                 assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -147,12 +151,12 @@ impl<'a> FunctionLowerer<'a> {
                     .args
                     .iter()
                     .map(|argument| self.lower_expr(argument))
-                    .collect();
+                    .collect::<StorageResult<Vec<_>>>()?;
                 self.emit_non_native_call_with_signature(
                     LoweredCallDestination::dependency_external(id, callable.gc_effect()),
                     callable.signature(),
                     args,
-                )
+                )?
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
@@ -167,15 +171,18 @@ impl<'a> FunctionLowerer<'a> {
                     parameter_types.len(),
                     "only suspend closure calls add a hidden continuation argument"
                 );
-                let args: Vec<lir::Value> =
-                    call.args.iter().map(|arg| self.lower_expr(arg)).collect();
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .map(|arg| self.lower_expr(arg))
+                    .collect::<StorageResult<Vec<_>>>()?;
                 self.finish_closure(
                     args[0],
                     args,
                     parameter_types,
                     !signature.is_suspend && signature.return_type == mir::Type::Unit,
                     result_ty,
-                )
+                )?
             }
             mir::Callee::User(_) | mir::Callee::Monomorphized(_) => {
                 let id = match call.target.callee {
@@ -201,13 +208,16 @@ impl<'a> FunctionLowerer<'a> {
                     "user call arity"
                 );
                 // Arguments are evaluated left to right, before the call.
-                let args: Vec<lir::Value> =
-                    call.args.iter().map(|arg| self.lower_expr(arg)).collect();
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .map(|arg| self.lower_expr(arg))
+                    .collect::<StorageResult<Vec<_>>>()?;
                 match call.target.kind {
                     mir::CallKind::Direct => {
                         let destination =
                             LoweredCallDestination::local(self.local_function_map[&id]);
-                        self.finish_call(destination, args, &signature)
+                        self.finish_call(destination, args, &signature)?
                     }
                     // vtable dispatch (impl spec 2.9): the receiver's
                     // object header holds the TypeDescriptor, whose
@@ -229,7 +239,7 @@ impl<'a> FunctionLowerer<'a> {
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(destination, args, &signature)
+                        self.finish_indirect(destination, args, &signature)?
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
@@ -248,14 +258,14 @@ impl<'a> FunctionLowerer<'a> {
                             vec![lir::METADATA_PTR, lir::METADATA_PTR],
                             lir::METADATA_PTR,
                             vec![lir::Value::Temp(td), iface_td],
-                        );
+                        )?;
                         let destination = self.dispatch_destination(
                             table,
                             lir::DispatchKind::Interface,
                             slot,
                             callee.gc_effect,
                         );
-                        self.finish_indirect(destination, args, &signature)
+                        self.finish_indirect(destination, args, &signature)?
                     }
                     mir::CallKind::Closure { .. } => {
                         unreachable!("closure calls have no statically selected user callee")
@@ -278,10 +288,10 @@ impl<'a> FunctionLowerer<'a> {
                     mir::ExprKind::StringConst(id) => self.module.strings[*id].value.clone(),
                     _ => unreachable!("the trap message is a string constant"),
                 };
-                let trap = self.trap_block(&message);
+                let trap = self.trap_block(&message)?;
                 self.seal(lir::Terminator::Br(trap));
                 self.current_sealed = true;
-                return None;
+                return Ok(None);
             }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
@@ -311,8 +321,11 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
                 };
                 assert_eq!(call.args.len(), expected_arg_count, "runtime call arity");
-                let args: Vec<lir::Value> =
-                    call.args.iter().map(|arg| self.lower_expr(arg)).collect();
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .map(|arg| self.lower_expr(arg))
+                    .collect::<StorageResult<Vec<_>>>()?;
                 let (parameter_types, result_type) = match function {
                     mir::RuntimeFn::StringConcat => {
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
@@ -376,10 +389,10 @@ impl<'a> FunctionLowerer<'a> {
                     parameter_types,
                     result_type,
                     args,
-                )
+                )?
             }
         };
-        Some(value)
+        Ok(Some(value))
     }
 
     /// Load a value of `ty` at a fixed byte offset from a raw pointer.
@@ -454,7 +467,7 @@ impl<'a> FunctionLowerer<'a> {
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
         signature: &lir::ScoopAbiSignature,
-    ) -> lir::Value {
+    ) -> StorageResult<lir::Value> {
         self.emit_non_native_call_with_signature(destination, signature, args)
     }
 
@@ -466,7 +479,7 @@ impl<'a> FunctionLowerer<'a> {
         destination: LoweredCallDestination,
         args: Vec<lir::Value>,
         signature: &lir::ScoopAbiSignature,
-    ) -> lir::Value {
+    ) -> StorageResult<lir::Value> {
         self.finish_call(destination, args, signature)
     }
 
@@ -480,7 +493,7 @@ impl<'a> FunctionLowerer<'a> {
         parameter_types: Vec<mir::Type>,
         returns_unit: bool,
         result_ty: &mir::Type,
-    ) -> lir::Value {
+    ) -> StorageResult<lir::Value> {
         let destination = self.managed_dispatch_destination(
             closure,
             lir::DispatchKind::Closure,
@@ -496,7 +509,7 @@ impl<'a> FunctionLowerer<'a> {
             },
             self.structs,
             self.enums,
-        );
+        )?;
         self.finish_indirect(destination, args, &signature)
     }
 }

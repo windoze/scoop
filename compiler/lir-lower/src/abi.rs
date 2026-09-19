@@ -1,7 +1,7 @@
 use scoop_lir as lir;
 use scoop_mir as mir;
 
-use crate::{LoweringContext, lir_type, safepoints};
+use crate::{LoweringContext, StorageResult, lir_type, safepoints};
 
 enum ClassifiedAbiValue {
     ZeroSized(lir::AbiZst),
@@ -14,27 +14,23 @@ fn classify_value(
     ty: lir::LirType,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> Result<ClassifiedAbiValue, lir::AbiLayoutError> {
-    let (size, alignment) = safepoints::lir_size_align(context, &ty, structs, enums);
+) -> StorageResult<ClassifiedAbiValue> {
+    let (size, alignment) = safepoints::lir_size_align(context, &ty, structs, enums)?;
+    let scan = safepoints::root_scan(context, &ty, structs, enums, 0)?;
     if size == 0 {
         let layout = lir::AbiZeroSizedLayout::new(alignment)?;
-        let value = lir::AbiZst::new(ty, layout)
-            .expect("LIR type lowering never classifies void as a value");
+        let value = lir::AbiZst::new(ty, layout)?;
         return Ok(ClassifiedAbiValue::ZeroSized(value));
     }
 
     let layout = lir::AbiNonZeroLayout::new(size, alignment)?;
-    let scan = safepoints::root_scan(context, &ty, structs, enums, 0);
-    let value = lir::AbiValue::new(ty, layout, scan)
-        .expect("LIR type lowering never classifies void as a value");
+    let value = lir::AbiValue::new(ty, layout, scan)?;
     Ok(
         match lir::classify_non_zero_scoop_abi_value(
             context.target_profile(),
             enums,
             value.storage_type(),
-        )
-        .expect("LIR type lowering only classifies valid non-void value types")
-        {
+        )? {
             lir::ScoopAbiPassing::Direct => ClassifiedAbiValue::Direct(value),
             lir::ScoopAbiPassing::Indirect => ClassifiedAbiValue::Indirect(value),
         },
@@ -46,14 +42,12 @@ pub(crate) fn classify_argument(
     ty: lir::LirType,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::AbiArgument {
-    match classify_value(context, ty, structs, enums)
-        .expect("target-produced LIR layouts have valid size and alignment")
-    {
+) -> StorageResult<lir::AbiArgument> {
+    Ok(match classify_value(context, ty, structs, enums)? {
         ClassifiedAbiValue::ZeroSized(value) => lir::AbiArgument::ElidedZst(value),
         ClassifiedAbiValue::Direct(value) => lir::AbiArgument::Direct(value),
         ClassifiedAbiValue::Indirect(value) => lir::AbiArgument::Indirect(value),
-    }
+    })
 }
 
 pub(crate) fn classify_return(
@@ -61,17 +55,15 @@ pub(crate) fn classify_return(
     ty: Option<lir::LirType>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::AbiReturn {
+) -> StorageResult<lir::AbiReturn> {
     let Some(ty) = ty else {
-        return lir::AbiReturn::UnitVoid;
+        return Ok(lir::AbiReturn::UnitVoid);
     };
-    match classify_value(context, ty, structs, enums)
-        .expect("target-produced LIR layouts have valid size and alignment")
-    {
+    Ok(match classify_value(context, ty, structs, enums)? {
         ClassifiedAbiValue::ZeroSized(value) => lir::AbiReturn::ElidedZst(value),
         ClassifiedAbiValue::Direct(value) => lir::AbiReturn::Direct(value),
         ClassifiedAbiValue::Indirect(value) => lir::AbiReturn::Indirect(value),
-    }
+    })
 }
 
 pub(crate) fn classify_signature(
@@ -80,15 +72,15 @@ pub(crate) fn classify_signature(
     result_type: Option<lir::LirType>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::ScoopAbiSignature {
-    lir::ScoopAbiSignature::new(
+) -> StorageResult<lir::ScoopAbiSignature> {
+    Ok(lir::ScoopAbiSignature::new(
         parameter_types
             .into_iter()
             .map(|ty| classify_argument(context, ty, structs, enums))
-            .collect(),
-        classify_return(context, result_type, structs, enums),
+            .collect::<StorageResult<Vec<_>>>()?,
+        classify_return(context, result_type, structs, enums)?,
         lir::CallingConvention::Cdecl,
-    )
+    ))
 }
 
 pub(crate) fn classify_mir_signature<'a>(
@@ -97,7 +89,7 @@ pub(crate) fn classify_mir_signature<'a>(
     result_type: &mir::Type,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> lir::ScoopAbiSignature {
+) -> StorageResult<lir::ScoopAbiSignature> {
     classify_signature(
         context,
         parameter_types.into_iter().map(lir_type),

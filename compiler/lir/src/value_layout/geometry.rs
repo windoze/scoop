@@ -123,9 +123,21 @@ impl StorageLayoutCursorV1 {
                 access_alignment,
             });
         }
+        self.reserve_region(field.size, access_alignment)
+    }
+
+    /// Reserve an enum region whose maximum payload size is not independently
+    /// tail-padded. Unlike a logical ZST field, an empty region retains its
+    /// aligned position after the tag or preceding regions.
+    pub fn reserve_region(
+        &mut self,
+        size: u64,
+        access_alignment: NonZeroPow2,
+    ) -> Result<StoragePlacementV1, TypeInstanceShapeError> {
+        let alignment = self.alignment.max(access_alignment);
         let offset = access_alignment.align_up(self.cursor)?;
         let cursor = offset
-            .checked_add(field.size)
+            .checked_add(size)
             .ok_or(TypeInstanceShapeError::SizeOverflow)?;
         require_target(self.target, cursor, alignment)?;
         self.cursor = cursor;

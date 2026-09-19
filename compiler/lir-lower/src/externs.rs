@@ -12,10 +12,10 @@ pub(super) fn lower_extern_functions(
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     native_externals: &lir::NativeExternalMetadata,
-) -> (
+) -> StorageResult<(
     lir::ExternFunctions,
     HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-) {
+)> {
     let mut functions = lir::ExternFunctions::default();
     let mut references = HashMap::new();
     for (id, extern_) in module.extern_functions.iter() {
@@ -64,13 +64,13 @@ pub(super) fn lower_extern_functions(
                         &extern_.return_type,
                         structs,
                         enums,
-                    ),
+                    )?,
                 }))
             }
         };
         references.insert(id, reference);
     }
-    (functions, references)
+    Ok((functions, references))
 }
 
 fn c_data_pointee(

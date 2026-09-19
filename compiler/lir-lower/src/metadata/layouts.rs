@@ -16,7 +16,7 @@ pub(crate) fn layouts(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     emit_runtime_string: bool,
-) -> Arena<lir::Layout> {
+) -> StorageResult<Arena<lir::Layout>> {
     let mut layouts = Arena::new();
     for (id, def) in module.structs.iter() {
         let ty = def.physical_type(id);
@@ -26,7 +26,7 @@ pub(crate) fn layouts(
         let identity = struct_layout_identity(context, identity_roots, module, &ty, def);
         let needs_managed_value = identity.layout_record().key().representation()
             != scoop_identity::RepresentationRole::ManagedValue;
-        layouts.alloc(struct_layout(context, module, enums, identity, def));
+        layouts.alloc(struct_layout(context, module, enums, identity, def)?);
         if needs_managed_value {
             layouts.alloc(struct_layout(
                 context,
@@ -34,7 +34,7 @@ pub(crate) fn layouts(
                 enums,
                 managed_value_layout_identity(context, identity_roots, module, &ty),
                 def,
-            ));
+            )?);
         }
     }
     for (id, def) in module.enums.iter() {
@@ -89,7 +89,7 @@ pub(crate) fn layouts(
                     enums,
                     managed_object_layout_identity(context, identity_roots, module, &ty),
                     def,
-                ));
+                )?);
             }
             mir::ClassRepresentation::Intrinsic(
                 mir::IntrinsicTypeRepresentation::Array { .. }
@@ -102,12 +102,12 @@ pub(crate) fn layouts(
                     enums,
                     managed_object_layout_identity(context, identity_roots, module, &ty),
                     def,
-                ));
+                )?);
             }
         }
     }
     for (id, def) in module.closure_classes.iter() {
-        let (_, size, align, scan) = closure_shape(context, module, enums, def);
+        let (_, size, align, scan) = closure_shape(context, module, enums, def)?;
         let exact =
             generated_exact_type_record(module, mir::GeneratedExactTypeLocation::Closure(id)).id();
         let root = identity_roots.for_generated(mir::GeneratedExactTypeLocation::Closure(id));
@@ -140,8 +140,8 @@ pub(crate) fn layouts(
         }) {
             continue;
         }
-        let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-        let (size, align) = size_align(context, module, &enum_shape, root.ty());
+        let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+        let (size, align) = size_align(context, module, &enum_shape, root.ty())?;
         layouts.alloc(lir::Layout {
             identity: managed_value_layout_identity(context, identity_roots, module, root.ty()),
             name: mir::type_name(module, root.ty()),
@@ -151,11 +151,11 @@ pub(crate) fn layouts(
             c_layout: None,
             interior_mutable: false,
             kind: lir::LayoutKind::Plain {
-                scan: ref_scan(context, module, enums, root.ty(), 0),
+                scan: ref_scan(context, module, enums, root.ty(), 0)?,
             },
         });
     }
-    layouts
+    Ok(layouts)
 }
 
 fn managed_reference_value_layout(

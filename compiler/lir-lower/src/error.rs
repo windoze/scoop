@@ -5,9 +5,14 @@ use scoop_mir as mir;
 
 use crate::StrongLirCapabilityError;
 
+mod storage;
+pub use storage::StorageLoweringError;
+pub(crate) use storage::StorageResult;
+
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
+    StorageReplay(StorageLoweringError),
     MissingImportedCoreLirAuthority,
     CoreCannotImportCore,
     ImportedCoreLirCountMismatch {
@@ -93,6 +98,7 @@ impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
+            Self::StorageReplay(source) => source.fmt(formatter),
             Self::ImportedCoreCallable(source) => source.fmt(formatter),
             Self::ImportedCoreTypeDescriptor(source) => source.fmt(formatter),
             Self::ImportedDependencyCallable(source) => source.fmt(formatter),
@@ -219,6 +225,7 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
+            Self::StorageReplay(source) => Some(source),
             Self::ImportedCoreCallable(source) => Some(source),
             Self::ImportedCoreTypeDescriptor(source) => Some(source),
             Self::ImportedDependencyCallable(source) => Some(source),

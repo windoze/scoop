@@ -207,10 +207,10 @@ pub fn lower_with_dependencies(
 
     // Enum definitions with fixed representations, in the MIR arena's
     // order: `mir::EnumId` and `lir::EnumDefId` align.
-    let enums = lower_enums(&context, module);
+    let enums = lower_enums(&context, module)?;
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
-    let structs = lower_structs(&context, module, &enums);
+    let structs = lower_structs(&context, module, &enums)?;
     let (core_external_type_descriptors, imported_runtime_string) =
         lower_imported_core_runtime_string(input, imported_core)?;
     let (core_external_callables, core_external_callable_map) =
@@ -223,7 +223,7 @@ pub fn lower_with_dependencies(
             &structs,
             &enums,
         )?;
-    let native_abi = native_abi::lower(&context, module, &structs, &enums);
+    let native_abi = native_abi::lower(&context, module, &structs, &enums)?;
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
     // signatures rather than independently rebuilding a physical ABI.
@@ -237,17 +237,17 @@ pub fn lower_with_dependencies(
                 &function.return_ty,
                 &structs,
                 &enums,
-            );
-            (id, signature)
+            )?;
+            Ok((id, signature))
         })
-        .collect::<HashMap<_, _>>();
+        .collect::<StorageResult<HashMap<_, _>>>()?;
     let (extern_functions, extern_function_refs) = lower_extern_functions(
         &context,
         module,
         &structs,
         &enums,
         &native_abi.native_externals,
-    );
+    )?;
     let (storage_globals, native_globals, native_global_bridges) = lower_globals(
         GlobalLoweringInputs {
             context: &context,
@@ -259,7 +259,7 @@ pub fn lower_with_dependencies(
             native_externals: &native_abi.native_externals,
         },
         &mut globals,
-    );
+    )?;
     let callable_owners = input
         .materialization()
         .callable_roots()
@@ -351,7 +351,7 @@ pub fn lower_with_dependencies(
         module,
         &enums,
         &type_descriptor_refs,
-    );
+    )?;
 
     let mut lowered_functions = module
         .top_level
@@ -381,7 +381,7 @@ pub fn lower_with_dependencies(
                 &extern_function_refs,
             )
         })
-        .collect::<Vec<_>>();
+        .collect::<StorageResult<Vec<_>>>()?;
     if let (Some(reference), Some(gateway)) = (root_gateway_ref, root_artifacts) {
         assert_eq!(
             reference.declaration().into_u32() as usize,
@@ -401,7 +401,7 @@ pub fn lower_with_dependencies(
     let functions = lowered_functions
         .into_iter()
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
-        .collect::<Vec<_>>();
+        .collect::<StorageResult<Vec<_>>>()?;
 
     let core_lir_bridge =
         lower_core_lir_bridge(input, module, &functions, &enums, &local_function_map)?;
@@ -412,7 +412,7 @@ pub fn lower_with_dependencies(
         module,
         &enums,
         imported_runtime_string.is_none(),
-    );
+    )?;
     let imported_runtime_string_exact = core_external_type_descriptors
         .iter()
         .next()

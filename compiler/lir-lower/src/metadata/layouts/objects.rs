@@ -12,37 +12,34 @@ pub(crate) fn class_layout(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     def: &mir::ClassDef,
-) -> (u64, u64, lir::RefScan) {
+) -> StorageResult<(u64, u64, lir::RefScan)> {
     match &def.representation {
         mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
             let layout = context.string_layout();
-            return (layout.size, layout.align, lir::RefScan::None);
+            return Ok((layout.size, layout.align, lir::RefScan::None));
         }
         mir::ClassRepresentation::Intrinsic(
             mir::IntrinsicTypeRepresentation::Array { element }
             | mir::IntrinsicTypeRepresentation::MutableArray { element },
         ) => {
-            let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-            let (size, align) = size_align(context, module, &enum_shape, element);
-            return (
-                size.next_multiple_of(align),
-                align,
-                ref_scan(context, module, enums, element, 0),
-            );
+            let enum_shape =
+                |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+            let (size, align) = size_align(context, module, &enum_shape, element)?;
+            return Ok((size, align, ref_scan(context, module, enums, element, 0)?));
         }
         mir::ClassRepresentation::Intrinsic(_) => {
             unreachable!("the registry fixes intrinsic declaration targets")
         }
         mir::ClassRepresentation::Declared { .. } => {}
     }
-    let (offsets, size, align) = class_shape(context, module, enums, def);
+    let (offsets, size, align) = class_shape(context, module, enums, def)?;
     let fields: Vec<mir::Type> = def
         .declared_fields()
         .iter()
         .map(|field| field.ty.clone())
         .collect();
-    let scan = scan_fields(context, module, enums, &fields, &offsets, 0);
-    (size, align, scan)
+    let scan = scan_fields(context, module, enums, &fields, &offsets, 0)?;
+    Ok((size, align, scan))
 }
 
 /// A derived instance preserves the complete base prefix, including tail
@@ -53,32 +50,48 @@ pub(crate) fn class_shape(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     def: &mir::ClassDef,
-) -> (Vec<u64>, u64, u64) {
-    let fields = def.declared_fields();
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let header = context.object_header_layout();
-    let (mut offsets, mut size, mut align) = match def.base_class() {
-        Some(base) => class_shape(context, module, enums, &module.classes[base]),
-        None => (Vec::new(), header.size, header.align),
-    };
-    let inherited_count = offsets.len();
-    assert!(
-        inherited_count <= fields.len(),
-        "MIR includes all inherited fields"
-    );
-    offsets.reserve(fields.len() - inherited_count);
-    for field in &fields[inherited_count..] {
-        let (field_size, field_align) = size_align(context, module, &enum_shape, &field.ty);
-        align = align.max(field_align);
-        if field_size == 0 {
-            offsets.push(0);
-            continue;
+) -> StorageResult<(Vec<u64>, u64, u64)> {
+    let mut chain = vec![def];
+    let mut current = def;
+    let mut seen = std::collections::HashSet::new();
+    while let Some(base) = current.base_class() {
+        if !seen.insert(base) {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "class base cycle",
+            ));
         }
-        let offset = size.next_multiple_of(field_align);
-        offsets.push(offset);
-        size = offset + field_size;
+        current = &module.classes[base];
+        chain.push(current);
     }
-    (offsets, size.next_multiple_of(align), align)
+    let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+    let header = context.object_header_layout();
+    let mut prefix =
+        lir::StorageGeometryV1::new(context.target_profile(), header.size, header.align)?;
+    let mut offsets = Vec::new();
+    let mut inherited_fields: &[mir::Field] = &[];
+    for definition in chain.into_iter().rev() {
+        let fields = definition.declared_fields();
+        let inherited_count = offsets.len();
+        if inherited_count > fields.len()
+            || fields
+                .iter()
+                .zip(inherited_fields)
+                .any(|(field, inherited)| field.name != inherited.name || field.ty != inherited.ty)
+        {
+            return Err(StorageLoweringError::InvalidRepresentation(
+                "class fields do not preserve the complete base prefix",
+            ));
+        }
+        let mut cursor = lir::StorageLayoutCursorV1::with_prefix(prefix);
+        for field in &fields[inherited_count..] {
+            let (size, align) = size_align(context, module, &enum_shape, &field.ty)?;
+            let geometry = lir::StorageGeometryV1::new(context.target_profile(), size, align)?;
+            offsets.push(cursor.push(geometry)?.offset());
+        }
+        prefix = cursor.finish()?;
+        inherited_fields = fields;
+    }
+    Ok((offsets, prefix.size(), prefix.alignment().get()))
 }
 
 pub(crate) fn class_definition_layout(
@@ -87,11 +100,11 @@ pub(crate) fn class_definition_layout(
     enums: &lir::EnumDefs,
     identity: lir::LayoutIdentity,
     def: &mir::ClassDef,
-) -> lir::Layout {
-    match &def.representation {
+) -> StorageResult<lir::Layout> {
+    Ok(match &def.representation {
         mir::ClassRepresentation::Declared { fields, .. } => {
-            let (size, align, scan) = class_layout(context, module, enums, def);
-            let offsets = class_shape(context, module, enums, def).0;
+            let (size, align, scan) = class_layout(context, module, enums, def)?;
+            let offsets = class_shape(context, module, enums, def)?.0;
             lir::Layout {
                 identity,
                 name: def.name.clone(),
@@ -102,14 +115,15 @@ pub(crate) fn class_definition_layout(
                     .zip(offsets)
                     .map(|(field, offset)| {
                         let enum_shape =
-                            |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-                        let (_, access_align) = size_align(context, module, &enum_shape, &field.ty);
-                        lir::FieldLayout {
+                            |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+                        let (_, access_align) =
+                            size_align(context, module, &enum_shape, &field.ty)?;
+                        Ok(lir::FieldLayout {
                             offset,
                             access_align,
-                        }
+                        })
                     })
-                    .collect(),
+                    .collect::<StorageResult<Vec<_>>>()?,
                 c_layout: None,
                 interior_mutable: false,
                 kind: lir::LayoutKind::Plain { scan },
@@ -149,7 +163,7 @@ pub(crate) fn class_definition_layout(
                 kind: lir::LayoutKind::Intrinsic(kind),
             }
         }
-    }
+    })
 }
 
 /// Closure object layout: the 16-byte managed header, one non-scanned code
@@ -159,24 +173,30 @@ pub(crate) fn closure_shape(
     module: &mir::Module,
     enums: &lir::EnumDefs,
     def: &mir::ClosureClass,
-) -> (Vec<u64>, u64, u64, lir::RefScan) {
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+) -> StorageResult<(Vec<u64>, u64, u64, lir::RefScan)> {
+    let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
     let mut offsets = Vec::with_capacity(def.captures.len());
     let (_, prefix) = context.closure_prefix();
-    let mut size = prefix.size;
-    let mut align = prefix.align;
+    let prefix = lir::StorageGeometryV1::new(context.target_profile(), prefix.size, prefix.align)?;
+    let mut cursor = lir::StorageLayoutCursorV1::with_prefix(prefix);
     for capture in &def.captures {
-        let (capture_size, capture_align) = size_align(context, module, &enum_shape, &capture.ty);
-        let offset = size.next_multiple_of(capture_align);
-        offsets.push(offset);
-        size = offset + capture_size;
-        align = align.max(capture_align);
+        let (size, align) = size_align(context, module, &enum_shape, &capture.ty)?;
+        offsets.push(
+            cursor
+                .push(lir::StorageGeometryV1::new(
+                    context.target_profile(),
+                    size,
+                    align,
+                )?)?
+                .offset(),
+        );
     }
     let fields: Vec<_> = def
         .captures
         .iter()
         .map(|capture| capture.ty.clone())
         .collect();
-    let scan = scan_fields(context, module, enums, &fields, &offsets, 0);
-    (offsets, size.next_multiple_of(align), align, scan)
+    let scan = scan_fields(context, module, enums, &fields, &offsets, 0)?;
+    let geometry = cursor.finish()?;
+    Ok((offsets, geometry.size(), geometry.alignment().get(), scan))
 }

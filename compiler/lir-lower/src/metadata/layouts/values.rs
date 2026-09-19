@@ -6,7 +6,7 @@ pub(crate) fn struct_layout(
     enums: &lir::EnumDefs,
     identity: lir::LayoutIdentity,
     definition: &mir::StructDef,
-) -> lir::Layout {
+) -> StorageResult<lir::Layout> {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
             mir::IntrinsicTypeRepresentation::Integer(kind) => {
@@ -52,7 +52,7 @@ pub(crate) fn struct_layout(
                 unreachable!("the registry fixes intrinsic declaration targets")
             }
         };
-        return lir::Layout {
+        return Ok(lir::Layout {
             identity,
             name: definition.name.clone(),
             size,
@@ -61,10 +61,10 @@ pub(crate) fn struct_layout(
             c_layout: None,
             interior_mutable: false,
             kind: lir::LayoutKind::Intrinsic(representation),
-        };
+        });
     }
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition);
+    let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition)?;
     let mir::StructRepresentation::Declared {
         c_layout,
         interior_mutable,
@@ -78,8 +78,8 @@ pub(crate) fn struct_layout(
         .map(|field| field.ty.clone())
         .collect();
     let offsets: Vec<_> = fields.iter().map(|field| field.offset).collect();
-    let scan = scan_fields(context, module, enums, &field_types, &offsets, 0);
-    lir::Layout {
+    let scan = scan_fields(context, module, enums, &field_types, &offsets, 0)?;
+    Ok(lir::Layout {
         identity,
         name: definition.name.clone(),
         size,
@@ -88,7 +88,7 @@ pub(crate) fn struct_layout(
         c_layout: c_layout.map(lower_c_layout),
         interior_mutable: *interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
-    }
+    })
 }
 
 /// Layout of an enum value. Tagged enums expose one unconditional scan

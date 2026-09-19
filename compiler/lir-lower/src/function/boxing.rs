@@ -1,8 +1,8 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    pub(super) fn lower_box(&mut self, operand: &mir::Expr) -> lir::Value {
-        let value = self.lower_expr(operand);
+    pub(super) fn lower_box(&mut self, operand: &mir::Expr) -> StorageResult<lir::Value> {
+        let value = self.lower_expr(operand)?;
         let descriptor = self.type_descriptors.for_boxed_type(&operand.ty);
         let payload = match descriptor {
             lir::BoxedValueDescriptor::ZeroSized(descriptor) => {
@@ -11,11 +11,7 @@ impl FunctionLowerer<'_> {
             lir::BoxedValueDescriptor::NonZero(descriptor) => {
                 let local = self.box_value_local(descriptor.value().clone());
                 self.push(lir::Instruction::Store { local, value });
-                lir::BoxPayload::NonZero(
-                    descriptor
-                        .bind_place(&self.locals, local)
-                        .expect("fresh box source has the descriptor's complete value layout"),
-                )
+                lir::BoxPayload::NonZero(descriptor.bind_place(&self.locals, local)?)
             }
         };
         let out = self.new_temp(lir::MANAGED_PTR);
@@ -26,11 +22,15 @@ impl FunctionLowerer<'_> {
             safepoint,
             live: lir::StatepointLiveSet::default(),
         });
-        lir::Value::Temp(out)
+        Ok(lir::Value::Temp(out))
     }
 
-    pub(super) fn lower_unbox(&mut self, operand: &mir::Expr, ty: &mir::Type) -> lir::Value {
-        let object = self.lower_expr(operand);
+    pub(super) fn lower_unbox(
+        &mut self,
+        operand: &mir::Expr,
+        ty: &mir::Type,
+    ) -> StorageResult<lir::Value> {
+        let object = self.lower_expr(operand)?;
         let descriptor = self.type_descriptors.for_boxed_type(ty);
         let (result, value) = match descriptor {
             lir::BoxedValueDescriptor::ZeroSized(descriptor) => {
@@ -42,14 +42,12 @@ impl FunctionLowerer<'_> {
             }
             lir::BoxedValueDescriptor::NonZero(descriptor) => {
                 let local = self.box_value_local(descriptor.value().clone());
-                let place = descriptor
-                    .bind_place(&self.locals, local)
-                    .expect("fresh unbox destination has the descriptor's complete value layout");
+                let place = descriptor.bind_place(&self.locals, local)?;
                 (lir::UnboxResult::NonZero(place), lir::Value::Local(local))
             }
         };
         self.push(lir::Instruction::UnboxValue { object, result });
-        value
+        Ok(value)
     }
 
     fn box_value_local(&mut self, value: lir::AbiValue) -> lir::LocalId {

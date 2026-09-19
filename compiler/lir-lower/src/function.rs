@@ -1,9 +1,13 @@
 use super::*;
 
+mod arrays;
 mod boxing;
 mod call;
 mod expression;
+mod expression_support;
+mod objects;
 mod places;
+mod scalars;
 mod statements;
 
 use call::LoweredCallDestination;
@@ -115,7 +119,7 @@ pub(super) fn lower_function<'a>(
     >,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-) -> LoweredFunction {
+) -> StorageResult<LoweredFunction> {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
     let address_taken = locals::address_taken(function);
@@ -155,7 +159,7 @@ pub(super) fn lower_function<'a>(
             address_taken.contains(&mir_id),
             structs,
             enums,
-        ));
+        )?);
         local_map.insert(mir_id, LocalSlot::Slot(lir_id));
     }
 
@@ -243,13 +247,13 @@ pub(super) fn lower_function<'a>(
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
         lowerer.current_unwind = block.unwind.map(|target| lowerer.block_map[&target]);
-        lowerer.lower_statements(&block.statements);
+        lowerer.lower_statements(&block.statements)?;
         if !lowerer.current_sealed {
-            lowerer.lower_terminator(&block.terminator);
+            lowerer.lower_terminator(&block.terminator)?;
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
-    LoweredFunction {
+    Ok(LoweredFunction {
         function: lir::Function {
             callable_body,
             gc_effect: match function.gc_effect {
@@ -266,7 +270,7 @@ pub(super) fn lower_function<'a>(
         },
         loop_header_polls,
         pending_safepoints,
-    }
+    })
 }
 
 // Safepoint placement and liveness live in safepoints.rs.
@@ -346,9 +350,9 @@ impl<'a> FunctionLowerer<'a> {
         self.array_types[&class]
     }
 
-    fn value_layout(&self, ty: &mir::Type) -> (u64, u64) {
+    fn value_layout(&self, ty: &mir::Type) -> StorageResult<(u64, u64)> {
         let enum_shape =
-            |id: mir::EnumId| repr_shape(self.context, &self.enums[enum_def_id(id)].repr);
+            |id: mir::EnumId| Ok(repr_shape(self.context, &self.enums[enum_def_id(id)].repr));
         size_align(self.context, self.module, &enum_shape, ty)
     }
 
@@ -387,29 +391,29 @@ impl<'a> FunctionLowerer<'a> {
 
     /// A fresh hidden slot carrying a short-circuit result across
     /// basic blocks (LIR has no phi nodes; mem2reg removes it).
-    fn new_hidden_local(&mut self, ty: lir::LirType) -> lir::LocalId {
+    fn new_hidden_local(&mut self, ty: lir::LirType) -> StorageResult<lir::LocalId> {
         self.hidden_count += 1;
-        let value = match abi::classify_argument(self.context, ty, self.structs, self.enums) {
+        let value = match abi::classify_argument(self.context, ty, self.structs, self.enums)? {
             lir::AbiArgument::Direct(value) | lir::AbiArgument::Indirect(value) => value,
             lir::AbiArgument::ElidedZst(_) => {
                 unreachable!("hidden physical storage requires a nonzero ABI value")
             }
         };
-        self.locals.alloc(lir::Local::new(
+        Ok(self.locals.alloc(lir::Local::new(
             format!("$sc.{}", self.hidden_count),
             lir::LocalStorage::NonZero(value),
-        ))
+        )))
     }
 
-    fn exception_slots(&mut self) -> (lir::LocalId, lir::LocalId) {
+    fn exception_slots(&mut self) -> StorageResult<(lir::LocalId, lir::LocalId)> {
         if let Some(slots) = self.exception_slots {
-            return slots;
+            return Ok(slots);
         }
-        let record = self.new_hidden_local(lir::LirType::ExceptionRecord);
-        let raw = self.new_hidden_local(lir::RAW_PTR);
+        let record = self.new_hidden_local(lir::LirType::ExceptionRecord)?;
+        let raw = self.new_hidden_local(lir::RAW_PTR)?;
         let slots = (record, raw);
         self.exception_slots = Some(slots);
-        slots
+        Ok(slots)
     }
 
     /// The value of a MIR local: a stack slot load, or the SSA
