@@ -57,7 +57,7 @@ fn shape_link_terminal_rebind_rejects_same_body_with_changed_gc_protocol() {
         Subject::Callable(target),
         ConeIdentity::CORE,
         &consumer(),
-        &fixture.support(false),
+        &NoShapeLinkSupportV1,
         &mut meter(),
     )
     .unwrap();

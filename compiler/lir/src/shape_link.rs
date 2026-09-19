@@ -15,7 +15,7 @@ pub use decoded::DecodedExternalShapeLinkImportV1;
 pub use error::ShapeLinkError;
 pub use import::ExternalShapeLinkImportV1;
 pub use provider::{ShapeLinkProductionV1, ShapeLinkProviderPartsV1, ShapeLinkProviderV1};
-pub use support::{ShapeLinkSupportAuthorityV1, ShapeLinkSupportSourceV1};
+pub use support::{NoShapeLinkSupportV1, ShapeLinkSupportAuthorityV1, ShapeLinkSupportSourceV1};
 pub use table::{CanonicalExternalShapeLinkImportsV1, DecodedCanonicalExternalShapeLinkImportsV1};
 
 #[cfg(test)]

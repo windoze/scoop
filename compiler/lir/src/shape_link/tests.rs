@@ -11,6 +11,13 @@ fn meter() -> BudgetMeter {
 
 #[test]
 fn shape_link_subject_contract_matrix_is_closed() {
+    assert_eq!(
+        subjects().map(super::contract::contract_tag),
+        [1, 2, 3, 4, 5, 4, 6, 6, 7, 7]
+    );
+}
+
+fn subjects() -> [ExternalStrongShapeSubjectV1; 10] {
     let bound = crate::exact_layout::tests::Bound::value(crate::exact_layout::tests::exact(
         &crate::exact_layout::tests::source("Value", SourceNominalKind::Struct, 0),
     ));
@@ -47,7 +54,7 @@ fn shape_link_subject_contract_matrix_is_closed() {
     .unwrap();
     let exact = bound.identity.exact();
     use ExternalStrongShapeSubjectV1 as S;
-    let subjects = [
+    [
         S::Callable(StrongCallableDefinitionOwner::Function(function)),
         S::Layout(bound.identity.layout()),
         S::Scan(bound.foundation.scans()[0].id()),
@@ -60,11 +67,22 @@ fn shape_link_subject_contract_matrix_is_closed() {
         S::StaticStorageRegistration(storage),
         S::InitializationCell(unit),
         S::InitializationDescriptor(unit),
-    ];
-    assert_eq!(
-        subjects.map(super::contract::contract_tag),
-        [1, 2, 3, 4, 5, 4, 6, 6, 7, 7]
-    );
+    ]
+}
+
+#[test]
+fn no_shape_support_never_grants_object_or_initialization_relations() {
+    for (index, subject) in subjects().into_iter().enumerate() {
+        let result =
+            NoShapeLinkSupportV1.support_source(ConeIdentity::SINGLE_FILE, subject, &mut meter());
+        if index < 6 {
+            assert!(result.unwrap().is_none());
+        } else {
+            assert!(
+                matches!(result, Err(ShapeLinkError::SupportRelation(actual)) if actual == subject)
+            );
+        }
+    }
 }
 
 #[test]
