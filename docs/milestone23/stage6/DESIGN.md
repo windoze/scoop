@@ -317,6 +317,8 @@ reader重放完整body/reference闭包、definition-before-use及各receiver的�
 
 protected source-interface表额外保存其default template集合及definition_sources精确闭包，使用独立索引空间；不能把protected key插入旧public source-interface/default表。表的source parameter形状和省略类别复用Stage5规则，template引用由当前protected表的checked key/index解释。
 
+protected source-interface表是按`CallableTemplateOrigin`的canonical编码排序且唯一的record序列；每条record的field1、2为owner与声明序parameters。owner只允许Function、GenericFunction、Constructor、VariantConstructor，Accessor使用无source-interface协议。parameter的field1～4为name、value_type、calling、definition_origin；calling的tag1～4依次为Required、Default、VarargEmpty、VarargDefault，字段与Stage5叶子wire相同，但default位置只由独立`ProtectedDefaultTemplateIndexV1`解释。semantic key使用独立`ProtectedDefaultTemplateKeyV1 { owner, parameter_position }`（field1、2），不引入新persistent id，不向旧public key/index提供隐式转换。顶层protected_defaults按该key排序，source-interface的每个省略位置恰好引用同owner/position的template，全部template都须可由该独立source表到达；definition_sources由完整section对全部来源取精确闭包。读取方逐项对照已验证source callable签名、真实省略/vararg类别和parameter origin；不借旧public callable interface作为protected签名authority。
+
 在本阶段，access bridge 指“source target → checked inheritance/receiver witness → MIR external target”的关系。只有已有 `DispatchAdjust`/`BoxingAdjust` 等语义确实要求时才生成 thunk，并使用既有 generated identity；不为绕过 visibility 新增 public wrapper 或新 persistent id 家族。
 
 ### 4.4 HIR selected set

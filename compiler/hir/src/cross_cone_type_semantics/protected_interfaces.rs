@@ -17,7 +17,7 @@ mod support_callables;
 mod support_properties;
 mod support_source_use;
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_semantics) mod tests;
 
 pub use decode::*;
 pub use errors::*;
