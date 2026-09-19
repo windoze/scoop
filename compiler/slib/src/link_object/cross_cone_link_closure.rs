@@ -344,14 +344,14 @@ fn encode_array<T: WireEncode>(
     Ok(())
 }
 
-type UseKey = (
+pub(in crate::link_object) type UseKey = (
     SlibMemberId,
     scoop_identity::ObjectDefinitionAtomId,
     u64,
     super::RelocationTargetSlotV1,
 );
 
-fn use_key(use_site: &CanonicalUndefinedRelocationUseV1) -> UseKey {
+pub(in crate::link_object) fn use_key(use_site: &CanonicalUndefinedRelocationUseV1) -> UseKey {
     (
         use_site.source_member(),
         use_site.containing_atom(),

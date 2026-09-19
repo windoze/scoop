@@ -94,6 +94,9 @@ pub use core_requirements::*;
 mod cross_cone_link_closure;
 pub use cross_cone_link_closure::*;
 
+mod layout_link_closure;
+pub use layout_link_closure::*;
+
 mod native_requirements;
 pub use native_requirements::*;
 

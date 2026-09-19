@@ -25,6 +25,7 @@ use crate::{
 };
 
 mod cross_cone;
+pub(crate) mod layout_link_support;
 
 #[test]
 fn strong_graph_decodes_all_link_sections_atomically() {
@@ -1128,7 +1129,7 @@ pub(crate) fn strong_production_fixture(
     (canonical, production)
 }
 
-fn image_atoms(
+pub(crate) fn image_atoms(
     plan: ObjectDefinitionPlanId,
 ) -> Vec<CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>> {
     let mut keys = vec![ObjectDefinitionAtomKey::new(
