@@ -13,7 +13,7 @@ mod decode;
 mod errors;
 mod table;
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_semantics) mod tests;
 mod validation;
 
 pub use constructors::*;

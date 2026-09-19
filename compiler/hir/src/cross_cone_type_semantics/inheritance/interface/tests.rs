@@ -8,7 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 mod constructors;
 mod generic_constructor;
 mod joins;
-mod support;
+pub(in crate::cross_cone_type_semantics) mod support;
 mod wire_tests;
 use support::*;
 

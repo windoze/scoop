@@ -1,5 +1,7 @@
 use std::fmt;
 
+mod resources;
+
 use scoop_identity::{
     DecodedPersistentId, DecodedSignatureTypeKey, PersistentConstructorId, PersistentEnumVariantId,
     PersistentGeneratedCallableId, PersistentIdResolver, SignatureTypeKey,

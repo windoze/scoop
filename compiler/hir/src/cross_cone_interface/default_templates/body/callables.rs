@@ -9,6 +9,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{CallableDeclarationIdResolver, SignatureTypeReferenceResolver};
 
+mod resources;
+
 /// Stable declaration identity accepted by a callable use in a default body.
 ///
 /// Constructors remain a distinct reference domain. Generated callables are

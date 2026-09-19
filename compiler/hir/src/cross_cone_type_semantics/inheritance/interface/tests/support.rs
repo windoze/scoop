@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::{DispatchSlotKey, ExactCallableSignature, SignatureTypeKey};
 
-pub(super) struct Bundle {
+pub(in crate::cross_cone_type_semantics) struct Bundle {
     pub fixture: Fixture,
     pub table: CanonicalNominalInheritanceInterfacesV1,
     pub protected: CanonicalProtectedDeclarationInterfacesV1,
@@ -45,7 +45,7 @@ impl Bundle {
     }
 }
 
-pub(super) fn fixture() -> Bundle {
+pub(in crate::cross_cone_type_semantics) fn fixture() -> Bundle {
     let mut fixture = Fixture::default();
     let base = fixture.class("Base");
     let derived = fixture.class("Derived");

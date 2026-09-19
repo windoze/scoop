@@ -12,6 +12,9 @@ use crate::{
     ExportDefaultCallableTargetV1,
 };
 
+mod views;
+pub use views::compare_default_signature_reference_targets;
+
 #[derive(Clone, Copy, Debug)]
 pub enum CallableTargetView<'a> {
     Callable(&'a DefaultCallableRefV1),

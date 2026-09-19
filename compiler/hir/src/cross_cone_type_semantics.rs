@@ -6,6 +6,7 @@
 mod access;
 mod facts;
 mod inheritance;
+mod protected_defaults;
 mod protected_interfaces;
 mod protected_source_interfaces;
 mod representation;
@@ -18,6 +19,7 @@ mod wire;
 pub use access::*;
 pub use facts::*;
 pub use inheritance::*;
+pub use protected_defaults::*;
 pub use protected_interfaces::*;
 pub use protected_source_interfaces::*;
 pub use representation::*;

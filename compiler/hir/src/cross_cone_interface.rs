@@ -256,6 +256,7 @@ pub use default_templates::{
     ExportDefaultReferenceTargetResolutionError, ExportDefaultReferenceTargetTypeSiteV1,
     ExportDefaultReferenceV1, ExportDefaultReferenceValidationError,
     ExportDefaultSingletonReferenceV1, ExportDefaultTargetDomainV1, ExportDefaultTypeReferenceV1,
+    compare_default_signature_reference_targets,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
@@ -345,3 +346,6 @@ pub use type_alias_interfaces::{
     TypeAliasInterfaceSetSemanticValidationError, TypeAliasInterfaceSetValidationError,
     TypeAliasTargetResolutionError, TypeAliasTargetV1,
 };
+
+#[cfg(test)]
+pub(crate) use default_templates::expression_test_support;

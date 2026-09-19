@@ -18,7 +18,7 @@ pub use closure::{
     DefaultBodyReferenceOccurrenceV1, DefaultBodyReferenceTargetV1, DefaultBodyReferenceVisitorV1,
     DefaultCallableReferenceTargetViewV1, DefaultConstructorReferenceTargetViewV1,
     DefaultFieldReferenceTargetViewV1, ExportDefaultReferenceClosureValidationError,
-    ExportDefaultReferenceOccurrenceSiteV1,
+    ExportDefaultReferenceOccurrenceSiteV1, compare_default_signature_reference_targets,
 };
 pub use record::{
     DecodedExportDefaultCallableReferenceV1, DecodedExportDefaultConstructorReferenceV1,

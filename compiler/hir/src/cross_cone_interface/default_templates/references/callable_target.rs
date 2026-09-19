@@ -1,5 +1,7 @@
 use std::fmt;
 
+mod resources;
+
 use scoop_identity::{
     CallableTemplateOrigin, DecodedCallableTemplateOrigin, DecodedPersistentId,
     DecodedSignatureTypeKey, PersistentGeneratedCallableId, SignatureTypeKey,

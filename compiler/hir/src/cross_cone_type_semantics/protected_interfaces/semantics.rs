@@ -46,14 +46,14 @@ pub struct CheckedProtectedCallableSourceV1<'a> {
     payload: &'a ProtectedCallablePayloadV1,
     access: CheckedDeclarationAccessSourceV1<'a>,
 }
-impl CheckedProtectedCallableSourceV1<'_> {
+impl<'a> CheckedProtectedCallableSourceV1<'a> {
     pub const fn declaration(&self) -> CallableTemplateOrigin {
         self.declaration
     }
-    pub const fn payload(&self) -> &ProtectedCallablePayloadV1 {
+    pub const fn payload(&self) -> &'a ProtectedCallablePayloadV1 {
         self.payload
     }
-    pub const fn declaration_access(&self) -> CheckedDeclarationAccessSourceV1<'_> {
+    pub const fn declaration_access(&self) -> CheckedDeclarationAccessSourceV1<'a> {
         self.access
     }
 }

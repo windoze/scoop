@@ -114,6 +114,18 @@ impl DecodedPersistentAccessDomainV1 {
             meter
                 .charge_work(constraints.len() as u64, &path)
                 .map_err(PersistentAccessResolutionError::Resource)?;
+            // Canonical order replay encodes every constraint, including source paths.
+            let bytes = scoop_wire::encoded_length(&self).map_err(|error| {
+                PersistentAccessResolutionError::Domain(PersistentAccessDomainError::Encoding(
+                    error,
+                ))
+            })?;
+            meter
+                .charge_work(bytes, &path)
+                .map_err(PersistentAccessResolutionError::Resource)?;
+            meter
+                .charge_owned_bytes(bytes, &path)
+                .map_err(PersistentAccessResolutionError::Resource)?;
         }
         self.resolve(resolver)
     }

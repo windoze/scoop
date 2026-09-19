@@ -14,6 +14,7 @@ pub use super::compare::{
     CallableTargetView as DefaultCallableReferenceTargetViewV1,
     ConstructorTargetView as DefaultConstructorReferenceTargetViewV1,
     FieldTargetView as DefaultFieldReferenceTargetViewV1,
+    compare_default_signature_reference_targets,
 };
 
 mod state;
