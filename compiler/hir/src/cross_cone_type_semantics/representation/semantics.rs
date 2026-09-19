@@ -18,6 +18,16 @@ pub use errors::*;
 pub(super) use source::charge_key;
 
 impl NominalRepresentationSupportV1 {
+    pub(in crate::cross_cone_type_semantics) fn charge_source_key_resources(
+        key: &SourceDeclarationKey,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), scoop_wire::WireError> {
+        source::charge_key(key, meter, path)
+    }
+}
+
+impl NominalRepresentationSupportV1 {
     pub(in crate::cross_cone_type_semantics) fn signature_types_match_metered(
         left: &scoop_identity::SignatureTypeKey,
         right: &scoop_identity::SignatureTypeKey,

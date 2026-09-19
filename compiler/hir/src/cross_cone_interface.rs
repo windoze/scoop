@@ -357,3 +357,6 @@ pub use type_alias_interfaces::{
 
 #[cfg(test)]
 pub(crate) use default_templates::expression_test_support;
+
+#[cfg(test)]
+pub(crate) use section::EmptyAuthority as EmptyPublicSemanticAuthority;

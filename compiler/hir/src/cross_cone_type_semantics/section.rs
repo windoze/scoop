@@ -2,12 +2,24 @@
 //! capabilities are obtained only through the section's semantic validator.
 use crate::*;
 
+mod checked;
 mod decode;
+mod exports;
 mod indexed;
+mod public_support;
+mod selection;
+#[cfg(test)]
+mod semantic_tests;
+mod source;
 #[cfg(test)]
 mod tests;
+pub use checked::*;
 pub use decode::*;
+pub use exports::TypeSectionExportValidationError;
 pub use indexed::*;
+pub use public_support::*;
+pub use selection::*;
+pub use source::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CrossConeTypeSemanticsSectionV1 {

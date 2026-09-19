@@ -44,7 +44,7 @@ fn complete_validator_accepts_an_empty_interface() {
             .validate_semantics(
                 ConeIdentity::SINGLE_FILE,
                 &CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
-                &mut EmptyAuthority,
+                &mut EmptyAuthority(ConeIdentity::SINGLE_FILE),
                 &mut BudgetMeter::new(DecodeLimits::default()),
                 &WirePath::root(),
             )
@@ -65,7 +65,7 @@ fn complete_validator_stops_at_the_first_failed_phase() {
         empty_section().validate_semantics(
             ConeIdentity::SINGLE_FILE,
             &direct_surface,
-            &mut EmptyAuthority,
+            &mut EmptyAuthority(ConeIdentity::SINGLE_FILE),
             &mut BudgetMeter::new(DecodeLimits::default()),
             &WirePath::root(),
         ),
@@ -97,7 +97,7 @@ fn empty_section() -> CrossConeHirInterfaceSectionV1 {
     )
 }
 
-struct EmptyAuthority;
+pub(crate) struct EmptyAuthority(pub ConeIdentity);
 
 impl NominalInterfaceShapeAuthority<Infallible> for EmptyAuthority {
     fn concrete_nominal_shape(
@@ -209,7 +209,7 @@ impl PropertyInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
 
 impl TypeAliasInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
     fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::SINGLE_FILE
+        self.0
     }
 
     fn type_alias_declaration_source(
@@ -222,7 +222,7 @@ impl TypeAliasInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
 
 impl CallableSourceInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
     fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::SINGLE_FILE
+        self.0
     }
 
     fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, Infallible> {
@@ -241,7 +241,7 @@ impl CallableSourceInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
 
 impl ExportDefinitionSourceSemanticAuthority<Infallible> for EmptyAuthority {
     fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::SINGLE_FILE
+        self.0
     }
 
     fn validate_export_definition_source(
@@ -420,7 +420,7 @@ impl DefaultReferenceSemanticAuthority<Infallible> for EmptyAuthority {
 
 impl ExportConstValueSemanticAuthority<Infallible> for EmptyAuthority {
     fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::SINGLE_FILE
+        self.0
     }
 
     fn const_property_declaration_source(
@@ -465,7 +465,7 @@ impl PublicExportBindingClosureAuthority for EmptyAuthority {
 
 impl ExternalHirReferenceSemanticAuthority<Infallible> for EmptyAuthority {
     fn current_cone(&self) -> ConeIdentity {
-        ConeIdentity::SINGLE_FILE
+        self.0
     }
 
     fn external_hir_target_origin(

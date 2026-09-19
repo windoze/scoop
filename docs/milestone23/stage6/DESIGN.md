@@ -231,6 +231,10 @@ field7 `definition_sources`精确等于fields2～6全部inline definition origin
 
 fields1～3的顶层inventory由本provider的独立checked source/support全集决定；foreign nominal的facts、representation和inheritance完整顶层record只从其terminal provider的checked section读取，不能复制到consumer表。本地inheritance record可保存真实foreign slot root/implementation合同，graph借用terminal的foreign edges；struct等递归GC/ZST事实也从terminal checked facts取得。Tuple等没有唯一source owner的structural exact事实可由本Cone必要support inventory保存，ownership不能按ExactTypeKey形状猜Cone；M23-7的独立Strong物化gate不阻断本阶段对本地transient/组合语义所需的结构事实重放。完整section同时对照本地inventories、显式source_roots与跨provider递归selected闭包。
 
+source_roots本身只证明source identity和词法闭包，Concrete与GenericTemplate均可作为source-only根；只有被独立required_representation_owners或local_inheritance_edges要求的Concrete根必须同时闭合facts、representation与inheritance。source-only根不取得concrete target token，selected不能只凭其源码存在性通过。
+
+完整type-section保留同provider旧public十表的checked借用凭证；该凭证只能经旧section完整semantic validator构造，不能由raw DTO或单表制造。公开final成员的declaration/provider/receiver必须join旧表实际合同，protected/inheritance合同由新表闭合，重叠时逐项同值而不任选来源。local inventories、source roots、facts ownership与source inheritance edges由独立foundation/source authority投射，graph不能从候选edges构造后再以同一候选自证。producer与reader均通过相同完整组合入口取得checked section。
+
 这些事实覆盖本 Cone 导出的 param-free exact subject，以及其必须供下游检查的表示/继承 support；generic template 不能伪装成 concrete facts。`Reference` 的 `gc` 固定为 ContainsManagedReferences，描述的是该引用值；对象内部 `object_scan` 可以为空，二者不能混淆。`Value/ZeroSized` 必须是 GcFree。enum 每个 variant 的 gc flag另随 representation record保存，并重放 `gc_free(enum) = AND(gc_free(variant))`，不是对ContainsManagedReferences取AND。
 
 value `ZstStatus` 在 HIR 完成：只有 Unit 或全 ZST 的普通非 CLayout struct/tuple 为 ZeroSized，intrinsic scalar/pointer 与 enum 不从空字段推断。MIR 机械转写；LIR 验证 status 与 layout 一致，不能用 `size == 0` 为缺失 HIR 信息补值。

@@ -1,11 +1,10 @@
 use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SignatureTypeKey};
 use scoop_wire::{BudgetMeter, WirePath};
 
-use super::{
-    InheritanceSlotContractSemanticAuthority, InheritanceSlotContractSemanticError as Error,
-};
+use super::InheritanceSlotContractSemanticError as Error;
+use crate::NominalInheritanceSemanticAuthority;
 
-pub(super) fn validate_exact_identity<A: InheritanceSlotContractSemanticAuthority<E>, E>(
+pub(super) fn validate_exact_identity<A: NominalInheritanceSemanticAuthority<E>, E>(
     exact: PersistentExactTypeId,
     authority: &A,
     meter: &mut BudgetMeter,
@@ -21,7 +20,7 @@ pub(super) fn validate_exact_identity<A: InheritanceSlotContractSemanticAuthorit
     Ok(())
 }
 
-pub(super) fn match_parameters<A: InheritanceSlotContractSemanticAuthority<E>, E>(
+pub(super) fn match_parameters<A: NominalInheritanceSemanticAuthority<E>, E>(
     source: &[SignatureTypeKey],
     exact: &[PersistentExactTypeId],
     authority: &A,
@@ -112,6 +111,22 @@ pub(super) fn match_parameters<A: InheritanceSlotContractSemanticAuthority<E>, E
         }
     }
     Ok(())
+}
+
+impl crate::NominalRepresentationSupportV1 {
+    /// Uses the same exact/source type relation as callable contracts. The
+    /// source sequence is retained in declaration order by representation data.
+    pub(in crate::cross_cone_type_semantics) fn validate_exact_field_types<
+        A: NominalInheritanceSemanticAuthority<E>,
+        E,
+    >(
+        source: &[SignatureTypeKey],
+        exact: &[PersistentExactTypeId],
+        authority: &A,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), Error<E>> {
+        match_parameters(source, exact, authority, meter)
+    }
 }
 
 fn push<'s, E>(
