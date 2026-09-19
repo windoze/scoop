@@ -29,18 +29,18 @@ pub(super) fn validate_type_descriptor_inline_scan(
             "inline_scan_definition",
         ));
     }
-    let scan = resolve_known(
-        decoded_scan,
-        foundation.scans().iter().map(|record| record.id()),
-        RegistrationProductionTableV1::Type,
-        index,
-        "inline_scan_definition",
-    )?;
     let scan_record = foundation
         .scans()
         .iter()
-        .find(|record| record.id() == scan)
-        .expect("the inline scan was resolved from this table");
+        .find(|record| record.id().as_array() == decoded_scan.as_array())
+        .ok_or_else(|| {
+            semantic_error(
+                RegistrationProductionTableV1::Type,
+                index,
+                "inline_scan_definition",
+            )
+        })?;
+    let scan = scan_record.id();
     let layout = foundation
         .layouts()
         .iter()

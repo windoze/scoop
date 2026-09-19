@@ -68,52 +68,6 @@ fn resolve_type_descriptor_ref(
     }
 }
 
-pub(super) fn validate_type_vtable(
-    decoded: DecodedStrongTypeVtableSemanticPlanV1,
-    exact_type: scoop_identity::PersistentExactTypeId,
-    foundation: &OdrFreeLirFoundation,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    index: usize,
-) -> Result<StrongTypeVtableSemanticPlanV1, StrongRegistrationProductionValidationError> {
-    let table = resolve_dispatch_table(
-        decoded.table,
-        scoop_identity::DispatchTableKey::vtable(exact_type),
-        foundation,
-        index,
-        "vtable",
-    )?;
-    let slots = validate_type_dispatch_slots(decoded.slots, foundation, external_bridges, index)?;
-    Ok(StrongTypeVtableSemanticPlanV1::from_artifact(table, slots))
-}
-
-pub(super) fn validate_type_itable(
-    decoded: DecodedStrongTypeItableSemanticPlanV1,
-    exact_type: scoop_identity::PersistentExactTypeId,
-    identities: &StrongRegistrationIdentitySurfaceV1,
-    foundation: &OdrFreeLirFoundation,
-    external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    index: usize,
-) -> Result<StrongTypeItableSemanticPlanV1, StrongRegistrationProductionValidationError> {
-    let interface = resolve_type_descriptor_ref(
-        decoded.interface,
-        identities,
-        external_bridges,
-        index,
-        "itable_interface",
-    )?;
-    let table = resolve_dispatch_table(
-        decoded.table,
-        scoop_identity::DispatchTableKey::itable(exact_type, interface.exact_type()),
-        foundation,
-        index,
-        "itable",
-    )?;
-    let slots = validate_type_dispatch_slots(decoded.slots, foundation, external_bridges, index)?;
-    Ok(StrongTypeItableSemanticPlanV1::from_artifact(
-        table, interface, slots,
-    ))
-}
-
 fn resolve_dispatch_table(
     decoded: DecodedPersistentId<scoop_identity::PersistentDispatchTableId>,
     expected_key: scoop_identity::DispatchTableKey,
@@ -185,3 +139,8 @@ fn validate_type_dispatch_slots(
         })
         .collect()
 }
+
+mod version;
+pub(super) use version::*;
+mod dependency;
+pub(super) use dependency::*;

@@ -1,6 +1,26 @@
 //! Complete type registration validation.
 
+use super::type_references::{
+    self, DependencyTypeReferences, LegacyTypeReferences, TypeReferences,
+};
 use super::*;
+use crate::{
+    DecodedStrongTypeRegistrationPlan, StrongDescriptorReference, StrongTypeDescriptorSemanticPlan,
+    StrongTypeDescriptorSemanticPlanSet,
+};
+use scoop_wire::{BudgetMeter, DecodeLimits, WirePath, encode_canonical_temporary_with_meter};
+
+mod budget;
+
+type DecodedTypeFor<R> = DecodedStrongTypeRegistrationPlan<
+    <R as TypeReferences>::Parent,
+    <R as TypeReferences>::DecodedDescriptor,
+    <R as TypeReferences>::DecodedCallable,
+>;
+type SemanticTypeSetFor<R> = StrongTypeDescriptorSemanticPlanSet<
+    <R as TypeReferences>::Descriptor,
+    <R as TypeReferences>::Callable,
+>;
 
 pub(crate) fn validate_types(
     decoded: Vec<DecodedStrongTypeRegistrationPlanV1>,
@@ -10,17 +30,90 @@ pub(crate) fn validate_types(
     external_bridges: &StrongExternalLirBridgeSurfaceV1,
     digests: &StrongDigestFinalizationPlanV1,
 ) -> Result<StrongTypeDescriptorSemanticPlanSetV1, StrongRegistrationProductionValidationError> {
+    validate_types_with_references(
+        decoded,
+        target,
+        foundation,
+        identities,
+        digests,
+        &LegacyTypeReferences {
+            foundation,
+            identities,
+            external: external_bridges,
+        },
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+}
+
+/// Replays the complete type-registration table and binds dependency references
+/// to physical definitions. This constituent does not authorize exports or
+/// selections; the production reader must additionally join the same records
+/// to the complete layout/ABI section and its committed dependency closure.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_type_registration_constituents_v2(
+    decoded: Vec<crate::DecodedStrongTypeRegistrationPlanV2>,
+    target: LirTargetProfile,
+    foundation: &OdrFreeLirFoundation,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    definitions: &crate::StrongTypeReferenceDefinitionsV2,
+    digests: &StrongDigestFinalizationPlanV1,
+    meter: &mut BudgetMeter,
+) -> Result<crate::StrongTypeDescriptorSemanticPlanSetV2, StrongRegistrationProductionValidationError>
+{
+    for actual in [definitions.consumer(), external_bridges.producer()] {
+        if actual != foundation.producer() {
+            return Err(
+                crate::StrongTypeReferenceResolutionErrorV2::ProducerMismatch {
+                    expected: foundation.producer(),
+                    actual,
+                }
+                .into(),
+            );
+        }
+    }
+    validate_types_with_references(
+        decoded,
+        target,
+        foundation,
+        identities,
+        digests,
+        &DependencyTypeReferences {
+            local: LegacyTypeReferences {
+                foundation,
+                identities,
+                external: external_bridges,
+            },
+            definitions,
+        },
+        meter,
+    )
+}
+
+fn validate_types_with_references<R: TypeReferences>(
+    decoded: Vec<DecodedTypeFor<R>>,
+    target: LirTargetProfile,
+    foundation: &OdrFreeLirFoundation,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    digests: &StrongDigestFinalizationPlanV1,
+    references: &R,
+    meter: &mut BudgetMeter,
+) -> Result<SemanticTypeSetFor<R>, StrongRegistrationProductionValidationError> {
     require_length(
         RegistrationProductionTableV1::Type,
         decoded.len(),
         identities.type_registrations().len(),
     )?;
-    let actual = decoded
-        .iter()
-        .map(encode)
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(StrongRegistrationProductionValidationError::Encode)?;
-    let mut descriptors = Vec::with_capacity(decoded.len());
+    let path = WirePath::root();
+    budget::charge_plan_replay(decoded.len(), foundation, identities, digests, meter)?;
+    let mut actual = Vec::new();
+    meter.try_reserve_collection_slots(&mut actual, decoded.len(), &path)?;
+    for record in &decoded {
+        budget::charge_record::<R>(record, meter)?;
+        actual.push(encode_canonical_temporary_with_meter(record, meter, &path)?);
+    }
+    let mut descriptors = Vec::new();
+    meter.try_reserve_collection_slots(&mut descriptors, decoded.len(), &path)?;
     for (index, (decoded, identity)) in decoded
         .into_iter()
         .zip(identities.type_registrations())
@@ -88,31 +181,27 @@ pub(crate) fn validate_types(
             foundation,
             index,
         )?;
-        let parent = validate_optional_type_descriptor_ref(
-            decoded.parent,
-            identities,
-            external_bridges,
-            index,
-            "parent",
-        )?;
-        let vtable = validate_type_vtable(
+        let parent = references.parent(decoded.parent, index, meter)?;
+        let vtable = type_references::vtable(
             decoded.vtable,
             exact_type,
             foundation,
-            external_bridges,
+            references,
             index,
+            meter,
         )?;
         let mut table_ids = BTreeSet::from([vtable.table()]);
         let mut interfaces = BTreeSet::new();
-        let mut itables = Vec::with_capacity(decoded.itables.len());
+        let mut itables = Vec::new();
+        meter.try_reserve_collection_slots(&mut itables, decoded.itables.len(), &path)?;
         for decoded_itable in decoded.itables {
-            let itable = validate_type_itable(
+            let itable = type_references::itable(
                 decoded_itable,
                 exact_type,
-                identities,
                 foundation,
-                external_bridges,
+                references,
                 index,
+                meter,
             )?;
             if !table_ids.insert(itable.table()) {
                 return Err(semantic_error(
@@ -130,7 +219,7 @@ pub(crate) fn validate_types(
             }
             itables.push(itable);
         }
-        descriptors.push(StrongTypeDescriptorSemanticPlanV1::from_artifact(
+        descriptors.push(StrongTypeDescriptorSemanticPlan::from_artifact(
             exact_type,
             decoded.diagnostic_name,
             layout,
@@ -142,12 +231,12 @@ pub(crate) fn validate_types(
             itables,
         ));
     }
-    let semantics = StrongTypeDescriptorSemanticPlanSetV1::from_artifact(
+    let semantics = StrongTypeDescriptorSemanticPlanSet::from_artifact(
         foundation.producer(),
         target.wire_id(),
         descriptors,
     );
-    let expected = crate::StrongTypeRegistrationPlanSetV1::new(
+    let expected = crate::StrongTypeRegistrationPlanSet::new(
         target, foundation, identities, &semantics, digests,
     )
     .map_err(|error| {
@@ -156,8 +245,7 @@ pub(crate) fn validate_types(
         ))
     })?;
     for (index, (actual, expected)) in actual.iter().zip(expected.registrations()).enumerate() {
-        let expected =
-            encode(expected).map_err(StrongRegistrationProductionValidationError::Encode)?;
+        let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
         if actual != &expected {
             return Err(StrongRegistrationProductionValidationError::EntryMismatch {
                 table: RegistrationProductionTableV1::Type,

@@ -149,7 +149,7 @@ fn semantics(
                 old.instance_scan(),
                 old.instance_shape().clone(),
                 old.inline_scan(),
-                provider.map(|_| reference(exact_type("Parent"))),
+                provider.map(|_| reference(foreign_exact("Parent"))),
                 StrongTypeVtableSemanticPlanV2::from_artifact(old.vtable().table(), slots()),
                 old.itables()
                     .iter()
@@ -172,10 +172,14 @@ fn semantics(
 }
 
 fn foreign_body() -> scoop_identity::PersistentCallableBodyId {
-    use scoop_identity::{
-        CallableBodyKey, PersistentCallableBodyId, PersistentFunctionId,
-        StrongCallableDefinitionOwner,
-    };
+    scoop_identity::PersistentCallableBodyId::from_key(&scoop_identity::CallableBodyKey::strong(
+        foreign_owner(),
+    ))
+    .unwrap()
+}
+
+fn foreign_owner() -> scoop_identity::StrongCallableDefinitionOwner {
+    use scoop_identity::{PersistentFunctionId, StrongCallableDefinitionOwner};
     let declaration =
         PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
             SourceDeclarationSite::new(
@@ -191,10 +195,7 @@ fn foreign_body() -> scoop_identity::PersistentCallableBodyId {
             Vec::new(),
         ))
         .unwrap();
-    PersistentCallableBodyId::from_key(&CallableBodyKey::strong(
-        StrongCallableDefinitionOwner::Function(declaration),
-    ))
-    .unwrap()
+    StrongCallableDefinitionOwner::Function(declaration)
 }
 
 #[test]
@@ -246,3 +247,24 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
         );
     }
 }
+
+fn foreign_exact(name: &str) -> PersistentExactTypeId {
+    let source = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
+        SourceNominalKind::Class,
+        0,
+    );
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
+        PersistentTypeId::from_source_declaration(&source).unwrap(),
+    ))
+    .unwrap()
+}
+
+mod reader;

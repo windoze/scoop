@@ -15,8 +15,7 @@ use super::wire::{
     DecodedRefScan, DecodedStaticImmortalRelocationPlanV1, DecodedStrongCallableRuntimeScanPlanV1,
     DecodedStrongInitializationSchedulePlanV1, DecodedStrongStaticStorageInitialStatePlanV1,
     DecodedStrongTypeDescriptorRefV1, DecodedStrongTypeDispatchCallableRefV1,
-    DecodedStrongTypeItableSemanticPlanV1, DecodedStrongTypeRegistrationPlanV1,
-    DecodedStrongTypeVtableSemanticPlanV1, DecodedTypeDescriptorInlineScanV1,
+    DecodedStrongTypeRegistrationPlanV1, DecodedTypeDescriptorInlineScanV1,
     DecodedTypeInstanceShapeV1,
 };
 use super::{
@@ -39,22 +38,19 @@ use crate::{
     StrongSafepointSemanticPlanV1, StrongStaticStorageInitialStatePlanV1,
     StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
     StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
-    StrongTypeDescriptorSemanticPlanV1, StrongTypeDispatchCallableRefV1,
-    StrongTypeItableSemanticPlanV1, StrongTypeVtableSemanticPlanV1, TypeDescriptorInlineScanV1,
-    TypeInstanceKindV1, TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body,
-    startup_gateway_body,
+    StrongTypeDispatchCallableRefV1, TypeDescriptorInlineScanV1, TypeInstanceKindV1,
+    TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
 };
 
 mod callables;
 use callables::{validate_callable_runtime_scans, validate_safepoints};
 mod types;
+pub use types::validate_type_registration_constituents_v2;
 pub(crate) use types::validate_types;
 mod type_shape;
 use type_shape::{validate_type_descriptor_inline_scan, validate_type_instance_shape};
 mod type_references;
-use type_references::{
-    validate_optional_type_descriptor_ref, validate_type_itable, validate_type_vtable,
-};
+
 mod immortal;
 use immortal::validate_immortal_objects;
 mod static_storage;
@@ -226,6 +222,8 @@ pub enum RegistrationProductionTableV1 {
 #[derive(Debug)]
 pub enum StrongRegistrationProductionValidationError {
     Encode(scoop_wire::cbor::EncodeError),
+    Resource(scoop_wire::WireError),
+    TypeReference(crate::StrongTypeReferenceResolutionErrorV2),
     Identities(StrongRegistrationIdentityValidationError),
     TableLength {
         table: RegistrationProductionTableV1,
@@ -255,3 +253,16 @@ impl fmt::Display for StrongRegistrationProductionValidationError {
 }
 
 impl std::error::Error for StrongRegistrationProductionValidationError {}
+
+impl From<scoop_wire::WireError> for StrongRegistrationProductionValidationError {
+    fn from(error: scoop_wire::WireError) -> Self {
+        Self::Resource(error)
+    }
+}
+impl From<crate::StrongTypeReferenceResolutionErrorV2>
+    for StrongRegistrationProductionValidationError
+{
+    fn from(error: crate::StrongTypeReferenceResolutionErrorV2) -> Self {
+        Self::TypeReference(error)
+    }
+}
