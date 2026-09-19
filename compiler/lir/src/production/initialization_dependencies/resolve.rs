@@ -11,6 +11,10 @@ pub struct StrongInitializationDefinitionCatalogV2 {
 }
 
 impl StrongInitializationDefinitionCatalogV2 {
+    pub const fn producer(&self) -> ConeIdentity {
+        self.producer
+    }
+
     pub fn new(
         producer: ConeIdentity,
         definitions: &[StrongInitializationUnitDefinitionRefV2],
@@ -89,6 +93,9 @@ impl ResolvedInitializationDependenciesV2 {
     }
     pub fn references(&self) -> &[StrongInitializationDependencyRefV2] {
         &self.references
+    }
+    pub fn into_references(self) -> Vec<StrongInitializationDependencyRefV2> {
+        self.references
     }
 }
 

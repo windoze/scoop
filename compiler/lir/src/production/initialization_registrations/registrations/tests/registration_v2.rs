@@ -11,6 +11,8 @@ use crate::{
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
+mod reader;
+
 fn build(
     fixture: &Fixture,
     dependencies: Vec<Dependency>,

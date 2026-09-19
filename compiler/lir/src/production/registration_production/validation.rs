@@ -33,13 +33,13 @@ use crate::{
     StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
     StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
-    StrongInitializationUnitSemanticPlanV1, StrongRegistrationIdentitySurfaceV1,
-    StrongRegistrationIdentityValidationError, StrongSafepointSemanticPlanSetV1,
-    StrongSafepointSemanticPlanV1, StrongStaticStorageInitialStatePlanV1,
-    StrongStaticStorageSemanticPlanSetV1, StrongStaticStorageSemanticPlanV1,
-    StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanSetV1,
-    StrongTypeDispatchCallableRefV1, TypeDescriptorInlineScanV1, TypeInstanceKindV1,
-    TypeInstanceShapeV1, ValueStorageLayoutV1, generated_unit_body, startup_gateway_body,
+    StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityValidationError,
+    StrongSafepointSemanticPlanSetV1, StrongSafepointSemanticPlanV1,
+    StrongStaticStorageInitialStatePlanV1, StrongStaticStorageSemanticPlanSetV1,
+    StrongStaticStorageSemanticPlanV1, StrongTypeDescriptorRefV1,
+    StrongTypeDescriptorSemanticPlanSetV1, StrongTypeDispatchCallableRefV1,
+    TypeDescriptorInlineScanV1, TypeInstanceKindV1, TypeInstanceShapeV1, ValueStorageLayoutV1,
+    generated_unit_body, startup_gateway_body,
 };
 
 mod callables;
@@ -56,6 +56,7 @@ use immortal::validate_immortal_objects;
 mod static_storage;
 use static_storage::validate_static_storages;
 mod initialization;
+pub use initialization::validate_initialization_registration_constituents_v2;
 use initialization::validate_initialization_units;
 
 impl DecodedStrongRegistrationProductionSurfaceV1 {
@@ -224,6 +225,8 @@ pub enum StrongRegistrationProductionValidationError {
     Encode(scoop_wire::cbor::EncodeError),
     Resource(scoop_wire::WireError),
     TypeReference(crate::StrongTypeReferenceResolutionErrorV2),
+    InitializationDependency(crate::InitializationDependencyResolutionError),
+    InitializationDefinition(crate::InitializationDefinitionResolutionErrorV2),
     Identities(StrongRegistrationIdentityValidationError),
     TableLength {
         table: RegistrationProductionTableV1,
@@ -264,5 +267,20 @@ impl From<crate::StrongTypeReferenceResolutionErrorV2>
 {
     fn from(error: crate::StrongTypeReferenceResolutionErrorV2) -> Self {
         Self::TypeReference(error)
+    }
+}
+
+impl From<crate::InitializationDependencyResolutionError>
+    for StrongRegistrationProductionValidationError
+{
+    fn from(error: crate::InitializationDependencyResolutionError) -> Self {
+        Self::InitializationDependency(error)
+    }
+}
+impl From<crate::InitializationDefinitionResolutionErrorV2>
+    for StrongRegistrationProductionValidationError
+{
+    fn from(error: crate::InitializationDefinitionResolutionErrorV2) -> Self {
+        Self::InitializationDefinition(error)
     }
 }

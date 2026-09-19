@@ -1,6 +1,11 @@
 //! Initialization unit semantic validation.
 
 use super::*;
+use scoop_identity::PersistentInitializationUnitId;
+use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+
+mod v2;
+pub use v2::validate_initialization_registration_constituents_v2;
 
 pub(super) fn validate_initialization_units(
     decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
@@ -10,12 +15,74 @@ pub(super) fn validate_initialization_units(
     static_storages: StrongStaticStorageSemanticPlanSetV1,
 ) -> Result<StrongInitializationUnitSemanticPlanSetV1, StrongRegistrationProductionValidationError>
 {
+    replay_units(
+        decoded,
+        target,
+        foundation,
+        identities,
+        static_storages,
+        |_, ids, index, meter| {
+            meter.charge_work(
+                (ids.len() as u64).saturating_mul(identities.initialization_units().len() as u64),
+                &WirePath::root(),
+            )?;
+            let mut resolved = Vec::new();
+            meter.try_reserve_collection_slots(&mut resolved, ids.len(), &WirePath::root())?;
+            for id in ids {
+                resolved.push(resolve_known(
+                    id,
+                    identities
+                        .initialization_units()
+                        .iter()
+                        .map(|identity| identity.semantic_id()),
+                    RegistrationProductionTableV1::InitializationUnit,
+                    index,
+                    "dependency",
+                )?);
+            }
+            Ok(resolved)
+        },
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+}
+
+fn replay_units<D: crate::StrongInitializationDependencyReference>(
+    decoded: Vec<DecodedStrongInitializationUnitRegistrationPlanV1>,
+    target: LirTargetProfile,
+    foundation: &OdrFreeLirFoundation,
+    identities: &StrongRegistrationIdentitySurfaceV1,
+    static_storages: StrongStaticStorageSemanticPlanSetV1,
+    mut resolve: impl FnMut(
+        PersistentInitializationUnitId,
+        Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
+        usize,
+        &mut BudgetMeter,
+    ) -> Result<Vec<D>, StrongRegistrationProductionValidationError>,
+    meter: &mut BudgetMeter,
+) -> Result<
+    crate::StrongInitializationUnitSemanticPlanSet<D>,
+    StrongRegistrationProductionValidationError,
+> {
     require_length(
         RegistrationProductionTableV1::InitializationUnit,
         decoded.len(),
         identities.initialization_units().len(),
     )?;
-    let mut units = Vec::with_capacity(decoded.len());
+    let path = WirePath::root();
+    meter.charge_nodes(decoded.len() as u64, &path)?;
+    meter.charge_collection_slots((decoded.len() as u64).saturating_mul(2), &path)?;
+    let search = (foundation.static_storages().len() as u64)
+        .saturating_add(identities.static_storages().len() as u64)
+        .saturating_add(static_storages.storages().len() as u64)
+        .saturating_add(64);
+    meter.charge_work(
+        (decoded.len() as u64)
+            .saturating_mul(search)
+            .saturating_mul(4),
+        &path,
+    )?;
+    let mut units = Vec::new();
+    meter.try_reserve_collection_slots(&mut units, decoded.len(), &path)?;
     for (index, (decoded, identity)) in decoded
         .into_iter()
         .zip(identities.initialization_units())
@@ -169,27 +236,21 @@ pub(super) fn validate_initialization_units(
                 StrongInitializationSchedulePlanV1::LazyAccess
             }
         };
-        let mut dependencies = Vec::with_capacity(decoded.dependencies.len());
-        for dependency in decoded.dependencies {
-            dependencies.push(resolve_known(
-                dependency,
-                identities
-                    .initialization_units()
-                    .iter()
-                    .map(|identity| identity.semantic_id()),
-                RegistrationProductionTableV1::InitializationUnit,
-                index,
-                "dependency",
-            )?);
-        }
-        if dependencies.contains(&unit) || dependencies.windows(2).any(|pair| pair[0] >= pair[1]) {
+        let dependencies = resolve(unit, decoded.dependencies, index, meter)?;
+        if dependencies.iter().any(|dependency| {
+            dependency.unit_id() == unit
+                || !dependency.has_valid_provider_role(foundation.producer())
+        }) || dependencies
+            .windows(2)
+            .any(|pair| pair[0].unit_id() >= pair[1].unit_id())
+        {
             return Err(semantic_error(
                 RegistrationProductionTableV1::InitializationUnit,
                 index,
                 "dependencies",
             ));
         }
-        units.push(StrongInitializationUnitSemanticPlanV1::from_artifact(
+        units.push(crate::StrongInitializationUnitSemanticPlan::from_artifact(
             unit,
             decoded.diagnostic_path,
             schedule,
@@ -200,10 +261,7 @@ pub(super) fn validate_initialization_units(
             dependencies,
         ));
     }
-    Ok(StrongInitializationUnitSemanticPlanSetV1::from_artifact(
-        static_storages,
-        units,
-    ))
+    Ok(crate::StrongInitializationUnitSemanticPlanSet::from_artifact(static_storages, units))
 }
 
 fn validate_initialization_storage(
