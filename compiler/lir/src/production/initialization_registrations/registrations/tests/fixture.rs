@@ -3,6 +3,8 @@
 use super::fixture_digest::digest_plan;
 use super::*;
 
+mod complete;
+
 #[derive(Clone, Copy, Default)]
 pub(super) struct Options {
     pub(super) lazy: bool,

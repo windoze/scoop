@@ -10,6 +10,8 @@ use scoop_wire::BudgetMeter;
 mod fixture;
 use fixture::*;
 
+mod surface;
+
 #[test]
 fn v2_reader_replays_legacy_and_foreign_complete_registration_records() {
     for has_itable in [false, true] {

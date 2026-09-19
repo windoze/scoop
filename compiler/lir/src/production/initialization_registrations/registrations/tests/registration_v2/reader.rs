@@ -1,6 +1,8 @@
 use super::*;
 use crate::StrongRegistrationProductionValidationError as Error;
 
+mod surface;
+
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }

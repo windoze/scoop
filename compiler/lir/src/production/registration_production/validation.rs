@@ -59,6 +59,9 @@ mod initialization;
 pub use initialization::validate_initialization_registration_constituents_v2;
 use initialization::validate_initialization_units;
 
+mod v2;
+pub use v2::ReplayedStrongRegistrationProductionV2;
+
 impl DecodedStrongRegistrationProductionSurfaceV1 {
     pub fn validate(
         self,
@@ -222,6 +225,7 @@ pub enum RegistrationProductionTableV1 {
 
 #[derive(Debug)]
 pub enum StrongRegistrationProductionValidationError {
+    ProducerMismatch,
     Encode(scoop_wire::cbor::EncodeError),
     Resource(scoop_wire::WireError),
     TypeReference(crate::StrongTypeReferenceResolutionErrorV2),
