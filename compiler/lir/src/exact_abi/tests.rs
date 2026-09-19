@@ -6,6 +6,7 @@ use crate::exact_layout::tests::{Bound, exact, field, integer, managed, meter, s
 use crate::*;
 
 mod fixtures;
+mod physical;
 mod reader;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;

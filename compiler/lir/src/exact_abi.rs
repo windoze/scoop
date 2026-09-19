@@ -18,6 +18,9 @@ use crate::{
 mod replay;
 pub use replay::ExactCallableAbiError;
 
+mod physical;
+pub use physical::ExactCallablePhysicalAbiError;
+
 mod wire;
 pub use wire::{DecodedExactCallableAbiExportV1, ExactCallableAbiWireError};
 

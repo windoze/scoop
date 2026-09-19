@@ -146,6 +146,9 @@ pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequireme
 mod cross_cone_bridge;
 pub use cross_cone_bridge::{CrossConeLirBridgeLoweringError, lower_cross_cone_bridge_section};
 
+mod exact_callable_abi;
+pub use exact_callable_abi::{ExactCallableAbiLoweringError, lower_exact_callable_abi_export};
+
 mod imported_core;
 pub use imported_core::StrongImportedCoreLirInput;
 use imported_core::lower_imported_core_callables;

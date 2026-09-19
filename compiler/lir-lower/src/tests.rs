@@ -5,6 +5,7 @@ mod support;
 use support::*;
 
 mod dependency_external;
+mod exact_callable_abi;
 mod native_storage;
 mod storage_replay;
 mod zst_places;
