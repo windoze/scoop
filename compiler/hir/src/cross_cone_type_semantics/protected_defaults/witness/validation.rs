@@ -8,7 +8,9 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 mod coverage;
+mod owner_profile;
 pub use coverage::*;
+pub use owner_profile::*;
 
 /// Definition-side classification of the complete source default, independently
 /// of its transport witness. A static nested owner does not capture outer binders.
@@ -95,38 +97,17 @@ impl ProtectedDefaultAccessWitnessV1 {
         if self.owner() != key.owner() || self.owner() != source.declaration() {
             return Err(ProtectedDefaultWitnessSourceError::Owner);
         }
-        let access = source.declaration_access();
-        let owners = access.source().lexical_owners();
-        meter
-            .charge_work(owners.len() as u64, &WirePath::root())
-            .map_err(ProtectedDefaultWitnessSourceError::Resource)?;
-        let generic = owners
-            .iter()
-            .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)));
-        let expected = authority
-            .default_access_profile(key)
-            .map_err(ProtectedDefaultWitnessSourceError::Foundation)?;
-        match (&self.0, expected) {
-            (Witness::ParamFree(witness), ProtectedDefaultWitnessSourceProfileV1::ParamFree)
-                if matches!(source.payload().owner(), SourceNominalId::Concrete(_)) =>
-            {
-                Ok(CheckedProtectedDefaultWitnessSourceV1::ParamFree(
-                    CheckedParamFreeProtectedDefaultWitnessSourceV1 { witness, source },
-                ))
-            }
-            (
-                Witness::GenericSourceMetadata { .. },
-                ProtectedDefaultWitnessSourceProfileV1::GenericSourceMetadata,
-            ) if generic => Ok(
-                CheckedProtectedDefaultWitnessSourceV1::GenericSourceMetadata(
-                    CheckedGenericProtectedDefaultWitnessSourceV1 {
-                        witness: self,
-                        source,
-                    },
-                ),
-            ),
-            _ => Err(ProtectedDefaultWitnessSourceError::SourceProfile),
-        }
+        source
+            .validate_default_profile(key, authority, meter)?
+            .validate_witness(self)
+            .map_err(|error| match error {
+                ProtectedDefaultWitnessProfileError::Owner => {
+                    ProtectedDefaultWitnessSourceError::Owner
+                }
+                ProtectedDefaultWitnessProfileError::SourceProfile => {
+                    ProtectedDefaultWitnessSourceError::SourceProfile
+                }
+            })
     }
 }
 #[derive(Debug, Eq, PartialEq)]
