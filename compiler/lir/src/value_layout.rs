@@ -4,7 +4,10 @@
 
 use std::num::NonZeroU64;
 
-use crate::{CheckedRefScanV1, RefScan, TypeInstanceShapeError};
+use crate::{CheckedRefScanV1, LirTargetProfile, RefScan, TypeInstanceShapeError};
+
+mod wire;
+pub use wire::{DecodedArrayElementStorageV1, DecodedValueStorageLayoutV1};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct NonZeroPow2(NonZeroU64);
@@ -100,6 +103,24 @@ impl ValueStorageLayoutV1 {
         Ok(Self(StorageBody::Inline(NonZeroValueStorageV1::new(
             size, alignment, scan,
         )?)))
+    }
+
+    pub fn validate_target(&self, target: LirTargetProfile) -> Result<(), TypeInstanceShapeError> {
+        let maximum = target.contract().maximum_managed_alignment();
+        if self.alignment().get() > maximum {
+            return Err(TypeInstanceShapeError::ManagedAlignmentTooLarge {
+                actual: self.alignment().get(),
+                maximum,
+            });
+        }
+        let maximum = target.contract().maximum_managed_object_size();
+        if self.byte_size() > maximum {
+            return Err(TypeInstanceShapeError::ManagedObjectTooLarge {
+                actual: self.byte_size(),
+                maximum,
+            });
+        }
+        Ok(())
     }
 
     pub const fn kind(&self) -> ValueStorageKindV1<'_> {

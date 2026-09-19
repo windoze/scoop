@@ -8,6 +8,9 @@ use crate::RefScan;
 mod budget;
 mod normal;
 mod ranges;
+mod wire;
+
+pub use wire::DecodedRefScanV1;
 
 pub use budget::{ScanBudgetResourceV1, ScanBudgetUsageV1};
 
@@ -103,6 +106,7 @@ pub enum RefScanValidationError {
     UnorderedReferences,
     NonCanonicalSequence,
     EmptyArrayElement,
+    ZeroArrayStride,
     OffsetOverflow,
     MisalignedReference {
         offset: u64,
