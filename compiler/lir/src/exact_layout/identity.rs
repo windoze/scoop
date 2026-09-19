@@ -59,6 +59,9 @@ impl ExactLayoutIdentityV1 {
     pub fn exact_key(&self) -> &ExactTypeKey {
         self.exact.key()
     }
+    pub const fn exact_record(&self) -> &CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
+        &self.exact
+    }
     pub const fn layout(&self) -> PersistentLayoutId {
         self.layout.id()
     }

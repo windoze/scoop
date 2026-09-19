@@ -1,0 +1,204 @@
+use std::collections::BTreeSet;
+
+use scoop_identity::{
+    CborIdentityRecord, EnumVariantFieldKey, EnumVariantIdentityKey, NominalDeclarationOwner,
+    PersistentEnumVariantFieldId, PersistentEnumVariantId,
+};
+
+use super::*;
+use crate::{
+    EnumStorageGeometryV1, EnumVariantGeometryInputV1, FieldStorageV1, NichePointerKind,
+    StorageGeometryV1,
+};
+
+#[derive(Clone, Copy, Debug)]
+pub struct EnumLayoutFieldInputV1<'a> {
+    pub field: &'a CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>,
+    pub value: &'a ExactValueLayoutV1,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EnumLayoutVariantInputV1<'a> {
+    pub variant: &'a CborIdentityRecord<PersistentEnumVariantId, EnumVariantIdentityKey>,
+    pub fields: &'a [EnumLayoutFieldInputV1<'a>],
+}
+
+impl ExactValueLayoutV1 {
+    /// Niche eligibility is derived from the same closed source-pointer
+    /// representation shape; the caller cannot select a competing encoding.
+    pub fn enumeration(
+        identity: ExactLayoutIdentityV1,
+        variants: &[EnumLayoutVariantInputV1<'_>],
+        foundation: &OdrFreeLirFoundation,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ExactLayoutReplayError> {
+        validate_variants(&identity, variants, meter)?;
+        if let Some((index, kind, payload)) = niche(variants) {
+            let roles: &[RepresentationRole] = match kind {
+                NichePointerKind::Managed => &[RepresentationRole::ManagedValue],
+                NichePointerKind::Raw | NichePointerKind::Code => {
+                    &[RepresentationRole::ManagedValue, RepresentationRole::CValue]
+                }
+            };
+            require_roles(&identity, roles)?;
+            let whole = geometry(payload)?;
+            let mut placed = reserve(variants.len(), meter)?;
+            for variant in variants {
+                let mut fields = reserve(variant.fields.len(), meter)?;
+                for field in variant.fields {
+                    fields.push(EnumVariantFieldLayoutV1 {
+                        field: field.field.id(),
+                        storage: FieldStorageV1::within(&field.value.value, 0, whole)?,
+                        access_alignment: whole.alignment(),
+                    });
+                }
+                placed.push(EnumVariantLayoutV1 {
+                    variant: variant.variant.id(),
+                    fields,
+                });
+            }
+            return finish_value(
+                identity,
+                payload.value.storage().clone(),
+                ValueRepresentation::NicheEnum(NicheEnumRepresentationLayoutV1 {
+                    pointer_kind: kind,
+                    variants: placed,
+                    payload_variant: variants[index].variant.id(),
+                }),
+                foundation,
+                meter,
+            );
+        }
+        require_roles(&identity, &[RepresentationRole::ManagedValue])?;
+        let mut geometries = reserve(variants.len(), meter)?;
+        for variant in variants {
+            let mut fields = reserve(variant.fields.len(), meter)?;
+            for field in variant.fields {
+                fields.push(geometry(field.value)?);
+            }
+            geometries.push(fields);
+        }
+        let mut inputs = reserve(variants.len(), meter)?;
+        for (variant, fields) in variants.iter().zip(&geometries) {
+            inputs.push(EnumVariantGeometryInputV1 {
+                fields,
+                gc_free: variant
+                    .fields
+                    .iter()
+                    .all(|field| !storage_scan(field.value.value.storage()).contains_reference()),
+            });
+        }
+        let geometry = EnumStorageGeometryV1::tagged(identity.target(), &inputs, meter)?;
+        let mut placed = reserve(variants.len(), meter)?;
+        for (variant, placement) in variants.iter().zip(geometry.variants()) {
+            let mut fields = reserve(variant.fields.len(), meter)?;
+            for (field, position) in variant.fields.iter().zip(placement.fields()) {
+                fields.push(EnumVariantFieldLayoutV1 {
+                    field: field.field.id(),
+                    storage: FieldStorageV1::within(
+                        &field.value.value,
+                        position.offset(),
+                        geometry.storage(),
+                    )?,
+                    access_alignment: position.access_alignment(),
+                });
+            }
+            placed.push(EnumVariantLayoutV1 {
+                variant: variant.variant.id(),
+                fields,
+            });
+        }
+        let fields = placed
+            .iter()
+            .flat_map(|variant| variant.fields.iter().map(EnumVariantFieldLayoutV1::storage));
+        FieldStorageV1::charge_scan_composition(fields.clone(), meter)?;
+        let scan = FieldStorageV1::combined_scan(fields)?;
+        let storage = ValueStorageLayoutV1::inline(
+            geometry.storage().size(),
+            geometry.storage().alignment().get(),
+            scan,
+        )?;
+        finish_value(
+            identity,
+            storage,
+            ValueRepresentation::TaggedEnum(TaggedEnumRepresentationLayoutV1 {
+                geometry,
+                variants: placed,
+            }),
+            foundation,
+            meter,
+        )
+    }
+}
+
+fn geometry(value: &ExactValueLayoutV1) -> Result<StorageGeometryV1, ExactLayoutReplayError> {
+    Ok(StorageGeometryV1::new(
+        value.identity.target(),
+        value.value.storage().byte_size(),
+        value.value.storage().alignment().get(),
+    )?)
+}
+
+fn validate_variants(
+    identity: &ExactLayoutIdentityV1,
+    variants: &[EnumLayoutVariantInputV1<'_>],
+    meter: &mut BudgetMeter,
+) -> Result<(), ExactLayoutReplayError> {
+    let owner = nominal(identity.exact_key())?;
+    if variants.is_empty() {
+        return Err(ExactLayoutReplayError::EmptyEnum);
+    }
+    meter.charge_work(variants.len() as u64, &WirePath::root())?;
+    meter.charge_collection_slots(variants.len() as u64, &WirePath::root())?;
+    let mut seen = BTreeSet::new();
+    for variant in variants {
+        let key = variant.variant.key();
+        let actual = key
+            .source_owner()
+            .or_else(|| key.generated_owner().map(NominalDeclarationOwner::Concrete));
+        if actual != Some(owner) {
+            return Err(ExactLayoutReplayError::VariantOwner);
+        }
+        if !seen.insert(variant.variant.id()) {
+            return Err(ExactLayoutReplayError::DuplicateVariant);
+        }
+        meter.charge_work(variant.fields.len() as u64, &WirePath::root())?;
+        meter.charge_collection_slots(variant.fields.len() as u64, &WirePath::root())?;
+        let mut fields = BTreeSet::new();
+        for (index, field) in variant.fields.iter().enumerate() {
+            if field.field.key().variant() != variant.variant.id() {
+                return Err(ExactLayoutReplayError::VariantFieldOwner);
+            }
+            if let scoop_identity::EnumVariantFieldSelector::Positional { declaration_index } =
+                field.field.key().selector()
+                && u64::from(*declaration_index) != index as u64
+            {
+                return Err(ExactLayoutReplayError::VariantFieldOwner);
+            }
+            if !fields.insert(field.field.id()) {
+                return Err(ExactLayoutReplayError::DuplicateVariantField);
+            }
+            if field.value.identity.target() != identity.target() {
+                return Err(ExactLayoutReplayError::DependencyTarget);
+            }
+        }
+    }
+    Ok(())
+}
+
+fn niche<'a>(
+    variants: &[EnumLayoutVariantInputV1<'a>],
+) -> Option<(usize, NichePointerKind, &'a ExactValueLayoutV1)> {
+    let [first, second] = variants else {
+        return None;
+    };
+    let (index, payload) = match (first.fields, second.fields) {
+        ([], [field]) => (1, field.value),
+        ([field], []) => (0, field.value),
+        _ => return None,
+    };
+    match payload.representation.0 {
+        ValueRepresentation::QualifiedPointer(kind) => Some((index, kind, payload)),
+        _ => None,
+    }
+}

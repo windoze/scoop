@@ -1,6 +1,19 @@
 use super::*;
 
 impl FieldStorageV1 {
+    pub(crate) fn combined_scan<'a>(
+        fields: impl IntoIterator<Item = &'a Self>,
+    ) -> Result<RefScan, StorageReplayError> {
+        super::scans::field_scan(fields)
+    }
+
+    pub(crate) fn charge_scan_composition<'a>(
+        fields: impl IntoIterator<Item = &'a Self>,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<(), scoop_wire::WireError> {
+        super::scans::charge_composition(fields, meter)
+    }
+
     /// The enclosing replay supplies its final geometry. The caller must
     /// still prove declaration order and non-overlap across the complete list.
     pub(crate) fn within(

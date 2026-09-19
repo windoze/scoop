@@ -472,7 +472,7 @@ TaggedEnum的`tag_layout`与`pure_region`均为`{ offset, byte_size, alignment }
 
 InstanceRepresentation沿6.1的tag1～5，ClassObject的field1～3为`base_prefix/declared_fields/complete_fields`；base prefix的tag1为NoBase，tag2依次保存`exact/layout/byte_size/alignment`。BoxedPayload的field1、2为`payload_exact/value_layout`，InlineBytes无payload，InlineArray的field1、2为`element_exact/element_storage`，AbstractReference无payload。class fields使用nominal field product；complete fields只能从已验证base的完整projection与本class的declared fields机械拼接。box、array及class shape均从同一typed依赖重建并与body.shape逐字段相等；shape中的object-relative scan与record的scan role按6.1严格区分。
 
-单record的checked replay证明canonical identity、representation几何及所有scan范围，不替代完整section的HIR/MIR source join、export surface或selected dependency closure。reader在解析typed identity、分配field/variant表与复制完整base projection前消费共享`BudgetMeter`；按by-value依赖与base active path拒绝cycle。完整record只持有closed storage/shape及已核验依赖，不通过裸size、默认offset、missing-key fallback或native-boundary witness补齐authority。
+单record的checked replay证明canonical identity、representation几何及所有scan范围，不替代完整section的HIR/MIR source join、export surface或selected dependency closure。Unit必须等于compiler固定的`CoreBuiltinNominal::Unit` exact，且该exact不能选择其他representation；Integer/Boolean/String/Array/MutableArray没有compiler固定的nominal identity，其kind/family必须由完整section与同一trusted-core receipt下的既有intrinsic binding逐项join，不能按名称或FQN重建identity，也不能仅凭任意nominal加family输入声称已经验证core authority。reader在解析typed identity、分配field/variant表与复制完整base projection前消费共享`BudgetMeter`；按by-value依赖与base active path拒绝cycle。完整record只持有closed storage/shape及已核验依赖，不通过裸size、默认offset、missing-key fallback或native-boundary witness补齐authority。
 
 ### 6.3 scan normal form 与预算
 

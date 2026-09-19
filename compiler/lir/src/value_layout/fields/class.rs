@@ -124,6 +124,9 @@ impl ClassStorageLayoutV1 {
     pub fn complete_fields(&self) -> &[PlacedFieldStorageV1] {
         &self.complete_fields
     }
+    pub fn inheritance_depth(&self) -> usize {
+        self.ancestry.len()
+    }
 
     /// The complete list is a mechanical projection, never independent input.
     pub fn validate_projection(

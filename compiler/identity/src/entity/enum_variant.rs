@@ -53,6 +53,13 @@ enum EnumVariantIdentityKeyKind {
 }
 
 impl EnumVariantIdentityKey {
+    pub const fn generated_owner(&self) -> Option<PersistentTypeId> {
+        match &self.0 {
+            EnumVariantIdentityKeyKind::Generated { owner, .. } => Some(*owner),
+            EnumVariantIdentityKeyKind::Source { .. } => None,
+        }
+    }
+
     pub const fn source_owner(&self) -> Option<NominalDeclarationOwner> {
         match &self.0 {
             EnumVariantIdentityKeyKind::Source { owner, .. } => Some(*owner),
