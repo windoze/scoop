@@ -67,6 +67,9 @@ pub use exact_abi::*;
 mod exact_descriptor;
 pub use exact_descriptor::*;
 
+mod exact_dispatch;
+pub use exact_dispatch::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 
