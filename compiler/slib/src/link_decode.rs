@@ -96,6 +96,8 @@ pub use states::*;
 mod cross_cone;
 mod decode;
 pub use cross_cone::*;
+mod layout;
+pub use layout::*;
 mod fingerprinting;
 mod object_validation;
 
