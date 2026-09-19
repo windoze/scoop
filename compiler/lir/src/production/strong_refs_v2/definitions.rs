@@ -123,6 +123,8 @@ pub enum StrongTypeReferenceResolutionErrorV2 {
     UnknownCoreCallable(DecodedPersistentId<PersistentCallableBodyId>),
     CoreDescriptorPartition(PersistentExactTypeId),
     CoreCallablePartition(PersistentCallableBodyId),
+    LocalDescriptorPartition(PersistentExactTypeId),
+    LocalCallablePartition(PersistentCallableBodyId),
     UnknownDependencyDescriptor {
         provider: DecodedPersistentId<ConeIdentity>,
         exact: DecodedPersistentId<PersistentExactTypeId>,

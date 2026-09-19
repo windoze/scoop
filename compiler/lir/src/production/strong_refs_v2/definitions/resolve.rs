@@ -42,6 +42,15 @@ impl StrongTypeReferenceDefinitionsV2 {
                     .ok_or(Error::UnknownCoreDescriptor(exact))
             }
             DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
+                meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
+                for definition in foundation.definition_plans() {
+                    if let Some(PersistentSymbolKey::TypeDescriptor(candidate)) =
+                        definition.key().primary_symbol_key()
+                        && candidate.as_array() == exact.as_array()
+                    {
+                        return Err(Error::LocalDescriptorPartition(candidate));
+                    }
+                }
                 meter.charge_work(core.bridges().len() as u64, &path)?;
                 if let Some(exact) = core_descriptor(core, exact) {
                     return Err(Error::CoreDescriptorPartition(exact));
@@ -126,6 +135,15 @@ impl StrongTypeReferenceDefinitionsV2 {
                 Ok(StrongTypeDispatchCallableRefV2::Runtime(function))
             }
             DecodedStrongTypeDispatchCallableRefV2::DependencyExternal { provider, body } => {
+                meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
+                for definition in foundation.definition_plans() {
+                    if let Some(PersistentSymbolKey::CallableBody(candidate)) =
+                        definition.key().primary_symbol_key()
+                        && candidate.as_array() == body.as_array()
+                    {
+                        return Err(Error::LocalCallablePartition(candidate));
+                    }
+                }
                 meter.charge_work(core.bridges().len() as u64, &path)?;
                 if let Some(body) = core_callable(core, body) {
                     return Err(Error::CoreCallablePartition(body));

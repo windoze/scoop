@@ -23,13 +23,21 @@ fn empty_consumer() -> (
     StrongRegistrationIdentitySurfaceV1,
     StrongExternalLirBridgeSurfaceV1,
 ) {
-    let foundation = crate::OdrFreeLirFoundation::try_new(
-        ConeIdentity::CORE,
-        crate::CanonicalLirFoundation::empty(),
-    )
-    .unwrap();
+    consumer_at(ConeIdentity::CORE)
+}
+
+fn consumer_at(
+    producer: ConeIdentity,
+) -> (
+    crate::OdrFreeLirFoundation,
+    StrongRegistrationIdentitySurfaceV1,
+    StrongExternalLirBridgeSurfaceV1,
+) {
+    let foundation =
+        crate::OdrFreeLirFoundation::try_new(producer, crate::CanonicalLirFoundation::empty())
+            .unwrap();
     let image = crate::DigestNodeV1::new(
-        scoop_identity::DigestNodeKey::runtime_image(ConeIdentity::CORE),
+        scoop_identity::DigestNodeKey::runtime_image(producer),
         Vec::new(),
         Vec::new(),
     )
@@ -37,7 +45,7 @@ fn empty_consumer() -> (
     let digests = crate::StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    let core = StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap();
+    let core = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
     (foundation, registrations, core)
 }
 
@@ -131,6 +139,38 @@ fn physical_catalog_rejects_duplicate_local_and_wrong_role_definitions() {
 }
 
 #[test]
+fn an_imported_symbol_request_is_not_a_local_definition() {
+    let definition = checked(subjects()[3]);
+    let catalog =
+        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition], &mut meter())
+            .unwrap();
+    let (_, registrations, core) = empty_consumer();
+    let mut canonical = crate::CanonicalLirFoundation::empty();
+    canonical
+        .set_symbol_requests(PersistentSymbolRequestTable::new(vec![definition.symbol()]).unwrap());
+    let consumer = crate::OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let ExternalStrongShapeSubjectV1::TypeDescriptor(exact) = definition.subject() else {
+        panic!("descriptor fixture");
+    };
+    let reference = StrongTypeDescriptorRefV2::DependencyExternal {
+        provider: definition.provider(),
+        exact,
+    };
+    assert_eq!(
+        catalog
+            .resolve_descriptor(
+                decoded(&reference),
+                &consumer,
+                &registrations,
+                &core,
+                &mut meter()
+            )
+            .unwrap(),
+        reference
+    );
+}
+
+#[test]
 fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
     let all = subjects();
     let definitions = [checked(all[0]), checked(all[3])];
@@ -199,6 +239,10 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
 
 #[test]
 fn old_core_descriptor_cannot_be_reencoded_as_general_dependency() {
+    let producer = scoop_identity::ConeCoordinate::new("test", "reference-consumer", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
@@ -207,11 +251,10 @@ fn old_core_descriptor_cannot_be_reencoded_as_general_dependency() {
     .unwrap();
     let definition = checked(ExternalStrongShapeSubjectV1::TypeDescriptor(exact));
     let catalog =
-        StrongTypeReferenceDefinitionsV2::new(ConeIdentity::CORE, &[definition], &mut meter())
-            .unwrap();
-    let (consumer, registrations, _) = empty_consumer();
+        StrongTypeReferenceDefinitionsV2::new(producer, &[definition], &mut meter()).unwrap();
+    let (consumer, registrations, _) = consumer_at(producer);
     let core = StrongExternalLirBridgeSurfaceV1::try_new(
-        ConeIdentity::CORE,
+        producer,
         vec![crate::StrongExternalLirBridgeV1::TypeDescriptor(
             crate::StrongExternalTypeDescriptorBridgeV1::new(exact).unwrap(),
         )],
