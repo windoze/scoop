@@ -2,12 +2,16 @@
 
 use std::fmt;
 
-use scoop_hir::{CrossConeHirInterfaceResolutionError, TypeSemanticsSectionResolutionError};
+use scoop_hir::{
+    CoreBootstrapInterfaceValidationError, CrossConeHirInterfaceResolutionError,
+    TypeSemanticsSectionResolutionError,
+};
 use scoop_identity::IdentityReferenceError;
 use scoop_wire::WirePath;
 
 use super::{
-    FoundationValidatedCrossConeLayoutCompileSections, ResolvedCrossConeLayoutHirSections,
+    FoundationValidatedCrossConeLayoutCompileSections,
+    HirProductionValidatedCrossConeLayoutSections, ResolvedCrossConeLayoutHirSections,
 };
 
 impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
@@ -41,6 +45,48 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
             )
             .map_err(|error| CrossConeLayoutHirResolutionError::TypeSemantics(Box::new(error)))?;
         Ok(ResolvedCrossConeLayoutHirSections {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            hir_type_semantics,
+            mir_core_production,
+            mir_cross_cone_bridge,
+            mir_type_bridge,
+            lir_strong_production,
+            lir_cross_cone_bridge,
+            lir_layout_abi,
+        })
+    }
+}
+
+impl<'input> ResolvedCrossConeLayoutHirSections<'input> {
+    /// Replays the unchanged core-bootstrap HIR contract before either the
+    /// old public surface or the new type-semantics tables are trusted.
+    pub fn validate_hir_production(
+        self,
+    ) -> Result<
+        HirProductionValidatedCrossConeLayoutSections<'input>,
+        CoreBootstrapInterfaceValidationError,
+    > {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            hir_type_semantics,
+            mir_core_production,
+            mir_cross_cone_bridge,
+            mir_type_bridge,
+            lir_strong_production,
+            lir_cross_cone_bridge,
+            lir_layout_abi,
+        } = self;
+        let hir_core_production = hir_core_production
+            .validate_against_strong_foundation(graph.identity(), &foundations.hir)?;
+        Ok(HirProductionValidatedCrossConeLayoutSections {
             graph,
             identities,
             foundations,

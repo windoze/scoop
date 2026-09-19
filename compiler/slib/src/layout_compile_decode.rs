@@ -1,9 +1,10 @@
 //! Exact Compile-view section decoding for the M23-6 layout profile.
 
 use scoop_hir::{
-    CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
-    DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
-    DecodedCrossConeTypeSemanticsSectionV1, DecodedHirFoundation,
+    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
+    CrossConeTypeSemanticsSectionV1, DecodedCoreBootstrapInterfaceSectionV1,
+    DecodedCrossConeHirInterfaceSectionV1, DecodedCrossConeTypeSemanticsSectionV1,
+    DecodedHirFoundation,
 };
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_lir::{
@@ -93,6 +94,24 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
     identities: ValidatedIdentityGraph,
     foundations: OdrFreeStrongFoundationSet,
     hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    hir_type_semantics: CrossConeTypeSemanticsSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
+    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+}
+
+/// Resolved M23-6 HIR payloads whose unchanged core-bootstrap production
+/// contract was replayed against the same ODR-free foundation. General public
+/// and type-semantics tables still require their complete semantic authorities.
+pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
     hir_interface: CrossConeHirInterfaceSectionV1,
     hir_type_semantics: CrossConeTypeSemanticsSectionV1,
     mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
