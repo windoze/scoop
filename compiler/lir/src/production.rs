@@ -77,3 +77,6 @@ pub use strong_refs_v2::*;
 
 mod initialization_dependencies;
 pub use initialization_dependencies::*;
+
+mod external_shape;
+pub use external_shape::*;
