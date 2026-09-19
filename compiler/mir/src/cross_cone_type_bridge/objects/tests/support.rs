@@ -6,7 +6,7 @@ type Unit = CborIdentityRecord<PersistentInitializationUnitId, InitializationUni
 type Value = CborIdentityRecord<PersistentObjectValueId, SourceDeclarationKey>;
 type Accessor = CborIdentityRecord<PersistentPropertyAccessorId, PropertyAccessorKey>;
 
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_bridge) struct Fixture {
     pub graph: ValidatedIdentityGraph,
     pub types: CanonicalParamFreeMirTypeExportsV1,
     pub callables: CanonicalMirCallableBindingsV1,

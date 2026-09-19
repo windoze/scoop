@@ -321,6 +321,9 @@ inherited protected callable 的 default 继续在定义处解析，使用 M17 �
 
 局部type、statement binding、pattern、iterator protocol及其他非Expression节点的引用不伪造expression_index，也不生成uses元素。reader仍由完整typed body visitor逐个重放其target、definition/evaluation origin、词法访问scope和实际receiver；protocol或binding receiver只可来自已验证typed plan，不能一律按NoReceiver处理。六域reference闭包必须精确等于Expression引用与这些metadata引用的并集；只有metadata引用的record允许uses为空，但仍须通过全部target、来源和整个default call-domain coverage检查。空uses不得作为跳过依赖、访问或coverage的条件。
 
+`ProtectedDefaultExpressionUseV1`是二字段product：field1为`expression_index: u32`，field2为`ProtectedDefaultReceiverUseV1`。receiver_use的tag1、2、3、4依次为None、ImplicitThis、Explicit、ConstructorDelegation；只有Explicit分支另有field1 `receiver_expression_index: u32`，其余为仅tag的sum。canonical uses按expression_index及receiver_use的tag/内部index严格递增，producer拒绝重复，reader拒绝重复和逆序，不修补输入；序号范围、receiver种类与完整body的精确对应由独立visitor回放。`ProtectedDefaultSlotCallDomainV1`的field1、2为slot与domain，canonical表按typed slot id严格递增；同slot重复即使domain相同也拒绝。以上集合仅是传输数据，空集合不证明无receiver或无root-slot，完整template必须对照实际body及source callable的独立全集。
+
+
 reader重放完整body/reference闭包、definition-before-use及各receiver的静态type；每个occurrence必须命中相同typed target并满足4.3的词法/receiver规则。target domain必须覆盖direct call domain和每一个slot call domain；domain不是两个可比较visibility整数，也不能只覆盖当前某一个consumer调用点。default provider、参数位置、完整binder映射和definition/evaluation origin仍按Stage5规则验证。继承或扩大override调用域时重新检查coverage，不可把protected dependency藏进public default；constructor默认表达式仍遵守初始化receiver禁用规则。
 
 protected source-interface表额外保存其default template集合及definition_sources精确闭包，使用独立索引空间；不能把protected key插入旧public source-interface/default表。表的source parameter形状和省略类别复用Stage5规则，template引用由当前protected表的checked key/index解释。
@@ -372,6 +375,8 @@ BoxedValue 的 payload exact 与 `BoxedValue { payload }` key 逐项相等，fie
 shape-support 表按 source nominal 的 canonical bytes 严格递增。ordinary producer 的每项 source authority 必须属于当前 provider；完整 section 用独立重建的 required source-root 集合核验精确覆盖，不能从本表反推所需全集。遵守 3.2，core 的新 MIR shape-support 表也必须为空，其旧 `CoreMirBridgeV1.shape_support_roots` 仍是唯一 root authority；完整 section 对旧 roots 与新完整 types 表重放相同的有限 helper 关系，不另存一份可修改的 root 清单。该 MIR 五字段索引不复制 7.2 的 LIR 八 role product，后者另行证明布局、scan、TD、registration 与 definition。
 
 record 之间的查询可以借用本地完整表及已验证 dependency 表组成的只读索引，索引不编码进本地 export wire。type、callable、schema 索引分别使用 exact、Strong target、owner exact 的独立 key 空间；相同 key 出现在两个输入表中也必须拒绝，不能以“内容相同”吞并重复 authority。dispatch 的 base prefix、继承 interface schema 与 implementation 查询均使用这个完整视图，而待导出的 canonical schema 表只保存当前 provider 的 records。索引只承载已验证 constituent 的关系查询，不自行授予 dependency selection；完整 section 必须另将每个借用来源 join 到终端 provider proof，不能把任意表拼装为 Selected。
+
+MIR 定义必需的 source-join 协议，由 `mir-lower` 从当前已验证 HIR/LocalConcrete 与实际 MIR 输出独立投射，reader 则从同一已验证 HIR/基础身份闭包重建对应合同。协议提供当前 provider、独立的 type/callable/dispatch/object export 全集、required source roots、逐项完整预期 record 及已提交 initialization-use 全集；这些查询不能从待校验的 transport table 实现。MIR 检查每张 canonical inventory 的精确覆盖、每条完整 record 的逐字段相等、source root 的当前定义 Cone 及有限 helper 闭包。该 source join 不代替终端 provider/selected 闭包，也不赋予单独的表或 source proof 生产 artifact 资格；最终七字段 section 必须同时持有两类证明。
 
 ### 5.2 callable 与 constructor
 

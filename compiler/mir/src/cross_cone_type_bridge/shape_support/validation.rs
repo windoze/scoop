@@ -36,7 +36,7 @@ impl fmt::Display for MirShapeSupportError {
 impl std::error::Error for MirShapeSupportError {}
 
 impl<'a> MirShapeSupportAuthority<'a> {
-    pub(super) fn validate(
+    pub(in crate::cross_cone_type_bridge) fn validate(
         self,
         record: &ParamFreeMirShapeSupportV1,
         meter: &mut BudgetMeter,

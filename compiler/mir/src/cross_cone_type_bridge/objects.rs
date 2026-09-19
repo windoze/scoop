@@ -20,4 +20,4 @@ pub use validation::MirObjectBridgeError;
 pub use wire::{DecodedParamFreeMirObjectValueV1, DecodedSelectedExternalInitializationUseV1};
 
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_bridge) mod tests;

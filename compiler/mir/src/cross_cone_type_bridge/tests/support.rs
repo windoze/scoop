@@ -36,7 +36,14 @@ impl Fixture {
         Self::with_source("Empty", SourceNominalKind::Struct)
     }
     pub fn with_source(name: &str, kind: SourceNominalKind) -> Self {
-        let empty = nominal(name, kind);
+        Self::with_source_provider(name, kind, ConeIdentity::SINGLE_FILE)
+    }
+    pub fn with_source_provider(
+        name: &str,
+        kind: SourceNominalKind,
+        provider: ConeIdentity,
+    ) -> Self {
+        let empty = nominal_in(name, kind, provider);
         let other = nominal("Other", SourceNominalKind::Struct);
         let class = nominal("Base", SourceNominalKind::Class);
         let interface = nominal("Interface", SourceNominalKind::Interface);
@@ -154,6 +161,9 @@ impl Fixture {
         pending
             .register_authority(ConeIdentity::SINGLE_FILE)
             .unwrap();
+        if provider != ConeIdentity::SINGLE_FILE {
+            pending.register_authority(provider).unwrap();
+        }
         hir.register_identities(&mut pending).unwrap();
         mir.register_identities(&mut pending).unwrap();
         hir.resolve_identities(&mut pending).unwrap();
@@ -303,8 +313,17 @@ impl Fixture {
     }
 }
 pub(super) fn nominal(name: &str, kind: SourceNominalKind) -> NominalRecord {
+    nominal_in(name, kind, ConeIdentity::SINGLE_FILE)
+}
+fn nominal_in(name: &str, kind: SourceNominalKind, provider: ConeIdentity) -> NominalRecord {
     CborIdentityRecord::from_key(SourceDeclarationKey::nominal(
-        site(),
+        SourceDeclarationSite::new(
+            provider,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
         CanonicalIdentifier::new(name).unwrap(),
         kind,
         0,

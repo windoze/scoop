@@ -8,7 +8,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 mod initialization;
 mod records;
-mod support;
+pub(in crate::cross_cone_type_bridge) mod support;
 mod wire;
 use support::*;
 

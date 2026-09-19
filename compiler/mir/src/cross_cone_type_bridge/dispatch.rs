@@ -32,4 +32,4 @@ fn charge_sort(length: usize, meter: &mut BudgetMeter) -> Result<(), WireError> 
 }
 
 #[cfg(test)]
-mod tests;
+pub(in crate::cross_cone_type_bridge) mod tests;

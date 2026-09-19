@@ -4,17 +4,17 @@ use scoop_hir::{CanonicalHirFoundation, DecodedHirFoundation};
 type Nominal = CborIdentityRecord<PersistentTypeId, SourceDeclarationKey>;
 type Method = CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>;
 type Slot = CborIdentityRecord<PersistentDispatchSlotId, DispatchSlotKey>;
-pub(super) const UNIT: usize = 0;
-pub(super) const BASE: usize = 1;
-pub(super) const DERIVED: usize = 2;
-pub(super) const OTHER: usize = 3;
-pub(super) const ROOT: usize = 4;
-pub(super) const LEFT: usize = 5;
-pub(super) const RIGHT: usize = 6;
-pub(super) const DIAMOND: usize = 7;
-pub(super) const VALUE: usize = 8;
+pub(in crate::cross_cone_type_bridge) const UNIT: usize = 0;
+pub(in crate::cross_cone_type_bridge) const BASE: usize = 1;
+pub(in crate::cross_cone_type_bridge) const DERIVED: usize = 2;
+pub(in crate::cross_cone_type_bridge) const OTHER: usize = 3;
+pub(in crate::cross_cone_type_bridge) const ROOT: usize = 4;
+pub(in crate::cross_cone_type_bridge) const LEFT: usize = 5;
+pub(in crate::cross_cone_type_bridge) const RIGHT: usize = 6;
+pub(in crate::cross_cone_type_bridge) const DIAMOND: usize = 7;
+pub(in crate::cross_cone_type_bridge) const VALUE: usize = 8;
 
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_bridge) struct Fixture {
     pub graph: ValidatedIdentityGraph,
     pub foundation: crate::OdrFreeMirFoundation,
     pub types: CanonicalParamFreeMirTypeExportsV1,
