@@ -1,7 +1,7 @@
 use scoop_hir::OdrFreeHirFoundation;
 use scoop_lir::OdrFreeLirFoundation;
 use scoop_mir::OdrFreeMirFoundation;
-use scoop_wire::DecodeUsage;
+use scoop_wire::{BudgetMeter, DecodeUsage};
 
 use super::*;
 use crate::{
@@ -302,5 +302,34 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
 
     pub const fn lir_layout_abi_wire(&self) -> &DecodedCrossConeLayoutAbiSectionV1 {
         &self.lir_layout_abi
+    }
+
+    pub(crate) fn hir_semantic_parts(
+        &mut self,
+    ) -> (
+        &ValidatedIdentityGraph,
+        &OdrFreeHirFoundation,
+        &CoreBootstrapInterfaceSectionV1,
+        &CrossConeHirInterfaceSectionV1,
+        &CrossConeTypeSemanticsSectionV1,
+        &mut BudgetMeter,
+    ) {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            hir_type_semantics,
+            ..
+        } = self;
+        (
+            identities,
+            &foundations.hir,
+            hir_core_production,
+            hir_interface,
+            hir_type_semantics,
+            graph.envelope.meter_mut(),
+        )
     }
 }

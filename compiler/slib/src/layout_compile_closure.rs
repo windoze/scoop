@@ -261,6 +261,49 @@ impl_layout_closure_accessors!(
     HirProductionValidatedCrossConeLayoutSections
 );
 
+impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
+    pub(crate) fn hir_semantic_validation_parts(
+        &mut self,
+    ) -> (
+        &mut [HirProductionValidatedCrossConeLayoutSections<'input>],
+        &[Vec<usize>],
+    ) {
+        (&mut self.dependency_first, &self.dependency_positions)
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn layout_hir_semantic_closure_for_test<'input>(
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<HirProductionValidatedCrossConeLayoutSections<'input>>,
+    dependency_positions: Vec<Vec<usize>>,
+) -> HirProductionValidatedCrossConeLayoutClosure<'input> {
+    debug_assert_eq!(dependency_first.len(), dependency_positions.len());
+    debug_assert!(
+        dependency_positions
+            .iter()
+            .enumerate()
+            .all(|(position, dependencies)| dependencies
+                .iter()
+                .all(|dependency| *dependency < position))
+    );
+    let positions = dependency_first
+        .iter()
+        .enumerate()
+        .map(|(position, artifact)| (artifact.identity(), position))
+        .collect();
+    HirProductionValidatedCrossConeLayoutClosure {
+        current,
+        target,
+        direct,
+        dependency_first,
+        positions,
+        dependency_positions,
+    }
+}
+
 impl CrossConeClosureArtifact for DecodedCrossConeLayoutCompileSections<'_> {
     fn coordinate(&self) -> &ConeCoordinate {
         self.coordinate()
