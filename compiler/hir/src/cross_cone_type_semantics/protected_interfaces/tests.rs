@@ -4,7 +4,7 @@ use scoop_identity::{AccessorRole, CallableTemplateOrigin, SignatureTypeKey};
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 mod rejections;
-mod support;
+pub(in crate::cross_cone_type_semantics) mod support;
 mod wire;
 use support::{Fixture, nominal};
 fn meter() -> BudgetMeter {

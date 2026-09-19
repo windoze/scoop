@@ -8,13 +8,15 @@ use std::collections::BTreeMap;
 
 mod authority;
 
-pub(super) struct Fixture {
+#[derive(Clone)]
+pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub graph: GraphFixture,
     pub unit: Node,
     pub declarations: BTreeMap<CallableTemplateOrigin, SourceDeclarationKey>,
     pub accessors: BTreeMap<PersistentPropertyAccessorId, PropertyAccessorKey>,
     pub property_types: BTreeMap<PersistentPropertyId, SignatureTypeKey>,
     pub slots: Vec<PersistentDispatchSlotId>,
+    pub property_shapes: BTreeMap<PersistentPropertyId, ProtectedPropertySourceShapeV1>,
 }
 impl Default for Fixture {
     fn default() -> Self {
@@ -27,10 +29,11 @@ impl Default for Fixture {
             accessors: BTreeMap::new(),
             property_types: BTreeMap::new(),
             slots: Vec::new(),
+            property_shapes: BTreeMap::new(),
         }
     }
 }
-pub(super) fn nominal(node: Node) -> PersistentTypeId {
+pub(in crate::cross_cone_type_semantics) fn nominal(node: Node) -> PersistentTypeId {
     let SourceNominalId::Concrete(id) = node.source else {
         unreachable!()
     };
