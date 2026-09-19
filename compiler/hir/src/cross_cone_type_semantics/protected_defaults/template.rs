@@ -10,10 +10,12 @@ use crate::{
 mod decode;
 mod errors;
 mod indexed;
+mod semantics;
 mod validation;
 pub use decode::*;
 pub use errors::*;
 pub use indexed::*;
+pub use semantics::*;
 
 #[cfg(test)]
 mod tests;

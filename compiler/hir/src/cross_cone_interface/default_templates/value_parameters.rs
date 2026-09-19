@@ -7,8 +7,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 
+mod metered_semantics;
 mod semantics;
 
+pub use metered_semantics::MeteredTemplateValueParameterSemanticValidationError;
 pub use semantics::TemplateValueParameterSemanticValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

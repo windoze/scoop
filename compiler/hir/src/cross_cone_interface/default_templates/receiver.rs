@@ -8,8 +8,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{TemplateLocalIndexResolver, TemplateLocalSelectorResolver};
 use crate::SignatureTypeReferenceResolver;
 
+mod metered_semantics;
 mod semantics;
 
+pub use metered_semantics::MeteredTemplateReceiverSemanticValidationError;
 pub use semantics::TemplateReceiverSemanticValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -14,6 +14,10 @@ mod table;
 mod template;
 mod value_parameters;
 
+pub use binder_uses::MeteredDefaultTemplateTypeSubstitutionError;
+pub use receiver::MeteredTemplateReceiverSemanticValidationError;
+pub use value_parameters::MeteredTemplateValueParameterSemanticValidationError;
+
 #[cfg(test)]
 pub(crate) use body::expression_test_support;
 

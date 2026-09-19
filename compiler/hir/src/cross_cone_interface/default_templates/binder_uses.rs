@@ -7,8 +7,10 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::SignatureTypeReferenceResolver;
 
+mod metered_substitution;
 mod semantics;
 
+pub use metered_substitution::MeteredDefaultTemplateTypeSubstitutionError;
 pub use semantics::{BinderUseListSemanticValidationError, DefaultTemplateTypeSubstitutionError};
 
 /// Declaration-order mapping from a default provider's binder slots to the

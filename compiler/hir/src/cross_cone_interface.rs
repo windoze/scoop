@@ -258,6 +258,10 @@ pub use default_templates::{
     ExportDefaultSingletonReferenceV1, ExportDefaultTargetDomainV1, ExportDefaultTypeReferenceV1,
     compare_default_signature_reference_targets,
 };
+pub use default_templates::{
+    MeteredDefaultTemplateTypeSubstitutionError, MeteredTemplateReceiverSemanticValidationError,
+    MeteredTemplateValueParameterSemanticValidationError,
+};
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,
