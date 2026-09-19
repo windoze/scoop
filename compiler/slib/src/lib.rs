@@ -51,6 +51,9 @@ pub use cross_cone_compile_decode::*;
 mod layout_compile_decode;
 pub use layout_compile_decode::*;
 
+mod layout_compile_closure;
+pub use layout_compile_closure::*;
+
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
 

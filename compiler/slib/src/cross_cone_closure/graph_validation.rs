@@ -1,13 +1,58 @@
-//! Dependency-graph validation for the cross-Cone semantic closure.
+//! Shared dependency-graph validation for cross-Cone profile closures.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{
     CrossConeClosureGraphError, DecodedCrossConeClosure, ProfileValidatedCrossConeHirClosure,
 };
-use crate::{ConeKind, DependencyRecord};
+use crate::{ConeKind, DecodedCrossConeHirFrontSections, DependencyRecord};
+
+pub(crate) trait CrossConeClosureArtifact {
+    fn coordinate(&self) -> &ConeCoordinate;
+    fn identity(&self) -> ConeIdentity;
+    fn kind(&self) -> ConeKind;
+    fn target_selection(&self) -> ValidatedLirTargetSelection;
+    fn direct_dependencies(&self) -> &[DependencyRecord];
+    fn dependency_record(&self) -> DependencyRecord;
+}
+
+impl CrossConeClosureArtifact for DecodedCrossConeHirFrontSections<'_> {
+    fn coordinate(&self) -> &ConeCoordinate {
+        self.coordinate()
+    }
+
+    fn identity(&self) -> ConeIdentity {
+        self.identity()
+    }
+
+    fn kind(&self) -> ConeKind {
+        self.kind()
+    }
+
+    fn target_selection(&self) -> ValidatedLirTargetSelection {
+        self.target_selection()
+    }
+
+    fn direct_dependencies(&self) -> &[DependencyRecord] {
+        self.direct_dependencies()
+    }
+
+    fn dependency_record(&self) -> DependencyRecord {
+        self.dependency_record()
+    }
+}
+
+pub(crate) struct ValidatedCrossConeClosureGraph<T> {
+    pub(crate) current: ConeIdentity,
+    pub(crate) target: ValidatedLirTargetSelection,
+    pub(crate) direct: Vec<ConeIdentity>,
+    pub(crate) dependency_first: Vec<T>,
+    pub(crate) positions: BTreeMap<ConeIdentity, usize>,
+    pub(crate) dependency_positions: Vec<Vec<usize>>,
+}
 
 pub(super) fn validate_profile_graph(
     closure: DecodedCrossConeClosure<'_>,
@@ -16,10 +61,28 @@ pub(super) fn validate_profile_graph(
         current,
         target,
         direct,
-        mut dependency_first,
+        dependency_first,
         current_artifact,
     } = closure;
+    let validated =
+        validate_artifact_graph(current, target, direct, dependency_first, current_artifact)?;
+    Ok(ProfileValidatedCrossConeHirClosure {
+        current: validated.current,
+        target: validated.target,
+        direct: validated.direct,
+        dependency_first: validated.dependency_first,
+        positions: validated.positions,
+        dependency_positions: validated.dependency_positions,
+    })
+}
 
+pub(crate) fn validate_artifact_graph<T: CrossConeClosureArtifact>(
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    mut dependency_first: Vec<T>,
+    current_artifact: Option<T>,
+) -> Result<ValidatedCrossConeClosureGraph<T>, CrossConeClosureGraphError> {
     validate_direct_order(&direct)?;
     if current == ConeIdentity::CORE && current_artifact.is_none() {
         if !direct.is_empty() || !dependency_first.is_empty() {
@@ -156,7 +219,7 @@ pub(super) fn validate_profile_graph(
         });
     }
 
-    Ok(ProfileValidatedCrossConeHirClosure {
+    Ok(ValidatedCrossConeClosureGraph {
         current,
         target,
         direct,

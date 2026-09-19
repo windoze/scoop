@@ -4,7 +4,9 @@ use scoop_mir::OdrFreeMirFoundation;
 use scoop_wire::DecodeUsage;
 
 use super::*;
-use crate::{ArtifactFingerprint, DependencyRecord};
+use crate::{
+    ArtifactFingerprint, ConeKind, ConeSourceForm, DependencyRecord, SemanticFingerprintRecord,
+};
 
 impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
@@ -13,6 +15,18 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
 
     pub const fn identity(&self) -> scoop_identity::ConeIdentity {
         self.graph.identity()
+    }
+
+    pub const fn kind(&self) -> ConeKind {
+        self.graph.kind()
+    }
+
+    pub const fn source_form(&self) -> ConeSourceForm {
+        self.graph.source_form()
+    }
+
+    pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
+        self.graph.target_selection()
     }
 
     pub fn direct_dependencies(&self) -> &[DependencyRecord] {
@@ -25,6 +39,21 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
 
     pub const fn decode_usage(&self) -> DecodeUsage {
         self.graph.decode_usage()
+    }
+
+    pub const fn semantic_fingerprints(&self) -> SemanticFingerprintRecord {
+        self.graph.envelope.manifest().semantic_fingerprints()
+    }
+
+    pub fn dependency_record(&self) -> DependencyRecord {
+        let semantic = self.semantic_fingerprints();
+        DependencyRecord::from_validated(
+            self.coordinate().clone(),
+            self.identity(),
+            semantic.hir(),
+            semantic.mir(),
+            semantic.lir(),
+        )
     }
 
     pub const fn hir_foundation_wire(&self) -> &DecodedHirFoundation {

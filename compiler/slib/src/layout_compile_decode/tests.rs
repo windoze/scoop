@@ -243,7 +243,7 @@ fn layout_profile_rejects_a_semantic_fingerprint_mismatch() {
     ));
 }
 
-fn layout_artifact(
+pub(crate) fn layout_artifact(
     stale_hir_fingerprint: bool,
     omitted: Option<scoop_identity::CapabilityId>,
 ) -> Vec<u8> {

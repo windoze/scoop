@@ -13,7 +13,7 @@ use crate::{
 mod errors;
 pub use errors::*;
 
-mod graph_validation;
+pub(crate) mod graph_validation;
 mod hir_front_validation;
 mod identity_validation;
 mod source_provenance;

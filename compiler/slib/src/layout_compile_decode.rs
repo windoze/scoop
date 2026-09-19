@@ -123,4 +123,4 @@ pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
