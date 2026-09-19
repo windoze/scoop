@@ -130,3 +130,140 @@ fn missing_duplicate_self_and_noncanonical_dependencies_are_rejected() {
         Err(Error::Resource(_))
     ));
 }
+
+#[test]
+fn unit_definitions_resolve_before_dependency_semantics_for_both_schedules() {
+    for lazy in [false, true] {
+        for provider in [ConeIdentity::SINGLE_FILE, ConeIdentity::CORE] {
+            let fixture = Fixture::with_source(
+                Options {
+                    lazy,
+                    ..Options::default()
+                },
+                provider,
+                "definition",
+            );
+            let before = Definition::from_foundation(
+                fixture.unit,
+                &fixture.foundation,
+                &fixture.identities,
+                &fixture.digests,
+                &mut meter(),
+            )
+            .unwrap();
+            let complete = fixture.build().unwrap();
+            assert_eq!(
+                before,
+                Definition::from_registrations(&complete, fixture.unit).unwrap()
+            );
+            assert_eq!(before.provider(), provider);
+        }
+    }
+}
+
+#[test]
+fn definition_resolution_rejects_missing_unit_registration_and_physical_parts() {
+    use crate::InitializationDefinitionResolutionErrorV2 as DefinitionError;
+    let fixture = Fixture::new(Options::default());
+    assert!(matches!(
+        Definition::from_foundation(
+            source_unit(),
+            &fixture.foundation,
+            &fixture.identities,
+            &fixture.digests,
+            &mut meter()
+        ),
+        Err(DefinitionError::MissingRegistrationIdentity(_))
+    ));
+    let missing_registration = Fixture::new(Options {
+        omit_unit_registration: true,
+        ..Options::default()
+    });
+    assert!(matches!(
+        Definition::from_foundation(
+            missing_registration.unit,
+            &missing_registration.foundation,
+            &missing_registration.identities,
+            &missing_registration.digests,
+            &mut meter()
+        ),
+        Err(DefinitionError::MissingRegistrationIdentity(_))
+    ));
+    for (options, expected) in [
+        (
+            Options {
+                omit_cell_symbol: true,
+                ..Options::default()
+            },
+            "symbol",
+        ),
+        (
+            Options {
+                omit_descriptor_primary: true,
+                ..Options::default()
+            },
+            "primary",
+        ),
+        (
+            Options {
+                omit_diagnostic_atom: true,
+                ..Options::default()
+            },
+            "associated",
+        ),
+    ] {
+        let fixture = Fixture::new(options);
+        let error = Definition::from_foundation(
+            fixture.unit,
+            &fixture.foundation,
+            &fixture.identities,
+            &fixture.digests,
+            &mut meter(),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            (error, expected),
+            (DefinitionError::MissingSymbol(_), "symbol")
+                | (DefinitionError::PrimaryAtoms(_), "primary")
+                | (DefinitionError::AssociatedAtoms(_), "associated")
+        ));
+    }
+}
+
+#[test]
+fn definition_search_has_no_collection_allocation_and_shares_work_limits() {
+    use crate::InitializationDefinitionResolutionErrorV2 as DefinitionError;
+    let fixture = Fixture::new(Options::default());
+    let resolve = |meter: &mut BudgetMeter| {
+        Definition::from_foundation(
+            fixture.unit,
+            &fixture.foundation,
+            &fixture.identities,
+            &fixture.digests,
+            meter,
+        )
+    };
+    let mut baseline = BudgetMeter::new(DecodeLimits {
+        logical_heap_bytes: 0,
+        ..DecodeLimits::default()
+    });
+    resolve(&mut baseline).unwrap();
+    let limits = DecodeLimits {
+        validation_work_units: baseline.usage().validation_work_units,
+        ..DecodeLimits::default()
+    };
+    let mut shared = BudgetMeter::new(limits);
+    resolve(&mut shared).unwrap();
+    assert!(matches!(
+        resolve(&mut shared),
+        Err(DefinitionError::Resource(_))
+    ));
+    let mut zero = BudgetMeter::new(DecodeLimits {
+        validation_work_units: 0,
+        ..DecodeLimits::default()
+    });
+    assert!(matches!(
+        resolve(&mut zero),
+        Err(DefinitionError::Resource(_))
+    ));
+}

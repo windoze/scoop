@@ -5,6 +5,9 @@ use scoop_identity::{
 use super::*;
 use crate::StrongInitializationUnitRegistrationPlanSet;
 
+mod foundation;
+pub use foundation::InitializationDefinitionResolutionErrorV2;
+
 /// One addressable definition already joined to its symbol and primary atom.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongInitializationArtifactRefV2 {
