@@ -19,6 +19,8 @@ use crate::{
     DecodedMirFoundation, OdrFreeMirFoundation,
 };
 
+mod budget;
+
 #[test]
 fn empty_bridge_has_the_fixed_wire_shape() {
     let foundation = OdrFreeMirFoundation::try_new(CanonicalMirFoundation::empty()).unwrap();

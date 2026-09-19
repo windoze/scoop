@@ -9,6 +9,7 @@ mod generated;
 #[derive(Debug)]
 pub enum MirCallableBridgeError {
     Reference(IdentityReferenceError),
+    ExactSignature(scoop_identity::ExactCallableSignatureResolutionError<IdentityReferenceError>),
     Type(MirTypeBridgeError),
     Resource(WireError),
     GeneratedRoleReference(

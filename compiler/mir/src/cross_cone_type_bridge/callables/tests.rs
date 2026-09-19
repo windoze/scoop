@@ -8,6 +8,7 @@ use scoop_identity::{
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
+mod budget;
 mod builders;
 mod generated;
 mod source;

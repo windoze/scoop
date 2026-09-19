@@ -40,6 +40,7 @@ impl std::error::Error for ParamFreeMirCallableBuildError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ParamFreeMirCallableResolutionError {
+    Resource(scoop_wire::WireError),
     Declaration(IdentityReferenceError),
     Implementation(IdentityReferenceError),
     Signature(ExactCallableSignatureResolutionError<IdentityReferenceError>),
@@ -49,6 +50,7 @@ pub enum ParamFreeMirCallableResolutionError {
 impl fmt::Display for ParamFreeMirCallableResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Declaration(source) => write!(formatter, "invalid declaration: {source}"),
             Self::Implementation(source) => write!(formatter, "invalid implementation: {source}"),
             Self::Signature(source) => write!(formatter, "invalid exact signature: {source}"),
@@ -60,6 +62,7 @@ impl fmt::Display for ParamFreeMirCallableResolutionError {
 impl std::error::Error for ParamFreeMirCallableResolutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
             Self::Declaration(source) | Self::Implementation(source) => Some(source),
             Self::Signature(source) => Some(source),
             Self::Shape(source) => Some(source),
@@ -69,6 +72,7 @@ impl std::error::Error for ParamFreeMirCallableResolutionError {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SelectedDependencyMirCallableResolutionError {
+    Resource(scoop_wire::WireError),
     Provider(IdentityReferenceError),
     Declaration(IdentityReferenceError),
     Implementation(IdentityReferenceError),
@@ -79,6 +83,7 @@ pub enum SelectedDependencyMirCallableResolutionError {
 impl fmt::Display for SelectedDependencyMirCallableResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Provider(source) => write!(formatter, "invalid provider: {source}"),
             Self::Declaration(source) => write!(formatter, "invalid declaration: {source}"),
             Self::Implementation(source) => write!(formatter, "invalid implementation: {source}"),
@@ -91,6 +96,7 @@ impl fmt::Display for SelectedDependencyMirCallableResolutionError {
 impl std::error::Error for SelectedDependencyMirCallableResolutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
             Self::Provider(source) | Self::Declaration(source) | Self::Implementation(source) => {
                 Some(source)
             }
@@ -193,6 +199,7 @@ impl std::error::Error for CrossConeMirBridgeBuildError {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CrossConeMirBridgeValidationError {
+    Resource(scoop_wire::WireError),
     Export {
         index: usize,
         source: ParamFreeMirCallableResolutionError,
@@ -222,6 +229,7 @@ pub enum CrossConeMirBridgeValidationError {
 impl fmt::Display for CrossConeMirBridgeValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Export { index, source } => {
                 write!(formatter, "invalid MIR dependency export {index}: {source}")
             }
@@ -259,6 +267,7 @@ impl fmt::Display for CrossConeMirBridgeValidationError {
 impl std::error::Error for CrossConeMirBridgeValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
             Self::Export { source, .. } => Some(source),
             Self::Selected { source, .. } => Some(source),
             Self::Relation(source) => Some(source),

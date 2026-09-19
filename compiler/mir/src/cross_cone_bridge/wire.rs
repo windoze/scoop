@@ -1,9 +1,11 @@
 use scoop_identity::{
     ConeIdentity, DecodedDependencyCallableDeclarationId, DecodedExactCallableSignature,
-    DecodedPersistentId, DecodedStrongCallableDefinitionOwner, PersistentIdResolver,
-    ValidatedIdentityGraph,
+    DecodedPersistentId, DecodedStrongCallableDefinitionOwner,
+    MeteredExactCallableSignatureResolutionError, PersistentIdResolver, ValidatedIdentityGraph,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    BudgetMeter, DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
+};
 
 use crate::OdrFreeMirFoundation;
 
@@ -30,6 +32,7 @@ impl DecodedParamFreeMirCallableExportV1 {
     fn resolve(
         self,
         identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirCallableExportV1, ParamFreeMirCallableResolutionError> {
         let declaration = self
             .declaration
@@ -41,8 +44,15 @@ impl DecodedParamFreeMirCallableExportV1 {
             .map_err(ParamFreeMirCallableResolutionError::Implementation)?;
         let signature = self
             .signature
-            .resolve(identities)
-            .map_err(ParamFreeMirCallableResolutionError::Signature)?;
+            .resolve_metered(identities, meter)
+            .map_err(|error| match error {
+                MeteredExactCallableSignatureResolutionError::Resource(error) => {
+                    ParamFreeMirCallableResolutionError::Resource(error)
+                }
+                MeteredExactCallableSignatureResolutionError::Signature(error) => {
+                    ParamFreeMirCallableResolutionError::Signature(error)
+                }
+            })?;
         ParamFreeMirCallableExportV1::try_new(declaration, implementation, signature)
             .map_err(ParamFreeMirCallableResolutionError::Shape)
     }
@@ -83,6 +93,7 @@ impl DecodedSelectedDependencyMirCallableV1 {
     fn resolve(
         self,
         identities: &mut ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
     ) -> Result<SelectedDependencyMirCallableV1, SelectedDependencyMirCallableResolutionError> {
         let provider = identities
             .resolve(self.provider)
@@ -97,8 +108,15 @@ impl DecodedSelectedDependencyMirCallableV1 {
             .map_err(SelectedDependencyMirCallableResolutionError::Implementation)?;
         let signature = self
             .signature
-            .resolve(identities)
-            .map_err(SelectedDependencyMirCallableResolutionError::Signature)?;
+            .resolve_metered(identities, meter)
+            .map_err(|error| match error {
+                MeteredExactCallableSignatureResolutionError::Resource(error) => {
+                    SelectedDependencyMirCallableResolutionError::Resource(error)
+                }
+                MeteredExactCallableSignatureResolutionError::Signature(error) => {
+                    SelectedDependencyMirCallableResolutionError::Signature(error)
+                }
+            })?;
         SelectedDependencyMirCallableV1::try_new(provider, declaration, implementation, signature)
             .map_err(SelectedDependencyMirCallableResolutionError::Shape)
     }
@@ -132,19 +150,44 @@ impl DecodedCrossConeMirBridgeSectionV1 {
         identities: &mut ValidatedIdentityGraph,
         foundation: &OdrFreeMirFoundation,
     ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError> {
-        let mut exports = Vec::with_capacity(self.exports.len());
+        self.validate_with_meter(
+            artifact,
+            identities,
+            foundation,
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        )
+    }
+
+    /// Share semantic allocation and work limits with the containing artifact.
+    pub fn validate_with_meter(
+        self,
+        artifact: ConeIdentity,
+        identities: &mut ValidatedIdentityGraph,
+        foundation: &OdrFreeMirFoundation,
+        meter: &mut BudgetMeter,
+    ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError> {
+        let mut exports = reserve_table(self.exports.len(), meter, 1)?;
         for (index, decoded) in self.exports.into_iter().enumerate() {
+            let path = WirePath::root().field(1).index(index as u64);
+            charge_record(meter, &path, 2)?;
+            meter
+                .charge_work(
+                    foundation.as_canonical().callable_signatures().len() as u64,
+                    &path,
+                )
+                .map_err(CrossConeMirBridgeValidationError::Resource)?;
             let record = decoded
-                .resolve(identities)
+                .resolve(identities, meter)
                 .map_err(|source| CrossConeMirBridgeValidationError::Export { index, source })?;
             validate_export_order(&exports, &record, index)?;
             exports.push(record);
         }
 
-        let mut selected = Vec::with_capacity(self.selected.len());
+        let mut selected = reserve_table(self.selected.len(), meter, 2)?;
         for (index, decoded) in self.selected.into_iter().enumerate() {
+            charge_record(meter, &WirePath::root().field(2).index(index as u64), 3)?;
             let record = decoded
-                .resolve(identities)
+                .resolve(identities, meter)
                 .map_err(|source| CrossConeMirBridgeValidationError::Selected { index, source })?;
             validate_selected_order(&selected, &record, index)?;
             selected.push(record);
@@ -201,4 +244,36 @@ impl WireDecode for DecodedSelectedDependencyMirCallableV1 {
             signature: decoder.field(4, DecodedExactCallableSignature::decode)?,
         })
     }
+}
+
+fn reserve_table<T>(
+    length: usize,
+    meter: &mut BudgetMeter,
+    field: u32,
+) -> Result<Vec<T>, CrossConeMirBridgeValidationError> {
+    let path = WirePath::root().field(field);
+    meter
+        .check_table_entries(length as u64, &path)
+        .map_err(CrossConeMirBridgeValidationError::Resource)?;
+    let mut result = Vec::new();
+    meter
+        .try_reserve_collection_slots(&mut result, length, &path)
+        .map_err(CrossConeMirBridgeValidationError::Resource)?;
+    Ok(result)
+}
+
+fn charge_record(
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+    edges: u64,
+) -> Result<(), CrossConeMirBridgeValidationError> {
+    meter
+        .charge_nodes(1, path)
+        .map_err(CrossConeMirBridgeValidationError::Resource)?;
+    meter
+        .charge_edges(edges, path)
+        .map_err(CrossConeMirBridgeValidationError::Resource)?;
+    meter
+        .charge_work(8, path)
+        .map_err(CrossConeMirBridgeValidationError::Resource)
 }
