@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use scoop_identity::{ConeIdentity, PersistentLayoutId};
+use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentLayoutId, RepresentationRole};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::*;
@@ -99,6 +99,17 @@ impl CanonicalExactLayoutExportsV1 {
             .binary_search_by_key(&layout, |record| record.identity().layout())
             .ok()
             .map(|index| &self.0.records[index])
+    }
+
+    pub fn find_exact_role(
+        &self,
+        exact: PersistentExactTypeId,
+        role: RepresentationRole,
+    ) -> Option<&ExactLayoutExportV1> {
+        self.0.records.iter().find(|record| {
+            record.identity().exact() == exact
+                && record.identity().layout_key().representation() == role
+        })
     }
 }
 

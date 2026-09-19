@@ -71,6 +71,18 @@ pub struct StrongShapeDefinitionV1<I: PersistentId> {
 }
 
 impl<I: PersistentId> StrongShapeDefinitionV1<I> {
+    pub(crate) const fn from_artifact(
+        semantic_id: I,
+        definition_plan: ObjectDefinitionPlanId,
+        symbol: PersistentSymbolRequest,
+    ) -> Self {
+        Self {
+            semantic_id,
+            definition_plan,
+            symbol,
+        }
+    }
+
     pub const fn semantic_id(&self) -> I {
         self.semantic_id
     }
@@ -105,6 +117,20 @@ pub struct StrongShapeRegistrationV1<I: PersistentId> {
 }
 
 impl<I: PersistentId> StrongShapeRegistrationV1<I> {
+    pub(crate) const fn from_artifact(
+        semantic_id: I,
+        definition_plan: ObjectDefinitionPlanId,
+        symbol: PersistentSymbolRequest,
+        fingerprint_node: DigestNodeId,
+    ) -> Self {
+        Self {
+            semantic_id,
+            definition_plan,
+            symbol,
+            fingerprint_node,
+        }
+    }
+
     pub const fn semantic_id(&self) -> I {
         self.semantic_id
     }
@@ -373,7 +399,7 @@ impl<I: PersistentId> WireDecode for DecodedStrongShapeDefinitionV1<I> {
 }
 
 #[derive(Debug)]
-struct DecodedStrongShapeRegistrationV1<I: PersistentId> {
+pub(crate) struct DecodedStrongShapeRegistrationV1<I: PersistentId> {
     semantic_id: DecodedPersistentId<I>,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     symbol: DecodedPersistentSymbolRequest,

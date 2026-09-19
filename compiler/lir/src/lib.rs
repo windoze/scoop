@@ -64,6 +64,9 @@ pub use exact_layout::*;
 mod exact_abi;
 pub use exact_abi::*;
 
+mod exact_descriptor;
+pub use exact_descriptor::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 
