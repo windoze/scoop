@@ -150,3 +150,99 @@ fn ten_field_section_replay_uses_one_cumulative_budget() {
         Err(SectionError::Resource(_))
     ));
 }
+
+#[test]
+fn final_layout_join_rejects_missing_local_descriptor_exports() {
+    let fixture = complete_fixture();
+    let bytes = encode(&section(&fixture)).unwrap();
+    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
+    let replayed = replay_section(&fixture, &bytes, &definitions, &mut meter()).unwrap();
+    let missing = replayed.type_registrations().registrations()[0].exact_type();
+    let layout = empty_layout_section();
+    assert!(matches!(
+        replayed.validate_layout_abi(&layout, &mut meter()),
+        Err(crate::StrongProductionLayoutJoinError::MissingDescriptorExport(actual))
+            if actual == missing
+    ));
+}
+
+struct EmptyLayoutSource;
+
+impl crate::LayoutAbiSectionSourceAuthorityV1<()> for EmptyLayoutSource {
+    fn validate_local_exports(
+        &self,
+        _: &crate::LayoutAbiExportConstituentsV1,
+        _: &mut BudgetMeter,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn committed_semantic_roots(&self) -> Result<&[crate::LayoutAbiDependencyV1], ()> {
+        Ok(&[])
+    }
+
+    fn validate_physical_imports(
+        &self,
+        imports: &[crate::ExternalShapeLinkImportV1<'_>],
+        _: &mut BudgetMeter,
+    ) -> Result<(), ()> {
+        imports.is_empty().then_some(()).ok_or(())
+    }
+}
+
+fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
+    let foundation = crate::OdrFreeLirFoundation::try_new(
+        ConeIdentity::SINGLE_FILE,
+        crate::CanonicalLirFoundation::empty(),
+    )
+    .unwrap();
+    let layouts = crate::CanonicalExactLayoutExportsV1::try_new(
+        crate::LirTargetProfile::DARWIN_AARCH64,
+        &foundation,
+        Vec::new(),
+        &mut meter(),
+    )
+    .unwrap();
+    let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
+        crate::LirTargetProfile::DARWIN_AARCH64,
+        &foundation,
+        Vec::new(),
+        &mut meter(),
+    )
+    .unwrap();
+    let exports = crate::LayoutAbiExportConstituentsV1::try_new(
+        layouts.clone(),
+        descriptors.clone(),
+        crate::CanonicalExactDispatchExportsV1::try_new(
+            crate::LirTargetProfile::DARWIN_AARCH64,
+            &foundation,
+            Vec::new(),
+            &mut meter(),
+        )
+        .unwrap(),
+        crate::CanonicalExactCallableAbiExportsV1::try_new(
+            crate::LirTargetProfile::DARWIN_AARCH64,
+            &foundation,
+            Vec::new(),
+            &mut meter(),
+        )
+        .unwrap(),
+        crate::CanonicalParamFreeShapeSupportExportsV1::from_sources(
+            &[],
+            &layouts,
+            &descriptors,
+            &foundation,
+            &mut meter(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    crate::CrossConeLayoutAbiSectionV1::try_new(
+        exports,
+        &[],
+        Vec::new(),
+        &EmptyLayoutSource,
+        &mut meter(),
+    )
+    .unwrap()
+}

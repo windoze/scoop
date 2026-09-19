@@ -212,7 +212,10 @@ mod decoded;
 pub use decoded::*;
 
 mod replay;
-pub use replay::ReplayedStrongProductionSectionV2;
+pub use replay::{
+    ReplayedStrongProductionSectionV2, StrongProductionLayoutJoinError,
+    ValidatedStrongProductionSectionV2,
+};
 
 impl DecodedStrongProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]

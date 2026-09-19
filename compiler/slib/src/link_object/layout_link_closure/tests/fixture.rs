@@ -10,7 +10,7 @@ pub(in crate::link_object::layout_link_closure) fn meter() -> BudgetMeter {
 
 pub(in crate::link_object::layout_link_closure) struct Provider {
     pub foundation: OdrFreeLirFoundation,
-    pub production: ReplayedStrongProductionSectionV2,
+    pub production: ValidatedStrongProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
     pub section: CrossConeLayoutAbiSectionV1<'static>,
     pub layout: PersistentLayoutId,
@@ -136,6 +136,8 @@ impl Provider {
                 &StrongInitializationDefinitionCatalogV2::new(provider, &[], &mut meter()).unwrap(),
                 &mut meter(),
             )
+            .unwrap()
+            .validate_layout_abi(&section, &mut meter())
             .unwrap();
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();

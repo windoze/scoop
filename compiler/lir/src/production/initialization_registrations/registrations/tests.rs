@@ -237,3 +237,27 @@ mod dependencies_v2;
 
 mod registration_v2;
 mod shape_link;
+
+pub(in crate::production) fn external_dependency_for_layout_join(
+    consumer: ConeIdentity,
+) -> crate::StrongInitializationDependencyRefV2 {
+    let local = Fixture::new(Options::default());
+    let provider = Fixture::with_source(Options::default(), ConeIdentity::CORE, "joinProvider");
+    let plans = provider.build().unwrap();
+    let definition =
+        crate::StrongInitializationUnitDefinitionRefV2::from_registrations(&plans, provider.unit)
+            .unwrap();
+    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+    let catalog =
+        crate::StrongInitializationDefinitionCatalogV2::new(consumer, &[definition], &mut meter)
+            .unwrap();
+    let dependency = scoop_wire::decode_canonical(
+        &scoop_wire::encode(&provider.unit).unwrap(),
+        scoop_wire::DecodeLimits::default(),
+    )
+    .unwrap();
+    catalog
+        .resolve(local.unit, &[dependency], &mut meter)
+        .unwrap()
+        .references()[0]
+}

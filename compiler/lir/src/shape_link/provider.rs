@@ -62,6 +62,14 @@ impl<'a> ShapeLinkProviderV1<'a> {
         {
             return Err(ShapeLinkError::Target);
         }
+        if let ShapeLinkProductionV1::Reader(production) = parts.production
+            && (parts.layouts != production.layouts()
+                || parts.callables != production.callables()
+                || parts.descriptors != production.descriptors()
+                || parts.dispatch != production.dispatch())
+        {
+            return Err(ShapeLinkError::Provider);
+        }
         Ok(Self { parts })
     }
 

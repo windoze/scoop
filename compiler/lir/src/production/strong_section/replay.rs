@@ -4,7 +4,9 @@ use super::*;
 use scoop_wire::{BudgetMeter, WirePath, encode_canonical_temporary_with_meter};
 
 mod budget;
+mod layout_join;
 mod view;
+pub use layout_join::{StrongProductionLayoutJoinError, ValidatedStrongProductionSectionV2};
 pub use view::ReplayedStrongProductionSectionV2;
 
 impl DecodedStrongProductionSectionV2 {

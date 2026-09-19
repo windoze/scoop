@@ -3,7 +3,7 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 pub enum ShapeLinkProductionV1<'a> {
     Producer(&'a StrongProductionSectionV2),
-    Reader(&'a ReplayedStrongProductionSectionV2),
+    Reader(&'a ValidatedStrongProductionSectionV2),
 }
 
 impl<'a> ShapeLinkProductionV1<'a> {

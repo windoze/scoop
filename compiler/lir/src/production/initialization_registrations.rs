@@ -378,6 +378,8 @@ impl std::error::Error for StrongInitializationUnitSemanticPlanBuildError {
 }
 
 mod registrations;
+#[cfg(test)]
+pub(in crate::production) use registrations::tests::external_dependency_for_layout_join;
 pub use registrations::*;
 
 #[cfg(test)]

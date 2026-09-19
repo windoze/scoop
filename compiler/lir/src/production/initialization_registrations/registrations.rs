@@ -201,4 +201,4 @@ impl std::error::Error for StrongInitializationUnitRegistrationPlanBuildError {
 }
 
 #[cfg(test)]
-mod tests;
+pub(in crate::production) mod tests;
