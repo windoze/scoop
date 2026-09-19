@@ -1,0 +1,305 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+
+use scoop_identity::{PersistentEnumVariantId, PersistentExactTypeId};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
+
+use super::{
+    CanonicalExactTypeFactsV1, ExactTypeFactsV1, ExactTypeGcV1, ExactTypeKindV1, ZstStatus,
+};
+
+/// Representation-independent input obtained from checked exact keys and
+/// source representation records. A managed reference is a leaf: its object
+/// fields do not participate in the GC or zero-sized status of the value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExactTypeFactShapeV1 {
+    Unit,
+    Scalar,
+    Pointer,
+    Reference,
+    OrdinaryStruct {
+        fields: Vec<PersistentExactTypeId>,
+    },
+    CLayoutStruct {
+        fields: Vec<PersistentExactTypeId>,
+    },
+    Tuple {
+        elements: Vec<PersistentExactTypeId>,
+    },
+    Enum {
+        variants: Vec<ExactEnumVariantFactsV1>,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExactEnumVariantFactsV1 {
+    pub variant: PersistentEnumVariantId,
+    pub fields: Vec<PersistentExactTypeId>,
+    pub gc: ExactTypeGcV1,
+}
+
+/// Implemented by the validated exact/source representation closure. This
+/// authority does not consult target layouts or native-boundary witnesses.
+pub trait ExactTypeFactsSemanticAuthority<E> {
+    fn fact_shape(&self, exact: PersistentExactTypeId) -> Result<&ExactTypeFactShapeV1, E>;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedExactTypeFactsV1<'a> {
+    facts: &'a CanonicalExactTypeFactsV1,
+}
+
+impl CheckedExactTypeFactsV1<'_> {
+    pub fn get(&self, exact: PersistentExactTypeId) -> Option<&ExactTypeFactsV1> {
+        self.facts.get(exact)
+    }
+    pub fn records(&self) -> &[ExactTypeFactsV1] {
+        self.facts.records()
+    }
+}
+
+impl CanonicalExactTypeFactsV1 {
+    pub fn validate_semantics<'a, A, E>(
+        &'a self,
+        authority: &A,
+        budget: &mut BudgetMeter,
+    ) -> Result<CheckedExactTypeFactsV1<'a>, ExactTypeFactsSemanticError<E>>
+    where
+        A: ExactTypeFactsSemanticAuthority<E>,
+    {
+        let mut validation = Validation {
+            facts: self,
+            authority,
+            budget,
+            active: BTreeSet::new(),
+            complete: BTreeMap::new(),
+            path: WirePath::default(),
+        };
+        for record in self.records() {
+            validation.visit(record.exact(), 1)?;
+        }
+        Ok(CheckedExactTypeFactsV1 { facts: self })
+    }
+}
+
+struct Validation<'a, A> {
+    facts: &'a CanonicalExactTypeFactsV1,
+    authority: &'a A,
+    budget: &'a mut BudgetMeter,
+    active: BTreeSet<PersistentExactTypeId>,
+    complete: BTreeMap<PersistentExactTypeId, ExactTypeFactsV1>,
+    path: WirePath,
+}
+
+impl<A> Validation<'_, A> {
+    fn visit<E>(
+        &mut self,
+        exact: PersistentExactTypeId,
+        depth: u64,
+    ) -> Result<ExactTypeFactsV1, ExactTypeFactsSemanticError<E>>
+    where
+        A: ExactTypeFactsSemanticAuthority<E>,
+    {
+        self.budget
+            .charge_work(1, &self.path)
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
+        self.budget
+            .check_semantic_depth(depth, &self.path)
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
+        if let Some(facts) = self.complete.get(&exact) {
+            return Ok(*facts);
+        }
+        let actual = self
+            .facts
+            .get(exact)
+            .ok_or(ExactTypeFactsSemanticError::MissingFacts(exact))?;
+        if self.active.contains(&exact) {
+            return Err(ExactTypeFactsSemanticError::ByValueCycle(exact));
+        }
+        self.budget
+            .charge_nodes(2, &self.path)
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
+        self.active.insert(exact);
+        let shape = self
+            .authority
+            .fact_shape(exact)
+            .map_err(|error| ExactTypeFactsSemanticError::Shape { exact, error })?;
+        let (kind, gc) = match shape {
+            ExactTypeFactShapeV1::Unit => (value(ZstStatus::ZeroSized), ExactTypeGcV1::GcFree),
+            ExactTypeFactShapeV1::Scalar | ExactTypeFactShapeV1::Pointer => {
+                (value(ZstStatus::NonZero), ExactTypeGcV1::GcFree)
+            }
+            ExactTypeFactShapeV1::Reference => (
+                ExactTypeKindV1::Reference,
+                ExactTypeGcV1::ContainsManagedReferences,
+            ),
+            ExactTypeFactShapeV1::OrdinaryStruct { fields }
+            | ExactTypeFactShapeV1::Tuple { elements: fields } => self.fields(fields, depth)?,
+            ExactTypeFactShapeV1::CLayoutStruct { fields } => {
+                if fields.is_empty() {
+                    return Err(ExactTypeFactsSemanticError::EmptyCLayout(exact));
+                }
+                for field in fields {
+                    let facts = self.visit(*field, depth + 1)?;
+                    if facts.kind() == value(ZstStatus::ZeroSized) {
+                        return Err(ExactTypeFactsSemanticError::ZeroSizedCLayoutField {
+                            owner: exact,
+                            field: *field,
+                        });
+                    }
+                }
+                let (_, gc) = self.fields(fields, depth)?;
+                (value(ZstStatus::NonZero), gc)
+            }
+            ExactTypeFactShapeV1::Enum { variants } => {
+                let mut gc_free = true;
+                let mut ids = BTreeSet::new();
+                self.budget
+                    .charge_collection_slots(variants.len() as u64, &self.path)
+                    .map_err(ExactTypeFactsSemanticError::Resource)?;
+                for variant in variants {
+                    if !ids.insert(variant.variant) {
+                        return Err(ExactTypeFactsSemanticError::DuplicateVariant {
+                            owner: exact,
+                            variant: variant.variant,
+                        });
+                    }
+                    let (_, gc) = self.fields(&variant.fields, depth)?;
+                    if gc != variant.gc {
+                        return Err(ExactTypeFactsSemanticError::VariantGc {
+                            owner: exact,
+                            variant: variant.variant,
+                            expected: gc,
+                            actual: variant.gc,
+                        });
+                    }
+                    gc_free &= gc.is_gc_free();
+                }
+                (value(ZstStatus::NonZero), gc(gc_free))
+            }
+        };
+        if actual.kind() != kind || actual.gc() != gc {
+            return Err(ExactTypeFactsSemanticError::Mismatch {
+                exact,
+                expected_kind: kind,
+                expected_gc: gc,
+                actual: *actual,
+            });
+        }
+        self.active.remove(&exact);
+        self.complete.insert(exact, *actual);
+        Ok(*actual)
+    }
+
+    fn fields<E>(
+        &mut self,
+        fields: &[PersistentExactTypeId],
+        depth: u64,
+    ) -> Result<(ExactTypeKindV1, ExactTypeGcV1), ExactTypeFactsSemanticError<E>>
+    where
+        A: ExactTypeFactsSemanticAuthority<E>,
+    {
+        self.budget
+            .charge_edges(fields.len() as u64, &self.path)
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
+        let mut zero_sized = true;
+        let mut gc_free = true;
+        for field in fields {
+            let facts = self.visit(*field, depth + 1)?;
+            zero_sized &= facts.kind() == value(ZstStatus::ZeroSized);
+            gc_free &= facts.gc().is_gc_free();
+        }
+        Ok((
+            value(if zero_sized {
+                ZstStatus::ZeroSized
+            } else {
+                ZstStatus::NonZero
+            }),
+            gc(gc_free),
+        ))
+    }
+}
+
+const fn value(zst: ZstStatus) -> ExactTypeKindV1 {
+    ExactTypeKindV1::Value { zst }
+}
+const fn gc(gc_free: bool) -> ExactTypeGcV1 {
+    if gc_free {
+        ExactTypeGcV1::GcFree
+    } else {
+        ExactTypeGcV1::ContainsManagedReferences
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExactTypeFactsSemanticError<E> {
+    Resource(WireError),
+    Shape {
+        exact: PersistentExactTypeId,
+        error: E,
+    },
+    MissingFacts(PersistentExactTypeId),
+    ByValueCycle(PersistentExactTypeId),
+    EmptyCLayout(PersistentExactTypeId),
+    ZeroSizedCLayoutField {
+        owner: PersistentExactTypeId,
+        field: PersistentExactTypeId,
+    },
+    DuplicateVariant {
+        owner: PersistentExactTypeId,
+        variant: PersistentEnumVariantId,
+    },
+    VariantGc {
+        owner: PersistentExactTypeId,
+        variant: PersistentEnumVariantId,
+        expected: ExactTypeGcV1,
+        actual: ExactTypeGcV1,
+    },
+    Mismatch {
+        exact: PersistentExactTypeId,
+        expected_kind: ExactTypeKindV1,
+        expected_gc: ExactTypeGcV1,
+        actual: ExactTypeFactsV1,
+    },
+}
+
+impl<E: fmt::Display> fmt::Display for ExactTypeFactsSemanticError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Resource(error) => error.fmt(f),
+            Self::Shape { exact, error } => {
+                write!(f, "invalid semantic shape for {exact}: {error}")
+            }
+            Self::MissingFacts(exact) => write!(f, "missing exact type facts for {exact}"),
+            Self::ByValueCycle(exact) => write!(f, "by-value representation cycle at {exact}"),
+            Self::EmptyCLayout(exact) => write!(f, "empty CLayout representation for {exact}"),
+            Self::ZeroSizedCLayoutField { owner, field } => {
+                write!(f, "CLayout {owner} contains zero-sized field type {field}")
+            }
+            Self::DuplicateVariant { owner, variant } => {
+                write!(f, "duplicate enum variant {variant} in {owner}")
+            }
+            Self::VariantGc {
+                owner,
+                variant,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "enum {owner} variant {variant} GC fact {actual:?} differs from {expected:?}"
+            ),
+            Self::Mismatch {
+                exact,
+                expected_kind,
+                expected_gc,
+                actual,
+            } => write!(
+                f,
+                "type facts for {exact} differ from semantic shape: expected {expected_kind:?}/{expected_gc:?}, actual {:?}/{:?}",
+                actual.kind(),
+                actual.gc()
+            ),
+        }
+    }
+}
+impl<E: std::error::Error + 'static> std::error::Error for ExactTypeFactsSemanticError<E> {}
