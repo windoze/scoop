@@ -9,7 +9,7 @@ use super::*;
 
 mod c_layout;
 
-const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
+pub(super) const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 fn source(name: &str) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
@@ -44,7 +44,12 @@ fn field(index: usize) -> PersistentFieldId {
     .unwrap()
 }
 
-fn value(name: &str, size: u64, alignment: u64, scan: RefScan) -> ValueLayoutConstituentV1 {
+pub(super) fn value(
+    name: &str,
+    size: u64,
+    alignment: u64,
+    scan: RefScan,
+) -> ValueLayoutConstituentV1 {
     let storage = if size == 0 {
         ValueStorageLayoutV1::zero_sized(alignment)
     } else {

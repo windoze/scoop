@@ -33,6 +33,9 @@ impl StorageGeometryV1 {
     pub const fn size(self) -> u64 {
         self.size
     }
+    pub const fn target(self) -> LirTargetProfile {
+        self.target
+    }
     pub const fn alignment(self) -> NonZeroPow2 {
         self.alignment
     }

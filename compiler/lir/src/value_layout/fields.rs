@@ -18,11 +18,18 @@ use super::*;
 mod aggregate;
 mod c_layout;
 mod class;
+mod placement;
+mod scans;
+mod tuple;
 mod wire;
 
 pub use aggregate::AggregateStorageLayoutV1;
 pub use c_layout::CLayoutStorageReplayV1;
 pub use class::{ClassBasePrefixV1, ClassBaseStorageV1, ClassStorageLayoutV1};
+pub use tuple::{
+    DecodedTupleElementStorageV1, TupleElementIndexV1, TupleElementStorageV1, TupleStorageLayoutV1,
+    TupleStorageReplayError,
+};
 pub use wire::DecodedFieldStorageV1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -208,6 +215,7 @@ pub enum StorageReplayError {
     InvalidCField(PersistentFieldId),
     MissingNestedCLayout(scoop_identity::CanonicalCAbiLayoutFingerprint),
     FieldWireMismatch,
+    InvalidFieldPlacement,
     ClassProjectionMismatch,
 }
 
