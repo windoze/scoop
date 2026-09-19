@@ -104,7 +104,7 @@ impl DeclarationAccessSourceV1 {
 
     pub fn validate_for_declaration<'a, A, E>(
         &'a self,
-        declaration: &SourceDeclarationKey,
+        declaration: &'a SourceDeclarationKey,
         authority: &mut A,
     ) -> Result<CheckedDeclarationAccessSourceV1<'a>, DeclarationAccessSourceSemanticError<E>>
     where
@@ -147,7 +147,10 @@ impl DeclarationAccessSourceV1 {
                 return Err(DeclarationAccessSourceSemanticError::OwnerSource { index });
             }
         }
-        Ok(CheckedDeclarationAccessSourceV1 { source: self })
+        Ok(CheckedDeclarationAccessSourceV1 {
+            source: self,
+            declaration,
+        })
     }
 }
 
@@ -183,10 +186,14 @@ pub trait DeclarationAccessSourceSemanticAuthority<E>:
 #[derive(Clone, Copy, Debug)]
 pub struct CheckedDeclarationAccessSourceV1<'a> {
     source: &'a DeclarationAccessSourceV1,
+    declaration: &'a SourceDeclarationKey,
 }
 impl CheckedDeclarationAccessSourceV1<'_> {
     pub const fn source(&self) -> &DeclarationAccessSourceV1 {
         self.source
+    }
+    pub const fn declaration(&self) -> &SourceDeclarationKey {
+        self.declaration
     }
 }
 

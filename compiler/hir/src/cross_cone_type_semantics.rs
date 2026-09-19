@@ -5,6 +5,7 @@
 
 mod access;
 mod facts;
+mod inheritance;
 mod representation;
 mod representation_fields;
 mod representation_policy;
@@ -12,6 +13,7 @@ mod wire;
 
 pub use access::*;
 pub use facts::*;
+pub use inheritance::*;
 pub use representation::*;
 pub use representation_fields::*;
 pub use representation_policy::*;

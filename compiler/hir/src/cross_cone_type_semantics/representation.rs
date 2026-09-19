@@ -18,10 +18,12 @@ use crate::{
 
 mod decode;
 mod error;
+mod table;
 #[cfg(test)]
 mod tests;
 pub use decode::*;
 pub use error::*;
+pub use table::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EnumRepresentationVariantV1 {

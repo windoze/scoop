@@ -17,7 +17,7 @@ use crate::{
     ExportDefinitionSourceV1, StructRepresentationFieldV1,
 };
 
-pub(super) struct Fixture {
+pub(in crate::cross_cone_type_semantics::representation) struct Fixture {
     pub key: SourceDeclarationKey,
     pub access: DeclarationAccessSourceV1,
     context: SourceContextKey,

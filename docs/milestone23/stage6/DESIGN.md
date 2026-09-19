@@ -282,6 +282,10 @@ HIR 依次证明：
 4. constructor delegation、implicit `this`、explicit receiver、qualified `super` 分别产生用途专属 witness，不用一个可任意复用的 `is_protected_allowed` 标志。
 5. property 先选 getter/logical property，随后检查 setter domain。setter 不可见立即报 assignment 错误，不回退其他 overload。
 
+词法检查沿foundation验证后的owner链查找实际授权的class/subclass，witness保存这一个exact access class；它可以是static nested或companion的外层class，不要求最内层owner本身为class。显式receiver仍须是该access class或其子类，且nested/companion不因此获得implicit outer `this`；这一回放沿用语言9.1.5及M21设计5.1的既有授权范围。域相交保留所有独立约束：两个`SubclassesOf`不能仅因class单继承且彼此无subtype关系就判为Empty，因为合法词法owner链可能分别提供两个授权class。只有Cone/File/词法owner约束本身矛盾，或某个必需的subclass区域在已验证且封闭的词法区域内不可能满足时，才归约为Empty；包含关系也须按同一词法/继承语义证明，不能将wire次序当作visibility大小。
+
+object依语言9.1.3直接继承class时，其body也是9.1.5的subclass访问scope，能使用自己的`this`或满足同一规则的显式object receiver访问继承protected成员。witness分别保存source object exact与generated backing-class exact；两者须通过该object的representation record、foundation `ObjectBackingClass { object }` canonical key和exact key逐项join，不能把source object id当作backing class id。继承/静态receiver关系沿source object语义边验证，物理class身份由该checked对应取得。protected声明owner仍只允许source Class；没有直接继承相应class的companion只能沿外层class取得授权，并且没有implicit outer `this`。
+
 inherited protected callable 的 default 继续在定义处解析，使用 M17 的 kind-specific export-interface ref 和完整 call-domain coverage。consumer 只在合法 winner 提交后实例化；不把 private/internal hidden dependency装入 default，也不把 protected reference转换成 universal public witness。M23-5 的 public default wire 原样保留，新的 protected source-interface record单独引用相同表达式语义 constituent。
 
 具体使用独立 `ProtectedDefaultTemplateV1`：field1～10和field12逐项复用Stage5 `ExportDefaultTemplateV1`的key、definition root/path、locals、纯body、result、suspend、binder mapping、receiver、前置参数与origin；field11替换为`ProtectedDefaultReferenceSetV1`。不得把整个旧template/ref-set直接复用，因为旧witness只允许public/universal domain。

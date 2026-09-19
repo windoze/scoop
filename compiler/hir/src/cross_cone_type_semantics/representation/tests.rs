@@ -8,7 +8,7 @@ use crate::{
     StructSourceShapeV1,
 };
 
-mod support;
+pub(in crate::cross_cone_type_semantics::representation) mod support;
 use support::{Fixture, source_key, unit};
 
 fn round_trip(

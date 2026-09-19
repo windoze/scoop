@@ -7,11 +7,13 @@ use super::wire;
 use crate::SourceNominalId;
 
 mod decode;
+mod semantics;
 mod source;
 #[cfg(test)]
 mod tests;
 
 pub use decode::*;
+pub use semantics::*;
 pub use source::*;
 
 /// Persistent access regions keep file, lexical-owner, and subclass regions
