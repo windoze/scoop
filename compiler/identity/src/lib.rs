@@ -72,12 +72,12 @@ pub use entity::{
     EnumVariantFieldSelector, EnumVariantIdentityError, EnumVariantIdentityKey,
     EnumVariantResolutionError, ExactCallableSignature, ExactCallableSignatureResolutionError,
     ExactOrdinaryNoArgUnitSignature, FieldIdentityError, FieldIdentityKey,
-    FieldIdentityResolutionError, GeneratedCallableIdentityError, GeneratedCallableKey,
-    GeneratedCallableResolutionError, GeneratedEnumVariantRole, GeneratedFieldKey,
-    GeneratedNominalIdentityError, GeneratedNominalKey, GeneratedNominalResolutionError,
-    InitializationCallableRole, LexicalCallableParent, LexicalCallableRole, LexicalParentError,
-    OptionalExactOwner, SourceFieldKey, StaticNoGcCallbackStorageBridgeId,
-    StaticNoGcCallbackStorageBridgeIdentityError,
+    FieldIdentityResolutionError, FieldIdentityView, GeneratedCallableIdentityError,
+    GeneratedCallableKey, GeneratedCallableResolutionError, GeneratedEnumVariantRole,
+    GeneratedFieldKey, GeneratedNominalIdentityError, GeneratedNominalKey,
+    GeneratedNominalResolutionError, InitializationCallableRole, LexicalCallableParent,
+    LexicalCallableRole, LexicalParentError, OptionalExactOwner, SourceFieldKey,
+    StaticNoGcCallbackStorageBridgeId, StaticNoGcCallbackStorageBridgeIdentityError,
 };
 pub use entity::{
     CallableOdrMemberId, DecodedOdrMemberDiscriminator, DecodedOdrMemberKey,

@@ -101,7 +101,8 @@ pub use exact_signature::{
 };
 pub use field::{
     DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey, FieldIdentityError,
-    FieldIdentityKey, FieldIdentityResolutionError, GeneratedFieldKey, SourceFieldKey,
+    FieldIdentityKey, FieldIdentityResolutionError, FieldIdentityView, GeneratedFieldKey,
+    SourceFieldKey,
 };
 pub use owners::{
     CallableOwner, DecodedCallableOwner, DecodedDispatchDeclarationOwner,

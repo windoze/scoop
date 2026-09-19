@@ -13,6 +13,9 @@ use crate::{
 };
 
 mod decode;
+mod view;
+
+pub use view::FieldIdentityView;
 
 pub use decode::{
     DecodedFieldIdentityKey, DecodedGeneratedFieldKey, DecodedSourceFieldKey,
