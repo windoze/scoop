@@ -21,6 +21,18 @@ fn core_can_have_the_only_empty_layout_profile_graph() {
     assert!(closure.direct_providers().is_empty());
     assert_eq!(closure.dependency_first().count(), 0);
     assert_eq!(closure.dependency_count(ConeIdentity::CORE), None);
+
+    let closure = closure
+        .validate_identities()
+        .unwrap()
+        .validate_foundation_structure()
+        .unwrap()
+        .resolve_hir_sections()
+        .unwrap()
+        .validate_hir_productions()
+        .unwrap();
+    assert_eq!(closure.current(), ConeIdentity::CORE);
+    assert_eq!(closure.dependency_first().count(), 0);
 }
 
 #[test]

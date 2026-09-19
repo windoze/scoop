@@ -16,7 +16,7 @@ pub use errors::*;
 pub(crate) mod graph_validation;
 mod hir_front_validation;
 mod identity_validation;
-mod source_provenance;
+pub(crate) mod source_provenance;
 pub use source_provenance::CrossConeSourceProvenanceError;
 
 mod surface_validation;

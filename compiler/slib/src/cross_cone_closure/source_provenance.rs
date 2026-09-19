@@ -5,7 +5,7 @@ use std::fmt;
 use scoop_hir::OdrFreeHirFoundation;
 use scoop_identity::{ConeIdentity, PersistentSourceContextId, SourceIdentity};
 
-pub(super) fn validate_imported_source_metadata<'provider>(
+pub(crate) fn validate_imported_source_metadata<'provider>(
     artifact: ConeIdentity,
     foundation: &OdrFreeHirFoundation,
     mut provider: impl FnMut(ConeIdentity) -> Option<&'provider OdrFreeHirFoundation>,

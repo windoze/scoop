@@ -8,10 +8,17 @@ use scoop_lir::ValidatedLirTargetSelection;
 use crate::{
     ConeKind, CrossConeClosureGraphError, CrossConeProviderRole,
     DecodedCrossConeLayoutCompileSections, DependencyRecord,
+    FoundationValidatedCrossConeLayoutCompileSections,
+    HirProductionValidatedCrossConeLayoutSections, IdentityCheckedCrossConeLayoutCompileSections,
+    ResolvedCrossConeLayoutHirSections,
     cross_cone_closure::graph_validation::{
         CrossConeClosureArtifact, ValidatedCrossConeClosureGraph, validate_artifact_graph,
     },
 };
+
+mod foundations;
+mod hir;
+pub use hir::CrossConeLayoutClosureHirResolutionError;
 
 /// Untrusted M23-6 artifacts visible while compiling one current Cone.
 pub struct DecodedCrossConeLayoutCompileClosure<'input> {
@@ -30,6 +37,50 @@ pub struct ProfileValidatedCrossConeLayoutCompileClosure<'input> {
     target: ValidatedLirTargetSelection,
     direct: Vec<ConeIdentity>,
     dependency_first: Vec<DecodedCrossConeLayoutCompileSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+/// Layout-profile artifacts whose foundation identity deltas were validated
+/// against exactly their recorded direct dependencies.
+pub struct IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<IdentityCheckedCrossConeLayoutCompileSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+/// Layout-profile artifacts with structurally complete, ODR-free HIR/MIR/LIR
+/// foundations and authenticated imported source metadata.
+pub struct FoundationValidatedCrossConeLayoutCompileClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<FoundationValidatedCrossConeLayoutCompileSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+/// Both old and new HIR transports are resolved through each artifact's one
+/// validated identity graph. Semantic tables remain untrusted.
+pub struct ResolvedCrossConeLayoutHirClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<ResolvedCrossConeLayoutHirSections<'input>>,
+    positions: BTreeMap<ConeIdentity, usize>,
+    dependency_positions: Vec<Vec<usize>>,
+}
+
+/// Resolved layout-profile HIR transports whose unchanged core bootstrap
+/// production surface has also been replayed.
+pub struct HirProductionValidatedCrossConeLayoutClosure<'input> {
+    current: ConeIdentity,
+    target: ValidatedLirTargetSelection,
+    direct: Vec<ConeIdentity>,
+    dependency_first: Vec<HirProductionValidatedCrossConeLayoutSections<'input>>,
     positions: BTreeMap<ConeIdentity, usize>,
     dependency_positions: Vec<Vec<usize>>,
 }
@@ -145,6 +196,70 @@ impl<'input> ProfileValidatedCrossConeLayoutCompileClosure<'input> {
             .map(|position| self.dependency_positions[*position].len())
     }
 }
+
+macro_rules! impl_layout_closure_accessors {
+    ($state:ident, $artifact:ident) => {
+        impl $state<'_> {
+            pub const fn current(&self) -> ConeIdentity {
+                self.current
+            }
+
+            pub const fn target_selection(&self) -> ValidatedLirTargetSelection {
+                self.target
+            }
+
+            pub fn direct_providers(&self) -> &[ConeIdentity] {
+                &self.direct
+            }
+
+            pub fn dependency_first(&self) -> impl ExactSizeIterator<Item = &$artifact<'_>> {
+                self.dependency_first.iter()
+            }
+
+            pub fn artifact(&self, identity: ConeIdentity) -> Option<&$artifact<'_>> {
+                self.positions
+                    .get(&identity)
+                    .map(|position| &self.dependency_first[*position])
+            }
+
+            pub fn role(&self, identity: ConeIdentity) -> Option<CrossConeProviderRole> {
+                if identity == self.current {
+                    return None;
+                }
+                self.positions.get(&identity).map(|_| {
+                    if self.direct.binary_search(&identity).is_ok() {
+                        CrossConeProviderRole::Direct
+                    } else {
+                        CrossConeProviderRole::Support
+                    }
+                })
+            }
+
+            pub fn dependency_count(&self, identity: ConeIdentity) -> Option<usize> {
+                self.positions
+                    .get(&identity)
+                    .map(|position| self.dependency_positions[*position].len())
+            }
+        }
+    };
+}
+
+impl_layout_closure_accessors!(
+    IdentityRegisteredCrossConeLayoutCompileClosure,
+    IdentityCheckedCrossConeLayoutCompileSections
+);
+impl_layout_closure_accessors!(
+    FoundationValidatedCrossConeLayoutCompileClosure,
+    FoundationValidatedCrossConeLayoutCompileSections
+);
+impl_layout_closure_accessors!(
+    ResolvedCrossConeLayoutHirClosure,
+    ResolvedCrossConeLayoutHirSections
+);
+impl_layout_closure_accessors!(
+    HirProductionValidatedCrossConeLayoutClosure,
+    HirProductionValidatedCrossConeLayoutSections
+);
 
 impl CrossConeClosureArtifact for DecodedCrossConeLayoutCompileSections<'_> {
     fn coordinate(&self) -> &ConeCoordinate {

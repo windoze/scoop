@@ -105,6 +105,16 @@ impl<'input> DecodedCrossConeLayoutCompileSections<'input> {
     }
 }
 
+impl IdentityCheckedCrossConeLayoutCompileSections<'_> {
+    pub const fn identity(&self) -> scoop_identity::ConeIdentity {
+        self.graph.identity()
+    }
+
+    pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
+        &self.identities
+    }
+}
+
 impl FoundationValidatedCrossConeLayoutCompileSections<'_> {
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
         self.graph.coordinate()
