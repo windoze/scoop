@@ -234,6 +234,13 @@ impl ArtifactCapabilityProfileId {
         ))
     }
 
+    pub fn cross_cone_layout_strong() -> Self {
+        Self(CapabilityId::known(
+            "org.scoop-lang.slib-profile",
+            "cross-cone-layout-strong",
+        ))
+    }
+
     pub fn capability(&self) -> &CapabilityId {
         &self.0
     }
@@ -244,9 +251,11 @@ impl ArtifactCapabilityProfileId {
         let identity_foundation = Self::identity_foundation();
         let single_cone_strong = Self::single_cone_strong();
         let cross_cone_semantics_strong = Self::cross_cone_semantics_strong();
+        let cross_cone_layout_strong = Self::cross_cone_layout_strong();
         if capability == identity_foundation.0
             || capability == single_cone_strong.0
             || capability == cross_cone_semantics_strong.0
+            || capability == cross_cone_layout_strong.0
         {
             Ok(Self(capability))
         } else {
@@ -415,6 +424,7 @@ mod tests {
             ArtifactCapabilityProfileId::identity_foundation(),
             ArtifactCapabilityProfileId::single_cone_strong(),
             ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
+            ArtifactCapabilityProfileId::cross_cone_layout_strong(),
         ] {
             assert_eq!(
                 ArtifactCapabilityProfileId::refine(profile.capability().clone()),
