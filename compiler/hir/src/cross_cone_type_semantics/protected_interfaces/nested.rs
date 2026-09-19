@@ -14,7 +14,7 @@ mod references;
 mod semantics;
 mod support;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 
 pub use decode::*;
 pub use errors::*;

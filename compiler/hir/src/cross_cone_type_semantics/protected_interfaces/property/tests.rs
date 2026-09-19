@@ -8,7 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 mod rejections;
 mod slots;
-mod support;
+pub(in crate::cross_cone_type_semantics::protected_interfaces) mod support;
 mod wire;
 use support::setup;
 

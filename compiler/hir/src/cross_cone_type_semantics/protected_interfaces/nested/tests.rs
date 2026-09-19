@@ -8,7 +8,7 @@ mod authority;
 mod generic;
 mod generic_properties;
 mod properties;
-mod support;
+pub(in crate::cross_cone_type_semantics::protected_interfaces) mod support;
 mod variants;
 mod wire_tests;
 use support::*;

@@ -39,6 +39,32 @@ impl CheckedProtectedPropertySourceV1<'_> {
         setter: Option<CheckedProtectedCallableSourceV1<'_>>,
         meter: &mut BudgetMeter,
     ) -> Result<(), ProtectedPropertyAccessorClosureError> {
+        self.validate_accessor_views(
+            AccessorView::checked(&getter),
+            setter.as_ref().map(AccessorView::checked),
+            meter,
+        )
+    }
+
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_resolved_accessor_records(
+        &self,
+        getter: &crate::ProtectedCallableInterfaceV1,
+        setter: Option<&crate::ProtectedCallableInterfaceV1>,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ProtectedPropertyAccessorClosureError> {
+        self.validate_accessor_views(
+            AccessorView::record(getter),
+            setter.map(AccessorView::record),
+            meter,
+        )
+    }
+
+    fn validate_accessor_views(
+        &self,
+        getter: AccessorView<'_>,
+        setter: Option<AccessorView<'_>>,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ProtectedPropertyAccessorClosureError> {
         use ProtectedPropertyAccessorClosureError as Error;
         let property = self.record().payload();
         meter
@@ -52,7 +78,7 @@ impl CheckedProtectedPropertySourceV1<'_> {
                 &WirePath::root(),
             )
             .map_err(Error::Resource)?;
-        if getter.declaration() != CallableTemplateOrigin::Accessor(property.getter()) {
+        if getter.declaration != CallableTemplateOrigin::Accessor(property.getter()) {
             return Err(Error::Getter);
         }
         check_common(
@@ -61,8 +87,8 @@ impl CheckedProtectedPropertySourceV1<'_> {
             self.record().declaration_access(),
             meter,
         )?;
-        if !getter.payload().parameters().is_empty()
-            || getter.payload().result() != property.value_type()
+        if !getter.payload.parameters().is_empty()
+            || getter.payload.result() != property.value_type()
         {
             return Err(Error::Signature);
         }
@@ -74,12 +100,12 @@ impl CheckedProtectedPropertySourceV1<'_> {
                 },
                 Some(setter),
             ) if setter_access.declared_visibility() == DeclaredVisibilityV1::Protected => {
-                if setter.declaration() != CallableTemplateOrigin::Accessor(*expected) {
+                if setter.declaration != CallableTemplateOrigin::Accessor(*expected) {
                     return Err(Error::Setter);
                 }
                 check_common(self.record(), setter, setter_access, meter)?;
-                if setter.payload().parameters().parameters().len() != 1
-                    || setter.payload().parameters().parameters()[0].value_type()
+                if setter.payload.parameters().parameters().len() != 1
+                    || setter.payload.parameters().parameters()[0].value_type()
                         != property.value_type()
                 {
                     return Err(Error::Signature);
@@ -96,33 +122,33 @@ impl CheckedProtectedPropertySourceV1<'_> {
 
 fn check_common(
     property: &ProtectedPropertyInterfaceV1,
-    accessor: CheckedProtectedCallableSourceV1<'_>,
+    accessor: AccessorView<'_>,
     source: &DeclarationAccessSourceV1,
     meter: &mut BudgetMeter,
 ) -> Result<(), ProtectedPropertyAccessorClosureError> {
     use ProtectedPropertyAccessorClosureError as Error;
-    let slot_count = accessor.payload().slot_relations().slots().len() as u64;
+    let slot_count = accessor.payload.slot_relations().slots().len() as u64;
     let table_count = property.payload().slot_relations().slots().len() as u64;
     let work = (source.lexical_owners().len() as u64)
         .saturating_add(slot_count.saturating_mul(table_count.saturating_add(1)));
     meter
         .charge_work(work, &WirePath::root())
         .map_err(Error::Resource)?;
-    let actual = accessor.declaration_access();
-    if accessor.payload().owner() != property.payload().owner()
-        || actual.source().declared_visibility() != source.declared_visibility()
-        || actual.source().lexical_owners() != source.lexical_owners()
-        || actual.source().definition_origin().origin().source()
+    let actual = accessor.access;
+    if accessor.payload.owner() != property.payload().owner()
+        || actual.declared_visibility() != source.declared_visibility()
+        || actual.lexical_owners() != source.lexical_owners()
+        || actual.definition_origin().origin().source()
             != source.definition_origin().origin().source()
     {
         return Err(Error::Access);
     }
     if (property.payload().representation() == PropertyRepresentationV1::AbstractSlot)
-        != (accessor.payload().modality() == CallableModalityV1::Abstract)
+        != (accessor.payload.modality() == CallableModalityV1::Abstract)
     {
         return Err(Error::Representation);
     }
-    for slot in accessor.payload().slot_relations().slots() {
+    for slot in accessor.payload.slot_relations().slots() {
         if property
             .payload()
             .slot_relations()
@@ -134,4 +160,27 @@ fn check_common(
         }
     }
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+struct AccessorView<'a> {
+    declaration: CallableTemplateOrigin,
+    payload: &'a crate::ProtectedCallablePayloadV1,
+    access: &'a DeclarationAccessSourceV1,
+}
+impl<'a> AccessorView<'a> {
+    fn checked(value: &'a CheckedProtectedCallableSourceV1<'a>) -> Self {
+        Self {
+            declaration: value.declaration(),
+            payload: value.payload(),
+            access: value.declaration_access().source(),
+        }
+    }
+    fn record(value: &'a crate::ProtectedCallableInterfaceV1) -> Self {
+        Self {
+            declaration: value.declaration(),
+            payload: value.payload(),
+            access: value.declaration_access(),
+        }
+    }
 }

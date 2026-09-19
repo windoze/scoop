@@ -143,9 +143,11 @@ impl DecodedProtectedPropertyInterfaceV1 {
         ProtectedPropertyInterfaceV1::try_new(declaration, access, payload).map_err(Error::Property)
     }
 }
-impl WireEncode for DecodedProtectedPropertyInterfaceV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+impl DecodedProtectedPropertyInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn encode_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -154,13 +156,26 @@ impl WireEncode for DecodedProtectedPropertyInterfaceV1 {
         self.payload.encode(encoder)
     }
 }
-impl WireDecode for DecodedProtectedPropertyInterfaceV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+impl WireEncode for DecodedProtectedPropertyInterfaceV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(3)?;
+        self.encode_fields(encoder)
+    }
+}
+impl DecodedProtectedPropertyInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
+        decoder: &mut Decoder<'_, '_>,
+    ) -> Result<Self, WireError> {
         Ok(Self {
             declaration: decoder.field(1, DecodedPersistentId::decode)?,
             declaration_access: decoder.field(2, DecodedDeclarationAccessSourceV1::decode)?,
             payload: decoder.field(3, DecodedProtectedPropertyPayloadV1::decode)?,
         })
+    }
+}
+impl WireDecode for DecodedProtectedPropertyInterfaceV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(3)?;
+        Self::decode_fields(decoder)
     }
 }

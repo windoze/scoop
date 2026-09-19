@@ -23,6 +23,7 @@ pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub const_types: BTreeMap<CanonicalConstValueKindV1, PersistentTypeId>,
     pub nominal_sources: BTreeMap<SourceNominalId, ProtectedNestedSourceInterfaceV1>,
     pub struct_fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
+    pub protected_roots: CanonicalProtectedDeclarationRefsV1,
 }
 impl Default for Fixture {
     fn default() -> Self {
@@ -42,6 +43,7 @@ impl Default for Fixture {
             const_types: BTreeMap::new(),
             nominal_sources: BTreeMap::new(),
             struct_fields: BTreeMap::new(),
+            protected_roots: CanonicalProtectedDeclarationRefsV1::default(),
         }
     }
 }

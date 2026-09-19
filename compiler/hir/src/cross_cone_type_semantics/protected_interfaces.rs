@@ -3,6 +3,7 @@
 
 use super::wire;
 
+mod declarations;
 mod decode;
 mod errors;
 mod nested;
@@ -19,6 +20,7 @@ mod support_source_use;
 #[cfg(test)]
 pub(in crate::cross_cone_type_semantics) mod tests;
 
+pub use declarations::*;
 pub use decode::*;
 pub use errors::*;
 pub use nested::*;

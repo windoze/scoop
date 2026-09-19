@@ -1,7 +1,11 @@
 use super::*;
 use scoop_identity::{CallableTemplateOrigin, SignatureTypeKey, SourceNominalKind};
 
-pub(super) fn nested_class(fixture: &mut Fixture, outer: Node, name: &str) -> Node {
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn nested_class(
+    fixture: &mut Fixture,
+    outer: Node,
+    name: &str,
+) -> Node {
     let owner = fixture.graph.add(name, SourceNominalKind::Class, &[outer]);
     fixture
         .graph
@@ -21,7 +25,7 @@ pub(super) fn nested_class(fixture: &mut Fixture, outer: Node, name: &str) -> No
         .insert(nominal(owner), representation);
     owner
 }
-pub(super) fn source(
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn source(
     modality: NominalInheritanceModalityV1,
     constructors: Vec<PersistentConstructorId>,
     members: Vec<NestedSourceMemberRefV1>,
@@ -41,7 +45,7 @@ pub(super) fn source(
     )
     .unwrap()
 }
-pub(super) fn function(
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn function(
     fixture: &mut Fixture,
     owner: Node,
     name: &str,
@@ -71,7 +75,7 @@ pub(super) fn function(
         )),
     )
 }
-pub(super) fn payload(
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn payload(
     fixture: &mut Fixture,
     owner: Node,
     interface: ProtectedNestedSourceInterfaceV1,
@@ -89,7 +93,9 @@ pub(super) fn payload(
     )
     .unwrap()
 }
-pub(super) fn representations(fixture: &Fixture) -> CanonicalNominalRepresentationSupportV1 {
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn representations(
+    fixture: &Fixture,
+) -> CanonicalNominalRepresentationSupportV1 {
     CanonicalNominalRepresentationSupportV1::try_new(
         fixture.graph.representations.values().cloned().collect(),
     )

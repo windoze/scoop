@@ -11,7 +11,7 @@ pub(super) mod semantics;
 mod source_decode;
 mod source_payload;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
 
 pub use decode::*;
 pub use errors::*;

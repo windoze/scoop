@@ -2,7 +2,7 @@ use super::*;
 use crate::cross_cone_type_semantics::inheritance::tests::support::Node;
 use crate::cross_cone_type_semantics::protected_interfaces::tests::support::{Fixture, nominal};
 
-pub(super) fn setup(
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn setup(
     setter_visibility: Option<DeclaredVisibilityV1>,
 ) -> (
     Fixture,

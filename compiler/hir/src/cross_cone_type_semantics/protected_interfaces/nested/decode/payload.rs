@@ -189,6 +189,17 @@ impl WireEncode for DecodedNominalSupportNestedInterfaceV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedProtectedNestedNominalInterfaceV1(DecodedNominalSupportNestedInterfaceV1);
 impl DecodedProtectedNestedNominalInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn encode_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        self.0.encode_fields(encoder)
+    }
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn decode_fields(
+        decoder: &mut Decoder<'_, '_>,
+    ) -> Result<Self, WireError> {
+        DecodedNominalSupportNestedInterfaceV1::decode_fields(decoder).map(Self)
+    }
     pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
         self,
         resolver: &mut R,
