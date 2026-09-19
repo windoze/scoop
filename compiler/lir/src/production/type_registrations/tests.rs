@@ -798,3 +798,5 @@ fn digest_plan(
 fn node(plan: &StrongDigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
     plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
+
+mod v2;

@@ -1,3 +1,4 @@
+use crate::TypeInstanceShapeV1;
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, ConeIdentity, DeclarationScope, ExactTypeKey, PackagePath,
@@ -7,8 +8,8 @@ use scoop_identity::{
 use super::*;
 use crate::{
     ArrayElementStorageV1, DispatchEntry, ItableRecord, LayoutIdentity, MaterializationRoot,
-    NoGcRuntimeFunction, RuntimeTypeMappingRecord, TypeDescriptorIdentity, TypeInstanceKindV1,
-    VtableRecord,
+    NoGcRuntimeFunction, RuntimeFunction, RuntimeTypeMappingRecord, TypeDescriptorIdentity,
+    TypeInstanceKindV1, VtableRecord,
 };
 
 #[test]
