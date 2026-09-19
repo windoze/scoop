@@ -10,7 +10,8 @@ mod normal;
 mod ranges;
 mod wire;
 
-pub use wire::DecodedRefScanV1;
+pub(crate) use wire::encode_scan as encode_canonical_scan;
+pub use wire::{DecodedRefScanV1, MeteredScanValidationError};
 
 pub use budget::{ScanBudgetResourceV1, ScanBudgetUsageV1};
 

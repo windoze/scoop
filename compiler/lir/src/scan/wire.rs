@@ -8,6 +8,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use crate::{CheckedRefScanV1, NonEmptyRefScan, RefScan, RefScanValidationError};
 
 mod decode;
+mod validation;
+pub use validation::MeteredScanValidationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedRefScanV1(RawScan);
@@ -100,7 +102,10 @@ impl WireEncode for CheckedRefScanV1 {
     }
 }
 
-fn encode_scan(scan: &RefScan, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+pub(crate) fn encode_scan(
+    scan: &RefScan,
+    encoder: &mut Encoder,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
     match scan {
         RefScan::None => tag(encoder, 1, 1),
         RefScan::References(offsets) => encode_references(encoder, offsets),

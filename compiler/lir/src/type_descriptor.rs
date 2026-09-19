@@ -1,5 +1,8 @@
 use std::num::NonZeroU64;
 
+mod wire;
+pub use wire::{DecodedTypeInstanceShapeV1, TypeInstanceShapeWireError};
+
 use crate::{
     ArrayElementStorageKindV1, ArrayElementStorageV1, CheckedRefScanV1, LirTargetProfile,
     PointerKind, RefScan, RefScanValidationError, ValueStorageKindV1, ValueStorageLayoutV1,
