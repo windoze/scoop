@@ -4,6 +4,7 @@ use scoop_hir::{
     DecodedCoreBootstrapInterfaceSectionV1, DecodedCrossConeHirInterfaceSectionV1,
     DecodedCrossConeTypeSemanticsSectionV1, DecodedHirFoundation,
 };
+use scoop_identity::ValidatedIdentityGraph;
 use scoop_lir::{
     DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1, DecodedLirFoundation,
     DecodedStrongProductionSectionV2,
@@ -13,10 +14,11 @@ use scoop_mir::{
     DecodedCrossConeMirTypeBridgeSectionV1, DecodedMirFoundation,
 };
 
-use crate::ValidatedGraphArtifact;
+use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundationSet};
 
 mod accessors;
 mod decode;
+mod transitions;
 pub use decode::CrossConeLayoutCompileSectionDecodeError;
 
 /// Canonically decoded payloads from one exact
@@ -37,6 +39,44 @@ pub struct DecodedCrossConeLayoutCompileSections<'input> {
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
     lir_foundation: DecodedLirFoundation,
+    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+}
+
+/// M23-6 Compile payloads whose complete HIR-to-LIR foundation identity
+/// delta passed one transaction. Foundation structure and every new section
+/// reference remain unvalidated.
+pub struct IdentityCheckedCrossConeLayoutCompileSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    hir_foundation: DecodedHirFoundation,
+    hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: DecodedCrossConeHirInterfaceSectionV1,
+    hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
+    mir_foundation: DecodedMirFoundation,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
+    lir_foundation: DecodedLirFoundation,
+    lir_strong_production: DecodedStrongProductionSectionV2,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+}
+
+/// One M23-6 provider whose three foundation layers are structurally valid
+/// and ODR-free. All production and cross-Cone semantic payloads remain
+/// decoded references without lookup, selection, or machine-use authority.
+pub struct FoundationValidatedCrossConeLayoutCompileSections<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: OdrFreeStrongFoundationSet,
+    hir_core_production: DecodedCoreBootstrapInterfaceSectionV1,
+    hir_interface: DecodedCrossConeHirInterfaceSectionV1,
+    hir_type_semantics: DecodedCrossConeTypeSemanticsSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV2,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
     lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
