@@ -1,0 +1,12 @@
+use super::*;
+use scoop_identity::{
+    CborIdentityRecord, EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey,
+    FieldIdentityKey, SourceDeclarationKey, SourceNominalKind,
+};
+use scoop_wire::{DecodeLimits, decode_canonical, encode};
+
+mod objects;
+mod support;
+mod validation;
+mod wire;
+use support::*;

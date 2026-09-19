@@ -83,6 +83,16 @@ impl CanonicalMirFoundation {
         }
     }
 
+    pub(crate) fn generated_type_key(
+        &self,
+        nominal: PersistentTypeId,
+    ) -> Option<&GeneratedNominalKey> {
+        self.generated_types
+            .binary_search_by_key(&nominal, CborIdentityRecord::id)
+            .ok()
+            .map(|index| self.generated_types[index].key())
+    }
+
     pub fn counts(&self) -> MirFoundationCounts {
         MirFoundationCounts {
             exact_types: self.exact_types.len(),
