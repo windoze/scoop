@@ -52,6 +52,12 @@ pub use module::*;
 mod metadata;
 pub use metadata::*;
 
+mod scan;
+pub use scan::*;
+
+mod value_layout;
+pub use value_layout::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 

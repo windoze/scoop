@@ -66,8 +66,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
                 if matches!(
-                    layout.storage(),
-                    scoop_lir::ArrayElementStorageV1::ZeroSized { .. }
+                    layout.storage().kind(),
+                    scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. }
                 ) {
                     self.temps.insert(*out, element_ty.const_zero());
                     return Ok(());
@@ -112,8 +112,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
                 if matches!(
-                    layout.storage(),
-                    scoop_lir::ArrayElementStorageV1::ZeroSized { .. }
+                    layout.storage().kind(),
+                    scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. }
                 ) {
                     return Ok(());
                 }

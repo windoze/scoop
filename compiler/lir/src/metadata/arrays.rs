@@ -1,4 +1,7 @@
-use crate::{ArrayElementStorageV1, LirTargetProfile, TypeInstanceShapeError, TypeInstanceShapeV1};
+use crate::{
+    ArrayElementStorageKindV1, ArrayElementStorageV1, LirTargetProfile, TypeInstanceShapeError,
+    TypeInstanceShapeV1,
+};
 
 /// A checked array element and its complete managed instance layout.
 /// The constructor alone binds both views; codegen never computes offsets.
@@ -15,9 +18,9 @@ impl ArrayLayoutV1 {
         storage: ArrayElementStorageV1,
     ) -> Result<Self, TypeInstanceShapeError> {
         let instance = TypeInstanceShapeV1::inline_array(target, storage.clone())?;
-        let maximum_count = match &storage {
-            ArrayElementStorageV1::ZeroSized { .. } => i64::MAX as u64,
-            ArrayElementStorageV1::Inline { stride, .. } => {
+        let maximum_count = match storage.kind() {
+            ArrayElementStorageKindV1::ZeroSized { .. } => i64::MAX as u64,
+            ArrayElementStorageKindV1::Inline { stride, .. } => {
                 let maximum = target.contract().maximum_managed_object_size()
                     & !(instance.instance_alignment() - 1);
                 ((maximum - instance.inline_offset()) / stride.get()).min(i64::MAX as u64)
@@ -38,9 +41,9 @@ impl ArrayLayoutV1 {
         if count > self.maximum_count {
             return None;
         }
-        match &self.storage {
-            ArrayElementStorageV1::ZeroSized { .. } => Some(self.instance.minimum_size()),
-            ArrayElementStorageV1::Inline { stride, .. } => {
+        match self.storage.kind() {
+            ArrayElementStorageKindV1::ZeroSized { .. } => Some(self.instance.minimum_size()),
+            ArrayElementStorageKindV1::Inline { stride, .. } => {
                 let mask = self.instance.instance_alignment() - 1;
                 Some((self.instance.inline_offset() + count * stride.get() + mask) & !mask)
             }

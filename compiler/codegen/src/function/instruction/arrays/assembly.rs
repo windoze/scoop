@@ -147,11 +147,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         CodegenError(format!("array allocation size check: {error}"))
                     })?;
                 self.array_size_check(exceeds_layout, "assembly.size.bytes.ok")?;
-                let total_bytes = match layout.storage() {
-                    scoop_lir::ArrayElementStorageV1::ZeroSized { .. } => {
+                let total_bytes = match layout.storage().kind() {
+                    scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. } => {
                         i64_ty.const_int(layout.instance().minimum_size(), false)
                     }
-                    scoop_lir::ArrayElementStorageV1::Inline { stride, .. } => {
+                    scoop_lir::ArrayElementStorageKindV1::Inline { stride, .. } => {
                         let bytes = builder
                             .build_int_mul(
                                 total,
@@ -202,8 +202,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let mut destination_index = i64_ty.const_zero();
                 for (part_index, part) in parts.iter().enumerate() {
                     if matches!(
-                        layout.storage(),
-                        scoop_lir::ArrayElementStorageV1::ZeroSized { .. }
+                        layout.storage().kind(),
+                        scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. }
                     ) {
                         continue;
                     }

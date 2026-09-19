@@ -19,7 +19,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         index: IntValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
-        let scoop_lir::ArrayElementStorageV1::Inline { stride, .. } = layout.storage() else {
+        let scoop_lir::ArrayElementStorageKindV1::Inline { stride, .. } = layout.storage().kind()
+        else {
             return Err(CodegenError(
                 "zero-sized array elements have no payload address".to_string(),
             ));

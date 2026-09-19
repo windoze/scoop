@@ -1,6 +1,9 @@
 use std::num::NonZeroU64;
 
-use crate::{LirTargetProfile, PointerKind, RefScan};
+use crate::{
+    ArrayElementStorageKindV1, ArrayElementStorageV1, CheckedRefScanV1, LirTargetProfile,
+    PointerKind, RefScan, RefScanValidationError, ValueStorageKindV1, ValueStorageLayoutV1,
+};
 
 /// Typed source of the runtime inline-scan pointer stored in one
 /// `ScoopTypeDescriptor`.
@@ -60,78 +63,6 @@ impl InlineStorageKindV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ValueStorageLayoutV1 {
-    ZeroSized {
-        alignment: NonZeroU64,
-    },
-    Inline {
-        size: NonZeroU64,
-        alignment: NonZeroU64,
-        scan: RefScan,
-    },
-}
-
-impl ValueStorageLayoutV1 {
-    pub fn zero_sized(alignment: u64) -> Result<Self, TypeInstanceShapeError> {
-        Ok(Self::ZeroSized {
-            alignment: checked_alignment(alignment)?,
-        })
-    }
-
-    pub fn inline(
-        size: u64,
-        alignment: u64,
-        scan: RefScan,
-    ) -> Result<Self, TypeInstanceShapeError> {
-        let size = NonZeroU64::new(size).ok_or(TypeInstanceShapeError::ZeroInlineSize)?;
-        let alignment = checked_alignment(alignment)?;
-        require_aligned_inline_size(size, alignment)?;
-        Ok(Self::Inline {
-            size,
-            alignment,
-            scan,
-        })
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ArrayElementStorageV1 {
-    ZeroSized {
-        alignment: NonZeroU64,
-    },
-    Inline {
-        size: NonZeroU64,
-        stride: NonZeroU64,
-        alignment: NonZeroU64,
-        scan: RefScan,
-    },
-}
-
-impl ArrayElementStorageV1 {
-    pub fn zero_sized(alignment: u64) -> Result<Self, TypeInstanceShapeError> {
-        Ok(Self::ZeroSized {
-            alignment: checked_alignment(alignment)?,
-        })
-    }
-
-    pub fn inline(
-        size: u64,
-        alignment: u64,
-        scan: RefScan,
-    ) -> Result<Self, TypeInstanceShapeError> {
-        let size = NonZeroU64::new(size).ok_or(TypeInstanceShapeError::ZeroInlineSize)?;
-        let alignment = checked_alignment(alignment)?;
-        require_aligned_inline_size(size, alignment)?;
-        Ok(Self::Inline {
-            size,
-            stride: size,
-            alignment,
-            scan,
-        })
-    }
-}
-
 /// Complete, validated semantic shape encoded by `ScoopTypeInstanceShapeV1`.
 ///
 /// The physical scalar fields are private so no caller can manufacture a
@@ -169,7 +100,11 @@ impl TypeInstanceShapeV1 {
             return Err(TypeInstanceShapeError::UnalignedAllocationSize);
         }
         require_managed_object_size(target, allocation_size.get())?;
-        validate_scan(&object_scan)?;
+        let checked_scan =
+            CheckedRefScanV1::from_canonical(object_scan).map_err(TypeInstanceShapeError::Scan)?;
+        checked_scan
+            .validate_extent(allocation_size.get(), instance_alignment.get())
+            .map_err(TypeInstanceShapeError::Scan)?;
         Ok(Self {
             instance_kind: TypeInstanceKindV1::FixedObject,
             inline_storage_kind: InlineStorageKindV1::None,
@@ -179,7 +114,7 @@ impl TypeInstanceShapeV1 {
             inline_size: 0,
             inline_stride: 0,
             inline_alignment: 0,
-            object_scan,
+            object_scan: checked_scan.into_ref_scan(),
             inline_scan: RefScan::None,
         })
     }
@@ -189,20 +124,22 @@ impl TypeInstanceShapeV1 {
         value: ValueStorageLayoutV1,
     ) -> Result<Self, TypeInstanceShapeError> {
         let header = managed_header_size(target)?;
-        let (inline_storage_kind, inline_size, inline_alignment, inline_scan) = match value {
-            ValueStorageLayoutV1::ZeroSized { alignment } => {
+        let (inline_storage_kind, inline_size, inline_alignment, inline_scan) = match value.kind() {
+            ValueStorageKindV1::ZeroSized { alignment } => {
                 (InlineStorageKindV1::ZeroSized, 0, alignment, RefScan::None)
             }
-            ValueStorageLayoutV1::Inline {
+            ValueStorageKindV1::Inline {
                 size,
                 alignment,
                 scan,
-            } => {
-                validate_scan(&scan)?;
-                (InlineStorageKindV1::Inline, size.get(), alignment, scan)
-            }
+            } => (
+                InlineStorageKindV1::Inline,
+                size.get(),
+                alignment,
+                scan.as_ref_scan().clone(),
+            ),
         };
-        require_maximum_managed_alignment(target, inline_alignment)?;
+        require_maximum_managed_alignment(target, checked_alignment(inline_alignment.get())?)?;
         let inline_offset = checked_align_up(header, inline_alignment.get())?;
         let header_alignment = target.metadata_pointer_layout().alignment_bytes().max(
             target
@@ -217,7 +154,10 @@ impl TypeInstanceShapeV1 {
             instance_alignment,
         )?;
         require_managed_object_size(target, minimum_size)?;
-        let object_scan = translate_scan(&inline_scan, inline_offset)?;
+        let object_scan = CheckedRefScanV1::from_canonical(inline_scan.clone())
+            .and_then(|scan| scan.translated(inline_offset))
+            .map_err(TypeInstanceShapeError::Scan)?
+            .into_ref_scan();
         Ok(Self {
             instance_kind: TypeInstanceKindV1::BoxedValue,
             inline_storage_kind,
@@ -256,39 +196,30 @@ impl TypeInstanceShapeV1 {
     ) -> Result<Self, TypeInstanceShapeError> {
         let prefix = variable_prefix_size(target)?;
         let (inline_storage_kind, inline_size, inline_stride, inline_alignment, inline_scan) =
-            match element {
-                ArrayElementStorageV1::ZeroSized { alignment } => (
+            match element.kind() {
+                ArrayElementStorageKindV1::ZeroSized { alignment } => (
                     InlineStorageKindV1::ZeroSized,
                     0,
                     0,
                     alignment,
                     RefScan::None,
                 ),
-                ArrayElementStorageV1::Inline {
-                    size,
+                ArrayElementStorageKindV1::Inline {
                     stride,
                     alignment,
                     scan,
-                } => {
-                    checked_alignment(alignment.get())?;
-                    require_aligned_inline_size(size, alignment)?;
-                    if size != stride {
-                        return Err(TypeInstanceShapeError::ArrayStrideMismatch);
-                    }
-                    validate_scan(&scan)?;
-                    (
-                        InlineStorageKindV1::Inline,
-                        size.get(),
-                        stride.get(),
-                        alignment,
-                        scan,
-                    )
-                }
+                } => (
+                    InlineStorageKindV1::Inline,
+                    stride.get(),
+                    stride.get(),
+                    alignment,
+                    scan.as_ref_scan().clone(),
+                ),
             };
         checked_alignment(inline_alignment.get())?;
         let inline_offset = checked_align_up(prefix, inline_alignment.get())?;
         let instance_alignment = managed_header_alignment(target).max(inline_alignment.get());
-        require_maximum_managed_alignment(target, inline_alignment)?;
+        require_maximum_managed_alignment(target, checked_alignment(inline_alignment.get())?)?;
         require_managed_object_size(target, inline_offset)?;
         let object_scan = if inline_scan.contains_reference() {
             RefScan::Array {
@@ -304,6 +235,11 @@ impl TypeInstanceShapeV1 {
         } else {
             RefScan::None
         };
+        let checked_object_scan = CheckedRefScanV1::from_canonical(object_scan.clone())
+            .map_err(TypeInstanceShapeError::Scan)?;
+        checked_object_scan
+            .validate_extent(inline_offset, instance_alignment)
+            .map_err(TypeInstanceShapeError::Scan)?;
         Ok(Self {
             instance_kind: TypeInstanceKindV1::InlineArray,
             inline_storage_kind,
@@ -393,6 +329,7 @@ pub enum TypeInstanceShapeError {
     EmptySequenceChild,
     ZeroArrayScanStride,
     ArrayStrideMismatch,
+    Scan(RefScanValidationError),
 }
 
 fn checked_alignment(value: u64) -> Result<NonZeroU64, TypeInstanceShapeError> {
@@ -401,17 +338,6 @@ fn checked_alignment(value: u64) -> Result<NonZeroU64, TypeInstanceShapeError> {
         Ok(value)
     } else {
         Err(TypeInstanceShapeError::AlignmentNotPowerOfTwo(value.get()))
-    }
-}
-
-fn require_aligned_inline_size(
-    size: NonZeroU64,
-    alignment: NonZeroU64,
-) -> Result<(), TypeInstanceShapeError> {
-    if size.get() % alignment.get() == 0 {
-        Ok(())
-    } else {
-        Err(TypeInstanceShapeError::UnalignedInlineSize)
     }
 }
 
@@ -496,70 +422,6 @@ fn variable_prefix_size(target: LirTargetProfile) -> Result<u64, TypeInstanceSha
             .ok_or(TypeInstanceShapeError::SizeOverflow)?,
         managed_header_alignment(target),
     )
-}
-
-fn validate_scan(scan: &RefScan) -> Result<(), TypeInstanceShapeError> {
-    match scan {
-        RefScan::None => Ok(()),
-        RefScan::References(offsets) => {
-            if offsets.is_empty() {
-                return Err(TypeInstanceShapeError::EmptyReferenceScan);
-            }
-            Ok(())
-        }
-        RefScan::Sequence(parts) => {
-            if parts.len() < 2 {
-                return Err(TypeInstanceShapeError::EmptySequence);
-            }
-            if parts.iter().any(|part| !part.contains_reference()) {
-                return Err(TypeInstanceShapeError::EmptySequenceChild);
-            }
-            parts.iter().try_for_each(validate_scan)
-        }
-        RefScan::Array {
-            stride, element, ..
-        } => {
-            if stride.get() == 0 {
-                return Err(TypeInstanceShapeError::ZeroArrayScanStride);
-            }
-            validate_scan(element.as_ref_scan())
-        }
-    }
-}
-
-fn translate_scan(scan: &RefScan, delta: u64) -> Result<RefScan, TypeInstanceShapeError> {
-    match scan {
-        RefScan::None => Ok(RefScan::None),
-        RefScan::References(offsets) => offsets
-            .iter()
-            .map(|offset| {
-                offset
-                    .checked_add(delta)
-                    .ok_or(TypeInstanceShapeError::ScanOffsetOverflow)
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(RefScan::References),
-        RefScan::Sequence(parts) => parts
-            .iter()
-            .map(|part| translate_scan(part, delta))
-            .collect::<Result<Vec<_>, _>>()
-            .map(RefScan::Sequence),
-        RefScan::Array {
-            length_offset,
-            first_element_offset,
-            stride,
-            element,
-        } => Ok(RefScan::Array {
-            length_offset: length_offset
-                .checked_add(delta)
-                .ok_or(TypeInstanceShapeError::ScanOffsetOverflow)?,
-            first_element_offset: first_element_offset
-                .checked_add(delta)
-                .ok_or(TypeInstanceShapeError::ScanOffsetOverflow)?,
-            stride: *stride,
-            element: element.clone(),
-        }),
-    }
 }
 
 #[cfg(test)]

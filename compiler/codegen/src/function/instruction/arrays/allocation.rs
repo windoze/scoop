@@ -76,8 +76,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 for (index, element_value) in elements.iter().enumerate() {
                     if matches!(
-                        layout.storage(),
-                        scoop_lir::ArrayElementStorageV1::ZeroSized { .. }
+                        layout.storage().kind(),
+                        scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. }
                     ) {
                         continue;
                     }
