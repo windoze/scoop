@@ -18,11 +18,13 @@ use crate::{
 
 mod decode;
 mod error;
+mod semantics;
 mod table;
 #[cfg(test)]
 mod tests;
 pub use decode::*;
 pub use error::*;
+pub use semantics::*;
 pub use table::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -8,6 +8,9 @@ use super::{
     CanonicalExactTypeFactsV1, ExactTypeFactsV1, ExactTypeGcV1, ExactTypeKindV1, ZstStatus,
 };
 
+mod dependencies;
+pub use dependencies::*;
+
 /// Representation-independent input obtained from checked exact keys and
 /// source representation records. A managed reference is a leaf: its object
 /// fields do not participate in the GC or zero-sized status of the value.
@@ -67,9 +70,25 @@ impl CanonicalExactTypeFactsV1 {
     where
         A: ExactTypeFactsSemanticAuthority<E>,
     {
+        self.validate_semantics_with_dependencies(authority, &dependencies::NoDependencies, budget)
+    }
+
+    pub fn validate_semantics_with_dependencies<'a, A, E>(
+        &'a self,
+        authority: &A,
+        dependencies: &dyn ExactTypeFactsDependencyLookupV1,
+        budget: &mut BudgetMeter,
+    ) -> Result<CheckedExactTypeFactsV1<'a>, ExactTypeFactsSemanticError<E>>
+    where
+        A: ExactTypeFactsSemanticAuthority<E>,
+    {
+        budget
+            .check_table_entries(self.records().len() as u64, &WirePath::root())
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
         let mut validation = Validation {
             facts: self,
             authority,
+            dependencies,
             budget,
             active: BTreeSet::new(),
             complete: BTreeMap::new(),
@@ -85,6 +104,7 @@ impl CanonicalExactTypeFactsV1 {
 struct Validation<'a, A> {
     facts: &'a CanonicalExactTypeFactsV1,
     authority: &'a A,
+    dependencies: &'a dyn ExactTypeFactsDependencyLookupV1,
     budget: &'a mut BudgetMeter,
     active: BTreeSet<PersistentExactTypeId>,
     complete: BTreeMap<PersistentExactTypeId, ExactTypeFactsV1>,
@@ -109,15 +129,29 @@ impl<A> Validation<'_, A> {
         if let Some(facts) = self.complete.get(&exact) {
             return Ok(*facts);
         }
-        let actual = self
-            .facts
-            .get(exact)
-            .ok_or(ExactTypeFactsSemanticError::MissingFacts(exact))?;
+        let Some(actual) = self.facts.get(exact) else {
+            let fact = self
+                .dependencies
+                .get_dependency_fact(exact, self.budget, &self.path)
+                .map_err(ExactTypeFactsSemanticError::Resource)?
+                .ok_or(ExactTypeFactsSemanticError::MissingFacts(exact))?
+                .record();
+            if fact.exact() != exact {
+                return Err(ExactTypeFactsSemanticError::DependencyIdentity {
+                    expected: exact,
+                    actual: fact.exact(),
+                });
+            }
+            return Ok(*fact);
+        };
         if self.active.contains(&exact) {
             return Err(ExactTypeFactsSemanticError::ByValueCycle(exact));
         }
         self.budget
             .charge_nodes(2, &self.path)
+            .map_err(ExactTypeFactsSemanticError::Resource)?;
+        self.budget
+            .charge_collection_slots(2, &self.path)
             .map_err(ExactTypeFactsSemanticError::Resource)?;
         self.active.insert(exact);
         let shape = self
@@ -239,6 +273,10 @@ pub enum ExactTypeFactsSemanticError<E> {
         error: E,
     },
     MissingFacts(PersistentExactTypeId),
+    DependencyIdentity {
+        expected: PersistentExactTypeId,
+        actual: PersistentExactTypeId,
+    },
     ByValueCycle(PersistentExactTypeId),
     EmptyCLayout(PersistentExactTypeId),
     ZeroSizedCLayoutField {
@@ -271,6 +309,9 @@ impl<E: fmt::Display> fmt::Display for ExactTypeFactsSemanticError<E> {
                 write!(f, "invalid semantic shape for {exact}: {error}")
             }
             Self::MissingFacts(exact) => write!(f, "missing exact type facts for {exact}"),
+            Self::DependencyIdentity { expected, actual } => {
+                write!(f, "dependency facts for {expected} resolve to {actual}")
+            }
             Self::ByValueCycle(exact) => write!(f, "by-value representation cycle at {exact}"),
             Self::EmptyCLayout(exact) => write!(f, "empty CLayout representation for {exact}"),
             Self::ZeroSizedCLayoutField { owner, field } => {
