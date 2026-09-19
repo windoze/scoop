@@ -9,6 +9,8 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use super::*;
 use crate::SignatureTypeReferenceResolver;
+mod metered;
+pub use metered::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct DecodedField<I: PersistentId> {

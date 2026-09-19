@@ -13,6 +13,9 @@ use crate::{
     SignatureTypeReferenceResolver,
 };
 
+mod metered;
+pub use metered::*;
+
 pub trait NominalRepresentationResolver<E>:
     SignatureTypeReferenceResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>

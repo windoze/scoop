@@ -9,6 +9,8 @@ use super::{
 };
 use crate::cross_cone_type_semantics::wire;
 
+mod metered;
+
 /// Canonical storage, not a substitute for source/facts/inheritance closure
 /// validation. The section validator supplies that authority before selection.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -53,38 +55,7 @@ impl DecodedCanonicalNominalRepresentationSupportV1 {
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalNominalRepresentationSupportV1, NominalRepresentationTableResolutionError<E>>
     {
-        let mut records = Vec::new();
-        let root = WirePath::root();
-        meter
-            .try_reserve_collection_slots(&mut records, self.records.len(), &root)
-            .map_err(NominalRepresentationTableResolutionError::Resource)?;
-        for (index, decoded) in self.records.into_iter().enumerate() {
-            let path = root.clone().index(index as u64);
-            meter
-                .charge_nodes(1, &path)
-                .map_err(NominalRepresentationTableResolutionError::Resource)?;
-            meter
-                .charge_work(1, &path)
-                .map_err(NominalRepresentationTableResolutionError::Resource)?;
-            let record = decoded.resolve(resolver).map_err(|source| {
-                NominalRepresentationTableResolutionError::Record { index, source }
-            })?;
-            if records
-                .last()
-                .is_some_and(|previous: &NominalRepresentationSupportV1| {
-                    previous.owner() >= record.owner()
-                })
-            {
-                return Err(NominalRepresentationTableResolutionError::Order(
-                    NominalRepresentationTableOrderError {
-                        index,
-                        owner: record.owner(),
-                    },
-                ));
-            }
-            records.push(record);
-        }
-        Ok(CanonicalNominalRepresentationSupportV1 { records })
+        self.resolve_metered(resolver, meter, &WirePath::root())
     }
 }
 

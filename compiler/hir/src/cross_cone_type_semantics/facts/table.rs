@@ -6,6 +6,9 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use super::{DecodedExactTypeFactsV1, ExactTypeFactsResolutionError, ExactTypeFactsV1};
 use crate::cross_cone_type_semantics::wire;
 
+mod metered;
+pub use metered::*;
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExactTypeFactsV1 {
     records: Vec<ExactTypeFactsV1>,

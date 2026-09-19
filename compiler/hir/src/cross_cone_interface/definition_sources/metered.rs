@@ -2,6 +2,28 @@
 use super::*;
 use scoop_wire::{BudgetMeter, WireErrorKind, WirePath, encoded_length};
 
+impl DecodedExportDefinitionSourceV1 {
+    /// Preflights the inline origin, before its source/context are resolved.
+    pub fn charge_resolution_at(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+        depth: u64,
+    ) -> Result<(), WireError> {
+        let source_depth = depth
+            .checked_add(2)
+            .ok_or_else(|| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        meter.check_semantic_depth(source_depth, path)?;
+        meter.check_semantic_leaf(self.origin.logical_path_byte_len() as u64, path)?;
+        meter.charge_nodes(3, path)?;
+        meter.charge_edges(5, path)?;
+        let bytes = encoded_length(self)
+            .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))?;
+        meter.charge_owned_bytes(bytes, path)?;
+        meter.charge_work(bytes, path)
+    }
+}
+
 impl DecodedCanonicalExportDefinitionSourcesV1 {
     pub fn resolve_metered<R, E>(
         self,

@@ -9,6 +9,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::wire;
+mod resources;
 use crate::{
     DecodedExportDefinitionSourceV1, DecodedSourceNominalId,
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,

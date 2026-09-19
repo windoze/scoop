@@ -15,6 +15,7 @@ mod source;
 mod tests;
 mod types;
 pub use errors::*;
+pub(super) use source::charge_key;
 
 impl NominalRepresentationSupportV1 {
     pub(in crate::cross_cone_type_semantics) fn signature_types_match_metered(
