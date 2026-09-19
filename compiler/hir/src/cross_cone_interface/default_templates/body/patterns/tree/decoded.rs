@@ -1,3 +1,5 @@
+mod resolution_nodes;
+
 use scoop_identity::DecodedSignatureTypeKey;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 

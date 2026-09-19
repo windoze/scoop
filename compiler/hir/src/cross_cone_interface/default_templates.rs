@@ -8,6 +8,7 @@ mod body;
 mod locals;
 mod receiver;
 mod references;
+mod resolution_resources;
 mod roots;
 mod table;
 mod template;

@@ -1,3 +1,5 @@
+mod resolution_nodes;
+
 use std::{collections::BTreeSet, num::NonZeroU32};
 
 use scoop_identity::DecodedSignatureTypeKey;

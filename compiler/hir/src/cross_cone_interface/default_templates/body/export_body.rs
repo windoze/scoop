@@ -1,3 +1,5 @@
+mod resolution_nodes;
+
 use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
