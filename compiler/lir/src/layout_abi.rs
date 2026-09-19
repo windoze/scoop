@@ -13,10 +13,17 @@ use scoop_wire::{
 };
 
 mod dependency;
+mod exports;
+mod section;
+mod semantic_closure;
 mod target;
 mod wire;
 
 pub use dependency::{DecodedLayoutAbiDependencyV1, LayoutAbiDependencyV1};
+pub use exports::{
+    LayoutAbiExportConstituentsError, LayoutAbiExportConstituentsV1, LayoutAbiSemanticRecordV1,
+};
+pub use section::*;
 pub use target::{DecodedLayoutAbiSemanticTargetV1, LayoutAbiSemanticTargetV1};
 
 #[derive(Debug)]
@@ -44,6 +51,35 @@ impl std::fmt::Display for LayoutAbiDependencyError {
 }
 
 impl std::error::Error for LayoutAbiDependencyError {}
+
+#[derive(Debug)]
+pub enum LayoutAbiSemanticClosureError {
+    ArithmeticOverflow,
+    DuplicateTarget(LayoutAbiSemanticTargetV1),
+    MissingTarget(LayoutAbiSemanticTargetV1),
+    Provider {
+        target: LayoutAbiSemanticTargetV1,
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    EmbeddedRecord(LayoutAbiSemanticTargetV1),
+    CurrentProvider(LayoutAbiSemanticTargetV1),
+    NonCanonicalRoots,
+    Hash(scoop_wire::HashError),
+    Resource(WireError),
+}
+
+impl From<scoop_wire::HashError> for LayoutAbiSemanticClosureError {
+    fn from(error: scoop_wire::HashError) -> Self {
+        Self::Hash(error)
+    }
+}
+
+impl From<WireError> for LayoutAbiSemanticClosureError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
 
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.map(2)?;
