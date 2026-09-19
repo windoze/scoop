@@ -73,6 +73,9 @@ pub use exact_dispatch::*;
 mod exact_shape_support;
 pub use exact_shape_support::*;
 
+mod layout_abi;
+pub use layout_abi::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 
