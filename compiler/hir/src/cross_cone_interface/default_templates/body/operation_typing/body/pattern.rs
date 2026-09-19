@@ -1,8 +1,8 @@
 use crate::{
-    CanonicalBooleanV1, CanonicalConstValueV1, DefaultLiteralEqualityV1,
-    DefaultOperationCoreTypeV1, DefaultOperationEntityV1, DefaultOperationExpectedTypeShapeV1,
-    DefaultOperationIntrinsicV1, DefaultOperationTypingSemanticAuthority,
-    DefaultOperationValueRoleV1, DefaultPatternV1, DefaultPatternViewV1,
+    CanonicalBooleanV1, CanonicalConstValueV1, DefaultBodyOperationAuthority,
+    DefaultLiteralEqualityV1, DefaultOperationCoreTypeV1, DefaultOperationEntityV1,
+    DefaultOperationExpectedTypeShapeV1, DefaultOperationIntrinsicV1, DefaultOperationValueRoleV1,
+    DefaultPatternV1, DefaultPatternViewV1,
 };
 
 use super::{
@@ -12,7 +12,7 @@ use super::{
 
 impl<A, E> BodyValidator<'_, A, E>
 where
-    A: DefaultOperationTypingSemanticAuthority<E>,
+    A: DefaultBodyOperationAuthority<E>,
 {
     pub(super) fn process_pattern<'body>(
         &mut self,

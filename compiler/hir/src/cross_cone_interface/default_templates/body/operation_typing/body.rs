@@ -1,3 +1,7 @@
+use super::{
+    DefaultBodyOperationAuthority, DefaultBodyValidationInputV1, authority::PublicAuthority,
+};
+
 use std::fmt;
 
 use scoop_identity::{Effect, SignatureTypeKey};
@@ -285,19 +289,39 @@ impl ExportDefaultBodyV1 {
     where
         A: DefaultOperationTypingSemanticAuthority<E>,
     {
+        DefaultBodyValidationInputV1::from(template).validate_operation_typing(
+            self,
+            &mut PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+    }
+}
+
+impl DefaultBodyValidationInputV1<'_> {
+    pub(crate) fn validate_operation_typing<A: DefaultBodyOperationAuthority<E>, E>(
+        self,
+        body: &ExportDefaultBodyV1,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         BodyValidator {
-            template,
+            template: self,
             authority,
             meter,
             path,
             error: std::marker::PhantomData,
         }
-        .run(self)
+        .run(body)
     }
 }
 
 struct BodyValidator<'a, A, E> {
-    template: &'a ExportDefaultTemplateV1,
+    template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
     meter: &'a mut BudgetMeter,
     path: &'a WirePath,
@@ -306,7 +330,7 @@ struct BodyValidator<'a, A, E> {
 
 impl<A, E> BodyValidator<'_, A, E>
 where
-    A: DefaultOperationTypingSemanticAuthority<E>,
+    A: DefaultBodyOperationAuthority<E>,
 {
     fn run(
         &mut self,
@@ -493,7 +517,7 @@ where
     ) -> Result<SignatureTypeKey, ExportDefaultBodyOperationTypingValidationError<E>> {
         self.charge_work()?;
         self.authority
-            .canonical_default_operation_type(self.template, role)
+            .canonical_default_operation_type(role, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )
@@ -508,7 +532,7 @@ where
         self.charge_work()?;
         let actual = self
             .authority
-            .classify_default_core_application(self.template, value)
+            .classify_default_core_application(value, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )?;
@@ -532,7 +556,7 @@ where
     {
         self.charge_work()?;
         self.authority
-            .default_operation_entity_shape(self.template, entity)
+            .default_operation_entity_shape(entity, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )
@@ -604,7 +628,7 @@ where
         self.charge_work()?;
         let valid = self
             .authority
-            .default_operation_type_relation(self.template, relation, source, target)
+            .default_operation_type_relation(relation, source, target, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )?;
@@ -645,7 +669,7 @@ where
     ) -> Result<(), ExportDefaultBodyOperationTypingValidationError<E>> {
         self.charge_work()?;
         self.authority
-            .validate_default_operation_intrinsic(self.template, intrinsic)
+            .validate_default_operation_intrinsic(intrinsic, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultBodyOperationTypingValidationError::Authority { site, error },
             )

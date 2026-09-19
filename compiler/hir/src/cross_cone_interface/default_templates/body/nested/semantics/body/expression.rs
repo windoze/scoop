@@ -5,13 +5,13 @@ use crate::{
 
 use super::{BodyNode, WorkItem};
 use crate::cross_cone_interface::default_templates::body::nested::semantics::{
-    DefaultNestedCallableAbiValidationError, DefaultNestedCallableLocalUseV1,
-    DefaultNestedCallableSemanticAuthority, Validator,
+    DefaultBodyNestedAuthority, DefaultNestedCallableAbiValidationError,
+    DefaultNestedCallableLocalUseV1, Validator,
 };
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: DefaultNestedCallableSemanticAuthority<E>,
+    A: DefaultBodyNestedAuthority<E>,
 {
     pub(super) fn process_expression<'body>(
         &mut self,

@@ -1,3 +1,5 @@
+use crate::{DefaultBodyDataFlowAuthority, DefaultBodyValidationInputV1};
+
 use std::fmt;
 
 use scoop_identity::{LocalValueSelector, PersistentFieldId, SignatureTypeKey};
@@ -7,6 +9,7 @@ use crate::{
     CanonicalBooleanV1, DefaultBindingTemporaryV1, ExportDefaultTemplateV1, TemplateLocalRecordV1,
 };
 
+mod authority;
 mod binding;
 mod control;
 mod expression;
@@ -40,12 +43,30 @@ impl ExportDefaultTemplateV1 {
     where
         A: DefaultLocalDataFlowSemanticAuthority<E>,
     {
+        DefaultBodyValidationInputV1::from(self).validate_local_data_flow(
+            &mut authority::PublicAuthority {
+                template: self,
+                authority,
+            },
+            meter,
+            path,
+        )
+    }
+}
+
+impl DefaultBodyValidationInputV1<'_> {
+    pub(crate) fn validate_local_data_flow<A: DefaultBodyDataFlowAuthority<E>, E>(
+        self,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), ExportDefaultLocalDataFlowValidationError<E>> {
         Validator::new(self, authority, meter, path)?.run()
     }
 }
 
 struct Validator<'a, A, E> {
-    template: &'a ExportDefaultTemplateV1,
+    template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
     owners: Vec<Option<DefinitionOwner>>,
     next_plan: u32,
@@ -56,10 +77,10 @@ struct Validator<'a, A, E> {
 
 impl<'a, A, E> Validator<'a, A, E>
 where
-    A: DefaultLocalDataFlowSemanticAuthority<E>,
+    A: DefaultBodyDataFlowAuthority<E>,
 {
     fn new(
-        template: &'a ExportDefaultTemplateV1,
+        template: DefaultBodyValidationInputV1<'a>,
         authority: &'a mut A,
         meter: &'a mut BudgetMeter,
         path: &'a WirePath,

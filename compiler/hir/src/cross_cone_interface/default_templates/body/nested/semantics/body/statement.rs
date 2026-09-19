@@ -7,12 +7,12 @@ use crate::{
 
 use super::{BodyNode, WorkItem};
 use crate::cross_cone_interface::default_templates::body::nested::semantics::{
-    DefaultNestedCallableAbiValidationError, DefaultNestedCallableSemanticAuthority, Validator,
+    DefaultBodyNestedAuthority, DefaultNestedCallableAbiValidationError, Validator,
 };
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: DefaultNestedCallableSemanticAuthority<E>,
+    A: DefaultBodyNestedAuthority<E>,
 {
     pub(super) fn process_statement<'body>(
         &mut self,

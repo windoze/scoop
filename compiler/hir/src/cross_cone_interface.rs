@@ -258,6 +258,10 @@ pub use default_templates::{
     ExportDefaultSingletonReferenceV1, ExportDefaultTargetDomainV1, ExportDefaultTypeReferenceV1,
     compare_default_signature_reference_targets,
 };
+pub(crate) use default_templates::{
+    DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
+    DefaultBodyValidationInputV1,
+};
 pub use default_templates::{
     MeteredDefaultTemplateTypeSubstitutionError, MeteredTemplateReceiverSemanticValidationError,
     MeteredTemplateValueParameterSemanticValidationError,

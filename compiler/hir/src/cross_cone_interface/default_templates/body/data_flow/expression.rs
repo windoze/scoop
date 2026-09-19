@@ -8,7 +8,7 @@ use super::{DefaultLocalDataFlowSiteV1, ExportDefaultLocalDataFlowValidationErro
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: super::DefaultLocalDataFlowSemanticAuthority<E>,
+    A: super::DefaultBodyDataFlowAuthority<E>,
 {
     pub(super) fn validate_expression(
         &mut self,

@@ -10,6 +10,12 @@ mod patterns;
 mod references;
 mod semantics;
 mod statements;
+mod validation_input;
+
+pub(crate) use validation_input::{
+    DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
+    DefaultBodyValidationInputV1,
+};
 
 #[cfg(test)]
 pub(crate) use expressions::test_support as expression_test_support;

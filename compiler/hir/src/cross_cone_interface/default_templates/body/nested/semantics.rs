@@ -1,3 +1,5 @@
+use crate::{DefaultBodyNestedAuthority, DefaultBodyValidationInputV1};
+
 use std::collections::HashSet;
 use std::fmt;
 
@@ -15,6 +17,7 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
+mod authority;
 mod body;
 
 /// The kind-preserving persistent identity of one nested callable descriptor.
@@ -192,7 +195,16 @@ impl DefaultLocalFunctionV1 {
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        Validator::new(template, authority, meter, path).validate_local_function(self, 1)
+        Validator::new(
+            DefaultBodyValidationInputV1::from(template),
+            &mut authority::PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+        .validate_local_function(self, 1)
     }
 }
 
@@ -207,7 +219,16 @@ impl DefaultLambdaV1 {
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        Validator::new(template, authority, meter, path).validate_lambda(self, 1)
+        Validator::new(
+            DefaultBodyValidationInputV1::from(template),
+            &mut authority::PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+        .validate_lambda(self, 1)
     }
 }
 
@@ -222,7 +243,16 @@ impl DefaultAnonymousFunctionV1 {
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        Validator::new(template, authority, meter, path).validate_anonymous(self, 1)
+        Validator::new(
+            DefaultBodyValidationInputV1::from(template),
+            &mut authority::PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+        .validate_anonymous(self, 1)
     }
 }
 
@@ -237,12 +267,21 @@ impl DefaultCallableReferenceV1 {
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        Validator::new(template, authority, meter, path).validate_callable_reference(self, 1)
+        Validator::new(
+            DefaultBodyValidationInputV1::from(template),
+            &mut authority::PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+        .validate_callable_reference(self, 1)
     }
 }
 
 pub(super) struct Validator<'a, A, E> {
-    template: &'a ExportDefaultTemplateV1,
+    template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
     meter: &'a mut BudgetMeter,
     path: &'a WirePath,
@@ -253,10 +292,10 @@ pub(super) struct Validator<'a, A, E> {
 
 impl<'a, A, E> Validator<'a, A, E>
 where
-    A: DefaultNestedCallableSemanticAuthority<E>,
+    A: DefaultBodyNestedAuthority<E>,
 {
     pub(super) fn new(
-        template: &'a ExportDefaultTemplateV1,
+        template: DefaultBodyValidationInputV1<'a>,
         authority: &'a mut A,
         meter: &'a mut BudgetMeter,
         path: &'a WirePath,
@@ -352,7 +391,7 @@ where
         self.charge_work()?;
         let identity_shape = self
             .authority
-            .default_nested_callable_identity_shape(self.template, identity)
+            .default_nested_callable_identity_shape(identity, self.meter, self.path)
             .map_err(|error| DefaultNestedCallableAbiValidationError::Authority {
                 kind,
                 query: DefaultNestedCallableAuthorityQueryV1::Identity,
@@ -404,7 +443,7 @@ where
         self.charge_work()?;
         let abi = self
             .authority
-            .default_nested_callable_abi_shape(self.template, identity, body_arguments)
+            .default_nested_callable_abi_shape(identity, body_arguments, self.meter, self.path)
             .map_err(|error| DefaultNestedCallableAbiValidationError::Authority {
                 kind,
                 query: DefaultNestedCallableAuthorityQueryV1::Abi,

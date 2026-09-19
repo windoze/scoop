@@ -1,3 +1,5 @@
+use super::{DefaultBodyNestedAuthority, DefaultBodyValidationInputV1, authority::PublicAuthority};
+
 use crate::{
     DefaultAnonymousFunctionV1, DefaultAssignTargetV1, DefaultBindingActionV1,
     DefaultCallableReferenceV1, DefaultCatchV1, DefaultExpressionV1, DefaultForIterationPlanV1,
@@ -27,13 +29,33 @@ impl ExportDefaultBodyV1 {
     where
         A: DefaultNestedCallableSemanticAuthority<E>,
     {
-        Validator::new(template, authority, meter, path).validate_body(self)
+        DefaultBodyValidationInputV1::from(template).validate_nested_callable_abi(
+            self,
+            &mut PublicAuthority {
+                template,
+                authority,
+            },
+            meter,
+            path,
+        )
+    }
+}
+
+impl DefaultBodyValidationInputV1<'_> {
+    pub(crate) fn validate_nested_callable_abi<A: DefaultBodyNestedAuthority<E>, E>(
+        self,
+        body: &ExportDefaultBodyV1,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        Validator::new(self, authority, meter, path).validate_body(body)
     }
 }
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: DefaultNestedCallableSemanticAuthority<E>,
+    A: DefaultBodyNestedAuthority<E>,
 {
     fn validate_body(
         &mut self,

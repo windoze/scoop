@@ -13,7 +13,7 @@ use super::{
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: super::DefaultLocalDataFlowSemanticAuthority<E>,
+    A: super::DefaultBodyDataFlowAuthority<E>,
 {
     pub(super) fn validate_for(
         &mut self,
@@ -397,9 +397,10 @@ where
                     } => Some(
                         self.authority
                             .default_binding_struct_field_index(
-                                self.template,
                                 declaration,
                                 owner_type,
+                                self.meter,
+                                self.path,
                             )
                             .map_err(|error| {
                                 ExportDefaultLocalDataFlowValidationError::BindingShape(Box::new(

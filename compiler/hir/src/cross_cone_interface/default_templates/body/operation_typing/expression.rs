@@ -14,7 +14,10 @@ use crate::{
     ExportDefaultOperationTypingValidationError, ExportDefaultTemplateV1,
 };
 
-use super::{Validator, expression_operation};
+use super::{
+    DefaultBodyOperationAuthority, DefaultBodyValidationInputV1, Validator,
+    authority::PublicAuthority, expression_operation,
+};
 
 impl crate::DefaultExpressionV1 {
     /// Validates this complete expression subtree against canonical provider
@@ -30,9 +33,13 @@ impl crate::DefaultExpressionV1 {
     where
         A: DefaultOperationTypingSemanticAuthority<E>,
     {
-        Validator {
+        let mut adapter = PublicAuthority {
             template,
             authority,
+        };
+        Validator {
+            template: DefaultBodyValidationInputV1::from(template),
+            authority: &mut adapter,
             meter,
             path,
             error: std::marker::PhantomData,
@@ -43,7 +50,7 @@ impl crate::DefaultExpressionV1 {
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: DefaultOperationTypingSemanticAuthority<E>,
+    A: DefaultBodyOperationAuthority<E>,
 {
     pub(super) fn run_expression_at(
         &mut self,
@@ -1417,7 +1424,7 @@ where
         self.charge_work()?;
         let actual = self
             .authority
-            .classify_default_core_application(self.template, value)
+            .classify_default_core_application(value, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;

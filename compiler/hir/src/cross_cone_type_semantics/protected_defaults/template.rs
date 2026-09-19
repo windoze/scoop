@@ -7,11 +7,13 @@ use crate::{
     OptionalTemplateReceiverV1, PersistentLexicalRootV1, ProtectedDefaultTemplateKeyV1,
 };
 
+mod body_semantics;
 mod decode;
 mod errors;
 mod indexed;
 mod semantics;
 mod validation;
+pub use body_semantics::*;
 pub use decode::*;
 pub use errors::*;
 pub use indexed::*;

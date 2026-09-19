@@ -1,3 +1,5 @@
+use crate::{DefaultBodyOperationAuthority, DefaultBodyValidationInputV1};
+
 use std::fmt;
 
 use scoop_identity::{
@@ -14,6 +16,7 @@ use crate::{
     DefaultLiteralEqualityV1, DefaultMethodCalleeV1, ExportDefaultTemplateV1,
 };
 
+mod authority;
 mod body;
 mod expression;
 
@@ -660,7 +663,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 }
 
 struct Validator<'a, A, E> {
-    template: &'a ExportDefaultTemplateV1,
+    template: DefaultBodyValidationInputV1<'a>,
     authority: &'a mut A,
     meter: &'a mut BudgetMeter,
     path: &'a WirePath,
@@ -669,7 +672,7 @@ struct Validator<'a, A, E> {
 
 impl<A, E> Validator<'_, A, E>
 where
-    A: DefaultOperationTypingSemanticAuthority<E>,
+    A: DefaultBodyOperationAuthority<E>,
 {
     fn site(
         operation: DefaultExpressionOperationV1,
@@ -729,7 +732,7 @@ where
     ) -> Result<SignatureTypeKey, ExportDefaultOperationTypingValidationError<E>> {
         self.charge_work()?;
         self.authority
-            .canonical_default_operation_type(self.template, role)
+            .canonical_default_operation_type(role, self.meter, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
@@ -742,7 +745,7 @@ where
         self.charge_work()?;
         let actual = self
             .authority
-            .classify_default_core_application(self.template, value)
+            .classify_default_core_application(value, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;
@@ -768,7 +771,7 @@ where
     ) -> Result<DefaultOperationEntityShapeV1, ExportDefaultOperationTypingValidationError<E>> {
         self.charge_work()?;
         self.authority
-            .default_operation_entity_shape(self.template, entity)
+            .default_operation_entity_shape(entity, self.meter, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
@@ -831,7 +834,7 @@ where
         self.charge_work()?;
         let valid = self
             .authority
-            .default_operation_type_relation(self.template, relation, source, target)
+            .default_operation_type_relation(relation, source, target, self.meter, self.path)
             .map_err(
                 |error| ExportDefaultOperationTypingValidationError::Authority { site, error },
             )?;
@@ -928,7 +931,7 @@ where
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         self.charge_work()?;
         self.authority
-            .validate_default_operation_intrinsic(self.template, intrinsic)
+            .validate_default_operation_intrinsic(intrinsic, self.meter, self.path)
             .map_err(|error| ExportDefaultOperationTypingValidationError::Authority { site, error })
     }
 
