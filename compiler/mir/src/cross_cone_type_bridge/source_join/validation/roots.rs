@@ -73,13 +73,13 @@ pub(super) fn validate<E>(
     Ok(())
 }
 
-fn core_family<E>(
+pub(in crate::cross_cone_type_bridge) fn core_family<E>(
     exports: &MirTypeBridgeExportConstituentsV1,
     identities: &ValidatedIdentityGraph,
     source: PersistentTypeId,
     exact: PersistentExactTypeId,
     meter: &mut BudgetMeter,
-) -> Result<(), MirTypeBridgeSourceJoinError<E>> {
+) -> Result<ParamFreeMirShapeSupportV1, MirTypeBridgeSourceJoinError<E>> {
     use MirTypeBridgeSourceJoinError as Error;
     let source_type = exports
         .types
@@ -107,8 +107,7 @@ fn core_family<E>(
         slot,
         meter,
     )
-    .map_err(Error::Shape)?;
-    Ok(())
+    .map_err(Error::Shape)
 }
 fn helper<E>(
     key: GeneratedNominalKey,

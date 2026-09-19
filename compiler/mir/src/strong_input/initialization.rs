@@ -187,3 +187,5 @@ fn role(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) use tests::initialization_test_input;

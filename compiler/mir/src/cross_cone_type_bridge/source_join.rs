@@ -6,7 +6,7 @@ use super::*;
 use scoop_identity::{ConeIdentity, PersistentObjectValueId, StrongCallableDefinitionOwner};
 
 mod model;
-mod validation;
+pub(in crate::cross_cone_type_bridge) mod validation;
 
 pub use model::*;
 pub use validation::MirTypeBridgeSourceJoinError;

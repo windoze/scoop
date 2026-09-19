@@ -1,0 +1,126 @@
+use super::identity_support::{add_function, add_function_to};
+use super::*;
+use scoop_identity::{CallableOwner, DependencyCallableDeclarationId, SourceNominalKind};
+
+pub(super) fn fixture() -> Fixture {
+    let mut types =
+        TypeFixture::with_source_provider("Unit", SourceNominalKind::Struct, ConeIdentity::CORE);
+    let unit = ParamFreeMirTypeExportV1::try_new(
+        types.authority(),
+        types.payload.id(),
+        MirTypeOriginV1::SourceNominal(types.empty.id()),
+        types.empty_export().facts(),
+        MirTypeRepresentationV1::Intrinsic(MirParamFreeIntrinsicV1::Unit),
+        types.empty_export().base_and_interfaces().clone(),
+    )
+    .unwrap();
+    let table = CanonicalParamFreeMirTypeExportsV1::try_new(vec![
+        unit,
+        types.boxed_export(),
+        types.step_export(),
+        types.slot_export(),
+    ])
+    .unwrap();
+    let source = Source::new(
+        ConeIdentity::CORE,
+        vec![types.empty.id()],
+        exports(&types, ConeIdentity::CORE, table),
+    );
+    let ordinary = crate::CrossConeMirBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        &types.foundation,
+        vec![],
+        vec![],
+    )
+    .unwrap();
+    let (cycle, _) = add_function_to(&mut types, ConeIdentity::CORE, "cycle");
+    let core = crate::CoreMirBridgeV1::try_new(
+        vec![],
+        vec![crate::CoreMirShapeSupportRootV1::new(types.empty.id(), types.payload.id()).unwrap()],
+        crate::CoreMirInitializationCycleThrowerV1::new(cycle, CallableOwner::Function(cycle))
+            .unwrap(),
+    )
+    .unwrap();
+    let production = crate::CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        crate::CoreMirBridgeBranchV1::Core(core),
+        crate::EntryMirBridgeBranchV1::Library,
+        crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&types.foundation),
+    )
+    .unwrap();
+    Fixture {
+        types,
+        source,
+        production,
+        ordinary,
+    }
+}
+
+#[test]
+fn existing_core_roots_supply_shapes_without_duplicate_wire_authority() {
+    let provider = fixture();
+    let mut consumer = Fixture::new("core-client");
+    consumer.source.uses = vec![provider.shape_use()];
+    let mut graph = graph(&[&provider, &consumer]);
+    let core = provider.section(&[], &graph).unwrap();
+    assert!(core.shape_support().records().is_empty());
+    let section = consumer.section(&[&core], &graph).unwrap();
+    assert_eq!(section.selected().len(), 5);
+    let bytes = encode(&core).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let replayed = decoded
+        .validate(
+            provider.authority(),
+            &[],
+            &provider.source,
+            &mut graph,
+            &mut meter(),
+        )
+        .unwrap();
+    assert_eq!(encode(&replayed).unwrap(), bytes);
+}
+
+#[test]
+fn fixed_core_and_ordinary_callable_partitions_cannot_be_selected_again() {
+    let core_provider = fixture();
+    let mut ordinary = Fixture::new("ordinary-provider");
+    let (function, signature) = add_function(&mut ordinary, "ordinary");
+    ordinary.production = production(ordinary.source.provider, &ordinary.types.foundation);
+    ordinary.ordinary = crate::CrossConeMirBridgeSectionV1::try_new(
+        ordinary.source.provider,
+        &ordinary.types.foundation,
+        vec![
+            crate::ParamFreeMirCallableExportV1::try_new(
+                DependencyCallableDeclarationId::Function(function),
+                StrongCallableDefinitionOwner::Function(function),
+                signature,
+            )
+            .unwrap(),
+        ],
+        vec![],
+    )
+    .unwrap();
+    let mut consumer = Fixture::new("partition-client");
+    let graph = graph(&[&core_provider, &ordinary, &consumer]);
+    let core = core_provider.section(&[], &graph).unwrap();
+    let old = ordinary.section(&[], &graph).unwrap();
+    let crate::CoreMirBridgeBranchV1::Core(bridge) = core_provider.production.core_bridge() else {
+        panic!()
+    };
+    for (provider, target) in [
+        (
+            core_provider.source.provider,
+            bridge.initialization_cycle_thrower().definition(),
+        ),
+        (ordinary.source.provider, function),
+    ] {
+        consumer.source.uses = vec![MirTypeBridgeDependencyV1::new(
+            provider,
+            MirTypeBridgeTargetV1::Callable(StrongCallableDefinitionOwner::Function(target)),
+        )];
+        assert!(
+            matches!(consumer.section(&[&core, &old], &graph), Err(MirTypeBridgeSectionError::OldCallablePartition(actual)) if actual == StrongCallableDefinitionOwner::Function(target))
+        );
+    }
+}

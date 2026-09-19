@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::{IdentityReferenceError, SourceDeclarationKey};
 
 mod ownership;
-mod roots;
+pub(in crate::cross_cone_type_bridge) mod roots;
 
 #[derive(Debug)]
 pub enum MirTypeBridgeSourceJoinError<E> {

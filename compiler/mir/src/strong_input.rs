@@ -18,6 +18,8 @@ use crate::{
 mod errors;
 pub use errors::*;
 mod initialization;
+#[cfg(test)]
+pub(crate) use initialization::initialization_test_input;
 pub use initialization::{
     StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
 };

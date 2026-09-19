@@ -42,11 +42,32 @@ impl MirTypeBridgeSemanticReferencesV1 {
         meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeReferenceError> {
         let mut collector = Collector::new(graph, meter);
-        collector.meter.charge_work(1, &WirePath::root())?;
-        let key = graph.canonical_key::<_, InitializationUnitKey>(unit)?;
+        collector.unit(unit)?;
+        collector.finish()
+    }
+
+    pub fn of_initialization_contract(
+        unit: PersistentInitializationUnitId,
+        signature: &MirBridgeCallableSignatureV1,
+        graph: &ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, MirTypeBridgeReferenceError> {
+        let mut collector = Collector::new(graph, meter);
+        collector.unit(unit)?;
+        collector.signature(signature)?;
+        collector.finish()
+    }
+}
+impl Collector<'_> {
+    fn unit(
+        &mut self,
+        unit: PersistentInitializationUnitId,
+    ) -> Result<(), MirTypeBridgeReferenceError> {
+        self.meter.charge_work(1, &WirePath::root())?;
+        let key = self.graph.canonical_key::<_, InitializationUnitKey>(unit)?;
         match key.as_ref() {
             InitializationUnitKey::Object(object) | InitializationUnitKey::Companion(object) => {
-                collector.nominal(*object)?;
+                self.nominal(*object)?;
             }
             InitializationUnitKey::TopLevelProperty(_)
             | InitializationUnitKey::ExtensionProperty(_) => {}
@@ -54,6 +75,6 @@ impl MirTypeBridgeSemanticReferencesV1 {
                 return Err(MirTypeBridgeReferenceError::GenericUnitGate(unit));
             }
         }
-        collector.finish()
+        Ok(())
     }
 }

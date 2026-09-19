@@ -2,6 +2,7 @@ use super::*;
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 mod dispatch;
+mod members;
 mod objects;
 mod types;
 mod wire;

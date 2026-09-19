@@ -54,7 +54,7 @@ impl std::fmt::Display for MirObjectBridgeError {
 impl std::error::Error for MirObjectBridgeError {}
 
 impl MirObjectBridgeAuthority<'_> {
-    pub(super) fn validate_object(
+    pub(in crate::cross_cone_type_bridge) fn validate_object(
         &self,
         value: PersistentObjectValueId,
         backing: PersistentExactTypeId,

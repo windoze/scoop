@@ -15,7 +15,7 @@ impl MirTypeBridgeSemanticReferencesV1 {
             | MirCallableLoweringRoleV1::DerivedEquality { owner } => collector.exact(owner)?,
             MirCallableLoweringRoleV1::DispatchAdjust { target }
             | MirCallableLoweringRoleV1::BoxingAdjust { target } => {
-                collector.push(MirTypeBridgeTargetV1::Callable(target))?;
+                collector.member_target(target)?;
             }
             MirCallableLoweringRoleV1::ObjectEnsure { unit }
             | MirCallableLoweringRoleV1::ObjectInitializer { unit } => {

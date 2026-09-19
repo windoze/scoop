@@ -60,7 +60,7 @@ impl std::fmt::Display for MirCallableBridgeError {
 impl std::error::Error for MirCallableBridgeError {}
 
 impl MirCallableBridgeAuthority<'_> {
-    pub(super) fn validate(
+    pub(in crate::cross_cone_type_bridge) fn validate(
         &self,
         binding: &ParamFreeMirCallableBindingV1,
     ) -> Result<(), MirCallableBridgeError> {

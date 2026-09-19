@@ -35,8 +35,6 @@ impl Collector<'_> {
     fn entry(&mut self, entry: &MirDispatchEntryV1) -> Result<(), MirTypeBridgeReferenceError> {
         self.slot(entry.slot())?;
         self.signature(entry.signature())?;
-        self.push(MirTypeBridgeTargetV1::Callable(
-            entry.implementation().target(),
-        ))
+        self.dispatch_target(entry.implementation().target())
     }
 }

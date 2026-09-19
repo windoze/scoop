@@ -22,6 +22,7 @@ pub enum MirTypeBridgeReferenceError {
     StructuralExecutionGate(PersistentExactTypeId),
     GenericUnitGate(PersistentInitializationUnitId),
     GeneratedExecutionGate,
+    NonMemberCallableTarget(StrongCallableDefinitionOwner),
 }
 impl From<WireError> for MirTypeBridgeReferenceError {
     fn from(value: WireError) -> Self {
@@ -146,12 +147,12 @@ impl<'a> Collector<'a> {
     ) -> Result<(), MirTypeBridgeReferenceError> {
         self.meter.charge_work(1, &WirePath::root())?;
         let key = self.graph.canonical_key::<_, DispatchSlotKey>(slot)?;
-        self.push(MirTypeBridgeTargetV1::Callable(match key.owner() {
+        self.member_target(match key.owner() {
             DispatchDeclarationOwner::Function(id) => StrongCallableDefinitionOwner::Function(id),
             DispatchDeclarationOwner::Accessor(id) => {
                 StrongCallableDefinitionOwner::PropertyAccessor(id)
             }
-        }))
+        })
     }
     pub fn finish(
         mut self,

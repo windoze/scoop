@@ -7,6 +7,7 @@ use scoop_identity::{
 };
 
 mod collector;
+mod members;
 mod records;
 mod target;
 mod wire;

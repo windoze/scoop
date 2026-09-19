@@ -87,7 +87,7 @@ impl SelectedExternalInitializationUseV1 {
     }
 }
 
-fn unit_provider(
+pub(in crate::cross_cone_type_bridge) fn unit_provider(
     identities: &ValidatedIdentityGraph,
     unit: PersistentInitializationUnitId,
 ) -> Result<ConeIdentity, MirObjectBridgeError> {

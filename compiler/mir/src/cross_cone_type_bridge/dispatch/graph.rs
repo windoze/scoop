@@ -122,7 +122,7 @@ impl MirDispatchSchemaAuthority<'_> {
         Ok(())
     }
 
-    pub(super) fn validate_with_dependencies(
+    pub(in crate::cross_cone_type_bridge) fn validate_with_dependencies(
         &self,
         table: &CanonicalMirDispatchSchemasV1,
         dependencies: &[&CanonicalMirDispatchSchemasV1],
