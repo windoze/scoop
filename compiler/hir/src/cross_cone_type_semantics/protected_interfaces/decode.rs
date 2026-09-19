@@ -50,6 +50,19 @@ impl DecodedProtectedCallablePayloadV1 {
         resolver: &mut R,
         meter: &mut BudgetMeter,
     ) -> Result<ProtectedCallablePayloadV1, ProtectedCallableInterfaceResolutionError<E>> {
+        ProtectedCallablePayloadV1::from_source_signature(self.resolve_source_signature(
+            declaration,
+            resolver,
+            meter,
+        )?)
+        .map_err(ProtectedCallableInterfaceResolutionError::Interface)
+    }
+    pub(super) fn resolve_source_signature<R: ProtectedCallableInterfaceResolver<E>, E>(
+        self,
+        declaration: CallableTemplateOrigin,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+    ) -> Result<NominalSourceCallablePayloadV1, ProtectedCallableInterfaceResolutionError<E>> {
         use ProtectedCallableInterfaceResolutionError as Error;
         meter
             .charge_nodes(1, &WirePath::root())
@@ -86,7 +99,7 @@ impl DecodedProtectedCallablePayloadV1 {
         let result = self.result.resolve(resolver).map_err(Error::Identity)?;
         let effects = self.effects.validate().map_err(Error::Effects)?;
         let slots = self.slot_relations.resolve(resolver, meter)?;
-        ProtectedCallablePayloadV1::try_new(
+        NominalSourceCallablePayloadV1::try_new(
             declaration,
             owner,
             type_parameters,

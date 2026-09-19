@@ -84,6 +84,9 @@ impl ProtectedPropertySemanticAuthority<&'static str> for Fixture {
         &self,
         property: PersistentPropertyId,
     ) -> Result<&SourceDeclarationKey, &'static str> {
+        if let Some(source) = self.const_sources.get(&property) {
+            return Ok(source.declaration());
+        }
         self.declarations
             .values()
             .find(|key| PersistentPropertyId::from_source_declaration(key).ok() == Some(property))

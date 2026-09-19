@@ -1,13 +1,16 @@
 use super::{
-    ProtectedCallablePayloadV1, ProtectedCallableSemanticAuthority,
+    NominalSourceCallablePayloadV1, ProtectedCallableSemanticAuthority,
     ProtectedCallableSemanticError as Error,
 };
 use crate::TypeParameterBoundsV1;
 use scoop_identity::SignatureTypeKey;
 use scoop_wire::{BudgetMeter, WirePath};
 
-pub(super) fn validate_types<A: ProtectedCallableSemanticAuthority<E>, E>(
-    payload: &ProtectedCallablePayloadV1,
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_types<
+    A: ProtectedCallableSemanticAuthority<E>,
+    E,
+>(
+    payload: &NominalSourceCallablePayloadV1,
     owner_arity: u32,
     authority: &mut A,
     meter: &mut BudgetMeter,
@@ -50,7 +53,7 @@ pub(super) fn validate_types<A: ProtectedCallableSemanticAuthority<E>, E>(
 }
 
 pub(super) fn parameters_match(
-    payload: &ProtectedCallablePayloadV1,
+    payload: &NominalSourceCallablePayloadV1,
     expected: &[SignatureTypeKey],
 ) -> bool {
     payload.parameters().parameters().len() == expected.len()

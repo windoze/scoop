@@ -10,6 +10,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{PublicNominalKindV1, SignatureTypeReferenceResolver};
 
 mod errors;
+mod metered_resolution;
 mod semantics;
 
 pub use errors::{

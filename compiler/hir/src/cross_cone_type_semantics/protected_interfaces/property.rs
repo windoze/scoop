@@ -7,13 +7,17 @@ use scoop_wire::{Encoder, WireEncode};
 
 mod decode;
 mod errors;
-mod semantics;
+pub(super) mod semantics;
+mod source_decode;
+mod source_payload;
 #[cfg(test)]
 mod tests;
 
 pub use decode::*;
 pub use errors::*;
 pub use semantics::*;
+pub use source_decode::*;
+pub use source_payload::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProtectedPropertyMutabilityV1 {
@@ -43,12 +47,8 @@ impl WireEncode for ProtectedPropertyMutabilityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProtectedPropertyPayloadV1 {
-    owner: SourceNominalId,
-    value_type: SignatureTypeKey,
-    getter: PersistentPropertyAccessorId,
-    mutability: ProtectedPropertyMutabilityV1,
-    representation: PropertyRepresentationV1,
-    slot_relations: CanonicalProtectedSlotRefsV1,
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) source:
+        NominalSourcePropertyPayloadV1,
 }
 impl ProtectedPropertyPayloadV1 {
     pub fn try_new(
@@ -59,71 +59,34 @@ impl ProtectedPropertyPayloadV1 {
         representation: PropertyRepresentationV1,
         slot_relations: CanonicalProtectedSlotRefsV1,
     ) -> Result<Self, ProtectedPropertyBuildError> {
-        use ProtectedPropertyBuildError as Error;
-        if representation == PropertyRepresentationV1::Const {
-            return Err(Error::Representation);
-        }
-        if representation == PropertyRepresentationV1::AbstractSlot && slot_relations.is_empty() {
-            return Err(Error::MissingSlot);
-        }
-        if let ProtectedPropertyMutabilityV1::ReadWrite {
-            setter,
-            setter_access,
-        } = &mutability
-        {
-            if *setter == getter {
-                return Err(Error::Accessor);
-            }
-            if setter_access.declared_visibility() == DeclaredVisibilityV1::Public {
-                return Err(Error::SetterAccess);
-            }
-            if setter_access.lexical_owners().last().copied() != Some(owner) {
-                return Err(Error::Owner);
-            }
-        }
-        Ok(Self {
+        Self::from_source_payload(NominalSourcePropertyPayloadV1::try_new(
             owner,
             value_type,
             getter,
             mutability,
             representation,
             slot_relations,
-        })
+        )?)
     }
-    pub const fn owner(&self) -> SourceNominalId {
-        self.owner
+    pub(super) fn from_source_payload(
+        source: NominalSourcePropertyPayloadV1,
+    ) -> Result<Self, ProtectedPropertyBuildError> {
+        if matches!(source.mutability(), ProtectedPropertyMutabilityV1::ReadWrite { setter_access, .. } if setter_access.declared_visibility() == DeclaredVisibilityV1::Public)
+        {
+            return Err(ProtectedPropertyBuildError::SetterAccess);
+        }
+        Ok(Self { source })
     }
-    pub const fn value_type(&self) -> &SignatureTypeKey {
-        &self.value_type
-    }
-    pub const fn getter(&self) -> PersistentPropertyAccessorId {
-        self.getter
-    }
-    pub const fn mutability(&self) -> &ProtectedPropertyMutabilityV1 {
-        &self.mutability
-    }
-    pub const fn representation(&self) -> PropertyRepresentationV1 {
-        self.representation
-    }
-    pub const fn slot_relations(&self) -> &CanonicalProtectedSlotRefsV1 {
-        &self.slot_relations
+}
+impl std::ops::Deref for ProtectedPropertyPayloadV1 {
+    type Target = NominalSourcePropertyPayloadV1;
+    fn deref(&self) -> &Self::Target {
+        &self.source
     }
 }
 impl WireEncode for ProtectedPropertyPayloadV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
-        encoder.field(1)?;
-        self.owner.encode(encoder)?;
-        encoder.field(2)?;
-        self.value_type.encode(encoder)?;
-        encoder.field(3)?;
-        self.getter.encode(encoder)?;
-        encoder.field(4)?;
-        self.mutability.encode(encoder)?;
-        encoder.field(5)?;
-        self.representation.encode(encoder)?;
-        encoder.field(6)?;
-        self.slot_relations.encode(encoder)
+        self.source.encode(encoder)
     }
 }
 

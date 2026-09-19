@@ -52,86 +52,151 @@ impl ProtectedPropertyInterfaceV1 {
         authority: &'a mut A,
         meter: &mut BudgetMeter,
     ) -> Result<CheckedProtectedPropertySourceV1<'a>, ProtectedPropertySemanticError<E>> {
-        use ProtectedPropertySemanticError as Error;
-        let payload = self.payload();
-        let owner = graph.source(payload.owner()).ok_or(Error::Owner)?;
-        if owner.key.declaration_kind() != SourceDeclarationKind::Class {
-            return Err(Error::Owner);
-        }
-        let arity = owner.key.duplicate_signature().type_parameter_count();
-        SignatureBinderScopeV1::for_declaration(0, (arity != 0).then_some(arity))
-            .validate_signature_semantics_metered(
-                payload.value_type(),
-                authority,
-                meter,
-                &WirePath::root(),
-            )
-            .map_err(Error::Signature)?;
-        let key = authority
-            .property_source_key(self.declaration())
-            .map_err(Error::Foundation)?;
-        meter
-            .charge_sha256(
-                scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
-                &WirePath::root(),
-            )
-            .map_err(Error::Resource)?;
-        if PersistentPropertyId::from_source_declaration(key).ok() != Some(self.declaration())
-            || key.origin() != owner.key.origin()
-            || key.package() != owner.key.package()
-            || key.owners().owners().split_last().map(|(_, outer)| outer)
-                != Some(owner.key.owners().owners())
+        if graph
+            .source(self.payload().owner())
+            .is_none_or(|owner| owner.key.declaration_kind() != SourceDeclarationKind::Class)
         {
-            return Err(Error::Identity);
+            return Err(ProtectedPropertySemanticError::Owner);
         }
-        if authority
-            .property_value_type(self.declaration())
-            .map_err(Error::Foundation)?
-            != payload.value_type()
-        {
-            return Err(Error::ValueType);
-        }
-        let shape = authority
-            .property_source_shape(self.declaration())
-            .map_err(Error::Foundation)?;
-        let actual_setter = match payload.mutability() {
-            ProtectedPropertyMutabilityV1::ReadOnly => None,
-            ProtectedPropertyMutabilityV1::ReadWrite {
-                setter,
-                setter_access,
-            } => Some((*setter, setter_access.declared_visibility())),
-        };
-        if shape.getter != payload.getter()
-            || shape.setter != actual_setter
-            || shape.representation != payload.representation()
-        {
-            return Err(Error::SourceShape);
-        }
-        accessors::validate_key(
+        let access = validate_source_contract(
             self.declaration(),
-            payload.getter(),
-            scoop_identity::AccessorRole::Getter,
+            self.declaration_access(),
+            self.payload(),
+            graph,
             authority,
             meter,
         )?;
-        let access = graph
-            .check_declaration_source(self.declaration_access(), key, authority, meter)
-            .map_err(Error::Source)?;
-        if let ProtectedPropertyMutabilityV1::ReadWrite {
+        Ok(CheckedProtectedPropertySourceV1 {
+            record: self,
+            access,
+        })
+    }
+}
+
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_source_contract<
+    'a,
+    A: ProtectedPropertySemanticAuthority<E>,
+    E,
+>(
+    declaration: PersistentPropertyId,
+    source: &'a DeclarationAccessSourceV1,
+    payload: &NominalSourcePropertyPayloadV1,
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    authority: &'a mut A,
+    meter: &mut BudgetMeter,
+) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
+    validate_source_parts(declaration, source, payload, graph, authority, meter, true)
+}
+
+pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_source_template_contract<
+    'a,
+    A: ProtectedPropertySemanticAuthority<E>,
+    E,
+>(
+    declaration: PersistentPropertyId,
+    source: &'a DeclarationAccessSourceV1,
+    payload: &NominalSourcePropertyPayloadV1,
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    authority: &'a mut A,
+    meter: &mut BudgetMeter,
+) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
+    if !source
+        .lexical_owners()
+        .iter()
+        .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)))
+    {
+        return Err(ProtectedPropertySemanticError::Owner);
+    }
+    validate_source_parts(declaration, source, payload, graph, authority, meter, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_source_parts<'a, A: ProtectedPropertySemanticAuthority<E>, E>(
+    declaration: PersistentPropertyId,
+    source: &'a DeclarationAccessSourceV1,
+    payload: &NominalSourcePropertyPayloadV1,
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    authority: &'a mut A,
+    meter: &mut BudgetMeter,
+    replay_domains: bool,
+) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedPropertySemanticError<E>> {
+    use ProtectedPropertySemanticError as Error;
+    let owner = graph.source(payload.owner()).ok_or(Error::Owner)?;
+    let arity = owner.key.duplicate_signature().type_parameter_count();
+    SignatureBinderScopeV1::for_declaration(0, (arity != 0).then_some(arity))
+        .validate_signature_semantics_metered(
+            payload.value_type(),
+            authority,
+            meter,
+            &WirePath::root(),
+        )
+        .map_err(Error::Signature)?;
+    let key = authority
+        .property_source_key(declaration)
+        .map_err(Error::Foundation)?;
+    meter
+        .charge_sha256(
+            scoop_wire::encoded_length(key).map_err(Error::Encoding)?,
+            &WirePath::root(),
+        )
+        .map_err(Error::Resource)?;
+    if PersistentPropertyId::from_source_declaration(key).ok() != Some(declaration)
+        || key.origin() != owner.key.origin()
+        || key.package() != owner.key.package()
+        || key.owners().owners().split_last().map(|(_, outer)| outer)
+            != Some(owner.key.owners().owners())
+    {
+        return Err(Error::Identity);
+    }
+    if authority
+        .property_value_type(declaration)
+        .map_err(Error::Foundation)?
+        != payload.value_type()
+    {
+        return Err(Error::ValueType);
+    }
+    let shape = authority
+        .property_source_shape(declaration)
+        .map_err(Error::Foundation)?;
+    let actual_setter = match payload.mutability() {
+        ProtectedPropertyMutabilityV1::ReadOnly => None,
+        ProtectedPropertyMutabilityV1::ReadWrite {
             setter,
             setter_access,
-        } = payload.mutability()
-        {
-            accessors::validate_key(
-                self.declaration(),
-                *setter,
-                scoop_identity::AccessorRole::Setter,
-                authority,
-                meter,
-            )?;
-            let setter = graph
-                .check_declaration_source(setter_access, key, authority, meter)
-                .map_err(Error::Source)?;
+        } => Some((*setter, setter_access.declared_visibility())),
+    };
+    if shape.getter != payload.getter()
+        || shape.setter != actual_setter
+        || shape.representation != payload.representation()
+    {
+        return Err(Error::SourceShape);
+    }
+    accessors::validate_key(
+        declaration,
+        payload.getter(),
+        scoop_identity::AccessorRole::Getter,
+        authority,
+        meter,
+    )?;
+    let access = graph
+        .check_declaration_source(source, key, authority, meter)
+        .map_err(Error::Source)?;
+    if let ProtectedPropertyMutabilityV1::ReadWrite {
+        setter,
+        setter_access,
+    } = payload.mutability()
+    {
+        accessors::validate_key(
+            declaration,
+            *setter,
+            scoop_identity::AccessorRole::Setter,
+            authority,
+            meter,
+        )?;
+        let setter = graph
+            .check_declaration_source(setter_access, key, authority, meter)
+            .map_err(Error::Source)?;
+        if replay_domains {
             let getter_domain = graph
                 .replay_declaration_access(access, meter)
                 .map_err(Error::Domain)?;
@@ -146,9 +211,10 @@ impl ProtectedPropertyInterfaceV1 {
                 return Err(Error::SetterDomain);
             }
         }
-        Ok(CheckedProtectedPropertySourceV1 {
-            record: self,
-            access,
-        })
+    } else if replay_domains {
+        graph
+            .replay_declaration_access(access, meter)
+            .map_err(Error::Domain)?;
     }
+    Ok(access)
 }

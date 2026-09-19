@@ -59,9 +59,17 @@ impl NominalInterfaceShapeAuthority<&'static str> for Fixture {
     }
     fn generic_nominal_shape(
         &mut self,
-        _: PersistentGenericTypeId,
+        id: PersistentGenericTypeId,
     ) -> Result<PublicNominalShapeV1, &'static str> {
-        Err("unknown generic nominal")
+        let key = self
+            .graph
+            .keys
+            .get(&SourceNominalId::GenericTemplate(id))
+            .ok_or("unknown generic nominal")?;
+        Ok(PublicNominalShapeV1::new(
+            PublicNominalKindV1::try_from(key.declaration_kind()).unwrap(),
+            key.duplicate_signature().type_parameter_count(),
+        ))
     }
 }
 impl ProtectedCallableSemanticAuthority<&'static str> for Fixture {
@@ -116,9 +124,13 @@ impl PersistentIdResolver<PersistentEnumVariantId> for Fixture {
     type Error = &'static str;
     fn resolve(
         &mut self,
-        _: DecodedPersistentId<PersistentEnumVariantId>,
+        id: DecodedPersistentId<PersistentEnumVariantId>,
     ) -> Result<PersistentEnumVariantId, Self::Error> {
-        Err("variants cannot be protected callables")
+        self.variants
+            .keys()
+            .copied()
+            .find(|known| known.as_array() == id.as_array())
+            .ok_or("unknown source variant")
     }
 }
 impl PersistentIdResolver<PersistentTypeId> for Fixture {
@@ -143,9 +155,18 @@ impl PersistentIdResolver<PersistentGenericTypeId> for Fixture {
     type Error = &'static str;
     fn resolve(
         &mut self,
-        _: DecodedPersistentId<PersistentGenericTypeId>,
+        id: DecodedPersistentId<PersistentGenericTypeId>,
     ) -> Result<PersistentGenericTypeId, Self::Error> {
-        Err("unknown generic nominal")
+        self.graph
+            .keys
+            .keys()
+            .find_map(|known| match known {
+                SourceNominalId::GenericTemplate(known) if known.as_array() == id.as_array() => {
+                    Some(*known)
+                }
+                _ => None,
+            })
+            .ok_or("unknown generic nominal")
     }
 }
 impl PersistentIdResolver<PersistentDispatchSlotId> for Fixture {

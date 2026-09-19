@@ -9,11 +9,13 @@ fn abstract_property_joins_accessor_modality_and_preserves_slot_relations() {
     ))
     .unwrap();
     let mut abstract_payload = getter.payload().clone();
-    abstract_payload.modality = CallableModalityV1::Abstract;
-    abstract_payload.slot_relations = CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
+    abstract_payload.source_signature.modality = CallableModalityV1::Abstract;
+    abstract_payload.source_signature.slot_relations =
+        CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
     let abstract_getter = fixture.record(owner, getter.declaration(), abstract_payload);
-    property.payload.representation = PropertyRepresentationV1::AbstractSlot;
-    property.payload.slot_relations = CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
+    property.payload.source.representation = PropertyRepresentationV1::AbstractSlot;
+    property.payload.source.slot_relations =
+        CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
     fixture
         .property_shapes
         .get_mut(&property.declaration())
@@ -62,8 +64,9 @@ fn runtime_property_cannot_omit_its_open_getter_slot() {
     ))
     .unwrap();
     let mut payload = getter.payload().clone();
-    payload.modality = CallableModalityV1::Open;
-    payload.slot_relations = CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
+    payload.source_signature.modality = CallableModalityV1::Open;
+    payload.source_signature.slot_relations =
+        CanonicalProtectedSlotRefsV1::try_new(vec![slot]).unwrap();
     let getter = fixture.record(owner, getter.declaration(), payload);
     let graph_source = fixture.graph.clone();
     let graph = CheckedNominalInheritanceGraphV1::validate(

@@ -17,6 +17,12 @@ pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub property_types: BTreeMap<PersistentPropertyId, SignatureTypeKey>,
     pub slots: Vec<PersistentDispatchSlotId>,
     pub property_shapes: BTreeMap<PersistentPropertyId, ProtectedPropertySourceShapeV1>,
+    pub variants: BTreeMap<PersistentEnumVariantId, (EnumVariantIdentityKey, EnumSourceVariantV1)>,
+    pub variant_fields: BTreeMap<PersistentEnumVariantFieldId, EnumVariantFieldKey>,
+    pub const_sources: BTreeMap<PersistentPropertyId, ConstPropertyDeclarationSourceV1>,
+    pub const_types: BTreeMap<CanonicalConstValueKindV1, PersistentTypeId>,
+    pub nominal_sources: BTreeMap<SourceNominalId, ProtectedNestedSourceInterfaceV1>,
+    pub struct_fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
 }
 impl Default for Fixture {
     fn default() -> Self {
@@ -30,6 +36,12 @@ impl Default for Fixture {
             property_types: BTreeMap::new(),
             slots: Vec::new(),
             property_shapes: BTreeMap::new(),
+            variants: BTreeMap::new(),
+            variant_fields: BTreeMap::new(),
+            const_sources: BTreeMap::new(),
+            const_types: BTreeMap::new(),
+            nominal_sources: BTreeMap::new(),
+            struct_fields: BTreeMap::new(),
         }
     }
 }
@@ -40,6 +52,11 @@ pub(in crate::cross_cone_type_semantics) fn nominal(node: Node) -> PersistentTyp
     id
 }
 impl Fixture {
+    pub fn owner_chain(&self, owner: Node) -> Vec<SourceNominalId> {
+        let mut owners = self.graph.access[&owner.source].lexical_owners().to_vec();
+        owners.push(owner.source);
+        owners
+    }
     pub fn class(&mut self, name: &str) -> Node {
         self.graph.add(name, SourceNominalKind::Class, &[])
     }
@@ -51,7 +68,7 @@ impl Fixture {
         parameters: Vec<SignatureTypeKey>,
     ) -> CallableTemplateOrigin {
         let key = SourceDeclarationKey::function(
-            site(&[owner.source]),
+            site(&self.owner_chain(owner)),
             CanonicalIdentifier::new(name).unwrap(),
             u32::from(generic),
             None,
@@ -70,7 +87,7 @@ impl Fixture {
         id
     }
     pub fn constructor(&mut self, owner: Node) -> PersistentConstructorId {
-        let key = SourceDeclarationKey::constructor(site(&[owner.source]), vec![]);
+        let key = SourceDeclarationKey::constructor(site(&self.owner_chain(owner)), vec![]);
         let id = PersistentConstructorId::from_source_declaration(&key).unwrap();
         self.declarations
             .insert(CallableTemplateOrigin::Constructor(id), key);
@@ -83,7 +100,7 @@ impl Fixture {
         value: SignatureTypeKey,
     ) -> CallableTemplateOrigin {
         let key = SourceDeclarationKey::property(
-            site(&[owner.source]),
+            site(&self.owner_chain(owner)),
             CanonicalIdentifier::new("property").unwrap(),
         );
         let property = PersistentPropertyId::from_source_declaration(&key).unwrap();
@@ -102,7 +119,7 @@ impl Fixture {
     ) -> DeclarationAccessSourceV1 {
         DeclarationAccessSourceV1::try_new(
             visibility,
-            vec![owner.source],
+            self.owner_chain(owner),
             self.graph.origins[&owner.source].clone(),
         )
         .unwrap()

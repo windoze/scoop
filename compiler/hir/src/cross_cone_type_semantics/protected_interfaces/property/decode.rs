@@ -46,6 +46,19 @@ impl DecodedProtectedPropertyPayloadV1 {
         resolver: &mut R,
         meter: &mut BudgetMeter,
     ) -> Result<ProtectedPropertyPayloadV1, ProtectedPropertyResolutionError<E>> {
+        ProtectedPropertyPayloadV1::from_source_payload(
+            self.resolve_source_payload(resolver, meter)?,
+        )
+        .map_err(ProtectedPropertyResolutionError::Property)
+    }
+    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn resolve_source_payload<
+        R: ProtectedPropertyInterfaceResolver<E>,
+        E,
+    >(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+    ) -> Result<NominalSourcePropertyPayloadV1, ProtectedPropertyResolutionError<E>> {
         use ProtectedPropertyResolutionError as Error;
         meter
             .charge_nodes(1, &WirePath::root())
@@ -61,7 +74,7 @@ impl DecodedProtectedPropertyPayloadV1 {
             .slot_relations
             .resolve(resolver, meter)
             .map_err(Error::Slots)?;
-        ProtectedPropertyPayloadV1::try_new(
+        NominalSourcePropertyPayloadV1::try_new(
             owner,
             value_type,
             getter,

@@ -1,5 +1,6 @@
 use super::{
-    ProtectedCallableInterfaceV1, ProtectedCallablePayloadV1, ProtectedConstructorInterfaceV1,
+    NominalSourceCallablePayloadV1, ProtectedCallableInterfaceV1, ProtectedCallablePayloadV1,
+    ProtectedConstructorInterfaceV1,
 };
 use crate::{
     CheckedDeclarationAccessSourceV1, CheckedNominalInheritanceGraphV1, InheritanceGraphError,
@@ -14,7 +15,7 @@ use scoop_wire::{BudgetMeter, WireError};
 use std::fmt;
 
 mod identity;
-mod signature;
+pub(super) mod signature;
 
 /// Independently resolved source keys, nominal shapes, logical property types,
 /// and the validated core Unit role. No ordinary public lookup record is built.
@@ -105,21 +106,41 @@ fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
     if owner.key.declaration_kind() != scoop_identity::SourceDeclarationKind::Class {
         return Err(ProtectedCallableSemanticError::Owner);
     }
-    signature::validate_types(
+    let access = validate_source_contract(
+        declaration,
         payload,
-        owner.key.duplicate_signature().type_parameter_count(),
+        owner.key,
+        source,
+        graph,
         authority,
         meter,
     )?;
-    let key = identity::validate(declaration, payload, owner.key, authority, meter)?;
-    let access = graph
-        .check_declaration_source(source, key, authority, meter)
-        .map_err(ProtectedCallableSemanticError::Source)?;
     Ok(CheckedProtectedCallableSourceV1 {
         declaration,
         payload,
         access,
     })
+}
+
+pub(super) fn validate_source_contract<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
+    declaration: CallableTemplateOrigin,
+    payload: &NominalSourceCallablePayloadV1,
+    owner: &SourceDeclarationKey,
+    source: &'a crate::DeclarationAccessSourceV1,
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    authority: &'a mut A,
+    meter: &mut BudgetMeter,
+) -> Result<CheckedDeclarationAccessSourceV1<'a>, ProtectedCallableSemanticError<E>> {
+    signature::validate_types(
+        payload,
+        owner.duplicate_signature().type_parameter_count(),
+        authority,
+        meter,
+    )?;
+    let key = identity::validate(declaration, payload, owner, authority, meter)?;
+    graph
+        .check_declaration_source(source, key, authority, meter)
+        .map_err(ProtectedCallableSemanticError::Source)
 }
 
 #[derive(Debug)]

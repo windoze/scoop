@@ -47,6 +47,21 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
     where
         A: NominalInheritanceSemanticAuthority<E>,
     {
+        Self::validate_with_source_roots(records, std::iter::empty(), authority, meter)
+    }
+
+    /// Source roots preserve generic declaration metadata without creating an
+    /// exact inheritance node. The enclosing section supplies the independently
+    /// established definition-side source inventory.
+    pub fn validate_with_source_roots<A, E>(
+        records: impl IntoIterator<Item = &'a NominalInheritanceEdgesV1>,
+        source_roots: impl IntoIterator<Item = SourceNominalId>,
+        authority: &'a A,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, InheritanceGraphError<E>>
+    where
+        A: NominalInheritanceSemanticAuthority<E>,
+    {
         let mut graph = Self {
             nodes: Default::default(),
             sources: Default::default(),
@@ -93,6 +108,9 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
             {
                 return Err(InheritanceGraphError::DuplicateNode(exact));
             }
+        }
+        for source in source_roots {
+            graph.validate_source(source, authority, meter, 1)?;
         }
         graph.validate_edges(meter)?;
         let mut active = BTreeSet::new();

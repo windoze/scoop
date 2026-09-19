@@ -37,7 +37,7 @@ fn protected_generic_method_keeps_source_binders_without_gaining_a_dispatch_slot
     assert_eq!(checked.declaration(), declaration);
     assert_eq!(checked.payload().type_parameters().len_u32(), 1);
     let mut bad = payload;
-    bad.modality = CallableModalityV1::Open;
+    bad.source_signature.modality = CallableModalityV1::Open;
     assert!(matches!(
         ProtectedCallableInterfaceV1::try_new(
             declaration,
@@ -84,7 +84,8 @@ fn protected_accessor_source_shapes_are_joined_to_the_logical_property() {
         Err(ProtectedCallableSemanticError::Result)
     ));
     let mut bad_payload = set_payload;
-    bad_payload.parameters = CanonicalSourceParameterShapesV1::try_new(vec![]).unwrap();
+    bad_payload.source_signature.parameters =
+        CanonicalSourceParameterShapesV1::try_new(vec![]).unwrap();
     let bad = fixture.record(owner, setter, bad_payload);
     assert!(matches!(
         bad.validate_source(&graph, &mut fixture, &mut meter()),
@@ -129,7 +130,7 @@ fn protected_constructor_is_separate_and_preserves_the_source_result_owner() {
         .validate_source(&graph, &mut fixture, &mut meter())
         .unwrap();
     let mut bad = payload;
-    bad.result = SignatureTypeKey::Nominal(nominal(fixture.unit));
+    bad.source_signature.result = SignatureTypeKey::Nominal(nominal(fixture.unit));
     let bad = ProtectedConstructorInterfaceV1::try_new(
         constructor,
         fixture.access(owner, DeclaredVisibilityV1::Protected),

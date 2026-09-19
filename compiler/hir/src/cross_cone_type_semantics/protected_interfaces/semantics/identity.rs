@@ -1,5 +1,5 @@
 use super::{
-    ProtectedCallablePayloadV1, ProtectedCallableSemanticAuthority,
+    NominalSourceCallablePayloadV1, ProtectedCallableSemanticAuthority,
     ProtectedCallableSemanticError as Error, signature::parameters_match,
 };
 use crate::SourceNominalId;
@@ -12,7 +12,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 pub(super) fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
     declaration: CallableTemplateOrigin,
-    payload: &ProtectedCallablePayloadV1,
+    payload: &NominalSourceCallablePayloadV1,
     owner: &SourceDeclarationKey,
     authority: &'a A,
     meter: &mut BudgetMeter,
@@ -113,7 +113,7 @@ pub(super) fn validate<'a, A: ProtectedCallableSemanticAuthority<E>, E>(
 }
 
 fn function_parameters<E>(
-    payload: &ProtectedCallablePayloadV1,
+    payload: &NominalSourceCallablePayloadV1,
     key: &SourceDeclarationKey,
 ) -> Result<(), Error<E>> {
     let DuplicateSignatureKey::Function { parameters, .. } = key.duplicate_signature() else {

@@ -40,3 +40,20 @@ impl DecodedCanonicalBinderListV1 {
         self.resolve(resolver).map_err(Error::Value)
     }
 }
+
+impl super::DecodedCanonicalSignatureTypesV1 {
+    pub fn resolve_metered<R: SignatureTypeReferenceResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+    ) -> Result<super::CanonicalSignatureTypesV1, Error<super::SignatureTypeSetValidationError<E>>>
+    {
+        meter
+            .charge_collection_slots(self.values.len() as u64, &WirePath::root())
+            .map_err(Error::Resource)?;
+        for value in &self.values {
+            value.charge_resolution(meter).map_err(Error::Resource)?;
+        }
+        self.resolve(resolver).map_err(Error::Value)
+    }
+}

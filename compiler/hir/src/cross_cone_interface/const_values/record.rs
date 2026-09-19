@@ -82,6 +82,24 @@ pub struct DecodedExportConstValueV1 {
 }
 
 impl DecodedExportConstValueV1 {
+    pub fn resolve_metered<R: ExportConstValueResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<
+        ExportConstValueV1,
+        crate::MeteredInterfaceResolutionError<ExportConstValueResolutionError<E>>,
+    > {
+        use crate::MeteredInterfaceResolutionError as Error;
+        meter
+            .charge_nodes(1, &scoop_wire::WirePath::root())
+            .map_err(Error::Resource)?;
+        self.value_type
+            .charge_resolution(meter)
+            .map_err(Error::Resource)?;
+        self.resolve(resolver).map_err(Error::Value)
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

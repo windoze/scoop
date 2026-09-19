@@ -188,8 +188,8 @@ pub struct CheckedDeclarationAccessSourceV1<'a> {
     source: &'a DeclarationAccessSourceV1,
     declaration: &'a SourceDeclarationKey,
 }
-impl CheckedDeclarationAccessSourceV1<'_> {
-    pub const fn source(&self) -> &DeclarationAccessSourceV1 {
+impl<'s> CheckedDeclarationAccessSourceV1<'s> {
+    pub const fn source(&self) -> &'s DeclarationAccessSourceV1 {
         self.source
     }
     pub const fn declaration(&self) -> &SourceDeclarationKey {
