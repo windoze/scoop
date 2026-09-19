@@ -5,6 +5,7 @@ use crate::*;
 
 mod fixture;
 mod projection;
+mod shape_link;
 use fixture::Fixture;
 
 #[test]

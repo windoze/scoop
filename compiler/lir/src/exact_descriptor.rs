@@ -11,6 +11,7 @@ mod model;
 pub use model::*;
 
 mod replay;
+pub(crate) use replay::{validate_inline_scan, validate_registration_plan};
 
 mod table;
 pub use table::*;

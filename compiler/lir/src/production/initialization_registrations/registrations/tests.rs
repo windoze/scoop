@@ -236,3 +236,4 @@ use fixture::*;
 mod dependencies_v2;
 
 mod registration_v2;
+mod shape_link;

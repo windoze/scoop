@@ -42,7 +42,7 @@ impl ExactDescriptorExportV1 {
     }
 }
 
-fn validate_registration_plan(
+pub(crate) fn validate_registration_plan(
     registration: &StrongTypeRegistrationPlanV2,
     layouts: &crate::CanonicalExactLayoutExportsV1,
     foundation: &OdrFreeLirFoundation,
@@ -277,7 +277,7 @@ pub(super) fn replay_parts(
     }))
 }
 
-fn validate_inline_scan(
+pub(crate) fn validate_inline_scan(
     semantic: &StrongTypeDescriptorSemanticPlanV2,
     instance_record: &crate::ExactLayoutExportV1,
     instance: &crate::ExactInstanceLayoutV1,
