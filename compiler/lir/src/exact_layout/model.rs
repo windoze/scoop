@@ -25,6 +25,18 @@ pub enum ExactLayoutBodyKindV1<'a> {
 }
 
 impl ExactLayoutExportV1 {
+    pub fn value_handle(&self) -> Option<Arc<ExactValueLayoutV1>> {
+        match &self.0 {
+            LayoutBody::Value(value) => Some(Arc::clone(value)),
+            LayoutBody::Instance(_) => None,
+        }
+    }
+    pub fn instance_handle(&self) -> Option<Arc<ExactInstanceLayoutV1>> {
+        match &self.0 {
+            LayoutBody::Value(_) => None,
+            LayoutBody::Instance(instance) => Some(Arc::clone(instance)),
+        }
+    }
     pub fn identity(&self) -> &ExactLayoutIdentityV1 {
         match &self.0 {
             LayoutBody::Value(value) => &value.identity,

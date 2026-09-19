@@ -1,0 +1,188 @@
+use scoop_identity::{
+    CallableBodyKey, CanonicalScoopStorage, PersistentExactTypeId, RepresentationRole,
+    ScoopAbiArgument, ScoopAbiReturn, ScoopAbiValueShape,
+};
+
+use super::*;
+use crate::{ExactRepresentationKindV1, ExternalStrongShapeSubjectV1, IntrinsicValueFamilyV1};
+
+pub(super) fn callable(
+    target_profile: LirTargetProfile,
+    target: StrongCallableDefinitionOwner,
+    signature: ExactCallableSignature,
+    protocol: ExactCallableProtocolV1,
+    layouts: CallableAbiLayoutInputsV1<'_>,
+    foundation: &OdrFreeLirFoundation,
+    meter: &mut BudgetMeter,
+) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
+    let path = WirePath::root();
+    meter.charge_work(layouts.parameters.len() as u64, &path)?;
+    if layouts.parameters.len() != signature.parameters().len() {
+        return Err(ExactCallableAbiError::ParameterCount);
+    }
+    let receiver = match (layouts.receiver, signature.receiver().into_option()) {
+        (CallableAbiReceiverInputV1::NoReceiver, None) => CallableAbiReceiverLayoutV1::NoReceiver,
+        (CallableAbiReceiverInputV1::Receiver(layout), Some(exact)) => {
+            CallableAbiReceiverLayoutV1::Receiver(value(layout, target_profile, exact)?)
+        }
+        _ => return Err(ExactCallableAbiError::Receiver),
+    };
+    let mut parameters = Vec::new();
+    meter.try_reserve_collection_slots(&mut parameters, layouts.parameters.len(), &path)?;
+    for (layout, exact) in layouts.parameters.iter().zip(signature.parameters()) {
+        parameters.push(value(layout, target_profile, *exact)?);
+    }
+    let result = value(layouts.result, target_profile, signature.result())?;
+    let mut arguments = Vec::new();
+    let argument_count = parameters
+        .len()
+        .checked_add(usize::from(receiver.value().is_some()))
+        .ok_or(ExactCallableAbiError::CountOverflow)?;
+    meter.try_reserve_collection_slots(&mut arguments, argument_count, &path)?;
+    for value in receiver
+        .value()
+        .into_iter()
+        .chain(parameters.iter().map(AsRef::as_ref))
+    {
+        let storage = storage(value);
+        arguments.push(if storage.byte_size() == 0 {
+            ScoopAbiArgument::elided_zst(storage)
+        } else {
+            match passing(target_profile, storage.shape()) {
+                crate::ScoopAbiPassing::Direct => ScoopAbiArgument::direct(storage),
+                crate::ScoopAbiPassing::Indirect => ScoopAbiArgument::indirect(storage),
+            }
+        }?);
+    }
+    let result_passing = if matches!(
+        result.representation().kind(),
+        ExactRepresentationKindV1::IntrinsicValue(IntrinsicValueFamilyV1::Unit)
+    ) {
+        ScoopAbiReturn::unit_void()
+    } else {
+        let storage = storage(&result);
+        if storage.byte_size() == 0 {
+            ScoopAbiReturn::elided_zst(storage)?
+        } else {
+            match passing(target_profile, storage.shape()) {
+                crate::ScoopAbiPassing::Direct => ScoopAbiReturn::direct(storage)?,
+                crate::ScoopAbiPassing::Indirect => ScoopAbiReturn::indirect(storage)?,
+            }
+        }
+    };
+    let signature = CanonicalScoopAbiFunctionSignature::new(
+        signature,
+        arguments,
+        result_passing,
+        protocol.gc_effect(),
+    )?;
+    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
+    meter.charge_work(foundation.callable_bodies().len() as u64, &path)?;
+    if !foundation
+        .callable_bodies()
+        .iter()
+        .any(|record| record.id() == body)
+    {
+        return Err(ExactCallableAbiError::MissingCallableBody);
+    }
+    let physical = StrongShapeDefinitionRefV1::from_foundation(
+        ExternalStrongShapeSubjectV1::Callable(target),
+        foundation,
+        meter,
+    )?;
+    let definition = StrongShapeDefinitionV1::from_callable_definition(target, physical)?
+        .ok_or(ExactCallableAbiError::DefinitionSubject)?;
+    Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
+        target,
+        target_profile,
+        signature,
+        protocol,
+        layouts: CallableAbiLayoutDependenciesV1 {
+            receiver,
+            parameters,
+            result,
+        },
+        physical,
+        definition,
+    })))
+}
+
+fn value(
+    layout: &ExactLayoutExportV1,
+    target: LirTargetProfile,
+    exact: PersistentExactTypeId,
+) -> Result<Arc<ExactValueLayoutV1>, ExactCallableAbiError> {
+    if layout.identity().exact() != exact {
+        return Err(ExactCallableAbiError::ExactType);
+    }
+    if layout.identity().target() != target {
+        return Err(ExactCallableAbiError::TargetProfile);
+    }
+    if layout.identity().layout_key().representation() != RepresentationRole::ManagedValue {
+        return Err(ExactCallableAbiError::LayoutRole);
+    }
+    layout
+        .value_handle()
+        .ok_or(ExactCallableAbiError::LayoutRole)
+}
+
+fn storage(value: &ExactValueLayoutV1) -> CanonicalScoopStorage {
+    let shape = match value.representation().kind() {
+        ExactRepresentationKindV1::Scalar(_)
+        | ExactRepresentationKindV1::QualifiedPointer(_)
+        | ExactRepresentationKindV1::NicheEnum(_) => ScoopAbiValueShape::Scalar,
+        ExactRepresentationKindV1::Struct(_)
+        | ExactRepresentationKindV1::Tuple(_)
+        | ExactRepresentationKindV1::TaggedEnum(_)
+        | ExactRepresentationKindV1::IntrinsicValue(_) => ScoopAbiValueShape::Aggregate,
+    };
+    let storage = value.value().storage();
+    CanonicalScoopStorage::new(
+        value.identity().exact(),
+        storage.byte_size(),
+        storage.alignment().as_nonzero(),
+        shape,
+    )
+}
+
+fn passing(target: LirTargetProfile, shape: ScoopAbiValueShape) -> crate::ScoopAbiPassing {
+    target.classify_scoop_abi_value(match shape {
+        ScoopAbiValueShape::Scalar => crate::ScoopAbiValueShape::Scalar,
+        ScoopAbiValueShape::Aggregate => crate::ScoopAbiValueShape::Aggregate,
+    })
+}
+
+#[derive(Debug)]
+pub enum ExactCallableAbiError {
+    ParameterCount,
+    Receiver,
+    CountOverflow,
+    ExactType,
+    TargetProfile,
+    LayoutRole,
+    MissingCallableBody,
+    DefinitionSubject,
+    Abi(scoop_identity::ScoopAbiError),
+    Hash(scoop_wire::HashError),
+    Definition(crate::StrongShapeDefinitionError),
+    Resource(WireError),
+}
+macro_rules! from_error {
+    ($source:ty, $variant:ident) => {
+        impl From<$source> for ExactCallableAbiError {
+            fn from(value: $source) -> Self {
+                Self::$variant(value)
+            }
+        }
+    };
+}
+from_error!(scoop_identity::ScoopAbiError, Abi);
+from_error!(scoop_wire::HashError, Hash);
+from_error!(crate::StrongShapeDefinitionError, Definition);
+from_error!(WireError, Resource);
+impl std::fmt::Display for ExactCallableAbiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "callable ABI replay failed: {self:?}")
+    }
+}
+impl std::error::Error for ExactCallableAbiError {}

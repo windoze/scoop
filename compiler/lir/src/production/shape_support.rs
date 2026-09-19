@@ -8,6 +8,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{OdrFreeLirFoundation, StrongRegistrationIdentitySurfaceV1};
 
+mod callable;
 mod layout;
 mod validation;
 use validation::build_closure;

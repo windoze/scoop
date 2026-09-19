@@ -22,4 +22,4 @@ mod wire;
 pub use wire::{DecodedExactLayoutExportV1, ExactLayoutWireError};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -204,6 +204,14 @@ pub struct DecodedCanonicalScoopAbiFunctionSignature {
 }
 
 impl DecodedCanonicalScoopAbiFunctionSignature {
+    pub fn argument_count(&self) -> usize {
+        self.arguments.len()
+    }
+
+    pub fn signature_parameter_count(&self) -> usize {
+        self.signature.parameter_count()
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

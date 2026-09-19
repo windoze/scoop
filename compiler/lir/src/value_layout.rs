@@ -34,6 +34,10 @@ impl NonZeroPow2 {
         self.0.get()
     }
 
+    pub const fn as_nonzero(self) -> NonZeroU64 {
+        self.0
+    }
+
     pub fn align_up(self, offset: u64) -> Result<u64, TypeInstanceShapeError> {
         offset
             .checked_add(self.get() - 1)

@@ -61,6 +61,9 @@ pub use value_layout::*;
 mod exact_layout;
 pub use exact_layout::*;
 
+mod exact_abi;
+pub use exact_abi::*;
+
 mod type_descriptor;
 pub use type_descriptor::*;
 

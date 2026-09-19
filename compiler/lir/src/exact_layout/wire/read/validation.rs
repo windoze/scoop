@@ -32,7 +32,7 @@ impl DecodedExactLayoutExportV1 {
         }
         if !self
             .definition
-            .matches_layout_definition(identity.definition(), meter)?
+            .matches_definition(identity.definition(), meter)?
         {
             return Err(ExactLayoutWireError::DefinitionMismatch);
         }

@@ -14,10 +14,10 @@ impl StrongShapeDefinitionV1<PersistentLayoutId> {
     }
 }
 
-impl DecodedStrongShapeDefinitionV1<PersistentLayoutId> {
-    pub(crate) fn matches_layout_definition(
+impl<I: PersistentId> DecodedStrongShapeDefinitionV1<I> {
+    pub(crate) fn matches_definition(
         self,
-        expected: StrongShapeDefinitionV1<PersistentLayoutId>,
+        expected: StrongShapeDefinitionV1<I>,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<bool, WireError> {
         let path = scoop_wire::WirePath::root();

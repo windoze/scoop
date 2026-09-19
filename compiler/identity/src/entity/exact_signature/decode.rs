@@ -64,6 +64,10 @@ pub struct DecodedExactCallableSignature {
 }
 
 impl DecodedExactCallableSignature {
+    pub fn parameter_count(&self) -> usize {
+        self.parameters.len()
+    }
+
     /// Charges the shared semantic budget before allocating resolved parameters.
     pub fn resolve_metered<R, E>(
         self,
