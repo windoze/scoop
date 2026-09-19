@@ -1,9 +1,9 @@
 use super::*;
 
 /// Layout of a class object (M6, runtime spec 2.1/2.2): the 16-byte
-/// object header (M9: TD pointer + GC word) followed by the fields
-/// — mir-lower already flattened the base-class prefix into
-/// `ClassDef::fields`. Returns size, align, and the reference offsets
+/// object header (M9: TD pointer + GC word) followed by the complete
+/// base instance and this class's own fields. MIR lists fields in
+/// base-first order. Returns size, align, and the reference offsets
 /// relative to the object start (the header itself is not a scanned
 /// reference). Boxed value types use the same shape: header + the
 /// inline payload field.
@@ -45,10 +45,9 @@ pub(crate) fn class_layout(
     (size, align, scan)
 }
 
-/// Natural object layout for one flattened class: the header occupies
-/// bytes 0..16 and each base/derived field starts at the next address
-/// satisfying its own alignment. LIR heap operations consume these
-/// byte offsets directly, so sub-word fields are not rounded to slots.
+/// A derived instance preserves the complete base prefix, including tail
+/// padding. Only newly declared fields are appended. Zero-sized fields
+/// have canonical offset zero and do not advance the allocation cursor.
 pub(crate) fn class_shape(
     context: &LoweringContext,
     module: &mir::Module,
@@ -57,16 +56,27 @@ pub(crate) fn class_shape(
 ) -> (Vec<u64>, u64, u64) {
     let fields = def.declared_fields();
     let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let mut offsets = Vec::with_capacity(fields.len());
     let header = context.object_header_layout();
-    let mut size = header.size;
-    let mut align = header.align;
-    for field in fields {
+    let (mut offsets, mut size, mut align) = match def.base_class() {
+        Some(base) => class_shape(context, module, enums, &module.classes[base]),
+        None => (Vec::new(), header.size, header.align),
+    };
+    let inherited_count = offsets.len();
+    assert!(
+        inherited_count <= fields.len(),
+        "MIR includes all inherited fields"
+    );
+    offsets.reserve(fields.len() - inherited_count);
+    for field in &fields[inherited_count..] {
         let (field_size, field_align) = size_align(context, module, &enum_shape, &field.ty);
+        align = align.max(field_align);
+        if field_size == 0 {
+            offsets.push(0);
+            continue;
+        }
         let offset = size.next_multiple_of(field_align);
         offsets.push(offset);
         size = offset + field_size;
-        align = align.max(field_align);
     }
     (offsets, size.next_multiple_of(align), align)
 }
