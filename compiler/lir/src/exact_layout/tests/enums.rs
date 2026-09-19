@@ -66,6 +66,7 @@ fn enum_replay_selects_pointer_niche_but_keeps_zst_payload_tagged() {
             }
             _ => panic!("enum representation"),
         }
+        assert_wire_roundtrip(result);
     }
 }
 
@@ -112,6 +113,7 @@ fn tagged_enum_combines_dedicated_slots_at_enum_relative_offsets() {
             .collect::<Vec<_>>(),
         [8, 16]
     );
+    assert_wire_roundtrip(value);
 }
 
 #[test]

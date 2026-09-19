@@ -76,7 +76,7 @@ impl WireEncode for ExactRepresentationLayoutV1 {
     }
 }
 
-fn scalar(encoder: &mut Encoder, kind: ScalarRepresentationKindV1) -> EncodeResult {
+pub(super) fn scalar(encoder: &mut Encoder, kind: ScalarRepresentationKindV1) -> EncodeResult {
     match kind {
         ScalarRepresentationKindV1::Integer(kind) => {
             sum(encoder, 1, 2)?;
@@ -119,7 +119,10 @@ fn policy(encoder: &mut Encoder, policy: &StructLayoutPolicyV1) -> EncodeResult 
     }
 }
 
-fn alignment(encoder: &mut Encoder, value: scoop_identity::CLayoutOverride) -> EncodeResult {
+pub(super) fn alignment(
+    encoder: &mut Encoder,
+    value: scoop_identity::CLayoutOverride,
+) -> EncodeResult {
     use scoop_identity::{CLayoutByteAlignment as A, CLayoutOverride as O};
     sum(
         encoder,

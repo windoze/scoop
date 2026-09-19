@@ -87,6 +87,7 @@ fn c_layout_record_replays_packing_and_requires_its_canonical_foundation_contrac
             assert_eq!(representation.fields()[1].storage().offset().get(), 1);
             assert_eq!(representation.fields()[1].access_alignment().get(), 1);
             assert_eq!(encode(result.representation()).unwrap()[2], 3);
+            assert_wire_roundtrip(result);
         } else {
             assert!(matches!(
                 result,

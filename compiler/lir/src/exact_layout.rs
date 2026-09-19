@@ -19,6 +19,7 @@ mod replay;
 pub use replay::*;
 
 mod wire;
+pub use wire::{DecodedExactLayoutExportV1, ExactLayoutWireError};
 
 #[cfg(test)]
 mod tests;

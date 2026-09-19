@@ -16,7 +16,7 @@ mod fields;
 pub use fields::*;
 
 mod wire;
-pub use wire::{DecodedArrayElementStorageV1, DecodedValueStorageLayoutV1};
+pub use wire::{DecodedArrayElementStorageV1, DecodedValueStorageLayoutV1, StorageWireReplayError};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct NonZeroPow2(NonZeroU64);

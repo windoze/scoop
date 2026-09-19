@@ -342,7 +342,7 @@ impl WireEncode for ParamFreeShapeSupportPlanSetV1 {
 }
 
 #[derive(Debug)]
-struct DecodedStrongShapeDefinitionV1<I: PersistentId> {
+pub(crate) struct DecodedStrongShapeDefinitionV1<I: PersistentId> {
     semantic_id: DecodedPersistentId<I>,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     symbol: DecodedPersistentSymbolRequest,

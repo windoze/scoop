@@ -14,6 +14,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
             ExternalStrongShapeSubjectV1::Scan(record.scan())
         );
         assert_eq!(encode(&record).unwrap()[0], 0xa7);
+        assert_wire_roundtrip(record);
     }
     let value = unit();
     assert_eq!(value.value().storage().byte_size(), 0);
@@ -22,6 +23,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
         [0xa2, 0, 7, 1, 0xa1, 0, 1]
     );
     let reference = managed();
+    assert_wire_roundtrip(reference.clone());
     assert_eq!(reference.value().storage().byte_size(), 8);
     assert_eq!(scan(&reference), &RefScan::References(vec![0]));
     let boolean = Bound::value(exact(&source("Boolean", SourceNominalKind::Struct, 0)));
@@ -33,6 +35,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
     )
     .unwrap();
     assert_eq!(boolean.value().storage().byte_size(), 1);
+    assert_wire_roundtrip(boolean.clone());
     assert_eq!(
         encode(boolean.representation()).unwrap(),
         [0xa2, 0, 1, 1, 0xa1, 0, 2]
@@ -60,6 +63,7 @@ fn scalar_pointer_unit_records_have_unique_closed_kinds_and_complete_definitions
         )
         .unwrap();
         assert_eq!(scan(&pointer), &RefScan::None);
+        assert_wire_roundtrip(pointer);
     }
 }
 
@@ -120,6 +124,8 @@ fn ordinary_struct_and_tuple_replay_typed_dependencies_and_field_order() {
         .unwrap();
     assert_eq!(tuple.value().storage(), structure.value().storage());
     assert_eq!(encode(tuple.representation()).unwrap()[2], 4);
+    assert_wire_roundtrip(structure);
+    assert_wire_roundtrip(tuple);
 }
 
 #[test]

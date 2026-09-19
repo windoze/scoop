@@ -11,11 +11,11 @@ mod values;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
-fn meter() -> BudgetMeter {
+pub(super) fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-fn source(name: &str, kind: SourceNominalKind, parameters: u32) -> SourceDeclarationKey {
+pub(super) fn source(name: &str, kind: SourceNominalKind, parameters: u32) -> SourceDeclarationKey {
     SourceDeclarationKey::nominal(
         SourceDeclarationSite::new(
             ConeIdentity::SINGLE_FILE,
@@ -30,20 +30,22 @@ fn source(name: &str, kind: SourceNominalKind, parameters: u32) -> SourceDeclara
     )
 }
 
-fn exact(source: &SourceDeclarationKey) -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
+pub(super) fn exact(
+    source: &SourceDeclarationKey,
+) -> CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> {
     CborIdentityRecord::from_key(ExactTypeKey::Nominal(
         PersistentTypeId::from_source_declaration(source).unwrap(),
     ))
     .unwrap()
 }
 
-struct Bound {
-    identity: ExactLayoutIdentityV1,
-    foundation: OdrFreeLirFoundation,
+pub(super) struct Bound {
+    pub(super) identity: ExactLayoutIdentityV1,
+    pub(super) foundation: OdrFreeLirFoundation,
 }
 
 impl Bound {
-    fn new(
+    pub(super) fn new(
         exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
         role: RepresentationRole,
         scan_role: ScanRole,
@@ -90,14 +92,14 @@ impl Bound {
             foundation,
         }
     }
-    fn value(exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>) -> Self {
+    pub(super) fn value(exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>) -> Self {
         Self::new(
             exact,
             RepresentationRole::ManagedValue,
             ScanRole::InlineValue,
         )
     }
-    fn instance(exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>) -> Self {
+    pub(super) fn instance(exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>) -> Self {
         Self::new(
             exact,
             RepresentationRole::ManagedObject,
@@ -106,7 +108,7 @@ impl Bound {
     }
 }
 
-fn integer(name: &str, kind: IntegerKind) -> ExactValueLayoutV1 {
+pub(super) fn integer(name: &str, kind: IntegerKind) -> ExactValueLayoutV1 {
     let bound = Bound::value(exact(&source(name, SourceNominalKind::Struct, 0)));
     ExactValueLayoutV1::scalar(
         bound.identity,
@@ -117,12 +119,12 @@ fn integer(name: &str, kind: IntegerKind) -> ExactValueLayoutV1 {
     .unwrap()
 }
 
-fn unit() -> ExactValueLayoutV1 {
+pub(super) fn unit() -> ExactValueLayoutV1 {
     let bound = Bound::value(exact(&CoreBuiltinNominal::Unit.declaration_key()));
     ExactValueLayoutV1::unit(bound.identity, &bound.foundation, &mut meter()).unwrap()
 }
 
-fn managed() -> ExactValueLayoutV1 {
+pub(super) fn managed() -> ExactValueLayoutV1 {
     let bound = Bound::value(exact(&source("Object", SourceNominalKind::Class, 0)));
     ExactValueLayoutV1::qualified_pointer(
         bound.identity,
@@ -133,7 +135,7 @@ fn managed() -> ExactValueLayoutV1 {
     .unwrap()
 }
 
-fn field(
+pub(super) fn field(
     owner: &SourceDeclarationKey,
     name: &str,
 ) -> CborIdentityRecord<PersistentFieldId, FieldIdentityKey> {
@@ -145,4 +147,17 @@ fn field(
 
 fn scan(value: &ExactValueLayoutV1) -> &RefScan {
     super::replay::storage_scan(value.value().storage())
+}
+
+fn assert_wire_roundtrip(value: impl Into<ExactLayoutExportV1>) {
+    let expected = value.into();
+    let bytes = encode(&expected).unwrap();
+    let raw =
+        scoop_wire::decode_canonical::<DecodedExactLayoutExportV1>(&bytes, DecodeLimits::default())
+            .unwrap();
+    assert_eq!(encode(&raw).unwrap(), bytes);
+    assert_eq!(
+        raw.validate_against(&expected, &mut meter()).unwrap(),
+        expected
+    );
 }

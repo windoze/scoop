@@ -67,6 +67,7 @@ mod entry;
 pub use entry::*;
 
 mod shape_support;
+pub(crate) use shape_support::DecodedStrongShapeDefinitionV1;
 pub use shape_support::*;
 
 mod strong_section;

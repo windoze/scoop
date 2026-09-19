@@ -3,7 +3,9 @@ use scoop_wire::{Encoder, WireEncode};
 use super::*;
 
 mod instance;
+mod read;
 mod value;
+pub use read::{DecodedExactLayoutExportV1, ExactLayoutWireError};
 
 type EncodeResult = Result<(), scoop_wire::cbor::EncodeError>;
 

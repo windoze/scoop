@@ -59,10 +59,8 @@ fn class_record_preserves_complete_base_prefix_and_identity_bound_fields() {
     assert_eq!(layout.declared_fields()[0].storage().offset().get(), 24);
     assert_eq!(layout.complete_fields().len(), 2);
     assert_eq!(derived.shape().minimum_size(), 32);
-    assert_eq!(
-        encode(&ExactLayoutExportV1::from(derived)).unwrap()[0],
-        0xa7
-    );
+    assert_wire_roundtrip(base);
+    assert_wire_roundtrip(derived);
 }
 
 #[test]
@@ -132,6 +130,10 @@ fn box_array_bytes_and_abstract_records_rebuild_all_shape_fields() {
         ExactInstanceLayoutV1::abstract_reference(bound.identity, &bound.foundation, &mut meter())
             .unwrap();
     assert_eq!(abstract_ref.shape(), &TypeInstanceShapeV1::abstract_ref());
+    assert_wire_roundtrip(boxed);
+    assert_wire_roundtrip(record);
+    assert_wire_roundtrip(bytes);
+    assert_wire_roundtrip(abstract_ref);
 }
 
 #[test]

@@ -13,3 +13,28 @@ impl StrongShapeDefinitionV1<PersistentLayoutId> {
         })
     }
 }
+
+impl DecodedStrongShapeDefinitionV1<PersistentLayoutId> {
+    pub(crate) fn matches_layout_definition(
+        self,
+        expected: StrongShapeDefinitionV1<PersistentLayoutId>,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<bool, WireError> {
+        let path = scoop_wire::WirePath::root();
+        meter.charge_work(3, &path)?;
+        if self.semantic_id.verify(expected.semantic_id()).is_err()
+            || self
+                .definition_plan
+                .verify(expected.definition_plan())
+                .is_err()
+        {
+            return Ok(false);
+        }
+        // The frozen symbol-request product has no standalone refinement API.
+        // Compare its complete canonical fields, never merely their digest.
+        let actual = scoop_wire::encode_canonical_temporary_with_meter(&self.symbol, meter, &path)?;
+        let expected =
+            scoop_wire::encode_canonical_temporary_with_meter(&expected.symbol(), meter, &path)?;
+        Ok(actual == expected)
+    }
+}
