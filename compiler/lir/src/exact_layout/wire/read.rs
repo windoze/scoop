@@ -24,13 +24,18 @@ use value::*;
 
 #[derive(Debug)]
 pub struct DecodedExactLayoutExportV1 {
+    semantic: DecodedExactLayoutSemanticProjectionV1,
+    definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentLayoutId>,
+}
+
+#[derive(Debug)]
+pub struct DecodedExactLayoutSemanticProjectionV1 {
     layout: DecodedPersistentId<PersistentLayoutId>,
     exact: DecodedPersistentId<PersistentExactTypeId>,
     target: DecodedCapabilityId,
     role: RepresentationRole,
     body: RawBody,
     scan: DecodedPersistentId<PersistentScanId>,
-    definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentLayoutId>,
 }
 
 #[derive(Debug)]
@@ -49,12 +54,7 @@ impl WireDecode for DecodedExactLayoutExportV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(7)?;
         Ok(Self {
-            layout: decoder.field(1, DecodedPersistentId::decode)?,
-            exact: decoder.field(2, DecodedPersistentId::decode)?,
-            target: decoder.field(3, DecodedCapabilityId::decode)?,
-            role: decoder.field(4, RepresentationRole::decode)?,
-            body: decoder.field(5, RawBody::decode)?,
-            scan: decoder.field(6, DecodedPersistentId::decode)?,
+            semantic: DecodedExactLayoutSemanticProjectionV1::decode_fields(decoder)?,
             definition: decoder
                 .field(7, crate::production::DecodedStrongShapeDefinitionV1::decode)?,
         })
@@ -64,12 +64,7 @@ impl WireDecode for DecodedExactLayoutExportV1 {
 impl WireEncode for DecodedExactLayoutExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         encoder.map(7)?;
-        field(encoder, 1, &self.layout)?;
-        field(encoder, 2, &self.exact)?;
-        field(encoder, 3, &self.target)?;
-        field(encoder, 4, &self.role)?;
-        field(encoder, 5, &self.body)?;
-        field(encoder, 6, &self.scan)?;
+        self.semantic.encode_fields(encoder)?;
         field(encoder, 7, &self.definition)
     }
 }
@@ -156,4 +151,38 @@ fn table<T: WireDecode>(decoder: &mut Decoder<'_, '_>, index: u32) -> Result<Vec
     decoder.field(index, |decoder| {
         decoder.decode_array(|decoder, _| T::decode(decoder))
     })
+}
+
+impl DecodedExactLayoutSemanticProjectionV1 {
+    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        Ok(Self {
+            layout: decoder.field(1, DecodedPersistentId::decode)?,
+            exact: decoder.field(2, DecodedPersistentId::decode)?,
+            target: decoder.field(3, DecodedCapabilityId::decode)?,
+            role: decoder.field(4, RepresentationRole::decode)?,
+            body: decoder.field(5, RawBody::decode)?,
+            scan: decoder.field(6, DecodedPersistentId::decode)?,
+        })
+    }
+
+    fn encode_fields(&self, encoder: &mut Encoder) -> EncodeResult {
+        field(encoder, 1, &self.layout)?;
+        field(encoder, 2, &self.exact)?;
+        field(encoder, 3, &self.target)?;
+        field(encoder, 4, &self.role)?;
+        field(encoder, 5, &self.body)?;
+        field(encoder, 6, &self.scan)
+    }
+}
+impl WireDecode for DecodedExactLayoutSemanticProjectionV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(6)?;
+        Self::decode_fields(decoder)
+    }
+}
+impl WireEncode for DecodedExactLayoutSemanticProjectionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
+        encoder.map(6)?;
+        self.encode_fields(encoder)
+    }
 }

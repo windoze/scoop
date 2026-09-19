@@ -4,20 +4,14 @@ use super::*;
 
 mod read;
 pub use read::{
-    DecodedCanonicalExactDispatchExportsV1, DecodedExactDispatchExportV1, ExactDispatchWireError,
+    DecodedCanonicalExactDispatchExportsV1, DecodedExactDispatchExportV1,
+    DecodedExactDispatchSemanticProjectionV1, ExactDispatchWireError,
 };
 
 impl WireEncode for ExactDispatchExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(5)?;
-        encoder.field(1)?;
-        self.table().encode(encoder)?;
-        encoder.field(2)?;
-        self.owner_exact().encode(encoder)?;
-        encoder.field(3)?;
-        self.role().encode(encoder)?;
-        encoder.field(4)?;
-        encode_array(encoder, self.entries())?;
+        self.encode_semantic_fields(encoder)?;
         encoder.field(5)?;
         self.definition().encode(encoder)
     }
@@ -148,4 +142,32 @@ fn encode_value_sum(
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.field(0)?;
     encoder.unsigned(tag)
+}
+
+/// Table semantics without its post-layout physical definition slot.
+#[derive(Clone, Copy, Debug)]
+pub struct ExactDispatchSemanticProjectionV1<'a>(&'a ExactDispatchExportV1);
+impl ExactDispatchExportV1 {
+    pub const fn semantic_projection(&self) -> ExactDispatchSemanticProjectionV1<'_> {
+        ExactDispatchSemanticProjectionV1(self)
+    }
+    fn encode_semantic_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.field(1)?;
+        self.table().encode(encoder)?;
+        encoder.field(2)?;
+        self.owner_exact().encode(encoder)?;
+        encoder.field(3)?;
+        self.role().encode(encoder)?;
+        encoder.field(4)?;
+        encode_array(encoder, self.entries())
+    }
+}
+impl WireEncode for ExactDispatchSemanticProjectionV1<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        self.0.encode_semantic_fields(encoder)
+    }
 }

@@ -11,14 +11,7 @@ impl WireDecode for DecodedExactDescriptorExportV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
-            exact: decoder.field(1, DecodedPersistentId::decode)?,
-            value_layout: decoder.field(2, DecodedPersistentId::decode)?,
-            instance_layout: decoder.field(3, DecodedPersistentId::decode)?,
-            shape: decoder.field(4, DecodedTypeInstanceShapeV1::decode)?,
-            object_scan: decoder.field(5, DecodedRefScanV1::decode)?,
-            ancestry: decoder.field(6, DecodedAncestry::decode)?,
-            dispatch: decoder.field(7, DecodedDispatch::decode)?,
-            diagnostic_name: decoder.field(8, Decoder::owned_text)?,
+            semantic: DecodedExactDescriptorSemanticProjectionV1::decode_fields(decoder)?,
             definition: decoder
                 .field(9, crate::production::DecodedStrongShapeDefinitionV1::decode)?,
             registration: decoder.field(
@@ -74,22 +67,7 @@ impl WireDecode for DecodedCanonicalExactDescriptorExportsV1 {
 impl WireEncode for DecodedExactDescriptorExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
-        encoder.field(1)?;
-        self.exact.encode(encoder)?;
-        encoder.field(2)?;
-        self.value_layout.encode(encoder)?;
-        encoder.field(3)?;
-        self.instance_layout.encode(encoder)?;
-        encoder.field(4)?;
-        self.shape.encode(encoder)?;
-        encoder.field(5)?;
-        self.object_scan.encode(encoder)?;
-        encoder.field(6)?;
-        self.ancestry.encode(encoder)?;
-        encoder.field(7)?;
-        self.dispatch.encode(encoder)?;
-        encoder.field(8)?;
-        encoder.text(&self.diagnostic_name)?;
+        self.semantic.encode_fields(encoder)?;
         encoder.field(9)?;
         self.definition.encode(encoder)?;
         encoder.field(10)?;
@@ -142,4 +120,49 @@ fn encode_sequence<T: WireEncode>(
         record.encode(encoder)?;
     }
     Ok(())
+}
+
+impl DecodedExactDescriptorSemanticProjectionV1 {
+    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        Ok(Self {
+            exact: decoder.field(1, DecodedPersistentId::decode)?,
+            value_layout: decoder.field(2, DecodedPersistentId::decode)?,
+            instance_layout: decoder.field(3, DecodedPersistentId::decode)?,
+            shape: decoder.field(4, DecodedTypeInstanceShapeV1::decode)?,
+            object_scan: decoder.field(5, DecodedRefScanV1::decode)?,
+            ancestry: decoder.field(6, DecodedAncestry::decode)?,
+            dispatch: decoder.field(7, DecodedDispatch::decode)?,
+            diagnostic_name: decoder.field(8, Decoder::owned_text)?,
+        })
+    }
+    fn encode_fields(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.field(1)?;
+        self.exact.encode(encoder)?;
+        encoder.field(2)?;
+        self.value_layout.encode(encoder)?;
+        encoder.field(3)?;
+        self.instance_layout.encode(encoder)?;
+        encoder.field(4)?;
+        self.shape.encode(encoder)?;
+        encoder.field(5)?;
+        self.object_scan.encode(encoder)?;
+        encoder.field(6)?;
+        self.ancestry.encode(encoder)?;
+        encoder.field(7)?;
+        self.dispatch.encode(encoder)?;
+        encoder.field(8)?;
+        encoder.text(&self.diagnostic_name)
+    }
+}
+impl WireDecode for DecodedExactDescriptorSemanticProjectionV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(8)?;
+        Self::decode_fields(decoder)
+    }
+}
+impl WireEncode for DecodedExactDescriptorSemanticProjectionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(8)?;
+        self.encode_fields(encoder)
+    }
 }

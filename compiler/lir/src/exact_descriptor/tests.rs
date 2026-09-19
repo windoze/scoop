@@ -4,6 +4,7 @@ use super::*;
 use crate::*;
 
 mod fixture;
+mod projection;
 use fixture::Fixture;
 
 #[test]

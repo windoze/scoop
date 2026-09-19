@@ -13,7 +13,25 @@ impl DecodedExactLayoutExportV1 {
         expected: &ExactLayoutExportV1,
         meter: &mut BudgetMeter,
     ) -> Result<ExactLayoutExportV1, ExactLayoutWireError> {
-        meter.charge_work(7, &WirePath::root())?;
+        meter.charge_work(1, &WirePath::root())?;
+        if !self
+            .definition
+            .matches_definition(expected.identity().definition(), meter)?
+        {
+            return Err(ExactLayoutWireError::DefinitionMismatch);
+        }
+        self.semantic.validate_against(expected, meter)?;
+        Ok(expected.clone())
+    }
+}
+
+impl DecodedExactLayoutSemanticProjectionV1 {
+    pub fn validate_against(
+        self,
+        expected: &ExactLayoutExportV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ExactLayoutWireError> {
+        meter.charge_work(6, &WirePath::root())?;
         let identity = expected.identity();
         verify(self.layout, identity.layout())?;
         verify(self.exact, identity.exact())?;
@@ -29,12 +47,6 @@ impl DecodedExactLayoutExportV1 {
         }
         if self.role != identity.layout_key().representation() {
             return Err(ExactLayoutWireError::RoleMismatch);
-        }
-        if !self
-            .definition
-            .matches_definition(identity.definition(), meter)?
-        {
-            return Err(ExactLayoutWireError::DefinitionMismatch);
         }
         match (self.body, expected.kind()) {
             (
@@ -59,7 +71,7 @@ impl DecodedExactLayoutExportV1 {
             }
             _ => return Err(ExactLayoutWireError::BodyMismatch),
         }
-        Ok(expected.clone())
+        Ok(())
     }
 }
 

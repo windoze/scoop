@@ -4,16 +4,7 @@ impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPl
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
         encoder.map(28)?;
-        encode_field(encoder, 1, &semantic.unit())?;
-        encoder.field(2)?;
-        encoder.text(semantic.diagnostic_path())?;
-        encoder.field(3)?;
-        encode_initialization_semantic_schedule(encoder, semantic.schedule())?;
-        encode_field(encoder, 4, &semantic.storage())?;
-        encode_field(encoder, 5, &semantic.failure_root())?;
-        encode_field(encoder, 6, &semantic.initializer())?;
-        encode_field(encoder, 7, &semantic.ensure())?;
-        encode_array_field(encoder, 8, semantic.dependencies())?;
+        super::projections::encode_unit_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 9, &self.registration_symbol())?;
         encode_field(encoder, 10, &self.registration_definition_plan())?;
         encode_field(encoder, 11, &self.registration_primary_atom())?;
@@ -96,7 +87,7 @@ pub(super) fn encode_static_initial_artifacts(
     }
 }
 
-fn encode_initialization_semantic_schedule(
+pub(super) fn encode_initialization_semantic_schedule(
     encoder: &mut Encoder,
     schedule: crate::StrongInitializationSchedulePlanV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {

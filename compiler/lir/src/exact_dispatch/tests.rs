@@ -13,3 +13,5 @@ use fixtures::*;
 mod replay;
 mod table;
 mod wire;
+
+mod projection;

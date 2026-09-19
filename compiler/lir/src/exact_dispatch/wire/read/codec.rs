@@ -10,12 +10,7 @@ impl WireDecode for DecodedExactDispatchExportV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(5)?;
         Ok(Self {
-            table: decoder.field(1, DecodedPersistentId::decode)?,
-            owner_exact: decoder.field(2, DecodedPersistentId::decode)?,
-            role: decoder.field(3, DecodedExactDispatchRoleV1::decode)?,
-            entries: decoder.field(4, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedExactDispatchEntryV1::decode(decoder))
-            })?,
+            semantic: DecodedExactDispatchSemanticProjectionV1::decode_fields(decoder)?,
             definition: decoder.field(5, DecodedStrongShapeDefinitionV1::decode)?,
         })
     }
@@ -106,14 +101,7 @@ impl WireDecode for DecodedExactDispatchImplementationV1 {
 impl WireEncode for DecodedExactDispatchExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(5)?;
-        encoder.field(1)?;
-        self.table.encode(encoder)?;
-        encoder.field(2)?;
-        self.owner_exact.encode(encoder)?;
-        encoder.field(3)?;
-        self.role.encode(encoder)?;
-        encoder.field(4)?;
-        encode_array(encoder, &self.entries)?;
+        self.semantic.encode_fields(encoder)?;
         encoder.field(5)?;
         self.definition.encode(encoder)
     }
@@ -252,4 +240,39 @@ fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
         decoder.path().clone(),
         Some(decoder.position()),
     )
+}
+
+impl DecodedExactDispatchSemanticProjectionV1 {
+    fn decode_fields(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        Ok(Self {
+            table: decoder.field(1, DecodedPersistentId::decode)?,
+            owner_exact: decoder.field(2, DecodedPersistentId::decode)?,
+            role: decoder.field(3, DecodedExactDispatchRoleV1::decode)?,
+            entries: decoder.field(4, |decoder| {
+                decoder.decode_array(|decoder, _| DecodedExactDispatchEntryV1::decode(decoder))
+            })?,
+        })
+    }
+    fn encode_fields(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.field(1)?;
+        self.table.encode(encoder)?;
+        encoder.field(2)?;
+        self.owner_exact.encode(encoder)?;
+        encoder.field(3)?;
+        self.role.encode(encoder)?;
+        encoder.field(4)?;
+        encode_array(encoder, &self.entries)
+    }
+}
+impl WireDecode for DecodedExactDispatchSemanticProjectionV1 {
+    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        decoder.expect_map(4)?;
+        Self::decode_fields(decoder)
+    }
+}
+impl WireEncode for DecodedExactDispatchSemanticProjectionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        self.encode_fields(encoder)
+    }
 }

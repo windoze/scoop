@@ -88,6 +88,7 @@ fn replay_units<D: crate::StrongInitializationDependencyReference>(
         .zip(identities.initialization_units())
         .enumerate()
     {
+        let decoded = decoded.semantic;
         let unit = verify_expected(
             decoded.unit,
             identity.semantic_id(),

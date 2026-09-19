@@ -167,19 +167,8 @@ impl WireDecode for DecodedStrongStaticStorageInitialArtifactPlanV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongStaticStorageRegistrationPlanV1 {
-    pub(in crate::production::registration_production) storage:
-        DecodedPersistentId<PersistentStaticStorageId>,
-    storage_symbol: DecodedPersistentSymbolRequest,
-    pub(in crate::production::registration_production) layout:
-        DecodedPersistentId<PersistentLayoutId>,
-    pub(in crate::production::registration_production) scan: DecodedPersistentId<PersistentScanId>,
-    pub(in crate::production::registration_production) scan_program: DecodedRefScan,
-    pub(in crate::production::registration_production) scan_kind: u32,
-    pub(in crate::production::registration_production) byte_size: u64,
-    pub(in crate::production::registration_production) allocation_extent: u64,
-    pub(in crate::production::registration_production) required_alignment: u64,
-    pub(in crate::production::registration_production) initial_state:
-        DecodedStrongStaticStorageInitialStatePlanV1,
+    pub(in crate::production::registration_production) semantic:
+        DecodedStrongStaticStorageSemanticProjectionV1,
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -206,16 +195,7 @@ pub struct DecodedStrongStaticStorageRegistrationPlanV1 {
 impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(31)?;
-        encode_field(encoder, 1, &self.storage)?;
-        encode_field(encoder, 2, &self.storage_symbol)?;
-        encode_field(encoder, 3, &self.layout)?;
-        encode_field(encoder, 4, &self.scan)?;
-        encode_field(encoder, 5, &self.scan_program)?;
-        encode_unsigned_field(encoder, 6, u64::from(self.scan_kind))?;
-        encode_unsigned_field(encoder, 7, self.byte_size)?;
-        encode_unsigned_field(encoder, 8, self.allocation_extent)?;
-        encode_unsigned_field(encoder, 9, self.required_alignment)?;
-        encode_field(encoder, 10, &self.initial_state)?;
+        self.semantic.encode_fields(encoder)?;
         encode_field(encoder, 11, &self.registration_symbol)?;
         encode_field(encoder, 12, &self.registration_definition_plan)?;
         encode_field(encoder, 13, &self.registration_primary_atom)?;
@@ -244,17 +224,7 @@ impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(31)?;
         Ok(Self {
-            storage: decoder.field(1, DecodedPersistentId::decode)?,
-            storage_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
-            layout: decoder.field(3, DecodedPersistentId::decode)?,
-            scan: decoder.field(4, DecodedPersistentId::decode)?,
-            scan_program: decoder.field(5, DecodedRefScan::decode)?,
-            scan_kind: decoder.field(6, Decoder::u32)?,
-            byte_size: decoder.field(7, Decoder::unsigned)?,
-            allocation_extent: decoder.field(8, Decoder::unsigned)?,
-            required_alignment: decoder.field(9, Decoder::unsigned)?,
-            initial_state: decoder
-                .field(10, DecodedStrongStaticStorageInitialStatePlanV1::decode)?,
+            semantic: DecodedStrongStaticStorageSemanticProjectionV1::decode_fields(decoder)?,
             registration_symbol: decoder.field(11, DecodedPersistentSymbolRequest::decode)?,
             registration_definition_plan: decoder.field(12, DecodedPersistentId::decode)?,
             registration_primary_atom: decoder.field(13, DecodedPersistentId::decode)?,
@@ -282,3 +252,6 @@ impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
         })
     }
 }
+
+mod projection;
+pub use projection::*;

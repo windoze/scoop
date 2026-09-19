@@ -42,8 +42,8 @@ pub fn validate_initialization_registration_constituents_v2(
     let mut actual = Vec::new();
     meter.try_reserve_collection_slots(&mut actual, decoded.len(), &path)?;
     for record in &decoded {
-        meter.charge_owned_bytes(record.diagnostic_path.len() as u64, &path)?;
-        meter.charge_collection_slots(record.dependencies.len() as u64, &path)?;
+        meter.charge_owned_bytes(record.semantic.diagnostic_path.len() as u64, &path)?;
+        meter.charge_collection_slots(record.semantic.dependencies.len() as u64, &path)?;
         actual.push(encode_canonical_temporary_with_meter(record, meter, &path)?);
     }
     charge_definition_replay(decoded.len(), foundation, digests, meter)?;

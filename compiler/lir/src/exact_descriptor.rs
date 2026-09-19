@@ -18,6 +18,7 @@ pub use table::*;
 mod wire;
 pub use wire::{
     DecodedCanonicalExactDescriptorExportsV1, DecodedExactDescriptorExportV1,
+    DecodedExactDescriptorSemanticProjectionV1, ExactDescriptorSemanticProjectionV1,
     ExactDescriptorWireError,
 };
 

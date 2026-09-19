@@ -19,6 +19,7 @@ pub(super) fn validate_static_storages(
         .zip(identities.static_storages())
         .enumerate()
     {
+        let decoded = decoded.semantic;
         let storage = verify_expected(
             decoded.storage,
             identity.semantic_id(),

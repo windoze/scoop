@@ -26,7 +26,7 @@ fn instance_reader_checks_prefix_payload_and_array_element_relationships() {
         let RawInstance::Box { exact, .. } = instance(raw) else {
             panic!("box")
         };
-        *exact = decode(&ExactLayoutExportV1::from(unit())).exact;
+        *exact = decode(&ExactLayoutExportV1::from(unit())).semantic.exact;
     });
     for zst in [false, true] {
         let array = fixtures::array(zst);
@@ -38,7 +38,7 @@ fn instance_reader_checks_prefix_payload_and_array_element_relationships() {
             let RawBody::Instance {
                 representation: RawInstance::InlineArray { storage: wrong, .. },
                 ..
-            } = decode(&fixtures::array(!zst)).body
+            } = decode(&fixtures::array(!zst)).semantic.body
             else {
                 panic!("array")
             };
@@ -53,10 +53,10 @@ fn instance_reader_compares_the_complete_shape_and_branch() {
     roundtrip(&bytes);
     let array = fixtures::array(false);
     reject(&array, |raw| {
-        let RawBody::Instance { shape, .. } = &mut raw.body else {
+        let RawBody::Instance { shape, .. } = &mut raw.semantic.body else {
             panic!("shape")
         };
-        let RawBody::Instance { shape: wrong, .. } = decode(&bytes).body else {
+        let RawBody::Instance { shape: wrong, .. } = decode(&bytes).semantic.body else {
             panic!("bytes")
         };
         *shape = wrong;

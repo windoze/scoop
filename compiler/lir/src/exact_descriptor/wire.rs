@@ -5,22 +5,13 @@ use super::*;
 mod read;
 pub use read::{
     DecodedCanonicalExactDescriptorExportsV1, DecodedExactDescriptorExportV1,
-    ExactDescriptorWireError,
+    DecodedExactDescriptorSemanticProjectionV1, ExactDescriptorWireError,
 };
 
 impl WireEncode for ExactDescriptorExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
-        field(encoder, 1, &self.exact())?;
-        field(encoder, 2, &self.value_layout().identity().layout())?;
-        field(encoder, 3, &self.instance_layout().identity().layout())?;
-        field(encoder, 4, self.shape())?;
-        encoder.field(5)?;
-        crate::scan::encode_canonical_scan(self.object_scan(), encoder)?;
-        field(encoder, 6, self.ancestry())?;
-        field(encoder, 7, self.dispatch())?;
-        encoder.field(8)?;
-        encoder.text(self.diagnostic_name().as_str())?;
+        self.encode_semantic_fields(encoder)?;
         field(encoder, 9, &self.definition())?;
         field(encoder, 10, &self.registration())
     }
@@ -101,4 +92,34 @@ fn sequence<T: WireEncode>(
         value.encode(encoder)?;
     }
     Ok(())
+}
+
+/// Complete descriptor semantics without definition or registration slots.
+#[derive(Clone, Copy, Debug)]
+pub struct ExactDescriptorSemanticProjectionV1<'a>(&'a ExactDescriptorExportV1);
+impl ExactDescriptorExportV1 {
+    pub const fn semantic_projection(&self) -> ExactDescriptorSemanticProjectionV1<'_> {
+        ExactDescriptorSemanticProjectionV1(self)
+    }
+    fn encode_semantic_fields(
+        &self,
+        encoder: &mut Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        field(encoder, 1, &self.exact())?;
+        field(encoder, 2, &self.value_layout().identity().layout())?;
+        field(encoder, 3, &self.instance_layout().identity().layout())?;
+        field(encoder, 4, self.shape())?;
+        encoder.field(5)?;
+        crate::scan::encode_canonical_scan(self.object_scan(), encoder)?;
+        field(encoder, 6, self.ancestry())?;
+        field(encoder, 7, self.dispatch())?;
+        encoder.field(8)?;
+        encoder.text(self.diagnostic_name().as_str())
+    }
+}
+impl WireEncode for ExactDescriptorSemanticProjectionV1<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(8)?;
+        self.0.encode_semantic_fields(encoder)
+    }
 }

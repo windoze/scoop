@@ -449,3 +449,5 @@ fn source_site() -> SourceDeclarationSite {
     )
     .unwrap()
 }
+
+mod projections;

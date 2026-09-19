@@ -112,6 +112,9 @@ impl StrongRegistrationProductionSurfaceV1 {
 mod build;
 
 mod encode;
+pub use encode::{
+    StrongInitializationUnitSemanticProjectionV1, StrongStaticStorageSemanticProjectionV1,
+};
 
 #[derive(Debug)]
 pub enum StrongRegistrationProductionBuildError {

@@ -169,21 +169,8 @@ impl WireDecode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
 
 #[derive(Debug)]
 pub struct DecodedStrongInitializationUnitRegistrationPlanV1 {
-    pub(in crate::production::registration_production) unit:
-        DecodedPersistentId<PersistentInitializationUnitId>,
-    pub(in crate::production::registration_production) diagnostic_path: String,
-    pub(in crate::production::registration_production) semantic_schedule:
-        DecodedStrongInitializationSchedulePlanV1,
-    pub(in crate::production::registration_production) storage_id:
-        DecodedPersistentId<PersistentStaticStorageId>,
-    pub(in crate::production::registration_production) failure_root_id:
-        DecodedPersistentId<PersistentStaticStorageId>,
-    pub(in crate::production::registration_production) initializer_id:
-        DecodedPersistentId<PersistentCallableBodyId>,
-    pub(in crate::production::registration_production) ensure_id:
-        DecodedPersistentId<PersistentCallableBodyId>,
-    pub(in crate::production::registration_production) dependencies:
-        Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
+    pub(in crate::production::registration_production) semantic:
+        DecodedStrongInitializationUnitSemanticProjectionV1,
     registration_symbol: DecodedPersistentSymbolRequest,
     registration_definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     registration_primary_atom: DecodedPersistentId<ObjectDefinitionAtomId>,
@@ -209,15 +196,7 @@ pub struct DecodedStrongInitializationUnitRegistrationPlanV1 {
 impl WireEncode for DecodedStrongInitializationUnitRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(28)?;
-        encode_field(encoder, 1, &self.unit)?;
-        encoder.field(2)?;
-        encoder.text(&self.diagnostic_path)?;
-        encode_field(encoder, 3, &self.semantic_schedule)?;
-        encode_field(encoder, 4, &self.storage_id)?;
-        encode_field(encoder, 5, &self.failure_root_id)?;
-        encode_field(encoder, 6, &self.initializer_id)?;
-        encode_field(encoder, 7, &self.ensure_id)?;
-        encode_array_field(encoder, 8, &self.dependencies)?;
+        self.semantic.encode_fields(encoder)?;
         encode_field(encoder, 9, &self.registration_symbol)?;
         encode_field(encoder, 10, &self.registration_definition_plan)?;
         encode_field(encoder, 11, &self.registration_primary_atom)?;
@@ -245,17 +224,7 @@ impl WireDecode for DecodedStrongInitializationUnitRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(28)?;
         Ok(Self {
-            unit: decoder.field(1, DecodedPersistentId::decode)?,
-            diagnostic_path: decoder.field(2, Decoder::owned_text)?,
-            semantic_schedule: decoder
-                .field(3, DecodedStrongInitializationSchedulePlanV1::decode)?,
-            storage_id: decoder.field(4, DecodedPersistentId::decode)?,
-            failure_root_id: decoder.field(5, DecodedPersistentId::decode)?,
-            initializer_id: decoder.field(6, DecodedPersistentId::decode)?,
-            ensure_id: decoder.field(7, DecodedPersistentId::decode)?,
-            dependencies: decoder.field(8, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
-            })?,
+            semantic: DecodedStrongInitializationUnitSemanticProjectionV1::decode_fields(decoder)?,
             registration_symbol: decoder.field(9, DecodedPersistentSymbolRequest::decode)?,
             registration_definition_plan: decoder.field(10, DecodedPersistentId::decode)?,
             registration_primary_atom: decoder.field(11, DecodedPersistentId::decode)?,
@@ -288,3 +257,6 @@ impl WireDecode for DecodedStrongInitializationUnitRegistrationPlanV1 {
         })
     }
 }
+
+mod projection;
+pub use projection::*;

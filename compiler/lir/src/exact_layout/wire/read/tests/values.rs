@@ -45,7 +45,7 @@ fn value_reader_checks_scalar_kind_field_identity_order_and_storage_scan() {
         fields.pop();
     });
     reject(&expected, |raw| {
-        let RawBody::Value { storage, .. } = &mut raw.body else {
+        let RawBody::Value { storage, .. } = &mut raw.semantic.body else {
             panic!("value")
         };
         let wrong = ValueStorageLayoutV1::inline(8, 8, RefScan::None).unwrap();

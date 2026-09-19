@@ -12,11 +12,16 @@ mod codec;
 
 #[derive(Debug)]
 pub struct DecodedExactDispatchExportV1 {
+    semantic: DecodedExactDispatchSemanticProjectionV1,
+    definition: DecodedStrongShapeDefinitionV1<PersistentDispatchTableId>,
+}
+
+#[derive(Debug)]
+pub struct DecodedExactDispatchSemanticProjectionV1 {
     table: DecodedPersistentId<PersistentDispatchTableId>,
     owner_exact: DecodedPersistentId<PersistentExactTypeId>,
     role: DecodedExactDispatchRoleV1,
     entries: Vec<DecodedExactDispatchEntryV1>,
-    definition: DecodedStrongShapeDefinitionV1<PersistentDispatchTableId>,
 }
 
 #[derive(Debug)]
@@ -75,18 +80,36 @@ impl DecodedExactDispatchExportV1 {
         expected: &ExactDispatchExportV1,
         meter: &mut BudgetMeter,
     ) -> Result<ExactDispatchExportV1, ExactDispatchWireError> {
+        self.semantic.validate_against(expected, meter)?;
+        if !self
+            .definition
+            .matches_definition(expected.definition(), meter)?
+        {
+            return Err(ExactDispatchWireError::Mismatch);
+        }
+        Ok(expected.clone())
+    }
+}
+
+impl DecodedExactDispatchSemanticProjectionV1 {
+    pub fn validate_against(
+        self,
+        expected: &ExactDispatchExportV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ExactDispatchWireError> {
         let path = WirePath::root();
         meter.charge_work(self.entries.len() as u64, &path)?;
         for entry in &self.entries {
             meter.charge_work(entry.slot_signature.exact.parameter_count() as u64, &path)?;
         }
         let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
-        let wanted = encode_canonical_temporary_with_meter(expected, meter, &path)?;
+        let wanted =
+            encode_canonical_temporary_with_meter(&expected.semantic_projection(), meter, &path)?;
         meter.charge_work(actual.len() as u64, &path)?;
         if actual != wanted {
             return Err(ExactDispatchWireError::Mismatch);
         }
-        Ok(expected.clone())
+        Ok(())
     }
 }
 

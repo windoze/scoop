@@ -60,11 +60,11 @@ pub(super) fn charge_replay(
         }
     }
     for storage in &decoded.static_storages {
-        charge_scan(&storage.scan_program, 1, meter)?;
+        charge_scan(&storage.semantic.scan_program, 1, meter)?;
         if let DecodedStrongStaticStorageInitialStatePlanV1::EncodedStaticValue {
             initial_template,
             immortal_relocations,
-        } = &storage.initial_state
+        } = &storage.semantic.initial_state
         {
             meter.charge_owned_bytes((initial_template.len() as u64).saturating_mul(3), &path)?;
             let relocations = immortal_relocations.len() as u64;

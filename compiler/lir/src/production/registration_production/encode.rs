@@ -3,6 +3,9 @@ use super::*;
 mod initialization;
 mod types;
 use initialization::{encode_static_initial_artifacts, encode_static_initial_state};
+mod projections;
+use projections::encode_static_semantic_fields;
+pub use projections::*;
 
 impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> WireEncode
     for StrongRegistrationProductionSurface<D, C, I>
@@ -103,18 +106,7 @@ impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
         encoder.map(31)?;
-        encode_field(encoder, 1, &semantic.storage())?;
-        encode_field(encoder, 2, &semantic.symbol())?;
-        encode_field(encoder, 3, &semantic.layout())?;
-        encode_field(encoder, 4, &semantic.scan())?;
-        encoder.field(5)?;
-        encode_ref_scan(encoder, semantic.scan_program())?;
-        encode_unsigned_field(encoder, 6, u64::from(semantic.scan_kind().tag()))?;
-        encode_unsigned_field(encoder, 7, semantic.byte_size())?;
-        encode_unsigned_field(encoder, 8, semantic.allocation_extent())?;
-        encode_unsigned_field(encoder, 9, semantic.required_alignment())?;
-        encoder.field(10)?;
-        encode_static_initial_state(encoder, semantic.initial_state())?;
+        encode_static_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 11, &self.registration_symbol())?;
         encode_field(encoder, 12, &self.registration_definition_plan())?;
         encode_field(encoder, 13, &self.registration_primary_atom())?;

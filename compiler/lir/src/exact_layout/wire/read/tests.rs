@@ -8,6 +8,7 @@ use crate::*;
 mod definitions;
 mod fixtures;
 mod instances;
+mod projection;
 mod values;
 
 fn decode(expected: &ExactLayoutExportV1) -> DecodedExactLayoutExportV1 {
@@ -36,14 +37,14 @@ fn reject(expected: &ExactLayoutExportV1, edit: impl FnOnce(&mut DecodedExactLay
 }
 
 fn value(raw: &mut DecodedExactLayoutExportV1) -> &mut RawValue {
-    match &mut raw.body {
+    match &mut raw.semantic.body {
         RawBody::Value { representation, .. } => representation,
         _ => panic!("value"),
     }
 }
 
 fn instance(raw: &mut DecodedExactLayoutExportV1) -> &mut RawInstance {
-    match &mut raw.body {
+    match &mut raw.semantic.body {
         RawBody::Instance { representation, .. } => representation,
         _ => panic!("instance"),
     }
@@ -54,20 +55,30 @@ fn complete_record_checks_every_header_and_physical_definition() {
     let expected = ExactLayoutExportV1::from(unit());
     let other = ExactLayoutExportV1::from(integer("Byte", IntegerKind::SIGNED_8));
     roundtrip(&expected);
-    reject(&expected, |raw| raw.layout = decode(&other).layout);
-    reject(&expected, |raw| raw.exact = decode(&other).exact);
-    reject(&expected, |raw| raw.scan = decode(&other).scan);
-    reject(&expected, |raw| raw.definition = decode(&other).definition);
-    reject(&expected, |raw| raw.role = RepresentationRole::CValue);
     reject(&expected, |raw| {
-        raw.target = decode_canonical(
+        raw.semantic.layout = decode(&other).semantic.layout
+    });
+    reject(&expected, |raw| {
+        raw.semantic.exact = decode(&other).semantic.exact
+    });
+    reject(&expected, |raw| {
+        raw.semantic.scan = decode(&other).semantic.scan
+    });
+    reject(&expected, |raw| raw.definition = decode(&other).definition);
+    reject(&expected, |raw| {
+        raw.semantic.role = RepresentationRole::CValue
+    });
+    reject(&expected, |raw| {
+        raw.semantic.target = decode_canonical(
             &encode(&CapabilityId::new("test", "foreign-target", 1).unwrap()).unwrap(),
             DecodeLimits::default(),
         )
         .unwrap()
     });
     let bytes = fixtures::bytes();
-    reject(&expected, |raw| raw.body = decode(&bytes).body);
+    reject(&expected, |raw| {
+        raw.semantic.body = decode(&bytes).semantic.body
+    });
 }
 
 #[test]

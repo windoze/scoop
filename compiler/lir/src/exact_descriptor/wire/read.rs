@@ -9,6 +9,13 @@ use crate::{
 
 #[derive(Debug)]
 pub struct DecodedExactDescriptorExportV1 {
+    semantic: DecodedExactDescriptorSemanticProjectionV1,
+    definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentExactTypeId>,
+    registration: crate::production::DecodedStrongShapeRegistrationV1<PersistentExactTypeId>,
+}
+
+#[derive(Debug)]
+pub struct DecodedExactDescriptorSemanticProjectionV1 {
     exact: DecodedPersistentId<PersistentExactTypeId>,
     value_layout: DecodedPersistentId<PersistentLayoutId>,
     instance_layout: DecodedPersistentId<PersistentLayoutId>,
@@ -17,8 +24,6 @@ pub struct DecodedExactDescriptorExportV1 {
     ancestry: DecodedAncestry,
     dispatch: DecodedDispatch,
     diagnostic_name: String,
-    definition: crate::production::DecodedStrongShapeDefinitionV1<PersistentExactTypeId>,
-    registration: crate::production::DecodedStrongShapeRegistrationV1<PersistentExactTypeId>,
 }
 
 #[derive(Debug)]

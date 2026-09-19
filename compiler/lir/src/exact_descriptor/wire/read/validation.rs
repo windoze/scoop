@@ -13,7 +13,31 @@ impl DecodedExactDescriptorExportV1 {
         expected: &ExactDescriptorExportV1,
         meter: &mut BudgetMeter,
     ) -> Result<ExactDescriptorExportV1, ExactDescriptorWireError> {
-        meter.charge_work(10, &WirePath::root())?;
+        meter.charge_work(2, &WirePath::root())?;
+        self.semantic.validate_against(expected, meter)?;
+        if !self
+            .definition
+            .matches_definition(expected.definition(), meter)?
+        {
+            return Err(ExactDescriptorWireError::Definition);
+        }
+        if !self
+            .registration
+            .matches_registration(expected.registration(), meter)?
+        {
+            return Err(ExactDescriptorWireError::Registration);
+        }
+        Ok(expected.clone())
+    }
+}
+
+impl DecodedExactDescriptorSemanticProjectionV1 {
+    pub fn validate_against(
+        self,
+        expected: &ExactDescriptorExportV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ExactDescriptorWireError> {
+        meter.charge_work(8, &WirePath::root())?;
         verify(self.exact, expected.exact())?;
         verify(
             self.value_layout,
@@ -33,19 +57,7 @@ impl DecodedExactDescriptorExportV1 {
         if self.diagnostic_name != expected.diagnostic_name().as_str() {
             return Err(ExactDescriptorWireError::DiagnosticName);
         }
-        if !self
-            .definition
-            .matches_definition(expected.definition(), meter)?
-        {
-            return Err(ExactDescriptorWireError::Definition);
-        }
-        if !self
-            .registration
-            .matches_registration(expected.registration(), meter)?
-        {
-            return Err(ExactDescriptorWireError::Registration);
-        }
-        Ok(expected.clone())
+        Ok(())
     }
 }
 
