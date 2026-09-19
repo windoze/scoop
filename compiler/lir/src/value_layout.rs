@@ -2,9 +2,12 @@
 //! They carry physical facts only; an exported layout still needs its exact
 //! identity, representation replay and definition ownership to be validated.
 
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, sync::Arc};
 
 use crate::{CheckedRefScanV1, LirTargetProfile, RefScan, TypeInstanceShapeError};
+
+mod fields;
+pub use fields::*;
 
 mod wire;
 pub use wire::{DecodedArrayElementStorageV1, DecodedValueStorageLayoutV1};
@@ -72,7 +75,7 @@ impl NonZeroValueStorageV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum StorageBody {
     ZeroSized(NonZeroPow2),
-    Inline(NonZeroValueStorageV1),
+    Inline(Arc<NonZeroValueStorageV1>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -100,9 +103,9 @@ impl ValueStorageLayoutV1 {
         alignment: u64,
         scan: RefScan,
     ) -> Result<Self, TypeInstanceShapeError> {
-        Ok(Self(StorageBody::Inline(NonZeroValueStorageV1::new(
-            size, alignment, scan,
-        )?)))
+        Ok(Self(StorageBody::Inline(Arc::new(
+            NonZeroValueStorageV1::new(size, alignment, scan)?,
+        ))))
     }
 
     pub fn validate_target(&self, target: LirTargetProfile) -> Result<(), TypeInstanceShapeError> {
@@ -123,7 +126,7 @@ impl ValueStorageLayoutV1 {
         Ok(())
     }
 
-    pub const fn kind(&self) -> ValueStorageKindV1<'_> {
+    pub fn kind(&self) -> ValueStorageKindV1<'_> {
         match &self.0 {
             StorageBody::ZeroSized(alignment) => ValueStorageKindV1::ZeroSized {
                 alignment: *alignment,
@@ -136,21 +139,21 @@ impl ValueStorageLayoutV1 {
         }
     }
 
-    pub const fn nonzero(&self) -> Option<&NonZeroValueStorageV1> {
+    pub fn nonzero(&self) -> Option<&NonZeroValueStorageV1> {
         match &self.0 {
             StorageBody::ZeroSized(_) => None,
             StorageBody::Inline(value) => Some(value),
         }
     }
 
-    pub const fn byte_size(&self) -> u64 {
+    pub fn byte_size(&self) -> u64 {
         match &self.0 {
             StorageBody::ZeroSized(_) => 0,
             StorageBody::Inline(value) => value.size.get(),
         }
     }
 
-    pub const fn alignment(&self) -> NonZeroPow2 {
+    pub fn alignment(&self) -> NonZeroPow2 {
         match &self.0 {
             StorageBody::ZeroSized(alignment) => *alignment,
             StorageBody::Inline(value) => value.alignment,
@@ -192,7 +195,7 @@ impl ArrayElementStorageV1 {
         Self(value.0.clone())
     }
 
-    pub const fn kind(&self) -> ArrayElementStorageKindV1<'_> {
+    pub fn kind(&self) -> ArrayElementStorageKindV1<'_> {
         match &self.0 {
             StorageBody::ZeroSized(alignment) => ArrayElementStorageKindV1::ZeroSized {
                 alignment: *alignment,
