@@ -6,6 +6,7 @@ use support::*;
 
 mod dependency_external;
 mod exact_callable_abi;
+mod exact_layouts;
 mod native_storage;
 mod storage_replay;
 mod zst_places;

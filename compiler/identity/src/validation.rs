@@ -1482,6 +1482,20 @@ impl ValidatedIdentityGraph {
             })
     }
 
+    /// Returns the already checked record while sharing its canonical key.
+    /// This does not introduce another identity or resolve an unchecked id.
+    pub fn canonical_record<I, K>(
+        &self,
+        id: I,
+    ) -> Result<CborIdentityRecord<I, K>, IdentityReferenceError>
+    where
+        I: PersistentId + 'static,
+        K: CborIdentityKey<I> + Send + Sync + 'static,
+    {
+        self.canonical_key(id)
+            .map(|key| CborIdentityRecord::from_verified_shared(id, key))
+    }
+
     /// Reconstructs the canonical records introduced by one layer and key
     /// family, sorted by raw persistent id.
     pub fn records<I, K>(

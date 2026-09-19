@@ -25,13 +25,30 @@ pub(super) struct LoweredNativeAbi {
 /// Normalize every C boundary used by this module while the source exact-type
 /// relation is still available. LIR's physical `CType` deliberately does not
 /// carry enough source semantics to reconstruct these records later.
-pub(super) fn lower(
+pub(super) fn lower<'root>(
     context: &LoweringContext,
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    materialized_types: impl IntoIterator<Item = &'root mir::Type>,
 ) -> StorageResult<LoweredNativeAbi> {
     let mut builder = CanonicalCAbiBuilder::new(context.target_profile(), module, structs, enums);
+
+    // An exported C-layout representation needs its complete canonical
+    // contract even when no native callable mentions it.
+    for ty in materialized_types {
+        if let mir::Type::Struct(id) = ty
+            && matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Declared {
+                    c_layout: Some(_),
+                    ..
+                }
+            )
+        {
+            builder.storage(ty)?;
+        }
+    }
 
     for (_, external) in module.extern_functions.iter() {
         builder.add_external_function(context, external)?;

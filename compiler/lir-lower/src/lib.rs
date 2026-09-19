@@ -146,6 +146,9 @@ pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequireme
 mod cross_cone_bridge;
 pub use cross_cone_bridge::{CrossConeLirBridgeLoweringError, lower_cross_cone_bridge_section};
 
+mod exact_layouts;
+pub use exact_layouts::{ExactLayoutLoweringError, lower_exact_layout_exports};
+
 mod exact_callable_abi;
 pub use exact_callable_abi::{ExactCallableAbiLoweringError, lower_exact_callable_abi_export};
 
@@ -226,7 +229,16 @@ pub fn lower_with_dependencies(
             &structs,
             &enums,
         )?;
-    let native_abi = native_abi::lower(&context, module, &structs, &enums)?;
+    let native_abi = native_abi::lower(
+        &context,
+        module,
+        &structs,
+        &enums,
+        identity_roots
+            .source_nominal_shapes()
+            .iter()
+            .map(mir::StrongSourceNominalShapeRoot::ty),
+    )?;
     // Classify every final MIR function before any body is lowered. Callee
     // definitions and all statically selected call sites reuse these exact
     // signatures rather than independently rebuilding a physical ABI.
