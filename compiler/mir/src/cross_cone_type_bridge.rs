@@ -15,6 +15,7 @@ use scoop_wire::{
 mod callables;
 mod dispatch;
 mod facts;
+mod objects;
 mod origin;
 mod record;
 mod representation;
@@ -28,6 +29,7 @@ mod wire;
 pub use callables::*;
 pub use dispatch::*;
 pub use facts::*;
+pub use objects::*;
 pub use origin::*;
 pub use record::*;
 pub use representation::*;
