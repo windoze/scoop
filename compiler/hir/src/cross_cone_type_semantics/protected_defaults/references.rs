@@ -1,3 +1,4 @@
+mod closure;
 mod decode;
 mod errors;
 mod ordering;
@@ -6,6 +7,7 @@ mod resolve;
 mod set;
 mod set_decode;
 
+pub use closure::*;
 pub use decode::*;
 pub use errors::*;
 pub use record::*;
