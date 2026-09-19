@@ -62,8 +62,8 @@ pub trait NominalInheritanceInterfaceSemanticAuthority<E>:
 pub struct CheckedNominalInheritanceInterfacesV1<'a> {
     table: &'a CanonicalNominalInheritanceInterfacesV1,
 }
-impl CheckedNominalInheritanceInterfacesV1<'_> {
-    pub const fn table(&self) -> &CanonicalNominalInheritanceInterfacesV1 {
+impl<'a> CheckedNominalInheritanceInterfacesV1<'a> {
+    pub const fn table(&self) -> &'a CanonicalNominalInheritanceInterfacesV1 {
         self.table
     }
 }

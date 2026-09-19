@@ -17,8 +17,8 @@ pub trait ProtectedDeclarationSemanticAuthority<E>: NestedNominalSemanticAuthori
 pub struct CheckedProtectedDeclarationSourcesV1<'a> {
     table: &'a CanonicalProtectedDeclarationInterfacesV1,
 }
-impl CheckedProtectedDeclarationSourcesV1<'_> {
-    pub const fn table(&self) -> &CanonicalProtectedDeclarationInterfacesV1 {
+impl<'a> CheckedProtectedDeclarationSourcesV1<'a> {
+    pub const fn table(&self) -> &'a CanonicalProtectedDeclarationInterfacesV1 {
         self.table
     }
 }

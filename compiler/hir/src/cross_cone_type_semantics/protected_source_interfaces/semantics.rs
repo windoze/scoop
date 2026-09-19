@@ -36,8 +36,8 @@ pub trait ProtectedSourceProtocolSemanticAuthority<E> {
 pub struct CheckedProtectedSourceProtocolV1<'a> {
     record: &'a ProtectedCallableSourceInterfaceV1,
 }
-impl CheckedProtectedSourceProtocolV1<'_> {
-    pub const fn record(&self) -> &ProtectedCallableSourceInterfaceV1 {
+impl<'a> CheckedProtectedSourceProtocolV1<'a> {
+    pub const fn record(&self) -> &'a ProtectedCallableSourceInterfaceV1 {
         self.record
     }
 }
