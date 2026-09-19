@@ -71,3 +71,6 @@ pub use shape_support::*;
 
 mod strong_section;
 pub use strong_section::*;
+
+mod strong_refs_v2;
+pub use strong_refs_v2::*;
