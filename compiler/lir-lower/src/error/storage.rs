@@ -6,6 +6,7 @@ use scoop_lir as lir;
 pub enum StorageLoweringError {
     Replay(lir::StorageReplayError),
     Shape(lir::TypeInstanceShapeError),
+    EnumGeometry(lir::EnumStorageGeometryErrorV1),
     Scan(lir::RefScanValidationError),
     AbiLayout(lir::AbiLayoutError),
     AbiValue(lir::AbiValueError),
@@ -28,6 +29,7 @@ macro_rules! from_error {
 
 from_error!(lir::StorageReplayError, Replay);
 from_error!(lir::TypeInstanceShapeError, Shape);
+from_error!(lir::EnumStorageGeometryErrorV1, EnumGeometry);
 from_error!(lir::RefScanValidationError, Scan);
 from_error!(lir::AbiLayoutError, AbiLayout);
 from_error!(lir::AbiValueError, AbiValue);

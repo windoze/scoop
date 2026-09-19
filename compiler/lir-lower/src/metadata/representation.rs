@@ -1,4 +1,5 @@
 use super::*;
+use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NichePointerKind> {
     let option = module.option_core(id)?;
@@ -32,8 +33,9 @@ pub(crate) fn lower_enums(
     let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
     reprs.resize_with(module.enums.len(), || None);
     let mut visiting = std::collections::HashSet::new();
+    let mut meter = BudgetMeter::new(DecodeLimits::default());
     for (id, _) in module.enums.iter() {
-        compute_repr(context, module, &mut reprs, &mut visiting, id)?;
+        compute_repr(context, module, &mut reprs, &mut visiting, id, &mut meter)?;
     }
     let mut enums = lir::EnumDefs::default();
     for ((mir_id, def), repr) in module.enums.iter().zip(reprs) {
@@ -141,6 +143,7 @@ pub(crate) fn compute_repr(
     reprs: &mut Vec<Option<lir::EnumRepr>>,
     visiting: &mut std::collections::HashSet<mir::EnumId>,
     id: mir::EnumId,
+    meter: &mut BudgetMeter,
 ) -> StorageResult<()> {
     let index = id.into_raw().into_u32() as usize;
     if reprs[index].is_some() {
@@ -161,7 +164,7 @@ pub(crate) fn compute_repr(
     for nested_id in nested {
         // A by-value recursive enum is infinitely sized; hir-lower
         // rejects it before this stage.
-        compute_repr(context, module, reprs, visiting, nested_id)?;
+        compute_repr(context, module, reprs, visiting, nested_id, meter)?;
     }
 
     // This is a semantic whitelist, not merely an LLVM pointer-shape
@@ -194,125 +197,73 @@ pub(crate) fn compute_repr(
         )?;
         Ok(repr_shape(context, repr))
     };
-    struct PendingField {
-        ty: lir::LirType,
-        relative_offset: u64,
-        zero_sized: bool,
-    }
-
-    struct PendingVariant {
-        fields: Vec<PendingField>,
-        size: u64,
-        align: u64,
-        gc_free: bool,
-    }
-
-    let mut pending = Vec::new();
-    for variant in &def.variants {
-        let fields: Vec<lir::LirType> = variant
-            .fields
-            .iter()
-            .map(|field| lir_type(&field.ty))
-            .collect();
-        let field_types: Vec<mir::Type> = variant
-            .fields
-            .iter()
-            .map(|field| field.ty.clone())
-            .collect();
-        let (field_offsets, size, align) =
-            aggregate_shape(context, module, &enum_shape, &field_types)?;
-        assert_eq!(
-            fields.len(),
-            field_offsets.len(),
-            "aggregate layout returns one offset per enum field"
-        );
-        pending.push(PendingVariant {
-            fields: fields
-                .into_iter()
-                .zip(field_offsets)
-                .zip(&field_types)
-                .map(|((ty, relative_offset), source)| {
-                    Ok(PendingField {
-                        ty,
-                        relative_offset,
-                        zero_sized: size_align(context, module, &enum_shape, source)?.0 == 0,
-                    })
-                })
-                .collect::<StorageResult<Vec<_>>>()?,
-            size,
-            align,
-            gc_free: variant.gc_free,
-        });
-    }
-
-    // Pure-value variants all reuse this one region. Empty variants need
-    // no bytes but retain the same offset in the structural metadata.
-    let pure_size = pending
-        .iter()
-        .filter(|variant| variant.gc_free)
-        .map(|variant| variant.size)
-        .max()
-        .unwrap_or(0);
-    let pure_align = pending
-        .iter()
-        .filter(|variant| variant.gc_free)
-        .map(|variant| variant.align)
-        .max()
-        .unwrap_or(1);
-    let tag_layout = context.machine_scalar_layout();
-    let mut cursor = lir::StorageLayoutCursorV1::new(
-        context.target_profile(),
-        lir::StoragePlacementPolicyV1::Ordinary,
-    )?;
-    cursor.push(lir::StorageGeometryV1::new(
-        context.target_profile(),
-        tag_layout.size,
-        tag_layout.align,
-    )?)?;
-    let pure_offset = cursor
-        .reserve_region(pure_size, lir::NonZeroPow2::new(pure_align)?)?
-        .offset();
-    let mut variants = Vec::with_capacity(pending.len());
-    for variant in pending {
-        let slot_offset = if variant.gc_free {
-            pure_offset
-        } else {
-            cursor
-                .reserve_region(variant.size, lir::NonZeroPow2::new(variant.align)?)?
-                .offset()
-        };
-        variants.push(lir::EnumVariantRepr {
-            fields: variant
-                .fields
-                .into_iter()
-                .map(|field| {
-                    let offset = if field.zero_sized {
-                        0
-                    } else {
-                        slot_offset
-                            .checked_add(field.relative_offset)
-                            .ok_or(lir::TypeInstanceShapeError::SizeOverflow)?
-                    };
-                    Ok(lir::EnumFieldRepr {
-                        ty: field.ty,
-                        offset,
-                    })
-                })
-                .collect::<StorageResult<Vec<_>>>()?,
-            slot_offset,
-            slot_size: variant.size,
-            slot_align: variant.align,
-            gc_free: variant.gc_free,
-        });
-    }
-    let geometry = cursor.finish()?;
-    reprs[index] = Some(lir::EnumRepr::Tagged {
-        variants,
-        size: geometry.size(),
-        align: geometry.alignment().get(),
-    });
+    reprs[index] = Some(tagged_repr(context, module, &enum_shape, def, meter)?);
     visiting.remove(&id);
     Ok(())
+}
+
+fn tagged_repr(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
+    definition: &mir::EnumDef,
+    meter: &mut BudgetMeter,
+) -> StorageResult<lir::EnumRepr> {
+    let mut field_geometries = reserve(definition.variants.len(), meter)?;
+    for variant in &definition.variants {
+        let mut fields = reserve(variant.fields.len(), meter)?;
+        for field in &variant.fields {
+            let (size, alignment) = size_align(context, module, enum_shape, &field.ty)?;
+            fields.push(lir::StorageGeometryV1::new(
+                context.target_profile(),
+                size,
+                alignment,
+            )?);
+        }
+        field_geometries.push(fields);
+    }
+    let mut inputs = reserve(definition.variants.len(), meter)?;
+    for (variant, fields) in definition.variants.iter().zip(&field_geometries) {
+        inputs.push(lir::EnumVariantGeometryInputV1 {
+            fields,
+            gc_free: variant.gc_free,
+        });
+    }
+    let geometry = lir::EnumStorageGeometryV1::tagged(context.target_profile(), &inputs, meter)?;
+    let mut variants = reserve(definition.variants.len(), meter)?;
+    for (source, variant) in definition.variants.iter().zip(geometry.variants()) {
+        let mut fields = reserve(source.fields.len(), meter)?;
+        for (source, field) in source.fields.iter().zip(variant.fields()) {
+            fields.push(lir::EnumFieldRepr {
+                ty: lir_type(&source.ty),
+                offset: field.offset(),
+            });
+        }
+        variants.push(lir::EnumVariantRepr {
+            fields,
+            slot_offset: variant.slot().region().offset(),
+            slot_size: variant.storage().size(),
+            slot_align: variant.storage().alignment().get(),
+            gc_free: source.gc_free,
+        });
+    }
+    Ok(lir::EnumRepr::Tagged {
+        variants,
+        size: geometry.storage().size(),
+        align: geometry.storage().alignment().get(),
+    })
+}
+
+fn reserve<T>(length: usize, meter: &mut BudgetMeter) -> StorageResult<Vec<T>> {
+    let mut values = Vec::new();
+    let path = WirePath::root();
+    meter
+        .check_table_entries(length as u64, &path)
+        .map_err(lir::EnumStorageGeometryErrorV1::Resource)?;
+    meter
+        .try_reserve_collection_slots(&mut values, length, &path)
+        .map_err(lir::EnumStorageGeometryErrorV1::Resource)?;
+    Ok(values)
 }
 
 /// Size and alignment of an enum value from its representation: the

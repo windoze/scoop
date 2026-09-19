@@ -9,6 +9,9 @@ use crate::{CheckedRefScanV1, LirTargetProfile, RefScan, TypeInstanceShapeError}
 mod geometry;
 pub use geometry::*;
 
+mod enum_geometry;
+pub use enum_geometry::*;
+
 mod fields;
 pub use fields::*;
 
