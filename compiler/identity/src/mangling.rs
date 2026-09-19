@@ -210,8 +210,15 @@ impl WireEncode for PersistentSymbolKey {
 pub struct MangledSymbol(String);
 
 impl MangledSymbol {
+    pub fn byte_length_for_key(key: &PersistentSymbolKey) -> usize {
+        MANGLED_SYMBOL_PREFIX.len()
+            + key.kind().symbol_tag().len()
+            + 1
+            + key.owner_bytes().len() * 2
+    }
+
     pub fn from_key(key: &PersistentSymbolKey) -> Self {
-        let mut symbol = String::with_capacity(MANGLED_SYMBOL_PREFIX.len() + 2 + 1 + 64);
+        let mut symbol = String::with_capacity(Self::byte_length_for_key(key));
         symbol.push_str(MANGLED_SYMBOL_PREFIX);
         symbol.push_str(key.kind().symbol_tag());
         symbol.push('$');
@@ -441,6 +448,10 @@ mod tests {
             assert_eq!(&encoded[4..6], &[0x58, 0x20]);
 
             let symbol = MangledSymbol::from_key(&key);
+            assert_eq!(
+                MangledSymbol::byte_length_for_key(&key),
+                symbol.as_str().len()
+            );
             assert_eq!(symbol.as_str().len(), 75);
             assert_eq!(
                 symbol.as_str(),
