@@ -7,10 +7,12 @@ use scoop_wire::{Encoder, WireEncode};
 
 mod decode;
 mod errors;
+mod semantics;
 #[cfg(test)]
 mod tests;
 pub use decode::*;
 pub use errors::*;
+pub use semantics::*;
 
 /// Complete template data and its exact protected-protocol key projection.
 /// Source/body/access validation is required before any template can be used.
