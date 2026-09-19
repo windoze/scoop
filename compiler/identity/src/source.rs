@@ -301,6 +301,11 @@ pub struct DecodedSourceIdentity {
 }
 
 impl DecodedSourceIdentity {
+    /// The actual text-leaf size, before source/path validation or allocation.
+    pub fn logical_path_byte_len(&self) -> usize {
+        self.logical_path.0.len()
+    }
+
     pub fn validate(
         self,
         coordinate: &ConeCoordinate,

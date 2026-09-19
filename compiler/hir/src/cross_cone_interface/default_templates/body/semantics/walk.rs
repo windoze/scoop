@@ -25,6 +25,7 @@ use crate::{
 
 mod expression;
 mod nested;
+mod origin;
 mod statement;
 
 pub(super) fn validate<A, E>(
@@ -49,14 +50,23 @@ where
     .run(body)
 }
 
-pub(super) fn visit_definition_sources(
+pub(super) fn visit_definition_sources<V, E>(
     body: &ExportDefaultBodyV1,
-    visitor: &mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
+    visitor: &mut V,
     meter: &mut BudgetMeter,
     path: &WirePath,
-) -> Result<(), WireError> {
+) -> Result<(), E>
+where
+    V: FnMut(
+        &ExportDefinitionSourceV1,
+        DefaultBodyOriginSiteV1,
+        &mut BudgetMeter,
+        &WirePath,
+    ) -> Result<(), E>,
+    E: From<WireError>,
+{
     Validator {
-        mode: DefinitionSourceVisitor { visitor },
+        mode: origin::DefinitionSourceVisitor { visitor },
         meter,
         path,
     }
@@ -89,6 +99,8 @@ pub(super) trait BodyWalkMode {
         &mut self,
         source: &ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,
+        _meter: &mut BudgetMeter,
+        _path: &WirePath,
     ) -> Result<(), Self::Error>;
 }
 
@@ -158,6 +170,8 @@ where
         &mut self,
         source: &ExportDefinitionSourceV1,
         site: DefaultBodyOriginSiteV1,
+        _meter: &mut BudgetMeter,
+        _path: &WirePath,
     ) -> Result<(), Self::Error> {
         source.validate_semantics(self.authority).map_err(|error| {
             DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
@@ -166,48 +180,6 @@ where
                 error: Box::new(error),
             }
         })
-    }
-}
-
-struct DefinitionSourceVisitor<'a> {
-    visitor: &'a mut dyn FnMut(&ExportDefinitionSourceV1, DefaultBodyOriginSiteV1),
-}
-
-impl BodyWalkMode for DefinitionSourceVisitor<'_> {
-    type Error = WireError;
-
-    fn resource(error: WireError) -> Self::Error {
-        error
-    }
-
-    fn validate_type(
-        &mut self,
-        _: &SignatureTypeKey,
-        _: DefaultBodyProviderTypeSiteV1,
-        _: &ExportDefinitionSourceV1,
-        _: &mut BudgetMeter,
-        _: &WirePath,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn validate_binder(
-        &mut self,
-        _: u32,
-        _: u32,
-        _: DefaultBodyProviderTypeSiteV1,
-        _: &ExportDefinitionSourceV1,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn visit_origin(
-        &mut self,
-        source: &ExportDefinitionSourceV1,
-        site: DefaultBodyOriginSiteV1,
-    ) -> Result<(), Self::Error> {
-        (self.visitor)(source, site);
-        Ok(())
     }
 }
 
@@ -491,7 +463,9 @@ where
             BodyNode::IntegerArguments(arguments) => {
                 self.process_integer_arguments(arguments, depth, pending)
             }
-            BodyNode::Origin { source, site } => self.mode.visit_origin(source, site),
+            BodyNode::Origin { source, site } => {
+                self.mode.visit_origin(source, site, self.meter, self.path)
+            }
             BodyNode::Binder {
                 depth: binder_depth,
                 index,

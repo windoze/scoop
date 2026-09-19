@@ -36,6 +36,31 @@ impl ExportDefaultBodyV1 {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<(), WireError> {
+        self.visit_definition_sources_metered(
+            &mut |source, site, _, _| {
+                visitor(source, site);
+                Ok(())
+            },
+            meter,
+            path,
+        )
+    }
+    /// Shares the walk's meter with each fallible inline-origin consumer.
+    pub(crate) fn visit_definition_sources_metered<V, E>(
+        &self,
+        visitor: &mut V,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(
+            &ExportDefinitionSourceV1,
+            DefaultBodyOriginSiteV1,
+            &mut BudgetMeter,
+            &WirePath,
+        ) -> Result<(), E>,
+        E: From<WireError>,
+    {
         walk::visit_definition_sources(self, visitor, meter, path)
     }
 }

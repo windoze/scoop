@@ -187,6 +187,11 @@ pub struct DecodedDefinitionOrigin {
 }
 
 impl DecodedDefinitionOrigin {
+    /// Measures the origin's source path without treating its product as text.
+    pub fn logical_path_byte_len(&self) -> usize {
+        self.source.logical_path_byte_len()
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

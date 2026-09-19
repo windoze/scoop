@@ -1,0 +1,48 @@
+use super::*;
+
+pub(super) struct DefinitionSourceVisitor<'a, V> {
+    pub visitor: &'a mut V,
+}
+impl<V, E> BodyWalkMode for DefinitionSourceVisitor<'_, V>
+where
+    V: FnMut(
+        &ExportDefinitionSourceV1,
+        DefaultBodyOriginSiteV1,
+        &mut BudgetMeter,
+        &WirePath,
+    ) -> Result<(), E>,
+    E: From<WireError>,
+{
+    type Error = E;
+    fn resource(error: WireError) -> Self::Error {
+        error.into()
+    }
+    fn validate_type(
+        &mut self,
+        _: &SignatureTypeKey,
+        _: DefaultBodyProviderTypeSiteV1,
+        _: &ExportDefinitionSourceV1,
+        _: &mut BudgetMeter,
+        _: &WirePath,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+    fn validate_binder(
+        &mut self,
+        _: u32,
+        _: u32,
+        _: DefaultBodyProviderTypeSiteV1,
+        _: &ExportDefinitionSourceV1,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+    fn visit_origin(
+        &mut self,
+        source: &ExportDefinitionSourceV1,
+        site: DefaultBodyOriginSiteV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), Self::Error> {
+        (self.visitor)(source, site, meter, path)
+    }
+}

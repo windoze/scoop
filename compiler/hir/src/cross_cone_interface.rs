@@ -271,7 +271,7 @@ pub use definition_sources::{
     DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,
     ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceSetBuildError,
     ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceSetValidationError,
-    ExportDefinitionSourceV1,
+    ExportDefinitionSourceV1, MeteredDefinitionSourcesResolutionError,
 };
 pub use external_references::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,

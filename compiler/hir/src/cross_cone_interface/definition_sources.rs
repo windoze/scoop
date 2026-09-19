@@ -7,7 +7,9 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod metered;
 mod semantics;
+pub use metered::MeteredDefinitionSourcesResolutionError;
 
 pub use semantics::{
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceSemanticValidationError,

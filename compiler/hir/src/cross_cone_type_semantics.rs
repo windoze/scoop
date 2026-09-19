@@ -4,6 +4,7 @@
 //! public lookup interface nor the native-boundary witness grants this authority.
 
 mod access;
+mod definition_sources;
 mod facts;
 mod inheritance;
 mod protected_defaults;
@@ -17,6 +18,7 @@ mod slot_schemas;
 mod wire;
 
 pub use access::*;
+pub use definition_sources::*;
 pub use facts::*;
 pub use inheritance::*;
 pub use protected_defaults::*;
