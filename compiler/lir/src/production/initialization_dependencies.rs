@@ -67,3 +67,41 @@ impl scoop_wire::WireEncode for StrongInitializationDependencyRefV2 {
         self.unit().encode(encoder)
     }
 }
+
+/// The two closed initialization dependency representations accepted by Strong
+/// registration plans. V2 references must retain their role in the consumer.
+pub trait StrongInitializationDependencyReference: dependency_sealed::Sealed + Clone {
+    fn unit_id(&self) -> PersistentInitializationUnitId;
+    fn has_valid_provider_role(&self, producer: ConeIdentity) -> bool;
+}
+
+mod dependency_sealed {
+    pub trait Sealed {}
+    impl Sealed for super::PersistentInitializationUnitId {}
+    impl Sealed for super::StrongInitializationDependencyRefV2 {}
+}
+
+impl StrongInitializationDependencyReference for PersistentInitializationUnitId {
+    fn unit_id(&self) -> PersistentInitializationUnitId {
+        *self
+    }
+    fn has_valid_provider_role(&self, _: ConeIdentity) -> bool {
+        true
+    }
+}
+
+impl StrongInitializationDependencyReference for StrongInitializationDependencyRefV2 {
+    fn unit_id(&self) -> PersistentInitializationUnitId {
+        self.unit()
+    }
+    fn has_valid_provider_role(&self, producer: ConeIdentity) -> bool {
+        match self.kind() {
+            StrongInitializationDependencyKindV2::LocalUnit(definition) => {
+                definition.provider() == producer
+            }
+            StrongInitializationDependencyKindV2::DependencyExternalUnit { provider, .. } => {
+                provider != producer
+            }
+        }
+    }
+}

@@ -3,7 +3,7 @@ use scoop_identity::{
 };
 
 use super::*;
-use crate::StrongInitializationUnitRegistrationPlanSetV1;
+use crate::StrongInitializationUnitRegistrationPlanSet;
 
 /// One addressable definition already joined to its symbol and primary atom.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -37,8 +37,8 @@ pub struct StrongInitializationUnitDefinitionRefV2 {
 }
 
 impl StrongInitializationUnitDefinitionRefV2 {
-    pub fn from_registrations(
-        plans: &StrongInitializationUnitRegistrationPlanSetV1,
+    pub fn from_registrations<D>(
+        plans: &StrongInitializationUnitRegistrationPlanSet<D>,
         unit: PersistentInitializationUnitId,
     ) -> Option<Self> {
         let index = plans

@@ -20,104 +20,10 @@ use crate::{
     StrongStaticStorageSemanticPlanV1,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongInitializationSchedulePlanV1 {
-    EagerStartup { gateway: PersistentCallableBodyId },
-    LazyAccess,
-}
-
-impl StrongInitializationSchedulePlanV1 {
-    pub const fn tag(self) -> u32 {
-        match self {
-            Self::EagerStartup { .. } => 1,
-            Self::LazyAccess => 2,
-        }
-    }
-
-    pub const fn gateway(self) -> Option<PersistentCallableBodyId> {
-        match self {
-            Self::EagerStartup { gateway } => Some(gateway),
-            Self::LazyAccess => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongInitializationUnitSemanticPlanV1 {
-    unit: PersistentInitializationUnitId,
-    diagnostic_path: String,
-    schedule: StrongInitializationSchedulePlanV1,
-    storage: PersistentStaticStorageId,
-    failure_root: PersistentStaticStorageId,
-    initializer: PersistentCallableBodyId,
-    ensure: PersistentCallableBodyId,
-    dependencies: Vec<PersistentInitializationUnitId>,
-}
-
-impl StrongInitializationUnitSemanticPlanV1 {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn from_artifact(
-        unit: PersistentInitializationUnitId,
-        diagnostic_path: String,
-        schedule: StrongInitializationSchedulePlanV1,
-        storage: PersistentStaticStorageId,
-        failure_root: PersistentStaticStorageId,
-        initializer: PersistentCallableBodyId,
-        ensure: PersistentCallableBodyId,
-        dependencies: Vec<PersistentInitializationUnitId>,
-    ) -> Self {
-        Self {
-            unit,
-            diagnostic_path,
-            schedule,
-            storage,
-            failure_root,
-            initializer,
-            ensure,
-            dependencies,
-        }
-    }
-
-    pub const fn unit(&self) -> PersistentInitializationUnitId {
-        self.unit
-    }
-
-    pub fn diagnostic_path(&self) -> &str {
-        &self.diagnostic_path
-    }
-
-    pub const fn schedule(&self) -> StrongInitializationSchedulePlanV1 {
-        self.schedule
-    }
-
-    pub const fn storage(&self) -> PersistentStaticStorageId {
-        self.storage
-    }
-
-    pub const fn failure_root(&self) -> PersistentStaticStorageId {
-        self.failure_root
-    }
-
-    pub const fn initializer(&self) -> PersistentCallableBodyId {
-        self.initializer
-    }
-
-    pub const fn ensure(&self) -> PersistentCallableBodyId {
-        self.ensure
-    }
-
-    pub fn dependencies(&self) -> &[PersistentInitializationUnitId] {
-        &self.dependencies
-    }
-}
-
-/// Proof that every final-LIR initialization unit has one complete semantic
-/// plan and that no startup gateway exists outside the eager-unit set.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongInitializationUnitSemanticPlanSetV1 {
-    static_storages: StrongStaticStorageSemanticPlanSetV1,
-    units: Vec<StrongInitializationUnitSemanticPlanV1>,
-}
+mod model;
+mod unit_validation;
+pub use model::*;
+use unit_validation::*;
 
 impl StrongInitializationUnitSemanticPlanSetV1 {
     pub fn from_module(
@@ -133,16 +39,6 @@ impl StrongInitializationUnitSemanticPlanSetV1 {
             &module.functions,
             static_storages,
         )
-    }
-
-    pub(crate) const fn from_artifact(
-        static_storages: StrongStaticStorageSemanticPlanSetV1,
-        units: Vec<StrongInitializationUnitSemanticPlanV1>,
-    ) -> Self {
-        Self {
-            static_storages,
-            units,
-        }
     }
 
     fn from_parts(
@@ -208,22 +104,24 @@ impl StrongInitializationUnitSemanticPlanSetV1 {
                     },
                 );
             }
-            *actual_gateways.entry(body).or_insert(0usize) += 1;
+            actual_gateways
+                .entry(body)
+                .or_insert_with(Vec::new)
+                .push(function);
         }
         for gateway in expected_gateways.keys() {
-            let actual = actual_gateways.get(gateway).copied().unwrap_or(0);
-            if actual != 1 {
+            let actual = actual_gateways
+                .get(gateway)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]);
+            let [function] = actual else {
                 return Err(
                     StrongInitializationUnitSemanticPlanBuildError::StartupGatewaySet {
                         gateway: *gateway,
-                        actual,
+                        actual: actual.len(),
                     },
                 );
-            }
-            let function = functions
-                .iter()
-                .find(|function| function.callable_body.id() == *gateway)
-                .expect("the gateway count was verified as one");
+            };
             if function.gc_effect != GcEffect::Managed {
                 return Err(
                     StrongInitializationUnitSemanticPlanBuildError::StartupGatewayEffect {
@@ -254,18 +152,6 @@ impl StrongInitializationUnitSemanticPlanSetV1 {
             static_storages,
             units: plans.into_values().collect(),
         })
-    }
-
-    pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.static_storages.producer()
-    }
-
-    pub const fn static_storages(&self) -> &StrongStaticStorageSemanticPlanSetV1 {
-        &self.static_storages
-    }
-
-    pub fn units(&self) -> &[StrongInitializationUnitSemanticPlanV1] {
-        &self.units
     }
 }
 
@@ -361,197 +247,6 @@ fn build_unit(
         ensure,
         dependencies,
     })
-}
-
-fn require_storage<'storage>(
-    globals: &la_arena::Arena<crate::Global>,
-    storages: &'storage StrongStaticStorageSemanticPlanSetV1,
-    unit: PersistentInitializationUnitId,
-    global: crate::GlobalId,
-) -> Result<
-    &'storage StrongStaticStorageSemanticPlanV1,
-    StrongInitializationUnitSemanticPlanBuildError,
-> {
-    let GlobalInit::Storage { identity, .. } = &globals[global].init else {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::MissingStaticStorage { unit, global },
-        );
-    };
-    let storage = identity.identity_record().id();
-    storages
-        .storages()
-        .iter()
-        .find(|candidate| candidate.storage() == storage)
-        .ok_or(
-            StrongInitializationUnitSemanticPlanBuildError::MissingStaticStorage { unit, global },
-        )
-}
-
-fn require_zeroed(
-    unit: PersistentInitializationUnitId,
-    storage: &StrongStaticStorageSemanticPlanV1,
-    role: InitializationStorageRoleV1,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    matches!(
-        storage.initial_state(),
-        StrongStaticStorageInitialStatePlanV1::ZeroedForRuntimeUnit
-    )
-    .then_some(())
-    .ok_or(
-        StrongInitializationUnitSemanticPlanBuildError::NonZeroedStorage {
-            unit,
-            storage: storage.storage(),
-            role,
-        },
-    )
-}
-
-fn validate_unit_kind_and_schedule(
-    unit: &InitializationUnit,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    let id = unit.identity.id();
-    let valid = matches!(
-        (unit.identity.key(), unit.kind, unit.schedule),
-        (
-            InitializationUnitKey::TopLevelProperty(_)
-                | InitializationUnitKey::ExtensionProperty(_),
-            InitializationUnitKind::EagerTopLevel { .. },
-            InitializationSchedule::EagerStartup,
-        ) | (
-            InitializationUnitKey::Object(_) | InitializationUnitKey::Companion(_),
-            InitializationUnitKind::LazySingleton { .. },
-            InitializationSchedule::LazyAccess,
-        )
-    );
-    valid
-        .then_some(())
-        .ok_or(StrongInitializationUnitSemanticPlanBuildError::KindSchedule { unit: id })
-}
-
-fn validate_value_storage_key(
-    unit: PersistentInitializationUnitId,
-    semantic: &InitializationUnit,
-    global: &crate::Global,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    let GlobalInit::Storage { identity, .. } = &global.init else {
-        return Err(StrongInitializationUnitSemanticPlanBuildError::ValueStorageKey(unit));
-    };
-    let key = identity.identity_record().key();
-    let valid = match semantic.identity.key() {
-        InitializationUnitKey::TopLevelProperty(property) => {
-            matches!(
-                (key.owner(), key.role()),
-                (
-                    DefinitionOwner::Property(PropertyOwner::Property(actual)),
-                    StorageRole::PropertyBacking | StorageRole::PropertyDelegate,
-                ) if actual == *property
-            )
-        }
-        InitializationUnitKey::ExtensionProperty(property) => {
-            matches!(
-                (key.owner(), key.role()),
-                (
-                    DefinitionOwner::Property(PropertyOwner::ExtensionProperty(actual)),
-                    StorageRole::PropertyBacking | StorageRole::PropertyDelegate,
-                ) if actual == *property
-            )
-        }
-        InitializationUnitKey::Object(owner) | InitializationUnitKey::Companion(owner) => {
-            key == &StaticStorageKey::singleton_published_root(*owner)
-                && matches!(
-                    key.owner(),
-                    DefinitionOwner::Nominal(NominalOwner::Declaration(
-                        NominalDeclarationOwner::Concrete(actual)
-                    )) if actual == *owner
-                )
-        }
-        InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => false,
-    };
-    valid
-        .then_some(())
-        .ok_or(StrongInitializationUnitSemanticPlanBuildError::ValueStorageKey(unit))
-}
-
-fn validate_failure_root_key(
-    unit: PersistentInitializationUnitId,
-    global: &crate::Global,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    let GlobalInit::Storage { identity, .. } = &global.init else {
-        return Err(StrongInitializationUnitSemanticPlanBuildError::FailureRootKey(unit));
-    };
-    (identity.identity_record().key() == &StaticStorageKey::initialization_failure_root(unit))
-        .then_some(())
-        .ok_or(StrongInitializationUnitSemanticPlanBuildError::FailureRootKey(unit))
-}
-
-fn validate_failure_shape(
-    target: LirTargetProfile,
-    unit: PersistentInitializationUnitId,
-    storage: &StrongStaticStorageSemanticPlanV1,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    let pointer = target.pointer_layout(crate::PointerKind::Managed);
-    if storage.byte_size() != pointer.size_bytes()
-        || storage.allocation_extent() != pointer.size_bytes()
-        || storage.required_alignment() != pointer.alignment_bytes()
-        || storage.scan_program() != &RefScan::References(vec![0])
-    {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::FailureRootShape {
-                unit,
-                storage: storage.storage(),
-            },
-        );
-    }
-    Ok(())
-}
-
-fn validate_function_reference(
-    unit: PersistentInitializationUnitId,
-    functions: &[crate::Function],
-    reference: ManagedLocalFunctionRef,
-    expected: PersistentCallableBodyId,
-) -> Result<(), StrongInitializationUnitSemanticPlanBuildError> {
-    let index = reference.declaration().into_u32() as usize;
-    let Some(function) = functions.get(index) else {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::MissingFunctionReference {
-                unit,
-                index,
-            },
-        );
-    };
-    if function.gc_effect != GcEffect::Managed {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::FunctionReferenceEffect {
-                unit,
-                body: function.callable_body.id(),
-                actual: function.gc_effect,
-            },
-        );
-    }
-    if function.callable_body.id() != expected {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::FunctionReferenceIdentity {
-                unit,
-                expected,
-                actual: function.callable_body.id(),
-            },
-        );
-    }
-    let actual = functions
-        .iter()
-        .filter(|function| function.callable_body.id() == expected)
-        .count();
-    if actual != 1 {
-        return Err(
-            StrongInitializationUnitSemanticPlanBuildError::FunctionBodySet {
-                unit,
-                body: expected,
-                actual,
-            },
-        );
-    }
-    Ok(())
 }
 
 pub(crate) fn generated_unit_body(

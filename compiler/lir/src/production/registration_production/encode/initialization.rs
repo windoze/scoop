@@ -1,6 +1,6 @@
 use super::*;
 
-impl WireEncode for StrongInitializationUnitRegistrationPlanV1 {
+impl<D: WireEncode> WireEncode for crate::StrongInitializationUnitRegistrationPlan<D> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
         encoder.map(28)?;
