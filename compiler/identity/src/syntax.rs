@@ -32,6 +32,10 @@ impl fmt::Display for CanonicalIdentifier {
 pub struct DecodedCanonicalIdentifier(String);
 
 impl DecodedCanonicalIdentifier {
+    pub fn byte_len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn validate(self) -> Result<CanonicalIdentifier, CanonicalIdentifierError> {
         CanonicalIdentifier::new(&self.0)
     }

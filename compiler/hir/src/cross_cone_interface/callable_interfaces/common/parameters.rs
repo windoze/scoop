@@ -11,6 +11,8 @@ use super::{
 };
 use crate::SignatureTypeReferenceResolver;
 
+mod metered;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceParameterShapeV1 {
     name: CanonicalIdentifier,

@@ -9,6 +9,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::SourceNominalIdResolver;
 
 mod errors;
+mod metered_resolution;
 mod metered_semantics;
 mod scope;
 mod semantics;

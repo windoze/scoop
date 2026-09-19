@@ -15,7 +15,7 @@ use crate::{
     NominalRepresentationShapeV1, NominalRepresentationSupportV1, SourceNominalId,
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub keys: BTreeMap<SourceNominalId, SourceDeclarationKey>,
     pub access: BTreeMap<SourceNominalId, DeclarationAccessSourceV1>,

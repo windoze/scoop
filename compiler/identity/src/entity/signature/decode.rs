@@ -6,6 +6,8 @@ use super::{
 };
 use crate::{DecodedPersistentId, PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId};
 
+mod resources;
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DecodedSignatureTypeKey {
     Nominal(DecodedPersistentId<PersistentTypeId>),

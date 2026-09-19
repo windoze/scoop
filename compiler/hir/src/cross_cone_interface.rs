@@ -11,6 +11,7 @@ mod declaration_references;
 mod default_templates;
 mod definition_sources;
 mod external_references;
+mod metered_resolution;
 mod nominal_interfaces;
 mod nominal_shapes;
 mod property_interfaces;
@@ -19,6 +20,8 @@ mod route_closure;
 mod section;
 pub(crate) use section::signature_nominal_walk::SignatureNominalWalker;
 mod type_alias_interfaces;
+
+pub use metered_resolution::MeteredInterfaceResolutionError;
 
 pub use binders::{
     BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
