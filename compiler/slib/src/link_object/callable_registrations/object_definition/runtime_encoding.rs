@@ -97,6 +97,11 @@ impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
                 encoder.fixed(provider.as_array())?;
                 return target.runtime_encode(encoder);
             }
+            CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { provider, subject } => {
+                encoder.u32(12)?;
+                encoder.fixed(provider.as_array())?;
+                return subject.runtime_encode(encoder);
+            }
         };
         encode_legacy_requirement(encoder, requirement)
     }

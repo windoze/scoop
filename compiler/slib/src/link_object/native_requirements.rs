@@ -12,7 +12,8 @@ use scoop_lir::{
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
     VerifiedCoreStrongRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedDarwinArm64RelocationFormV1, preserve_without_cross_cone_requirements_v1,
+    VerifiedDarwinArm64RelocationFormV1, VerifiedExternalShapeRequirementClosureV1,
+    preserve_without_cross_cone_requirements_v1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -83,6 +84,37 @@ pub fn verify_source_external_requirements_after_cross_cone_v1(
     cross_cone_closure: VerifiedCrossConeStrongRequirementClosureV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
 ) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
+    let candidates = cross_cone_closure.remaining_external_candidates().to_vec();
+    verify_source_external_requirements_from_candidates_v1(
+        cross_cone_closure,
+        candidates,
+        native_requirements,
+    )
+}
+
+/// Continues legacy native/runtime classification only after the general
+/// shape partition has claimed its complete physical-use set.
+pub fn verify_source_external_requirements_after_external_shape_v1(
+    external_shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
+    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
+    let candidates = external_shape
+        .remaining_external_candidates()
+        .iter()
+        .map(|binding| (*binding).clone())
+        .collect::<Vec<_>>();
+    verify_source_external_requirements_from_candidates_v1(
+        external_shape.legacy_closure().clone(),
+        candidates,
+        native_requirements,
+    )
+}
+
+fn verify_source_external_requirements_from_candidates_v1(
+    cross_cone_closure: VerifiedCrossConeStrongRequirementClosureV1,
+    candidates: Vec<StrongRelocationBindingV1>,
+    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
+) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
     if cross_cone_closure.producer() != native_requirements.producer() {
         return Err(SourceExternalRequirementValidationError::ProducerMismatch {
             object: cross_cone_closure.producer(),
@@ -112,7 +144,7 @@ pub fn verify_source_external_requirements_after_cross_cone_v1(
         .collect::<BTreeMap<_, _>>();
     let mut source_external_requirements = Vec::new();
     let mut remaining_external_candidates = Vec::new();
-    for binding in cross_cone_closure.remaining_external_candidates() {
+    for binding in candidates {
         if let Some(requirement) = requirements.get(binding.symbol()) {
             if is_tlvp_relocation(binding.relocation_form())
                 && !matches!(
@@ -129,11 +161,11 @@ pub fn verify_source_external_requirements_after_cross_cone_v1(
                 );
             }
             source_external_requirements.push(SourceExternalRequirementUseV1 {
-                use_site: CanonicalUndefinedRelocationUseV1::from(binding),
+                use_site: CanonicalUndefinedRelocationUseV1::from(&binding),
                 requirement: (*requirement).clone(),
             });
         } else {
-            remaining_external_candidates.push(binding.clone());
+            remaining_external_candidates.push(binding);
         }
     }
 

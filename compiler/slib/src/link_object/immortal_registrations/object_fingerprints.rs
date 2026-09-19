@@ -11,6 +11,7 @@ use crate::link_object::callable_registrations::object_definition::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
+    FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     FinalizedUndefinedSymbolRequirementPartitionsV1, ImmortalObjectRegistrationRelocationFailureV1,
     ObjectDefinitionFingerprintV1, ObjectDefinitionRelocationFailureV1, ScoopLirObjectCandidateV1,
     StrongImmortalObjectRegistrationValidationError, VerifiedObjectDefinitionRequirementSetV1,
@@ -95,6 +96,21 @@ pub fn compute_strong_immortal_object_definition_fingerprints_v1(
 pub fn compute_cross_cone_strong_immortal_object_definition_fingerprints_v1(
     registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
     undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,
+    StrongImmortalObjectDefinitionFingerprintError,
+> {
+    compute_strong_immortal_object_definition_fingerprints_inner_v1(
+        registration_objects,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+pub fn compute_layout_strong_immortal_object_definition_fingerprints_v1(
+    registration_objects: VerifiedStrongImmortalObjectRegistrationObjectFingerprintSetV1,
+    undefined_requirements: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<
     VerifiedStrongImmortalObjectDefinitionFingerprintSetV1,

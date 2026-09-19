@@ -17,6 +17,8 @@ use crate::link_object::{
 pub(super) mod fixture;
 use fixture::{Provider, TARGET, empty_section, meter};
 
+mod partitions;
+
 fn legacy_for(
     strong: VerifiedCurrentConeStrongRelocationClosureV1,
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {

@@ -11,6 +11,10 @@ use crate::link_object::{
     VerifiedCurrentConeStrongRelocationClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
 };
 use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
+use scoop_lir::ExternalStrongShapeSubjectV1;
+
+mod layout;
+pub use layout::*;
 
 /// Mutually exclusive legacy and ordinary-dependency relocation closures.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -31,6 +35,7 @@ pub struct VerifiedObjectDefinitionRequirementSetV1 {
 enum ObjectDefinitionRequirementModeV1 {
     SingleCone(CanonicalUndefinedSymbolRequirementSetV1),
     CrossCone(Box<FinalizedUndefinedSymbolRequirementPartitionsV1>),
+    Layout(Box<FinalizedLayoutUndefinedSymbolRequirementPartitionsV1>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,6 +45,10 @@ pub(in crate::link_object) enum CanonicalObjectDefinitionRequirementV1 {
         provider: ConeIdentity,
         target: StrongCallableDefinitionOwner,
     },
+    DependencyShapeStrong {
+        provider: ConeIdentity,
+        subject: ExternalStrongShapeSubjectV1,
+    },
 }
 
 impl VerifiedObjectDefinitionRequirementSetV1 {
@@ -47,6 +56,7 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
         match &self.mode {
             ObjectDefinitionRequirementModeV1::SingleCone(requirements) => requirements,
             ObjectDefinitionRequirementModeV1::CrossCone(partitions) => partitions.legacy(),
+            ObjectDefinitionRequirementModeV1::Layout(partitions) => partitions.legacy(),
         }
     }
 
@@ -54,6 +64,15 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
         match &self.mode {
             ObjectDefinitionRequirementModeV1::SingleCone(_) => None,
             ObjectDefinitionRequirementModeV1::CrossCone(partitions) => Some(partitions),
+            ObjectDefinitionRequirementModeV1::Layout(_) => None,
+        }
+    }
+
+    pub const fn layout(&self) -> Option<&FinalizedLayoutUndefinedSymbolRequirementPartitionsV1> {
+        match &self.mode {
+            ObjectDefinitionRequirementModeV1::Layout(partitions) => Some(partitions),
+            ObjectDefinitionRequirementModeV1::SingleCone(_)
+            | ObjectDefinitionRequirementModeV1::CrossCone(_) => None,
         }
     }
 
@@ -66,6 +85,9 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
                 requirements.matches_strong_closure(closure)
             }
             ObjectDefinitionRequirementModeV1::CrossCone(partitions) => {
+                partitions.matches_strong_closure(closure)
+            }
+            ObjectDefinitionRequirementModeV1::Layout(partitions) => {
                 partitions.matches_strong_closure(closure)
             }
         }
@@ -85,21 +107,32 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
                 requirement.requirement(),
             ));
         }
-        let partitions = self.cross_cone()?;
-        let requirement = partitions
-            .cross_cone()
+        let cross_cone = match &self.mode {
+            ObjectDefinitionRequirementModeV1::SingleCone(_) => return None,
+            ObjectDefinitionRequirementModeV1::CrossCone(partitions) => partitions.cross_cone(),
+            ObjectDefinitionRequirementModeV1::Layout(partitions) => partitions.cross_cone(),
+        };
+        if let Some(requirement) = cross_cone
             .requirements()
             .iter()
-            .find(|requirement| requirement.use_site() == use_site)?;
-        let import = partitions
-            .cross_cone()
-            .semantic_imports()
-            .imports()
-            .get(requirement.import_index() as usize)?;
-        Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {
-            provider: import.provider(),
-            target: import.target(),
-        })
+            .find(|requirement| requirement.use_site() == use_site)
+        {
+            let import = cross_cone
+                .semantic_imports()
+                .imports()
+                .get(requirement.import_index() as usize)?;
+            return Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {
+                provider: import.provider(),
+                target: import.target(),
+            });
+        }
+        match &self.mode {
+            ObjectDefinitionRequirementModeV1::Layout(partitions) => {
+                partitions.shape_requirement_for(use_site)
+            }
+            ObjectDefinitionRequirementModeV1::SingleCone(_)
+            | ObjectDefinitionRequirementModeV1::CrossCone(_) => None,
+        }
     }
 }
 

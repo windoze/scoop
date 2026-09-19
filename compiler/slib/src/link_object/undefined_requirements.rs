@@ -143,6 +143,18 @@ pub(super) fn finalize_partitioned_undefined_symbol_requirements_inner(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
     external: SealedBuiltinObjectExternalRequirementClosureV1,
 ) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
+    finalize_partitioned_undefined_symbol_requirements_with_additional_uses_inner(
+        current_cone,
+        external,
+        &[],
+    )
+}
+
+pub(super) fn finalize_partitioned_undefined_symbol_requirements_with_additional_uses_inner(
+    current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
+    external: SealedBuiltinObjectExternalRequirementClosureV1,
+    additional_dependency_uses: &[CanonicalUndefinedRelocationUseV1],
+) -> Result<CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError> {
     let external_strong = external.verified().strong_closure();
     if current_cone.strong_closure() != external_strong {
         return Err(UndefinedSymbolRequirementFinalizationError::StrongClosureMismatch);
@@ -222,12 +234,28 @@ pub(super) fn finalize_partitioned_undefined_symbol_requirements_inner(
         });
     }
 
-    let cross_cone_uses = external
+    let mut cross_cone_uses = external
         .cross_cone_closure()
         .requirements()
         .iter()
         .map(|requirement| requirement.use_site().clone())
         .collect::<Vec<_>>();
+    cross_cone_uses.extend_from_slice(additional_dependency_uses);
+    cross_cone_uses.sort_unstable_by_key(use_key);
+    if let Some(pair) = cross_cone_uses
+        .windows(2)
+        .find(|pair| use_key(&pair[0]) == use_key(&pair[1]))
+    {
+        let use_site = &pair[0];
+        return Err(
+            UndefinedSymbolRequirementFinalizationError::CrossConeUseOverlap {
+                member: use_site.source_member(),
+                atom: use_site.containing_atom(),
+                offset: use_site.offset_within_atom(),
+                target_slot: use_site.target_slot(),
+            },
+        );
+    }
     let cross_cone_keys = cross_cone_uses.iter().map(use_key).collect::<BTreeSet<_>>();
     if let Some(requirement) = requirements
         .iter()
@@ -306,6 +334,11 @@ fn use_key(use_site: &CanonicalUndefinedRelocationUseV1) -> UseKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UndefinedSymbolRequirementFinalizationError {
     StrongClosureMismatch,
+    ExternalShapeClosureMismatch,
+    ExternalShapeImportIndexOutOfBounds {
+        import_index: u32,
+        imports: usize,
+    },
     CrossConeRequirementsRequirePartitionedFinalizer {
         imports: usize,
         requirements: usize,

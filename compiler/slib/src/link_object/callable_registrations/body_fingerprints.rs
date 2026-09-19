@@ -18,6 +18,7 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, CanonicalUndefinedSymbolRequirementSetV1,
+    FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     FinalizedUndefinedSymbolRequirementPartitionsV1, ObjectDefinitionFingerprintV1,
     ScoopLirObjectCandidateV1, VerifiedObjectDefinitionRequirementSetV1,
     VerifiedScoopLirStackmapSetV1,
@@ -104,6 +105,20 @@ pub fn compute_cross_cone_strong_callable_body_object_fingerprints_v1(
     registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
     stackmaps: VerifiedScoopLirStackmapSetV1,
     undefined_requirements: FinalizedUndefinedSymbolRequirementPartitionsV1,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
+    compute_strong_callable_body_object_fingerprints_inner_v1(
+        registration_objects,
+        stackmaps,
+        undefined_requirements.into(),
+        scoop_objects,
+    )
+}
+
+pub fn compute_layout_strong_callable_body_object_fingerprints_v1(
+    registration_objects: VerifiedStrongCallableRegistrationObjectFingerprintSetV1,
+    stackmaps: VerifiedScoopLirStackmapSetV1,
+    undefined_requirements: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
     compute_strong_callable_body_object_fingerprints_inner_v1(
