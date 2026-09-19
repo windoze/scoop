@@ -11,6 +11,8 @@ use crate::RuntimeFunction;
 
 mod decode;
 pub use decode::*;
+mod definitions;
+pub use definitions::*;
 #[cfg(test)]
 mod tests;
 
