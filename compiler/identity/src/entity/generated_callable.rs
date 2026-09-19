@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_wire::{Encoder, HashError, WireEncode};
+use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash_stream_length};
 
 use super::{
     CallableMaterialization, CallableTemplateOwner, ExactCallableSignature,
@@ -15,6 +15,8 @@ use crate::{
 };
 
 mod decode;
+
+const GENERATED_CALLABLE_HASH_DOMAIN: &str = "scoop-generated-callable-id-v1";
 
 pub use decode::{
     DecodedGeneratedCallableKey, DecodedLexicalCallableParent, GeneratedCallableResolutionError,
@@ -494,7 +496,15 @@ impl std::error::Error for LexicalParentError {}
 impl PersistentGeneratedCallableId {
     pub fn from_key(key: &GeneratedCallableKey) -> Result<Self, GeneratedCallableIdentityError> {
         key.validate()?;
-        derive_persistent_id("scoop-generated-callable-id-v1", key).map_err(Into::into)
+        derive_persistent_id(GENERATED_CALLABLE_HASH_DOMAIN, key).map_err(Into::into)
+    }
+
+    pub fn hash_stream_length(
+        key: &GeneratedCallableKey,
+    ) -> Result<u64, GeneratedCallableIdentityError> {
+        key.validate()?;
+        domain_separated_cbor_hash_stream_length(GENERATED_CALLABLE_HASH_DOMAIN, key)
+            .map_err(Into::into)
     }
 }
 
@@ -513,6 +523,9 @@ fn encode_value_sum(
     encoder.field(1)?;
     value.encode(encoder)
 }
+
+#[cfg(test)]
+mod budget_tests;
 
 #[cfg(test)]
 mod tests {
