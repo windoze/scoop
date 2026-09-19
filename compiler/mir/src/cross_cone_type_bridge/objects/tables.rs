@@ -39,8 +39,8 @@ impl DecodedCanonicalMirObjectValuesV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
-        callables: &CanonicalMirCallableBindingsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+        callables: &dyn MirTypeBridgeCallableLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirObjectValuesV1, MirObjectBridgeError> {
         let mut records: Vec<ParamFreeMirObjectValueV1> = reserve(self.records.len(), meter)?;

@@ -48,8 +48,8 @@ impl DecodedParamFreeMirObjectValueV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
-        callables: &CanonicalMirCallableBindingsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+        callables: &dyn MirTypeBridgeCallableLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirObjectValueV1, MirObjectBridgeError> {
         meter.charge_work(6, &WirePath::root())?;

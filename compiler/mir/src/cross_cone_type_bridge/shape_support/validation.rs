@@ -41,7 +41,7 @@ impl<'a> MirShapeSupportAuthority<'a> {
         record: &ParamFreeMirShapeSupportV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), MirShapeSupportError> {
-        let lookup_work = usize::BITS - self.types.records().len().leading_zeros();
+        let lookup_work = usize::BITS - self.types.record_count().leading_zeros();
         meter.charge_work(8 * u64::from(lookup_work + 1), &WirePath::root())?;
         let source = self.get(record.exact)?;
         if source.origin() != &MirTypeOriginV1::SourceNominal(record.source) {

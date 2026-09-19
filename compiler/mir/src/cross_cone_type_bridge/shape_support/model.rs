@@ -65,5 +65,5 @@ impl ParamFreeMirShapeSupportV1 {
 #[derive(Clone, Copy)]
 pub struct MirShapeSupportAuthority<'a> {
     pub identities: &'a ValidatedIdentityGraph,
-    pub types: &'a CanonicalParamFreeMirTypeExportsV1,
+    pub types: &'a dyn MirTypeBridgeTypeLookupV1,
 }

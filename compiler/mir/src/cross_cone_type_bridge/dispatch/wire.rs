@@ -139,8 +139,8 @@ impl DecodedParamFreeMirDispatchSchemaV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
-        callables: &CanonicalMirCallableBindingsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+        callables: &dyn MirTypeBridgeCallableLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirDispatchSchemaV1, MirDispatchSchemaError> {
         let owner = graph.resolve(self.owner)?;
@@ -219,8 +219,18 @@ impl DecodedCanonicalMirDispatchSchemasV1 {
     pub fn validate(
         self,
         graph: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
-        callables: &CanonicalMirCallableBindingsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+        callables: &dyn MirTypeBridgeCallableLookupV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<CanonicalMirDispatchSchemasV1, MirDispatchSchemaError> {
+        self.validate_with_dependencies(graph, types, callables, &[], meter)
+    }
+    pub fn validate_with_dependencies(
+        self,
+        graph: &mut ValidatedIdentityGraph,
+        types: &dyn MirTypeBridgeTypeLookupV1,
+        callables: &dyn MirTypeBridgeCallableLookupV1,
+        dependencies: &[&CanonicalMirDispatchSchemasV1],
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirDispatchSchemasV1, MirDispatchSchemaError> {
         let mut records: Vec<ParamFreeMirDispatchSchemaV1> = reserve(self.records.len(), meter)?;
@@ -240,7 +250,7 @@ impl DecodedCanonicalMirDispatchSchemasV1 {
             types,
             callables,
         }
-        .validate_table(&table, meter)?;
+        .validate_with_dependencies(&table, dependencies, meter)?;
         Ok(table)
     }
 }

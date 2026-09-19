@@ -13,7 +13,7 @@ impl DecodedParamFreeMirCallableBindingV1 {
         self,
         graph: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
-        types: &CanonicalParamFreeMirTypeExportsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirCallableBindingV1, MirCallableBridgeError> {
         meter
@@ -88,7 +88,7 @@ impl DecodedCanonicalMirCallableBindingsV1 {
         self,
         graph: &mut ValidatedIdentityGraph,
         foundation: &crate::OdrFreeMirFoundation,
-        types: &CanonicalParamFreeMirTypeExportsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirCallableBindingsV1, MirCallableBridgeError> {
         let path = WirePath::root();

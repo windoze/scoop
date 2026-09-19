@@ -76,7 +76,7 @@ impl MirDispatchSchemaAuthority<'_> {
         owner: PersistentExactTypeId,
         meter: &mut BudgetMeter,
     ) -> Result<Ancestry, MirDispatchSchemaError> {
-        let maximum = self.types.records().len();
+        let maximum = self.types.record_count();
         let mut nodes = reserve(maximum, meter)?;
         let mut indexes = HashMap::new();
         meter.try_reserve_map_slots(&mut indexes, maximum, &WirePath::root())?;
@@ -122,14 +122,35 @@ impl MirDispatchSchemaAuthority<'_> {
         Ok(())
     }
 
-    pub(super) fn validate_table(
+    pub(super) fn validate_with_dependencies(
         &self,
         table: &CanonicalMirDispatchSchemasV1,
+        dependencies: &[&CanonicalMirDispatchSchemasV1],
         meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
-        let mut active = reserve(self.types.records().len(), meter)?;
+        if dependencies.is_empty() {
+            return self.validate_table(table, table, meter);
+        }
+        let count = dependencies
+            .len()
+            .checked_add(1)
+            .ok_or(MirTypeBridgeLookupError::RecordCountOverflow)?;
+        let mut tables = reserve(count, meter)?;
+        tables.push(table);
+        tables.extend_from_slice(dependencies);
+        let lookup = MirTypeBridgeSchemaIndexV1::try_new(&tables, meter)?;
+        self.validate_table(table, &lookup, meter)
+    }
+
+    fn validate_table(
+        &self,
+        table: &CanonicalMirDispatchSchemasV1,
+        schemas: &dyn MirTypeBridgeSchemaLookupV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), MirDispatchSchemaError> {
+        let mut active = reserve(self.types.record_count(), meter)?;
         let mut done = HashSet::new();
-        meter.try_reserve_set_slots(&mut done, self.types.records().len(), &WirePath::root())?;
+        meter.try_reserve_set_slots(&mut done, self.types.record_count(), &WirePath::root())?;
         for record in table.records() {
             self.check_cycles(record.owner(), &mut active, &mut done, meter)?;
         }
@@ -137,7 +158,7 @@ impl MirDispatchSchemaAuthority<'_> {
             self.validate_record(record, meter)?;
             let ty = self.type_export(record.owner())?;
             if let MirBaseClassV1::Base(base) = ty.base_and_interfaces().base {
-                let base = table
+                let base = schemas
                     .get(base)
                     .ok_or(MirDispatchSchemaError::MissingSchema { owner: base })?;
                 let prefix = base.vtable().entries();
@@ -179,9 +200,9 @@ impl MirDispatchSchemaAuthority<'_> {
             }
             for itable in record.itables() {
                 if itable.interface() == record.owner() {
-                    self.interface_prefix(record, itable, table, meter)?;
+                    self.interface_prefix(record, itable, schemas, meter)?;
                 } else {
-                    let provider = table.get(itable.interface()).ok_or(
+                    let provider = schemas.get(itable.interface()).ok_or(
                         MirDispatchSchemaError::MissingSchema {
                             owner: itable.interface(),
                         },
@@ -215,7 +236,7 @@ impl MirDispatchSchemaAuthority<'_> {
         &self,
         record: &ParamFreeMirDispatchSchemaV1,
         own: &MirInterfaceDispatchTableV1,
-        table: &CanonicalMirDispatchSchemasV1,
+        table: &dyn MirTypeBridgeSchemaLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), MirDispatchSchemaError> {
         let mut inherited = HashSet::new();

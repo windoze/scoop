@@ -369,6 +369,8 @@ BoxedValue 的 payload exact 与 `BoxedValue { payload }` key 逐项相等，fie
 
 shape-support 表按 source nominal 的 canonical bytes 严格递增。ordinary producer 的每项 source authority 必须属于当前 provider；完整 section 用独立重建的 required source-root 集合核验精确覆盖，不能从本表反推所需全集。遵守 3.2，core 的新 MIR shape-support 表也必须为空，其旧 `CoreMirBridgeV1.shape_support_roots` 仍是唯一 root authority；完整 section 对旧 roots 与新完整 types 表重放相同的有限 helper 关系，不另存一份可修改的 root 清单。该 MIR 五字段索引不复制 7.2 的 LIR 八 role product，后者另行证明布局、scan、TD、registration 与 definition。
 
+record 之间的查询可以借用本地完整表及已验证 dependency 表组成的只读索引，索引不编码进本地 export wire。type、callable、schema 索引分别使用 exact、Strong target、owner exact 的独立 key 空间；相同 key 出现在两个输入表中也必须拒绝，不能以“内容相同”吞并重复 authority。dispatch 的 base prefix、继承 interface schema 与 implementation 查询均使用这个完整视图，而待导出的 canonical schema 表只保存当前 provider 的 records。索引只承载已验证 constituent 的关系查询，不自行授予 dependency selection；完整 section 必须另将每个借用来源 join 到终端 provider proof，不能把任意表拼装为 Selected。
+
 ### 5.2 callable 与 constructor
 
 `ParamFreeMirCallableBindingV1` 保存 `{ source_or_generated_origin, implementation, semantic_signature, lowered_signature, lowering_role }`。implementation 只接受既有 `StrongCallableDefinitionOwner`；lowering role 为 ordinary、class initializer、struct value constructor、accessor、dispatch adjust、boxing adjust、object ensure/value 等已有 typed role，不根据 name 推断。

@@ -159,8 +159,8 @@ impl ParamFreeMirDispatchSchemaV1 {
 #[derive(Clone, Copy)]
 pub struct MirDispatchSchemaAuthority<'a> {
     pub identities: &'a ValidatedIdentityGraph,
-    pub types: &'a CanonicalParamFreeMirTypeExportsV1,
-    pub callables: &'a CanonicalMirCallableBindingsV1,
+    pub types: &'a dyn MirTypeBridgeTypeLookupV1,
+    pub callables: &'a dyn MirTypeBridgeCallableLookupV1,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -170,7 +170,16 @@ pub struct CanonicalMirDispatchSchemasV1 {
 impl CanonicalMirDispatchSchemasV1 {
     pub fn try_new(
         authority: MirDispatchSchemaAuthority<'_>,
+        records: Vec<ParamFreeMirDispatchSchemaV1>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, MirDispatchSchemaError> {
+        Self::try_new_with_dependencies(authority, records, &[], meter)
+    }
+    /// Dependency schemas remain owned by their defining tables.
+    pub fn try_new_with_dependencies(
+        authority: MirDispatchSchemaAuthority<'_>,
         mut records: Vec<ParamFreeMirDispatchSchemaV1>,
+        dependencies: &[&CanonicalMirDispatchSchemasV1],
         meter: &mut BudgetMeter,
     ) -> Result<Self, MirDispatchSchemaError> {
         meter.check_table_entries(records.len() as u64, &WirePath::root())?;
@@ -185,7 +194,7 @@ impl CanonicalMirDispatchSchemasV1 {
             });
         }
         let table = Self { records };
-        authority.validate_table(&table, meter)?;
+        authority.validate_with_dependencies(&table, dependencies, meter)?;
         Ok(table)
     }
     pub fn records(&self) -> &[ParamFreeMirDispatchSchemaV1] {

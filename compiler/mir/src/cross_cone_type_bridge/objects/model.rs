@@ -65,6 +65,6 @@ impl ParamFreeMirObjectValueV1 {
 #[derive(Clone, Copy)]
 pub struct MirObjectBridgeAuthority<'a> {
     pub identities: &'a ValidatedIdentityGraph,
-    pub types: &'a CanonicalParamFreeMirTypeExportsV1,
-    pub callables: &'a CanonicalMirCallableBindingsV1,
+    pub types: &'a dyn MirTypeBridgeTypeLookupV1,
+    pub callables: &'a dyn MirTypeBridgeCallableLookupV1,
 }

@@ -55,7 +55,7 @@ impl DecodedParamFreeMirShapeSupportV1 {
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<ParamFreeMirShapeSupportV1, MirShapeSupportError> {
         meter.charge_work(5, &WirePath::root())?;

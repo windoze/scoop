@@ -4,6 +4,7 @@ use super::*;
 pub enum MirDispatchSchemaError {
     Reference(IdentityReferenceError),
     Resource(WireError),
+    Lookup(MirTypeBridgeLookupError),
     Signature(Box<MirCallableBridgeError>),
     MissingType {
         exact: PersistentExactTypeId,
@@ -81,6 +82,11 @@ impl From<IdentityReferenceError> for MirDispatchSchemaError {
 impl From<WireError> for MirDispatchSchemaError {
     fn from(error: WireError) -> Self {
         Self::Resource(error)
+    }
+}
+impl From<MirTypeBridgeLookupError> for MirDispatchSchemaError {
+    fn from(error: MirTypeBridgeLookupError) -> Self {
+        Self::Lookup(error)
     }
 }
 impl std::fmt::Display for MirDispatchSchemaError {

@@ -26,6 +26,9 @@ pub(super) struct Fixture {
 }
 impl Fixture {
     pub fn new() -> Self {
+        Self::with_dependency_cone(false)
+    }
+    pub fn with_dependency_cone(separate: bool) -> Self {
         let source: Vec<_> = [
             ("Unit", SourceNominalKind::Struct),
             ("Base", SourceNominalKind::Class),
@@ -38,7 +41,15 @@ impl Fixture {
             ("Value", SourceNominalKind::Struct),
         ]
         .into_iter()
-        .map(|(name, kind)| nominal(name, kind))
+        .enumerate()
+        .map(|(index, (name, kind))| {
+            let provider = if separate && matches!(index, UNIT | BASE | ROOT..=DIAMOND) {
+                ConeIdentity::CORE
+            } else {
+                ConeIdentity::SINGLE_FILE
+            };
+            nominal(name, kind, provider)
+        })
         .collect();
         let methods: Vec<_> = [
             (BASE, "virtual"),
@@ -52,7 +63,7 @@ impl Fixture {
         .into_iter()
         .map(|(owner, method)| {
             CborIdentityRecord::from_key(SourceDeclarationKey::function(
-                site(Some(source[owner].id())),
+                site(Some(source[owner].id()), source[owner].key().origin()),
                 name(method),
                 0,
                 None,
@@ -138,6 +149,9 @@ impl Fixture {
         pending
             .register_authority(ConeIdentity::SINGLE_FILE)
             .unwrap();
+        if separate {
+            pending.register_authority(ConeIdentity::CORE).unwrap();
+        }
         hir.register_identities(&mut pending).unwrap();
         mir.register_identities(&mut pending).unwrap();
         hir.resolve_identities(&mut pending).unwrap();
@@ -337,9 +351,9 @@ impl Fixture {
 fn name(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }
-fn site(owner: Option<PersistentTypeId>) -> SourceDeclarationSite {
+fn site(owner: Option<PersistentTypeId>, provider: ConeIdentity) -> SourceDeclarationSite {
     SourceDeclarationSite::new(
-        ConeIdentity::SINGLE_FILE,
+        provider,
         PackagePath::root(),
         DefinitionOwnerChain::from_outer_to_inner(
             owner.into_iter().map(DefinitionOwnerAtom::Type).collect(),
@@ -348,9 +362,9 @@ fn site(owner: Option<PersistentTypeId>) -> SourceDeclarationSite {
     )
     .unwrap()
 }
-fn nominal(value: &str, kind: SourceNominalKind) -> Nominal {
+fn nominal(value: &str, kind: SourceNominalKind, provider: ConeIdentity) -> Nominal {
     CborIdentityRecord::from_key(SourceDeclarationKey::nominal(
-        site(None),
+        site(None, provider),
         name(value),
         kind,
         0,

@@ -108,7 +108,7 @@ impl DecodedCanonicalMirShapeSupportsV1 {
         self,
         provider: ConeIdentity,
         identities: &mut ValidatedIdentityGraph,
-        types: &CanonicalParamFreeMirTypeExportsV1,
+        types: &dyn MirTypeBridgeTypeLookupV1,
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalMirShapeSupportsV1, MirShapeSupportError> {
         let mut records: Vec<ParamFreeMirShapeSupportV1> = Vec::new();
