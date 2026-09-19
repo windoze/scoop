@@ -21,5 +21,8 @@ pub use replay::*;
 mod wire;
 pub use wire::{DecodedExactLayoutExportV1, ExactLayoutWireError};
 
+mod table;
+pub use table::*;
+
 #[cfg(test)]
 pub(crate) mod tests;
