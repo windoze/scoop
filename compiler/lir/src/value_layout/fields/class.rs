@@ -75,15 +75,24 @@ impl ClassStorageLayoutV1 {
             .iter()
             .map(PlacedFieldStorageV1::field)
             .collect();
-        let placed = aggregate::place(target, declared_fields, cursor, alignment, None, seen)?;
-        let size = placed
-            .alignment
-            .align_up(placed.cursor)
+        let prefix = StorageGeometryV1::new(target, cursor, alignment.get())
             .map_err(StorageReplayError::Shape)?;
+        let placed = aggregate::place(
+            target,
+            declared_fields,
+            StorageLayoutCursorV1::with_prefix(prefix),
+            seen,
+        )?;
+        let size = placed.geometry.size();
         complete_fields.extend(placed.fields.iter().cloned());
         let scan = aggregate::field_scan(&complete_fields)?;
-        let shape = TypeInstanceShapeV1::fixed_object(target, size, placed.alignment.get(), scan)
-            .map_err(StorageReplayError::Shape)?;
+        let shape = TypeInstanceShapeV1::fixed_object(
+            target,
+            size,
+            placed.geometry.alignment().get(),
+            scan,
+        )
+        .map_err(StorageReplayError::Shape)?;
         ancestry.push(exact);
         Ok(Self {
             exact,

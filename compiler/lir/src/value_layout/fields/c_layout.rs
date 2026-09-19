@@ -54,10 +54,13 @@ impl CLayoutStorageReplayV1 {
                 return Err(StorageReplayError::InvalidCField(field.field));
             }
         }
-        let aligned = override_alignment(canonical.aligned())?
-            .unwrap_or(NonZeroPow2::new(1).map_err(StorageReplayError::Shape)?);
-        let packing = override_alignment(canonical.packed())?;
-        let placed = aggregate::place(target, fields, 0, aligned, packing, BTreeSet::new())?;
+        let policy = crate::LirCLayoutContract {
+            aligned: c_alignment(canonical.aligned()),
+            packed: c_alignment(canonical.packed()),
+        };
+        let cursor = StorageLayoutCursorV1::new(target, StoragePlacementPolicyV1::CLayout(policy))
+            .map_err(StorageReplayError::Shape)?;
+        let placed = aggregate::place(target, fields, cursor, BTreeSet::new())?;
         let aggregate = aggregate::finish(target, placed)?;
         if aggregate.storage.byte_size() != canonical.byte_size()
             || aggregate.storage.alignment().get() != canonical.alignment().get()
@@ -84,12 +87,17 @@ impl CLayoutStorageReplayV1 {
     }
 }
 
-fn override_alignment(value: CLayoutOverride) -> Result<Option<NonZeroPow2>, StorageReplayError> {
+fn c_alignment(value: CLayoutOverride) -> crate::LirCLayoutValue {
+    use scoop_identity::CLayoutByteAlignment as A;
     match value {
-        CLayoutOverride::Natural => Ok(None),
-        CLayoutOverride::Bytes(bytes) => NonZeroPow2::new(u64::from(bytes.get()))
-            .map(Some)
-            .map_err(StorageReplayError::Shape),
+        CLayoutOverride::Natural => crate::LirCLayoutValue::Natural,
+        CLayoutOverride::Bytes(value) => match value {
+            A::Bytes1 => crate::LirCLayoutValue::A1,
+            A::Bytes2 => crate::LirCLayoutValue::A2,
+            A::Bytes4 => crate::LirCLayoutValue::A4,
+            A::Bytes8 => crate::LirCLayoutValue::A8,
+            A::Bytes16 => crate::LirCLayoutValue::A16,
+        },
     }
 }
 

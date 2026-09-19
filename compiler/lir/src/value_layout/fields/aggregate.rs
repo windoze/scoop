@@ -13,14 +13,9 @@ impl AggregateStorageLayoutV1 {
         target: LirTargetProfile,
         fields: &[DeclaredFieldStorageV1<'_>],
     ) -> Result<Self, StorageReplayError> {
-        let placed = place(
-            target,
-            fields,
-            0,
-            NonZeroPow2::new(1).map_err(StorageReplayError::Shape)?,
-            None,
-            BTreeSet::new(),
-        )?;
+        let cursor = StorageLayoutCursorV1::new(target, StoragePlacementPolicyV1::Ordinary)
+            .map_err(StorageReplayError::Shape)?;
+        let placed = place(target, fields, cursor, BTreeSet::new())?;
         finish(target, placed)
     }
 
@@ -34,16 +29,13 @@ impl AggregateStorageLayoutV1 {
 
 pub(super) struct Placement {
     pub(super) fields: Vec<PlacedFieldStorageV1>,
-    pub(super) cursor: u64,
-    pub(super) alignment: NonZeroPow2,
+    pub(super) geometry: StorageGeometryV1,
 }
 
 pub(super) fn place(
     target: LirTargetProfile,
     fields: &[DeclaredFieldStorageV1<'_>],
-    mut cursor: u64,
-    mut alignment: NonZeroPow2,
-    packing: Option<NonZeroPow2>,
+    mut cursor: StorageLayoutCursorV1,
     mut seen: BTreeSet<PersistentFieldId>,
 ) -> Result<Placement, StorageReplayError> {
     let mut placed = Vec::with_capacity(fields.len());
@@ -54,43 +46,32 @@ pub(super) fn place(
         if !seen.insert(field.field) {
             return Err(StorageReplayError::DuplicateField(field.field));
         }
-        let natural = field.layout.storage.alignment();
-        let access = packing.map_or(natural, |packing| packing.min(natural));
-        alignment = alignment.max(access);
-        let storage = if let Some(layout) = field.layout.nonzero_ref() {
-            let offset = access.align_up(cursor).map_err(StorageReplayError::Shape)?;
-            cursor = offset.checked_add(layout.storage().size().get()).ok_or(
-                StorageReplayError::Shape(TypeInstanceShapeError::SizeOverflow),
-            )?;
-            let maximum = target.contract().maximum_managed_object_size();
-            if cursor > maximum {
-                return Err(StorageReplayError::Shape(
-                    TypeInstanceShapeError::ManagedObjectTooLarge {
-                        actual: cursor,
-                        maximum,
-                    },
-                ));
-            }
-            FieldStorageV1(FieldBody::Stored {
-                offset: ByteOffsetV1(offset),
+        let geometry = StorageGeometryV1::new(
+            target,
+            field.layout.storage.byte_size(),
+            field.layout.storage.alignment().get(),
+        )
+        .map_err(StorageReplayError::Shape)?;
+        let placement = cursor.push(geometry).map_err(StorageReplayError::Shape)?;
+        let storage = match field.layout.nonzero_ref() {
+            Some(layout) => FieldStorageV1(FieldBody::Stored {
+                offset: ByteOffsetV1(placement.offset()),
                 layout,
-            })
-        } else {
-            FieldStorageV1(FieldBody::ElidedZst {
+            }),
+            None => FieldStorageV1(FieldBody::ElidedZst {
                 exact: field.layout.exact(),
-                alignment: natural,
-            })
+                alignment: geometry.alignment(),
+            }),
         };
         placed.push(PlacedFieldStorageV1 {
             field: field.field,
             storage,
-            access_alignment: access,
+            access_alignment: placement.access_alignment(),
         });
     }
     Ok(Placement {
         fields: placed,
-        cursor,
-        alignment,
+        geometry: cursor.finish().map_err(StorageReplayError::Shape)?,
     })
 }
 
@@ -98,15 +79,13 @@ pub(super) fn finish(
     target: LirTargetProfile,
     placed: Placement,
 ) -> Result<AggregateStorageLayoutV1, StorageReplayError> {
-    let size = placed
-        .alignment
-        .align_up(placed.cursor)
-        .map_err(StorageReplayError::Shape)?;
+    let size = placed.geometry.size();
+    let alignment = placed.geometry.alignment().get();
     let storage = if size == 0 {
-        ValueStorageLayoutV1::zero_sized(placed.alignment.get())
+        ValueStorageLayoutV1::zero_sized(alignment)
     } else {
         let scan = field_scan(&placed.fields)?;
-        ValueStorageLayoutV1::inline(size, placed.alignment.get(), scan)
+        ValueStorageLayoutV1::inline(size, alignment, scan)
     }
     .map_err(StorageReplayError::Shape)?;
     storage

@@ -313,6 +313,7 @@ impl TypeInstanceShapeV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeInstanceShapeError {
     ZeroAllocationSize,
+    StorageTargetMismatch,
     ZeroInlineSize,
     ZeroAlignment,
     AlignmentNotPowerOfTwo(u64),

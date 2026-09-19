@@ -6,6 +6,9 @@ use std::{num::NonZeroU64, sync::Arc};
 
 use crate::{CheckedRefScanV1, LirTargetProfile, RefScan, TypeInstanceShapeError};
 
+mod geometry;
+pub use geometry::*;
+
 mod fields;
 pub use fields::*;
 
