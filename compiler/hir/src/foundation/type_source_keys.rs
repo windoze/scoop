@@ -1,6 +1,10 @@
 use super::*;
 
 impl CanonicalHirFoundation {
+    pub(crate) fn type_source_constructor_records(&self) -> &[ConstructorRecord] {
+        &self.constructors
+    }
+
     pub(crate) fn type_source_exact_records(&self) -> &[ExactTypeRecord] {
         &self.exact_types
     }

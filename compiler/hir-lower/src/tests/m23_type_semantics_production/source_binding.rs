@@ -3,6 +3,7 @@ use super::*;
 use scoop_identity::{ConeCoordinate, ValidatedIdentityGraph};
 use scoop_wire::{decode_canonical, encode};
 
+mod constructors;
 mod dispatch;
 mod dispatch_binding;
 mod rejection;
