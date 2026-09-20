@@ -1,0 +1,9 @@
+nominals=Cache,Catalog,Choice,Generic,Leaf,Pair,Parent,Readable
+protected=10
+constructors=4
+properties=6
+callables=14
+inheritance=7
+interfaces=2
+selections=7
+dispatch_callables=4

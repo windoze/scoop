@@ -45,3 +45,6 @@ pub use nominal_binding::*;
 
 mod inheritance_binding;
 pub use inheritance_binding::*;
+
+mod declarations;
+pub use declarations::*;

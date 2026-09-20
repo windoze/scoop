@@ -8,7 +8,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod assemble;
-mod inventory;
+pub(super) mod inventory;
 mod protocols;
 pub(super) mod resources;
 pub(super) use protocols::project as project_protocols;
@@ -58,7 +58,7 @@ pub(super) fn project_record(
     Error,
 > {
     let nodes = project_nested_sources(output, root, meter)?;
-    let mut required = inventory::collect(&nodes, meter)?;
+    let mut required = inventory::collect(nodes.iter().map(|node| &node.contract), meter)?;
     let properties = super::inheritance::source_properties::project_nominal(
         output.module(),
         &required.properties(meter)?,

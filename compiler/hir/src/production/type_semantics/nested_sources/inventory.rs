@@ -1,12 +1,12 @@
 use super::*;
 
-pub(super) struct Required {
+pub(in crate::production::type_semantics) struct Required {
     pub constructors: BTreeSet<PersistentConstructorId>,
     pub callables: BTreeSet<CallableTemplateOrigin>,
     properties: BTreeSet<PersistentPropertyId>,
 }
-pub(super) fn collect(
-    nodes: &[NestedSourceNode],
+pub(in crate::production::type_semantics) fn collect<'a>(
+    nodes: impl Iterator<Item = &'a NominalSourceContractV1>,
     meter: &mut BudgetMeter,
 ) -> Result<Required, Error> {
     let mut required = Required {
@@ -16,10 +16,10 @@ pub(super) fn collect(
     };
     for node in nodes {
         meter.charge_nodes(1, &WirePath::root()).map_err(resource)?;
-        for id in node.contract.constructors().values() {
+        for id in node.constructors().values() {
             resources::insert(&mut required.constructors, *id, meter)?;
         }
-        for member in node.contract.members().values() {
+        for member in node.members().values() {
             match member {
                 NestedSourceMemberRefV1::Function(id) => resources::insert(
                     &mut required.callables,
@@ -36,7 +36,7 @@ pub(super) fn collect(
                 }
             }
         }
-        if let NominalSourceShapeV1::Enum(shape) = node.contract.source_shape() {
+        if let NominalSourceShapeV1::Enum(shape) = node.source_shape() {
             for variant in shape.variants() {
                 resources::insert(
                     &mut required.callables,
@@ -49,7 +49,7 @@ pub(super) fn collect(
     Ok(required)
 }
 impl Required {
-    pub(super) fn properties(
+    pub(in crate::production::type_semantics) fn properties(
         &self,
         meter: &mut BudgetMeter,
     ) -> Result<CanonicalPersistentIdsV1<PersistentPropertyId>, Error> {
@@ -57,7 +57,7 @@ impl Required {
         CanonicalPersistentIdsV1::try_new(self.properties.iter().copied().collect())
             .map_err(invalid)
     }
-    pub(super) fn accessors(
+    pub(in crate::production::type_semantics) fn accessors(
         &mut self,
         properties: &[NominalSupportPropertyInterfaceV1],
         meter: &mut BudgetMeter,
@@ -83,7 +83,7 @@ impl Required {
         }
         Ok(())
     }
-    pub(super) fn protocols(
+    pub(in crate::production::type_semantics) fn protocols(
         &self,
         meter: &mut BudgetMeter,
     ) -> Result<BTreeSet<CallableTemplateOrigin>, Error> {
