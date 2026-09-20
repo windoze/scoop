@@ -6,8 +6,8 @@ mod callables;
 mod replay;
 mod selections;
 mod support;
-pub(super) use support::with_source;
 use support::*;
+pub(super) use support::{with_hir_source, with_source};
 
 pub(super) const VIRTUAL: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

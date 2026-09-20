@@ -105,6 +105,8 @@ pub(super) fn produce(
         inheritance::source_callables(export, &inheritance_inventory, &slot_selections, meter)?;
     let source_constructors =
         inheritance::source_constructors(export, &concrete, &inheritance_inventory, meter)?;
+    let source_protected_callables =
+        inheritance::source_protected_callables(export, &inheritance_inventory, meter)?;
     let (inheritance, protected_sources, constructor_origins) = inheritance::produce(
         export,
         &concrete,
@@ -161,6 +163,7 @@ pub(super) fn produce(
         slot_selections,
         source_callables,
         source_constructors,
+        source_protected_callables,
     })
 }
 

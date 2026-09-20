@@ -163,6 +163,16 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
     )
     .unwrap();
     assert_eq!(production.source_constructors(), &source_constructors);
+    let source_protected_callables =
+        hir::CanonicalInheritanceSourceProtectedCallablesV1::from_ordinary_hir(
+            &output,
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        )
+        .unwrap();
+    assert_eq!(
+        production.source_protected_callables(),
+        &source_protected_callables
+    );
     let (
         candidate,
         foundation,
@@ -171,7 +181,9 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
         source_selections,
         callables,
         constructors,
+        protected_callables,
     ) = production.into_parts();
+    assert_eq!(protected_callables, source_protected_callables);
     assert_eq!(constructors, source_constructors);
     assert_eq!(callables, source_callables);
     assert_eq!(source_selections, slot_selections);

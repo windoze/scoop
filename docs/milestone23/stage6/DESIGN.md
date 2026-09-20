@@ -215,6 +215,8 @@ interface dispatch来源子表按owner exact严格递增，每项`InterfaceSourc
 
 schema validator必须将parents的集合与已验证继承图逐项join，并核对每个直接member的canonical slot key、interface owner和role。按父接口声明序组合完整未抑制的来源成员序列，菱形路径按slot identity去重，再追加当前members；每条override只允许指向完整继承来源集合中的同role槽。沿全部来源边合并抑制集合，最后一次性移除被抑制槽，逐项比较candidate序列；不能只合并父接口已抑制的schema，否则菱形的另一条路径可能重新引入旧槽。遗漏、额外、重排、错owner/role或非祖先override均拒绝，所有展开及比较共享预算。此证明只覆盖slot结构与顺序，签名/effect、implementation选择、default及access仍由完整declarations和inheritance合同验证。
 
+protected callable来源子表复用`ProtectedCallableInterfaceV1`三字段record，按`CallableTemplateOrigin`的typed role与id严格递增，精确覆盖独立inheritance inventory中的Callable成员。producer直接读取sealed HIR的普通方法、getter与setter；stored accessor即使没有实现函数也须投影，public getter的protected setter只加入setter。参数名称/值类型、binder及bounds、result、effects、modality、source-interface和真实virtual-family关系均保留；FinalOverride保留原槽，Direct无槽，constructor、logical property及nested nominal由各自合同拥有。generic方法仅保存source metadata，不授予M23-7物化资格。definition origin对Function/GenericFunction/PropertyAccessor分别取真实subject；不能从public-only接口或dispatch候选反推。producer与reader的类型树、名称、集合、身份解析共用预算，reader拒绝乱序/重复/未知ref及多余字段；签名来源记录仍须结合property/default、artifact绑定和完整declarations validator验证。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

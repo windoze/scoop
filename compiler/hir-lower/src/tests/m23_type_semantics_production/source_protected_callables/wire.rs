@@ -1,0 +1,108 @@
+use super::*;
+use hir::{
+    DecodedCanonicalInheritanceSourceProtectedCallablesV1 as Decoded,
+    InheritanceSourceProtectedCallableResolutionError as Error,
+};
+use scoop_wire::{Encoder, WireEncode};
+
+struct Records<'a>(&'a [hir::ProtectedCallableInterfaceV1]);
+impl WireEncode for Records<'_> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.array(self.0.len() as u64)?;
+        for record in self.0 {
+            record.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn protected_callable_sources_reuse_three_required_contract_fields() {
+    with_source(SOURCE, |output, _| {
+        for record in table(output).records() {
+            let bytes = [
+                vec![0xa3, 1],
+                encode(&record.declaration()).unwrap(),
+                vec![2],
+                encode(record.declaration_access()).unwrap(),
+                vec![3],
+                encode(record.payload()).unwrap(),
+            ]
+            .concat();
+            assert_eq!(encode(record).unwrap(), bytes);
+            let mut incomplete = bytes;
+            incomplete[0] = 0xa2;
+            assert!(
+                decode_canonical::<hir::DecodedProtectedCallableInterfaceV1>(
+                    &incomplete,
+                    DecodeLimits::default()
+                )
+                .is_err()
+            );
+        }
+    });
+}
+
+#[test]
+fn protected_callable_source_reader_rejects_duplicate_and_reordered_contracts() {
+    with_source(SOURCE, |output, _| {
+        let table = table(output);
+        let duplicate = vec![table.records()[0].clone(), table.records()[0].clone()];
+        assert!(matches!(
+            Table::try_new(duplicate.clone(), &mut meter()),
+            Err(hir::SourceInventoryError::NonCanonicalOrder { .. })
+        ));
+        let mut reversed = table.records().to_vec();
+        reversed.reverse();
+        for records in [duplicate, reversed] {
+            let decoded: Decoded = decode_canonical(
+                &encode(&Records(&records)).unwrap(),
+                DecodeLimits::default(),
+            )
+            .unwrap();
+            let mut identities = source_inventory::identity_closure(output);
+            assert!(matches!(
+                decoded.resolve(&mut identities, &mut meter()),
+                Err(Error::Inventory(
+                    hir::SourceInventoryError::NonCanonicalOrder { .. }
+                ))
+            ));
+        }
+    });
+}
+
+#[test]
+fn protected_callable_source_reader_checks_budget_before_unknown_identity_resolution() {
+    with_source(SOURCE, |output, _| {
+        let bytes = encode(&table(output)).unwrap();
+        let mut empty = scoop_identity::PendingIdentityValidation::new()
+            .finish()
+            .unwrap();
+        let decode = || decode_canonical::<Decoded>(&bytes, DecodeLimits::default()).unwrap();
+        assert!(matches!(
+            decode().resolve(&mut empty, &mut meter()),
+            Err(Error::Contract(
+                hir::ProtectedCallableInterfaceResolutionError::Identity(_)
+            ))
+        ));
+        for limits in [
+            DecodeLimits {
+                validation_work_units: 0,
+                ..DecodeLimits::default()
+            },
+            DecodeLimits {
+                logical_heap_bytes: 0,
+                ..DecodeLimits::default()
+            },
+            DecodeLimits {
+                semantic_table_entries: 0,
+                ..DecodeLimits::default()
+            },
+        ] {
+            assert!(matches!(
+                decode().resolve(&mut empty, &mut BudgetMeter::new(limits)),
+                Err(Error::Inventory(hir::SourceInventoryError::Resource(_)))
+            ));
+        }
+    });
+}

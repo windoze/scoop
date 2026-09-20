@@ -11,6 +11,7 @@ mod edges;
 mod inheritance;
 mod interface_dispatch;
 mod nominals;
+mod protected_callables;
 mod roots;
 mod slot_selections;
 pub use callables::*;
@@ -20,6 +21,7 @@ pub use edges::*;
 pub use inheritance::*;
 pub use interface_dispatch::*;
 pub use nominals::*;
+pub use protected_callables::*;
 pub use roots::*;
 pub use slot_selections::*;
 

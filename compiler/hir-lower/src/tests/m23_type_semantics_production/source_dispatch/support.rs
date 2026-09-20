@@ -4,6 +4,31 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     source: &str,
     run: impl FnOnce(&hir::OrdinaryHirOutput<'_>, &scoop_mir::Module) -> T,
 ) -> T {
+    with_hir_source(source, |output, core| {
+        let mut imported = core.project_selected_callables_to_mir(output.imported_core());
+        if !output
+            .output()
+            .local
+            .module()
+            .initialization_units
+            .is_empty()
+        {
+            core.project_initialization_cycle_to_mir(&mut imported);
+        }
+        let dependencies =
+            scoop_mir::SelectedDependencyMirSet::empty(output.output().local.module().cone);
+        let mir = scoop_mir_lower::lower_ordinary(output, imported, dependencies).unwrap();
+        run(output, mir.module())
+    })
+}
+
+pub(in crate::tests::m23_type_semantics_production) fn with_hir_source<T>(
+    source: &str,
+    run: impl FnOnce(
+        &hir::OrdinaryHirOutput<'_>,
+        &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> T {
     let core = trusted_core();
     let identity = test_source_identity("src/main.scoop");
     let ordinary = ast::CurrentConeParsedSources::try_new(
@@ -35,20 +60,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
     let output =
         lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
-    let mut imported = core.project_selected_callables_to_mir(output.imported_core());
-    if !output
-        .output()
-        .local
-        .module()
-        .initialization_units
-        .is_empty()
-    {
-        core.project_initialization_cycle_to_mir(&mut imported);
-    }
-    let dependencies =
-        scoop_mir::SelectedDependencyMirSet::empty(output.output().local.module().cone);
-    let mir = scoop_mir_lower::lower_ordinary(&output, imported, dependencies).unwrap();
-    run(&output, mir.module())
+    run(&output, &core)
 }
 
 pub(super) fn project(

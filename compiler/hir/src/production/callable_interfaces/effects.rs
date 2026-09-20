@@ -51,7 +51,7 @@ pub(in crate::production) fn function(
     )
 }
 
-pub(super) fn accessor(
+pub(in crate::production) fn accessor(
     attributes: FunctionAttributes,
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     build(

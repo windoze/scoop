@@ -1,0 +1,3 @@
+public class Vault {
+    protected fun read(value: Long): Long = value
+}

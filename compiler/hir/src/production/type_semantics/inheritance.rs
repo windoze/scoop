@@ -10,9 +10,11 @@ pub(super) use schemas::{interface_sources, slot_selections};
 mod source_callables;
 mod source_constructors;
 mod source_inventory;
+mod source_protected_callables;
 pub(super) use source_callables::project as source_callables;
 pub(super) use source_constructors::project as source_constructors;
 pub(super) use source_inventory::project as source_inventory;
+pub(super) use source_protected_callables::project as source_protected_callables;
 
 type InheritanceProjection = (
     CanonicalNominalInheritanceInterfacesV1,

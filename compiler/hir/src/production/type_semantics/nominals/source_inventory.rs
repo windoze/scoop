@@ -67,6 +67,20 @@ impl CanonicalInheritanceSourceConstructorsV1 {
     }
 }
 
+impl CanonicalInheritanceSourceProtectedCallablesV1 {
+    /// Projects protected source methods and accessors before candidate
+    /// interfaces, including source-only generic method metadata.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        let export = output.output().export.module();
+        let inventory = inheritance::source_inventory(export, &nominals, meter)?;
+        inheritance::source_protected_callables(export, &inventory, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

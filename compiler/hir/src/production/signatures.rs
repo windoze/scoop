@@ -86,8 +86,16 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
         parameters: &[TypeParamDecl],
         visible_binders: &[HirSignatureBinder],
     ) -> Result<CanonicalBinderListV1, HirInterfaceSignatureProjectionError> {
-        let mut projected = Vec::with_capacity(parameters.len());
-        for (index, parameter) in parameters.iter().enumerate() {
+        self.project_binder_iter(parameters.iter(), visible_binders)
+    }
+
+    pub(super) fn project_binder_iter<'p>(
+        &self,
+        parameters: impl Iterator<Item = &'p TypeParamDecl>,
+        visible_binders: &[HirSignatureBinder],
+    ) -> Result<CanonicalBinderListV1, HirInterfaceSignatureProjectionError> {
+        let mut projected = Vec::with_capacity(parameters.size_hint().0);
+        for (index, parameter) in parameters.enumerate() {
             let index = u32::try_from(index)
                 .map_err(|_| HirInterfaceSignatureProjectionError::TooManyTypeParameters)?;
             let name = CanonicalIdentifier::new(&parameter.name).map_err(|source| {

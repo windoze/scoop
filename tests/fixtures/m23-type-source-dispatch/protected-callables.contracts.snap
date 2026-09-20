@@ -1,0 +1,16 @@
+Abstract.obligation(value): Abstract, Safe, Ordinary, binders=0, slots=1
+Abstract.required.get(): Abstract, Safe, Ordinary, binders=0, slots=1
+Child.computed.get(): Final, Safe, Ordinary, binders=0, slots=1
+Child.virtual(value): Final, Safe, Ordinary, binders=0, slots=1
+Source.bounded(value): Final, Safe, Ordinary, binders=1, slots=0
+Source.computed.get(): Open, Safe, Ordinary, binders=0, slots=1
+Source.contains(value): Final, Safe, Ordinary, binders=0, slots=0
+Source.direct(first,second): Final, Safe, Ordinary, binders=0, slots=0
+Source.exposed.set(replacement): Final, Safe, Ordinary, binders=0, slots=0
+Source.identity(value): Final, Safe, Ordinary, binders=1, slots=0
+Source.joined(other): Final, Safe, Ordinary, binders=0, slots=0
+Source.raw(value): Final, Unsafe, Ordinary, binders=0, slots=0
+Source.stored.get(): Final, Safe, Ordinary, binders=0, slots=0
+Source.stored.set(value): Final, Safe, Ordinary, binders=0, slots=0
+Source.virtual(value): Open, Safe, Ordinary, binders=0, slots=1
+Source.waitFor(value): Final, Safe, Suspend, binders=0, slots=0
