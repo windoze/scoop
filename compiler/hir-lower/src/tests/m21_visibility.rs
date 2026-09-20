@@ -1,4 +1,5 @@
 use super::*;
+mod objects;
 
 fn visibility(value: ast::DeclaredVisibility) -> ast::VisibilitySyntax {
     ast::VisibilitySyntax::Explicit {

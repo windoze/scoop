@@ -1,0 +1,9 @@
+public open class Base public constructor() {
+    protected fun secret(): Int = 7
+}
+public object Sibling : Base()
+public object Singleton : Base() {
+    fun probe(other: Base): Int = other.secret()
+    fun peerProbe(peer: Sibling): Int = peer.secret()
+}
+fun main() {}
