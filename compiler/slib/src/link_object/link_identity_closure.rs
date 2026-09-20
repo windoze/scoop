@@ -7,7 +7,7 @@ use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalGeneratedBridgeObjectUnitSetV1,
     CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
     CodeLinkObjectMemberSetV1, PlannedLinkObjectMemberSetV1, VerifiedCodeFingerprintV1,
-    VerifiedEntryProductionBranchV1,
+    VerifiedCodeFingerprintV2, VerifiedCodeLinkObjectMemberSetV1, VerifiedEntryProductionBranchV1,
 };
 use crate::SlibMemberId;
 
@@ -361,7 +361,32 @@ impl LinkIdentityClosureSectionV1 {
     pub fn from_verified_code(
         code: &VerifiedCodeFingerprintV1,
     ) -> Result<Self, LinkIdentityClosureBuildError> {
-        let final_objects = code.production().link_objects().final_objects();
+        Self::from_code_parts(
+            code.production().link_objects(),
+            code.defined_symbols(),
+            code.undefined_symbols(),
+        )
+    }
+
+    /// Builds the unchanged Link identity closure from a Strong V2 Code proof.
+    /// The object and symbol projections therefore come from the same layout
+    /// profile proof used by the production manifest.
+    pub fn from_verified_layout_code(
+        code: &VerifiedCodeFingerprintV2,
+    ) -> Result<Self, LinkIdentityClosureBuildError> {
+        Self::from_code_parts(
+            code.production().link_objects(),
+            code.defined_symbols(),
+            code.undefined_symbols(),
+        )
+    }
+
+    fn from_code_parts(
+        objects: &VerifiedCodeLinkObjectMemberSetV1,
+        defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
+    ) -> Result<Self, LinkIdentityClosureBuildError> {
+        let final_objects = objects.final_objects();
         let builtins = final_objects.entry().patch_sites().builtins();
         let image = final_objects.runtime_images().fingerprint().image();
         let primary = image.primary();
@@ -384,9 +409,9 @@ impl LinkIdentityClosureSectionV1 {
             materializations: materializations(builtins.member_plan()),
             definition_indexes: definition_indexes(builtins),
             patch_sites: final_objects.entry().patch_sites().sites().to_vec(),
-            defined_symbols: code.defined_symbols().clone(),
-            undefined_symbols: code.undefined_symbols().clone(),
-            verified_link_objects: code.production().link_objects().projection().clone(),
+            defined_symbols: defined_symbols.clone(),
+            undefined_symbols: undefined_symbols.clone(),
+            verified_link_objects: objects.projection().clone(),
             image_owner: VerifiedImageOwnerProjectionV1 {
                 member: image.member(),
                 definition: image.plan().definition_plan(),

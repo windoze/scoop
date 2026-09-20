@@ -346,3 +346,8 @@ impl std::error::Error for LayoutCodeFingerprintError {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod test_support;
+#[cfg(test)]
+pub(crate) use test_support::{EmptyLayoutCodeFixture, with_empty_layout_code_fixture};

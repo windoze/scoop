@@ -22,10 +22,16 @@ use crate::{
 };
 
 mod assembly;
-use assembly::{LayerAssembly, StrongArtifactAssemblyError, build_section, verify_link_objects};
+use assembly::{
+    LayerAssembly, StrongArtifactAssemblyError, build_section, verify_layout_link_objects,
+    verify_link_objects,
+};
 
 mod cross_cone;
 pub use cross_cone::*;
+
+mod layout;
+pub use layout::*;
 
 /// Complete, closed input to the only `SingleConeStrong` archive writer.
 ///
@@ -264,9 +270,13 @@ pub enum StrongArtifactSectionV1 {
     LirProduction,
     LinkIdentityClosure,
     HirCrossConeInterface,
+    HirCrossConeTypeSemantics,
     MirCrossConeBridge,
+    MirCrossConeTypeBridge,
     LirCrossConeBridge,
+    LirCrossConeLayoutAbi,
     CrossConeLinkClosure,
+    CrossConeLayoutLinkClosure,
     ProductionManifest,
 }
 

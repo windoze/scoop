@@ -5,14 +5,28 @@ use super::StrongArtifactSectionV1;
 use crate::{
     MemberPurposeSet, MemberStableKey, MetadataEnvelope, MetadataEnvelopeError, MetadataLocation,
     MetadataSection, MetadataSectionError, SlibMember, SlibMemberId, SlibMemberRecordError,
-    SlibMemberRole, VerifiedCodeFingerprintV1,
+    SlibMemberRole, VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
+    VerifiedCodeLinkObjectMemberV1,
 };
 
 pub(super) fn verify_link_objects(
     code: &VerifiedCodeFingerprintV1,
     actual: &[SlibMember],
 ) -> Result<(), StrongArtifactAssemblyError> {
-    let expected = code.production().link_objects().members();
+    verify_link_object_members(code.production().link_objects().members(), actual)
+}
+
+pub(super) fn verify_layout_link_objects(
+    code: &VerifiedCodeFingerprintV2,
+    actual: &[SlibMember],
+) -> Result<(), StrongArtifactAssemblyError> {
+    verify_link_object_members(code.production().link_objects().members(), actual)
+}
+
+fn verify_link_object_members(
+    expected: &[VerifiedCodeLinkObjectMemberV1],
+    actual: &[SlibMember],
+) -> Result<(), StrongArtifactAssemblyError> {
     if actual.len() != expected.len() {
         return Err(StrongArtifactAssemblyError::LinkObjectCount {
             expected: expected.len(),

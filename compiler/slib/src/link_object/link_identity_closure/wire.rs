@@ -19,7 +19,7 @@ use crate::link_object::{
     DecodedCodeLinkObjectMemberSetV1, DecodedFixedBytesV1, DefinedLinkSymbolOwnerValidationError,
     LinkObjectMemberSetPlanError, ObjectUnitSetError, PlannedLinkObjectMemberSetV1,
     ProvisionalDigestPatchSiteV1, UndefinedSymbolRequirementValidationError,
-    VerifiedCodeFingerprintV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -624,6 +624,17 @@ impl DecodedLinkIdentityClosureSectionV1 {
         code: &VerifiedCodeFingerprintV1,
     ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
         let expected = LinkIdentityClosureSectionV1::from_verified_code(code)
+            .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
+        validate_against(self, &expected)
+    }
+
+    /// Rebuilds the unchanged wire projection from a Strong V2 layout Code
+    /// proof and promotes it only after exact canonical equality.
+    pub fn validate_layout(
+        self,
+        code: &VerifiedCodeFingerprintV2,
+    ) -> Result<LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError> {
+        let expected = LinkIdentityClosureSectionV1::from_verified_layout_code(code)
             .map_err(LinkIdentityClosureSectionValidationError::Expected)?;
         validate_against(self, &expected)
     }
