@@ -181,6 +181,8 @@ CrossConeTypeSourceAuthoritySectionV1 {
 
 producer必须先从 sealed HIR 投影并封闭source-authority section，再独立构造type-semantics candidate；writer只接受二者已通过production-side交叉校验的typed pair。reader先解析authority，再用它实现`TypeSectionFoundationSemanticAuthority`、`TypeSectionDeclarationSemanticAuthority`、`TypeSectionDefaultSemanticAuthority`和`CommittedTypeUseSemanticAuthorityV1`，完整调用同一个`validate_semantics`入口。禁止从type-semantics candidate、MIR/LIR candidate、symbol或“唯一匹配项”反向合成authority。即使四个子域均为空，该required section也必须存在并按四字段空product编码。
 
+foundation的fact-shape子表是按exact id严格递增的array，每项精确为`{1: exact, 2: source_shape}`；它保存重算事实的输入，不保存candidate的`ExactTypeFactsV1`结论。`source_shape`采用field 0的封闭tag：`Unit=1`、`Scalar=2`、`Pointer=3`、`Reference=4`（均无其他field）；`OrdinaryStruct=5`、`CLayoutStruct=6`、`Tuple=7`的field 1是声明序exact type ref array，tuple至少一个element；`Enum=8`的field 1是声明序variant array，每项为`{1: variant id, 2: 声明序field exact refs, 3: source variant GC fact}`。field类型允许重复，variant id不得重复，声明序不能被canonical table排序改写。所有ref必须通过同一validated identity closure解析；unknown tag、额外field、表乱序/重复、空tuple或共享预算耗尽均拒绝。该子表的wire/identity校验本身不授予事实、layout或selection authority，完整source-authority仍须核对独立inventory、source representation和foundation，并以同一semantic validator重算GC/ZST事实。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

@@ -93,6 +93,15 @@ impl CrossConeTypeSemanticsFoundationV1 {
     pub fn fact_shape(&self, exact: PersistentExactTypeId) -> Option<&ExactTypeFactShapeV1> {
         self.fact_shapes.get(&exact)
     }
+
+    /// Source-side replay inputs, independently projected from sealed HIR.
+    pub fn source_fact_shapes(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (PersistentExactTypeId, &ExactTypeFactShapeV1)> {
+        self.fact_shapes
+            .iter()
+            .map(|(exact, shape)| (*exact, shape))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
