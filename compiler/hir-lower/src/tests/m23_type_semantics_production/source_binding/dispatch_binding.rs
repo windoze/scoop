@@ -18,9 +18,9 @@ const SELECTIONS: &str = include_str!(concat!(
 #[derive(Clone)]
 pub(super) struct Sources {
     pub(super) inventory: hir::CanonicalSourceInheritanceInventoriesV1,
-    interfaces: hir::CanonicalInterfaceSourceDispatchesV1,
-    selections: hir::CanonicalInheritanceSourceSlotSelectionsV1,
-    callables: hir::CanonicalInheritanceSourceCallablesV1,
+    pub(super) interfaces: hir::CanonicalInterfaceSourceDispatchesV1,
+    pub(super) selections: hir::CanonicalInheritanceSourceSlotSelectionsV1,
+    pub(super) callables: hir::CanonicalInheritanceSourceCallablesV1,
 }
 
 impl Sources {
