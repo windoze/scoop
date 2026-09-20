@@ -9,6 +9,7 @@ use scoop_wire::{decode_canonical, encode};
 
 mod rejection;
 mod render;
+mod roots;
 
 const DECLARATIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

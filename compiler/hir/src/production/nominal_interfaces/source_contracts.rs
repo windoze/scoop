@@ -12,6 +12,7 @@ type Error = CrossConeTypeSemanticsProductionError;
 mod constructors;
 mod members;
 mod projection;
+mod roots;
 mod shapes;
 
 impl CanonicalNominalSourceContractsV1 {
