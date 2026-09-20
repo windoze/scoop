@@ -10,9 +10,11 @@ use crate::*;
 
 mod wire;
 pub use wire::*;
+mod binding;
 #[cfg(test)]
 mod tests;
 mod validation;
+pub use binding::*;
 
 /// Source-side inputs with no semantic proof or consumer lookup capability.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -33,6 +33,7 @@ mod imported_protocols;
 mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
+mod type_source_keys;
 pub use imported::{
     CorePreludeCapabilityError, CorePreludeImportError, CorePreludeOnly,
     CorePreludeSelectionBindError, CorePreludeSelectionError, CorePreludeUnavailableCapability,

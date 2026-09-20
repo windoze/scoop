@@ -11,6 +11,7 @@ use super::*;
 use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only, produce_cross_cone_type_semantics};
 use hir::NominalInheritanceSemanticAuthority as _;
 
+mod source_binding;
 mod source_foundation;
 mod source_inventory;
 mod source_shapes;
@@ -144,8 +145,7 @@ fn object_decl(name: &str) -> Decl {
 }
 
 fn lower_public_nominals() -> hir::OrdinaryHirOutput<'static> {
-    let core = Box::leak(Box::new(trusted_core()));
-    let mut source = file(vec![
+    lower_public_declarations(vec![
         struct_decl("EmptyValue", Vec::new()),
         struct_decl("WordValue", vec![("value", ty_named("Int"))]),
         enum_decl(
@@ -172,7 +172,12 @@ fn lower_public_nominals() -> hir::OrdinaryHirOutput<'static> {
         ),
         object_decl("EmptyObject"),
         generic_struct_decl("GenericValue", vec!["T"], Vec::new()),
-    ]);
+    ])
+}
+
+fn lower_public_declarations(declarations: Vec<Decl>) -> hir::OrdinaryHirOutput<'static> {
+    let core = Box::leak(Box::new(trusted_core()));
+    let mut source = file(declarations);
     make_core_public(&mut source);
     let ordinary = Box::leak(Box::new(parsed_ordinary(source)));
     let core_inputs = core

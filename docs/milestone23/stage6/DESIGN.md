@@ -189,6 +189,8 @@ foundation的其他inventory同样使用canonical array：source roots按`Source
 
 M23-6专用HIR foundation producer还必须从同一次sealed HIR已登记的generated nominal keys投影对应`ExactTypeKey::Nominal` record，即使该generated nominal尚无实际表达式使用；object backing-class继承证明依赖这条exact relation。该补充属于新profile的producer输入闭包，不修改既有identity key、旧profile投影规则或wire schema。reader不得临时重建缺失record，也不得把旧foundation在内存中升级后用于source-authority验证。
 
+foundation来源记录解析后，reader必须将每个exact、source nominal、generated nominal和accessor key ref绑定到当前artifact实际发布的相应typed identity table，并核对同一validated identity graph中的canonical key；仅在依赖closure中存在同id不够。source nominal的key origin必须等于provider，access snapshot的definition origin必须精确等于该typed声明subject的foundation origin，完整词法owner链必须通过既有access validator。definition-source集合中的每个span必须命中同foundation的source/context/point记录；object representation中的backing class必须join已发布`ObjectBackingClass { object }` key与对应exact key。该绑定凭证只证明source transcript与identity/source foundation一致，不能单独替代公开接口、GC/ZST重算、inheritance/default/committed-use闭包或完整type-section验证。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
