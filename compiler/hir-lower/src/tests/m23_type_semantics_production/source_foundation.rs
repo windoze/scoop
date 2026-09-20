@@ -2,6 +2,8 @@ use super::source_inventory::identity_closure;
 use super::*;
 use scoop_wire::{decode_canonical, encode};
 
+mod object_origins;
+
 fn fixture() -> (
     hir::OrdinaryHirOutput<'static>,
     hir::CrossConeTypeSemanticsProductionV1,

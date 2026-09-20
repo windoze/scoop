@@ -1,0 +1,11 @@
+public object Singleton {
+    private val secret: Int = 7
+    public var value: Int = secret
+    public fun read(): Int = value
+}
+public class Container {
+    public object Nested {
+        private val value: Int = 2
+        public fun read(): Int = value
+    }
+}

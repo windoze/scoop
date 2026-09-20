@@ -37,6 +37,8 @@ impl<'a> OriginExpectation<'a> {
     }
 }
 
+mod fields;
+
 fn type_requires_definition_origin(record: &TypeRecord) -> bool {
     let id = record.id();
     id != CoreBuiltinNominal::Unit.identity_record().id()
@@ -107,7 +109,7 @@ pub(super) fn validate(
             property_accessors.len(),
             fields
                 .iter()
-                .filter(|record| record.key().source_owner().is_some())
+                .filter(|record| fields::expectation(record.key()).is_some())
                 .count(),
             source_variant_count,
             enum_variant_fields
@@ -171,11 +173,8 @@ pub(super) fn validate(
         )?;
     }
     for record in fields {
-        if let Some(owner) = record.key().source_owner() {
-            requirements.require(
-                DefinitionOriginSubject::Field(record.id()),
-                OriginExpectation::SameSource(nominal_subject(owner)),
-            )?;
+        if let Some(expectation) = fields::expectation(record.key()) {
+            requirements.require(DefinitionOriginSubject::Field(record.id()), expectation)?;
         }
     }
     for record in enum_variants {
