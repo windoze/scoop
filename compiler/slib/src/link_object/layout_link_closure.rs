@@ -55,11 +55,15 @@ pub struct CrossConeLayoutLinkClosureSectionV1<'a> {
 }
 
 impl<'a> CrossConeLayoutLinkClosureSectionV1<'a> {
-    pub fn from_verified_requirements(
+    pub fn from_verified_requirements<D, C, I>(
         closure: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
-        objects: &VerifiedCodeLinkObjectMemberSetV1,
+        objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
         meter: &mut BudgetMeter,
-    ) -> Result<Self, LayoutLinkClosureError> {
+    ) -> Result<Self, LayoutLinkClosureError>
+    where
+        D: scoop_lir::StrongDescriptorReference,
+        C: Clone,
+    {
         let object_coverage = coverage::from_verified(closure, objects, meter)?;
         Ok(Self {
             closure,

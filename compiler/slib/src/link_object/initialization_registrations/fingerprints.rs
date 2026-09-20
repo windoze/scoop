@@ -4,7 +4,7 @@ use scoop_identity::{
     DefinitionAtomRole, DigestNodeId, PersistentInitializationUnitId, StrongDefinitionEntity,
     StrongDefinitionRole,
 };
-use scoop_lir::StrongInitializationUnitRegistrationPlanV1;
+use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use scoop_wire::{HashError, domain_separated_runtime_hash};
 
 use super::physical::validate_objects;
@@ -48,17 +48,24 @@ impl VerifiedStrongInitializationRegistrationObjectFingerprintV1 {
 /// Canonical initialization-registration object leaves derived from exact
 /// provisional records and their complete verified relocation surface.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
-    registrations: VerifiedStrongInitializationRegistrationSetV1,
+pub struct VerifiedStrongInitializationRegistrationObjectFingerprintSetV1<
+    D = PersistentInitializationUnitId,
+> {
+    registrations: VerifiedStrongInitializationRegistrationSetV1<D>,
     fingerprints: Vec<VerifiedStrongInitializationRegistrationObjectFingerprintV1>,
 }
 
-impl VerifiedStrongInitializationRegistrationObjectFingerprintSetV1 {
+pub type VerifiedStrongInitializationRegistrationObjectFingerprintSetV2 =
+    VerifiedStrongInitializationRegistrationObjectFingerprintSetV1<
+        scoop_lir::StrongInitializationDependencyRefV2,
+    >;
+
+impl<D> VerifiedStrongInitializationRegistrationObjectFingerprintSetV1<D> {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.registrations.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongInitializationRegistrationSetV1 {
+    pub const fn registrations(&self) -> &VerifiedStrongInitializationRegistrationSetV1<D> {
         &self.registrations
     }
 
@@ -72,6 +79,26 @@ pub fn compute_strong_initialization_registration_object_fingerprints_v1(
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<
     VerifiedStrongInitializationRegistrationObjectFingerprintSetV1,
+    StrongInitializationRegistrationObjectFingerprintError,
+> {
+    compute_strong_initialization_registration_object_fingerprints(registrations, scoop_objects)
+}
+
+pub fn compute_strong_initialization_registration_object_fingerprints_v2(
+    registrations: super::VerifiedStrongInitializationRegistrationSetV2,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongInitializationRegistrationObjectFingerprintSetV2,
+    StrongInitializationRegistrationObjectFingerprintError,
+> {
+    compute_strong_initialization_registration_object_fingerprints(registrations, scoop_objects)
+}
+
+fn compute_strong_initialization_registration_object_fingerprints<D>(
+    registrations: VerifiedStrongInitializationRegistrationSetV1<D>,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongInitializationRegistrationObjectFingerprintSetV1<D>,
     StrongInitializationRegistrationObjectFingerprintError,
 > {
     let objects = validate_objects(registrations.patch_sites().builtins(), scoop_objects)
@@ -149,8 +176,8 @@ fn registration_bytes(
         .ok_or(StrongInitializationRegistrationObjectFingerprintError::RecordRange(unit))
 }
 
-fn canonical_relocations(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn canonical_relocations<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Vec<CanonicalObjectRelocationV1> {
     let mut relocations = vec![
         CanonicalObjectRelocationV1::owning_associated_atom_offset(

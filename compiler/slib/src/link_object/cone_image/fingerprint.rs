@@ -17,14 +17,26 @@ use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistra
 const RUNTIME_IMAGE_DOMAIN: &str = "scoop-runtime-image-v1";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedRuntimeImageFingerprintV1 {
+pub struct VerifiedRuntimeImageFingerprintV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+    I = scoop_identity::PersistentInitializationUnitId,
+> {
     image: VerifiedConeImageV1,
-    registrations: VerifiedStrongRegistrationPatchSetV1,
+    registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
     fingerprint: RuntimeImageFingerprint,
 }
 
-impl VerifiedRuntimeImageFingerprintV1 {
+pub type VerifiedRuntimeImageFingerprintV2 = VerifiedRuntimeImageFingerprintV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+    scoop_lir::StrongInitializationDependencyRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
+    VerifiedRuntimeImageFingerprintV1<D, C, I>
+{
     pub const fn producer(&self) -> ConeIdentity {
         self.image.producer()
     }
@@ -33,7 +45,7 @@ impl VerifiedRuntimeImageFingerprintV1 {
         &self.image
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongRegistrationPatchSetV1 {
+    pub const fn registrations(&self) -> &VerifiedStrongRegistrationPatchSetV1<D, C, I> {
         &self.registrations
     }
 
@@ -51,6 +63,26 @@ pub fn compute_runtime_image_fingerprint_v1(
     registrations: VerifiedStrongRegistrationPatchSetV1,
     compatibility: CompatibilityRecord,
 ) -> Result<VerifiedRuntimeImageFingerprintV1, RuntimeImageFingerprintError> {
+    compute_runtime_image_fingerprint(image, registrations, compatibility)
+}
+
+pub fn compute_runtime_image_fingerprint_v2(
+    image: VerifiedConeImageV1,
+    registrations: crate::VerifiedStrongRegistrationPatchSetV2,
+    compatibility: CompatibilityRecord,
+) -> Result<VerifiedRuntimeImageFingerprintV2, RuntimeImageFingerprintError> {
+    compute_runtime_image_fingerprint(image, registrations, compatibility)
+}
+
+fn compute_runtime_image_fingerprint<D, C, I>(
+    image: VerifiedConeImageV1,
+    registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    compatibility: CompatibilityRecord,
+) -> Result<VerifiedRuntimeImageFingerprintV1<D, C, I>, RuntimeImageFingerprintError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     validate_proof_binding(&image, &registrations)?;
     validate_tables(&image, &registrations)?;
     validate_runtime_image_inputs(&image, &registrations)?;
@@ -73,10 +105,14 @@ pub fn compute_runtime_image_fingerprint_v1(
     })
 }
 
-fn validate_proof_binding(
+fn validate_proof_binding<D, C, I>(
     image: &VerifiedConeImageV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1,
-) -> Result<(), RuntimeImageFingerprintError> {
+    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+) -> Result<(), RuntimeImageFingerprintError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     if image.producer() != registrations.producer() {
         return Err(RuntimeImageFingerprintError::ProducerMismatch {
             image: image.producer(),
@@ -90,10 +126,14 @@ fn validate_proof_binding(
     Ok(())
 }
 
-fn validate_tables(
+fn validate_tables<D, C, I>(
     image: &VerifiedConeImageV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1,
-) -> Result<(), RuntimeImageFingerprintError> {
+    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+) -> Result<(), RuntimeImageFingerprintError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let tables = image.plan().tables();
     require_table(
         ConeImageTableKindV1::StaticStorages,
@@ -163,10 +203,14 @@ fn require_table<T: Copy + Eq>(
     }
 }
 
-fn validate_runtime_image_inputs(
+fn validate_runtime_image_inputs<D, C, I>(
     image: &VerifiedConeImageV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1,
-) -> Result<(), RuntimeImageFingerprintError> {
+    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+) -> Result<(), RuntimeImageFingerprintError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let expected_key = DigestNodeKey::runtime_image(image.producer());
     let node = image
         .patch_sites()
@@ -229,14 +273,18 @@ fn validate_runtime_image_inputs(
     Ok(())
 }
 
-struct RuntimeImageFingerprintInputV1<'proof> {
+struct RuntimeImageFingerprintInputV1<'proof, D, C, I> {
     image: &'proof VerifiedConeImageV1,
-    registrations: &'proof VerifiedStrongRegistrationPatchSetV1,
+    registrations: &'proof VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     runtime_abi: RuntimeAbiFingerprint,
     target_profile: TargetProfileFingerprint,
 }
 
-impl RuntimeEncode for RuntimeImageFingerprintInputV1<'_> {
+impl<D, C, I> RuntimeEncode for RuntimeImageFingerprintInputV1<'_, D, C, I>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         encoder.fixed(self.runtime_abi.as_array())?;
         encoder.fixed(self.target_profile.as_array())?;
@@ -254,7 +302,11 @@ impl RuntimeEncode for RuntimeImageFingerprintInputV1<'_> {
     }
 }
 
-impl RuntimeImageFingerprintInputV1<'_> {
+impl<D, C, I> RuntimeImageFingerprintInputV1<'_, D, C, I>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     fn encode_static_storages(
         &self,
         encoder: &mut RuntimeEncoder,

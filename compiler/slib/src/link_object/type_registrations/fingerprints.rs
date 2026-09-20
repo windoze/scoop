@@ -38,17 +38,28 @@ impl VerifiedStrongTypeRegistrationObjectFingerprintV1 {
 /// Canonical registration-object leaves derived from exact provisional bytes
 /// and the verified TypeDescriptor relocation.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
-    registrations: VerifiedStrongTypeRegistrationSetV1,
+pub struct VerifiedStrongTypeRegistrationObjectFingerprintSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+> {
+    registrations: VerifiedStrongTypeRegistrationSetV1<D, C>,
     fingerprints: Vec<VerifiedStrongTypeRegistrationObjectFingerprintV1>,
 }
 
-impl VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
+pub type VerifiedStrongTypeRegistrationObjectFingerprintSetV2 =
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV1<
+        scoop_lir::StrongTypeDescriptorRefV2,
+        scoop_lir::StrongTypeDispatchCallableRefV2,
+    >;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone>
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>
+{
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.registrations.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1 {
+    pub const fn registrations(&self) -> &VerifiedStrongTypeRegistrationSetV1<D, C> {
         &self.registrations
     }
 
@@ -64,6 +75,30 @@ pub fn compute_strong_type_registration_object_fingerprints_v1(
     VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     StrongTypeRegistrationObjectFingerprintError,
 > {
+    compute_strong_type_registration_object_fingerprints(registrations, scoop_objects)
+}
+
+pub fn compute_strong_type_registration_object_fingerprints_v2(
+    registrations: super::VerifiedStrongTypeRegistrationSetV2,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV2,
+    StrongTypeRegistrationObjectFingerprintError,
+> {
+    compute_strong_type_registration_object_fingerprints(registrations, scoop_objects)
+}
+
+fn compute_strong_type_registration_object_fingerprints<D, C>(
+    registrations: VerifiedStrongTypeRegistrationSetV1<D, C>,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>,
+    StrongTypeRegistrationObjectFingerprintError,
+>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let objects = validate_objects(registrations.patch_sites().builtins(), scoop_objects)
         .map_err(StrongTypeRegistrationObjectFingerprintError::ObjectValidation)?;
     if registrations.registrations().len() != registrations.plan().registrations().len() {

@@ -227,10 +227,14 @@ pub struct CrossConeLinkClosureSectionV1 {
 }
 
 impl CrossConeLinkClosureSectionV1 {
-    pub fn from_verified_requirements(
+    pub fn from_verified_requirements<D, C, I>(
         requirements: &VerifiedCrossConeStrongRequirementClosureV1,
-        link_objects: &VerifiedCodeLinkObjectMemberSetV1,
-    ) -> Result<Self, CrossConeLinkClosureBuildError> {
+        link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
+    ) -> Result<Self, CrossConeLinkClosureBuildError>
+    where
+        D: scoop_lir::StrongDescriptorReference,
+        C: Clone,
+    {
         if requirements.producer() != link_objects.producer() {
             return Err(CrossConeLinkClosureBuildError::ProducerMismatch {
                 requirements: requirements.producer(),

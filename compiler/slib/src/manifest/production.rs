@@ -373,8 +373,12 @@ pub(super) fn verify_production_code_projection_common<D, C, I>(
     expected_image_dependencies: &[scoop_identity::ConeIdentity],
     source_count: usize,
     strong_production: &StrongProductionSection<D, C, I>,
-    link_objects: &VerifiedCodeLinkObjectMemberSetV1,
-) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
+    link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
+) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let final_objects = link_objects.final_objects();
     let runtime_image = final_objects.runtime_images().fingerprint();
     let registrations = runtime_image.registrations();
@@ -458,10 +462,14 @@ fn distribution(
     }
 }
 
-fn output(
+fn output<D, C, I>(
     cone: &ConeRecord,
-    final_objects: &crate::link_object::VerifiedEntryPatchSetV1,
-) -> Result<SingleConeProductionOutputV1, ProductionCodeProjectionError> {
+    final_objects: &crate::link_object::VerifiedEntryPatchSetV1<D, C, I>,
+) -> Result<SingleConeProductionOutputV1, ProductionCodeProjectionError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     match (
         cone.kind(),
         final_objects.entry().plan(),
@@ -504,10 +512,14 @@ fn output(
     }
 }
 
-fn registration_identities_match(
+fn registration_identities_match<D, C, I>(
     identities: &StrongRegistrationIdentitySurfaceV1,
-    registrations: &VerifiedStrongRegistrationPatchSetV1,
-) -> bool {
+    registrations: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+) -> bool
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let static_storages = registrations
         .static_storages()
         .shapes()

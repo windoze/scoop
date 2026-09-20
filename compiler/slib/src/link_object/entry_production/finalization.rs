@@ -33,14 +33,24 @@ impl VerifiedEntryPatchedScoopLirObjectV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedEntryPatchSetV1 {
-    runtime_images: VerifiedRuntimeImagePatchSetV1,
+pub struct VerifiedEntryPatchSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+    I = scoop_identity::PersistentInitializationUnitId,
+> {
+    runtime_images: VerifiedRuntimeImagePatchSetV1<D, C, I>,
     entry: VerifiedEntryProductionV1,
     objects: Vec<VerifiedEntryPatchedScoopLirObjectV1>,
 }
 
-impl VerifiedEntryPatchSetV1 {
-    pub const fn runtime_images(&self) -> &VerifiedRuntimeImagePatchSetV1 {
+pub type VerifiedEntryPatchSetV2 = VerifiedEntryPatchSetV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+    scoop_lir::StrongInitializationDependencyRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> VerifiedEntryPatchSetV1<D, C, I> {
+    pub const fn runtime_images(&self) -> &VerifiedRuntimeImagePatchSetV1<D, C, I> {
         &self.runtime_images
     }
 
@@ -57,6 +67,24 @@ pub fn patch_entry_production_v1(
     runtime_images: VerifiedRuntimeImagePatchSetV1,
     entry: VerifiedEntryProductionV1,
 ) -> Result<VerifiedEntryPatchSetV1, EntryPatchError> {
+    patch_entry_production(runtime_images, entry)
+}
+
+pub fn patch_entry_production_v2(
+    runtime_images: crate::VerifiedRuntimeImagePatchSetV2,
+    entry: VerifiedEntryProductionV1,
+) -> Result<VerifiedEntryPatchSetV2, EntryPatchError> {
+    patch_entry_production(runtime_images, entry)
+}
+
+fn patch_entry_production<D, C, I>(
+    runtime_images: VerifiedRuntimeImagePatchSetV1<D, C, I>,
+    entry: VerifiedEntryProductionV1,
+) -> Result<VerifiedEntryPatchSetV1<D, C, I>, EntryPatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     if runtime_images.fingerprint().image().patch_sites() != entry.patch_sites() {
         return Err(EntryPatchError::ObjectProofMismatch);
     }

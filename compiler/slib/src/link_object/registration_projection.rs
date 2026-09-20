@@ -54,9 +54,13 @@ pub struct CanonicalStrongRegistrationFingerprintSetV1 {
 }
 
 impl CanonicalStrongRegistrationFingerprintSetV1 {
-    pub fn from_patch_set(
-        patch_set: &VerifiedStrongRegistrationPatchSetV1,
-    ) -> Result<Self, StrongRegistrationFingerprintProjectionError> {
+    pub fn from_patch_set<D, C, I>(
+        patch_set: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    ) -> Result<Self, StrongRegistrationFingerprintProjectionError>
+    where
+        D: scoop_lir::StrongDescriptorReference,
+        C: Clone,
+    {
         Ok(Self {
             producer: patch_set.producer(),
             static_storages: canonicalize_table(

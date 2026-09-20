@@ -5,8 +5,9 @@ use scoop_identity::{
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentInitializationUnitId,
 };
 use scoop_lir::{
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlanSetV1,
-    StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationDependencyRefV2, StrongInitializationRegistrationSchedulePlanV1,
+    StrongInitializationUnitRegistrationPlan, StrongInitializationUnitRegistrationPlanSet,
+    StrongInitializationUnitRegistrationPlanSetV1,
 };
 
 use super::digest::validate_digest_graph;
@@ -171,13 +172,16 @@ impl VerifiedStrongInitializationRegistrationV1 {
 /// Proof that every final-LIR initialization unit has exactly one canonical
 /// cell, coordinator descriptor, and provisional strong registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongInitializationRegistrationSetV1 {
+pub struct VerifiedStrongInitializationRegistrationSetV1<D = PersistentInitializationUnitId> {
     patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: StrongInitializationUnitRegistrationPlanSetV1,
+    plan: StrongInitializationUnitRegistrationPlanSet<D>,
     registrations: Vec<VerifiedStrongInitializationRegistrationV1>,
 }
 
-impl VerifiedStrongInitializationRegistrationSetV1 {
+pub type VerifiedStrongInitializationRegistrationSetV2 =
+    VerifiedStrongInitializationRegistrationSetV1<StrongInitializationDependencyRefV2>;
+
+impl<D> VerifiedStrongInitializationRegistrationSetV1<D> {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.plan.producer()
     }
@@ -186,7 +190,7 @@ impl VerifiedStrongInitializationRegistrationSetV1 {
         &self.patch_sites
     }
 
-    pub const fn plan(&self) -> &StrongInitializationUnitRegistrationPlanSetV1 {
+    pub const fn plan(&self) -> &StrongInitializationUnitRegistrationPlanSet<D> {
         &self.plan
     }
 
@@ -203,6 +207,31 @@ pub fn verify_strong_initialization_registrations_v1(
     VerifiedStrongInitializationRegistrationSetV1,
     StrongInitializationRegistrationValidationError,
 > {
+    verify_strong_initialization_registrations(patch_sites, plan, scoop_objects)
+}
+
+pub fn verify_strong_initialization_registrations_v2(
+    patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    plan: scoop_lir::StrongInitializationUnitRegistrationPlanSetV2,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongInitializationRegistrationSetV2,
+    StrongInitializationRegistrationValidationError,
+> {
+    verify_strong_initialization_registrations(patch_sites, plan, scoop_objects)
+}
+
+fn verify_strong_initialization_registrations<D>(
+    patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    plan: StrongInitializationUnitRegistrationPlanSet<D>,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<
+    VerifiedStrongInitializationRegistrationSetV1<D>,
+    StrongInitializationRegistrationValidationError,
+>
+where
+    D: scoop_lir::StrongInitializationDependencyReference,
+{
     if patch_sites.producer() != plan.producer() {
         return Err(StrongInitializationRegistrationValidationError::DigestPatchProducerMismatch);
     }
@@ -219,14 +248,17 @@ pub fn verify_strong_initialization_registrations_v1(
     })
 }
 
-fn verify_registration(
+fn verify_registration<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<
     VerifiedStrongInitializationRegistrationV1,
     StrongInitializationRegistrationValidationError,
-> {
+>
+where
+    D: scoop_lir::StrongInitializationDependencyReference,
+{
     let builtins = patch_sites.builtins();
     let cell_member = required_scoop_member(builtins, plan, plan.cell_definition_plan())?;
     let cell_index = verified_member(builtins, cell_member)?;
@@ -339,9 +371,9 @@ fn verify_registration(
     ))
 }
 
-fn require_diagnostic_atom(
+fn require_diagnostic_atom<D>(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<u64, StrongInitializationRegistrationValidationError> {
     let definition = member
         .definitions()
@@ -392,8 +424,8 @@ fn require_diagnostic_atom(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_verified(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn build_verified<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     member: SlibMemberId,
     primary_symbol_table_index: u32,
     checked_offset: u64,
@@ -438,9 +470,9 @@ fn build_verified(
     }
 }
 
-pub(super) fn required_scoop_member(
+pub(super) fn required_scoop_member<D>(
     builtins: &crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     definition: ObjectDefinitionPlanId,
 ) -> Result<SlibMemberId, StrongInitializationRegistrationValidationError> {
     let member = builtins
@@ -469,9 +501,9 @@ pub(super) fn required_scoop_member(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn require_primary_atom(
+fn require_primary_atom<D>(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     definition_id: ObjectDefinitionPlanId,
     atom_id: ObjectDefinitionAtomId,
     role: InitializationArtifactRoleV1,
@@ -557,9 +589,9 @@ fn require_primary_atom(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn require_patch(
+fn require_patch<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     intent: DigestPatchIntentId,
     source: DigestNodeId,
     field: DigestSemanticFieldRole,
@@ -619,9 +651,9 @@ fn require_patch(
     Ok(patch)
 }
 
-fn validate_exact_atom_patch_set(
+fn validate_exact_atom_patch_set<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     member: SlibMemberId,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     let mut expected = vec![plan.registration_definition_patch()];

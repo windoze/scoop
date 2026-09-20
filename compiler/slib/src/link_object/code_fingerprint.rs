@@ -82,17 +82,29 @@ impl WireEncode for CodeLinkObjectMemberSetV1 {
 
 /// Finalized built-in object bytes bound one-to-one to their directory records.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCodeLinkObjectMemberSetV1 {
-    final_objects: VerifiedEntryPatchSetV1,
+pub struct VerifiedCodeLinkObjectMemberSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+    I = scoop_identity::PersistentInitializationUnitId,
+> {
+    final_objects: VerifiedEntryPatchSetV1<D, C, I>,
     projection: CodeLinkObjectMemberSetV1,
 }
 
-impl VerifiedCodeLinkObjectMemberSetV1 {
+pub type VerifiedCodeLinkObjectMemberSetV2 = VerifiedCodeLinkObjectMemberSetV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+    scoop_lir::StrongInitializationDependencyRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
+    VerifiedCodeLinkObjectMemberSetV1<D, C, I>
+{
     pub const fn producer(&self) -> ConeIdentity {
         self.final_objects.entry().patch_sites().producer()
     }
 
-    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1 {
+    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1<D, C, I> {
         &self.final_objects
     }
 
@@ -110,6 +122,24 @@ pub fn verify_code_link_object_members_v1(
     final_objects: VerifiedEntryPatchSetV1,
     directory: &[SlibMemberRecord],
 ) -> Result<VerifiedCodeLinkObjectMemberSetV1, CodeLinkObjectMemberValidationError> {
+    verify_code_link_object_members(final_objects, directory)
+}
+
+pub fn verify_code_link_object_members_v2(
+    final_objects: crate::VerifiedEntryPatchSetV2,
+    directory: &[SlibMemberRecord],
+) -> Result<VerifiedCodeLinkObjectMemberSetV2, CodeLinkObjectMemberValidationError> {
+    verify_code_link_object_members(final_objects, directory)
+}
+
+fn verify_code_link_object_members<D, C, I>(
+    final_objects: VerifiedEntryPatchSetV1<D, C, I>,
+    directory: &[SlibMemberRecord],
+) -> Result<VerifiedCodeLinkObjectMemberSetV1<D, C, I>, CodeLinkObjectMemberValidationError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let expected = expected_final_members(&final_objects)?;
     let projection = verify_directory_records(&expected, directory)?;
     Ok(VerifiedCodeLinkObjectMemberSetV1 {
@@ -127,9 +157,13 @@ struct ExpectedFinalLinkObjectMemberV1 {
     content_digest: Digest256,
 }
 
-fn expected_final_members(
-    final_objects: &VerifiedEntryPatchSetV1,
-) -> Result<Vec<ExpectedFinalLinkObjectMemberV1>, CodeLinkObjectMemberValidationError> {
+fn expected_final_members<D, C, I>(
+    final_objects: &VerifiedEntryPatchSetV1<D, C, I>,
+) -> Result<Vec<ExpectedFinalLinkObjectMemberV1>, CodeLinkObjectMemberValidationError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let builtins = final_objects.entry().patch_sites().builtins();
     let member_plan = builtins.member_plan();
     let scoop_objects = final_objects

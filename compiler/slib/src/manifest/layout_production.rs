@@ -10,7 +10,7 @@ use super::{
     ConeRecord, DependencyRecord, ProductionCodeProjectionError,
     SingleConeProductionCodeProjectionV1, production::verify_production_code_projection_common,
 };
-use crate::link_object::VerifiedCodeLinkObjectMemberSetV1;
+use crate::link_object::VerifiedCodeLinkObjectMemberSetV2;
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCodeFingerprintV2};
 
 /// Strong V2 metadata and final object bytes proven to produce one unchanged
@@ -18,7 +18,7 @@ use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCode
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedSingleConeProductionCodeProjectionV2 {
     strong_production: StrongProductionSectionV2,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: VerifiedCodeLinkObjectMemberSetV2,
     projection: SingleConeProductionCodeProjectionV1,
 }
 
@@ -27,7 +27,7 @@ impl VerifiedSingleConeProductionCodeProjectionV2 {
         &self.strong_production
     }
 
-    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV1 {
+    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV2 {
         &self.link_objects
     }
 
@@ -45,7 +45,7 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
     direct_dependencies: &[DependencyRecord],
     source_count: usize,
     strong_production: ValidatedStrongProductionSectionV2,
-    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    link_objects: VerifiedCodeLinkObjectMemberSetV2,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
     let dependency_identities = direct_dependencies
         .iter()

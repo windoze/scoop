@@ -1,7 +1,13 @@
-use scoop_identity::{DefinitionAtomRole, PersistentExactTypeId};
-use scoop_lir::{RefScan, StrongTypeDescriptorRefV1, StrongTypeRegistrationPlanV1};
+use scoop_identity::{
+    DefinitionAtomRole, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentExactTypeId,
+    PersistentSymbolKey, StrongDefinitionEntity, StrongDefinitionRole,
+};
+use scoop_lir::{RefScan, StrongTypeRegistrationPlan};
 
 use super::{StrongTypeDependencyFingerprintError, TypeDependencyArtifactV1};
+use crate::link_object::type_registrations::versioned::{
+    DescriptorReferenceKind, LinkDescriptorReference,
+};
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, VerifiedBuiltinObjectStrongRelocationSetV1,
     VerifiedDarwinArm64RelocationShapeV1, VerifiedRelocationTargetV1,
@@ -37,19 +43,22 @@ pub(super) fn exact_bytes(
         })
 }
 
-pub(super) fn validate_descriptor(
+pub(super) fn validate_descriptor<D, C>(
     actual: &[u8],
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     verified: &VerifiedStrongTypeRegistrationV1,
-    plan: &StrongTypeRegistrationPlanV1,
-) -> Result<(), StrongTypeDependencyFingerprintError> {
+    plan: &StrongTypeRegistrationPlan<D, C>,
+) -> Result<(), StrongTypeDependencyFingerprintError>
+where
+    D: LinkDescriptorReference,
+{
     validate_descriptor_bytes(actual, plan)?;
     validate_descriptor_relocations(builtins, verified, plan)
 }
 
-fn validate_descriptor_bytes(
+fn validate_descriptor_bytes<D: Copy, C>(
     actual: &[u8],
-    plan: &StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlan<D, C>,
 ) -> Result<(), StrongTypeDependencyFingerprintError> {
     let expected = expected_descriptor_bytes(plan);
     if let Some(offset) = actual
@@ -70,7 +79,9 @@ fn validate_descriptor_bytes(
     Ok(())
 }
 
-fn expected_descriptor_bytes(plan: &StrongTypeRegistrationPlanV1) -> [u8; TYPE_DESCRIPTOR_SIZE] {
+fn expected_descriptor_bytes<D: Copy, C>(
+    plan: &StrongTypeRegistrationPlan<D, C>,
+) -> [u8; TYPE_DESCRIPTOR_SIZE] {
     let semantic = plan.semantic();
     let shape = semantic.instance_shape();
     let mut bytes = [0; TYPE_DESCRIPTOR_SIZE];
@@ -96,11 +107,14 @@ fn expected_descriptor_bytes(plan: &StrongTypeRegistrationPlanV1) -> [u8; TYPE_D
     bytes
 }
 
-fn validate_descriptor_relocations(
+fn validate_descriptor_relocations<D, C>(
     builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     verified: &VerifiedStrongTypeRegistrationV1,
-    plan: &StrongTypeRegistrationPlanV1,
-) -> Result<(), StrongTypeDependencyFingerprintError> {
+    plan: &StrongTypeRegistrationPlan<D, C>,
+) -> Result<(), StrongTypeDependencyFingerprintError>
+where
+    D: LinkDescriptorReference,
+{
     let descriptor = verified.descriptor();
     let member = builtins
         .strong_relocations()
@@ -154,17 +168,28 @@ fn validate_descriptor_relocations(
                     VerifiedRelocationTargetV1::StrongDefinition { definition }
                 ) if expected == *definition
             ),
-            72 | 88 | 96 => matches!(
+            72 => strong_target_matches(
                 target,
-                VerifiedRelocationTargetV1::LocalDefinition { .. }
-                    | VerifiedRelocationTargetV1::StrongDefinition { .. }
+                builtins.producer(),
+                StrongDefinitionEntity::scan(plan.semantic().instance_scan()),
+                StrongDefinitionRole::ScanProgram,
             ),
-            80 => match plan.semantic().parent() {
-                Some(StrongTypeDescriptorRefV1::Local(_)) => {
-                    matches!(target, VerifiedRelocationTargetV1::StrongDefinition { .. })
-                }
-                Some(StrongTypeDescriptorRefV1::CoreExternal(_)) => {
-                    matches!(target, VerifiedRelocationTargetV1::ExternalUndefined { .. })
+            88 => strong_target_matches(
+                target,
+                builtins.producer(),
+                StrongDefinitionEntity::dispatch_table(plan.semantic().vtable().table()),
+                StrongDefinitionRole::DispatchTable,
+            ),
+            96 => descriptor.itable_directory().descriptor_relocation() == Some(relocation),
+            80 => match plan.semantic().parent().map(LinkDescriptorReference::kind) {
+                Some(DescriptorReferenceKind::Local(exact)) => strong_target_matches(
+                    target,
+                    builtins.producer(),
+                    StrongDefinitionEntity::exact_type(exact),
+                    StrongDefinitionRole::TypeDescriptor,
+                ),
+                Some(DescriptorReferenceKind::External(exact)) => {
+                    external_target_matches(target, PersistentSymbolKey::TypeDescriptor(exact))
                 }
                 None => false,
             },
@@ -178,7 +203,36 @@ fn validate_descriptor_relocations(
     Ok(())
 }
 
-fn expected_relocation_offsets(plan: &StrongTypeRegistrationPlanV1) -> Vec<u64> {
+fn strong_target_matches(
+    target: &VerifiedRelocationTargetV1,
+    producer: scoop_identity::ConeIdentity,
+    entity: StrongDefinitionEntity,
+    role: StrongDefinitionRole,
+) -> bool {
+    let Ok(key) = ObjectDefinitionPlanKey::strong(producer, entity, role) else {
+        return false;
+    };
+    let Ok(expected) = ObjectDefinitionPlanId::from_key(&key) else {
+        return false;
+    };
+    matches!(target, VerifiedRelocationTargetV1::StrongDefinition { definition }
+        if *definition == expected)
+}
+
+fn external_target_matches(
+    target: &VerifiedRelocationTargetV1,
+    symbol: PersistentSymbolKey,
+) -> bool {
+    let symbol = scoop_identity::MangledSymbol::from_key(&symbol);
+    let expected = scoop_lir::LirTargetProfile::DARWIN_AARCH64
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol(symbol.as_str());
+    matches!(target, VerifiedRelocationTargetV1::ExternalUndefined { name, .. }
+        if name == expected.as_bytes())
+}
+
+fn expected_relocation_offsets<D: Copy, C>(plan: &StrongTypeRegistrationPlan<D, C>) -> Vec<u64> {
     let mut expected = Vec::with_capacity(6);
     if plan.inline_scan().definition_plan().is_some() {
         expected.push(64);
@@ -219,3 +273,6 @@ fn write_u32(bytes: &mut [u8], offset: usize, value: u32) {
 fn write_u64(bytes: &mut [u8], offset: usize, value: u64) {
     bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
 }
+
+#[cfg(test)]
+mod tests;

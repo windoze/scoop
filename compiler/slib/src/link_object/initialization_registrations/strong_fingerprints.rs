@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::{
     DigestKind, DigestNodeId, PersistentCallableBodyId, PersistentInitializationUnitId,
 };
-use scoop_lir::StrongInitializationUnitRegistrationPlanV1;
+use scoop_lir::StrongInitializationUnitRegistrationPlan;
 use scoop_wire::{
     HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, domain_separated_runtime_hash,
 };
@@ -93,17 +93,22 @@ impl VerifiedStrongInitializationFingerprintV1 {
 /// Canonical initialization-unit strong-registration fingerprints derived
 /// from exact initialization leaves and the shared callable-body proof.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongInitializationFingerprintSetV1 {
-    definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1,
+pub struct VerifiedStrongInitializationFingerprintSetV1<
+    D = scoop_identity::PersistentInitializationUnitId,
+> {
+    definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1<D>,
     fingerprints: Vec<VerifiedStrongInitializationFingerprintV1>,
 }
 
-impl VerifiedStrongInitializationFingerprintSetV1 {
+pub type VerifiedStrongInitializationFingerprintSetV2 =
+    VerifiedStrongInitializationFingerprintSetV1<scoop_lir::StrongInitializationDependencyRefV2>;
+
+impl<D> VerifiedStrongInitializationFingerprintSetV1<D> {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.definitions.producer()
     }
 
-    pub const fn definitions(&self) -> &VerifiedStrongInitializationDefinitionFingerprintSetV1 {
+    pub const fn definitions(&self) -> &VerifiedStrongInitializationDefinitionFingerprintSetV1<D> {
         &self.definitions
     }
 
@@ -116,6 +121,20 @@ pub fn compute_strong_initialization_fingerprints_v1(
     definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
 ) -> Result<VerifiedStrongInitializationFingerprintSetV1, StrongInitializationFingerprintError> {
+    compute_strong_initialization_fingerprints(definitions, callable_bodies)
+}
+
+pub fn compute_strong_initialization_fingerprints_v2(
+    definitions: super::VerifiedStrongInitializationDefinitionFingerprintSetV2,
+    callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
+) -> Result<VerifiedStrongInitializationFingerprintSetV2, StrongInitializationFingerprintError> {
+    compute_strong_initialization_fingerprints(definitions, callable_bodies)
+}
+
+fn compute_strong_initialization_fingerprints<D>(
+    definitions: VerifiedStrongInitializationDefinitionFingerprintSetV1<D>,
+    callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
+) -> Result<VerifiedStrongInitializationFingerprintSetV1<D>, StrongInitializationFingerprintError> {
     let registration_objects = definitions.registration_objects();
     let registrations = registration_objects.registrations();
     let callable_registrations = callable_bodies.registration_objects().registrations();
@@ -194,8 +213,8 @@ struct GatewayDefinitionV1 {
     fingerprint: ObjectDefinitionFingerprintV1,
 }
 
-fn gateway_definition(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn gateway_definition<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
 ) -> Result<Option<GatewayDefinitionV1>, StrongInitializationFingerprintError> {
     let Some(gateway) = plan.schedule().gateway() else {
@@ -226,8 +245,8 @@ fn gateway_definition(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn strong_initialization_fingerprint(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn strong_initialization_fingerprint<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     registration_object_node: DigestNodeId,
     registration_object: ObjectDefinitionFingerprintV1,
     cell_definition_node: DigestNodeId,
@@ -272,13 +291,13 @@ fn strong_initialization_fingerprint(
     .map(|digest| StrongRegistrationFingerprintV1::from_array(*digest.as_array()))
 }
 
-struct StrongInitializationFingerprintInputV1<'a> {
-    plan: &'a StrongInitializationUnitRegistrationPlanV1,
+struct StrongInitializationFingerprintInputV1<'a, D> {
+    plan: &'a StrongInitializationUnitRegistrationPlan<D>,
     gateway: Option<GatewayDefinitionV1>,
     direct_inputs: &'a [CanonicalDigestInputV1],
 }
 
-impl RuntimeEncode for StrongInitializationFingerprintInputV1<'_> {
+impl<D> RuntimeEncode for StrongInitializationFingerprintInputV1<'_, D> {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
         runtime_encode_strong_initialization_record_v1(
             encoder,
@@ -295,9 +314,9 @@ impl RuntimeEncode for StrongInitializationFingerprintInputV1<'_> {
     }
 }
 
-pub(in crate::link_object) fn runtime_encode_strong_initialization_record_v1(
+pub(in crate::link_object) fn runtime_encode_strong_initialization_record_v1<D>(
     encoder: &mut RuntimeEncoder,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     registration: &[u8; 32],
     gateway: Option<(PersistentCallableBodyId, ObjectDefinitionFingerprintV1)>,
 ) -> Result<(), RuntimeEncodeError> {

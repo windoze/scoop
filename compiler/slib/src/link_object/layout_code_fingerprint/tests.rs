@@ -29,7 +29,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     let cone = cone();
     let producer = cone.identity();
     let objects =
-        crate::link_decode::tests::layout_link_support::verified_code_link_object_members();
+        crate::link_decode::tests::layout_link_support::verified_layout_code_link_object_members();
     let (canonical, v1) =
         crate::link_decode::tests::strong_production_fixture(cone.coordinate().clone());
     let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();

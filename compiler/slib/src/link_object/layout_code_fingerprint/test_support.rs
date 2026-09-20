@@ -46,7 +46,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let cone = cone();
     let producer = cone.identity();
     let objects =
-        crate::link_decode::tests::layout_link_support::verified_code_link_object_members();
+        crate::link_decode::tests::layout_link_support::verified_layout_code_link_object_members();
     let member_plan = &objects
         .final_objects()
         .entry()

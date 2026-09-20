@@ -52,11 +52,15 @@ impl WireEncode for ExternalShapeObjectCoverageV1 {
     }
 }
 
-pub(super) fn from_verified(
+pub(super) fn from_verified<D, C, I>(
     closure: &VerifiedExternalShapeRequirementClosureV1<'_>,
-    objects: &VerifiedCodeLinkObjectMemberSetV1,
+    objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
     meter: &mut BudgetMeter,
-) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError> {
+) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     if closure.producer() != objects.producer() {
         return Err(LayoutLinkClosureError::ConsumerMismatch {
             objects: objects.producer(),

@@ -1,10 +1,10 @@
 use super::{StrongTypeRegistrationValidationError, TypeRegistrationDigestPlanFailureV1};
 use scoop_identity::{DigestNodeKey, PersistentExactTypeId};
-use scoop_lir::{DigestInputRefV1, StrongDigestFinalizationPlanV1, StrongTypeRegistrationPlanV1};
+use scoop_lir::{DigestInputRefV1, StrongDigestFinalizationPlanV1, StrongTypeRegistrationPlan};
 
-pub(super) fn validate_digest_graph(
+pub(super) fn validate_digest_graph<D: Copy, C>(
     digest_plan: &StrongDigestFinalizationPlanV1,
-    plan: &StrongTypeRegistrationPlanV1,
+    plan: &StrongTypeRegistrationPlan<D, C>,
 ) -> Result<(), StrongTypeRegistrationValidationError> {
     use TypeRegistrationDigestPlanFailureV1 as Failure;
 

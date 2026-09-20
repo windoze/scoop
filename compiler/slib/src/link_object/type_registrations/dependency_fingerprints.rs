@@ -54,19 +54,30 @@ impl VerifiedStrongTypeDependencyFingerprintV1 {
 /// Descriptor-definition and layout fingerprints rebuilt from the same
 /// registration-object proof, exact object bytes, and complete LIR semantics.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeDependencyFingerprintSetV1 {
-    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
+pub struct VerifiedStrongTypeDependencyFingerprintSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+> {
+    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>,
     fingerprints: Vec<VerifiedStrongTypeDependencyFingerprintV1>,
 }
 
-impl VerifiedStrongTypeDependencyFingerprintSetV1 {
+pub type VerifiedStrongTypeDependencyFingerprintSetV2 =
+    VerifiedStrongTypeDependencyFingerprintSetV1<
+        scoop_lir::StrongTypeDescriptorRefV2,
+        scoop_lir::StrongTypeDispatchCallableRefV2,
+    >;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone>
+    VerifiedStrongTypeDependencyFingerprintSetV1<D, C>
+{
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.registration_objects.producer()
     }
 
     pub const fn registration_objects(
         &self,
-    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1 {
+    ) -> &VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C> {
         &self.registration_objects
     }
 
@@ -79,6 +90,24 @@ pub fn compute_strong_type_dependency_fingerprints_v1(
     registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongTypeDependencyFingerprintSetV1, StrongTypeDependencyFingerprintError> {
+    compute_strong_type_dependency_fingerprints(registration_objects, scoop_objects)
+}
+
+pub fn compute_strong_type_dependency_fingerprints_v2(
+    registration_objects: super::VerifiedStrongTypeRegistrationObjectFingerprintSetV2,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongTypeDependencyFingerprintSetV2, StrongTypeDependencyFingerprintError> {
+    compute_strong_type_dependency_fingerprints(registration_objects, scoop_objects)
+}
+
+fn compute_strong_type_dependency_fingerprints<D, C>(
+    registration_objects: VerifiedStrongTypeRegistrationObjectFingerprintSetV1<D, C>,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongTypeDependencyFingerprintSetV1<D, C>, StrongTypeDependencyFingerprintError>
+where
+    D: super::LinkDescriptorReference,
+    C: super::LinkDispatchCallableReference + Clone,
+{
     let registrations = registration_objects.registrations();
     let objects = validate_objects(registrations.patch_sites().builtins(), scoop_objects)
         .map_err(StrongTypeDependencyFingerprintError::ObjectValidation)?;

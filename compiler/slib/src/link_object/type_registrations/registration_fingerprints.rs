@@ -70,17 +70,25 @@ impl VerifiedStrongTypeFingerprintV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeFingerprintSetV1 {
-    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1,
+pub struct VerifiedStrongTypeFingerprintSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+> {
+    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1<D, C>,
     fingerprints: Vec<VerifiedStrongTypeFingerprintV1>,
 }
 
-impl VerifiedStrongTypeFingerprintSetV1 {
+pub type VerifiedStrongTypeFingerprintSetV2 = VerifiedStrongTypeFingerprintSetV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone> VerifiedStrongTypeFingerprintSetV1<D, C> {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.dependencies.producer()
     }
 
-    pub const fn dependencies(&self) -> &VerifiedStrongTypeDependencyFingerprintSetV1 {
+    pub const fn dependencies(&self) -> &VerifiedStrongTypeDependencyFingerprintSetV1<D, C> {
         &self.dependencies
     }
 
@@ -92,6 +100,22 @@ impl VerifiedStrongTypeFingerprintSetV1 {
 pub fn compute_strong_type_fingerprints_v1(
     dependencies: VerifiedStrongTypeDependencyFingerprintSetV1,
 ) -> Result<VerifiedStrongTypeFingerprintSetV1, StrongTypeFingerprintError> {
+    compute_strong_type_fingerprints(dependencies)
+}
+
+pub fn compute_strong_type_fingerprints_v2(
+    dependencies: super::VerifiedStrongTypeDependencyFingerprintSetV2,
+) -> Result<VerifiedStrongTypeFingerprintSetV2, StrongTypeFingerprintError> {
+    compute_strong_type_fingerprints(dependencies)
+}
+
+fn compute_strong_type_fingerprints<D, C>(
+    dependencies: VerifiedStrongTypeDependencyFingerprintSetV1<D, C>,
+) -> Result<VerifiedStrongTypeFingerprintSetV1<D, C>, StrongTypeFingerprintError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let registration_objects = dependencies.registration_objects();
     let registrations = registration_objects.registrations();
     let verified = registrations.registrations();
@@ -152,8 +176,8 @@ pub fn compute_strong_type_fingerprints_v1(
     })
 }
 
-fn strong_type_registration_fingerprint(
-    plan: &scoop_lir::StrongTypeRegistrationPlanV1,
+fn strong_type_registration_fingerprint<D: Copy, C>(
+    plan: &scoop_lir::StrongTypeRegistrationPlan<D, C>,
     registration_object_node: DigestNodeId,
     registration_object: ObjectDefinitionFingerprintV1,
     dependency: &VerifiedStrongTypeDependencyFingerprintV1,

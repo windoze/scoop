@@ -381,11 +381,15 @@ impl LinkIdentityClosureSectionV1 {
         )
     }
 
-    fn from_code_parts(
-        objects: &VerifiedCodeLinkObjectMemberSetV1,
+    fn from_code_parts<D, C, I>(
+        objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
         undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
-    ) -> Result<Self, LinkIdentityClosureBuildError> {
+    ) -> Result<Self, LinkIdentityClosureBuildError>
+    where
+        D: scoop_lir::StrongDescriptorReference,
+        C: Clone,
+    {
         let final_objects = objects.final_objects();
         let builtins = final_objects.entry().patch_sites().builtins();
         let image = final_objects.runtime_images().fingerprint().image();

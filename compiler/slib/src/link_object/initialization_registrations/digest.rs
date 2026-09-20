@@ -3,16 +3,16 @@ use scoop_identity::{
 };
 use scoop_lir::{
     DigestInputRefV1, StrongDigestFinalizationPlanV1,
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlan,
 };
 
 use super::{
     InitializationRegistrationDigestPlanFailureV1, StrongInitializationRegistrationValidationError,
 };
 
-pub(super) fn validate_digest_graph(
+pub(super) fn validate_digest_graph<D>(
     digest_plan: &StrongDigestFinalizationPlanV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     use InitializationRegistrationDigestPlanFailureV1 as Failure;
 
@@ -124,9 +124,9 @@ pub(super) fn validate_digest_graph(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn require_leaf<'a>(
+fn require_leaf<'a, D>(
     digest_plan: &'a StrongDigestFinalizationPlanV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     key: DigestNodeKey,
     expected_id: scoop_identity::DigestNodeId,
     missing: InitializationRegistrationDigestPlanFailureV1,
@@ -151,8 +151,8 @@ fn require_leaf<'a>(
     Ok(node)
 }
 
-fn mismatch(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn mismatch<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     kind: InitializationRegistrationDigestPlanFailureV1,
 ) -> StrongInitializationRegistrationValidationError {
     StrongInitializationRegistrationValidationError::DigestPlanMismatch {

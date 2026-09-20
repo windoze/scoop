@@ -33,13 +33,23 @@ impl VerifiedRuntimeImagePatchedScoopLirObjectV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedRuntimeImagePatchSetV1 {
-    fingerprint: VerifiedRuntimeImageFingerprintV1,
+pub struct VerifiedRuntimeImagePatchSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+    I = scoop_identity::PersistentInitializationUnitId,
+> {
+    fingerprint: VerifiedRuntimeImageFingerprintV1<D, C, I>,
     objects: Vec<VerifiedRuntimeImagePatchedScoopLirObjectV1>,
 }
 
-impl VerifiedRuntimeImagePatchSetV1 {
-    pub const fn fingerprint(&self) -> &VerifiedRuntimeImageFingerprintV1 {
+pub type VerifiedRuntimeImagePatchSetV2 = VerifiedRuntimeImagePatchSetV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+    scoop_lir::StrongInitializationDependencyRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> VerifiedRuntimeImagePatchSetV1<D, C, I> {
+    pub const fn fingerprint(&self) -> &VerifiedRuntimeImageFingerprintV1<D, C, I> {
         &self.fingerprint
     }
 
@@ -51,6 +61,22 @@ impl VerifiedRuntimeImagePatchSetV1 {
 pub fn patch_runtime_image_fingerprint_v1(
     fingerprint: VerifiedRuntimeImageFingerprintV1,
 ) -> Result<VerifiedRuntimeImagePatchSetV1, RuntimeImagePatchError> {
+    patch_runtime_image_fingerprint(fingerprint)
+}
+
+pub fn patch_runtime_image_fingerprint_v2(
+    fingerprint: super::VerifiedRuntimeImageFingerprintV2,
+) -> Result<VerifiedRuntimeImagePatchSetV2, RuntimeImagePatchError> {
+    patch_runtime_image_fingerprint(fingerprint)
+}
+
+fn patch_runtime_image_fingerprint<D, C, I>(
+    fingerprint: VerifiedRuntimeImageFingerprintV1<D, C, I>,
+) -> Result<VerifiedRuntimeImagePatchSetV1<D, C, I>, RuntimeImagePatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let image = fingerprint.image();
     let source_objects = fingerprint.registrations().objects();
     let image_member = image.member();

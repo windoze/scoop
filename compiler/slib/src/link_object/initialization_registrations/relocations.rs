@@ -7,7 +7,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
-    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlan,
 };
 
 use super::physical::verified_member;
@@ -62,12 +62,12 @@ pub(super) struct VerifiedInitializationRelocationsV1 {
     pub(super) registration_gateway: Option<StrongRelocationBindingV1>,
 }
 
-pub(super) fn verify_relocations(
+pub(super) fn verify_relocations<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
     descriptor_member: &VerifiedMemberObjectRelocationIndexV1,
     registration_member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<VerifiedInitializationRelocationsV1, StrongInitializationRegistrationValidationError> {
     require_relocation_count(
         descriptor_member,
@@ -261,11 +261,11 @@ pub(super) fn verify_relocations(
     })
 }
 
-fn require_relocation_count(
+fn require_relocation_count<D>(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: ObjectDefinitionAtomId,
     expected: usize,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     if member
@@ -280,11 +280,11 @@ fn require_relocation_count(
     Ok(())
 }
 
-fn require_physical_use(
+fn require_physical_use<D>(
     member: &VerifiedMemberObjectRelocationIndexV1,
     atom: ObjectDefinitionAtomId,
     offset: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<VerifiedRelocationUseV1, StrongInitializationRegistrationValidationError> {
     let matches = member
@@ -301,11 +301,11 @@ fn require_physical_use(
     Ok((*relocation).clone())
 }
 
-fn validate_use_shape(
+fn validate_use_shape<D>(
     relocation: &VerifiedRelocationUseV1,
     atom: ObjectDefinitionAtomId,
     offset: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     use InitializationRelocationFailureV1 as Failure;
@@ -332,12 +332,12 @@ fn validate_use_shape(
     Ok(())
 }
 
-fn validate_diagnostic_target(
+fn validate_diagnostic_target<D>(
     objects: &BTreeMap<SlibMemberId, &[u8]>,
     member: &VerifiedMemberObjectRelocationIndexV1,
     relocation: &VerifiedRelocationUseV1,
     expected_target: DiagnosticTargetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
     let (section_ordinal, value) = match relocation.shape() {
@@ -450,9 +450,9 @@ fn validate_diagnostic_target(
     })
 }
 
-fn expected_diagnostic_target(
+fn expected_diagnostic_target<D>(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
     let definition = member
         .definitions()
@@ -540,13 +540,13 @@ fn callable_target(reference: StrongInitializationCallableRefPlanV1) -> Expected
     }
 }
 
-fn verify_strong_relocation(
+fn verify_strong_relocation<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     source_member: &VerifiedMemberObjectRelocationIndexV1,
     source_atom: ObjectDefinitionAtomId,
     offset: u64,
     expected: ExpectedStrongTargetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<StrongRelocationBindingV1, StrongInitializationRegistrationValidationError> {
     let _ = require_physical_use(source_member, source_atom, offset, plan, role)?;
@@ -569,11 +569,11 @@ fn verify_strong_relocation(
     Ok((*binding).clone())
 }
 
-fn validate_binding_shape(
+fn validate_binding_shape<D>(
     binding: &StrongRelocationBindingV1,
     atom: ObjectDefinitionAtomId,
     offset: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     use InitializationRelocationFailureV1 as Failure;
@@ -602,11 +602,11 @@ fn validate_binding_shape(
     Ok(())
 }
 
-fn validate_strong_target(
+fn validate_strong_target<D>(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     binding: &StrongRelocationBindingV1,
     expected: ExpectedStrongTargetV1,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     use InitializationRelocationFailureV1 as Failure;
@@ -685,16 +685,16 @@ fn primary_atom(definition: ObjectDefinitionPlanId) -> ObjectDefinitionAtomId {
     .expect("initialization relocation target primary atom is hashable")
 }
 
-fn relocation_error<T>(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn relocation_error<T, D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
     kind: InitializationRelocationFailureV1,
 ) -> Result<T, StrongInitializationRegistrationValidationError> {
     Err(relocation_error_value(plan, role, kind))
 }
 
-fn relocation_error_value(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+fn relocation_error_value<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationRelocationRoleV1,
     kind: InitializationRelocationFailureV1,
 ) -> StrongInitializationRegistrationValidationError {

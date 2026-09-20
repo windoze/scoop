@@ -53,17 +53,29 @@ impl VerifiedStrongRegistrationPatchedScoopLirObjectV1 {
 /// Typed result of applying every verified strong-registration digest to
 /// copied object bytes. This is not yet the full digest-graph finalization.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongRegistrationPatchSetV1 {
+pub struct VerifiedStrongRegistrationPatchSetV1<
+    D = scoop_lir::StrongTypeDescriptorRefV1,
+    C = scoop_lir::StrongTypeDispatchCallableRefV1,
+    I = PersistentInitializationUnitId,
+> {
     safepoints: VerifiedStrongSafepointFingerprintSetV1,
     callables: VerifiedStrongCallableFingerprintSetV1,
-    types: VerifiedStrongTypeFingerprintSetV1,
+    types: VerifiedStrongTypeFingerprintSetV1<D, C>,
     immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
     static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
-    initializations: VerifiedStrongInitializationFingerprintSetV1,
+    initializations: VerifiedStrongInitializationFingerprintSetV1<I>,
     objects: Vec<VerifiedStrongRegistrationPatchedScoopLirObjectV1>,
 }
 
-impl VerifiedStrongRegistrationPatchSetV1 {
+pub type VerifiedStrongRegistrationPatchSetV2 = VerifiedStrongRegistrationPatchSetV1<
+    scoop_lir::StrongTypeDescriptorRefV2,
+    scoop_lir::StrongTypeDispatchCallableRefV2,
+    scoop_lir::StrongInitializationDependencyRefV2,
+>;
+
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
+    VerifiedStrongRegistrationPatchSetV1<D, C, I>
+{
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
         self.safepoints.producer()
     }
@@ -76,7 +88,7 @@ impl VerifiedStrongRegistrationPatchSetV1 {
         &self.callables
     }
 
-    pub const fn types(&self) -> &VerifiedStrongTypeFingerprintSetV1 {
+    pub const fn types(&self) -> &VerifiedStrongTypeFingerprintSetV1<D, C> {
         &self.types
     }
 
@@ -88,7 +100,7 @@ impl VerifiedStrongRegistrationPatchSetV1 {
         &self.static_storages
     }
 
-    pub const fn initializations(&self) -> &VerifiedStrongInitializationFingerprintSetV1 {
+    pub const fn initializations(&self) -> &VerifiedStrongInitializationFingerprintSetV1<I> {
         &self.initializations
     }
 
@@ -108,6 +120,52 @@ pub fn patch_strong_registration_fingerprints_v1(
     initializations: VerifiedStrongInitializationFingerprintSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongRegistrationPatchSetV1, StrongRegistrationPatchError> {
+    patch_strong_registration_fingerprints(
+        safepoints,
+        callables,
+        types,
+        immortal_objects,
+        static_storages,
+        initializations,
+        scoop_objects,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn patch_strong_registration_fingerprints_v2(
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callables: VerifiedStrongCallableFingerprintSetV1,
+    types: crate::VerifiedStrongTypeFingerprintSetV2,
+    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
+    initializations: crate::VerifiedStrongInitializationFingerprintSetV2,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongRegistrationPatchSetV2, StrongRegistrationPatchError> {
+    patch_strong_registration_fingerprints(
+        safepoints,
+        callables,
+        types,
+        immortal_objects,
+        static_storages,
+        initializations,
+        scoop_objects,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn patch_strong_registration_fingerprints<D, C, I>(
+    safepoints: VerifiedStrongSafepointFingerprintSetV1,
+    callables: VerifiedStrongCallableFingerprintSetV1,
+    types: VerifiedStrongTypeFingerprintSetV1<D, C>,
+    immortal_objects: VerifiedStrongImmortalObjectFingerprintSetV1,
+    static_storages: VerifiedStrongStaticStorageFingerprintSetV1,
+    initializations: VerifiedStrongInitializationFingerprintSetV1<I>,
+    scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
+) -> Result<VerifiedStrongRegistrationPatchSetV1<D, C, I>, StrongRegistrationPatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let safepoint_registrations = safepoints.registrations();
     let callable_body_objects = callables.body_objects();
     let callable_registrations = callable_body_objects.registration_objects().registrations();
@@ -206,14 +264,18 @@ pub fn patch_strong_registration_fingerprints_v1(
     })
 }
 
-fn validate_proof_coverage(
+fn validate_proof_coverage<D, C, I>(
     safepoints: &VerifiedStrongSafepointFingerprintSetV1,
     callables: &VerifiedStrongCallableFingerprintSetV1,
-    types: &VerifiedStrongTypeFingerprintSetV1,
+    types: &VerifiedStrongTypeFingerprintSetV1<D, C>,
     immortal_objects: &VerifiedStrongImmortalObjectFingerprintSetV1,
     static_storages: &VerifiedStrongStaticStorageFingerprintSetV1,
-    initializations: &VerifiedStrongInitializationFingerprintSetV1,
-) -> Result<(), StrongRegistrationPatchError> {
+    initializations: &VerifiedStrongInitializationFingerprintSetV1<I>,
+) -> Result<(), StrongRegistrationPatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let verified_safepoints = safepoints.registrations().registrations();
     if verified_safepoints.len() != safepoints.registrations().plan().registrations().len()
         || verified_safepoints.len() != safepoints.fingerprints().len()
@@ -398,11 +460,15 @@ fn patch_callables(
     Ok(())
 }
 
-fn patch_types(
-    fingerprints: &VerifiedStrongTypeFingerprintSetV1,
+fn patch_types<D, C>(
+    fingerprints: &VerifiedStrongTypeFingerprintSetV1<D, C>,
     object_indexes: &BTreeMap<SlibMemberId, usize>,
     objects: &mut [(SlibMemberId, Vec<u8>)],
-) -> Result<(), StrongRegistrationPatchError> {
+) -> Result<(), StrongRegistrationPatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let registrations = fingerprints
         .dependencies()
         .registration_objects()
@@ -536,8 +602,8 @@ fn patch_static_storages(
     Ok(())
 }
 
-fn patch_initializations(
-    fingerprints: &VerifiedStrongInitializationFingerprintSetV1,
+fn patch_initializations<I>(
+    fingerprints: &VerifiedStrongInitializationFingerprintSetV1<I>,
     object_indexes: &BTreeMap<SlibMemberId, usize>,
     objects: &mut [(SlibMemberId, Vec<u8>)],
 ) -> Result<(), StrongRegistrationPatchError> {
@@ -666,10 +732,10 @@ fn validate_final_callable(
     )
 }
 
-fn validate_final_type(
+fn validate_final_type<D: Copy, C>(
     object: &[u8],
     checked_offset: u64,
-    plan: &scoop_lir::StrongTypeRegistrationPlanV1,
+    plan: &scoop_lir::StrongTypeRegistrationPlan<D, C>,
     computed: &crate::link_object::VerifiedStrongTypeFingerprintV1,
 ) -> Result<(), StrongRegistrationPatchError> {
     let expected = expected_final_type_record(
@@ -723,10 +789,10 @@ fn validate_final_static_storage(
     )
 }
 
-fn validate_final_initialization(
+fn validate_final_initialization<I>(
     object: &[u8],
     checked_offset: u64,
-    plan: &scoop_lir::StrongInitializationUnitRegistrationPlanV1,
+    plan: &scoop_lir::StrongInitializationUnitRegistrationPlan<I>,
     computed: &crate::link_object::VerifiedStrongInitializationFingerprintV1,
 ) -> Result<(), StrongRegistrationPatchError> {
     let gateway_definition = computed.gateway_definition();
@@ -773,16 +839,20 @@ fn validate_final_record(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn verify_normalized_content(
+fn verify_normalized_content<D, C, I>(
     member: SlibMemberId,
     final_bytes: &[u8],
     safepoints: &VerifiedStrongSafepointFingerprintSetV1,
     callables: &VerifiedStrongCallableFingerprintSetV1,
-    types: &VerifiedStrongTypeFingerprintSetV1,
+    types: &VerifiedStrongTypeFingerprintSetV1<D, C>,
     immortal_objects: &VerifiedStrongImmortalObjectFingerprintSetV1,
     static_storages: &VerifiedStrongStaticStorageFingerprintSetV1,
-    initializations: &VerifiedStrongInitializationFingerprintSetV1,
-) -> Result<(), StrongRegistrationPatchError> {
+    initializations: &VerifiedStrongInitializationFingerprintSetV1<I>,
+) -> Result<(), StrongRegistrationPatchError>
+where
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+{
     let mut normalized = final_bytes.to_vec();
     for registration in safepoints
         .registrations()

@@ -118,6 +118,29 @@ impl CanonicalObjectRelocationV1 {
         )
     }
 
+    pub(in crate::link_object) fn dependency_type_descriptor(
+        offset_within_atom: u64,
+        provider: scoop_identity::ConeIdentity,
+        exact_type: PersistentExactTypeId,
+    ) -> Self {
+        Self {
+            offset_within_atom,
+            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            encoded_value: 0,
+            targets: vec![CanonicalRelocationTargetV1 {
+                slot: RelocationTargetSlotV1::Single,
+                target: CanonicalRelocationTargetKindV1::Requirement(
+                    CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
+                        provider,
+                        subject: scoop_lir::ExternalStrongShapeSubjectV1::TypeDescriptor(
+                            exact_type,
+                        ),
+                    },
+                ),
+            }],
+        }
+    }
+
     pub(in crate::link_object) fn dispatch_table(
         offset_within_atom: u64,
         table: scoop_identity::PersistentDispatchTableId,

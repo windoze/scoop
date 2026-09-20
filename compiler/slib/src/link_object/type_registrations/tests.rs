@@ -7,6 +7,8 @@ use crate::link_object::{
 };
 use scoop_lir::{DigestNodeV1, StrongDigestFinalizationPlanV1};
 
+mod v2;
+
 #[test]
 fn verifies_exact_type_record_descriptor_relocation_and_three_patch_sites() {
     let fixture = Fixture::new(Corruption::None);

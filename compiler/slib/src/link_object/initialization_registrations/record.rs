@@ -1,5 +1,5 @@
 use scoop_lir::{
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlan,
 };
 
 use super::{InitializationArtifactRoleV1, StrongInitializationRegistrationValidationError};
@@ -14,10 +14,10 @@ pub(super) const CELL_SIZE: usize = 16;
 pub(super) const COORDINATOR_SIZE: usize = 88;
 pub(super) const DESCRIPTOR_SIZE: usize = 352;
 
-pub(super) fn validate_cell_bytes(
+pub(super) fn validate_cell_bytes<D>(
     object: &[u8],
     file_start: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     validate_bytes(
         object,
@@ -28,10 +28,10 @@ pub(super) fn validate_cell_bytes(
     )
 }
 
-pub(super) fn validate_coordinator_bytes(
+pub(super) fn validate_coordinator_bytes<D>(
     object: &[u8],
     file_start: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     validate_bytes(
         object,
@@ -42,10 +42,10 @@ pub(super) fn validate_coordinator_bytes(
     )
 }
 
-pub(super) fn validate_record_bytes(
+pub(super) fn validate_record_bytes<D>(
     object: &[u8],
     file_start: u64,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     validate_bytes(
         object,
@@ -56,11 +56,11 @@ pub(super) fn validate_record_bytes(
     )
 }
 
-fn validate_bytes(
+fn validate_bytes<D>(
     object: &[u8],
     file_start: u64,
     expected: &[u8],
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     role: InitializationArtifactRoleV1,
 ) -> Result<(), StrongInitializationRegistrationValidationError> {
     let unit = plan.semantic().unit();
@@ -91,8 +91,8 @@ fn validate_bytes(
     Ok(())
 }
 
-pub(super) fn expected_coordinator(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+pub(super) fn expected_coordinator<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> [u8; COORDINATOR_SIZE] {
     let mut bytes = [0; COORDINATOR_SIZE];
     let schedule = match plan.schedule() {
@@ -104,8 +104,8 @@ pub(super) fn expected_coordinator(
     bytes
 }
 
-pub(super) fn expected_record(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+pub(super) fn expected_record<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> [u8; DESCRIPTOR_SIZE] {
     let semantic = plan.semantic();
     let mut bytes = [0; DESCRIPTOR_SIZE];
@@ -128,8 +128,8 @@ pub(super) fn expected_record(
     bytes
 }
 
-pub(in crate::link_object) fn expected_final_record(
-    plan: &StrongInitializationUnitRegistrationPlanV1,
+pub(in crate::link_object) fn expected_final_record<D>(
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
     registration: &[u8; DIGEST_WIDTH],
     gateway_definition: Option<&[u8; DIGEST_WIDTH]>,
 ) -> [u8; DESCRIPTOR_SIZE] {
