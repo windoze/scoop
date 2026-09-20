@@ -28,7 +28,9 @@ impl Lowerer {
             hir::PropertyOwner::Object(owner) => Some(Owner::Object(owner)),
         };
         let access = if let Some(owner) = member_owner {
-            let slot = if property_access.slot.is_none() {
+            let slot = if visibility == ast::DeclaredVisibility::Private
+                || property_access.slot.is_none()
+            {
                 MemberSlotAccess::None
             } else if declaration.is_override {
                 MemberSlotAccess::Override

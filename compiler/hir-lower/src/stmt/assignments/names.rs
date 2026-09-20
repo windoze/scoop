@@ -3,7 +3,7 @@ use super::*;
 impl Lowerer {
     /// `name = value`: the target must be a declared, mutable local and
     /// the value type must match the local's type. Inside a class
-    /// method a bare name may also denote a constructor property
+    /// or interface method a bare name may also denote a member property
     /// (`y = v` meaning `this.y = v`): `var` properties store through
     /// `this`, `val` properties are immutable (diagnostic).
     /// Value-type fields stay unwritable as before.
@@ -91,13 +91,10 @@ impl Lowerer {
                 return None;
             }
             match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-                Some(Type::Class(application)) => {
+                Some(Type::Class(_)) | Some(Type::Interface(_)) => {
+                    let receiver_ty = self.current_this_ty().expect("member receiver type");
                     if self
-                        .find_accessible_class_application_property(
-                            application,
-                            &name.text,
-                            self.current_this_ty().expect("member receiver type"),
-                        )
+                        .find_accessible_nominal_property(receiver_ty, &name.text)
                         .is_some()
                     {
                         let receiver = self
