@@ -4,6 +4,7 @@ use scoop_identity::{
     PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExactTypeId,
     PersistentFieldId, PersistentIdResolver, PersistentObjectValueId, SourceDeclarationKey,
 };
+use std::borrow::Cow;
 
 impl NestedNominalSemanticAuthority<&'static str> for Fixture {
     fn nominal_source_binders(
@@ -71,39 +72,39 @@ impl NominalSourceShapeSemanticAuthority<&'static str> for Fixture {
     fn struct_field_key(
         &mut self,
         field: PersistentFieldId,
-    ) -> Result<FieldIdentityKey, &'static str> {
+    ) -> Result<Cow<'_, FieldIdentityKey>, &'static str> {
         self.struct_fields
             .get(&field)
-            .cloned()
+            .map(Cow::Borrowed)
             .ok_or("unknown struct field")
     }
     fn enum_variant_key(
         &mut self,
         variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, &'static str> {
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, &'static str> {
         self.variants
             .get(&variant)
-            .map(|value| value.0.clone())
+            .map(|value| Cow::Borrowed(&value.0))
             .ok_or("unknown variant")
     }
     fn enum_variant_field_key(
         &mut self,
         field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, &'static str> {
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, &'static str> {
         self.variant_fields
             .get(&field)
-            .cloned()
+            .map(Cow::Borrowed)
             .ok_or("unknown variant field")
     }
     fn object_value_key(
         &mut self,
         value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, &'static str> {
+    ) -> Result<Cow<'_, SourceDeclarationKey>, &'static str> {
         self.graph
             .keys
             .values()
             .find(|key| PersistentObjectValueId::from_source_object(key).ok() == Some(value))
-            .cloned()
+            .map(Cow::Borrowed)
             .ok_or("unknown object")
     }
 }

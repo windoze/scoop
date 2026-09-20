@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::Infallible;
 
 use scoop_identity::{
@@ -119,28 +120,28 @@ impl NominalSourceShapeSemanticAuthority<Infallible> for EmptyAuthority {
     fn struct_field_key(
         &mut self,
         _field: PersistentFieldId,
-    ) -> Result<FieldIdentityKey, Infallible> {
+    ) -> Result<Cow<'_, FieldIdentityKey>, Infallible> {
         unreachable!()
     }
 
     fn enum_variant_key(
         &mut self,
         _variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, Infallible> {
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, Infallible> {
         unreachable!()
     }
 
     fn enum_variant_field_key(
         &mut self,
         _field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, Infallible> {
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, Infallible> {
         unreachable!()
     }
 
     fn object_value_key(
         &mut self,
         _value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, Infallible> {
+    ) -> Result<Cow<'_, SourceDeclarationKey>, Infallible> {
         unreachable!()
     }
 }

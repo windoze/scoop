@@ -23,7 +23,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
                 let key = authority
                     .struct_field_key(field.field())
                     .map_err(Error::Foundation)?;
-                charge_key(&key, meter)?;
+                charge_key(key.as_ref(), meter)?;
                 if PersistentFieldId::from_key(&key).ok() != Some(field.field())
                     || key.source_owner() != Some(owner)
                 {
@@ -37,7 +37,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
                 let key = authority
                     .enum_variant_key(variant.variant())
                     .map_err(Error::Foundation)?;
-                charge_key(&key, meter)?;
+                charge_key(key.as_ref(), meter)?;
                 if PersistentEnumVariantId::from_key(&key).ok() != Some(variant.variant())
                     || key.source_owner() != Some(owner)
                 {
@@ -47,7 +47,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
                     let key = authority
                         .enum_variant_field_key(field.field())
                         .map_err(Error::Foundation)?;
-                    charge_key(&key, meter)?;
+                    charge_key(key.as_ref(), meter)?;
                     if PersistentEnumVariantFieldId::from_key(&key).ok() != Some(field.field()) {
                         return Err(Error::Identity);
                     }
@@ -59,7 +59,7 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
             let key = authority
                 .object_value_key(shape.value())
                 .map_err(Error::Foundation)?;
-            charge_key(&key, meter)?;
+            charge_key(key.as_ref(), meter)?;
             if PersistentObjectValueId::from_source_object(&key).ok() != Some(shape.value()) {
                 return Err(Error::Identity);
             }

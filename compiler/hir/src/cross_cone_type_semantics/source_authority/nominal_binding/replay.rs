@@ -51,62 +51,31 @@ pub(super) fn shape(key: &SourceDeclarationKey) -> Result<PublicNominalShapeV1, 
     ))
 }
 
-/// The legacy source-shape visitor requests owned keys. Charge each copy before
-/// returning it; all recursive signature semantics are metered by the caller.
-pub(super) struct ShapeAuthority<'b, 'a, 'f> {
-    pub bound: &'b mut BoundNominalSourceContractsV1<'a, 'f>,
-    pub meter: &'b mut BudgetMeter,
-}
-
-impl NominalInterfaceShapeAuthority<Error> for ShapeAuthority<'_, '_, '_> {
-    fn concrete_nominal_shape(
+impl NominalSourceShapeSemanticAuthority<Error> for BoundNominalSourceContractsV1<'_, '_> {
+    fn struct_field_key(
         &mut self,
-        declaration: PersistentTypeId,
-    ) -> Result<PublicNominalShapeV1, Error> {
-        self.bound.concrete_nominal_shape(declaration)
-    }
-    fn generic_nominal_shape(
-        &mut self,
-        declaration: PersistentGenericTypeId,
-    ) -> Result<PublicNominalShapeV1, Error> {
-        self.bound.generic_nominal_shape(declaration)
-    }
-}
-impl NominalSourceShapeSemanticAuthority<Error> for ShapeAuthority<'_, '_, '_> {
-    fn struct_field_key(&mut self, field: PersistentFieldId) -> Result<FieldIdentityKey, Error> {
-        copy(self.bound.struct_field_key(field)?, self.meter)
+        field: PersistentFieldId,
+    ) -> Result<std::borrow::Cow<'_, FieldIdentityKey>, Error> {
+        BoundNominalSourceContractsV1::struct_field_key(self, field).map(std::borrow::Cow::Borrowed)
     }
     fn enum_variant_key(
         &mut self,
         variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, Error> {
-        copy(self.bound.enum_variant_key(variant)?, self.meter)
+    ) -> Result<std::borrow::Cow<'_, EnumVariantIdentityKey>, Error> {
+        BoundNominalSourceContractsV1::enum_variant_key(self, variant)
+            .map(std::borrow::Cow::Borrowed)
     }
     fn enum_variant_field_key(
         &mut self,
         field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, Error> {
-        copy(self.bound.enum_variant_field_key(field)?, self.meter)
+    ) -> Result<std::borrow::Cow<'_, EnumVariantFieldKey>, Error> {
+        BoundNominalSourceContractsV1::enum_variant_field_key(self, field)
+            .map(std::borrow::Cow::Borrowed)
     }
     fn object_value_key(
         &mut self,
         value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, Error> {
-        let key = self.bound.object_value_key(value)?;
-        let path = WirePath::root();
-        NominalRepresentationSupportV1::charge_source_key_resources(key, self.meter, &path)?;
-        self.meter
-            .charge_collection_slots(key.owners().owners().len() as u64, &path)?;
-        copy(key, self.meter)
+    ) -> Result<std::borrow::Cow<'_, SourceDeclarationKey>, Error> {
+        BoundNominalSourceContractsV1::object_value_key(self, value).map(std::borrow::Cow::Borrowed)
     }
-}
-fn copy<T: Clone + scoop_wire::WireEncode>(key: &T, meter: &mut BudgetMeter) -> Result<T, Error> {
-    let path = WirePath::root();
-    let bytes =
-        scoop_wire::encoded_length(key).map_err(|error| Error::Identity(error.to_string()))?;
-    meter.check_semantic_leaf(bytes, &path)?;
-    meter.charge_owned_bytes(bytes, &path)?;
-    meter.charge_nodes(1, &path)?;
-    meter.charge_work(bytes, &path)?;
-    Ok(key.clone())
 }

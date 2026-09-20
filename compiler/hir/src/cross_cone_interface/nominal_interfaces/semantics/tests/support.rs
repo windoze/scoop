@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -251,31 +252,31 @@ impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for TestAuthority {
     fn struct_field_key(
         &mut self,
         field: PersistentFieldId,
-    ) -> Result<FieldIdentityKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {
         self.fields
             .get(&field)
-            .cloned()
+            .map(Cow::Borrowed)
             .ok_or(TestAuthorityError::Field(field))
     }
 
     fn enum_variant_key(
         &mut self,
         variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, TestAuthorityError> {
         Err(TestAuthorityError::Variant(variant))
     }
 
     fn enum_variant_field_key(
         &mut self,
         field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, TestAuthorityError> {
         Err(TestAuthorityError::VariantField(field))
     }
 
     fn object_value_key(
         &mut self,
         value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, SourceDeclarationKey>, TestAuthorityError> {
         Err(TestAuthorityError::ObjectValue(value))
     }
 }

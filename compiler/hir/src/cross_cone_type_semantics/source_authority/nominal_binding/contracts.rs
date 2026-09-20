@@ -92,12 +92,7 @@ pub(super) fn validate(
     }
     source
         .source_shape()
-        .validate_semantics(
-            owner,
-            source.kind(),
-            source.type_parameters(),
-            &mut replay::ShapeAuthority { bound, meter },
-        )
+        .validate_semantics(owner, source.kind(), source.type_parameters(), bound)
         .map_err(|error| match error {
             NominalSourceShapeSemanticError::StructField {
                 error: StructSourceFieldSemanticError::Reference(error),

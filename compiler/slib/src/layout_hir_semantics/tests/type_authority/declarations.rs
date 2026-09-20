@@ -1,4 +1,5 @@
 use super::*;
+use std::borrow::Cow;
 
 mod inheritance;
 
@@ -220,28 +221,28 @@ impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for EmptyDeclaratio
     fn struct_field_key(
         &mut self,
         _field: PersistentFieldId,
-    ) -> Result<FieldIdentityKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 
     fn enum_variant_key(
         &mut self,
         _variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 
     fn enum_variant_field_key(
         &mut self,
         _field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 
     fn object_value_key(
         &mut self,
         _value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, TestAuthorityError> {
+    ) -> Result<Cow<'_, SourceDeclarationKey>, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 }

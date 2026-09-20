@@ -1,5 +1,7 @@
 //! Canonical identity authority used while validating cross-Cone HIR surfaces.
 
+use std::borrow::Cow;
+
 mod callable;
 mod callable_source;
 mod const_value;
@@ -413,40 +415,40 @@ impl NominalSourceShapeSemanticAuthority<CrossConeHirNominalAuthorityError>
     fn struct_field_key(
         &mut self,
         field: PersistentFieldId,
-    ) -> Result<FieldIdentityKey, CrossConeHirNominalAuthorityError> {
+    ) -> Result<Cow<'_, FieldIdentityKey>, CrossConeHirNominalAuthorityError> {
         self.identities
             .canonical_key::<PersistentFieldId, FieldIdentityKey>(field)
-            .map(|key| key.as_ref().clone())
+            .map(|key| Cow::Owned(key.as_ref().clone()))
             .map_err(CrossConeHirNominalAuthorityError::Identity)
     }
 
     fn enum_variant_key(
         &mut self,
         variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, CrossConeHirNominalAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, CrossConeHirNominalAuthorityError> {
         self.identities
             .canonical_key::<PersistentEnumVariantId, EnumVariantIdentityKey>(variant)
-            .map(|key| key.as_ref().clone())
+            .map(|key| Cow::Owned(key.as_ref().clone()))
             .map_err(CrossConeHirNominalAuthorityError::Identity)
     }
 
     fn enum_variant_field_key(
         &mut self,
         field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, CrossConeHirNominalAuthorityError> {
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, CrossConeHirNominalAuthorityError> {
         self.identities
             .canonical_key::<PersistentEnumVariantFieldId, EnumVariantFieldKey>(field)
-            .map(|key| key.as_ref().clone())
+            .map(|key| Cow::Owned(key.as_ref().clone()))
             .map_err(CrossConeHirNominalAuthorityError::Identity)
     }
 
     fn object_value_key(
         &mut self,
         value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, CrossConeHirNominalAuthorityError> {
+    ) -> Result<Cow<'_, SourceDeclarationKey>, CrossConeHirNominalAuthorityError> {
         self.identities
             .canonical_key::<PersistentObjectValueId, SourceDeclarationKey>(value)
-            .map(|key| key.as_ref().clone())
+            .map(|key| Cow::Owned(key.as_ref().clone()))
             .map_err(CrossConeHirNominalAuthorityError::Identity)
     }
 }

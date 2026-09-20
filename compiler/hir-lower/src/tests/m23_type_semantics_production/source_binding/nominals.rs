@@ -9,6 +9,7 @@ use scoop_identity::{
     PersistentObjectValueId,
 };
 
+mod borrowed_keys;
 mod combinations;
 mod corruption;
 mod origins;

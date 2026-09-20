@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use scoop_identity::{
     EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey, FieldIdentityKey,
@@ -20,22 +20,25 @@ use crate::{
 /// nominal source shape. Implementations must reject a missing id or a key
 /// that was not used to derive that exact id.
 pub trait NominalSourceShapeSemanticAuthority<E>: NominalInterfaceShapeAuthority<E> {
-    fn struct_field_key(&mut self, field: PersistentFieldId) -> Result<FieldIdentityKey, E>;
+    fn struct_field_key(
+        &mut self,
+        field: PersistentFieldId,
+    ) -> Result<Cow<'_, FieldIdentityKey>, E>;
 
     fn enum_variant_key(
         &mut self,
         variant: PersistentEnumVariantId,
-    ) -> Result<EnumVariantIdentityKey, E>;
+    ) -> Result<Cow<'_, EnumVariantIdentityKey>, E>;
 
     fn enum_variant_field_key(
         &mut self,
         field: PersistentEnumVariantFieldId,
-    ) -> Result<EnumVariantFieldKey, E>;
+    ) -> Result<Cow<'_, EnumVariantFieldKey>, E>;
 
     fn object_value_key(
         &mut self,
         value: PersistentObjectValueId,
-    ) -> Result<SourceDeclarationKey, E>;
+    ) -> Result<Cow<'_, SourceDeclarationKey>, E>;
 }
 
 impl NominalSourceShapeV1 {
