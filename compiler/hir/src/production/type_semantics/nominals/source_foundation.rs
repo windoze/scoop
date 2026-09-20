@@ -41,9 +41,9 @@ pub(super) fn project<'a>(
         )
         .map_err(inheritance::source_resources::resource)?;
     roots.extend_from_slice(required.values());
-    // Source-only roots carry no concrete capability. Representation requirements
-    // are projected separately and still require a real LocalConcrete exact pair.
-    let concrete = source_inventory::roots(output, meter)?;
+    // Every param-free declaration in the source closure needs representation
+    // support; generic templates remain source-only. Exact pairs are never made up.
+    let concrete = source_inventory::from_required(output, &required, meter)?;
     let root_exacts = concrete
         .iter()
         .map(|nominal| nominal.exact)

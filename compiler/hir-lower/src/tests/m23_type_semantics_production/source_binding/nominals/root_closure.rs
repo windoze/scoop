@@ -7,7 +7,7 @@ const ROOTS: &str = include_str!(concat!(
 ));
 
 #[test]
-fn foundation_binds_complete_nested_source_roots_without_concrete_capabilities() {
+fn foundation_binds_complete_nested_source_roots_with_real_concrete_support() {
     with_source(ROOTS, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let table = sources(output, &mut fixture);
@@ -17,8 +17,8 @@ fn foundation_binds_complete_nested_source_roots_without_concrete_capabilities()
             .unwrap();
         assert_eq!(bound.table().records().len(), 20);
         let entries = fixture.source.entries();
-        assert_eq!(entries.representation_owners.values().len(), 6);
-        assert_eq!(entries.local_inheritance_edges.records().len(), 6);
+        assert_eq!(entries.representation_owners.values().len(), 19);
+        assert_eq!(entries.local_inheritance_edges.records().len(), 19);
         for (name, visibility, depth) in [
             ("Entry", Visibility::Protected, 1),
             ("Helper", Visibility::Private, 2),
@@ -35,7 +35,7 @@ fn foundation_binds_complete_nested_source_roots_without_concrete_capabilities()
             assert_eq!(access.lexical_owners().len(), depth, "{name}");
             if let hir::SourceNominalId::Concrete(owner) = record.owner() {
                 assert!(
-                    !entries.representation_owners.values().contains(&owner),
+                    entries.representation_owners.values().contains(&owner),
                     "{name}"
                 );
                 let exact = scoop_identity::PersistentExactTypeId::from_key(
@@ -43,7 +43,17 @@ fn foundation_binds_complete_nested_source_roots_without_concrete_capabilities()
                 )
                 .unwrap();
                 assert!(
-                    !entries
+                    output
+                        .output()
+                        .local
+                        .module()
+                        .exact_type_identities
+                        .type_for_identity(exact)
+                        .is_some(),
+                    "{name}"
+                );
+                assert!(
+                    entries
                         .local_inheritance_edges
                         .records()
                         .iter()

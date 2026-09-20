@@ -8,6 +8,7 @@ use hir::{
 use scoop_identity::CallableTemplateOrigin;
 
 mod rejection;
+mod roots;
 mod support;
 mod variants;
 use support::*;

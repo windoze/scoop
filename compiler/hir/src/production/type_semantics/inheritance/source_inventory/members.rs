@@ -90,9 +90,11 @@ pub(super) fn project(export: &ExportHir, meter: &mut BudgetMeter) -> Result<Mem
         if nominal_access(export, nominal).declared != DeclaredVisibility::Protected {
             continue;
         }
-        let source = identity(export, nominal)?
-            .source()
-            .ok_or_else(|| invalid("protected nominal has no source identity"))?;
+        // Object backing classes inherit access metadata, but only the source
+        // object is a nested declaration in the protected member inventory.
+        let Some(source) = identity(export, nominal)?.source() else {
+            continue;
+        };
         let declaration = SourceNominalId::from_source_declaration(source.declaration())
             .map_err(|error| invalid(error.to_string()))?;
         insert(
