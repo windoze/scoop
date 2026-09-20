@@ -8,7 +8,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, EntryProductionPlanV1,
-    StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityV1,
+    StrongProductionSection, StrongProductionSectionV1, StrongRegistrationIdentitySurfaceV1,
+    StrongRegistrationIdentityV1,
 };
 use scoop_wire::{Encoder, WireEncode};
 
@@ -351,6 +352,29 @@ fn verify_production_code_projection_v1(
     strong_production: StrongProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
+    let projection = verify_production_code_projection_common(
+        cone,
+        dependency_identities,
+        expected_image_dependencies,
+        source_count,
+        &strong_production,
+        &link_objects,
+    )?;
+    Ok(VerifiedSingleConeProductionCodeProjectionV1 {
+        strong_production,
+        link_objects,
+        projection,
+    })
+}
+
+pub(super) fn verify_production_code_projection_common<D, C, I>(
+    cone: &ConeRecord,
+    dependency_identities: &[scoop_identity::ConeIdentity],
+    expected_image_dependencies: &[scoop_identity::ConeIdentity],
+    source_count: usize,
+    strong_production: &StrongProductionSection<D, C, I>,
+    link_objects: &VerifiedCodeLinkObjectMemberSetV1,
+) -> Result<SingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
     let final_objects = link_objects.final_objects();
     let runtime_image = final_objects.runtime_images().fingerprint();
     let registrations = runtime_image.registrations();
@@ -409,11 +433,7 @@ fn verify_production_code_projection_v1(
         strong_registration_set,
         runtime_image_fingerprint: runtime_image.fingerprint(),
     };
-    Ok(VerifiedSingleConeProductionCodeProjectionV1 {
-        strong_production,
-        link_objects,
-        projection,
-    })
+    Ok(projection)
 }
 
 fn distribution(

@@ -15,10 +15,11 @@ use scoop_lir::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use super::SingleConeProductionManifestV1;
+use crate::CrossConeLayoutProductionManifestV1;
 use crate::link_object::{
     DecodedCanonicalNativeExternalContractCodeSetV1,
     DecodedCanonicalStrongRegistrationFingerprintSetV1, DecodedFixedBytesV1,
-    ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1,
+    ObjectDefinitionFingerprintV1, VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2,
 };
 use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId};
 
@@ -176,6 +177,14 @@ impl CBridgeCheckedSingleConeProductionManifestV1 {
     ) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
         validate_manifest(self.decoded, code)
     }
+
+    pub fn validate_layout(
+        self,
+        code: &VerifiedCodeFingerprintV2,
+    ) -> Result<CrossConeLayoutProductionManifestV1, SingleConeProductionManifestValidationError>
+    {
+        validate_layout_manifest(self.decoded, code)
+    }
 }
 
 impl DecodedSingleConeProductionManifestV1 {
@@ -200,6 +209,14 @@ impl DecodedSingleConeProductionManifestV1 {
         code: &VerifiedCodeFingerprintV1,
     ) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
         validate_manifest(self, code)
+    }
+
+    pub fn validate_layout(
+        self,
+        code: &VerifiedCodeFingerprintV2,
+    ) -> Result<CrossConeLayoutProductionManifestV1, SingleConeProductionManifestValidationError>
+    {
+        validate_layout_manifest(self, code)
     }
 }
 
@@ -294,6 +311,18 @@ fn validate_manifest(
     code: &VerifiedCodeFingerprintV1,
 ) -> Result<SingleConeProductionManifestV1, SingleConeProductionManifestValidationError> {
     let expected = SingleConeProductionManifestV1::from_verified_code(code.clone());
+    let actual = encode(&decoded).map_err(SingleConeProductionManifestValidationError::Encode)?;
+    let expected_bytes =
+        encode(&expected).map_err(SingleConeProductionManifestValidationError::Encode)?;
+    ensure_projection_equality(&actual, &expected_bytes)?;
+    Ok(expected)
+}
+
+fn validate_layout_manifest(
+    decoded: DecodedSingleConeProductionManifestV1,
+    code: &VerifiedCodeFingerprintV2,
+) -> Result<CrossConeLayoutProductionManifestV1, SingleConeProductionManifestValidationError> {
+    let expected = CrossConeLayoutProductionManifestV1::from_verified_code(code.clone());
     let actual = encode(&decoded).map_err(SingleConeProductionManifestValidationError::Encode)?;
     let expected_bytes =
         encode(&expected).map_err(SingleConeProductionManifestValidationError::Encode)?;

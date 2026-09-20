@@ -28,21 +28,21 @@ impl WireEncode for ExternalShapeRelocationUseSetDigestV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct ExternalShapeObjectCoverageV1<'a> {
-    verified_link_objects: &'a CodeLinkObjectMemberSetV1,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExternalShapeObjectCoverageV1 {
+    verified_link_objects: CodeLinkObjectMemberSetV1,
     relocation_use_set_digest: ExternalShapeRelocationUseSetDigestV1,
 }
 
-impl<'a> ExternalShapeObjectCoverageV1<'a> {
-    pub const fn verified_link_objects(&self) -> &'a CodeLinkObjectMemberSetV1 {
-        self.verified_link_objects
+impl ExternalShapeObjectCoverageV1 {
+    pub const fn verified_link_objects(&self) -> &CodeLinkObjectMemberSetV1 {
+        &self.verified_link_objects
     }
     pub const fn relocation_use_set_digest(&self) -> ExternalShapeRelocationUseSetDigestV1 {
         self.relocation_use_set_digest
     }
 }
-impl WireEncode for ExternalShapeObjectCoverageV1<'_> {
+impl WireEncode for ExternalShapeObjectCoverageV1 {
     fn encode(&self, encoder: &mut Encoder) -> EncodeResult {
         encoder.map(2)?;
         encoder.field(1)?;
@@ -52,11 +52,11 @@ impl WireEncode for ExternalShapeObjectCoverageV1<'_> {
     }
 }
 
-pub(super) fn from_verified<'a>(
+pub(super) fn from_verified(
     closure: &VerifiedExternalShapeRequirementClosureV1<'_>,
-    objects: &'a VerifiedCodeLinkObjectMemberSetV1,
+    objects: &VerifiedCodeLinkObjectMemberSetV1,
     meter: &mut BudgetMeter,
-) -> Result<ExternalShapeObjectCoverageV1<'a>, LayoutLinkClosureError> {
+) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError> {
     if closure.producer() != objects.producer() {
         return Err(LayoutLinkClosureError::ConsumerMismatch {
             objects: objects.producer(),
@@ -76,11 +76,11 @@ pub(super) fn from_verified<'a>(
     from_projection(objects.projection(), closure.requirements(), meter)
 }
 
-fn from_projection<'a>(
-    objects: &'a CodeLinkObjectMemberSetV1,
+fn from_projection(
+    objects: &CodeLinkObjectMemberSetV1,
     requirements: &[ExternalShapeUndefinedUseV1],
     meter: &mut BudgetMeter,
-) -> Result<ExternalShapeObjectCoverageV1<'a>, LayoutLinkClosureError> {
+) -> Result<ExternalShapeObjectCoverageV1, LayoutLinkClosureError> {
     let path = WirePath::root();
     meter.check_table_entries(objects.members().len() as u64, &path)?;
     meter.check_table_entries(requirements.len() as u64, &path)?;
@@ -99,7 +99,7 @@ fn from_projection<'a>(
     }
     let digest = digest(objects, requirements, meter)?;
     Ok(ExternalShapeObjectCoverageV1 {
-        verified_link_objects: objects,
+        verified_link_objects: objects.clone(),
         relocation_use_set_digest: digest,
     })
 }

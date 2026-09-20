@@ -4,11 +4,11 @@ use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 pub(in crate::link_object::layout_link_closure) const TARGET: LirTargetProfile =
     LirTargetProfile::DARWIN_AARCH64;
-pub(in crate::link_object::layout_link_closure) fn meter() -> BudgetMeter {
+pub(in crate::link_object) fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-pub(in crate::link_object::layout_link_closure) struct Provider {
+pub(in crate::link_object) struct Provider {
     pub foundation: OdrFreeLirFoundation,
     pub production: ValidatedStrongProductionSectionV2,
     pub ordinary: CrossConeLirBridgeSectionV1,
@@ -199,7 +199,7 @@ impl Provider {
     }
 }
 
-pub(in crate::link_object::layout_link_closure) fn empty_section(
+pub(in crate::link_object) fn empty_section(
     provider: ConeIdentity,
 ) -> CrossConeLayoutAbiSectionV1<'static> {
     let foundation =

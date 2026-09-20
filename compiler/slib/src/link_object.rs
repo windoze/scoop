@@ -115,6 +115,9 @@ pub use defined_owners::*;
 mod code_fingerprint;
 pub use code_fingerprint::*;
 
+mod layout_code_fingerprint;
+pub use layout_code_fingerprint::*;
+
 mod link_identity_closure;
 pub use link_identity_closure::*;
 

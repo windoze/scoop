@@ -6,11 +6,12 @@ use scoop_identity::{
     CapabilityId, NativeExternalContract, NativeExternalContractFingerprint,
     NativeExternalSymbolKey, PersistentNativeExternalSymbolId,
 };
-use scoop_lir::CanonicalNativeExternalRequirementSurfaceV1;
+use scoop_lir::{CanonicalExternalShapeLinkImportsV1, CanonicalNativeExternalRequirementSurfaceV1};
 use scoop_wire::{Encoder, WireEncode, encode};
 
 use crate::{
-    link_object::CrossConeLinkSemanticImportSetV1, lir_cross_cone_link_closure_capability,
+    link_object::CrossConeLinkSemanticImportSetV1, lir_cross_cone_layout_link_closure_capability,
+    lir_cross_cone_link_closure_capability,
 };
 
 /// One contribution produced by a registered Link-purpose capability handler.
@@ -62,6 +63,27 @@ impl CanonicalKnownLinkExtensionCodeContributionSetV1 {
                 canonical_projection: encode(semantic_imports)?,
             }],
         })
+    }
+
+    /// Builds the complete M23-6 Code contribution. The Link-only member,
+    /// relocation, and coverage fields remain outside Code; both Compile-bound
+    /// semantic import projections are included under their owning capability.
+    pub(in crate::link_object) fn from_cross_cone_layout_semantic_imports(
+        callable_imports: &CrossConeLinkSemanticImportSetV1,
+        shape_imports: &CanonicalExternalShapeLinkImportsV1<'_>,
+    ) -> Result<Self, scoop_wire::cbor::EncodeError> {
+        let mut contributions = vec![
+            KnownLinkExtensionCodeContributionV1 {
+                capability: lir_cross_cone_link_closure_capability(),
+                canonical_projection: encode(callable_imports)?,
+            },
+            KnownLinkExtensionCodeContributionV1 {
+                capability: lir_cross_cone_layout_link_closure_capability(),
+                canonical_projection: encode(shape_imports)?,
+            },
+        ];
+        contributions.sort_unstable_by(|left, right| left.capability.cmp(&right.capability));
+        Ok(Self { contributions })
     }
 
     pub fn contributions(&self) -> &[KnownLinkExtensionCodeContributionV1] {

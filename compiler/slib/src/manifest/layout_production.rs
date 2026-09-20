@@ -1,0 +1,173 @@
+//! Production-manifest projection backed by M23-6 Strong V2 semantics.
+
+use scoop_lir::{
+    CBridgeProductionSetV1, CanonicalNativeLibraryRequirementV1, StrongProductionSectionV2,
+    StrongRegistrationIdentitySurfaceV1, ValidatedStrongProductionSectionV2,
+};
+use scoop_wire::{Encoder, WireEncode};
+
+use super::{
+    ConeRecord, DependencyRecord, ProductionCodeProjectionError,
+    SingleConeProductionCodeProjectionV1, production::verify_production_code_projection_common,
+};
+use crate::link_object::VerifiedCodeLinkObjectMemberSetV1;
+use crate::{CodeFingerprint, RuntimeImageFingerprint, SlibMemberId, VerifiedCodeFingerprintV2};
+
+/// Strong V2 metadata and final object bytes proven to produce one unchanged
+/// ten-field manifest projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VerifiedSingleConeProductionCodeProjectionV2 {
+    strong_production: StrongProductionSectionV2,
+    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+    projection: SingleConeProductionCodeProjectionV1,
+}
+
+impl VerifiedSingleConeProductionCodeProjectionV2 {
+    pub const fn strong_production(&self) -> &StrongProductionSectionV2 {
+        &self.strong_production
+    }
+
+    pub const fn link_objects(&self) -> &VerifiedCodeLinkObjectMemberSetV1 {
+        &self.link_objects
+    }
+
+    pub const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
+        &self.projection
+    }
+}
+
+/// Verifies the M23-6 production projection while preserving the M23 runtime
+/// image dependency contract. Ordinary dependencies are represented by the
+/// Strong V2 semantic refs and layout Link closure, not copied into the image
+/// descriptor before multi-image startup is implemented.
+pub fn verify_cross_cone_layout_production_code_projection_v1(
+    cone: &ConeRecord,
+    direct_dependencies: &[DependencyRecord],
+    source_count: usize,
+    strong_production: ValidatedStrongProductionSectionV2,
+    link_objects: VerifiedCodeLinkObjectMemberSetV1,
+) -> Result<VerifiedSingleConeProductionCodeProjectionV2, ProductionCodeProjectionError> {
+    let dependency_identities = direct_dependencies
+        .iter()
+        .map(DependencyRecord::identity)
+        .collect::<Vec<_>>();
+    let image_dependencies = if cone.identity() == scoop_identity::ConeIdentity::CORE {
+        Vec::new()
+    } else {
+        vec![scoop_identity::ConeIdentity::CORE]
+    };
+    let strong_production = strong_production.into_section();
+    let projection = verify_production_code_projection_common(
+        cone,
+        &dependency_identities,
+        &image_dependencies,
+        source_count,
+        &strong_production,
+        &link_objects,
+    )?;
+    Ok(VerifiedSingleConeProductionCodeProjectionV2 {
+        strong_production,
+        link_objects,
+        projection,
+    })
+}
+
+/// The unchanged ten-field production manifest, derived from a Code proof
+/// whose strong-production input is V2.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossConeLayoutProductionManifestV1 {
+    code: VerifiedCodeFingerprintV2,
+}
+
+impl CrossConeLayoutProductionManifestV1 {
+    pub const fn from_verified_code(code: VerifiedCodeFingerprintV2) -> Self {
+        Self { code }
+    }
+
+    pub const fn code_proof(&self) -> &VerifiedCodeFingerprintV2 {
+        &self.code
+    }
+
+    pub const fn distribution(&self) -> super::ArtifactDistributionClassV1 {
+        self.projection().distribution()
+    }
+
+    pub const fn output(&self) -> &super::SingleConeProductionOutputV1 {
+        self.projection().output()
+    }
+
+    pub const fn image_owner_member(&self) -> SlibMemberId {
+        self.projection().image_owner_member()
+    }
+
+    pub const fn runtime_registration_projection(&self) -> &StrongRegistrationIdentitySurfaceV1 {
+        self.projection().runtime_registration_projection()
+    }
+
+    pub const fn strong_registration_set(
+        &self,
+    ) -> &crate::CanonicalStrongRegistrationFingerprintSetV1 {
+        self.projection().strong_registration_set()
+    }
+
+    pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
+        self.projection().runtime_image_fingerprint()
+    }
+
+    pub const fn code_fingerprint(&self) -> CodeFingerprint {
+        self.code.fingerprint()
+    }
+
+    pub const fn native_contracts(&self) -> &crate::CanonicalNativeExternalContractCodeSetV1 {
+        self.code.native_contracts()
+    }
+
+    pub fn native_library_requirements(&self) -> &[CanonicalNativeLibraryRequirementV1] {
+        self.code.native_requirements().library_requirements()
+    }
+
+    pub const fn c_bridge_production(&self) -> &CBridgeProductionSetV1 {
+        self.code.c_bridge_production()
+    }
+
+    const fn projection(&self) -> &SingleConeProductionCodeProjectionV1 {
+        self.code.production().projection()
+    }
+}
+
+impl WireEncode for CrossConeLayoutProductionManifestV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(10)?;
+        encoder.field(1)?;
+        self.distribution().encode(encoder)?;
+        encoder.field(2)?;
+        self.output().encode(encoder)?;
+        encoder.field(3)?;
+        self.image_owner_member().encode(encoder)?;
+        encoder.field(4)?;
+        self.runtime_registration_projection().encode(encoder)?;
+        encoder.field(5)?;
+        self.strong_registration_set().encode(encoder)?;
+        encoder.field(6)?;
+        self.runtime_image_fingerprint().encode(encoder)?;
+        encoder.field(7)?;
+        self.code_fingerprint().encode(encoder)?;
+        encoder.field(8)?;
+        self.native_contracts().encode(encoder)?;
+        encoder.field(9)?;
+        encode_array(encoder, self.native_library_requirements())?;
+        encoder.field(10)?;
+        self.c_bridge_production().encode(encoder)
+    }
+}
+
+fn encode_array(
+    encoder: &mut Encoder,
+    values: &[impl WireEncode],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.array(values.len() as u64)?;
+    for value in values {
+        value.encode(encoder)?;
+    }
+    Ok(())
+}

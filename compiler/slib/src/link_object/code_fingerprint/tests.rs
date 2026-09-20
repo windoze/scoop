@@ -64,6 +64,46 @@ fn known_link_contributions_distinguish_legacy_and_cross_cone_profiles() {
 }
 
 #[test]
+fn layout_profile_code_contribution_contains_both_semantic_import_projections() {
+    let consumer = ConeIdentity::SINGLE_FILE;
+    let provider = crate::link_object::layout_link_closure::tests::fixture::Provider::new();
+    let layout = provider.consumer(consumer);
+    let foundation =
+        OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
+    let bridge = CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
+    let callable_imports = CrossConeLinkSemanticImportSetV1::from_lir_bridge(&bridge).unwrap();
+
+    let contributions =
+        CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_layout_semantic_imports(
+            &callable_imports,
+            layout.selected().physical_imports(),
+        )
+        .unwrap();
+    assert_eq!(contributions.contributions().len(), 2);
+    assert_eq!(
+        contributions.contributions()[0].capability(),
+        &crate::lir_cross_cone_layout_link_closure_capability()
+    );
+    assert_eq!(
+        contributions.contributions()[1].capability(),
+        &crate::lir_cross_cone_link_closure_capability()
+    );
+    assert_eq!(
+        contributions.contributions()[1].canonical_projection(),
+        &[0x80]
+    );
+    assert_eq!(
+        contributions.contributions()[0].canonical_projection(),
+        scoop_wire::encode(layout.selected().physical_imports()).unwrap()
+    );
+    assert_ne!(
+        contributions.contributions()[0].canonical_projection(),
+        &[0x80]
+    );
+    assert_eq!(scoop_wire::encode(&contributions).unwrap()[0], 0x82);
+}
+
+#[test]
 fn link_object_projection_is_canonical_and_ignores_non_code_members() {
     let first = object_record("first", b"first");
     let second = object_record("second", b"second");

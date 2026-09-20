@@ -14,7 +14,7 @@ use crate::link_object::{
     verify_core_strong_requirements_v1,
 };
 
-pub(super) mod fixture;
+pub(in crate::link_object) mod fixture;
 use fixture::{Provider, TARGET, empty_section, meter};
 
 mod partitions;

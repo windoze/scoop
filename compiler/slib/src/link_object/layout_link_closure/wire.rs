@@ -105,7 +105,7 @@ impl DecodedCrossConeLayoutLinkClosureSectionV1 {
         ) {
             return Err(LayoutLinkClosureError::ObjectCoverageMismatch);
         }
-        Ok(*expected)
+        Ok(expected.clone())
     }
 }
 

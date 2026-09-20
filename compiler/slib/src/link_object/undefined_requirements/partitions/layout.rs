@@ -115,6 +115,32 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         actual == expected
     }
 
+    pub(in crate::link_object) fn matches_external_shape_closure(
+        &self,
+        closure: &VerifiedExternalShapeRequirementClosureV1<'_>,
+    ) -> bool {
+        if &self.cross_cone != closure.legacy_closure()
+            || self.external_shape.len() != closure.requirements().len()
+        {
+            return false;
+        }
+        self.external_shape
+            .iter()
+            .zip(closure.requirements())
+            .all(|(finalized, classified)| {
+                let Some(import) = closure
+                    .semantic_imports()
+                    .records()
+                    .get(classified.import_index() as usize)
+                else {
+                    return false;
+                };
+                finalized.use_site() == classified.use_site()
+                    && finalized.provider() == import.provider()
+                    && finalized.subject() == import.subject()
+            })
+    }
+
     pub(in crate::link_object) fn shape_requirement_for(
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,

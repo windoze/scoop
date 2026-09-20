@@ -48,16 +48,16 @@ impl WireEncode for ExternalShapeUndefinedUseV1 {
 
 /// The complete new Link constituent. The borrowed import table is exactly
 /// the Compile selection used during classification; it is never filtered.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct CrossConeLayoutLinkClosureSectionV1<'a> {
     closure: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
-    object_coverage: ExternalShapeObjectCoverageV1<'a>,
+    object_coverage: ExternalShapeObjectCoverageV1,
 }
 
 impl<'a> CrossConeLayoutLinkClosureSectionV1<'a> {
     pub fn from_verified_requirements(
         closure: &'a VerifiedExternalShapeRequirementClosureV1<'a>,
-        objects: &'a VerifiedCodeLinkObjectMemberSetV1,
+        objects: &VerifiedCodeLinkObjectMemberSetV1,
         meter: &mut BudgetMeter,
     ) -> Result<Self, LayoutLinkClosureError> {
         let object_coverage = coverage::from_verified(closure, objects, meter)?;
@@ -75,7 +75,7 @@ impl<'a> CrossConeLayoutLinkClosureSectionV1<'a> {
     pub fn requirements(&self) -> &'a [ExternalShapeUndefinedUseV1] {
         self.closure.requirements()
     }
-    pub const fn object_coverage(&self) -> &ExternalShapeObjectCoverageV1<'a> {
+    pub const fn object_coverage(&self) -> &ExternalShapeObjectCoverageV1 {
         &self.object_coverage
     }
 }
@@ -101,4 +101,4 @@ fn sequence(encoder: &mut Encoder, values: &[impl WireEncode]) -> EncodeResult {
 }
 
 #[cfg(test)]
-mod tests;
+pub(in crate::link_object) mod tests;
