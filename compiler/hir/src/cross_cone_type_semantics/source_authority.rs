@@ -23,6 +23,9 @@ pub use protected_binding::*;
 mod parameter_binding;
 pub use parameter_binding::*;
 
+mod nominal_constructor_binding;
+pub use nominal_constructor_binding::*;
+
 mod nominal_binding;
 pub use nominal_binding::*;
 
