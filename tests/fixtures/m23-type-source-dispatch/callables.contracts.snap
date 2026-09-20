@@ -1,0 +1,10 @@
+Await.waitFor: 1 params, Abstract, Public, Suspend, Safe, Managed, None, Ordinary
+Base.$get$number: 0 params, Open, Public, Ordinary, Safe, Managed, None, Ordinary
+Base.$set$number: 1 params, Open, Protected, Ordinary, Safe, Managed, None, Ordinary
+Base.secret: 1 params, Open, Protected, Ordinary, Safe, Managed, None, Ordinary
+Child.secret: 1 params, Final, Protected, Ordinary, Safe, Managed, None, Ordinary
+Contract.combine: 2 params, InterfaceDefault, Public, Ordinary, Safe, Managed, None, Ordinary
+Contract.contains: 1 params, InterfaceDefault, Public, Ordinary, Safe, Managed, Language(Contains), Ordinary
+Contract.joined: 1 params, InterfaceDefault, Public, Ordinary, Safe, Managed, None, Infix
+Contract.raw: 1 params, InterfaceDefault, Public, Ordinary, Unsafe, Managed, None, Ordinary
+User.combine: 2 params, Final, Public, Ordinary, Safe, Managed, None, Ordinary

@@ -4,6 +4,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::super::wire;
 
+mod callables;
 mod dependencies;
 mod edges;
 mod inheritance;
@@ -11,6 +12,7 @@ mod interface_dispatch;
 mod nominals;
 mod roots;
 mod slot_selections;
+pub use callables::*;
 pub use dependencies::*;
 pub use edges::*;
 pub use inheritance::*;

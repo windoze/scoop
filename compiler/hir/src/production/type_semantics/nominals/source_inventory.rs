@@ -38,6 +38,21 @@ impl CanonicalInheritanceSourceSlotSelectionsV1 {
     }
 }
 
+impl CanonicalInheritanceSourceCallablesV1 {
+    /// Projects only actual source slot roots and implementation targets from
+    /// sealed HIR, including contracts outside the public lookup surface.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        let export = output.output().export.module();
+        let inventory = inheritance::source_inventory(export, &nominals, meter)?;
+        let selections = inheritance::slot_selections(export, &nominals, meter)?;
+        inheritance::source_callables(export, &inventory, &selections, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

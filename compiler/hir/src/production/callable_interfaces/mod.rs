@@ -7,6 +7,7 @@ mod access;
 mod accessors;
 mod constructors;
 mod effects;
+pub(in crate::production) use effects::function as source_function_effects;
 mod errors;
 mod functions;
 mod parameters;

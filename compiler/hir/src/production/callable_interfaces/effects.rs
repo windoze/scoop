@@ -1,21 +1,21 @@
 use scoop_identity::{Effect, GcEffect};
 
-use super::{CallableEffectProjectionError, CallableProjection};
+use super::CallableEffectProjectionError;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableOperatorRoleV1, CallableOperatorV1,
     CallableSafetyV1, CallableSourceEffectsV1, ExternAbi, Function, FunctionAttributes,
     FunctionKind, OperatorKind, PropertyDelegateOperatorKind, PropertyDelegateOperatorV1,
 };
 
-pub(super) fn function(
-    projection: &CallableProjection<'_>,
+pub(in crate::production) fn function(
+    export: &crate::ExportHir,
     declaration: &Function,
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     let implementation = match declaration.kind {
         FunctionKind::User(_) => CallableImplementationV1::Scoop,
         FunctionKind::Intrinsic(_) => CallableImplementationV1::Intrinsic,
         FunctionKind::Extern(id) => {
-            let Some(external) = super::arena_get(&projection.export.extern_functions, id) else {
+            let Some(external) = super::arena_get(&export.extern_functions, id) else {
                 return Err(CallableEffectProjectionError::UnknownExternFunction(
                     super::raw_index(id),
                 ));

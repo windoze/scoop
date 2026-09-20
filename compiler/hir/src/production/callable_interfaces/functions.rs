@@ -92,7 +92,7 @@ fn project(
         .map_type(function.return_ty, &binders)
         .map_err(CallableProjectionError::Signature)?;
     let effects =
-        effects::function(projection, function).map_err(CallableProjectionError::Effects)?;
+        effects::function(projection.export, function).map_err(CallableProjectionError::Effects)?;
     let modality = modality(projection, function_id, function)?;
     let access = access::project(&function.access).map_err(CallableProjectionError::Access)?;
 

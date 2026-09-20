@@ -7,7 +7,9 @@ use crate::*;
 mod constructors;
 mod schemas;
 pub(super) use schemas::{interface_sources, slot_selections};
+mod source_callables;
 mod source_inventory;
+pub(super) use source_callables::project as source_callables;
 pub(super) use source_inventory::project as source_inventory;
 
 type InheritanceProjection = (
