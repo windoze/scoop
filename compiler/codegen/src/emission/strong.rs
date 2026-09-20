@@ -137,6 +137,7 @@ pub fn emit_object_set(
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSetV1, CodegenError> {
+    validate_object_set_input(input, profile)?;
     let production = input
         .build_production_section(coordinate.clone(), entry_source)
         .map_err(|error| {
@@ -155,6 +156,7 @@ pub fn emit_object_set_v2(
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSetV2, CodegenError> {
+    validate_object_set_input(input, profile)?;
     validate_production_binding(input, &production)?;
     emit_object_set_with_production(input, production, temporary_parent, profile)
 }
@@ -166,8 +168,6 @@ fn emit_object_set_with_production<P: crate::strong_production::StrongProduction
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSet<P>, CodegenError> {
     let module = input.module();
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
     let partition = StrongScoopLirObjectPartitionV1::from_input(input)
         .map_err(|error| CodegenError(error.to_string()))?;
     let expected_safepoints = statepoint::expectations(module)?;
@@ -282,6 +282,14 @@ fn emit_object_set_with_production<P: crate::strong_production::StrongProduction
         members,
         backing,
     })
+}
+
+fn validate_object_set_input(
+    input: &scoop_lir::SingleConeStrongLirOutput,
+    profile: ValidatedBackendProfile,
+) -> Result<(), CodegenError> {
+    validation::validate_module(input.module())?;
+    profile.validate_lir_target_profile(input.module().meta.target_profile)
 }
 
 fn validate_production_binding(
