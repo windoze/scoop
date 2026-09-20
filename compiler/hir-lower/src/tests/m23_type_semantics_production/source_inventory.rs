@@ -102,3 +102,69 @@ fn ordinary_source_inventories_resolve_against_real_foundation_bytes() {
             .unwrap();
     }
 }
+
+#[test]
+fn inheritance_inventory_is_independently_projected_before_candidate_and_survives_bytes() {
+    let output = lower_public_nominals();
+    let public = public_interface(&output);
+    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
+    let inventory = production.inheritance_inventory();
+    let mut identities = identity_closure(&output);
+    let restored = decoded::<hir::DecodedCanonicalSourceInheritanceInventoriesV1>(inventory)
+        .resolve(
+            &mut identities,
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        )
+        .unwrap();
+    assert_eq!(&restored, inventory);
+    assert_eq!(restored.owners().values().len(), 7);
+    let mut constructors = 0;
+    for entry in restored.records() {
+        let candidate = production
+            .section()
+            .inheritance()
+            .get(entry.owner())
+            .unwrap();
+        assert_eq!(
+            entry.constructors().values(),
+            candidate
+                .constructors()
+                .records()
+                .iter()
+                .map(|record| record.declaration())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(entry.protected_members(), candidate.protected_members());
+        assert_eq!(entry.slot_schemas(), candidate.slot_schemas());
+        constructors += entry.constructors().values().len();
+    }
+    assert_eq!(constructors, 4);
+    let (candidate, foundation, inventory) = production.into_parts();
+    assert_eq!(
+        inventory.owners().values().len(),
+        candidate.inheritance().records().len()
+    );
+    assert_eq!(
+        foundation.local_inheritance_edges().len(),
+        inventory.records().len()
+    );
+}
+
+#[test]
+fn producer_rejects_exhausted_source_inventory_budget() {
+    let output = lower_public_nominals();
+    let public = public_interface(&output);
+    assert!(matches!(
+        crate::produce_cross_cone_type_semantics(
+            &output,
+            &public,
+            &mut BudgetMeter::new(DecodeLimits {
+                semantic_table_entries: 0,
+                ..DecodeLimits::default()
+            })
+        ),
+        Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
+            hir::SourceInventoryError::Resource(_)
+        ))
+    ));
+}

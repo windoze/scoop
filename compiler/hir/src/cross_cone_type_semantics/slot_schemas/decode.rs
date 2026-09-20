@@ -138,6 +138,30 @@ pub struct DecodedCanonicalInheritanceSlotSchemasV1 {
     records: Vec<DecodedInheritanceSlotSchemaV1>,
 }
 impl DecodedCanonicalInheritanceSlotSchemasV1 {
+    pub(crate) fn charge_resolution_at(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        meter.check_semantic_depth(1, path)?;
+        meter.check_table_entries(self.records.len() as u64, path)?;
+        meter.charge_nodes(self.records.len() as u64, path)?;
+        meter.charge_work(self.records.len() as u64, path)?;
+        for (index, schema) in self.records.iter().enumerate() {
+            let at = path.clone().index(index as u64);
+            let count = schema.slots.len() as u64;
+            meter.check_semantic_depth(3, &at)?;
+            meter.check_table_entries(count, &at)?;
+            meter.charge_nodes(count, &at)?;
+            meter.charge_edges(count, &at)?;
+            meter.charge_work(
+                count.saturating_mul(u64::from(count.max(1).ilog2()) + 1),
+                &at,
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

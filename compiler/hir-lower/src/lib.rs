@@ -444,8 +444,9 @@ pub fn lower_ordinary<'input>(
 pub fn produce_cross_cone_type_semantics(
     output: &hir::OrdinaryHirOutput<'_>,
     public: &hir::CrossConeHirInterfaceSectionV1,
+    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public)
+    hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public, meter)
 }
 
 fn lower_ordinary_input<'core>(

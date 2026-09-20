@@ -23,6 +23,7 @@ mod nominals;
 pub struct CrossConeTypeSemanticsProductionV1 {
     section: CrossConeTypeSemanticsSectionV1,
     foundation: CrossConeTypeSemanticsFoundationV1,
+    inheritance_inventory: crate::CanonicalSourceInheritanceInventoriesV1,
 }
 
 impl CrossConeTypeSemanticsProductionV1 {
@@ -35,8 +36,9 @@ impl CrossConeTypeSemanticsProductionV1 {
     pub fn from_ordinary_hir(
         output: &OrdinaryHirOutput<'_>,
         public: &CrossConeHirInterfaceSectionV1,
+        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {
-        nominals::produce(output, public)
+        nominals::produce(output, public, meter)
     }
 
     pub const fn section(&self) -> &CrossConeTypeSemanticsSectionV1 {
@@ -48,12 +50,17 @@ impl CrossConeTypeSemanticsProductionV1 {
     ) -> (
         CrossConeTypeSemanticsSectionV1,
         CrossConeTypeSemanticsFoundationV1,
+        crate::CanonicalSourceInheritanceInventoriesV1,
     ) {
-        (self.section, self.foundation)
+        (self.section, self.foundation, self.inheritance_inventory)
     }
 
     pub const fn foundation(&self) -> &CrossConeTypeSemanticsFoundationV1 {
         &self.foundation
+    }
+
+    pub const fn inheritance_inventory(&self) -> &crate::CanonicalSourceInheritanceInventoriesV1 {
+        &self.inheritance_inventory
     }
 
     pub fn source_roots(&self) -> &[SourceNominalId] {
@@ -88,6 +95,7 @@ pub enum TypeSemanticsNominalKind {
 
 #[derive(Debug)]
 pub enum CrossConeTypeSemanticsProductionError {
+    SourceInventory(crate::SourceInventoryError),
     PublicInterface(String),
     MissingNominalIdentity {
         kind: TypeSemanticsNominalKind,
@@ -136,6 +144,7 @@ pub enum CrossConeTypeSemanticsProductionError {
 impl fmt::Display for CrossConeTypeSemanticsProductionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SourceInventory(error) => error.fmt(f),
             Self::PublicInterface(reason) => {
                 write!(f, "cannot project the public interface: {reason}")
             }

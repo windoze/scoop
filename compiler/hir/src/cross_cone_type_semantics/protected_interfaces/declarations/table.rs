@@ -114,11 +114,27 @@ pub struct DecodedCanonicalProtectedDeclarationRefsV1 {
     values: Vec<DecodedProtectedDeclarationRefV1>,
 }
 impl DecodedCanonicalProtectedDeclarationRefsV1 {
-    pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
+    pub(crate) fn charge_resolution_at(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        meter.check_semantic_depth(1, path)?;
+        meter.check_table_entries(self.values.len() as u64, path)?;
+        meter.charge_nodes(self.values.len() as u64, path)?;
+        meter.charge_work((self.values.len() as u64).saturating_mul(128), path)
+    }
+
+    pub fn resolve<R, E>(
         self,
         resolver: &mut R,
         meter: &mut BudgetMeter,
-    ) -> Result<CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationResolutionError<E>> {
+    ) -> Result<CanonicalProtectedDeclarationRefsV1, ProtectedDeclarationResolutionError<E>>
+    where
+        R: crate::CallableDeclarationIdResolver<E>
+            + crate::SignatureTypeReferenceResolver<E>
+            + scoop_identity::PersistentIdResolver<scoop_identity::PersistentPropertyId, Error = E>,
+    {
         use ProtectedDeclarationResolutionError as Error;
         let mut values = Vec::new();
         meter

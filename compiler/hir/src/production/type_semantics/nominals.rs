@@ -30,6 +30,7 @@ pub(super) struct ConcreteNominal<'a> {
 pub(super) fn produce(
     output: &OrdinaryHirOutput<'_>,
     public: &CrossConeHirInterfaceSectionV1,
+    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
@@ -137,6 +138,7 @@ pub(super) fn produce(
             "the supplied source-call table was not projected from this Export HIR".into(),
         ));
     }
+    let inheritance_inventory = inheritance::source_inventory(export, &concrete, meter)?;
     let (inheritance, local_inheritance_edges, protected_sources, constructor_origins) =
         inheritance::produce(
             export,
@@ -231,6 +233,7 @@ pub(super) fn produce(
     Ok(CrossConeTypeSemanticsProductionV1 {
         section,
         foundation,
+        inheritance_inventory,
     })
 }
 
@@ -283,7 +286,7 @@ fn reject_protected_nominals(
     Ok(())
 }
 
-fn nominal_access(export: &ExportHir, local: NominalLocalId) -> &NominalAccess {
+pub(super) fn nominal_access(export: &ExportHir, local: NominalLocalId) -> &NominalAccess {
     match local {
         NominalLocalId::Struct(id) => &export.structs[id].access,
         NominalLocalId::Enum(id) => &export.enums[id].access,
@@ -334,7 +337,10 @@ fn public_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> +
         )
 }
 
-fn identity(export: &ExportHir, local: NominalLocalId) -> Result<&HirNominalIdentity, Error> {
+pub(super) fn identity(
+    export: &ExportHir,
+    local: NominalLocalId,
+) -> Result<&HirNominalIdentity, Error> {
     let identity = match local {
         NominalLocalId::Struct(id) => export.nominal_identities.get_struct(id),
         NominalLocalId::Enum(id) => export.nominal_identities.get_enum(id),

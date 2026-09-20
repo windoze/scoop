@@ -195,6 +195,8 @@ foundation重放适配器按provider组合上述绑定凭证和经旧十表完�
 
 declarations中的slot选择来源子表按`(owner exact id, slot id)`严格递增，每项精确为`{1: owner, 2: slot, 3: selection}`。selection采用field 0的封闭tag：`Abstract=1`无其他field，`Concrete=2`和`InterfaceDefault=3`的field 1复用既有`InheritanceCallableDeclarationV1`，保留Function/Getter/Setter的不同typed role。相同slot在不同exact owner下可有不同选择，同owner/slot重复则拒绝；reader不排序修复已有字节。来源选择必须从sealed HIR实际实现决策独立投影，解析只验证typed ref、canonical顺序和共享预算；角色、owner、abstract/concrete合法性、interface default冲突及完整inventory消费仍由declarations与既有inheritance validator交叉核验。
 
+declarations的inheritance inventory按owner exact id严格递增，每项精确为`{1: owner, 2: constructor refs, 3: protected member refs, 4: slot schemas}`。三个子表复用既有canonical constituent；constructor refs只列可由inheritance surface引用的public/protected构造器，protected member refs不得混入Constructor，slot schemas保留每个role内部的声明槽序。同owner重复、已有字节的乱序和子表预算耗尽均拒绝。producer直接遍历sealed HIR的声明与dispatch关系生成该清单，必须先于inheritance candidate构造；不能从candidate的constructor/member/schema表回填清单。owner集合由来源清单唯一确定，完整validator再要求其精确覆盖foundation规定的inheritance owner，以及candidate的同三类输入，不能把空清单作为省略这些证明的默认值。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

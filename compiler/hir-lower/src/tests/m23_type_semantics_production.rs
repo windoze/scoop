@@ -8,13 +8,24 @@ use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::*;
-use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only, produce_cross_cone_type_semantics};
+use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
 use hir::NominalInheritanceSemanticAuthority as _;
 
 mod source_binding;
 mod source_foundation;
 mod source_inventory;
 mod source_shapes;
+
+fn produce_cross_cone_type_semantics(
+    output: &hir::OrdinaryHirOutput<'_>,
+    public: &hir::CrossConeHirInterfaceSectionV1,
+) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
+    crate::produce_cross_cone_type_semantics(
+        output,
+        public,
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+}
 
 fn public_interface(output: &hir::OrdinaryHirOutput<'_>) -> hir::CrossConeHirInterfaceSectionV1 {
     let export = output.output().export.module();

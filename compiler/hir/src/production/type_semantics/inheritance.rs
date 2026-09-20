@@ -6,6 +6,8 @@ use crate::*;
 
 mod constructors;
 mod schemas;
+mod source_inventory;
+pub(super) use source_inventory::project as source_inventory;
 
 type InheritanceProjection = (
     CanonicalNominalInheritanceInterfacesV1,

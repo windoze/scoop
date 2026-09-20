@@ -13,6 +13,8 @@ mod source;
 
 pub use edges::*;
 pub use graph::{InheritanceGraphError, NominalInheritanceSemanticAuthority};
+#[cfg(test)]
+pub(super) use interface::tests::support as interface_test_support;
 pub use interface::*;
 pub use objects::CheckedObjectInheritanceRelationV1;
 pub use queries::InheritanceQueryError;

@@ -6,11 +6,13 @@ use super::super::wire;
 
 mod dependencies;
 mod edges;
+mod inheritance;
 mod nominals;
 mod roots;
 mod slot_selections;
 pub use dependencies::*;
 pub use edges::*;
+pub use inheritance::*;
 pub use nominals::*;
 pub use roots::*;
 pub use slot_selections::*;
@@ -67,7 +69,14 @@ fn reference(error: impl fmt::Display) -> SourceInventoryError {
 pub enum SourceInventoryError {
     Resource(WireError),
     Reference(String),
-    NonCanonicalOrder { table: &'static str, index: usize },
+    NonCanonicalOrder {
+        table: &'static str,
+        index: usize,
+    },
+    ConstructorInMembers {
+        owner: scoop_identity::PersistentExactTypeId,
+        constructor: scoop_identity::PersistentConstructorId,
+    },
 }
 
 impl From<WireError> for SourceInventoryError {
@@ -87,6 +96,10 @@ impl fmt::Display for SourceInventoryError {
                     "duplicate or noncanonical {table} source inventory at index {index}"
                 )
             }
+            Self::ConstructorInMembers { owner, constructor } => write!(
+                f,
+                "source inheritance owner {owner} lists constructor {constructor} as a member"
+            ),
         }
     }
 }
