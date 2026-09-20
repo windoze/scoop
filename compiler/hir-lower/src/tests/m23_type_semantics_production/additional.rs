@@ -204,15 +204,32 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
         lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
-    let implementation = production
+    let export = output.output().export.module();
+    let value = &export.structs[export.public_surface.structs[0]];
+    let exact = export.type_identities
+        [export.struct_applications[value.self_application].canonical_type]
+        .exact()
+        .unwrap()
+        .id();
+    let implementation = production.section().inheritance().get(exact).unwrap();
+    assert_eq!(implementation.slot_schemas().records().len(), 2);
+    for interface in production
         .section()
         .inheritance()
         .records()
         .iter()
-        .find(|record| record.edges().direct_interfaces().len() == 1)
-        .unwrap();
-
-    assert_eq!(implementation.slot_schemas().records().len(), 2);
+        .filter(|record| record.edges().modality() == hir::NominalInheritanceModalityV1::Interface)
+    {
+        assert_eq!(interface.slot_schemas().records().len(), 1);
+        assert!(
+            interface
+                .slot_schemas()
+                .get(hir::InheritanceSlotSchemaRoleV1::Interface {
+                    interface_exact: interface.owner(),
+                })
+                .is_some()
+        );
+    }
 }
 
 fn interface_with_parent(name: &str, parent: &str) -> Decl {

@@ -12,6 +12,7 @@ use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
 use hir::NominalInheritanceSemanticAuthority as _;
 
 mod source_binding;
+mod source_dispatch;
 mod source_foundation;
 mod source_inventory;
 mod source_shapes;

@@ -1,154 +1,141 @@
 use std::collections::BTreeSet;
 
-use scoop_identity::PersistentExactTypeId;
+use scoop_identity::{PersistentDispatchSlotId, PersistentExactTypeId};
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{ConcreteNominal, Error, NominalLocalId, exact};
 use crate::*;
 
+mod classes;
+mod interfaces;
+
 pub(super) fn project(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
+    meter: &mut BudgetMeter,
 ) -> Result<CanonicalInheritanceSlotSchemasV1, Error> {
+    let mut projection = Projection {
+        export,
+        owner: nominal.exact,
+        meter,
+    };
     let mut schemas = Vec::new();
-    if matches!(
-        nominal.local,
-        NominalLocalId::Class(_) | NominalLocalId::Object(_)
-    ) {
-        schemas.push(
-            InheritanceSlotSchemaV1::try_new(InheritanceSlotSchemaRoleV1::ClassVtable, Vec::new())
-                .map_err(|error| invalid(nominal, error))?,
-        );
-    }
-    if matches!(nominal.local, NominalLocalId::Interface(_)) {
-        schemas.push(
-            InheritanceSlotSchemaV1::try_new(
-                InheritanceSlotSchemaRoleV1::Interface {
-                    interface_exact: nominal.exact,
-                },
-                Vec::new(),
-            )
-            .map_err(|error| invalid(nominal, error))?,
-        );
-    }
-    for interface_exact in implemented_interfaces(export, nominal)? {
-        schemas.push(
-            InheritanceSlotSchemaV1::try_new(
-                InheritanceSlotSchemaRoleV1::Interface { interface_exact },
-                Vec::new(),
-            )
-            .map_err(|error| invalid(nominal, error))?,
-        );
-    }
-    CanonicalInheritanceSlotSchemasV1::try_new(schemas).map_err(|error| invalid(nominal, error))
-}
-
-fn invalid(nominal: &ConcreteNominal<'_>, error: impl std::fmt::Display) -> Error {
-    Error::InvalidInheritance {
-        exact: nominal.exact,
-        reason: error.to_string(),
-    }
-}
-
-fn implemented_interfaces(
-    export: &ExportHir,
-    nominal: &ConcreteNominal<'_>,
-) -> Result<Vec<PersistentExactTypeId>, Error> {
-    let mut interfaces = BTreeSet::new();
-    let mut active_classes = BTreeSet::new();
+    let mut interfaces = Vec::new();
     match nominal.local {
-        NominalLocalId::Struct(id) => {
-            collect_interface_types(export, &export.structs[id].interfaces, &mut interfaces)?;
-        }
-        NominalLocalId::Enum(id) => {
-            collect_interface_types(export, &export.enums[id].interfaces, &mut interfaces)?;
-        }
         NominalLocalId::Class(id) => {
-            collect_class_interfaces(export, id, &mut active_classes, &mut interfaces)?;
+            let (vtable, implemented) = projection.class(id)?;
+            projection.push(&mut schemas, vtable)?;
+            interfaces = implemented;
+        }
+        NominalLocalId::Object(id) => {
+            let (vtable, implemented) = projection.class(export.objects[id].backing_class)?;
+            projection.push(&mut schemas, vtable)?;
+            interfaces = implemented;
         }
         NominalLocalId::Interface(id) => {
-            for parent in &export.interfaces[id].parents {
-                collect_interface_type(
-                    export,
-                    export.interface_applications[*parent].canonical_type,
-                    &mut interfaces,
-                )?;
+            let schema = projection.interface(export.interfaces[id].self_application)?;
+            projection.push(&mut schemas, schema)?;
+        }
+        NominalLocalId::Struct(id) => {
+            projection.extend(&mut interfaces, &export.structs[id].interfaces)?;
+        }
+        NominalLocalId::Enum(id) => {
+            projection.extend(&mut interfaces, &export.enums[id].interfaces)?;
+        }
+    }
+    let mut seen = BTreeSet::new();
+    for ty in interfaces {
+        let application = projection.interface_application(ty)?;
+        for inherited in projection.interface_postorder(application)? {
+            projection.search(seen.len())?;
+            if seen.insert(inherited) {
+                let schema = projection.interface(inherited)?;
+                projection.push(&mut schemas, schema)?;
             }
         }
-        NominalLocalId::Object(id) => collect_class_interfaces(
-            export,
-            export.objects[id].backing_class,
-            &mut active_classes,
-            &mut interfaces,
-        )?,
     }
-    Ok(interfaces.into_iter().collect())
+    projection.sort_work(schemas.len())?;
+    CanonicalInheritanceSlotSchemasV1::try_new(schemas).map_err(|error| projection.invalid(error))
 }
 
-fn collect_class_interfaces(
-    export: &ExportHir,
-    class: ClassId,
-    active: &mut BTreeSet<ClassId>,
-    interfaces: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), Error> {
-    if !active.insert(class) {
-        return Ok(());
-    }
-    let declaration = &export.classes[class];
-    collect_interface_types(export, &declaration.interfaces, interfaces)?;
-    if let Some(base) = declaration.base_class {
-        let Type::Class(application) = export.types[base] else {
-            return Err(Error::InvalidInheritance {
-                exact: exact(export, base)?,
-                reason: "class base does not resolve to a class application".into(),
-            });
-        };
-        if !export.class_applications[application].arguments.is_empty() {
-            return Err(Error::GenericOdrRequired(exact(export, base)?));
+struct Projection<'a, 'm> {
+    export: &'a ExportHir,
+    owner: PersistentExactTypeId,
+    meter: &'m mut BudgetMeter,
+}
+
+impl Projection<'_, '_> {
+    fn invalid(&self, reason: impl std::fmt::Display) -> Error {
+        Error::InvalidInheritance {
+            exact: self.owner,
+            reason: reason.to_string(),
         }
-        collect_class_interfaces(
-            export,
-            export.class_applications[application].template,
-            active,
-            interfaces,
-        )?;
     }
-    active.remove(&class);
-    Ok(())
+
+    fn work(&mut self, count: usize) -> Result<(), Error> {
+        self.meter
+            .charge_work(count as u64, &WirePath::root())
+            .map_err(resource)
+    }
+
+    fn depth(&mut self, depth: usize) -> Result<(), Error> {
+        self.meter
+            .check_semantic_depth(depth as u64, &WirePath::root())
+            .map_err(resource)
+    }
+
+    fn search(&mut self, length: usize) -> Result<(), Error> {
+        self.work(length.max(1).ilog2() as usize + 1)?;
+        self.meter
+            .charge_collection_slots(1, &WirePath::root())
+            .map_err(resource)
+    }
+
+    fn sort_work(&mut self, length: usize) -> Result<(), Error> {
+        for _ in 0..=length.max(1).ilog2() {
+            self.work(length)?;
+        }
+        Ok(())
+    }
+
+    fn reserve<T>(&mut self, values: &mut Vec<T>, additional: usize) -> Result<(), Error> {
+        self.meter
+            .check_table_entries(
+                values.len().saturating_add(additional) as u64,
+                &WirePath::root(),
+            )
+            .map_err(resource)?;
+        self.meter
+            .try_reserve_collection_slots(values, additional, &WirePath::root())
+            .map_err(resource)
+    }
+
+    fn push<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), Error> {
+        self.reserve(values, 1)?;
+        values.push(value);
+        Ok(())
+    }
+
+    fn extend<T: Copy>(&mut self, values: &mut Vec<T>, additions: &[T]) -> Result<(), Error> {
+        self.work(additions.len())?;
+        self.reserve(values, additions.len())?;
+        values.extend_from_slice(additions);
+        Ok(())
+    }
+
+    fn schema(
+        &mut self,
+        role: InheritanceSlotSchemaRoleV1,
+        slots: Vec<PersistentDispatchSlotId>,
+    ) -> Result<InheritanceSlotSchemaV1, Error> {
+        self.sort_work(slots.len())?;
+        self.meter
+            .charge_collection_slots(slots.len() as u64, &WirePath::root())
+            .map_err(resource)?;
+        InheritanceSlotSchemaV1::try_new(role, slots).map_err(|error| self.invalid(error))
+    }
 }
 
-fn collect_interface_types(
-    export: &ExportHir,
-    types: &[TypeId],
-    interfaces: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), Error> {
-    for ty in types {
-        collect_interface_type(export, *ty, interfaces)?;
-    }
-    Ok(())
-}
-
-fn collect_interface_type(
-    export: &ExportHir,
-    ty: TypeId,
-    interfaces: &mut BTreeSet<PersistentExactTypeId>,
-) -> Result<(), Error> {
-    let Type::Interface(application) = export.types[ty] else {
-        return Err(Error::InvalidInheritance {
-            exact: exact(export, ty)?,
-            reason: "interface edge does not resolve to an interface application".into(),
-        });
-    };
-    let exact = exact(export, ty)?;
-    if !interfaces.insert(exact) {
-        return Ok(());
-    }
-    let declaration = &export.interfaces[export.interface_applications[application].template];
-    for parent in &declaration.parents {
-        collect_interface_type(
-            export,
-            export.interface_applications[*parent].canonical_type,
-            interfaces,
-        )?;
-    }
-    Ok(())
+fn resource(error: scoop_wire::WireError) -> Error {
+    Error::SourceInventory(SourceInventoryError::Resource(error))
 }

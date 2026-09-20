@@ -22,6 +22,7 @@ pub(super) fn produce(
     public_nominals: &CanonicalNominalInterfacesV1,
     public_callables: &CanonicalCallableInterfacesV1,
     public_sources: &CanonicalCallableSourceInterfacesV1,
+    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<InheritanceProjection, Error> {
     let mut records = Vec::with_capacity(nominals.len());
     let mut edges = Vec::with_capacity(nominals.len());
@@ -44,7 +45,7 @@ pub(super) fn produce(
             &mut sources,
             &mut origins,
         )?;
-        let schemas = schemas::project(export, nominal)?;
+        let schemas = schemas::project(export, nominal, meter)?;
         let record = NominalInheritanceInterfaceV1::try_new(
             edge.clone(),
             domains,

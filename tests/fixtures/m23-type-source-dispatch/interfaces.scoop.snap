@@ -1,0 +1,43 @@
+AbstractAgain
+  AbstractAgain: Root.$get$value, Left.left, Right.right, Diamond.own, AbstractAgain.zeta
+Choice
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+  Left: Root.zeta, Root.$get$value, Left.left
+  Right: Root.zeta, Root.$get$value, Right.right
+  Root: Root.zeta, Root.$get$value
+Derived
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+  Left: Root.zeta, Root.$get$value, Left.left
+  Mutable: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own, Mutable.$get$change, Mutable.$set$change
+  Right: Root.zeta, Root.$get$value, Right.right
+  Root: Root.zeta, Root.$get$value
+  vtable:
+Diamond
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+Left
+  Left: Root.zeta, Root.$get$value, Left.left
+Mutable
+  Mutable: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own, Mutable.$get$change, Mutable.$set$change
+Right
+  Right: Root.zeta, Root.$get$value, Right.right
+Root
+  Root: Root.zeta, Root.$get$value
+Singleton
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+  Left: Root.zeta, Root.$get$value, Left.left
+  Mutable: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own, Mutable.$get$change, Mutable.$set$change
+  Right: Root.zeta, Root.$get$value, Right.right
+  Root: Root.zeta, Root.$get$value
+  vtable:
+User
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+  Left: Root.zeta, Root.$get$value, Left.left
+  Mutable: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own, Mutable.$get$change, Mutable.$set$change
+  Right: Root.zeta, Root.$get$value, Right.right
+  Root: Root.zeta, Root.$get$value
+  vtable:
+Value
+  Diamond: Root.$get$value, Left.left, Right.right, Diamond.zeta, Diamond.own
+  Left: Root.zeta, Root.$get$value, Left.left
+  Right: Root.zeta, Root.$get$value, Right.right
+  Root: Root.zeta, Root.$get$value

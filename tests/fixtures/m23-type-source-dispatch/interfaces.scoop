@@ -1,0 +1,29 @@
+public interface Root {
+    public fun zeta(): Int = 1
+    private fun helper(): Int = 0
+    public val value: Int
+        get() = 2
+}
+public interface Left : Root {
+    public fun left(): Int = 3
+}
+public interface Right : Root {
+    public fun right(): Int = 4
+}
+public interface Diamond : Left, Right {
+    public override fun zeta(): Int = 5
+    public fun own(): Int = 6
+}
+public interface AbstractAgain : Diamond {
+    public override fun zeta(): Int
+}
+public interface Mutable : Diamond {
+    public var change: Int
+        get() = 7
+        set(value) {}
+}
+public open class User : Mutable
+public class Derived : User()
+public object Singleton : User()
+public struct Value() : Diamond
+public enum Choice : Diamond { One }

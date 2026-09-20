@@ -25,7 +25,7 @@ pub(crate) struct TrustedCoreFixture {
 }
 
 impl TrustedCoreFixture {
-    pub(super) fn project_selected_callables_to_mir<'a>(
+    pub(crate) fn project_selected_callables_to_mir<'a>(
         &'a self,
         selected: &scoop_hir::SelectedImportedCoreSet<'_>,
     ) -> scoop_mir::SelectedImportedMirSet<'a> {
@@ -56,6 +56,37 @@ impl TrustedCoreFixture {
             projected.insert(callable).unwrap();
         }
         projected
+    }
+
+    pub(crate) fn project_initialization_cycle_to_mir<'a>(
+        &'a self,
+        selected: &mut scoop_mir::SelectedImportedMirSet<'a>,
+    ) {
+        let scoop_hir::CoreProtocolCallableDefinitionV1::Function(definition) = self
+            .interface
+            .compiler_protocols()
+            .initialization_cycle_thrower()
+            .definition()
+        else {
+            panic!("the fixture cycle thrower is a source function")
+        };
+        let signature = scoop_identity::ExactCallableSignature::new(
+            scoop_identity::Effect::Ordinary,
+            None,
+            vec![self.interface.string_capability().exact_type()],
+            scoop_mir::core_unit_exact_type(),
+        );
+        selected
+            .insert(
+                self.mir_foundation
+                    .project_initialization_cycle_thrower(
+                        &self.mir_production,
+                        definition,
+                        signature,
+                    )
+                    .unwrap(),
+            )
+            .unwrap();
     }
 
     pub(crate) fn import_dependency_foundation(

@@ -10,6 +10,7 @@ use crate::*;
 
 mod authority_projection;
 mod representation;
+mod source_inventory;
 
 #[derive(Clone, Copy)]
 pub(super) enum NominalLocalId {
@@ -65,23 +66,9 @@ pub(super) fn produce(
                 )?,
             },
         );
-        let Some(owner) = source.concrete_id() else {
-            continue;
-        };
-        let exact =
-            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).map_err(|error| {
-                Error::InvalidSourceShape {
-                    declaration: source_id,
-                    reason: error.to_string(),
-                }
-            })?;
-        verify_exact_pair(export, local, local_id, exact)?;
-        concrete.push(ConcreteNominal {
-            local: local_id,
-            source,
-            owner,
-            exact,
-        });
+        if let Some(nominal) = source_inventory::concrete(export, local, local_id, source)? {
+            concrete.push(nominal);
+        }
     }
     roots.sort_unstable();
     if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
@@ -146,6 +133,7 @@ pub(super) fn produce(
             &projected_public,
             &public_callables,
             &public_sources,
+            meter,
         )?;
     for edges in &local_inheritance_edges {
         if let DirectClassBaseV1::ClassBase { exact } = edges.direct_base()

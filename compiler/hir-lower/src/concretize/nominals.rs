@@ -503,14 +503,14 @@ impl Concretizer<'_> {
         }
         seen.push(key);
         let declaration = self.source.interfaces[application.template].clone();
+        for parent in declaration.parents {
+            self.collect_interface_method_instances(parent, &arguments, seen, out);
+        }
         out.extend(
             declaration
                 .methods
                 .iter()
                 .map(|&member| (member, arguments.clone())),
         );
-        for parent in declaration.parents {
-            self.collect_interface_method_instances(parent, &arguments, seen, out);
-        }
     }
 }

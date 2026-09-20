@@ -1,0 +1,6 @@
+Base
+  vtable: Base.zeta, Base.alpha, Base.$get$value, Base.$set$value
+Derived
+  vtable: Base.zeta, Base.alpha, Base.$get$value, Base.$set$value, Derived.middle
+Singleton
+  vtable: Base.zeta, Base.alpha, Base.$get$value, Base.$set$value, Derived.middle

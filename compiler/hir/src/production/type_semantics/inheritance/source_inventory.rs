@@ -38,7 +38,7 @@ pub(in crate::production::type_semantics) fn project(
                 nominal.exact,
                 constructors,
                 members,
-                schemas::project(export, nominal)?,
+                schemas::project(export, nominal, meter)?,
                 meter,
             )
             .map_err(Error::SourceInventory)?,

@@ -197,6 +197,8 @@ declarations中的slot选择来源子表按`(owner exact id, slot id)`严格递�
 
 declarations的inheritance inventory按owner exact id严格递增，每项精确为`{1: owner, 2: constructor refs, 3: protected member refs, 4: slot schemas}`。三个子表复用既有canonical constituent；constructor refs只列可由inheritance surface引用的public/protected构造器，protected member refs不得混入Constructor，slot schemas保留每个role内部的声明槽序。同owner重复、已有字节的乱序和子表预算耗尽均拒绝。producer直接遍历sealed HIR的声明与dispatch关系生成该清单，必须先于inheritance candidate构造；不能从candidate的constructor/member/schema表回填清单。owner集合由来源清单唯一确定，完整validator再要求其精确覆盖foundation规定的inheritance owner，以及candidate的同三类输入，不能把空清单作为省略这些证明的默认值。
 
+source inventory投影入口独立接收sealed Export/LocalConcrete pair，不要求先构造public/candidate section。param-free public source root须逐项join两份HIR的exact identity；generic source root只保留在foundation source metadata中，不伪造exact inventory。class/object沿真实base链投影完整virtual family序列，Direct方法不占槽，FinalOverride复用原family；interface只输出自身role，class/value/object输出传递conformance中的每个interface role。interface schema按实现规范2.9先父后子的声明遍历及typed override抑制规则生成，包含独立getter/setter slot，排除private helper。slot identity直接读取sealed dispatch relation，不能从名字、签名或candidate重建。投影的图遍历、输出容量和深度使用同一共享预算；环或预算耗尽必须在返回清单前拒绝。该来源投影本身不授予完整type-section或machine-use资格。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
@@ -478,7 +480,7 @@ itable的slot signature receiver固定为该表的interface exact，class vtable
 reader核对每个slot的原declaration callable signature、所选target的完整lowered signature以及adjust的目标semantic/lowered关系。schema表按owner exact canonical排序，并统一重放base prefix、interface provider的slot/signature序列及abstract obligation；这种MIR内部闭合检查不替代HIR source slot schema的原始顺序与override选择join。Object和ObjectBacking沿class-like vtable规则处理；有限BoxedValue/CoroutineStep/CoroutineSlot shape support不另造source dispatch schema，box的descriptor dispatch从payload语义schema与既有boxing adjust机械构造。
 
 - derived vtable保留完整 base prefix；既有 slot的 position保持，override只替换 target；新增 virtual family按当前owner的方法声明序首次出现时追加，保持现有MIR语义顺序。
-- interface保留既有“继承slot在前、当前声明slot随后”的schema顺序和去重规则，consumer调用携带interface TD + schema内position；不存在程序级global slot ordinal。按id查找的wire record table可以canonical排序，但position必须保留provider的语义序列，不能按id重排物理table。
+- interface保留“继承slot在前、当前声明slot随后”的schema顺序和去重规则；按typed override关系抑制被覆盖的旧成员后，其余槽保持相对顺序，getter/setter分别处理。consumer调用携带interface TD + schema内position；不存在程序级global slot ordinal。按id查找的wire record table可以canonical排序，但position必须保留provider的语义序列，不能按id重排物理table。
 - 每个 concrete owner必须填满 obligation；abstract class可以保留 obligation，但 LIR allocation仍拒绝 abstract identity。
 - HIR完成“最近 class concrete override → 删除较不 specific interface candidate → 唯一 default或诊断”的选择；MIR只验证并机械构造，getter/setter分别选择。
 - `super`、`super<I>`保存强制 direct target；不会因为 callee属于 open family重新走 table。
