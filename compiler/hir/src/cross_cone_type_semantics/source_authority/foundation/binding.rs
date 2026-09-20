@@ -6,11 +6,13 @@ use scoop_identity::{
 
 use super::*;
 
+mod closure;
 mod errors;
 mod keys;
 mod origins;
 mod replay;
 mod sources;
+pub use closure::*;
 pub use errors::*;
 
 /// The source-side transcript joined to the identity and origin records of
