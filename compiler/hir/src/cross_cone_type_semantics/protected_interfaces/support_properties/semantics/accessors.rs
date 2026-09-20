@@ -15,7 +15,7 @@ impl CheckedNominalSupportRuntimePropertySourceV1<'_> {
         self.validate_accessor_views(getter.into(), setter.map(Into::into), meter)
     }
 
-    pub(in crate::cross_cone_type_semantics::protected_interfaces) fn validate_resolved_accessor_records(
+    pub(in crate::cross_cone_type_semantics) fn validate_resolved_accessor_records(
         &self,
         getter: &crate::NominalSupportCallableInterfaceV1,
         setter: Option<&crate::NominalSupportCallableInterfaceV1>,

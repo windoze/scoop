@@ -1,0 +1,27 @@
+public open class Parent public constructor() {
+    protected open var count: Int = 1
+    protected open fun read(input: Int): Int = input
+    private var data: Int = 2
+    internal var localValue: Int
+        get() = data
+        private set(value) { data = value }
+    protected class Inner<T>(private var item: T) {
+        public var value: T
+            get() = item
+            private set(replacement) { item = replacement }
+        public fun <U> choose(input: T, other: U): U = other
+    }
+}
+public class Child public constructor(): Parent() {
+    protected override fun read(input: Int): Int = input
+}
+public enum Choice {
+    None,
+    Some(val value: Int = 3),
+    Fields { label: String }
+}
+public object Constants {
+    internal const val tag: String = "tag"
+    public val number: Int = 2
+}
+private val unrelated: Int = 5

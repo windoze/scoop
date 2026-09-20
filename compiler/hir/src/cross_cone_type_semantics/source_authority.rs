@@ -26,6 +26,9 @@ pub use parameter_binding::*;
 mod nominal_constructor_binding;
 pub use nominal_constructor_binding::*;
 
+mod nominal_member_binding;
+pub use nominal_member_binding::*;
+
 mod nominal_binding;
 pub use nominal_binding::*;
 
