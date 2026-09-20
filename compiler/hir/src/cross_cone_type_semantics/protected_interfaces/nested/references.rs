@@ -44,7 +44,7 @@ impl CanonicalNestedMemberRefsV1 {
     pub fn values(&self) -> &[NestedSourceMemberRefV1] {
         &self.values
     }
-    pub(super) fn from_ordered(
+    pub(crate) fn from_ordered(
         values: Vec<NestedSourceMemberRefV1>,
     ) -> Result<Self, NestedSourceBuildError> {
         validate_order(&values)?;
@@ -70,7 +70,7 @@ impl CanonicalNestedNominalRefsV1 {
     pub fn values(&self) -> &[SourceNominalId] {
         &self.values
     }
-    pub(super) fn from_ordered(
+    pub(crate) fn from_ordered(
         values: Vec<SourceNominalId>,
     ) -> Result<Self, NestedSourceBuildError> {
         validate_order(&values)?;
