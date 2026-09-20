@@ -1,0 +1,6 @@
+Base.internalWriter: Internal, slot=Cone, witnesses=0
+Base.protectedWriter: Protected, slot=SubclassesOf(Base), witnesses=0
+Base.visible: Public, slot=Public, witnesses=0
+Child.internalWriter: Internal, slot=Cone, witnesses=1
+Child.protectedWriter: Protected, slot=SubclassesOf(Base), witnesses=1
+Child.visible: Public, slot=Public, witnesses=1

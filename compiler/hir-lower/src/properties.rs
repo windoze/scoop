@@ -3,6 +3,7 @@ use scoop_hir as hir;
 
 use crate::{Lowerer, Owner, TypeId};
 
+mod access;
 mod declarations;
 mod delegates;
 mod extensions;

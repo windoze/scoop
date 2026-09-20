@@ -1,0 +1,11 @@
+public open class Base {
+    public open var value: Int
+        get() = 1
+        public set(value) {}
+}
+internal class Child : Base() {
+    public final override var value: Int
+        get() = 2
+        internal set(value) {}
+}
+fun main() {}

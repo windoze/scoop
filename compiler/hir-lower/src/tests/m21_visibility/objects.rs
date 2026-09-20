@@ -1,3 +1,4 @@
+use super::support::parse_and_lower;
 use super::*;
 
 const POSITIVE: &str = include_str!(concat!(
@@ -8,24 +9,6 @@ const NEGATIVE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m21-visibility/errors/object-protected-receiver.scoop"
 ));
-
-fn parse_and_lower(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    let core = core_file();
-    lower_test_sources(
-        vec![ProviderSource {
-            source: &core,
-            identity: core_source_identity("src/core.scoop"),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-            name: "<core>",
-            source_text: "",
-        }],
-        &scoop_parser::parse(source).unwrap(),
-        hir::IntrinsicProviderId::from_raw(1),
-        "<user>",
-        source,
-        IntrinsicDeclarationPolicy::CoreOnly,
-    )
-}
 
 #[test]
 fn objects_and_companions_use_backing_classes_for_protected_access() {
