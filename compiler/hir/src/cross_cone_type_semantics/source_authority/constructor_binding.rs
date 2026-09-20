@@ -19,8 +19,8 @@ pub use errors::*;
 /// expansion, a complete source-body proof, or a machine-use capability.
 #[derive(Debug)]
 pub struct BoundInheritanceConstructorSourcesV1<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
-    inventory: &'a CanonicalSourceInheritanceInventoriesV1,
+    pub(super) foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    pub(super) inventory: &'a CanonicalSourceInheritanceInventoriesV1,
     constructors: &'a CanonicalInheritanceSourceConstructorsV1,
     keys: BTreeMap<PersistentConstructorId, &'f SourceDeclarationKey>,
 }

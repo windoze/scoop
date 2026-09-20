@@ -98,7 +98,7 @@ fn collect_reference_sources<T>(
     );
 }
 
-pub(super) fn project_definition_source(
+pub(crate) fn project_definition_source(
     export: &ExportHir,
     origin: crate::DefinitionOrigin,
 ) -> Result<ExportDefinitionSourceV1, HirDefinitionSourceProjectionError> {

@@ -860,6 +860,7 @@ pub enum HirFoundationBuildError {
         subject: [u8; 32],
     },
     UnknownCrossConeDefinitionSource(SourceIdentity),
+    SourceParameterOrigin(crate::HirDefinitionSourceProjectionError),
     IdentityDerivation {
         table: HirFoundationTable,
         reason: String,
@@ -921,6 +922,9 @@ impl fmt::Display for HirFoundationBuildError {
                 formatter,
                 "cross-Cone definition source refers to unknown source {source:?}"
             ),
+            Self::SourceParameterOrigin(error) => {
+                write!(formatter, "cannot project source parameter origin: {error}")
+            }
             Self::IdentityDerivation { table, reason } => {
                 write!(
                     formatter,

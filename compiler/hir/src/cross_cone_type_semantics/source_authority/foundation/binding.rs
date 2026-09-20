@@ -52,6 +52,15 @@ impl TypeFoundationSourceAuthorityV1 {
 }
 
 impl<'a> BoundTypeFoundationSourcesV1<'a> {
+    pub(in crate::cross_cone_type_semantics::source_authority) fn validate_origin(
+        &self,
+        source: &ExportDefinitionSourceV1,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<(), TypeFoundationBindingError> {
+        origins::validate(self, source, meter, path)
+    }
+
     pub const fn source(&self) -> &'a TypeFoundationSourceAuthorityV1 {
         self.source
     }

@@ -42,6 +42,7 @@ pub use callable_interfaces::*;
 mod callable_source_interfaces;
 pub use callable_source_interfaces::*;
 mod definition_sources;
+pub(crate) use definition_sources::project_definition_source;
 pub use definition_sources::{
     ExportDefinitionSourceProductionError, HirDefinitionSourceProjectionError,
 };

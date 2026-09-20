@@ -23,7 +23,8 @@ pub use errors::*;
 /// Validated source contracts, without public lookup or materialization authority.
 #[derive(Debug)]
 pub struct BoundInheritanceProtectedCallableSourcesV1<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    pub(super) foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    pub(super) inventory: &'a CanonicalSourceInheritanceInventoriesV1,
     properties: &'a CanonicalInheritanceSourcePropertiesV1,
     callables: &'a CanonicalInheritanceSourceProtectedCallablesV1,
     keys: BTreeMap<CallableTemplateOrigin, &'f SourceDeclarationKey>,
@@ -62,6 +63,7 @@ impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
         }
         let mut bound = BoundInheritanceProtectedCallableSourcesV1 {
             foundation: self.foundation,
+            inventory: self.inventory,
             properties: self.properties,
             callables,
             keys,

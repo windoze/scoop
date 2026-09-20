@@ -17,3 +17,6 @@ pub use property_binding::*;
 
 mod protected_binding;
 pub use protected_binding::*;
+
+mod parameter_binding;
+pub use parameter_binding::*;
