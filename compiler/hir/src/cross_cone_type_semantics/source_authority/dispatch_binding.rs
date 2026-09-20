@@ -22,13 +22,13 @@ pub use errors::*;
 /// interface nor a complete inheritance or machine-use proof.
 #[derive(Debug)]
 pub struct BoundInheritanceDispatchSourcesV1<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    pub(super) foundation: &'a BoundTypeFoundationSourcesV1<'f>,
     inventory: &'a CanonicalSourceInheritanceInventoriesV1,
     interfaces: &'a CanonicalInterfaceSourceDispatchesV1,
-    selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
-    callables: &'a CanonicalInheritanceSourceCallablesV1,
+    pub(super) selections: &'a CanonicalInheritanceSourceSlotSelectionsV1,
+    pub(super) callables: &'a CanonicalInheritanceSourceCallablesV1,
     functions: BTreeMap<PersistentFunctionId, &'f SourceDeclarationKey>,
-    properties: BTreeMap<PersistentPropertyId, &'f SourceDeclarationKey>,
+    pub(super) properties: BTreeMap<PersistentPropertyId, &'f SourceDeclarationKey>,
     slots: BTreeMap<PersistentDispatchSlotId, &'f DispatchSlotKey>,
 }
 

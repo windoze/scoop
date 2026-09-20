@@ -11,3 +11,6 @@ mod dispatch_binding;
 pub use dispatch_binding::*;
 mod constructor_binding;
 pub use constructor_binding::*;
+
+mod property_binding;
+pub use property_binding::*;

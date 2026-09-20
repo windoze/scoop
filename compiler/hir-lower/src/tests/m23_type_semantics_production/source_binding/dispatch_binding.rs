@@ -15,15 +15,15 @@ const SELECTIONS: &str = include_str!(concat!(
 ));
 
 #[derive(Clone)]
-struct Sources {
-    inventory: hir::CanonicalSourceInheritanceInventoriesV1,
+pub(super) struct Sources {
+    pub(super) inventory: hir::CanonicalSourceInheritanceInventoriesV1,
     interfaces: hir::CanonicalInterfaceSourceDispatchesV1,
     selections: hir::CanonicalInheritanceSourceSlotSelectionsV1,
     callables: hir::CanonicalInheritanceSourceCallablesV1,
 }
 
 impl Sources {
-    fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
         macro_rules! restore {
             ($canonical:ty, $decoded:ty) => {{
                 let source = <$canonical>::from_ordinary_hir(output, &mut meter()).unwrap();
@@ -56,7 +56,7 @@ impl Sources {
         }
     }
 
-    fn bind<'a, 'f>(
+    pub(super) fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
         meter: &mut BudgetMeter,
