@@ -15,6 +15,7 @@ public class Mixed {
 fun main() {
     @Unsafe {
         val box: Box<Int> = Box(1)
+        val alternate: Box<Int> = Box(1, 2)
         val pair: Pair<Int> = Pair(1)
         val mixed: Mixed = Mixed(1)
         @Safe { val safe: Mixed = Mixed(true) }

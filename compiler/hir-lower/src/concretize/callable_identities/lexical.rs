@@ -108,40 +108,6 @@ impl CallableIdentityBuilder<'_> {
         self.resolve_function(*index)
     }
 
-    fn class_constructor_materialization(
-        &mut self,
-        constructor: export::ClassConstructorId,
-        arguments: &[concrete::TypeId],
-    ) -> CallableMaterialization {
-        let declaration = &self.concretizer.source.class_constructors[constructor];
-        assert_eq!(
-            self.concretizer.source.classes[declaration.owner]
-                .type_params
-                .len(),
-            arguments.len()
-        );
-        let owner = self.concretizer.class_by_key[&(declaration.owner, arguments.to_vec())];
-        let local = self.concretizer.class_constructor_by_key[&(constructor, owner)];
-        self.resolve_class_constructor(local.into_raw().into_u32() as usize)
-    }
-
-    fn struct_constructor_materialization(
-        &mut self,
-        constructor: export::StructConstructorId,
-        arguments: &[concrete::TypeId],
-    ) -> CallableMaterialization {
-        let declaration = &self.concretizer.source.struct_constructors[constructor];
-        assert_eq!(
-            self.concretizer.source.structs[declaration.owner]
-                .type_params
-                .len(),
-            arguments.len()
-        );
-        let owner = self.concretizer.struct_by_key[&(declaration.owner, arguments.to_vec())];
-        let local = self.concretizer.struct_constructor_by_key[&(constructor, owner)];
-        self.resolve_struct_constructor(local.into_raw().into_u32() as usize)
-    }
-
     pub(super) fn constructor_application_context(
         &mut self,
         constructor: scoop_identity::PersistentConstructorId,

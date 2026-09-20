@@ -17,6 +17,7 @@ mod callback_slots;
 mod classes;
 mod closures;
 mod constructor_slots;
+mod constructor_work;
 mod functions;
 mod nominals;
 mod types;
@@ -190,6 +191,7 @@ struct Concretizer<'a> {
     structural_derived_functions:
         HashMap<(export::DerivedEqualityApplicationId, concrete::TypeId), concrete::FunctionId>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
+    pending_constructors: VecDeque<constructor_work::ConstructorWork>,
     emitted_functions: Vec<concrete::FunctionId>,
     lambdas: Arena<concrete::Lambda>,
     lambda_by_key: HashMap<(export::LambdaId, Vec<concrete::TypeId>), concrete::LambdaId>,
@@ -363,6 +365,7 @@ impl<'a> Concretizer<'a> {
             derived_bodies: HashMap::new(),
             structural_derived_functions: HashMap::new(),
             pending_functions: VecDeque::new(),
+            pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),
             lambdas: Arena::new(),
             lambda_by_key: HashMap::new(),
@@ -546,7 +549,7 @@ impl<'a> Concretizer<'a> {
                 .collect();
             self.request_function(function, arguments);
         }
-        self.drain_pending_functions();
+        self.drain_pending_callables();
 
         for (source_id, source) in self.source.initialization_failure_roots.iter() {
             let id = self
@@ -740,7 +743,7 @@ impl<'a> Concretizer<'a> {
         protocols: &export::DefinedCoreProtocols,
     ) -> concrete::ConcreteCoreProtocols {
         let coroutine_protocols = self.build_coroutine_protocols(protocols.coroutines);
-        self.drain_pending_functions();
+        self.drain_pending_callables();
 
         let source_callback_core = protocols.foreign_callbacks;
         let callback_reusable =
@@ -871,11 +874,17 @@ impl<'a> Concretizer<'a> {
         }))
     }
 
-    fn drain_pending_functions(&mut self) {
-        while let Some((key, id)) = self.pending_functions.pop_front() {
-            let function = self.lower_function(&key);
-            let slot = id.into_raw().into_u32() as usize;
-            assert!(self.function_slots[slot].replace(function).is_none());
+    fn drain_pending_callables(&mut self) {
+        loop {
+            if let Some((key, id)) = self.pending_functions.pop_front() {
+                let function = self.lower_function(&key);
+                let slot = id.into_raw().into_u32() as usize;
+                assert!(self.function_slots[slot].replace(function).is_none());
+            } else if let Some(constructor) = self.pending_constructors.pop_front() {
+                self.lower_pending_constructor(constructor);
+            } else {
+                break;
+            }
         }
     }
 
@@ -885,7 +894,7 @@ impl<'a> Concretizer<'a> {
     ) -> Vec<concrete::CoroutineProtocol> {
         let mut protocols = Vec::new();
         loop {
-            self.drain_pending_functions();
+            self.drain_pending_callables();
             let mut results = Vec::new();
             for (index, function) in self.function_slots.iter().enumerate() {
                 let Some(function) = function else {

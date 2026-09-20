@@ -123,10 +123,12 @@ impl Concretizer<'_> {
         self.struct_by_key.insert(key, id);
         self.struct_source.insert(id, source_id);
         self.struct_type.insert(id, ty);
-        if matches!(
-            source.representation,
-            export::StructRepresentation::Declared(_)
-        ) {
+        if source.type_params.is_empty()
+            && matches!(
+                source.representation,
+                export::StructRepresentation::Declared(_)
+            )
+        {
             for &constructor in &source.constructors {
                 let raw = self.struct_constructor_slots.len() as u32;
                 self.struct_constructor_slots.push(None);
@@ -182,20 +184,22 @@ impl Concretizer<'_> {
             }
         }
         self.structs[id].methods = methods;
-        for &constructor in &source.constructors {
-            let concrete = self.lower_struct_constructor(constructor, id, &arguments);
-            let target = self.struct_constructor_by_key[&(constructor, id)];
-            let slot = target.into_raw().into_u32() as usize;
-            assert!(
-                self.struct_constructor_slots[slot]
-                    .replace(concrete)
-                    .is_none()
-            );
+        if source.type_params.is_empty() {
+            for &constructor in &source.constructors {
+                let concrete = self.lower_struct_constructor(constructor, id, &arguments);
+                let target = self.struct_constructor_by_key[&(constructor, id)];
+                let slot = target.into_raw().into_u32() as usize;
+                assert!(
+                    self.struct_constructor_slots[slot]
+                        .replace(concrete)
+                        .is_none()
+                );
+            }
         }
         id
     }
 
-    fn lower_struct_constructor(
+    pub(super) fn lower_struct_constructor(
         &mut self,
         source_id: export::StructConstructorId,
         structure: concrete::StructId,
@@ -246,7 +250,7 @@ impl Concretizer<'_> {
     ) -> concrete::StructConstructorId {
         let application = &self.source.struct_constructor_applications[source];
         let structure = self.lower_struct_application(application.owner, substitution);
-        self.struct_constructor_by_key[&(application.constructor, structure)]
+        self.request_struct_constructor(application.constructor, structure)
     }
 
     fn lower_constructor_argument_plan(

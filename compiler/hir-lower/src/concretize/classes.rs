@@ -70,10 +70,12 @@ impl Concretizer<'_> {
         self.class_source.insert(id, source_id);
         self.class_type.insert(id, ty);
 
-        // Reserve every initializer before lowering any body. `this` cycles
+        // Reserve every parameter-free initializer before lowering its body. `this` cycles
         // have already been rejected in Export HIR, while recursive type
         // references can still encounter these identities during lowering.
-        if matches!(source.representation, export::ClassRepresentation::Declared) {
+        if source.type_params.is_empty()
+            && matches!(source.representation, export::ClassRepresentation::Declared)
+        {
             for &constructor in &source.constructors {
                 let raw = self.class_constructor_slots.len() as u32;
                 self.class_constructor_slots.push(None);
@@ -133,20 +135,22 @@ impl Concretizer<'_> {
             }
         }
         self.classes[id].methods = methods;
-        for &constructor in &source.constructors {
-            let concrete = self.lower_class_constructor(constructor, id, &arguments);
-            let target = self.class_constructor_by_key[&(constructor, id)];
-            let slot = target.into_raw().into_u32() as usize;
-            assert!(
-                self.class_constructor_slots[slot]
-                    .replace(concrete)
-                    .is_none()
-            );
+        if source.type_params.is_empty() {
+            for &constructor in &source.constructors {
+                let concrete = self.lower_class_constructor(constructor, id, &arguments);
+                let target = self.class_constructor_by_key[&(constructor, id)];
+                let slot = target.into_raw().into_u32() as usize;
+                assert!(
+                    self.class_constructor_slots[slot]
+                        .replace(concrete)
+                        .is_none()
+                );
+            }
         }
         id
     }
 
-    fn lower_class_constructor(
+    pub(super) fn lower_class_constructor(
         &mut self,
         source_id: export::ClassConstructorId,
         class: concrete::ClassId,
@@ -290,7 +294,7 @@ impl Concretizer<'_> {
     ) -> concrete::ClassConstructorId {
         let application = &self.source.class_constructor_applications[source];
         let class = self.lower_class_application(application.owner, substitution);
-        self.class_constructor_by_key[&(application.constructor, class)]
+        self.request_class_constructor(application.constructor, class)
     }
 
     fn append_base_initialization(
@@ -306,7 +310,7 @@ impl Concretizer<'_> {
         };
         let target = self.lower_class_constructor_application(*target, substitution);
         let args = self.append_constructor_arguments(body, arguments, substitution);
-        let target_class = self.class_constructors_slot(target).class;
+        let (_, target_class) = self.class_constructor_keys[target.into_raw().into_u32() as usize];
         let target_ty = self.class_type[&target_class];
         let receiver = self.constructor_receiver(target_ty, span, origin);
         body.statements.push(concrete::Statement {
@@ -322,15 +326,6 @@ impl Concretizer<'_> {
             }),
             span,
         });
-    }
-
-    fn class_constructors_slot(
-        &self,
-        constructor: concrete::ClassConstructorId,
-    ) -> &PendingClassConstructor {
-        self.class_constructor_slots[constructor.into_raw().into_u32() as usize]
-            .as_ref()
-            .expect("base class initializers are concretized before derived initializers")
     }
 
     fn append_common_initialization(

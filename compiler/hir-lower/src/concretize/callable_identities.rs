@@ -9,6 +9,7 @@ use scoop_identity::{
 
 use super::*;
 
+mod constructors;
 mod lexical;
 
 #[derive(Clone, Eq, PartialEq)]
@@ -300,50 +301,6 @@ impl<'a> CallableIdentityBuilder<'a> {
         };
         self.visiting[index] = false;
         self.materializations[index] = Some(materialization);
-        materialization
-    }
-
-    fn resolve_class_constructor(&mut self, index: usize) -> CallableMaterialization {
-        if let Some(materialization) = self.class_constructor_materializations[index] {
-            return materialization;
-        }
-        let (source, class) = self.concretizer.class_constructor_keys[index];
-        let arguments = self.concretizer.classes[class].type_arguments.clone();
-        let exact_owner = self.exact_types[self.concretizer.class_type[&class]].id();
-        let identity = &self.concretizer.source.constructor_identities[source];
-        let (template, origin) = match identity {
-            export::HirClassConstructorIdentity::Source(record) => {
-                (CallableTemplateOwner::Constructor(record.id()), record.id())
-            }
-            export::HirClassConstructorIdentity::ZeroArgumentAdapter { source, record } => {
-                let origin = self.concretizer.source.constructor_identities[*source]
-                    .source_record()
-                    .expect("a zero-argument adapter references a source constructor")
-                    .id();
-                (CallableTemplateOwner::Generated(record.id()), origin)
-            }
-        };
-        let materialization = CallableMaterialization::new(
-            template,
-            self.constructor_application_context(origin, exact_owner, &arguments),
-        );
-        self.class_constructor_materializations[index] = Some(materialization);
-        materialization
-    }
-
-    fn resolve_struct_constructor(&mut self, index: usize) -> CallableMaterialization {
-        if let Some(materialization) = self.struct_constructor_materializations[index] {
-            return materialization;
-        }
-        let (source, structure) = self.concretizer.struct_constructor_keys[index];
-        let arguments = self.concretizer.structs[structure].type_arguments.clone();
-        let exact_owner = self.exact_types[self.concretizer.struct_type[&structure]].id();
-        let origin = self.concretizer.source.constructor_identities[source].id();
-        let materialization = CallableMaterialization::new(
-            CallableTemplateOwner::Constructor(origin),
-            self.constructor_application_context(origin, exact_owner, &arguments),
-        );
-        self.struct_constructor_materializations[index] = Some(materialization);
         materialization
     }
 
