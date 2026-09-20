@@ -23,10 +23,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     // A reference-element array's object scan carries the SCOOP_REFS_ARRAY
     // sentinel (u64::MAX, printed -1), the dynamic count/data offsets, its
     // stride, and a pointer to the recursive scan for one inline element.
-    let nested_element_scan = RefScan::Sequence(vec![
-        RefScan::References(vec![16]),
-        RefScan::References(vec![8]),
-    ]);
+    let nested_element_scan = RefScan::References(vec![8, 16]);
     let mut meta = string_metadata();
     let ref_array_type = array_type(
         &mut meta,
@@ -81,10 +78,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             scoop_lir::LirTargetProfile::DARWIN_AARCH64,
             56,
             8,
-            RefScan::Sequence(vec![
-                RefScan::References(vec![16]),
-                RefScan::References(vec![40, 48]),
-            ]),
+            RefScan::References(vec![16, 40, 48]),
         )
         .unwrap(),
         inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
@@ -144,9 +138,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     );
     assert!(
         ir.contains(&format!(
-            "@\"{array_nested_scan}.element.part.1\" = private constant [2 x i64] [i64 1, i64 8]"
-        )) && ir.contains(&format!(
-            "@\"{array_nested_scan}.element\" = private constant [4 x i64] [i64 -2, i64 2"
+            "@\"{array_nested_scan}.element\" = private constant [3 x i64] [i64 2, i64 8, i64 16]"
         )) && ir.contains(&format!(
             "@\"{array_nested_scan}\" = constant [5 x i64] [i64 -1, i64 16, i64 24, i64 24, i64 ptrtoint (ptr @\"{array_nested_scan}.element\" to i64)]"
         )),
@@ -154,14 +146,8 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
     );
     assert!(
         ir.contains(&format!(
-            "@\"{holder_scan}.part.1\" = private constant [3 x i64] [i64 2, i64 40, i64 48]"
+            "@\"{holder_scan}\" = constant [4 x i64] [i64 3, i64 16, i64 40, i64 48]"
         )),
-        "nested tagged enum scan must use fixed ref offsets:\n{ir}"
-    );
-    assert!(
-        ir.contains(&format!(
-            "@\"{holder_scan}\" = constant [4 x i64] [i64 -2, i64 2"
-        )),
-        "aggregate scan must compose fixed scans:\n{ir}"
+        "aggregate object scan must use one canonical fixed-offset table:\n{ir}"
     );
 }
