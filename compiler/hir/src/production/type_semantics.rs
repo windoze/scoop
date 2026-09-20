@@ -13,7 +13,7 @@ use crate::{
 mod authority;
 pub use authority::*;
 mod facts;
-mod inheritance;
+pub(in crate::production) mod inheritance;
 mod nominals;
 
 /// The transport plus the independently projected inventories needed by the
@@ -31,6 +31,7 @@ pub struct CrossConeTypeSemanticsProductionV1 {
     source_protected_callables: crate::CanonicalInheritanceSourceProtectedCallablesV1,
     source_properties: crate::CanonicalInheritanceSourcePropertiesV1,
     source_parameters: crate::CanonicalInheritanceSourceParameterProtocolsV1,
+    source_nominals: crate::CanonicalNominalSourceContractsV1,
 }
 
 impl CrossConeTypeSemanticsProductionV1 {
@@ -65,6 +66,7 @@ impl CrossConeTypeSemanticsProductionV1 {
         crate::CanonicalInheritanceSourceProtectedCallablesV1,
         crate::CanonicalInheritanceSourcePropertiesV1,
         crate::CanonicalInheritanceSourceParameterProtocolsV1,
+        crate::CanonicalNominalSourceContractsV1,
     ) {
         (
             self.section,
@@ -77,6 +79,7 @@ impl CrossConeTypeSemanticsProductionV1 {
             self.source_protected_callables,
             self.source_properties,
             self.source_parameters,
+            self.source_nominals,
         )
     }
 
@@ -122,6 +125,10 @@ impl CrossConeTypeSemanticsProductionV1 {
         &self,
     ) -> &crate::CanonicalInheritanceSourceParameterProtocolsV1 {
         &self.source_parameters
+    }
+
+    pub const fn source_nominals(&self) -> &crate::CanonicalNominalSourceContractsV1 {
+        &self.source_nominals
     }
 
     pub const fn local_exact_facts(&self) -> &CanonicalPersistentIdsV1<PersistentExactTypeId> {

@@ -15,6 +15,7 @@ mod identity;
 mod members;
 mod nested_bindings;
 pub(in crate::production) mod owner_resolution;
+mod source_contracts;
 mod source_shape;
 
 pub use errors::{
@@ -107,8 +108,12 @@ impl<'a> NominalProjection<'a> {
             &declaration.access,
             &declaration.type_params,
         )?;
-        let exact_supertypes =
-            source_shape::class_supertypes(self, header.declaration, declaration, &header.binders)?;
+        let exact_supertypes = source_shape::class_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            declaration,
+            &header.binders,
+        )?;
         let owner = header.declaration;
         self.finish_record(
             LocalNominalId::Class(id),
@@ -134,7 +139,7 @@ impl<'a> NominalProjection<'a> {
             &declaration.type_params,
         )?;
         let exact_supertypes = source_shape::interface_supertypes(
-            self,
+            &source_shape::SourceShapeProjection::new(self.export),
             header.declaration,
             declaration,
             &header.binders,
@@ -164,13 +169,18 @@ impl<'a> NominalProjection<'a> {
             &declaration.type_params,
         )?;
         let exact_supertypes = source_shape::direct_supertypes(
-            self,
+            &source_shape::SourceShapeProjection::new(self.export),
             header.declaration,
             &declaration.interfaces,
             &header.binders,
         )?;
-        let shape =
-            source_shape::struct_shape(self, id, declaration, &header.binders, header.declaration)?;
+        let shape = source_shape::struct_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            &header.binders,
+            header.declaration,
+        )?;
         let owner = header.declaration;
         self.finish_record(
             LocalNominalId::Struct(id),
@@ -196,13 +206,18 @@ impl<'a> NominalProjection<'a> {
             &declaration.type_params,
         )?;
         let exact_supertypes = source_shape::direct_supertypes(
-            self,
+            &source_shape::SourceShapeProjection::new(self.export),
             header.declaration,
             &declaration.interfaces,
             &header.binders,
         )?;
-        let shape =
-            source_shape::enum_shape(self, id, declaration, &header.binders, header.declaration)?;
+        let shape = source_shape::enum_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            &header.binders,
+            header.declaration,
+        )?;
         let owner = header.declaration;
         self.finish_record(
             LocalNominalId::Enum(id),
@@ -234,15 +249,24 @@ impl<'a> NominalProjection<'a> {
                 index: raw_index(declaration.backing_class),
             },
         )?;
-        let exact_supertypes =
-            source_shape::object_supertypes(self, header.declaration, backing, &header.binders)?;
+        let exact_supertypes = source_shape::object_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            backing,
+            &header.binders,
+        )?;
         let members = members::ordinary(
             self,
             header.declaration,
             &backing.methods,
             &backing.properties,
         )?;
-        let shape = source_shape::object_shape(self, id, declaration, header.declaration)?;
+        let shape = source_shape::object_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            header.declaration,
+        )?;
         self.finish_record(
             LocalNominalId::Object(id),
             header,

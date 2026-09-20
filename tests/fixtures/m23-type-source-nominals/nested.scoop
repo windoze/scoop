@@ -1,0 +1,44 @@
+public interface Marker {}
+public open class GenericBase<T : Marker> {}
+public open class Base {
+    public fun inherited(): Int = 1
+}
+public open class Envelope : Base() {
+    protected open class Box<T : Marker> private constructor(val item: T) : GenericBase<T>() {
+        public fun value(value: T): T = value
+        private fun helper(): Int = 1
+        internal fun internalMethod(): Int = 2
+        protected fun protectedMethod(): Int = 3
+        public fun <U> echo(value: U): U = value
+        private class HiddenChild {}
+    }
+    protected abstract class Gap<T> {
+        public abstract fun value(): T
+    }
+    protected class Leaf<T>(val item: T)
+    protected struct Pair<T>(val second: T, val first: Int)
+    protected enum Choice<T> {
+        Empty,
+        Positional(T),
+        Named { value: T },
+        Constructed(val value: T)
+    }
+    protected interface View {
+        public val number: Int
+        public fun read(): Int = 5
+        private fun helper(): Int = 5
+    }
+    protected object Cache : Marker {
+        private val secret: Int = 7
+        public fun read(): Int = 7
+    }
+    private class Hidden {}
+    internal class InternalChild {}
+}
+public class Derived : Envelope()
+public open class GenericOuter<T> {
+    protected class ConcreteChild {
+        public fun method(): Int = 1
+    }
+    protected class GenericChild<U>(val item: U)
+}

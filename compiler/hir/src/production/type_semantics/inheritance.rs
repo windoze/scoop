@@ -13,7 +13,7 @@ mod source_inventory;
 mod source_parameters;
 mod source_properties;
 mod source_protected_callables;
-mod source_resources;
+pub(in crate::production) mod source_resources;
 pub(super) use source_callables::project as source_callables;
 pub(super) use source_constructors::project as source_constructors;
 pub(super) use source_inventory::project as source_inventory;

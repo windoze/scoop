@@ -56,6 +56,20 @@ pub(super) fn produce(
         inheritance::reject_unsupported_source_features(export, local_id, source_id(source))?;
     }
     reject_protected_nominals(export, &foundation.source_roots().iter().copied().collect())?;
+    meter
+        .charge_collection_slots(
+            foundation.source_roots().len() as u64,
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(|error| Error::SourceInventory(SourceInventoryError::Resource(error)))?;
+    let required_nominals =
+        CanonicalSourceNominalIdsV1::try_new(foundation.source_roots().to_vec(), meter)
+            .map_err(Error::SourceInventory)?;
+    let source_nominals = CanonicalNominalSourceContractsV1::from_export_hir(
+        &output.output().export,
+        &required_nominals,
+        meter,
+    )?;
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
     let facts = facts::candidate(
         output.imported_core(),
@@ -169,6 +183,7 @@ pub(super) fn produce(
         source_protected_callables,
         source_properties,
         source_parameters,
+        source_nominals,
     })
 }
 

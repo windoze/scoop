@@ -315,7 +315,7 @@ fn trusted_core_from_source(
     }
 }
 
-fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
+pub(crate) fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     let identity = super::super::core_source_identity("src/core.scoop");
     parsed_sources(identity, source, "<core>")
 }

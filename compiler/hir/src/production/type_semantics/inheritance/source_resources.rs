@@ -1,7 +1,7 @@
 use super::*;
 use scoop_wire::{BudgetMeter, WirePath};
 
-pub(super) fn name(value: &str, meter: &mut BudgetMeter) -> Result<(), Error> {
+pub(in crate::production) fn name(value: &str, meter: &mut BudgetMeter) -> Result<(), Error> {
     let path = WirePath::root();
     meter
         .check_semantic_leaf(value.len() as u64, &path)
@@ -16,7 +16,7 @@ pub(super) fn name(value: &str, meter: &mut BudgetMeter) -> Result<(), Error> {
 
 /// Accounts the sealed type tree before the shared signature projector
 /// allocates its signature and recursion bookkeeping.
-pub(super) fn ty(
+pub(in crate::production) fn ty(
     export: &ExportHir,
     id: TypeId,
     binders: usize,
@@ -63,7 +63,7 @@ pub(super) fn ty(
     Ok(())
 }
 
-pub(super) fn binders(
+pub(in crate::production) fn binders(
     export: &ExportHir,
     parameters: &[TypeParamDecl],
     visible: usize,
@@ -116,14 +116,14 @@ pub(super) fn binders(
     Ok(())
 }
 
-pub(super) fn work(meter: &mut BudgetMeter, length: usize) -> Result<(), Error> {
+pub(in crate::production) fn work(meter: &mut BudgetMeter, length: usize) -> Result<(), Error> {
     meter
         .charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())
         .map_err(resource)
 }
-pub(super) fn resource(error: scoop_wire::WireError) -> Error {
+pub(in crate::production) fn resource(error: scoop_wire::WireError) -> Error {
     Error::SourceInventory(SourceInventoryError::Resource(error))
 }
-pub(super) fn invalid(reason: impl std::fmt::Display) -> Error {
+pub(in crate::production) fn invalid(reason: impl std::fmt::Display) -> Error {
     Error::InvalidSourceDeclaration(reason.to_string())
 }

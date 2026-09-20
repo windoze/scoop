@@ -1,0 +1,32 @@
+Abstract Class/Abstract binders=1 parents=0 constructors=1
+  members: fn value
+  children: 
+  shape: class
+Base Class/Open binders=0 parents=0 constructors=1
+  members: fn inherited
+  children: 
+  shape: class
+Choice Enum/Final binders=1 parents=0 constructors=0
+  members: 
+  children: 
+  shape: Unit:0, Positional:1, Named:1, Constructor:1
+Defaults Class/Final binders=0 parents=0 constructors=3
+  members: property number
+  children: 
+  shape: class
+Final Class/Final binders=1 parents=0 constructors=1
+  members: property item
+  children: 
+  shape: class
+Marker Interface/Interface binders=0 parents=0 constructors=0
+  members: fn helper, fn mark
+  children: 
+  shape: interface
+Pair Struct/Final binders=1 parents=0 constructors=1
+  members: property first, property second
+  children: 
+  shape: fields=2
+Singleton Object/Final binders=0 parents=1 constructors=0
+  members: fn read, property secret
+  children: 
+  shape: singleton

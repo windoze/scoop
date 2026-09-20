@@ -1,14 +1,28 @@
 use scoop_identity::NominalDeclarationOwner;
 
-use super::{NominalInterfaceBuildError, NominalProjection, NominalSourceProjectionError};
+use super::{NominalInterfaceBuildError, NominalSourceProjectionError};
 use crate::{
     CanonicalSignatureTypesV1, EnumSourceFieldV1, EnumSourceShapeV1, EnumSourceVariantStyleV1,
     EnumSourceVariantV1, HirSignatureBinder, NominalSourceShapeV1, ObjectSourceShapeV1,
     StructSourceFieldV1, StructSourceShapeV1,
 };
 
+/// Shared source-only projection; it has no public lookup inventory.
+pub(super) struct SourceShapeProjection<'a> {
+    export: &'a crate::ExportHir,
+    signatures: super::HirInterfaceSignatureProjector<'a>,
+}
+impl<'a> SourceShapeProjection<'a> {
+    pub(super) fn new(export: &'a crate::ExportHir) -> Self {
+        Self {
+            export,
+            signatures: super::HirInterfaceSignatureProjector::new(export),
+        }
+    }
+}
+
 pub(super) fn class_supertypes(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
     declaration: &crate::ClassDecl,
     binders: &[HirSignatureBinder],
@@ -26,7 +40,7 @@ pub(super) fn class_supertypes(
 }
 
 pub(super) fn interface_supertypes(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
     declaration: &crate::InterfaceDecl,
     binders: &[HirSignatureBinder],
@@ -46,7 +60,7 @@ pub(super) fn interface_supertypes(
 }
 
 pub(super) fn direct_supertypes(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
     types: &[crate::TypeId],
     binders: &[HirSignatureBinder],
@@ -55,7 +69,7 @@ pub(super) fn direct_supertypes(
 }
 
 pub(super) fn object_supertypes(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
     backing: &crate::ClassDecl,
     binders: &[HirSignatureBinder],
@@ -73,7 +87,7 @@ pub(super) fn object_supertypes(
 }
 
 fn canonical_supertypes(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     declaration: NominalDeclarationOwner,
     types: impl IntoIterator<Item = crate::TypeId>,
     binders: &[HirSignatureBinder],
@@ -99,7 +113,7 @@ fn canonical_supertypes(
 }
 
 pub(super) fn struct_shape(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     id: crate::StructId,
     declaration: &crate::StructDecl,
     binders: &[HirSignatureBinder],
@@ -141,7 +155,7 @@ pub(super) fn struct_shape(
 }
 
 pub(super) fn enum_shape(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     id: crate::EnumId,
     declaration: &crate::EnumDecl,
     binders: &[HirSignatureBinder],
@@ -237,7 +251,7 @@ pub(super) fn enum_shape(
 }
 
 pub(super) fn object_shape(
-    projection: &NominalProjection<'_>,
+    projection: &SourceShapeProjection<'_>,
     id: crate::ObjectId,
     declaration: &crate::ObjectDecl,
     owner: NominalDeclarationOwner,

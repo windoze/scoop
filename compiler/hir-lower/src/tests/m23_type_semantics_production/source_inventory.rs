@@ -184,7 +184,22 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
         protected_callables,
         properties,
         parameters,
+        nominal_contracts,
     ) = production.into_parts();
+    let required_nominals = hir::CanonicalSourceNominalIdsV1::try_new(
+        foundation.source_roots().to_vec(),
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+    .unwrap();
+    assert_eq!(
+        nominal_contracts,
+        hir::CanonicalNominalSourceContractsV1::from_export_hir(
+            &output.output().export,
+            &required_nominals,
+            &mut BudgetMeter::new(DecodeLimits::default())
+        )
+        .unwrap()
+    );
     assert_eq!(
         parameters,
         hir::CanonicalInheritanceSourceParameterProtocolsV1::from_ordinary_hir(
