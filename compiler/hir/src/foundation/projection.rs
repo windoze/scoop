@@ -7,6 +7,8 @@ use scoop_identity::{CborIdentityRecord, DefinitionOriginRecord, PersistentId, S
 use super::*;
 use crate::{ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir};
 
+mod type_semantics;
+
 impl CanonicalHirFoundation {
     /// Builds an ordinary HIR foundation together with the exact external
     /// nominal authority required by its imported-core exact types.

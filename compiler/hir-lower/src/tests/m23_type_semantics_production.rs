@@ -11,6 +11,7 @@ use super::*;
 use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only, produce_cross_cone_type_semantics};
 use hir::NominalInheritanceSemanticAuthority as _;
 
+mod source_foundation;
 mod source_inventory;
 mod source_shapes;
 

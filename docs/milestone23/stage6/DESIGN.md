@@ -185,6 +185,10 @@ foundation的fact-shape子表是按exact id严格递增的array，每项精确�
 
 foundation的其他inventory同样使用canonical array：source roots按`SourceNominalId`的canonical bytes严格递增；source nominal snapshot每项精确为`{1: owner, 2: DeclarationAccessSourceV1}`并按owner排序，不重复identity key；dependency fact每项精确为`{1: provider, 2: exact}`，按exact id排序，同一exact不得以两个provider重复；本地inheritance edges复用既有四字段`NominalInheritanceEdgesV1`，按exact owner排序，其direct interface序列仍遵守原有canonical规则。producer可排序无序输入，但不得静默去重；reader必须拒绝已有字节中的乱序和重复，不得先排序修复。解析前共享预算必须覆盖table、排序/扫描、输出分配、嵌套source origin与继承边；这些inventory只提供重放输入，不单独授予checked source authority。
 
+`TypeFoundationSourceAuthorityV1`精确使用13字段product，field 1～13依次为：provider、exact key refs、source nominal snapshots、source representation snapshots、generated nominal key refs、accessor key refs、definition sources、source roots、本地fact inventory、dependency facts、本地inheritance edges、fact shapes、required representation owners。key refs只编码既有typed id的canonical集合，不复制key；representation snapshots复用`NominalRepresentationSupportV1`的编码，但必须来自独立source投影。source roots必须精确覆盖source nominal snapshots，representation owner清单必须精确覆盖representation snapshots，fact inventory必须精确覆盖fact shapes；dependency facts与本地facts互斥。每个representation owner必须有同owner的source access snapshot；本地inheritance owner必须精确覆盖这些source nominal的`ExactTypeKey::Nominal` id（先重算、再按exact id排序，不比较不同实体的id）。这些局部一致性检查和wire解析仍不授予完整section authority；来源、access、shape、generated role与全部key内容仍须join既有HIR foundation，并在四域section组合验证中重放。
+
+M23-6专用HIR foundation producer还必须从同一次sealed HIR已登记的generated nominal keys投影对应`ExactTypeKey::Nominal` record，即使该generated nominal尚无实际表达式使用；object backing-class继承证明依赖这条exact relation。该补充属于新profile的producer输入闭包，不修改既有identity key、旧profile投影规则或wire schema。reader不得临时重建缺失record，也不得把旧foundation在内存中升级后用于source-authority验证。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
