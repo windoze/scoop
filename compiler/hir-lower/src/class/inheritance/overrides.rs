@@ -279,6 +279,7 @@ impl Lowerer {
             unreachable!("an overriding method always owns a slot contract")
         };
         if self.functions[id].access.declared == hir::DeclaredVisibility::Protected
+            && self.functions[inherited[0].0].access.declared == hir::DeclaredVisibility::Protected
             && let Some(required) = self.functions[inherited[0].0].access.slot.clone()
         {
             // `protected override` preserves the inherited protected region;
