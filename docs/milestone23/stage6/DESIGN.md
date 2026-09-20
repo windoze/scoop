@@ -193,6 +193,8 @@ foundation来源记录解析后，reader必须将每个exact、source nominal、
 
 foundation重放适配器按provider组合上述绑定凭证和经旧十表完整validator构造的public-support凭证；每对凭证的provider必须相同，依赖按provider严格排序且排除当前provider。公开nominal必须命中同provider的source root，公开struct/enum的source shape还须与独立representation snapshot逐字段一致。跨artifact重复的exact/generated/accessor key必须内容一致；source nominal与本地fact的所有权不能重复。每条dependency fact必须精确命中其声明provider的本地fact inventory，不能从其他provider补齐。组合后本地inventory仍只来自当前provider，跨Cone的nominal、key和definition-origin查询则经显式typed索引定位；不合并本地与依赖inventory，不凭名称或唯一匹配项推断来源。该适配器只提供完整type-section validator所需的source输入，GC/ZST、inheritance及selected closure仍由原validator验证。
 
+declarations中的slot选择来源子表按`(owner exact id, slot id)`严格递增，每项精确为`{1: owner, 2: slot, 3: selection}`。selection采用field 0的封闭tag：`Abstract=1`无其他field，`Concrete=2`和`InterfaceDefault=3`的field 1复用既有`InheritanceCallableDeclarationV1`，保留Function/Getter/Setter的不同typed role。相同slot在不同exact owner下可有不同选择，同owner/slot重复则拒绝；reader不排序修复已有字节。来源选择必须从sealed HIR实际实现决策独立投影，解析只验证typed ref、canonical顺序和共享预算；角色、owner、abstract/concrete合法性、interface default冲突及完整inventory消费仍由declarations与既有inheritance validator交叉核验。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

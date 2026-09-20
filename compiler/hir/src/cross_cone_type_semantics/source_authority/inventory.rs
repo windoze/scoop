@@ -8,10 +8,12 @@ mod dependencies;
 mod edges;
 mod nominals;
 mod roots;
+mod slot_selections;
 pub use dependencies::*;
 pub use edges::*;
 pub use nominals::*;
 pub use roots::*;
+pub use slot_selections::*;
 
 fn charge_sort(count: usize, meter: &mut BudgetMeter) -> Result<(), SourceInventoryError> {
     let count = count as u64;
