@@ -2,8 +2,8 @@
 
 use crate::*;
 use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, PersistentGenericTypeId, SignatureTypeKey,
-    SourceDeclarationKey, SourceDeclarationKind,
+    CallableTemplateOrigin, ConeIdentity, PersistentGenericTypeId, SourceDeclarationKey,
+    SourceDeclarationKind,
 };
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 

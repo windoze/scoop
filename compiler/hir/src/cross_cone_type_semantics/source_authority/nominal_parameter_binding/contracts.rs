@@ -1,13 +1,12 @@
 use super::*;
 
 pub(super) fn validate(
-    callables: &BoundInheritanceProtectedCallableSourcesV1<'_, '_>,
-    constructors: &BoundInheritanceConstructorSourcesV1<'_, '_>,
-    protocol: &InheritanceSourceParameterProtocolV1,
+    members: &BoundNominalMemberSourcesV1<'_, '_, '_>,
+    constructors: &BoundNominalConstructorSourcesV1<'_, '_, '_>,
+    protocol: &NominalSourceParameterProtocolV1,
     array: PersistentGenericTypeId,
     meter: &mut BudgetMeter,
-) -> Result<(), InheritanceParameterBindingError> {
-    use InheritanceParameterBindingError as Error;
+) -> Result<(), Error> {
     let owner = protocol.owner();
     let (expected, access) = match owner {
         CallableTemplateOrigin::Constructor(id) => {
@@ -15,15 +14,17 @@ pub(super) fn validate(
             let record = constructors.constructor_source(id)?;
             (record.payload().parameters(), record.declaration_access())
         }
-        CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::GenericFunction(_) => {
-            query(callables.table().records().len(), meter)?;
-            let record = callables.callable_source(owner)?;
+        CallableTemplateOrigin::Function(_)
+        | CallableTemplateOrigin::GenericFunction(_)
+        | CallableTemplateOrigin::VariantConstructor(_) => {
+            query(members.callables().records().len(), meter)?;
+            let record = members.callable_source(owner)?;
             (record.payload().parameters(), record.declaration_access())
         }
-        _ => return Err(Error::Declaration(owner)),
+        CallableTemplateOrigin::Accessor(_) => return Err(Error::Declaration(owner)),
     };
     super::super::source_parameter_contracts::validate(
-        callables.foundation,
+        members.nominals.foundation,
         owner,
         protocol.parameters(),
         expected,

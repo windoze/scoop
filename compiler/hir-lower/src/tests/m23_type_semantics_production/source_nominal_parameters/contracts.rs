@@ -1,6 +1,9 @@
 use super::*;
 
-pub(super) fn verify(export: &hir::ExportHirOutput, table: &Table) -> String {
+pub(in crate::tests::m23_type_semantics_production) fn verify(
+    export: &hir::ExportHirOutput,
+    table: &Table,
+) -> String {
     let callable_ids = table
         .records()
         .iter()

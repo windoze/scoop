@@ -1,0 +1,3 @@
+public class Other public constructor(value: Int = 10) {
+    public fun accept(value: Int = 11): Int = value
+}

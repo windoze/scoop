@@ -8,7 +8,7 @@ use hir::{
 use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{decode_canonical, encode};
 
-mod contracts;
+pub(super) mod contracts;
 mod rejection;
 mod varargs;
 mod wire;

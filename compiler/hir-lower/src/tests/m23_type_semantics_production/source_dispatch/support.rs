@@ -40,25 +40,41 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
+    with_hir_sources(&[(path, source)], run)
+}
+
+pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
+    sources: &[(&str, &str)],
+    run: impl FnOnce(
+        &hir::OrdinaryHirOutput<'_>,
+        &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> T {
     let core = trusted_core();
-    let identity = test_source_identity(path);
+    let (first, rest) = sources.split_first().expect("nonempty fixture sources");
+    let parsed = |(path, source): &(&str, &str)| {
+        ast::IdentifiedParsedSource::new(
+            test_source_identity(path),
+            scoop_parser::parse(source).unwrap(),
+        )
+    };
+    let text = |(path, source): &(&str, &str)| {
+        ast::CurrentSourceText::new(test_source_identity(path), (*source).to_owned())
+    };
+    let context = |(path, _): &(&str, &str)| {
+        ast::CurrentSourceDiagnosticContext::new(
+            test_source_identity(path),
+            std::path::PathBuf::from(path),
+        )
+    };
     let ordinary = ast::CurrentConeParsedSources::try_new(
         ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
-            ast::IdentifiedParsedSource::new(
-                identity.clone(),
-                scoop_parser::parse(source).unwrap(),
-            ),
-            Vec::new(),
+            parsed(first),
+            rest.iter().map(parsed).collect(),
         ))
         .unwrap(),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceText::new(identity.clone(), source.to_owned()),
-            Vec::new(),
-        ),
-        ast::NonEmptyVec::new(
-            ast::CurrentSourceDiagnosticContext::new(identity, std::path::PathBuf::from(path)),
-            Vec::new(),
-        ),
+        ast::NonEmptyVec::new(text(first), rest.iter().map(text).collect()),
+        ast::NonEmptyVec::new(context(first), rest.iter().map(context).collect()),
     )
     .unwrap();
     let core_inputs = core

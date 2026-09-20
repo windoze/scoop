@@ -10,7 +10,7 @@ use scoop_identity::{
 
 mod corruption;
 mod inventories;
-mod support;
+pub(super) mod support;
 use support::*;
 
 const SOURCE: &str = include_str!(concat!(

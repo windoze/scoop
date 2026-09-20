@@ -9,6 +9,7 @@ mod dispatch_binding;
 mod inheritance;
 mod nominal_constructors;
 mod nominal_members;
+mod nominal_parameters;
 mod nominals;
 mod parameters;
 mod properties;

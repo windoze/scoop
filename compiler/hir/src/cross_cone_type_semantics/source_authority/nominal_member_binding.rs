@@ -34,7 +34,7 @@ pub struct BoundNominalMemberSourcesV1<'s, 'a, 'f> {
     callable_keys: BTreeMap<CallableTemplateOrigin, &'f SourceDeclarationKey>,
     constants: BTreeMap<PersistentPropertyId, ConstPropertyDeclarationSourceV1>,
     proofs: BTreeMap<PersistentPropertyId, NominalMemberPropertyProofV1>,
-    core: &'s ImportedCoreFundamentalTypeProtocol,
+    pub(super) core: &'s ImportedCoreFundamentalTypeProtocol,
 }
 impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
     pub fn bind_member_sources<'s>(

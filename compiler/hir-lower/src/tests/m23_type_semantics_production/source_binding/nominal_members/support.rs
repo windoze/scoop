@@ -1,13 +1,16 @@
 use super::*;
 
 #[derive(Clone)]
-pub(super) struct Sources {
+pub(in crate::tests::m23_type_semantics_production::source_binding) struct Sources {
     pub nominals: hir::CanonicalNominalSourceContractsV1,
     pub properties: Properties,
     pub callables: Callables,
 }
 impl Sources {
-    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(in crate::tests::m23_type_semantics_production::source_binding) fn from_output(
+        output: &hir::OrdinaryHirOutput<'_>,
+        fixture: &mut Fixture,
+    ) -> Self {
         macro_rules! restore {
             ($source:expr, $decoded:ty) => {{
                 let source = $source;

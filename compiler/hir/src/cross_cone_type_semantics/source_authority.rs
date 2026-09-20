@@ -20,6 +20,11 @@ pub use property_binding::*;
 mod protected_binding;
 pub use protected_binding::*;
 
+mod source_parameter_contracts;
+pub use source_parameter_contracts::SourceParameterContractError;
+mod nominal_parameter_binding;
+pub use nominal_parameter_binding::*;
+
 mod parameter_binding;
 pub use parameter_binding::*;
 
