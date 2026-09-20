@@ -141,6 +141,11 @@ impl TryFrom<NominalSupportNestedInterfaceV1> for ProtectedNestedNominalInterfac
     }
 }
 impl ProtectedNestedNominalInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics) const fn source_record(
+        &self,
+    ) -> &NominalSupportNestedInterfaceV1 {
+        &self.source
+    }
     pub fn try_new(
         declaration: SourceNominalId,
         declaration_access: DeclarationAccessSourceV1,

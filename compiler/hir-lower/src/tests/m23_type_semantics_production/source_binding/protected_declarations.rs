@@ -7,6 +7,7 @@ use hir::{
 };
 use scoop_identity::CallableTemplateOrigin;
 
+mod binding;
 mod rejection;
 mod support;
 use support::*;
@@ -20,6 +21,7 @@ const SOURCE: &str = include_str!(concat!(
 fn complete_protected_production_roundtrips_and_matches_independent_sources() {
     for source in [
         SOURCE,
+        "public class Plain {}",
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../tests/fixtures/m23-type-source-nominals/nested-binding.scoop"
@@ -78,6 +80,19 @@ fn complete_protected_production_roundtrips_and_matches_independent_sources() {
                 assert_eq!(protocols.records().iter().map(|r| r.owner()).collect::<BTreeSet<_>>(), owners);
                 for protocol in protocols.records() {
                     authority.validate_source_protocol(protocol, &mut meter()).unwrap();
+                }
+                let checked = authority.validate_protected_declarations(
+                    &declarations, &protocols, &fixture.source.entries().representations, &mut meter(),
+                ).unwrap();
+                assert_eq!(checked.provider(), fixture.source.entries().provider);
+                assert!(std::ptr::eq(checked.members(), members));
+                assert!(std::ptr::eq(checked.constructors(), constructors));
+                assert!(std::ptr::eq(checked.parameter_sources(), &sources.protocols));
+                assert!(std::ptr::eq(checked.table(), &declarations));
+                assert!(std::ptr::eq(checked.representations(), &fixture.source.entries().representations));
+                assert_eq!(checked.protocols().map(|r| r.record().owner()).collect::<BTreeSet<_>>(), owners);
+                for protocol in protocols.records() {
+                    assert_eq!(checked.protocol(protocol.owner()).unwrap().record(), protocol);
                 }
                 if source == SOURCE {
                     assert_eq!(outline(&foundation, &declarations), include_str!(concat!(env!("CARGO_MANIFEST_DIR"),

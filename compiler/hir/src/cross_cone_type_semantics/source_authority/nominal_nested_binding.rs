@@ -79,7 +79,7 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         Ok(checked)
     }
 }
-fn compare<T: WireEncode + PartialEq>(
+pub(super) fn compare<T: WireEncode + PartialEq>(
     actual: &T,
     expected: &T,
     declaration: NestedSupportDeclarationV1,
@@ -97,7 +97,7 @@ fn compare<T: WireEncode + PartialEq>(
     }
     Ok(())
 }
-fn query(length: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
+pub(super) fn query(length: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
     meter.charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())?;
     Ok(())
 }

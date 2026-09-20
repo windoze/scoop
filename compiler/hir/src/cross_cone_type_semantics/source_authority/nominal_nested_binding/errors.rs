@@ -58,7 +58,7 @@ impl NominalNestedBindingError {
             other => Self::Concrete(Box::new(other)),
         }
     }
-    pub(super) fn from_protocol(
+    pub(in crate::cross_cone_type_semantics::source_authority) fn from_protocol(
         error: ProtectedSourceSemanticError<NominalParameterBindingError>,
     ) -> Self {
         match error {

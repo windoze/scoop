@@ -1,6 +1,7 @@
 public open class Surface protected constructor(seed: Int = 1) {
     protected open fun execute(value: Int = 2): Int = value
     protected fun <T> identity(value: T): T = value
+    public fun publicOnly(): Int = 9
     protected var state: Int
         get() = 0
         private set(value) {}
