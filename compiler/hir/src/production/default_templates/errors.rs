@@ -42,6 +42,7 @@ pub enum DefaultTemplateProductionError {
 
 #[derive(Debug)]
 pub enum DefaultTemplateEnvelopeProjectionError {
+    Resource(scoop_wire::WireError),
     UnknownDefaultSource(u32),
     UnknownDefaultExpression(u32),
     Provider(DefaultEntityProjectionError),
@@ -74,6 +75,7 @@ pub enum DefaultTemplateEnvelopeProjectionError {
 
 #[derive(Debug)]
 pub enum DefaultEntityProjectionError {
+    Resource(scoop_wire::WireError),
     Unknown { kind: &'static str, index: u32 },
     MissingIdentity { kind: &'static str, index: u32 },
     UnsupportedFunctionIdentity { function: u32 },
@@ -89,6 +91,7 @@ pub enum DefaultEntityProjectionError {
 
 #[derive(Debug)]
 pub enum DefaultBodyProjectionError {
+    Resource(scoop_wire::WireError),
     Entity(DefaultEntityProjectionError),
     Signature(HirInterfaceSignatureProjectionError),
     DefinitionOrigin(HirDefinitionSourceProjectionError),
@@ -165,5 +168,23 @@ impl From<HirDefinitionSourceProjectionError> for DefaultBodyProjectionError {
 impl From<DefaultEntityProjectionError> for DefaultReferenceProjectionError {
     fn from(source: DefaultEntityProjectionError) -> Self {
         Self::Entity(source)
+    }
+}
+
+impl From<scoop_wire::WireError> for DefaultTemplateEnvelopeProjectionError {
+    fn from(source: scoop_wire::WireError) -> Self {
+        Self::Resource(source)
+    }
+}
+
+impl From<scoop_wire::WireError> for DefaultEntityProjectionError {
+    fn from(source: scoop_wire::WireError) -> Self {
+        Self::Resource(source)
+    }
+}
+
+impl From<scoop_wire::WireError> for DefaultBodyProjectionError {
+    fn from(source: scoop_wire::WireError) -> Self {
+        Self::Resource(source)
     }
 }

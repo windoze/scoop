@@ -1,0 +1,13 @@
+public fun direct(value: Int = 1): Int = value
+public struct Value(val field: Int = 2)
+public enum Choice { None, Item(val value: Int = 3) }
+public open class Base protected constructor(seed: Int = 4) {
+    protected open fun choose(seed: Int, value: Int = seed): Int = value
+    private fun hidden(value: String = "independent-private-default"): String = value
+    protected fun callback(seed: String, value: () -> String = { seed }): () -> String = value
+    protected fun <T> generic(seed: T, value: T = seed): T = value
+    protected fun branch(value: Int = if (true) { 5 } else { 6 }): Int = value
+}
+public class Child: Base(1) {
+    protected final override fun choose(seed: Int, value: Int): Int = value
+}

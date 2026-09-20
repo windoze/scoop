@@ -1,0 +1,6 @@
+public interface GenericParent<P> {
+    public fun choose(seed: P, value: P = seed): P
+}
+public class GenericChild<T>: GenericParent<(T, T)> {
+    public override fun choose(seed: (T, T), value: (T, T)): (T, T) = value
+}

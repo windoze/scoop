@@ -56,6 +56,7 @@ impl fmt::Display for DefaultTemplateProductionError {
 impl fmt::Display for DefaultTemplateEnvelopeProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::UnknownDefaultSource(source) => {
                 write!(formatter, "default source {source} is unknown")
             }
@@ -99,6 +100,7 @@ impl fmt::Display for DefaultTemplateEnvelopeProjectionError {
 impl fmt::Display for DefaultEntityProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Unknown { kind, index } => {
                 write!(formatter, "default body references unknown {kind} {index}")
             }
@@ -140,6 +142,7 @@ impl fmt::Display for DefaultEntityProjectionError {
 impl fmt::Display for DefaultBodyProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
             Self::Entity(source) => source.fmt(formatter),
             Self::Signature(source) => source.fmt(formatter),
             Self::DefinitionOrigin(source) => source.fmt(formatter),

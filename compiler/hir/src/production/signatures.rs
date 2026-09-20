@@ -1,6 +1,8 @@
 //! Shared projection of HIR types and type-parameter binders into public
 //! cross-Cone signatures.
 
+pub(super) mod resources;
+
 use std::fmt;
 
 use scoop_identity::{CanonicalIdentifier, CanonicalIdentifierError, SignatureTypeKey};

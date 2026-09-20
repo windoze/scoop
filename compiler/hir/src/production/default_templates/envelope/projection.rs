@@ -7,6 +7,7 @@ use super::scope::provider_scope;
 use crate::*;
 use scoop_identity::{SignatureTypeKey, StructuralDefinitionPath};
 
+#[derive(Debug)]
 pub(in crate::production::default_templates) struct ProjectedDefaultBody<'a> {
     pub root: PersistentLexicalRootV1,
     pub path: StructuralDefinitionPath,
@@ -24,10 +25,11 @@ pub(in crate::production::default_templates) struct ProjectedDefaultBody<'a> {
 
 pub(in crate::production::default_templates) fn project_body<'a>(
     export: &'a ExportHir,
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     target_binders: &[HirSignatureBinder],
     source_id: ExportDefaultSourceId,
 ) -> Result<ProjectedDefaultBody<'a>, DefaultTemplateEnvelopeProjectionError> {
+    let _depth = entities.resources.enter::<ProjectedDefaultBody<'_>>()?;
     let source = super::super::arena_get(&export.export_default_sources, source_id).ok_or(
         DefaultTemplateEnvelopeProjectionError::UnknownDefaultSource(
             super::super::default_source_id(source_id),
@@ -59,6 +61,9 @@ pub(in crate::production::default_templates) fn project_body<'a>(
             actual: source.type_arguments.len(),
         });
     }
+    entities
+        .resources
+        .collection::<SignatureTypeKey>(source.type_arguments.len())?;
     let type_parameters = source
         .type_arguments
         .iter()
@@ -89,7 +94,7 @@ pub(in crate::production::default_templates) fn project_body<'a>(
         .map(|receiver| {
             TemplateReceiverV1::try_new(
                 locals
-                    .selector(receiver.local)
+                    .selector(receiver.local, &entities.resources)
                     .map_err(DefaultTemplateEnvelopeProjectionError::Body)?,
                 entities
                     .type_key(receiver.ty, &provider.binders)
@@ -100,13 +105,16 @@ pub(in crate::production::default_templates) fn project_body<'a>(
         })
         .transpose()?
         .unwrap_or(OptionalTemplateReceiverV1::Absent);
+    entities
+        .resources
+        .collection::<TemplateValueParameterV1>(template.value_parameters.len())?;
     let mut value_parameters = Vec::with_capacity(template.value_parameters.len());
     for (index, parameter) in template.value_parameters.iter().enumerate() {
         value_parameters.push(
             TemplateValueParameterV1::try_new(
                 parameter.position,
                 locals
-                    .selector(parameter.local)
+                    .selector(parameter.local, &entities.resources)
                     .map_err(DefaultTemplateEnvelopeProjectionError::Body)?,
             )
             .map_err(|source| {
@@ -116,6 +124,8 @@ pub(in crate::production::default_templates) fn project_body<'a>(
     }
     let value_parameters = CanonicalTemplateValueParametersV1::try_new(value_parameters)
         .map_err(DefaultTemplateEnvelopeProjectionError::ValueParameters)?;
+    entities.resources.path(&template.definition_path)?;
+    entities.charge_origin(template.origin)?;
     let definition_origin =
         crate::production::definition_sources::project_definition_source(export, template.origin)
             .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?;

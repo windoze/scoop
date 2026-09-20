@@ -11,8 +11,8 @@ use crate::{
     PublicLookupAccessV1,
 };
 
-pub(super) struct ReferenceProjection<'a, 'hir, 'core> {
-    pub(super) entities: &'a DefaultEntityProjector<'hir, 'core>,
+pub(super) struct ReferenceProjection<'a, 'hir, 'core, 'meter> {
+    pub(super) entities: &'a DefaultEntityProjector<'hir, 'core, 'meter>,
     pub(super) source_owner: CallableTemplateOrigin,
     pub(super) source_access: PublicLookupAccessV1,
     pub(super) target_owner: CallableTemplateOrigin,
@@ -21,7 +21,7 @@ pub(super) struct ReferenceProjection<'a, 'hir, 'core> {
 }
 
 pub(super) fn project(
-    projection: &ReferenceProjection<'_, '_, '_>,
+    projection: &ReferenceProjection<'_, '_, '_, '_>,
     references: &ExportDefaultReferences,
 ) -> Result<ExportDefaultReferenceSetV1, super::DefaultReferenceProjectionError> {
     let mut callables = Vec::with_capacity(references.callables.len());
@@ -151,7 +151,7 @@ fn canonicalize<T: Ord>(records: &mut Vec<T>) {
 }
 
 fn callable_target(
-    projection: &ReferenceProjection<'_, '_, '_>,
+    projection: &ReferenceProjection<'_, '_, '_, '_>,
     target: ExportDefaultCallableTarget,
 ) -> Result<ExportDefaultCallableTargetV1, super::DefaultReferenceProjectionError> {
     let entities = projection.entities;
@@ -239,7 +239,7 @@ fn callable_target(
 }
 
 fn witness(
-    projection: &ReferenceProjection<'_, '_, '_>,
+    projection: &ReferenceProjection<'_, '_, '_, '_>,
     witness: &ExportDefaultAccessWitness,
     kind: ExportDefaultReferenceKindV1,
     index: usize,
@@ -276,7 +276,7 @@ fn witness(
 }
 
 fn owner(
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     owner: crate::ExportParameterOwner,
 ) -> Result<CallableTemplateOrigin, super::DefaultReferenceProjectionError> {
     Ok(match owner {

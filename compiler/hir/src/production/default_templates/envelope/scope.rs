@@ -6,15 +6,15 @@ use crate::{
     TypeParamId,
 };
 
-pub(super) struct ProviderScope {
-    pub(super) root: PersistentLexicalRootV1,
-    pub(super) binders: Vec<HirSignatureBinder>,
-    pub(super) flattened: Vec<TypeParamId>,
+pub(in crate::production::default_templates) struct ProviderScope {
+    pub(in crate::production::default_templates) root: PersistentLexicalRootV1,
+    pub(in crate::production::default_templates) binders: Vec<HirSignatureBinder>,
+    pub(in crate::production::default_templates) flattened: Vec<TypeParamId>,
 }
 
-pub(super) fn provider_scope(
+pub(in crate::production::default_templates) fn provider_scope(
     export: &ExportHir,
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     root: crate::LexicalDefinitionRoot,
 ) -> Result<ProviderScope, DefaultTemplateEnvelopeProjectionError> {
     let signatures = HirInterfaceSignatureProjector::new(export);
@@ -28,6 +28,21 @@ pub(super) fn provider_scope(
                     },
                 ),
             )?;
+            let count = match &function.genericity {
+                FunctionGenericity::Plain => 0,
+                FunctionGenericity::Generic { parameters, .. } => parameters.len(),
+                FunctionGenericity::OwnerParameterizedMethod {
+                    owner_parameters, ..
+                } => owner_parameters.len(),
+                FunctionGenericity::GenericMethod {
+                    owner_parameters,
+                    method_parameters,
+                    ..
+                } => owner_parameters
+                    .len()
+                    .saturating_add(method_parameters.len()),
+            };
+            charge_binders(entities, count)?;
             let binders = signatures
                 .function_binders(function)
                 .map_err(DefaultTemplateEnvelopeProjectionError::Signature)?;
@@ -51,6 +66,7 @@ pub(super) fn provider_scope(
                     },
                 ),
             )?;
+            charge_binders(entities, owner.type_params.len())?;
             (
                 signatures
                     .binder_frame(&owner.type_params, 0)
@@ -75,6 +91,7 @@ pub(super) fn provider_scope(
                     },
                 ),
             )?;
+            charge_binders(entities, owner.type_params.len())?;
             (
                 signatures
                     .binder_frame(&owner.type_params, 0)
@@ -91,6 +108,7 @@ pub(super) fn provider_scope(
                     },
                 ),
             )?;
+            charge_binders(entities, enumeration.type_params.len())?;
             (
                 signatures
                     .binder_frame(&enumeration.type_params, 0)
@@ -129,4 +147,12 @@ fn flattened_function_parameters(genericity: &FunctionGenericity) -> Vec<TypePar
 
 fn parameter_ids(parameters: &[TypeParamDecl]) -> Vec<TypeParamId> {
     parameters.iter().map(|parameter| parameter.id).collect()
+}
+
+fn charge_binders(
+    entities: &DefaultEntityProjector<'_, '_, '_>,
+    count: usize,
+) -> Result<(), scoop_wire::WireError> {
+    entities.resources.collection::<HirSignatureBinder>(count)?;
+    entities.resources.collection::<TypeParamId>(count)
 }

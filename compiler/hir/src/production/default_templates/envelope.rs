@@ -8,11 +8,11 @@ use crate::{
 };
 
 pub(super) mod projection;
-mod scope;
+pub(super) mod scope;
 
 pub(super) fn project(
     export: &ExportHir,
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     callables: &CanonicalCallableInterfacesV1,
     owner: &super::SourceCallableOwner,
     position: u32,
@@ -29,7 +29,7 @@ pub(super) fn project(
 
 fn project_inner(
     export: &ExportHir,
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     callables: &CanonicalCallableInterfacesV1,
     owner: &super::SourceCallableOwner,
     key: ExportDefaultTemplateKeyV1,

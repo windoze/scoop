@@ -7,11 +7,13 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_> {
+impl BodyProjection<'_, '_, '_, '_> {
     pub(super) fn pattern(
         &mut self,
         pattern: &Pattern,
     ) -> Result<DefaultPatternV1, super::super::DefaultBodyProjectionError> {
+        let entities = self.entities;
+        let _depth = entities.resources.enter::<DefaultPatternV1>()?;
         match pattern {
             Pattern::Binding { local } => Ok(DefaultPatternV1::binding(self.local(*local)?)),
             Pattern::Wildcard => Ok(DefaultPatternV1::wildcard()),
@@ -20,7 +22,7 @@ impl BodyProjection<'_, '_> {
                 equality,
                 subject_ty,
             } => Ok(DefaultPatternV1::literal(
-                literal_value(value)?,
+                literal_value(value, &self.entities.resources)?,
                 self.literal_equality(*equality)?,
                 self.type_key(*subject_ty)?,
             )),
@@ -46,6 +48,9 @@ impl BodyProjection<'_, '_> {
                 .map_err(super::super::DefaultBodyProjectionError::Pattern)
             }
             Pattern::Tuple(elements) => {
+                self.entities
+                    .resources
+                    .collection::<DefaultPatternV1>(elements.len())?;
                 let elements = elements
                     .iter()
                     .map(|element| self.pattern(element))
@@ -78,6 +83,10 @@ impl BodyProjection<'_, '_> {
         &mut self,
         fields: &[(u32, Pattern)],
     ) -> Result<Vec<DefaultPatternFieldV1>, super::super::DefaultBodyProjectionError> {
+        self.entities.resources.sort(fields.len())?;
+        self.entities
+            .resources
+            .collection::<DefaultPatternFieldV1>(fields.len())?;
         fields
             .iter()
             .map(|(index, pattern)| {
@@ -107,9 +116,13 @@ impl BodyProjection<'_, '_> {
 
 fn literal_value(
     expression: &crate::Expr,
+    resources: &super::super::resources::ProjectionResources<'_>,
 ) -> Result<CanonicalConstValueV1, super::super::DefaultBodyProjectionError> {
     match &expression.kind {
-        ExprKind::StringLiteral { value, .. } => Ok(CanonicalConstValueV1::String(value.clone())),
+        ExprKind::StringLiteral { value, .. } => {
+            resources.leaf(value.len())?;
+            Ok(CanonicalConstValueV1::String(value.clone()))
+        }
         ExprKind::IntegerLiteral(value) => Ok(CanonicalConstValueV1::Integer((*value).into())),
         ExprKind::BoolLiteral(value) => Ok(CanonicalConstValueV1::Boolean(
             CanonicalBooleanV1::from(*value),

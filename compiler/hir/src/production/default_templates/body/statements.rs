@@ -11,11 +11,13 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_> {
+impl BodyProjection<'_, '_, '_, '_> {
     pub(super) fn statement(
         &mut self,
         statement: &Statement,
     ) -> Result<DefaultStatementV1, super::super::DefaultBodyProjectionError> {
+        let entities = self.entities;
+        let _depth = entities.resources.enter::<DefaultStatementV1>()?;
         let kind = self.statement_kind(&statement.kind)?;
         DefaultStatementV1::try_new(kind, self.span_origin(statement.span)?)
             .map_err(super::super::DefaultBodyProjectionError::Statement)
@@ -70,6 +72,7 @@ impl BodyProjection<'_, '_> {
                 cond,
                 body,
             } => {
+                self.entities.resources.collection::<crate::LoopId>(1)?;
                 self.loops.push(*target);
                 let projected: Result<_, super::super::DefaultBodyProjectionError> = (|| {
                     Ok(DefaultStatementKindV1::While {
@@ -142,6 +145,9 @@ impl BodyProjection<'_, '_> {
         when: &crate::When,
     ) -> Result<DefaultWhenV1, super::super::DefaultBodyProjectionError> {
         let subject = self.expression(&when.subject)?;
+        self.entities
+            .resources
+            .collection::<DefaultWhenArmV1>(when.arms.len())?;
         let mut arms = Vec::with_capacity(when.arms.len());
         for arm in &when.arms {
             let guard = match &arm.guard {
@@ -206,6 +212,9 @@ impl BodyProjection<'_, '_> {
         try_: &crate::Try,
     ) -> Result<DefaultTryV1, super::super::DefaultBodyProjectionError> {
         let body = self.statements(&try_.body)?;
+        self.entities
+            .resources
+            .collection::<DefaultCatchV1>(try_.catches.len())?;
         let mut catches = Vec::with_capacity(try_.catches.len());
         for catch in &try_.catches {
             catches.push(

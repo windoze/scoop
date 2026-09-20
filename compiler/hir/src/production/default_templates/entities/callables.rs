@@ -10,7 +10,7 @@ use crate::{
     MethodOwnerApplication, TypeId,
 };
 
-impl DefaultEntityProjector<'_, '_> {
+impl DefaultEntityProjector<'_, '_, '_> {
     pub(in crate::production::default_templates) fn callable(
         &self,
         callable: Callable,
@@ -30,7 +30,15 @@ impl DefaultEntityProjector<'_, '_> {
                         kind: "generic function",
                         index: super::super::raw_index(application.generic),
                     })?;
-                (generic.function, None, application.type_args.clone())
+                (
+                    generic.function,
+                    None,
+                    self.type_arguments(
+                        application.type_args.iter(),
+                        application.type_args.len(),
+                        binders,
+                    )?,
+                )
             }
             Callable::Method(application_id) => {
                 let application = arena_get(&self.export.method_applications, application_id)
@@ -61,21 +69,33 @@ impl DefaultEntityProjector<'_, '_> {
                 (
                     method.function,
                     Some(self.generic_method_owner_type(application.owner)?),
-                    application.method_arguments.to_vec(),
+                    self.type_arguments(
+                        application.method_arguments.iter(),
+                        application.method_arguments.len(),
+                        binders,
+                    )?,
                 )
             }
         };
         let owner = owner.map(|ty| self.type_key(ty, binders)).transpose()?;
-        let arguments = arguments
-            .into_iter()
-            .map(|ty| self.type_key(ty, binders))
-            .collect::<Result<Vec<_>, _>>()?;
         DefaultCallableRefV1::try_new(
             self.callable_declaration(function)?,
             OptionalSignatureType::from_option(owner),
             arguments,
         )
         .map_err(super::super::DefaultEntityProjectionError::Callable)
+    }
+
+    fn type_arguments<'a>(
+        &self,
+        arguments: impl Iterator<Item = &'a TypeId>,
+        count: usize,
+        binders: &[HirSignatureBinder],
+    ) -> Result<Vec<scoop_identity::SignatureTypeKey>, super::super::DefaultEntityProjectionError>
+    {
+        self.resources
+            .collection::<scoop_identity::SignatureTypeKey>(count)?;
+        arguments.map(|&ty| self.type_key(ty, binders)).collect()
     }
 
     pub(in crate::production::default_templates) fn imported_callable(

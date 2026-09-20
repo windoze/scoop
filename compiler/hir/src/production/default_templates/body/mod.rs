@@ -14,7 +14,7 @@ mod patterns;
 mod statements;
 
 pub(super) fn project(
-    entities: &DefaultEntityProjector<'_, '_>,
+    entities: &DefaultEntityProjector<'_, '_, '_>,
     locals: &TemplateLocalProjection,
     binders: &[HirSignatureBinder],
     template_origin: crate::DefinitionOrigin,
@@ -33,15 +33,15 @@ pub(super) fn project(
     ExportDefaultBodyV1::try_new(statements, value).map_err(super::DefaultBodyProjectionError::Body)
 }
 
-pub(super) struct BodyProjection<'a, 'core> {
-    entities: &'a DefaultEntityProjector<'a, 'core>,
+pub(super) struct BodyProjection<'a, 'hir, 'core, 'meter> {
+    entities: &'a DefaultEntityProjector<'hir, 'core, 'meter>,
     locals: &'a TemplateLocalProjection,
     binders: &'a [HirSignatureBinder],
     template_origin: crate::DefinitionOrigin,
     loops: Vec<crate::LoopId>,
 }
 
-impl BodyProjection<'_, '_> {
+impl BodyProjection<'_, '_, '_, '_> {
     pub(super) fn type_key(
         &self,
         ty: TypeId,
@@ -68,13 +68,14 @@ impl BodyProjection<'_, '_> {
         &self,
         id: crate::LocalId,
     ) -> Result<LocalValueSelector, super::DefaultBodyProjectionError> {
-        self.locals.selector(id)
+        self.locals.selector(id, &self.entities.resources)
     }
 
     pub(super) fn origin(
         &self,
         origin: crate::DefinitionOrigin,
     ) -> Result<crate::ExportDefinitionSourceV1, super::DefaultBodyProjectionError> {
+        self.entities.charge_origin(origin)?;
         super::super::definition_sources::project_definition_source(self.entities.export(), origin)
             .map_err(Into::into)
     }
@@ -93,6 +94,9 @@ impl BodyProjection<'_, '_> {
         &mut self,
         statements: &[crate::Statement],
     ) -> Result<Vec<DefaultStatementV1>, super::DefaultBodyProjectionError> {
+        self.entities
+            .resources
+            .collection::<DefaultStatementV1>(statements.len())?;
         statements
             .iter()
             .map(|statement| self.statement(statement))
@@ -103,6 +107,9 @@ impl BodyProjection<'_, '_> {
         &mut self,
         expressions: &[crate::Expr],
     ) -> Result<Vec<DefaultExpressionV1>, super::DefaultBodyProjectionError> {
+        self.entities
+            .resources
+            .collection::<DefaultExpressionV1>(expressions.len())?;
         expressions
             .iter()
             .map(|expression| self.expression(expression))

@@ -9,11 +9,13 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_> {
+impl BodyProjection<'_, '_, '_, '_> {
     pub(super) fn expression(
         &mut self,
         expression: &Expr,
     ) -> Result<DefaultExpressionV1, super::super::DefaultBodyProjectionError> {
+        let entities = self.entities;
+        let _depth = entities.resources.enter::<DefaultExpressionV1>()?;
         let kind = self.expression_kind(&expression.kind)?;
         DefaultExpressionV1::try_new(
             kind,
@@ -28,17 +30,20 @@ impl BodyProjection<'_, '_> {
         kind: &ExprKind,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
-            ExprKind::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
-                value: value.clone(),
-                owner: match owner {
-                    StringConstantOwner::CurrentDefinition => {
-                        DefaultStringOwnerV1::CurrentInstantiation
-                    }
-                    StringConstantOwner::Property(property) => {
-                        DefaultStringOwnerV1::Property(self.entities.property_id(*property)?)
-                    }
-                },
-            },
+            ExprKind::StringLiteral { value, owner } => {
+                self.entities.resources.leaf(value.len())?;
+                DefaultExpressionKindV1::StringLiteral {
+                    value: value.clone(),
+                    owner: match owner {
+                        StringConstantOwner::CurrentDefinition => {
+                            DefaultStringOwnerV1::CurrentInstantiation
+                        }
+                        StringConstantOwner::Property(property) => {
+                            DefaultStringOwnerV1::Property(self.entities.property_id(*property)?)
+                        }
+                    },
+                }
+            }
             ExprKind::IntegerLiteral(value) => {
                 DefaultExpressionKindV1::IntegerLiteral((*value).into())
             }

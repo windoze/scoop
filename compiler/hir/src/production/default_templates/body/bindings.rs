@@ -10,7 +10,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_> {
+impl BodyProjection<'_, '_, '_, '_> {
     pub(super) fn binding_temporary(
         &self,
         temporary: BindingTemporary,
@@ -36,12 +36,17 @@ impl BodyProjection<'_, '_> {
         &self,
         shape: &IrrefutableBindingShape,
     ) -> Result<DefaultBindingShapeV1, super::super::DefaultBodyProjectionError> {
+        let entities = self.entities;
+        let _depth = entities.resources.enter::<DefaultBindingShapeV1>()?;
         match shape {
             IrrefutableBindingShape::Binding(leaf) => {
                 Ok(DefaultBindingShapeV1::binding(self.binding_leaf(*leaf)?))
             }
             IrrefutableBindingShape::Wildcard => Ok(DefaultBindingShapeV1::wildcard()),
             IrrefutableBindingShape::Tuple(elements) => {
+                self.entities
+                    .resources
+                    .collection::<DefaultBindingShapeV1>(elements.len())?;
                 let elements = elements
                     .iter()
                     .map(|element| self.binding_shape(element))
@@ -61,6 +66,10 @@ impl BodyProjection<'_, '_> {
                     kind: "binding struct application",
                     index: super::super::raw_index(*application),
                 })?;
+                self.entities.resources.sort(fields.len())?;
+                self.entities
+                    .resources
+                    .collection::<DefaultBindingStructFieldV1>(fields.len())?;
                 let fields = fields
                     .iter()
                     .map(|(field, shape)| {
@@ -84,6 +93,10 @@ impl BodyProjection<'_, '_> {
                     kind: "binding class application",
                     index: super::super::raw_index(*application),
                 })?;
+                self.entities.resources.sort(components.len())?;
+                self.entities
+                    .resources
+                    .collection::<DefaultBindingClassComponentV1>(components.len())?;
                 let components = components
                     .iter()
                     .map(|(index, shape)| {
@@ -163,6 +176,9 @@ impl BodyProjection<'_, '_> {
         &mut self,
         plan: &IrrefutableBindingPlan,
     ) -> Result<DefaultBindingPlanV1, super::super::DefaultBodyProjectionError> {
+        self.entities
+            .resources
+            .collection::<DefaultBindingActionV1>(plan.actions.len())?;
         let actions = plan
             .actions
             .iter()

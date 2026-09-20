@@ -1,0 +1,10 @@
+Base.branch[0]: locals=2, statements=1, binders=0, inherited=false
+Base.callback[1]: locals=2, statements=0, binders=0, inherited=false
+Base.choose[1]: locals=2, statements=0, binders=0, inherited=false
+Base.constructor[0]: locals=0, statements=0, binders=0, inherited=false
+Base.generic[1]: locals=2, statements=0, binders=1, inherited=false
+Base.hidden[0]: locals=1, statements=0, binders=0, inherited=false
+Child.choose[1]: locals=2, statements=0, binders=0, inherited=true
+Choice.Item[0]: locals=0, statements=0, binders=0, inherited=false
+Value.constructor[0]: locals=0, statements=0, binders=0, inherited=false
+direct[0]: locals=0, statements=0, binders=0, inherited=false
