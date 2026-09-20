@@ -54,3 +54,6 @@ pub use default_access::*;
 
 mod default_references;
 pub use default_references::*;
+
+mod default_template;
+pub use default_template::*;

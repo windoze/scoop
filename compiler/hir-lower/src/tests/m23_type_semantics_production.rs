@@ -18,6 +18,7 @@ mod source_constructors;
 mod source_default_access;
 mod source_default_bodies;
 mod source_default_references;
+mod source_default_templates;
 mod source_dispatch;
 mod source_foundation;
 mod source_inventory;

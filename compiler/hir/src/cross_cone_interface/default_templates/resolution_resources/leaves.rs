@@ -2,7 +2,7 @@ use scoop_identity::{
     DecodedCallableTemplateOrigin, DecodedOptionalSignatureType, DecodedPersistentId,
     DecodedSignatureTypeKey, LocalValueSelector, PersistentId, StructuralDefinitionPath,
 };
-use scoop_wire::{WireError, WireErrorKind, WirePath, encoded_length};
+use scoop_wire::{WireError, WirePath};
 
 use super::{ResolutionNode, ResourceChildren};
 use crate::{
@@ -76,19 +76,14 @@ impl ResolutionNode for DecodedOptionalSignatureType {
         }
     }
 }
-macro_rules! encoded_leaf {
-    ($($target:ty),* $(,)?) => { $(
-        impl ResolutionNode for $target {
-            fn children<'a>(&'a self, children: &mut ResourceChildren<'a, '_>) -> Result<(), WireError> {
-                let bytes = encoded_length(self).map_err(|_| WireError::new(
-                    WireErrorKind::IntegerOutOfRange, WirePath::root(), None,
-                ))?;
-                children.leaf_bytes(bytes)
-            }
+impl ResolutionNode for DecodedExportDefinitionSourceV1 {
+    fn children<'a>(&'a self, children: &mut ResourceChildren<'a, '_>) -> Result<(), WireError> {
+        for _ in 0..children.copies {
+            self.charge_resolution_at(children.meter, &WirePath::root(), children.depth)?;
         }
-    )* };
+        Ok(())
+    }
 }
-encoded_leaf!(DecodedExportDefinitionSourceV1);
 
 impl ResolutionNode for StructuralDefinitionPath {
     fn children<'a>(&'a self, children: &mut ResourceChildren<'a, '_>) -> Result<(), WireError> {

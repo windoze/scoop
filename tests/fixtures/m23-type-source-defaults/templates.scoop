@@ -1,0 +1,9 @@
+private fun literal(value: String = "persisted-source"): String = value
+private fun local(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value
+public open class SourceBase protected constructor() {
+    protected open fun choose(seed: Int, value: Int = seed): Int = value
+    protected fun callback(seed: String, value: () -> String = { seed }): () -> String = value
+}
+public class SourceChild: SourceBase() {
+    protected final override fun choose(seed: Int, value: Int): Int = value
+}
