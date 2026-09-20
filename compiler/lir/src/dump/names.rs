@@ -74,6 +74,9 @@ pub(super) fn type_descriptor_ref_name(reference: TypeDescriptorRef) -> String {
     match reference {
         TypeDescriptorRef::Local(id) => format!("td{}", id.into_raw()),
         TypeDescriptorRef::CoreExternal(id) => format!("core-external-td{}", id.into_raw()),
+        TypeDescriptorRef::DependencyExternal(id) => {
+            format!("dependency-external-td{}", id.into_raw())
+        }
     }
 }
 
@@ -82,6 +85,9 @@ pub(super) fn callable_ref_name(reference: CallableRef) -> String {
         CallableRef::Local(id) => format!("local-fn{}", id.into_u32()),
         CallableRef::Runtime(function) => format!("runtime@{}", function.symbol()),
         CallableRef::CoreExternal(id) => format!("core-external-fn{}", id.into_raw()),
+        CallableRef::DependencyExternal(id) => {
+            format!("dependency-external-fn{}", id.into_raw())
+        }
     }
 }
 

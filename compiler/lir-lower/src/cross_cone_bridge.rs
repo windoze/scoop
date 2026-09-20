@@ -226,7 +226,14 @@ fn lower_selected(
             .iter()
             .map(|(_, callable)| callable),
     );
-    external.sort_unstable_by_key(|callable| (callable.provider(), callable.declaration()));
+    external.sort_unstable_by_key(|callable| {
+        (
+            callable.provider(),
+            callable
+                .legacy_declaration()
+                .expect("legacy bridge materialization retains its declaration"),
+        )
+    });
 
     if external.len() != bridge.selected().len() {
         return Err(CrossConeLirBridgeLoweringError::LirSelectionCountMismatch {
@@ -242,7 +249,7 @@ fn lower_selected(
     })?;
     for (index, (expected, actual)) in bridge.selected().iter().zip(external).enumerate() {
         if expected.provider() != actual.provider()
-            || expected.declaration() != actual.declaration()
+            || Some(expected.declaration()) != actual.legacy_declaration()
             || expected.implementation() != actual.target()
             || expected.signature() != actual.canonical_signature().signature()
         {
@@ -251,7 +258,9 @@ fn lower_selected(
         selected.push(
             lir::SelectedDependencyLirCallableV1::new(
                 actual.provider(),
-                actual.declaration(),
+                actual
+                    .legacy_declaration()
+                    .expect("legacy bridge materialization retains its declaration"),
                 actual.target(),
                 actual.canonical_signature().clone(),
                 actual.calling_convention(),

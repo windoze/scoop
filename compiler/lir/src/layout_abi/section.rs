@@ -1,7 +1,7 @@
 use super::*;
 
 mod build;
-mod dependencies;
+pub(super) mod dependencies;
 mod error;
 mod selection;
 mod source;

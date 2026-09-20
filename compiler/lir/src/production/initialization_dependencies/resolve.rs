@@ -79,6 +79,45 @@ impl StrongInitializationDefinitionCatalogV2 {
             references,
         })
     }
+
+    /// Producer-side resolution from identities already retained by the
+    /// final LIR and its checked external-use projection.
+    pub fn resolve_ids(
+        &self,
+        local_unit: PersistentInitializationUnitId,
+        dependencies: &[PersistentInitializationUnitId],
+        meter: &mut BudgetMeter,
+    ) -> Result<ResolvedInitializationDependenciesV2, InitializationDependencyResolutionError> {
+        let path = WirePath::root();
+        let mut references = Vec::new();
+        meter.try_reserve_collection_slots(&mut references, dependencies.len(), &path)?;
+        meter.charge_work((dependencies.len() as u64).saturating_mul(64), &path)?;
+        for (index, dependency) in dependencies.iter().enumerate() {
+            if index != 0 && dependencies[index - 1] >= *dependency {
+                return Err(InitializationDependencyResolutionError::NonCanonicalOrder { index });
+            }
+            if *dependency == local_unit {
+                return Err(InitializationDependencyResolutionError::SelfDependency(
+                    local_unit,
+                ));
+            }
+            let position = self
+                .definitions
+                .binary_search_by_key(dependency, StrongInitializationUnitDefinitionRefV2::unit)
+                .map_err(|_| InitializationDependencyResolutionError::UnknownUnitId(*dependency))?;
+            let definition = self.definitions[position];
+            let body = if definition.provider() == self.producer {
+                DependencyBody::Local(definition)
+            } else {
+                DependencyBody::External(definition)
+            };
+            references.push(StrongInitializationDependencyRefV2(body));
+        }
+        Ok(ResolvedInitializationDependenciesV2 {
+            local_unit,
+            references,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -116,6 +155,7 @@ pub enum InitializationDependencyResolutionError {
     NonCanonicalOrder { index: usize },
     SelfDependency(PersistentInitializationUnitId),
     UnknownUnit(DecodedPersistentId<PersistentInitializationUnitId>),
+    UnknownUnitId(PersistentInitializationUnitId),
 }
 
 impl From<WireError> for InitializationDependencyResolutionError {

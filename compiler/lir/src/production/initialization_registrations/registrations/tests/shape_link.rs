@@ -133,3 +133,126 @@ fn shape_link_reader_rejects_definition_symbol_and_semantic_tampering() {
         Err(ShapeLinkError::Header)
     ));
 }
+
+#[test]
+fn selected_initialization_import_materializes_a_typed_external_use() {
+    let fixture = ProviderFixture::new(true);
+    let unit = fixture.unit().unit();
+    let import = ExternalShapeLinkImportV1::replay(
+        &fixture.provider(),
+        Subject::InitializationDescriptor(unit),
+        ConeIdentity::CORE,
+        &consumer(),
+        &fixture.support(true),
+        &mut meter(),
+    )
+    .unwrap();
+    let terminal = layout_section(
+        empty_layout_exports(fixture.source.foundation.producer()),
+        &[],
+        Vec::new(),
+    );
+    let dependencies = [&terminal];
+    let selected = StrongProductionDependencySelectionV2::try_new(
+        ConeIdentity::CORE,
+        TARGET,
+        &dependencies,
+        vec![import],
+        &LayoutSource,
+        &mut meter(),
+    )
+    .unwrap();
+    let definition = StrongInitializationUnitDefinitionRefV2::from_registrations(
+        fixture
+            .section
+            .registration_production()
+            .initialization_units(),
+        unit,
+    )
+    .unwrap();
+    let use_record =
+        StrongExternalInitializationUseV2::try_new(unit, definition, &selected, &mut meter())
+            .unwrap();
+
+    assert_eq!(use_record.consumer(), ConeIdentity::CORE);
+    assert_eq!(use_record.provider(), fixture.source.foundation.producer());
+    assert_eq!(use_record.dependency_unit(), unit);
+}
+
+struct LayoutSource;
+
+impl LayoutAbiSectionSourceAuthorityV1<()> for LayoutSource {
+    fn validate_local_exports(
+        &self,
+        _: &LayoutAbiExportConstituentsV1,
+        _: &mut BudgetMeter,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+
+    fn committed_semantic_roots(&self) -> Result<&[LayoutAbiDependencyV1], ()> {
+        Ok(&[])
+    }
+
+    fn validate_physical_imports(
+        &self,
+        _: &[ExternalShapeLinkImportV1<'_>],
+        _: &mut BudgetMeter,
+    ) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+fn layout_section<'a>(
+    exports: LayoutAbiExportConstituentsV1,
+    dependencies: &[&'a CrossConeLayoutAbiSectionV1<'a>],
+    imports: Vec<ExternalShapeLinkImportV1<'a>>,
+) -> CrossConeLayoutAbiSectionV1<'a> {
+    CrossConeLayoutAbiSectionV1::try_new(
+        exports,
+        dependencies,
+        imports,
+        &LayoutSource,
+        &mut meter(),
+    )
+    .unwrap()
+}
+
+fn layout_exports(
+    layouts: CanonicalExactLayoutExportsV1,
+    descriptors: CanonicalExactDescriptorExportsV1,
+    dispatch: CanonicalExactDispatchExportsV1,
+    callables: CanonicalExactCallableAbiExportsV1,
+    foundation: &OdrFreeLirFoundation,
+) -> LayoutAbiExportConstituentsV1 {
+    let shape_support = CanonicalParamFreeShapeSupportExportsV1::from_sources(
+        &[],
+        &layouts,
+        &descriptors,
+        foundation,
+        &mut meter(),
+    )
+    .unwrap();
+    LayoutAbiExportConstituentsV1::try_new(layouts, descriptors, dispatch, callables, shape_support)
+        .unwrap()
+}
+
+fn empty_layout_exports(provider: ConeIdentity) -> LayoutAbiExportConstituentsV1 {
+    let foundation =
+        OdrFreeLirFoundation::try_new(provider, CanonicalLirFoundation::empty()).unwrap();
+    let layouts =
+        CanonicalExactLayoutExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
+            .unwrap();
+    let descriptors =
+        CanonicalExactDescriptorExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
+            .unwrap();
+    layout_exports(
+        layouts,
+        descriptors,
+        CanonicalExactDispatchExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
+            .unwrap(),
+        CanonicalExactCallableAbiExportsV1::try_new(TARGET, &foundation, Vec::new(), &mut meter())
+            .unwrap(),
+        &foundation,
+    )
+}

@@ -4,20 +4,33 @@ use crate::shape_definitions::{
     descriptor_itable_directory_atom, emit_dispatch_definition_v1,
 };
 
+#[derive(Clone, Copy)]
+pub(super) struct TypeDescriptorGlobals<'a, 'ctx> {
+    pub(super) local: &'a [GlobalValue<'ctx>],
+    pub(super) core_external: &'a [GlobalValue<'ctx>],
+    pub(super) dependency_external: &'a [GlobalValue<'ctx>],
+}
+
 pub(super) fn type_descriptor_global<'ctx>(
     reference: TypeDescriptorRef,
-    locals: &[GlobalValue<'ctx>],
-    externals: &[GlobalValue<'ctx>],
+    globals: TypeDescriptorGlobals<'_, 'ctx>,
 ) -> Result<GlobalValue<'ctx>, CodegenError> {
     match reference {
-        TypeDescriptorRef::Local(id) => locals
+        TypeDescriptorRef::Local(id) => globals
+            .local
             .get(arena_index(id))
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid local TypeDescriptor id {id:?}"))),
-        TypeDescriptorRef::CoreExternal(id) => externals
+        TypeDescriptorRef::CoreExternal(id) => globals
+            .core_external
             .get(arena_index(id))
             .copied()
-            .ok_or_else(|| CodegenError(format!("invalid external TypeDescriptor id {id:?}"))),
+            .ok_or_else(|| CodegenError(format!("invalid core TypeDescriptor id {id:?}"))),
+        TypeDescriptorRef::DependencyExternal(id) => globals
+            .dependency_external
+            .get(arena_index(id))
+            .copied()
+            .ok_or_else(|| CodegenError(format!("invalid dependency TypeDescriptor id {id:?}"))),
     }
 }
 
@@ -28,8 +41,7 @@ pub(super) fn emit_strong_type_descriptors_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     surface: &scoop_lir::StrongObjectSymbolSurfaceV1,
-    type_globals: &[GlobalValue<'ctx>],
-    external_type_globals: &[GlobalValue<'ctx>],
+    type_globals: TypeDescriptorGlobals<'_, 'ctx>,
     module: &Module,
     shapes: &mut EmittedStrongShapeDefinitionsV1<'ctx>,
 ) -> Result<(), CodegenError> {
@@ -42,11 +54,10 @@ pub(super) fn emit_strong_type_descriptors_v1<'ctx>(
         type_instance_shape_ty: types.type_instance_shape(),
         byte_span_ty: types.byte_span(),
         type_globals,
-        external_type_globals,
         module,
         surface,
     };
-    for ((_, td), global) in module.meta.type_descriptors.iter().zip(type_globals) {
+    for ((_, td), global) in module.meta.type_descriptors.iter().zip(type_globals.local) {
         emit_type_descriptor(&emission, *global, td, shapes)?;
     }
     Ok(())
@@ -58,8 +69,7 @@ struct TypeDescriptorEmission<'a, 'ctx> {
     entry_ty: StructType<'ctx>,
     type_instance_shape_ty: StructType<'ctx>,
     byte_span_ty: StructType<'ctx>,
-    type_globals: &'a [GlobalValue<'ctx>],
-    external_type_globals: &'a [GlobalValue<'ctx>],
+    type_globals: TypeDescriptorGlobals<'a, 'ctx>,
     module: &'a Module,
     surface: &'a scoop_lir::StrongObjectSymbolSurfaceV1,
 }
@@ -74,7 +84,6 @@ fn emit_type_descriptor<'ctx>(
     let llvm = emission.llvm;
     let entry_ty = emission.entry_ty;
     let type_globals = emission.type_globals;
-    let external_type_globals = emission.external_type_globals;
     let module = emission.module;
     let i32_ty = context.i32_type();
     let i64_ty = context.i64_type();
@@ -115,7 +124,7 @@ fn emit_type_descriptor<'ctx>(
             .into(),
     };
     let parent: BasicValueEnum = match descriptor.parent {
-        Some(reference) => type_descriptor_global(reference, type_globals, external_type_globals)?
+        Some(reference) => type_descriptor_global(reference, type_globals)?
             .as_pointer_value()
             .into(),
         None => ptr.const_null().into(),
@@ -125,6 +134,7 @@ fn emit_type_descriptor<'ctx>(
         descriptor.vtable.slots(),
         &module.functions,
         &module.meta.core_external_callables,
+        &module.meta.dependency_external_callables,
     )?;
     let vtable = emit_dispatch_definition_v1(
         context,
@@ -142,13 +152,13 @@ fn emit_type_descriptor<'ctx>(
         let mut entries = Vec::with_capacity(descriptor.itables.len());
         for record in &descriptor.itables {
             let interface =
-                type_descriptor_global(record.interface(), type_globals, external_type_globals)?
-                    .as_pointer_value();
+                type_descriptor_global(record.interface(), type_globals)?.as_pointer_value();
             let values = dispatch_values(
                 llvm,
                 record.slots(),
                 &module.functions,
                 &module.meta.core_external_callables,
+                &module.meta.dependency_external_callables,
             )?;
             let slots = emit_dispatch_definition_v1(
                 context,
@@ -265,7 +275,8 @@ fn dispatch_values<'ctx>(
     llvm: &LlvmModule<'ctx>,
     slots: &[DispatchEntry],
     functions: &[Function],
-    external_callables: &Arena<scoop_lir::CoreExternalCallable>,
+    core_external_callables: &Arena<scoop_lir::CoreExternalCallable>,
+    dependency_external_callables: &Arena<scoop_lir::DependencyExternalCallable>,
 ) -> Result<Vec<PointerValue<'ctx>>, CodegenError> {
     let mut values = Vec::with_capacity(slots.len());
     for entry in slots {
@@ -273,7 +284,8 @@ fn dispatch_values<'ctx>(
             llvm,
             entry.callable,
             functions,
-            external_callables,
+            core_external_callables,
+            dependency_external_callables,
         )?);
     }
     Ok(values)
@@ -286,7 +298,8 @@ fn slot_fn_ptr<'ctx>(
     llvm: &LlvmModule<'ctx>,
     callable: CallableRef,
     functions: &[Function],
-    external_callables: &Arena<scoop_lir::CoreExternalCallable>,
+    core_external_callables: &Arena<scoop_lir::CoreExternalCallable>,
+    dependency_external_callables: &Arena<scoop_lir::DependencyExternalCallable>,
 ) -> Result<PointerValue<'ctx>, CodegenError> {
     let symbol = match callable {
         CallableRef::Local(id) => functions
@@ -295,7 +308,18 @@ fn slot_fn_ptr<'ctx>(
             .symbol(),
         CallableRef::Runtime(function) => function.symbol(),
         CallableRef::CoreExternal(id) => {
-            let symbol = external_callables[id].expected_symbol().symbol();
+            let symbol = core_external_callables[id].expected_symbol().symbol();
+            return llvm
+                .get_function(symbol.as_str())
+                .map(|function| function.as_global_value().as_pointer_value())
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed dispatch callable {callable:?} (`@{symbol}`) is not declared"
+                    ))
+                });
+        }
+        CallableRef::DependencyExternal(id) => {
+            let symbol = dependency_external_callables[id].expected_symbol().symbol();
             return llvm
                 .get_function(symbol.as_str())
                 .map(|function| function.as_global_value().as_pointer_value())

@@ -131,7 +131,7 @@ pub use runtime_metadata_v1::{
 };
 use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};
-pub(crate) use type_descriptors::type_descriptor_global;
+pub(crate) use type_descriptors::{TypeDescriptorGlobals, type_descriptor_global};
 
 fn mark_typed_managed_pointer_boundary(
     context: &Context,

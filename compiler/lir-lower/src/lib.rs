@@ -160,6 +160,11 @@ mod imported_dependency;
 pub use imported_dependency::StrongImportedDependencyLirInput;
 use imported_dependency::lower_imported_dependency_callables;
 
+mod strong_production_v2;
+pub use strong_production_v2::{
+    StrongProductionV2ProjectionError, project_external_initialization_uses_v2,
+};
+
 /// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
 pub fn lower(
     input: &mir::SingleConeStrongMirInput,
@@ -461,6 +466,7 @@ pub fn lower_with_dependencies(
             layouts,
             type_descriptors,
             core_external_type_descriptors,
+            dependency_external_type_descriptors: Arena::new(),
             core_external_callables,
             dependency_external_callables,
         },

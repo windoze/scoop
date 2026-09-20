@@ -1,7 +1,7 @@
 use super::*;
 use std::collections::HashMap;
 
-pub(super) fn complete<'a, E>(
+pub(crate) fn complete<'a, E>(
     consumer: ConeIdentity,
     target: crate::LirTargetProfile,
     direct: &[&'a CrossConeLayoutAbiSectionV1<'a>],

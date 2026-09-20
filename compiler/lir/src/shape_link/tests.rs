@@ -4,6 +4,7 @@ use scoop_identity::*;
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 mod layout;
+mod v2_producer;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())

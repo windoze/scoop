@@ -541,18 +541,31 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             global
         })
         .collect();
+    let dependency_external_type_tds: Vec<GlobalValue> = module
+        .meta
+        .dependency_external_type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let symbol = descriptor.expected_symbol().symbol();
+            let global = llvm.add_global(td_ty, None, symbol.as_str());
+            global.set_linkage(inkwell::module::Linkage::External);
+            global
+        })
+        .collect();
+    let type_descriptor_globals = TypeDescriptorGlobals {
+        local: &type_tds,
+        core_external: &external_type_tds,
+        dependency_external: &dependency_external_type_tds,
+    };
     let string_td = type_descriptor_global(
         module.meta.well_known_type_descriptors.string,
-        &type_tds,
-        &external_type_tds,
+        type_descriptor_globals,
     )?;
     let array_tds: Vec<GlobalValue> = module
         .meta
         .arrays
         .iter()
-        .map(|(_, array)| {
-            type_descriptor_global(array.type_descriptor, &type_tds, &external_type_tds)
-        })
+        .map(|(_, array)| type_descriptor_global(array.type_descriptor, type_descriptor_globals))
         .collect::<Result<_, _>>()?;
 
     let bounds_message = emit_cone_trap_message(
@@ -785,8 +798,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             &target_data,
             surface,
             module,
-            &type_tds,
-            &external_type_tds,
+            type_descriptor_globals,
         )?;
     }
     let module_ctx = ModuleCtx {
@@ -809,6 +821,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         array_tds: &array_tds,
         type_tds: &type_tds,
         external_type_tds: &external_type_tds,
+        dependency_external_type_tds: &dependency_external_type_tds,
         target_data: &target_data,
         bounds_message,
         array_size_message,

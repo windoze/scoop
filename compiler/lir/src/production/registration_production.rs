@@ -34,6 +34,8 @@ pub use validation::*;
 mod model;
 pub use model::*;
 
+mod v2;
+
 impl StrongRegistrationProductionSurfaceV1 {
     pub fn empty(
         target: crate::LirTargetProfile,
@@ -128,6 +130,7 @@ pub enum StrongRegistrationProductionBuildError {
     TypeSemantics(StrongTypeDescriptorSemanticPlanBuildError),
     ImmortalSemantics(StrongImmortalObjectSemanticPlanBuildError),
     InitializationSemantics(StrongInitializationUnitSemanticPlanBuildError),
+    InitializationSemanticsV2(crate::StrongInitializationUnitSemanticPlanV2BuildError),
     Safepoints(StrongSafepointRegistrationPlanBuildError),
     Callables(StrongCallableRegistrationPlanBuildError),
     Types(StrongTypeRegistrationPlanBuildError),

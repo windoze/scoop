@@ -41,20 +41,34 @@ impl ReplayedStrongProductionSectionV2 {
         layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
         meter: &mut BudgetMeter,
     ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
-        local::validate(&self, layout_abi, meter)?;
-        selected::validate(&self, layout_abi.selected(), meter)?;
-        Ok(ValidatedStrongProductionSectionV2 {
-            replayed: self,
-            layouts: layout_abi.layouts().clone(),
-            descriptors: layout_abi.descriptors().clone(),
-            dispatch: layout_abi.dispatch().clone(),
-            callables: layout_abi.callables().clone(),
-            shape_support: layout_abi.shape_support().clone(),
-        })
+        validate_layout_abi(self, layout_abi, meter)
+    }
+}
+
+impl crate::StrongProductionSectionV2 {
+    /// Joins a freshly produced section with its complete layout/ABI section.
+    /// The returned authority is the only producer result that may be handed
+    /// to publication and code-fingerprint projection.
+    pub fn validate_layout_abi(
+        self,
+        layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
+        validate_layout_abi(
+            ReplayedStrongProductionSectionV2 { section: self },
+            layout_abi,
+            meter,
+        )
     }
 }
 
 impl ValidatedStrongProductionSectionV2 {
+    /// Releases the canonical wire section only after the layout/ABI join has
+    /// succeeded. A replayed but unjoined section has no equivalent method.
+    pub fn into_section(self) -> crate::StrongProductionSectionV2 {
+        self.replayed.section
+    }
+
     pub fn provider(&self) -> ConeIdentity {
         self.replayed.type_registrations().producer()
     }
@@ -144,6 +158,23 @@ impl ValidatedStrongProductionSectionV2 {
     pub fn core_lir_bridge(&self) -> &crate::CoreLirBridgeBranchV1 {
         self.replayed.core_lir_bridge()
     }
+}
+
+fn validate_layout_abi(
+    replayed: ReplayedStrongProductionSectionV2,
+    layout_abi: &crate::CrossConeLayoutAbiSectionV1<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<ValidatedStrongProductionSectionV2, StrongProductionLayoutJoinError> {
+    local::validate(&replayed, layout_abi, meter)?;
+    selected::validate(&replayed, layout_abi.selected(), meter)?;
+    Ok(ValidatedStrongProductionSectionV2 {
+        replayed,
+        layouts: layout_abi.layouts().clone(),
+        descriptors: layout_abi.descriptors().clone(),
+        dispatch: layout_abi.dispatch().clone(),
+        callables: layout_abi.callables().clone(),
+        shape_support: layout_abi.shape_support().clone(),
+    })
 }
 
 #[derive(Debug)]

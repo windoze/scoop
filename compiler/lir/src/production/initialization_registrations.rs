@@ -21,8 +21,10 @@ use crate::{
 };
 
 mod model;
+mod producer_v2;
 mod unit_validation;
 pub use model::*;
+pub use producer_v2::*;
 use unit_validation::*;
 
 impl StrongInitializationUnitSemanticPlanSetV1 {

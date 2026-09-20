@@ -154,11 +154,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::NullPointer(kind) => pointer_ty(context, self.managed_address_space, kind)
                 .const_null()
                 .into(),
-            Value::TypeDescriptor(reference) => {
-                type_descriptor_global(reference, self.type_tds, self.external_type_tds)?
-                    .as_pointer_value()
-                    .into()
-            }
+            Value::TypeDescriptor(reference) => type_descriptor_global(
+                reference,
+                TypeDescriptorGlobals {
+                    local: self.type_tds,
+                    core_external: self.external_type_tds,
+                    dependency_external: self.dependency_external_type_tds,
+                },
+            )?
+            .as_pointer_value()
+            .into(),
             Value::RootScan(id) => self.root_scans[arena_index(id)].into(),
             Value::Global(id) => self.globals[arena_index(id)]
                 .expect("ordinary globals are emitted")

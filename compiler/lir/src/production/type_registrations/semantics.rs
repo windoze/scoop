@@ -15,6 +15,7 @@ mod references;
 pub use references::*;
 mod plans;
 pub use plans::*;
+mod v2;
 
 struct DescriptorSemanticInputs<'a> {
     descriptors: &'a la_arena::Arena<TypeDescriptor>,
@@ -259,6 +260,11 @@ fn resolve_descriptor_ref(
                 external_descriptors[id].target(),
             ))
         }
+        TypeDescriptorRef::DependencyExternal(id) => Err(
+            StrongTypeDescriptorSemanticPlanBuildError::DependencyDescriptorInV1(
+                id.into_raw().into_u32(),
+            ),
+        ),
     }
 }
 
@@ -297,6 +303,12 @@ fn resolve_slots(
             CallableRef::Runtime(function) => {
                 Ok(StrongTypeDispatchCallableRefV1::Runtime(function))
             }
+            CallableRef::DependencyExternal(id) => Err(
+                StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 {
+                    exact_type,
+                    index: id.into_raw().into_u32(),
+                },
+            ),
         })
         .collect()
 }
@@ -339,6 +351,8 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
     },
     MissingLocalDescriptor(u32),
     MissingCoreExternalDescriptor(u32),
+    DependencyDescriptorInV1(u32),
+    MissingDependencyDescriptor(u32),
     MissingLocalCallable {
         exact_type: PersistentExactTypeId,
         index: u32,
@@ -347,6 +361,31 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
         exact_type: PersistentExactTypeId,
         index: u32,
     },
+    DependencyCallableInV1 {
+        exact_type: PersistentExactTypeId,
+        index: u32,
+    },
+    MissingDependencyCallable {
+        exact_type: PersistentExactTypeId,
+        index: u32,
+    },
+    SelectionConsumer {
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    SelectionTarget {
+        expected: LirTargetProfile,
+        actual: LirTargetProfile,
+    },
+    DescriptorSelectionMismatch {
+        provider: ConeIdentity,
+        exact: PersistentExactTypeId,
+    },
+    CallableSelectionMismatch {
+        provider: ConeIdentity,
+        target: scoop_identity::StrongCallableDefinitionOwner,
+    },
+    ExternalMaterialization(crate::LayoutExternalMaterializationError),
 }
 
 impl fmt::Display for StrongTypeDescriptorSemanticPlanBuildError {

@@ -196,6 +196,9 @@ fn string_type_registration(
                 module.meta.core_external_type_descriptors[id].target(),
             ))
         }
+        TypeDescriptorRef::DependencyExternal(_) => {
+            Err(StrongImmortalObjectSemanticPlanBuildError::DependencyStringTypeDescriptor)
+        }
     }
 }
 
@@ -239,6 +242,7 @@ fn string_object_size(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectSemanticPlanBuildError {
     MissingStringTypeDescriptor,
+    DependencyStringTypeDescriptor,
     DuplicateObject(PersistentImmortalObjectId),
     AddressKind {
         object: PersistentImmortalObjectId,

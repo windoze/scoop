@@ -9,16 +9,17 @@ use scoop_identity::{
     ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::HashError;
+use scoop_wire::{BudgetMeter, HashError};
 
 use crate::{
     DefinitionAtomResolutionError, DigestInputRefV1, DigestNodeBuildError, DigestNodeV1,
     EntryProductionSourceV1, Module, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
     StrongDigestPlanBuildError, StrongImmortalObjectSemanticPlanBuildError,
     StrongImmortalObjectSemanticPlanSetV1, StrongInitializationSchedulePlanV1,
-    StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSetV1,
-    StrongSafepointSemanticPlanError, StrongSafepointSemanticPlanSetV1,
-    StrongTypeDescriptorSemanticPlanBuildError, StrongTypeDescriptorSemanticPlanSetV1,
+    StrongInitializationUnitSemanticPlanBuildError, StrongInitializationUnitSemanticPlanSet,
+    StrongInitializationUnitSemanticPlanSetV1, StrongSafepointSemanticPlanError,
+    StrongSafepointSemanticPlanSetV1, StrongTypeDescriptorSemanticPlanBuildError,
+    StrongTypeDescriptorSemanticPlanSet, StrongTypeDescriptorSemanticPlanSetV1,
 };
 
 /// Projects the only digest graph accepted by the single-Cone strong writer.
@@ -56,6 +57,40 @@ pub(crate) fn project_strong_digest_finalization_plan(
     )
 }
 
+/// Projects the same digest graph while validating the V2 descriptor
+/// semantics. Initialization dependency payloads do not contribute digest
+/// inputs, so their local semantic base can be used before external unit
+/// definitions are joined to the completed digest identities.
+pub(crate) fn project_strong_digest_finalization_plan_v2(
+    module: &Module,
+    foundation: &OdrFreeLirFoundation,
+    entry_source: &EntryProductionSourceV1,
+    selected: &crate::StrongProductionDependencySelectionV2<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
+    if module.cone != foundation.producer() {
+        return Err(StrongDigestProjectionError::ProducerMismatch {
+            module: module.cone,
+            foundation: foundation.producer(),
+        });
+    }
+    let safepoints = StrongSafepointSemanticPlanSetV1::from_module(module)
+        .map_err(StrongDigestProjectionError::Safepoints)?;
+    let types = crate::StrongTypeDescriptorSemanticPlanSetV2::from_module(module, selected, meter)
+        .map_err(StrongDigestProjectionError::Types)?;
+    let immortals = StrongImmortalObjectSemanticPlanSetV1::from_module(module)
+        .map_err(StrongDigestProjectionError::ImmortalObjects)?;
+    let initialization = StrongInitializationUnitSemanticPlanSetV1::from_module(module)
+        .map_err(StrongDigestProjectionError::InitializationUnits)?;
+    DigestGraphWriter::new(foundation).project(
+        &safepoints,
+        &types,
+        &immortals,
+        &initialization,
+        entry_source,
+    )
+}
+
 #[derive(Default)]
 struct DigestNodeDraft {
     inputs: BTreeSet<DigestNodeKey>,
@@ -77,12 +112,12 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         }
     }
 
-    fn project(
+    fn project<D: Copy, C, I>(
         mut self,
         safepoints: &StrongSafepointSemanticPlanSetV1,
-        types: &StrongTypeDescriptorSemanticPlanSetV1,
+        types: &StrongTypeDescriptorSemanticPlanSet<D, C>,
         immortals: &StrongImmortalObjectSemanticPlanSetV1,
-        initialization: &StrongInitializationUnitSemanticPlanSetV1,
+        initialization: &StrongInitializationUnitSemanticPlanSet<I>,
         entry_source: &EntryProductionSourceV1,
     ) -> Result<StrongDigestFinalizationPlanV1, StrongDigestProjectionError> {
         self.project_safepoints(safepoints)?;
@@ -160,9 +195,9 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         Ok(())
     }
 
-    fn project_types(
+    fn project_types<D: Copy, C>(
         &mut self,
-        semantics: &StrongTypeDescriptorSemanticPlanSetV1,
+        semantics: &StrongTypeDescriptorSemanticPlanSet<D, C>,
     ) -> Result<(), StrongDigestProjectionError> {
         for semantic in semantics.descriptors() {
             let exact = semantic.exact_type();
@@ -224,9 +259,9 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         Ok(())
     }
 
-    fn project_static_storages(
+    fn project_static_storages<I>(
         &mut self,
-        initialization: &StrongInitializationUnitSemanticPlanSetV1,
+        initialization: &StrongInitializationUnitSemanticPlanSet<I>,
     ) -> Result<(), StrongDigestProjectionError> {
         for semantic in initialization.static_storages().storages() {
             let storage = semantic.storage();
@@ -263,9 +298,9 @@ impl<'foundation> DigestGraphWriter<'foundation> {
         Ok(())
     }
 
-    fn project_initialization_units(
+    fn project_initialization_units<I>(
         &mut self,
-        semantics: &StrongInitializationUnitSemanticPlanSetV1,
+        semantics: &StrongInitializationUnitSemanticPlanSet<I>,
     ) -> Result<(), StrongDigestProjectionError> {
         for semantic in semantics.units() {
             let entity = StrongDefinitionEntity::initialization_unit(semantic.unit());

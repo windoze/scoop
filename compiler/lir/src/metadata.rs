@@ -277,11 +277,15 @@ pub struct LirMeta {
     pub type_descriptors: Arena<TypeDescriptor>,
     /// Cross-Cone descriptors are declared but not initialized by this Cone.
     pub core_external_type_descriptors: Arena<CoreExternalTypeDescriptor>,
+    /// Descriptors admitted by the new layout/ABI bridge partition. These
+    /// remain external definitions in this Cone.
+    pub dependency_external_type_descriptors: Arena<DependencyExternalTypeDescriptorV2>,
     /// Cross-Cone callables referenced from local dispatch tables.
     pub core_external_callables: Arena<CoreExternalCallable>,
-    /// Ordinary dependency callables referenced only by direct typed calls.
+    /// External callables admitted by either the legacy direct-call bridge or
+    /// the new layout/ABI bridge used by dispatch tables.
     /// They are external declarations and never enter local Strong ownership,
-    /// dispatch tables, registrations, or image plans.
+    /// callable registrations, or image plans.
     pub dependency_external_callables: Arena<DependencyExternalCallable>,
 }
 
@@ -317,6 +321,7 @@ pub struct ArrayType {
 pub enum TypeDescriptorRef {
     Local(TypeDescriptorId),
     CoreExternal(CoreExternalTypeDescriptorId),
+    DependencyExternal(DependencyExternalTypeDescriptorId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -324,6 +329,7 @@ pub enum CallableRef {
     Local(LocalFunctionId),
     Runtime(RuntimeFunction),
     CoreExternal(CoreExternalCallableId),
+    DependencyExternal(DependencyExternalCallableId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

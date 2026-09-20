@@ -17,6 +17,7 @@ pub(super) struct SelectedLayoutAbiEntryV1<'a> {
 
 pub struct SelectedDependencyLayoutAbiSetV1<'a> {
     consumer: ConeIdentity,
+    target: crate::LirTargetProfile,
     brand: LayoutAbiSelectionBrand,
     semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
     physical: crate::CanonicalExternalShapeLinkImportsV1<'a>,
@@ -25,6 +26,7 @@ pub struct SelectedDependencyLayoutAbiSetV1<'a> {
 impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
     pub(super) fn from_closed<E>(
         consumer: ConeIdentity,
+        target: crate::LirTargetProfile,
         semantic: Vec<SelectedLayoutAbiEntryV1<'a>>,
         physical: crate::CanonicalExternalShapeLinkImportsV1<'a>,
     ) -> Result<Self, LayoutAbiSectionError<E>> {
@@ -42,6 +44,7 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
             .map_err(|_| LayoutAbiSectionError::SelectionIdentityExhausted)?;
         Ok(Self {
             consumer,
+            target,
             brand,
             semantic,
             physical,
@@ -50,6 +53,10 @@ impl<'a> SelectedDependencyLayoutAbiSetV1<'a> {
 
     pub const fn consumer(&self) -> ConeIdentity {
         self.consumer
+    }
+
+    pub const fn target_profile(&self) -> crate::LirTargetProfile {
+        self.target
     }
 
     pub fn len(&self) -> usize {

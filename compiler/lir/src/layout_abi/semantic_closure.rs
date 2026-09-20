@@ -20,12 +20,8 @@ pub(super) fn close<'a>(
     roots: &[LayoutAbiDependencyV1],
     meter: &mut BudgetMeter,
 ) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSemanticClosureError> {
+    validate_roots(roots, meter)?;
     let path = WirePath::root();
-    meter.check_table_entries(roots.len() as u64, &path)?;
-    meter.charge_work(roots.len() as u64, &path)?;
-    if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err(LayoutAbiSemanticClosureError::NonCanonicalRoots);
-    }
     let mut views = Vec::new();
     let count = dependencies
         .len()
@@ -47,6 +43,51 @@ pub(super) fn close<'a>(
             meter,
         )
     })?;
+    enqueue_roots(consumer, &views, &index, roots, &mut pending, meter)?;
+    collect(&views, &index, pending, Some(0), meter)
+}
+
+/// Closes dependency roots before local exports exist. The roots come from
+/// the same independent MIR-to-LIR authority later used to validate the
+/// completed section, so Strong V2 production cannot select arbitrary records
+/// from an otherwise valid terminal provider.
+pub(super) fn close_external(
+    consumer: ConeIdentity,
+    dependencies: &[&LayoutAbiExportConstituentsV1],
+    roots: &[LayoutAbiDependencyV1],
+    meter: &mut BudgetMeter,
+) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSemanticClosureError> {
+    validate_roots(roots, meter)?;
+    let mut views = Vec::new();
+    meter.try_reserve_collection_slots(&mut views, dependencies.len(), &WirePath::root())?;
+    views.extend_from_slice(dependencies);
+    let index = LayoutAbiTargetIndex::build(&views, meter)?;
+    let mut pending = Vec::new();
+    enqueue_roots(consumer, &views, &index, roots, &mut pending, meter)?;
+    collect(&views, &index, pending, None, meter)
+}
+
+fn validate_roots(
+    roots: &[LayoutAbiDependencyV1],
+    meter: &mut BudgetMeter,
+) -> Result<(), LayoutAbiSemanticClosureError> {
+    let path = WirePath::root();
+    meter.check_table_entries(roots.len() as u64, &path)?;
+    meter.charge_work(roots.len() as u64, &path)?;
+    if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(LayoutAbiSemanticClosureError::NonCanonicalRoots);
+    }
+    Ok(())
+}
+
+fn enqueue_roots(
+    consumer: ConeIdentity,
+    views: &[&LayoutAbiExportConstituentsV1],
+    index: &LayoutAbiTargetIndex,
+    roots: &[LayoutAbiDependencyV1],
+    pending: &mut Vec<Pending>,
+    meter: &mut BudgetMeter,
+) -> Result<(), LayoutAbiSemanticClosureError> {
     for relation in roots {
         if relation.provider() == consumer {
             return Err(LayoutAbiSemanticClosureError::CurrentProvider(
@@ -54,9 +95,9 @@ pub(super) fn close<'a>(
             ));
         }
         let owner = index.owner(relation.target(), meter)?;
-        require_provider(&views, owner, relation.provider(), relation.target())?;
+        require_provider(views, owner, relation.provider(), relation.target())?;
         push(
-            &mut pending,
+            pending,
             Pending {
                 owner,
                 target: relation.target(),
@@ -65,6 +106,17 @@ pub(super) fn close<'a>(
             meter,
         )?;
     }
+    Ok(())
+}
+
+fn collect(
+    views: &[&LayoutAbiExportConstituentsV1],
+    index: &LayoutAbiTargetIndex,
+    mut pending: Vec<Pending>,
+    local_owner: Option<usize>,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<LayoutAbiDependencyV1>, LayoutAbiSemanticClosureError> {
+    let path = WirePath::root();
     let mut seen = HashSet::new();
     let mut selected = Vec::new();
     while let Some(next) = pending.pop() {
@@ -79,7 +131,7 @@ pub(super) fn close<'a>(
         let record = views[next.owner]
             .record(next.target)
             .ok_or(LayoutAbiSemanticClosureError::MissingTarget(next.target))?;
-        if next.owner != 0 {
+        if Some(next.owner) != local_owner {
             meter.try_reserve_collection_slots(&mut selected, 1, &path)?;
             selected.push(LayoutAbiDependencyV1::new(
                 views[next.owner].provider(),
@@ -90,8 +142,8 @@ pub(super) fn close<'a>(
             record,
             next.owner,
             next.depth,
-            &views,
-            &index,
+            views,
+            index,
             &mut pending,
             meter,
         )?;

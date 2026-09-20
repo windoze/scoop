@@ -76,6 +76,9 @@ pub use exact_shape_support::*;
 mod layout_abi;
 pub use layout_abi::*;
 
+mod layout_external;
+pub use layout_external::*;
+
 mod shape_link;
 pub use shape_link::*;
 

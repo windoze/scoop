@@ -63,8 +63,11 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         &target_data,
         &surface,
         &module,
-        &type_globals,
-        &external_type_globals,
+        TypeDescriptorGlobals {
+            local: &type_globals,
+            core_external: &external_type_globals,
+            dependency_external: &[],
+        },
     )
     .expect("emit canonical strong shape definitions");
     llvm.verify().expect("valid shape LLVM module");

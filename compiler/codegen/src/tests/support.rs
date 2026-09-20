@@ -937,6 +937,7 @@ pub(super) fn string_metadata() -> LirMeta {
         layouts,
         type_descriptors,
         core_external_type_descriptors: Arena::new(),
+        dependency_external_type_descriptors: Arena::new(),
         core_external_callables: Arena::new(),
         dependency_external_callables: Arena::new(),
     }
@@ -1275,8 +1276,11 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         &target_data,
         &surface,
         module,
-        &type_globals,
-        &external_type_globals,
+        TypeDescriptorGlobals {
+            local: &type_globals,
+            core_external: &external_type_globals,
+            dependency_external: &[],
+        },
     )?;
     llvm.verify()
         .map_err(|error| CodegenError(format!("invalid strong shape LLVM module: {error}")))?;

@@ -609,6 +609,7 @@ fn metadata() -> LirMeta {
         layouts,
         type_descriptors: Arena::new(),
         core_external_type_descriptors,
+        dependency_external_type_descriptors: Arena::new(),
         core_external_callables: Arena::new(),
         dependency_external_callables: Arena::new(),
     }

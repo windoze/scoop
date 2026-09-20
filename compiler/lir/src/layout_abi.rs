@@ -16,6 +16,7 @@ mod dependency;
 mod exports;
 mod section;
 mod semantic_closure;
+mod strong_production_selection;
 mod target;
 mod wire;
 
@@ -24,6 +25,7 @@ pub use exports::{
     LayoutAbiExportConstituentsError, LayoutAbiExportConstituentsV1, LayoutAbiSemanticRecordV1,
 };
 pub use section::*;
+pub use strong_production_selection::StrongProductionDependencySelectionV2;
 pub use target::{DecodedLayoutAbiSemanticTargetV1, LayoutAbiSemanticTargetV1};
 
 #[derive(Debug)]

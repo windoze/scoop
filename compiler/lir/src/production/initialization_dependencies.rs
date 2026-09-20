@@ -8,9 +8,11 @@
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
 
 mod definition;
+mod producer;
 mod resolve;
 
 pub use definition::*;
+pub use producer::*;
 pub use resolve::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

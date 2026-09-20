@@ -21,6 +21,7 @@ pub type RootScanId = Idx<RefScan>;
 pub type LayoutId = Idx<Layout>;
 pub type TypeDescriptorId = Idx<TypeDescriptor>;
 pub type CoreExternalTypeDescriptorId = Idx<CoreExternalTypeDescriptor>;
+pub type DependencyExternalTypeDescriptorId = Idx<DependencyExternalTypeDescriptorV2>;
 pub type CoreExternalCallableId = Idx<CoreExternalCallable>;
 pub type DependencyExternalCallableId = Idx<DependencyExternalCallable>;
 

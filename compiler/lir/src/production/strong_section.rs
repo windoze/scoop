@@ -74,6 +74,31 @@ impl StrongProductionSectionV1 {
     }
 }
 
+impl StrongProductionSectionV2 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        coordinate: ConeCoordinate,
+        foundation: &OdrFreeLirFoundation,
+        external_bridges: StrongExternalLirBridgeSurfaceV1,
+        digest_finalization_plan: StrongDigestFinalizationPlanV1,
+        registration_production: crate::StrongRegistrationProductionSurfaceV2,
+        entry_source: EntryProductionSourceV1,
+        core_shape_sources: &[SourceDeclarationKey],
+        core_lir_bridge: CoreLirBridgeBranchV1,
+    ) -> Result<Self, StrongProductionSectionBuildError> {
+        Self::from_parts(
+            coordinate,
+            foundation,
+            external_bridges,
+            digest_finalization_plan,
+            registration_production,
+            entry_source,
+            core_shape_sources,
+            core_lir_bridge,
+        )
+    }
+}
+
 impl<D, C, I> StrongProductionSection<D, C, I> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_parts(

@@ -82,8 +82,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
     target_data: &TargetData,
     surface: &StrongObjectSymbolSurfaceV1,
     module: &Module,
-    type_globals: &[GlobalValue<'ctx>],
-    external_type_globals: &[GlobalValue<'ctx>],
+    type_globals: crate::type_descriptors::TypeDescriptorGlobals<'_, 'ctx>,
 ) -> Result<(), CodegenError> {
     let layouts = collect_layouts(module)?;
     let scans = collect_scans(module)?;
@@ -146,7 +145,6 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
         llvm,
         surface,
         type_globals,
-        external_type_globals,
         module,
         &mut emitted,
     )?;

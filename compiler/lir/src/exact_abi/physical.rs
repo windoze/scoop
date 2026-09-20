@@ -153,7 +153,7 @@ fn representation_matches(value: &ExactValueLayoutV1, ty: &LirType, enums: &Enum
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExactCallablePhysicalAbiError {
     ArgumentCount,
     Argument(usize),

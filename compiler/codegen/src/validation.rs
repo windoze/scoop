@@ -98,10 +98,44 @@ fn validate_core_external_metadata(module: &Module) -> Result<(), CodegenError> 
 }
 
 fn validate_dependency_external_metadata(module: &Module) -> Result<(), CodegenError> {
+    let mut descriptor_targets = HashSet::new();
+    for (_, descriptor) in module.meta.dependency_external_type_descriptors.iter() {
+        if descriptor.provider() == module.cone {
+            return Err(CodegenError(format!(
+                "dependency external TypeDescriptor {} names the current Cone as provider",
+                descriptor.target()
+            )));
+        }
+        if !descriptor_targets.insert(descriptor.target()) {
+            return Err(CodegenError(format!(
+                "duplicate dependency external TypeDescriptor target {}",
+                descriptor.target()
+            )));
+        }
+        if module
+            .meta
+            .type_descriptors
+            .iter()
+            .any(|(_, local)| local.identity.exact_type() == descriptor.target())
+            || module
+                .meta
+                .core_external_type_descriptors
+                .iter()
+                .any(|(_, core)| core.target() == descriptor.target())
+        {
+            return Err(CodegenError(format!(
+                "dependency external TypeDescriptor target {} crosses another descriptor partition",
+                descriptor.target()
+            )));
+        }
+    }
+
     let mut declarations = HashSet::new();
     let mut bodies = HashSet::new();
     for (_, callable) in module.meta.dependency_external_callables.iter() {
-        if callable.provider() == scoop_lir::ConeIdentity::CORE {
+        if callable.provider() == scoop_lir::ConeIdentity::CORE
+            && callable.legacy_declaration().is_some()
+        {
             return Err(CodegenError(
                 "ordinary dependency external callable cannot use trusted-core authority"
                     .to_string(),
@@ -110,14 +144,15 @@ fn validate_dependency_external_metadata(module: &Module) -> Result<(), CodegenE
         if callable.provider() == module.cone {
             return Err(CodegenError(format!(
                 "dependency external callable {:?} names the current Cone as provider",
-                callable.declaration()
+                callable.target()
             )));
         }
-        if !declarations.insert((callable.provider(), callable.declaration())) {
+        if let Some(declaration) = callable.legacy_declaration()
+            && !declarations.insert((callable.provider(), declaration))
+        {
             return Err(CodegenError(format!(
-                "duplicate dependency external callable {}:{:?}",
-                callable.provider(),
-                callable.declaration()
+                "duplicate dependency external callable {}:{declaration:?}",
+                callable.provider()
             )));
         }
         if !bodies.insert(callable.body()) {
@@ -168,6 +203,12 @@ fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError>
                     arena_index(string)
                 )));
             }
+        }
+        TypeDescriptorRef::DependencyExternal(_) => {
+            return Err(CodegenError(
+                "the runtime String TypeDescriptor cannot use dependency layout authority"
+                    .to_string(),
+            ));
         }
     }
 
@@ -425,6 +466,11 @@ fn checked_value_type(
                     arena_index(id),
                     module.meta.core_external_type_descriptors.len(),
                 ),
+                scoop_lir::TypeDescriptorRef::DependencyExternal(id) => (
+                    "dependency type descriptor",
+                    arena_index(id),
+                    module.meta.dependency_external_type_descriptors.len(),
+                ),
             };
             if index >= len {
                 return Err(invalid(kind, index));
@@ -499,29 +545,49 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
     let validate_entry = |descriptor: &TypeDescriptor,
                           entry: &DispatchEntry|
      -> Result<(), CodegenError> {
-        let CallableRef::Local(id) = entry.callable else {
-            if let CallableRef::Runtime(runtime) = entry.callable
-                && runtime.requires_dedicated_operation()
-            {
-                return Err(CodegenError(format!(
-                    "type descriptor `{}` dispatches to a dedicated boxing operation",
-                    descriptor.diagnostic_name
-                )));
+        let id = match entry.callable {
+            CallableRef::Local(id) => id,
+            CallableRef::CoreExternal(id) => {
+                if arena_index(id) >= module.meta.core_external_callables.len() {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` has invalid core dispatch callable id {}",
+                        descriptor.diagnostic_name,
+                        arena_index(id)
+                    )));
+                }
+                return Ok(());
             }
-
-            if matches!(
-                entry.callable,
-                CallableRef::Runtime(scoop_lir::RuntimeFunction::Managed(
-                    scoop_lir::ManagedRuntimeFunction::Alloc
-                        | scoop_lir::ManagedRuntimeFunction::InitializationEnter
-                ))
-            ) {
-                return Err(CodegenError(format!(
-                    "type descriptor `{}` dispatches to a runtime function whose closed ABI contains an internal machine scalar",
-                    descriptor.diagnostic_name
-                )));
+            CallableRef::DependencyExternal(id) => {
+                if arena_index(id) >= module.meta.dependency_external_callables.len() {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` has invalid dependency dispatch callable id {}",
+                        descriptor.diagnostic_name,
+                        arena_index(id)
+                    )));
+                }
+                return Ok(());
             }
-            return Ok(());
+            CallableRef::Runtime(runtime) => {
+                if runtime.requires_dedicated_operation() {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` dispatches to a dedicated boxing operation",
+                        descriptor.diagnostic_name
+                    )));
+                }
+                if matches!(
+                    runtime,
+                    scoop_lir::RuntimeFunction::Managed(
+                        scoop_lir::ManagedRuntimeFunction::Alloc
+                            | scoop_lir::ManagedRuntimeFunction::InitializationEnter
+                    )
+                ) {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` dispatches to a runtime function whose closed ABI contains an internal machine scalar",
+                        descriptor.diagnostic_name
+                    )));
+                }
+                return Ok(());
+            }
         };
         let function = module
             .functions

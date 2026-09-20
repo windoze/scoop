@@ -83,6 +83,7 @@ pub(super) fn complete<'a, E>(
     )?;
     let selected = SelectedDependencyLayoutAbiSetV1::from_closed(
         exports.provider(),
+        exports.target_profile(),
         semantic,
         physical_imports,
     )?;

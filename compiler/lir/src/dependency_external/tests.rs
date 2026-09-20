@@ -25,7 +25,10 @@ fn selected_bridge_materializes_one_typed_dependency_external() {
         .unwrap();
 
     assert_eq!(external.provider(), provider);
-    assert_eq!(external.declaration(), selected.bridge().declaration());
+    assert_eq!(
+        external.legacy_declaration(),
+        Some(selected.bridge().declaration())
+    );
     assert_eq!(external.target(), selected.bridge().target());
     assert_eq!(external.gc_effect(), GcEffect::Managed);
     assert_eq!(
