@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::SignatureTypeKey;
 
-pub(super) fn project(
+pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
     required: BTreeSet<CallableTemplateOrigin>,
     meter: &mut BudgetMeter,

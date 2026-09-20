@@ -3,6 +3,7 @@ use scoop_identity::PersistentConstructorId;
 use scoop_wire::{BudgetMeter, WirePath};
 
 mod members;
+pub(in crate::production::type_semantics) use members::project as protected_members;
 
 /// Projects declaration-side obligations before constructing any inheritance
 /// candidate. No public/candidate table supplies the required constructor set.

@@ -16,6 +16,7 @@ mod parameter_candidates;
 mod parameters;
 mod properties;
 mod protected_callables;
+mod protected_declarations;
 mod rejection;
 mod replay;
 

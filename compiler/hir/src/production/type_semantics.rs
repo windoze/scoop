@@ -15,6 +15,8 @@ pub use authority::*;
 mod facts;
 pub(in crate::production) mod inheritance;
 mod nested_sources;
+mod protected_sources;
+pub use protected_sources::*;
 mod nominal_callables;
 mod nominal_constructors;
 mod nominal_parameters;

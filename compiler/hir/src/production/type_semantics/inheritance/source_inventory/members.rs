@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 
 type Members = BTreeMap<SourceNominalId, Vec<ProtectedDeclarationRefV1>>;
 
-pub(super) fn project(export: &ExportHir, meter: &mut BudgetMeter) -> Result<Members, Error> {
+pub(in crate::production::type_semantics) fn project(
+    export: &ExportHir,
+    meter: &mut BudgetMeter,
+) -> Result<Members, Error> {
     let mut members = BTreeMap::new();
     for (id, function) in export.functions.iter() {
         meter.charge_work(1, &WirePath::root()).map_err(resource)?;

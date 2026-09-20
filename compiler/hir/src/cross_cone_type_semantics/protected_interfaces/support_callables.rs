@@ -126,6 +126,17 @@ impl WireEncode for NominalSupportConstructorInterfaceV1 {
         self.payload.encode(encoder)
     }
 }
+impl TryFrom<NominalSupportConstructorInterfaceV1> for super::ProtectedConstructorInterfaceV1 {
+    type Error = BuildError;
+
+    fn try_from(source: NominalSupportConstructorInterfaceV1) -> Result<Self, Self::Error> {
+        Self::try_new(
+            source.declaration,
+            source.declaration_access,
+            super::ProtectedCallablePayloadV1::from_source_signature(source.payload)?,
+        )
+    }
+}
 fn validate_access(
     access: &DeclarationAccessSourceV1,
     payload: &NominalSourceCallablePayloadV1,

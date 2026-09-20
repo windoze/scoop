@@ -9,7 +9,7 @@ mod schemas;
 pub(super) use schemas::{interface_sources, slot_selections};
 mod source_callables;
 mod source_constructors;
-mod source_inventory;
+pub(in crate::production::type_semantics) mod source_inventory;
 mod source_parameters;
 pub(in crate::production::type_semantics) mod source_properties;
 mod source_protected_callables;

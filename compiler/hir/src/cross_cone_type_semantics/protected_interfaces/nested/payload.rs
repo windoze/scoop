@@ -129,6 +129,17 @@ impl WireEncode for NominalSupportNestedInterfaceV1 {
 pub struct ProtectedNestedNominalInterfaceV1 {
     pub(super) source: NominalSupportNestedInterfaceV1,
 }
+impl TryFrom<NominalSupportNestedInterfaceV1> for ProtectedNestedNominalInterfaceV1 {
+    type Error = NestedSourceBuildError;
+
+    fn try_from(source: NominalSupportNestedInterfaceV1) -> Result<Self, Self::Error> {
+        Self::try_new(
+            source.declaration,
+            source.declaration_access,
+            source.payload,
+        )
+    }
+}
 impl ProtectedNestedNominalInterfaceV1 {
     pub fn try_new(
         declaration: SourceNominalId,

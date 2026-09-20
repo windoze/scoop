@@ -113,3 +113,18 @@ impl WireEncode for NominalSupportPropertyInterfaceV1 {
         self.payload.encode(encoder)
     }
 }
+
+impl TryFrom<NominalSupportPropertyInterfaceV1> for super::ProtectedPropertyInterfaceV1 {
+    type Error = super::ProtectedPropertyBuildError;
+
+    fn try_from(source: NominalSupportPropertyInterfaceV1) -> Result<Self, Self::Error> {
+        let NominalSupportPropertyPayloadV1::Runtime { interface } = source.payload else {
+            return Err(Self::Error::Representation);
+        };
+        Self::try_new(
+            source.declaration,
+            source.declaration_access,
+            super::ProtectedPropertyPayloadV1::from_source_payload(interface)?,
+        )
+    }
+}

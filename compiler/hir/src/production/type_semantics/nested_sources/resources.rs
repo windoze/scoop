@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::SignatureTypeKey;
 
-pub(super) fn insert<T: Ord>(
+pub(in crate::production::type_semantics) fn insert<T: Ord>(
     set: &mut BTreeSet<T>,
     value: T,
     meter: &mut BudgetMeter,
@@ -17,7 +17,11 @@ pub(super) fn insert<T: Ord>(
     }
     Ok(())
 }
-pub(super) fn push<T>(values: &mut Vec<T>, value: T, meter: &mut BudgetMeter) -> Result<(), Error> {
+pub(in crate::production::type_semantics) fn push<T>(
+    values: &mut Vec<T>,
+    value: T,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
     let path = WirePath::root();
     meter
         .check_table_entries(values.len() as u64 + 1, &path)
@@ -28,12 +32,18 @@ pub(super) fn push<T>(values: &mut Vec<T>, value: T, meter: &mut BudgetMeter) ->
     values.push(value);
     Ok(())
 }
-pub(super) fn boxed<T>(value: &T, meter: &mut BudgetMeter) -> Result<(), Error> {
+pub(in crate::production::type_semantics) fn boxed<T>(
+    value: &T,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
     meter
         .charge_owned_bytes(std::mem::size_of_val(value) as u64, &WirePath::root())
         .map_err(resource)
 }
-pub(super) fn canonical(count: usize, meter: &mut BudgetMeter) -> Result<(), Error> {
+pub(in crate::production::type_semantics) fn canonical(
+    count: usize,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
     let path = WirePath::root();
     let count = count as u64;
     meter.check_table_entries(count, &path).map_err(resource)?;
@@ -54,7 +64,7 @@ pub(super) fn canonical(count: usize, meter: &mut BudgetMeter) -> Result<(), Err
         )
         .map_err(resource)
 }
-pub(super) fn signature_copy(
+pub(in crate::production::type_semantics) fn signature_copy(
     ty: &SignatureTypeKey,
     meter: &mut BudgetMeter,
     depth: u64,
