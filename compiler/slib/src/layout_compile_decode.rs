@@ -21,10 +21,14 @@ use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundati
 mod accessors;
 mod decode;
 mod hir_resolution;
+mod lir_semantic;
 mod mir_semantic;
 mod transitions;
 pub use decode::CrossConeLayoutCompileSectionDecodeError;
 pub use hir_resolution::CrossConeLayoutHirResolutionError;
+pub(crate) use lir_semantic::{
+    DecodedCrossConeLayoutLirCandidates, PreparedCrossConeLayoutLirValidation,
+};
 pub use mir_semantic::CrossConeLayoutMirFrontValidationError;
 pub(crate) use mir_semantic::{PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts};
 

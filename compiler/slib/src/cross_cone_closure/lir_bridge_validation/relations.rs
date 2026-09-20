@@ -81,7 +81,7 @@ pub(super) fn validate_lir_bridge_relations(
     Ok(())
 }
 
-fn validate_local_projection(
+pub(crate) fn validate_local_projection(
     artifact: ConeIdentity,
     interface: &CrossConeHirInterfaceSectionV1,
     mir: &CrossConeMirBridgeSectionV1,
@@ -169,12 +169,12 @@ fn validate_local_projection(
     Ok(())
 }
 
-struct AbiExpectation {
-    artifact: ConeIdentity,
-    declaration: DependencyCallableDeclarationId,
-    signature: ExactCallableSignature,
-    gc_effect: GcEffect,
-    actual: CanonicalScoopAbiFunctionSignature,
+pub(crate) struct AbiExpectation {
+    pub(crate) artifact: ConeIdentity,
+    pub(crate) declaration: DependencyCallableDeclarationId,
+    pub(crate) signature: ExactCallableSignature,
+    pub(crate) gc_effect: GcEffect,
+    pub(crate) actual: CanonicalScoopAbiFunctionSignature,
 }
 
 fn validate_terminal_provider(

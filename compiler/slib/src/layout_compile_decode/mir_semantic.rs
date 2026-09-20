@@ -7,10 +7,7 @@ use scoop_hir::{
     CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation,
 };
 use scoop_identity::ValidatedIdentityGraph;
-use scoop_lir::{
-    DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1,
-    DecodedStrongProductionSectionV2, OdrFreeLirFoundation,
-};
+use scoop_lir::OdrFreeLirFoundation;
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirBridgeValidationError,
     DecodedCrossConeMirTypeBridgeSectionV1, MirProductionValidationError, OdrFreeMirFoundation,
@@ -20,6 +17,7 @@ use scoop_wire::BudgetMeter;
 use super::HirProductionValidatedCrossConeLayoutSections;
 use crate::{
     ValidatedGraphArtifact,
+    layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
     strong_compile_decode::{
         OdrFreeStrongFoundationSet, StrongProfileRelationError, validate_strong_profile_relations,
     },
@@ -34,9 +32,6 @@ pub(crate) struct PreparedCrossConeLayoutMirSections<'input> {
     hir_types: CrossConeTypeSemanticsSectionV1,
     mir_core: CoreBootstrapBridgeSectionV1,
     mir_ordinary: CrossConeMirBridgeSectionV1,
-    lir_strong: DecodedStrongProductionSectionV2,
-    lir_bridge: DecodedCrossConeLirBridgeSectionV1,
-    lir_layout: DecodedCrossConeLayoutAbiSectionV1,
 }
 
 pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
@@ -49,9 +44,6 @@ pub(crate) struct PreparedLayoutMirSemanticParts<'a> {
     pub(crate) mir_core: &'a CoreBootstrapBridgeSectionV1,
     pub(crate) mir_ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(crate) lir_foundation: &'a OdrFreeLirFoundation,
-    pub(crate) lir_strong: &'a DecodedStrongProductionSectionV2,
-    pub(crate) lir_bridge: &'a DecodedCrossConeLirBridgeSectionV1,
-    pub(crate) lir_layout: &'a DecodedCrossConeLayoutAbiSectionV1,
     pub(crate) meter: &'a mut BudgetMeter,
 }
 
@@ -62,6 +54,7 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
         (
             PreparedCrossConeLayoutMirSections<'input>,
             DecodedCrossConeMirTypeBridgeSectionV1,
+            DecodedCrossConeLayoutLirCandidates,
         ),
         CrossConeLayoutMirFrontValidationError,
     > {
@@ -103,11 +96,13 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
                 hir_types: hir_type_semantics,
                 mir_core,
                 mir_ordinary,
-                lir_strong: lir_strong_production,
-                lir_bridge: lir_cross_cone_bridge,
-                lir_layout: lir_layout_abi,
             },
             mir_type_bridge,
+            DecodedCrossConeLayoutLirCandidates {
+                strong: lir_strong_production,
+                ordinary: lir_cross_cone_bridge,
+                layout: lir_layout_abi,
+            },
         ))
     }
 }
@@ -115,6 +110,10 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
 impl PreparedCrossConeLayoutMirSections<'_> {
     pub(crate) fn provider(&self) -> scoop_identity::ConeIdentity {
         self.graph.identity()
+    }
+
+    pub(crate) fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
+        self.graph.coordinate()
     }
 
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
@@ -128,9 +127,6 @@ impl PreparedCrossConeLayoutMirSections<'_> {
             mir_core: &self.mir_core,
             mir_ordinary: &self.mir_ordinary,
             lir_foundation: &self.foundations.lir,
-            lir_strong: &self.lir_strong,
-            lir_bridge: &self.lir_bridge,
-            lir_layout: &self.lir_layout,
             meter: self.graph.envelope.meter_mut(),
         }
     }

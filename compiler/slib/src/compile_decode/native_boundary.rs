@@ -25,8 +25,8 @@ use super::StructurallyValidatedFoundations;
 use crate::ValidatedGraphArtifact;
 
 mod target;
-pub(crate) use target::replay_canonical_scoop_abi;
 pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
+pub(crate) use target::{replay_canonical_scoop_abi, replay_canonical_scoop_abi_parts};
 
 /// Structurally valid foundations whose native-boundary source witnesses are
 /// exactly the transitive nominal closure required by externs and callbacks.

@@ -63,12 +63,13 @@ fn artifact_bytes_with_hir_semantics(
     nominal: Option<&NominalFixture>,
     semantics: Option<&CrossConeTypeSemanticsSectionV1>,
 ) -> Vec<u8> {
-    artifact_bytes_with_mir_type_bridge(
+    artifact_bytes_with_candidates(
         name,
         dependencies,
         nominal,
         semantics,
         empty_array_fields(7),
+        empty_layout_abi(),
     )
 }
 
@@ -78,6 +79,39 @@ pub(super) fn artifact_bytes_with_mir_type_bridge(
     nominal: Option<&NominalFixture>,
     semantics: Option<&CrossConeTypeSemanticsSectionV1>,
     mir_type_bridge: Vec<u8>,
+) -> Vec<u8> {
+    artifact_bytes_with_candidates(
+        name,
+        dependencies,
+        nominal,
+        semantics,
+        mir_type_bridge,
+        empty_layout_abi(),
+    )
+}
+
+pub(super) fn artifact_bytes_with_lir_layout_abi(
+    name: &str,
+    dependencies: Vec<DependencyRecord>,
+    lir_layout_abi: Vec<u8>,
+) -> Vec<u8> {
+    artifact_bytes_with_candidates(
+        name,
+        dependencies,
+        None,
+        None,
+        empty_array_fields(7),
+        lir_layout_abi,
+    )
+}
+
+fn artifact_bytes_with_candidates(
+    name: &str,
+    dependencies: Vec<DependencyRecord>,
+    nominal: Option<&NominalFixture>,
+    semantics: Option<&CrossConeTypeSemanticsSectionV1>,
+    mir_type_bridge: Vec<u8>,
+    lir_layout_abi: Vec<u8>,
 ) -> Vec<u8> {
     let cone = cone_named(name);
     let (mut hir, mut mir, mut lir) = required_sections();
@@ -165,7 +199,7 @@ pub(super) fn artifact_bytes_with_mir_type_bridge(
             MetadataLocation::Lir,
             lir_cross_cone_layout_abi_capability(),
             MemberPurposeSet::COMPILE,
-            empty_layout_abi(),
+            lir_layout_abi,
         ),
         section(
             MetadataLocation::Lir,

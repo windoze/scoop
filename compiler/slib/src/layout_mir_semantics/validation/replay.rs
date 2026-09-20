@@ -14,8 +14,9 @@ use crate::{
     CrossConeLayoutHirSemanticClosureError, CrossConeLayoutMirSemanticClosureError,
     LayoutHirProviderSemanticAuthoritiesV1, LayoutHirPublicAuthorityFactoryV1,
     LayoutMirProviderSourceAuthorityV1, LayoutMirSourceAuthorityContextV1,
-    LayoutMirSourceAuthorityFactoryV1, PreparedCrossConeLayoutMirSections,
-    PreparedLayoutMirSemanticParts, transitive_positions, validate_hir_provider,
+    LayoutMirSourceAuthorityFactoryV1, PreparedCrossConeLayoutLirValidation,
+    PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts, transitive_positions,
+    validate_hir_provider,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -37,7 +38,10 @@ pub(super) fn validate_in_scope<'proof, 'input, 'hir_source, 'mir_source, P, F, 
     artifact_arena: &'proof Arena<PreparedCrossConeLayoutMirSections<'input>>,
     hir_arena: &'proof Arena<CheckedCrossConeLayoutHirProviderV1<'proof>>,
     mir_arena: &'proof Arena<CheckedCrossConeLayoutMirProviderV1<'proof>>,
-    use_checked: impl FnOnce(CheckedCrossConeLayoutMirClosureV1<'proof>) -> R,
+    use_checked: impl FnOnce(
+        CheckedCrossConeLayoutMirClosureV1<'proof>,
+        Vec<PreparedCrossConeLayoutLirValidation<'proof>>,
+    ) -> R,
 ) -> Result<R, CrossConeLayoutMirSemanticClosureError<P::Error, M::Error>>
 where
     P: LayoutHirPublicAuthorityFactoryV1,
@@ -52,12 +56,18 @@ where
     let count = validations.len();
     let mut checked_hir = Vec::new();
     let mut checked_mir = Vec::new();
+    let mut lir_validations = Vec::new();
     checked_hir.try_reserve_exact(count).map_err(|_| {
         CrossConeLayoutMirSemanticClosureError::Allocation {
             requested_slots: count,
         }
     })?;
     checked_mir.try_reserve_exact(count).map_err(|_| {
+        CrossConeLayoutMirSemanticClosureError::Allocation {
+            requested_slots: count,
+        }
+    })?;
+    lir_validations.try_reserve_exact(count).map_err(|_| {
         CrossConeLayoutMirSemanticClosureError::Allocation {
             requested_slots: count,
         }
@@ -76,19 +86,24 @@ where
         mir_arena,
         &mut checked_hir,
         &mut checked_mir,
+        &mut lir_validations,
     )?;
     let positions = checked_mir
         .iter()
         .enumerate()
         .map(|(position, provider)| (provider.provider, position))
         .collect::<BTreeMap<_, _>>();
-    Ok(use_checked(CheckedCrossConeLayoutMirClosureV1 {
-        current,
-        target,
-        direct,
-        providers: checked_mir,
-        positions,
-    }))
+    Ok(use_checked(
+        CheckedCrossConeLayoutMirClosureV1 {
+            current,
+            target,
+            direct,
+            providers: checked_mir,
+            positions,
+            dependency_positions: dependency_positions.to_vec(),
+        },
+        lir_validations,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -109,6 +124,7 @@ fn validate_artifacts<'proof, 'input, 'hir_source, 'mir_source, P, F, S, D, C, M
     mir_arena: &'proof Arena<CheckedCrossConeLayoutMirProviderV1<'proof>>,
     checked_hir: &mut Vec<&'proof CheckedCrossConeLayoutHirProviderV1<'proof>>,
     checked_mir: &mut Vec<&'proof CheckedCrossConeLayoutMirProviderV1<'proof>>,
+    lir_validations: &mut Vec<PreparedCrossConeLayoutLirValidation<'proof>>,
 ) -> Result<(), CrossConeLayoutMirSemanticClosureError<P::Error, M::Error>>
 where
     P: LayoutHirPublicAuthorityFactoryV1,
@@ -140,10 +156,12 @@ where
     let PreparedLayoutMirValidationInput {
         artifact,
         candidate,
+        lir_candidates,
     } = validation;
     let artifact: &'proof mut PreparedCrossConeLayoutMirSections<'input> =
         artifact_arena.alloc(artifact);
     let provider = artifact.provider();
+    let coordinate = artifact.coordinate().clone();
     let PreparedLayoutMirSemanticParts {
         identities,
         hir_foundation,
@@ -154,9 +172,6 @@ where
         mir_core,
         mir_ordinary,
         lir_foundation,
-        lir_strong,
-        lir_bridge,
-        lir_layout,
         meter,
     } = artifact.semantic_parts();
     let hir = validate_hir_provider(
@@ -238,11 +253,16 @@ where
             ordinary: mir_ordinary,
             bridge,
             lir_foundation,
-            lir_strong,
-            lir_bridge,
-            lir_layout,
         });
     checked_mir.push(mir);
+    lir_validations.push(PreparedCrossConeLayoutLirValidation {
+        coordinate,
+        identities,
+        hir_foundation,
+        foundation: lir_foundation,
+        meter,
+        candidates: lir_candidates,
+    });
     validate_artifacts(
         validations,
         hir_authorities,
@@ -254,6 +274,7 @@ where
         mir_arena,
         checked_hir,
         checked_mir,
+        lir_validations,
     )
 }
 

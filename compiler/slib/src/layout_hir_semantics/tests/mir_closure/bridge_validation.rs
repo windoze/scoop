@@ -209,7 +209,7 @@ fn two_provider_closure<'a>(
 
 fn nominal_mir_export(bytes: &[u8], nominal: &NominalFixture) -> ParamFreeMirTypeExportV1 {
     let artifact = checked_artifact(bytes);
-    let (mut artifact, _) = artifact.prepare_mir_semantics().unwrap();
+    let (mut artifact, _, _) = artifact.prepare_mir_semantics().unwrap();
     let parts = artifact.semantic_parts();
     ParamFreeMirTypeExportV1::try_new(
         MirTypeBridgeAuthority {

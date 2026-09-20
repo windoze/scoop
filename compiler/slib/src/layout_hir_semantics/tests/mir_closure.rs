@@ -1,4 +1,5 @@
 mod bridge_validation;
+mod lir;
 mod support;
 
 use scoop_identity::ConeIdentity;
@@ -40,9 +41,6 @@ fn empty_hir_to_mir_closure_is_lent_from_scoped_arenas() {
             assert_eq!(provider.type_bridge().provider(), identity);
             assert!(provider.type_bridge().selected().is_empty());
             let _ = provider.lir_foundation().as_canonical();
-            let _ = provider.lir_strong_production_wire();
-            let _ = provider.lir_cross_cone_bridge_wire();
-            let _ = provider.lir_layout_abi_wire();
         })
         .unwrap();
     drop(mir);

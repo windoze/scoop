@@ -30,7 +30,8 @@ pub use native_boundary::{
     NativeBoundaryTargetError, NativeBoundaryValidatedFoundations,
 };
 pub(crate) use native_boundary::{
-    NativeBoundaryFoundationView, replay_canonical_scoop_abi, validate_native_boundary_parts,
+    NativeBoundaryFoundationView, replay_canonical_scoop_abi, replay_canonical_scoop_abi_parts,
+    validate_native_boundary_parts,
 };
 
 /// Canonically decoded foundation payloads whose artifact, profile inventory,

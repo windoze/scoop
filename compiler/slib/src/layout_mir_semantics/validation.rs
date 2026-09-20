@@ -9,8 +9,9 @@ mod replay;
 
 use super::*;
 use crate::{
-    CrossConeLayoutHirSemanticClosureError, HirProductionValidatedCrossConeLayoutClosure,
-    LayoutHirProviderSemanticAuthoritiesV1, LayoutHirPublicAuthorityFactoryV1,
+    CrossConeLayoutHirSemanticClosureError, DecodedCrossConeLayoutLirCandidates,
+    HirProductionValidatedCrossConeLayoutClosure, LayoutHirProviderSemanticAuthoritiesV1,
+    LayoutHirPublicAuthorityFactoryV1, PreparedCrossConeLayoutLirValidation,
     PreparedCrossConeLayoutMirSections,
 };
 use replay::validate_in_scope;
@@ -18,6 +19,7 @@ use replay::validate_in_scope;
 struct PreparedLayoutMirValidationInput<'input> {
     artifact: PreparedCrossConeLayoutMirSections<'input>,
     candidate: DecodedCrossConeMirTypeBridgeSectionV1,
+    lir_candidates: DecodedCrossConeLayoutLirCandidates,
 }
 
 impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
@@ -45,6 +47,36 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
         C: CommittedTypeUseSemanticAuthorityV1<P::Error>,
         M: LayoutMirSourceAuthorityFactoryV1,
     {
+        self.with_checked_mir_type_bridge_parts(hir_authorities, mir_authorities, |checked, _| {
+            use_checked(checked)
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn with_checked_mir_type_bridge_parts<'hir_source, P, F, S, D, C, M, R>(
+        self,
+        hir_authorities: &mut [LayoutHirProviderSemanticAuthoritiesV1<
+            'hir_source,
+            P,
+            F,
+            S,
+            D,
+            C,
+        >],
+        mir_authorities: &mut [LayoutMirProviderSourceAuthorityV1<'_, M>],
+        use_checked: impl for<'checked> FnOnce(
+            CheckedCrossConeLayoutMirClosureV1<'checked>,
+            Vec<PreparedCrossConeLayoutLirValidation<'checked>>,
+        ) -> R,
+    ) -> Result<R, CrossConeLayoutMirSemanticClosureError<P::Error, M::Error>>
+    where
+        P: LayoutHirPublicAuthorityFactoryV1,
+        F: TypeSectionFoundationSemanticAuthority<P::Error>,
+        S: TypeSectionDeclarationSemanticAuthority<P::Error>,
+        D: TypeSectionDefaultSemanticAuthority<P::Error>,
+        C: CommittedTypeUseSemanticAuthorityV1<P::Error>,
+        M: LayoutMirSourceAuthorityFactoryV1,
+    {
         validate_authority_inventories(&self, hir_authorities, mir_authorities)?;
         let (current, target, direct, artifacts, dependency_positions) =
             self.into_mir_semantic_validation_parts();
@@ -56,15 +88,17 @@ impl<'input> HirProductionValidatedCrossConeLayoutClosure<'input> {
             })?;
         for artifact in artifacts {
             let provider = artifact.identity();
-            let (artifact, candidate) = artifact.prepare_mir_semantics().map_err(|source| {
-                CrossConeLayoutMirSemanticClosureError::Front {
-                    provider,
-                    source: Box::new(source),
-                }
-            })?;
+            let (artifact, candidate, lir_candidates) =
+                artifact.prepare_mir_semantics().map_err(|source| {
+                    CrossConeLayoutMirSemanticClosureError::Front {
+                        provider,
+                        source: Box::new(source),
+                    }
+                })?;
             validations.push(PreparedLayoutMirValidationInput {
                 artifact,
                 candidate,
+                lir_candidates,
             });
         }
         let artifact_arena = Arena::new();

@@ -59,6 +59,24 @@ pub(crate) fn replay_canonical_scoop_abi(
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
     let target = artifact.target_selection().target();
     let meter = artifact.envelope.meter_mut();
+    replay_canonical_scoop_abi_parts(
+        target,
+        meter,
+        identities,
+        hir_foundation,
+        signature,
+        gc_effect,
+    )
+}
+
+pub(crate) fn replay_canonical_scoop_abi_parts(
+    target: scoop_lir::LirTargetProfile,
+    meter: &mut BudgetMeter,
+    identities: &ValidatedIdentityGraph,
+    hir_foundation: &OdrFreeHirFoundation,
+    signature: &ExactCallableSignature,
+    gc_effect: GcEffect,
+) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
     let exact_types = exact_type_records(identities, meter)?;
     let definitions = index_records(
         hir_foundation.native_boundary_types(),

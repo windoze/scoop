@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
-use scoop_lir::{
-    DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1,
-    DecodedStrongProductionSectionV2, OdrFreeLirFoundation, ValidatedLirTargetSelection,
-};
+use scoop_lir::{OdrFreeLirFoundation, ValidatedLirTargetSelection};
 use scoop_mir::{
     CoreBootstrapBridgeSectionV1, CrossConeMirBridgeSectionV1, CrossConeMirTypeBridgeSectionV1,
     MirTypeBridgeSectionSourceAuthorityV1, OdrFreeMirFoundation,
@@ -128,9 +125,6 @@ pub struct CheckedCrossConeLayoutMirProviderV1<'a> {
     pub(super) ordinary: &'a CrossConeMirBridgeSectionV1,
     pub(super) bridge: CrossConeMirTypeBridgeSectionV1<'a>,
     pub(super) lir_foundation: &'a OdrFreeLirFoundation,
-    pub(super) lir_strong: &'a DecodedStrongProductionSectionV2,
-    pub(super) lir_bridge: &'a DecodedCrossConeLirBridgeSectionV1,
-    pub(super) lir_layout: &'a DecodedCrossConeLayoutAbiSectionV1,
 }
 
 impl<'a> CheckedCrossConeLayoutMirProviderV1<'a> {
@@ -161,18 +155,6 @@ impl<'a> CheckedCrossConeLayoutMirProviderV1<'a> {
     pub const fn lir_foundation(&self) -> &'a OdrFreeLirFoundation {
         self.lir_foundation
     }
-
-    pub const fn lir_strong_production_wire(&self) -> &'a DecodedStrongProductionSectionV2 {
-        self.lir_strong
-    }
-
-    pub const fn lir_cross_cone_bridge_wire(&self) -> &'a DecodedCrossConeLirBridgeSectionV1 {
-        self.lir_bridge
-    }
-
-    pub const fn lir_layout_abi_wire(&self) -> &'a DecodedCrossConeLayoutAbiSectionV1 {
-        self.lir_layout
-    }
 }
 
 /// Callback-scoped closure whose recursive MIR terminal references all point
@@ -183,6 +165,16 @@ pub struct CheckedCrossConeLayoutMirClosureV1<'a> {
     pub(super) direct: Vec<ConeIdentity>,
     pub(super) providers: Vec<&'a CheckedCrossConeLayoutMirProviderV1<'a>>,
     pub(super) positions: BTreeMap<ConeIdentity, usize>,
+    pub(super) dependency_positions: Vec<Vec<usize>>,
+}
+
+pub(crate) struct CheckedCrossConeLayoutMirParts<'a> {
+    pub(crate) current: ConeIdentity,
+    pub(crate) target: ValidatedLirTargetSelection,
+    pub(crate) direct: Vec<ConeIdentity>,
+    pub(crate) providers: Vec<&'a CheckedCrossConeLayoutMirProviderV1<'a>>,
+    pub(crate) positions: BTreeMap<ConeIdentity, usize>,
+    pub(crate) dependency_positions: Vec<Vec<usize>>,
 }
 
 impl<'a> CheckedCrossConeLayoutMirClosureV1<'a> {
@@ -211,5 +203,16 @@ impl<'a> CheckedCrossConeLayoutMirClosureV1<'a> {
         self.positions
             .get(&provider)
             .map(|position| self.providers[*position])
+    }
+
+    pub(crate) fn into_lir_parts(self) -> CheckedCrossConeLayoutMirParts<'a> {
+        CheckedCrossConeLayoutMirParts {
+            current: self.current,
+            target: self.target,
+            direct: self.direct,
+            providers: self.providers,
+            positions: self.positions,
+            dependency_positions: self.dependency_positions,
+        }
     }
 }
