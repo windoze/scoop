@@ -57,6 +57,8 @@ mod signatures;
 pub use signatures::HirInterfaceSignatureProjectionError;
 mod type_alias_interfaces;
 pub use type_alias_interfaces::*;
+mod type_semantics;
+pub use type_semantics::*;
 
 fn direct_binding_matches_source(
     binding: &ExportBindingKey,

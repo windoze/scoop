@@ -437,6 +437,17 @@ pub fn lower_ordinary<'input>(
     lower_ordinary_input(requested, input.core_only(), Some(input.semantic_world()))
 }
 
+/// Projects the M23-6 type-semantics payload from a sealed ordinary HIR
+/// result and its M23-5 public interface. The returned production object also
+/// carries the independently derived source/fact/inheritance inventories that
+/// the driver must retain for semantic sealing.
+pub fn produce_cross_cone_type_semantics(
+    output: &hir::OrdinaryHirOutput<'_>,
+    public: &hir::CrossConeHirInterfaceSectionV1,
+) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
+    hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public)
+}
+
 fn lower_ordinary_input<'core>(
     requested: scoop_identity::RequestedConeKind,
     input: &OrdinaryCoreOnlySources<'core>,
