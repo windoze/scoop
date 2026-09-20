@@ -139,7 +139,15 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
         constructors += entry.constructors().values().len();
     }
     assert_eq!(constructors, 4);
-    let (candidate, foundation, inventory) = production.into_parts();
+    let interface_sources = hir::CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(
+        &output,
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+    .unwrap();
+    assert_eq!(production.interface_sources(), &interface_sources);
+    let (candidate, foundation, inventory, source_interfaces) = production.into_parts();
+    assert_eq!(source_interfaces.records().len(), 1);
+    assert_eq!(source_interfaces, interface_sources);
     assert_eq!(
         inventory.owners().values().len(),
         candidate.inheritance().records().len()

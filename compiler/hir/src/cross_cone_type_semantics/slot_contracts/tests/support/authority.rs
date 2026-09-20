@@ -4,6 +4,12 @@ use scoop_identity::*;
 use std::sync::Arc;
 
 impl InheritanceSlotSchemaSemanticAuthority<&'static str> for Fixture {
+    fn interface_dispatch_source(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&InterfaceSourceDispatchV1, &'static str> {
+        self.schema.interface_dispatch_source(owner)
+    }
     fn schemas(
         &self,
         owner: PersistentExactTypeId,

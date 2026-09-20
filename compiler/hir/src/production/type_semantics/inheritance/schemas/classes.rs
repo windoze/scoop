@@ -48,7 +48,7 @@ impl Projection<'_, '_> {
         ))
     }
 
-    fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
+    pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
         let mut result = Vec::new();
         let mut seen = BTreeSet::new();
         let mut current = class;

@@ -7,12 +7,14 @@ use super::super::wire;
 mod dependencies;
 mod edges;
 mod inheritance;
+mod interface_dispatch;
 mod nominals;
 mod roots;
 mod slot_selections;
 pub use dependencies::*;
 pub use edges::*;
 pub use inheritance::*;
+pub use interface_dispatch::*;
 pub use nominals::*;
 pub use roots::*;
 pub use slot_selections::*;
@@ -73,6 +75,10 @@ pub enum SourceInventoryError {
         table: &'static str,
         index: usize,
     },
+    InvalidInterfaceDispatch {
+        owner: scoop_identity::PersistentExactTypeId,
+        reason: &'static str,
+    },
     ConstructorInMembers {
         owner: scoop_identity::PersistentExactTypeId,
         constructor: scoop_identity::PersistentConstructorId,
@@ -95,6 +101,9 @@ impl fmt::Display for SourceInventoryError {
                     f,
                     "duplicate or noncanonical {table} source inventory at index {index}"
                 )
+            }
+            Self::InvalidInterfaceDispatch { owner, reason } => {
+                write!(f, "invalid interface dispatch source {owner}: {reason}")
             }
             Self::ConstructorInMembers { owner, constructor } => write!(
                 f,

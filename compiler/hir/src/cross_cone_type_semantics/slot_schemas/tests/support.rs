@@ -15,12 +15,15 @@ use crate::cross_cone_type_semantics::inheritance::tests::support::{
 #[derive(Default)]
 pub(in crate::cross_cone_type_semantics) struct Fixture {
     pub inheritance: InheritanceFixture,
+    pub interface_sources: BTreeMap<PersistentExactTypeId, crate::InterfaceSourceDispatchV1>,
     pub schemas: BTreeMap<PersistentExactTypeId, CanonicalInheritanceSlotSchemasV1>,
     pub slots: BTreeMap<PersistentDispatchSlotId, DispatchSlotKey>,
     pub functions: BTreeMap<PersistentFunctionId, SourceDeclarationKey>,
     pub accessors: BTreeMap<PersistentPropertyAccessorId, PropertyAccessorKey>,
     pub properties: BTreeMap<PersistentPropertyId, SourceDeclarationKey>,
 }
+mod interfaces;
+
 impl Fixture {
     pub fn add(&mut self, name: &str, kind: SourceNominalKind) -> Node {
         let node = self.inheritance.add(name, kind, &[]);
@@ -33,6 +36,9 @@ impl Fixture {
         } else {
             None
         };
+        if kind == SourceNominalKind::Interface {
+            self.interface_source(node, &[], &[]);
+        }
         self.set(
             node,
             role.into_iter()
@@ -64,7 +70,9 @@ impl Fixture {
             DispatchSlotKey::virtual_method(id)
         };
         self.functions.insert(id, key);
-        self.slot(slot)
+        let slot = self.slot(slot);
+        self.declare(owner, slot);
+        slot
     }
     pub fn accessor(
         &mut self,
@@ -81,10 +89,12 @@ impl Fixture {
         let key = PropertyAccessorKey::new(PropertyOwner::Property(property), role);
         let id = PersistentPropertyAccessorId::from_key(&key).unwrap();
         self.accessors.insert(id, key);
-        self.slot(match role {
+        let slot = self.slot(match role {
             AccessorRole::Getter => DispatchSlotKey::property_getter(id),
             AccessorRole::Setter => DispatchSlotKey::property_setter(id),
-        })
+        });
+        self.declare(owner, slot);
+        slot
     }
     pub fn slot(&mut self, key: DispatchSlotKey) -> PersistentDispatchSlotId {
         let slot = PersistentDispatchSlotId::from_key(&key).unwrap();
@@ -93,6 +103,14 @@ impl Fixture {
     }
 }
 impl InheritanceSlotSchemaSemanticAuthority<&'static str> for Fixture {
+    fn interface_dispatch_source(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&crate::InterfaceSourceDispatchV1, &'static str> {
+        self.interface_sources
+            .get(&owner)
+            .ok_or("missing source interface")
+    }
     fn schemas(
         &self,
         owner: PersistentExactTypeId,

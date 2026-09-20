@@ -45,6 +45,12 @@ impl NestedNominalSemanticAuthority<TestAuthorityError> for EmptyDeclarations {
 }
 
 impl InheritanceSlotSchemaSemanticAuthority<TestAuthorityError> for EmptyDeclarations {
+    fn interface_dispatch_source(
+        &self,
+        _owner: PersistentExactTypeId,
+    ) -> Result<&InterfaceSourceDispatchV1, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
     fn schemas(
         &self,
         owner: PersistentExactTypeId,

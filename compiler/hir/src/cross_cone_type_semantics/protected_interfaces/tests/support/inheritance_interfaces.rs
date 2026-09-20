@@ -8,6 +8,7 @@ pub(in crate::cross_cone_type_semantics) struct InheritanceInterfaceFixtureData 
     pub members: BTreeMap<PersistentExactTypeId, CanonicalProtectedDeclarationRefsV1>,
     pub constructor_sources:
         BTreeMap<PersistentConstructorId, NominalSupportConstructorInterfaceV1>,
+    pub interface_sources: BTreeMap<PersistentExactTypeId, InterfaceSourceDispatchV1>,
     pub schemas: BTreeMap<PersistentExactTypeId, CanonicalInheritanceSlotSchemasV1>,
     pub slot_keys: BTreeMap<PersistentDispatchSlotId, DispatchSlotKey>,
     pub callables: BTreeMap<
@@ -31,6 +32,7 @@ impl Default for InheritanceInterfaceFixtureData {
             members: BTreeMap::new(),
             constructor_sources: BTreeMap::new(),
             schemas: BTreeMap::new(),
+            interface_sources: BTreeMap::new(),
             slot_keys: BTreeMap::new(),
             callables: BTreeMap::new(),
             selections: BTreeMap::new(),
@@ -38,6 +40,15 @@ impl Default for InheritanceInterfaceFixtureData {
     }
 }
 impl InheritanceSlotSchemaSemanticAuthority<&'static str> for Fixture {
+    fn interface_dispatch_source(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&InterfaceSourceDispatchV1, &'static str> {
+        self.inheritance_interfaces
+            .interface_sources
+            .get(&owner)
+            .ok_or("unknown interface source")
+    }
     fn schemas(
         &self,
         owner: PersistentExactTypeId,

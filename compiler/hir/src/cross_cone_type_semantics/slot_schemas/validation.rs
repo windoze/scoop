@@ -1,22 +1,28 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 
 use scoop_identity::{
     DispatchSlotKey, PersistentDispatchSlotId, PersistentExactTypeId, PersistentFunctionId,
     PersistentPropertyAccessorId, PersistentPropertyId, PropertyAccessorKey, SourceDeclarationKey,
     SourceDeclarationKind,
 };
-use scoop_wire::{BudgetMeter, WireError, WirePath};
+use scoop_wire::{BudgetMeter, WirePath};
 
 use super::{CanonicalInheritanceSlotSchemasV1, InheritanceSlotSchemaRoleV1 as Role};
 use crate::{CheckedNominalInheritanceGraphV1, DirectClassBaseV1, InheritanceQueryError};
 
+mod error;
 mod identity;
+mod interfaces;
+pub use error::*;
 
 /// Canonical foundation keys and schema records from the same explicit graph.
 /// This establishes slot identity and semantic ordering, not callable effects,
 /// implementation selection, default coverage, or source lookup permission.
 pub trait InheritanceSlotSchemaSemanticAuthority<E> {
+    fn interface_dispatch_source(
+        &self,
+        owner: PersistentExactTypeId,
+    ) -> Result<&crate::InterfaceSourceDispatchV1, E>;
     fn schemas(
         &self,
         owner: PersistentExactTypeId,
@@ -57,6 +63,7 @@ impl CheckedNominalInheritanceGraphV1<'_> {
             meter,
             complete: BTreeMap::new(),
             conformances: BTreeMap::new(),
+            interface_expansions: BTreeMap::new(),
         };
         validation.visit(owner, 1)?;
         Ok(CheckedInheritanceSlotSchemasV1 {
@@ -72,6 +79,7 @@ struct Validation<'a, 'g, 'w, A> {
     meter: &'g mut BudgetMeter,
     complete: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
     conformances: BTreeMap<PersistentExactTypeId, BTreeSet<PersistentExactTypeId>>,
+    interface_expansions: BTreeMap<PersistentExactTypeId, interfaces::Expansion>,
 }
 impl<A> Validation<'_, '_, '_, A> {
     fn visit<E>(
@@ -234,100 +242,4 @@ impl<A> Validation<'_, '_, '_, A> {
         }
         Ok(())
     }
-
-    fn interface_schema<E>(
-        &mut self,
-        owner: PersistentExactTypeId,
-        parents: &[PersistentExactTypeId],
-        slots: &[PersistentDispatchSlotId],
-    ) -> Result<(), InheritanceSlotSchemaSemanticError<E>>
-    where
-        A: InheritanceSlotSchemaSemanticAuthority<E>,
-    {
-        let mut inherited = BTreeSet::<PersistentDispatchSlotId>::new();
-        for parent in parents {
-            let source = self.complete[parent]
-                .get(Role::Interface {
-                    interface_exact: *parent,
-                })
-                .ok_or(InheritanceSlotSchemaSemanticError::RoleCoverage(*parent))?;
-            self.meter
-                .charge_collection_slots(source.slots().len() as u64, &WirePath::root())
-                .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
-            inherited.extend(source.slots().iter().copied());
-        }
-        if slots.len() < inherited.len() {
-            return Err(InheritanceSlotSchemaSemanticError::InheritedSlots(owner));
-        }
-        self.meter
-            .charge_work(slots.len() as u64, &WirePath::root())
-            .map_err(InheritanceSlotSchemaSemanticError::Resource)?;
-        if !slots[..inherited.len()]
-            .iter()
-            .all(|slot| inherited.contains(slot))
-        {
-            return Err(InheritanceSlotSchemaSemanticError::InheritedSlots(owner));
-        }
-        for slot in &slots[inherited.len()..] {
-            if identity::source_owner(self.graph, *slot, self.authority, self.meter)? != owner {
-                return Err(InheritanceSlotSchemaSemanticError::NewSlotOwner {
-                    owner,
-                    slot: *slot,
-                });
-            }
-        }
-        Ok(())
-    }
 }
-
-#[derive(Debug)]
-pub enum InheritanceSlotSchemaSemanticError<E> {
-    Resource(WireError),
-    Foundation(E),
-    Inheritance(InheritanceQueryError),
-    SlotIdentity(PersistentDispatchSlotId),
-    RoleCoverage(PersistentExactTypeId),
-    BasePrefix(PersistentExactTypeId),
-    InheritedSlots(PersistentExactTypeId),
-    InterfaceOrder {
-        owner: PersistentExactTypeId,
-        interface: PersistentExactTypeId,
-    },
-    NewSlotOwner {
-        owner: PersistentExactTypeId,
-        slot: PersistentDispatchSlotId,
-    },
-}
-impl<E: fmt::Display> fmt::Display for InheritanceSlotSchemaSemanticError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Resource(error) => error.fmt(f),
-            Self::Foundation(error) => write!(f, "invalid slot foundation: {error}"),
-            Self::Inheritance(error) => error.fmt(f),
-            Self::SlotIdentity(slot) => write!(
-                f,
-                "slot {slot} does not match its source declaration owner and role"
-            ),
-            Self::RoleCoverage(owner) => {
-                write!(f, "slot schema roles do not cover exact owner {owner}")
-            }
-            Self::BasePrefix(owner) => write!(
-                f,
-                "vtable for {owner} does not preserve the complete base prefix"
-            ),
-            Self::InheritedSlots(owner) => write!(
-                f,
-                "interface {owner} does not preserve all inherited slots before new declarations"
-            ),
-            Self::InterfaceOrder { owner, interface } => write!(
-                f,
-                "interface schema {interface} in {owner} differs from its provider sequence"
-            ),
-            Self::NewSlotOwner { owner, slot } => write!(
-                f,
-                "new slot {slot} in {owner} belongs to another source declaration owner"
-            ),
-        }
-    }
-}
-impl<E: std::error::Error + 'static> std::error::Error for InheritanceSlotSchemaSemanticError<E> {}

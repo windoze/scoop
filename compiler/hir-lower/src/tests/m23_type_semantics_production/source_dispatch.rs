@@ -2,6 +2,7 @@ use super::*;
 use scoop_identity::PersistentDispatchSlotId;
 use scoop_wire::{decode_canonical, encode};
 
+mod replay;
 mod support;
 use support::*;
 

@@ -126,6 +126,7 @@ pub(super) fn produce(
         ));
     }
     let inheritance_inventory = inheritance::source_inventory(export, &concrete, meter)?;
+    let interface_sources = inheritance::interface_sources(export, &concrete, meter)?;
     let (inheritance, local_inheritance_edges, protected_sources, constructor_origins) =
         inheritance::produce(
             export,
@@ -222,6 +223,7 @@ pub(super) fn produce(
         section,
         foundation,
         inheritance_inventory,
+        interface_sources,
     })
 }
 

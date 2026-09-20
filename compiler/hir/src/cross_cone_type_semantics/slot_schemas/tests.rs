@@ -7,6 +7,7 @@ use crate::cross_cone_type_semantics::inheritance::tests::support::Node;
 
 pub(in crate::cross_cone_type_semantics) mod support;
 use support::Fixture;
+mod overrides;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
@@ -180,6 +181,9 @@ fn diamond_interface_schema_deduplicates_inherited_roots_before_new_slots() {
     let left_slot = fixture.function(left, "left");
     let right_slot = fixture.function(right, "right");
     let new_slot = fixture.function(joined, "new");
+    fixture.interface_source(left, &[root], &[(left_slot, &[])]);
+    fixture.interface_source(right, &[root], &[(right_slot, &[])]);
+    fixture.interface_source(joined, &[right, left], &[(new_slot, &[])]);
     fixture.set(root, vec![interface(root, &[root_slot])]);
     fixture.set(left, vec![interface(left, &[root_slot, left_slot])]);
     fixture.set(right, vec![interface(right, &[root_slot, right_slot])]);

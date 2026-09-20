@@ -13,6 +13,8 @@ public interface Right : Root {
 public interface Diamond : Left, Right {
     public override fun zeta(): Int = 5
     public fun own(): Int = 6
+    public override val value: Int
+        get() = 8
 }
 public interface AbstractAgain : Diamond {
     public override fun zeta(): Int
