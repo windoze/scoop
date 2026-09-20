@@ -73,6 +73,18 @@ impl WireEncode for NominalSupportCallableInterfaceV1 {
     }
 }
 
+impl TryFrom<NominalSupportCallableInterfaceV1> for super::ProtectedCallableInterfaceV1 {
+    type Error = BuildError;
+
+    fn try_from(source: NominalSupportCallableInterfaceV1) -> Result<Self, Self::Error> {
+        Self::try_new(
+            source.declaration,
+            source.declaration_access,
+            super::ProtectedCallablePayloadV1::from_source_signature(source.payload)?,
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalSupportConstructorInterfaceV1 {
     declaration: PersistentConstructorId,

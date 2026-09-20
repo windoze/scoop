@@ -1,0 +1,42 @@
+public interface Bound {}
+public open class Envelope {
+    protected open class Box<T>(private var stored: T) {
+        public fun value(): T = stored
+        internal fun <U : Bound> echo(other: U): U = other
+        internal fun <U : Bound> combine(first: T, second: U): T = first
+        private fun helper(item: T): T = item
+        protected open fun virtual(item: T): T = item
+        public var property: T
+            get() = stored
+            private set(replacement) { stored = replacement }
+        @Unsafe
+        private fun raw(item: T): T = item
+    }
+    protected interface View<T> {
+        public fun read(): T
+        public fun count(): Int = helper()
+        private fun helper(): Int = 1
+        public val item: T
+        public val size: Int
+            get() = secret
+        private val secret: Int
+            get() = 2
+    }
+    protected enum Choice<T> {
+        Empty,
+        Positional(T),
+        Named { value: T },
+        Constructed(val value: T, val count: Int = 1)
+    }
+    protected object Cache {
+        private const val fixed: Int = 2
+        internal val data: Int = 3
+        private fun cached(): Int = data
+    }
+    protected class GenericOuter<T> {
+        private class Static {
+            private fun count(): Int = 4
+        }
+    }
+}
+private fun topLevel(): Int = 5
