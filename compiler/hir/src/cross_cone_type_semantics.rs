@@ -17,6 +17,7 @@ mod section;
 mod selected;
 mod slot_contracts;
 mod slot_schemas;
+mod source_authority;
 mod wire;
 
 pub use access::*;
@@ -33,3 +34,4 @@ pub use section::*;
 pub use selected::*;
 pub use slot_contracts::*;
 pub use slot_schemas::*;
+pub use source_authority::*;

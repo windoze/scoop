@@ -78,6 +78,14 @@ impl CrossConeTypeSemanticsFoundationV1 {
         &self.source_roots
     }
 
+    pub fn source_nominals(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (SourceNominalId, &DeclarationAccessSourceV1)> {
+        self.sources
+            .iter()
+            .map(|(owner, source)| (*owner, &source.access))
+    }
+
     pub const fn local_exact_facts(&self) -> &CanonicalPersistentIdsV1<PersistentExactTypeId> {
         &self.local_exact_facts
     }

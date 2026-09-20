@@ -197,6 +197,21 @@ impl DecodedNominalInheritanceEdgesV1 {
         let path = scoop_wire::WirePath::root();
         let count = self.direct_interfaces.len() as u64;
         meter
+            .check_semantic_depth(1, &path)
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        meter
+            .check_table_entries(count, &path)
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        meter
+            .charge_edges(
+                count.saturating_add(u64::from(matches!(
+                    self.direct_base,
+                    DecodedDirectClassBaseV1::ClassBase { .. }
+                ))),
+                &path,
+            )
+            .map_err(InheritanceEdgeResolutionError::Resource)?;
+        meter
             .charge_nodes(count.saturating_add(1), &path)
             .map_err(InheritanceEdgeResolutionError::Resource)?;
         meter

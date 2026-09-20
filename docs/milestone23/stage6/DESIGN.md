@@ -183,6 +183,8 @@ producer必须先从 sealed HIR 投影并封闭source-authority section，再独
 
 foundation的fact-shape子表是按exact id严格递增的array，每项精确为`{1: exact, 2: source_shape}`；它保存重算事实的输入，不保存candidate的`ExactTypeFactsV1`结论。`source_shape`采用field 0的封闭tag：`Unit=1`、`Scalar=2`、`Pointer=3`、`Reference=4`（均无其他field）；`OrdinaryStruct=5`、`CLayoutStruct=6`、`Tuple=7`的field 1是声明序exact type ref array，tuple至少一个element；`Enum=8`的field 1是声明序variant array，每项为`{1: variant id, 2: 声明序field exact refs, 3: source variant GC fact}`。field类型允许重复，variant id不得重复，声明序不能被canonical table排序改写。所有ref必须通过同一validated identity closure解析；unknown tag、额外field、表乱序/重复、空tuple或共享预算耗尽均拒绝。该子表的wire/identity校验本身不授予事实、layout或selection authority，完整source-authority仍须核对独立inventory、source representation和foundation，并以同一semantic validator重算GC/ZST事实。
 
+foundation的其他inventory同样使用canonical array：source roots按`SourceNominalId`的canonical bytes严格递增；source nominal snapshot每项精确为`{1: owner, 2: DeclarationAccessSourceV1}`并按owner排序，不重复identity key；dependency fact每项精确为`{1: provider, 2: exact}`，按exact id排序，同一exact不得以两个provider重复；本地inheritance edges复用既有四字段`NominalInheritanceEdgesV1`，按exact owner排序，其direct interface序列仍遵守原有canonical规则。producer可排序无序输入，但不得静默去重；reader必须拒绝已有字节中的乱序和重复，不得先排序修复。解析前共享预算必须覆盖table、排序/扫描、输出分配、嵌套source origin与继承边；这些inventory只提供重放输入，不单独授予checked source authority。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
