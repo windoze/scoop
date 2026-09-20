@@ -224,6 +224,10 @@ impl<'a> CheckedCrossConeLayoutHirProviderV1<'a> {
         self.provider
     }
 
+    pub const fn core(&self) -> &'a CoreBootstrapInterfaceSectionV1 {
+        self.core
+    }
+
     pub const fn public(&self) -> CheckedTypeSectionPublicSupportV1<'a> {
         self.public
     }

@@ -57,6 +57,9 @@ pub use layout_compile_closure::*;
 mod layout_hir_semantics;
 pub use layout_hir_semantics::*;
 
+mod layout_mir_semantics;
+pub use layout_mir_semantics::*;
+
 mod cross_cone_closure;
 pub use cross_cone_closure::*;
 

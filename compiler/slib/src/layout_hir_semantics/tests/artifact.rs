@@ -63,6 +63,22 @@ fn artifact_bytes_with_hir_semantics(
     nominal: Option<&NominalFixture>,
     semantics: Option<&CrossConeTypeSemanticsSectionV1>,
 ) -> Vec<u8> {
+    artifact_bytes_with_mir_type_bridge(
+        name,
+        dependencies,
+        nominal,
+        semantics,
+        empty_array_fields(7),
+    )
+}
+
+pub(super) fn artifact_bytes_with_mir_type_bridge(
+    name: &str,
+    dependencies: Vec<DependencyRecord>,
+    nominal: Option<&NominalFixture>,
+    semantics: Option<&CrossConeTypeSemanticsSectionV1>,
+    mir_type_bridge: Vec<u8>,
+) -> Vec<u8> {
     let cone = cone_named(name);
     let (mut hir, mut mir, mut lir) = required_sections();
     if let Some(nominal) = nominal {
@@ -109,7 +125,7 @@ fn artifact_bytes_with_hir_semantics(
             MetadataLocation::Mir,
             mir_cross_cone_type_bridge_capability(),
             MemberPurposeSet::COMPILE,
-            empty_array_fields(7),
+            mir_type_bridge,
         ),
     ]);
 

@@ -11,6 +11,7 @@ mod validation;
 
 pub use errors::*;
 pub use model::*;
+pub(crate) use validation::{transitive_positions, validate_hir_provider};
 
 #[cfg(test)]
 mod tests;

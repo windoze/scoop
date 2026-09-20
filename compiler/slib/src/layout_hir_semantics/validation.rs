@@ -1,8 +1,11 @@
 use scoop_hir::{
     CheckedTypeSectionPublicSupportV1, CommittedTypeUseSemanticAuthorityV1,
-    TypeSectionDeclarationSemanticAuthority, TypeSectionDefaultSemanticAuthority,
-    TypeSectionFoundationSemanticAuthority,
+    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
+    CrossConeTypeSemanticsSectionV1, OdrFreeHirFoundation, TypeSectionDeclarationSemanticAuthority,
+    TypeSectionDefaultSemanticAuthority, TypeSectionFoundationSemanticAuthority,
 };
+use scoop_identity::{ConeIdentity, ValidatedIdentityGraph};
+use scoop_wire::BudgetMeter;
 use typed_arena::Arena;
 
 use super::*;
@@ -142,10 +145,62 @@ where
         });
     };
     let provider = artifact.identity();
+    let (identities, foundation, core, interface, types, meter) = artifact.hir_semantic_parts();
+    let checked_provider = validate_hir_provider(
+        position,
+        provider,
+        identities,
+        foundation,
+        core,
+        interface,
+        types,
+        meter,
+        authority,
+        dependency_positions,
+        checked,
+    )?;
+    checked.push(arena.alloc(checked_provider));
+    validate_artifacts(
+        remaining_artifacts,
+        remaining_authorities,
+        dependency_positions,
+        position + 1,
+        arena,
+        checked,
+    )
+}
+
+/// Validates one provider against already checked dependency-first HIR proofs.
+/// The identity graph is borrowed only while the independent public authority
+/// is built; the returned proof borrows the HIR transports themselves.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn validate_hir_provider<'proof, 'source, P, F, S, D, C>(
+    position: usize,
+    provider: ConeIdentity,
+    identities: &ValidatedIdentityGraph,
+    foundation: &'proof OdrFreeHirFoundation,
+    core: &'proof CoreBootstrapInterfaceSectionV1,
+    interface: &'proof CrossConeHirInterfaceSectionV1,
+    types: &'proof CrossConeTypeSemanticsSectionV1,
+    meter: &mut BudgetMeter,
+    authority: &mut LayoutHirProviderSemanticAuthoritiesV1<'source, P, F, S, D, C>,
+    dependency_positions: &[Vec<usize>],
+    checked: &[&'proof CheckedCrossConeLayoutHirProviderV1<'proof>],
+) -> Result<
+    CheckedCrossConeLayoutHirProviderV1<'proof>,
+    CrossConeLayoutHirSemanticClosureError<P::Error>,
+>
+where
+    P: LayoutHirPublicAuthorityFactoryV1,
+    F: TypeSectionFoundationSemanticAuthority<P::Error>,
+    S: TypeSectionDeclarationSemanticAuthority<P::Error>,
+    D: TypeSectionDefaultSemanticAuthority<P::Error>,
+    C: CommittedTypeUseSemanticAuthorityV1<P::Error>,
+    'source: 'proof,
+{
     let reachable = transitive_positions(position, dependency_positions);
     let mut public_dependencies = Vec::new();
     let mut type_dependencies = Vec::new();
-    let mut direct_dependencies = Vec::new();
     public_dependencies
         .try_reserve_exact(reachable.len())
         .map_err(
@@ -175,6 +230,7 @@ where
     public_dependencies.sort_unstable_by_key(|dependency| dependency.provider);
     type_dependencies.sort_unstable_by_key(|dependency| dependency.provider());
     let direct_positions = &dependency_positions[position];
+    let mut direct_dependencies = Vec::new();
     direct_dependencies
         .try_reserve_exact(direct_positions.len())
         .map_err(
@@ -190,31 +246,32 @@ where
     );
     direct_dependencies.sort_unstable();
 
-    let (identities, foundation, core, interface, types, meter) = artifact.hir_semantic_parts();
-    let context = LayoutHirPublicAuthorityContextV1 {
-        provider,
-        identities,
-        foundation,
-        core,
-        interface,
-        direct_dependencies: &direct_dependencies,
-        dependencies: &public_dependencies,
+    let public = {
+        let context = LayoutHirPublicAuthorityContextV1 {
+            provider,
+            identities,
+            foundation,
+            core,
+            interface,
+            direct_dependencies: &direct_dependencies,
+            dependencies: &public_dependencies,
+        };
+        let mut public_authority = authority.public.build(context).map_err(|source| {
+            CrossConeLayoutHirSemanticClosureError::PublicAuthority { provider, source }
+        })?;
+        CheckedTypeSectionPublicSupportV1::validate(
+            interface,
+            provider,
+            core.direct_public_surface(),
+            &mut public_authority,
+            meter,
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(|source| CrossConeLayoutHirSemanticClosureError::Public {
+            provider,
+            source: Box::new(source),
+        })?
     };
-    let mut public_authority = authority.public.build(context).map_err(|source| {
-        CrossConeLayoutHirSemanticClosureError::PublicAuthority { provider, source }
-    })?;
-    let public = CheckedTypeSectionPublicSupportV1::validate(
-        interface,
-        provider,
-        core.direct_public_surface(),
-        &mut public_authority,
-        meter,
-        &scoop_wire::WirePath::root(),
-    )
-    .map_err(|source| CrossConeLayoutHirSemanticClosureError::Public {
-        provider,
-        source: Box::new(source),
-    })?;
     let types = types
         .validate_semantics(
             public,
@@ -230,24 +287,16 @@ where
             provider,
             source: Box::new(source),
         })?;
-    checked.push(arena.alloc(CheckedCrossConeLayoutHirProviderV1 {
+    Ok(CheckedCrossConeLayoutHirProviderV1 {
         position,
         provider,
         core,
         public,
         types,
-    }));
-    validate_artifacts(
-        remaining_artifacts,
-        remaining_authorities,
-        dependency_positions,
-        position + 1,
-        arena,
-        checked,
-    )
+    })
 }
 
-pub(super) fn transitive_positions(
+pub(crate) fn transitive_positions(
     position: usize,
     dependency_positions: &[Vec<usize>],
 ) -> Vec<usize> {

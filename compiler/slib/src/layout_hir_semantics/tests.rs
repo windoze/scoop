@@ -1,5 +1,6 @@
 mod artifact;
 mod diamond;
+mod mir_closure;
 mod public_authority;
 mod type_authority;
 

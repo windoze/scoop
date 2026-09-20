@@ -21,9 +21,12 @@ use crate::{ValidatedGraphArtifact, strong_compile_decode::OdrFreeStrongFoundati
 mod accessors;
 mod decode;
 mod hir_resolution;
+mod mir_semantic;
 mod transitions;
 pub use decode::CrossConeLayoutCompileSectionDecodeError;
 pub use hir_resolution::CrossConeLayoutHirResolutionError;
+pub use mir_semantic::CrossConeLayoutMirFrontValidationError;
+pub(crate) use mir_semantic::{PreparedCrossConeLayoutMirSections, PreparedLayoutMirSemanticParts};
 
 /// Canonically decoded payloads from one exact
 /// `cross-cone-layout-strong/1` Compile view.

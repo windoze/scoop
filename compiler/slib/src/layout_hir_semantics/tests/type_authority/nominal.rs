@@ -97,6 +97,10 @@ impl NominalFixture {
         }
     }
 
+    pub(in crate::layout_hir_semantics::tests) const fn provider(&self) -> ConeIdentity {
+        self.provider
+    }
+
     pub(in crate::layout_hir_semantics::tests) fn foundation(&self) -> CanonicalHirFoundation {
         let mut foundation = CanonicalHirFoundation::empty();
         foundation
@@ -175,7 +179,7 @@ impl NominalFixture {
         )
     }
 
-    pub(super) const fn owner(&self) -> PersistentTypeId {
+    pub(in crate::layout_hir_semantics::tests) const fn owner(&self) -> PersistentTypeId {
         self.owner
     }
 }
