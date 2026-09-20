@@ -1,325 +1,17 @@
 use super::*;
 
-/// One verified provisional Scoop object and its exact producer units.
-#[derive(Debug)]
-pub struct EmittedStrongObjectMemberV1 {
-    units: StrongScoopLirObjectUnitSetV1,
-    path: std::path::PathBuf,
-    kind: EmittedStrongObjectMemberKind,
-}
+mod strong;
+pub use strong::*;
 
-#[derive(Debug)]
-enum EmittedStrongObjectMemberKind {
-    NonCallable {
-        runtime_metadata: EmittedStrongRuntimeMetadataV1,
-        digest_patches: Vec<EmittedStrongDigestPatchMaterializationV1>,
-    },
-    CallableBody {
-        body: scoop_lir::PersistentCallableBodyId,
-    },
-}
-
-/// Borrowed typed contents of one verified provisional member.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EmittedStrongObjectMemberKindV1<'a> {
-    NonCallable {
-        runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
-        digest_patches: &'a [EmittedStrongDigestPatchMaterializationV1],
-    },
-    CallableBody {
-        body: scoop_lir::PersistentCallableBodyId,
-    },
-}
-
-impl EmittedStrongObjectMemberV1 {
-    pub const fn units(&self) -> &StrongScoopLirObjectUnitSetV1 {
-        &self.units
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    pub fn kind(&self) -> EmittedStrongObjectMemberKindV1<'_> {
-        match &self.kind {
-            EmittedStrongObjectMemberKind::NonCallable {
-                runtime_metadata,
-                digest_patches,
-            } => EmittedStrongObjectMemberKindV1::NonCallable {
-                runtime_metadata,
-                digest_patches,
-            },
-            EmittedStrongObjectMemberKind::CallableBody { body } => {
-                EmittedStrongObjectMemberKindV1::CallableBody { body: *body }
-            }
-        }
-    }
-}
-
-/// Complete verified provisional Scoop object set retained for `.slib`
-/// packaging. The owned temporary directory keeps every member immutable and
-/// alive for exactly as long as this result.
-#[derive(Debug)]
-pub struct EmittedStrongObjectSetV1 {
-    target_selection: scoop_lir::ValidatedLirTargetSelection,
-    foundation: scoop_lir::OdrFreeLirFoundation,
-    production: scoop_lir::StrongProductionSectionV1,
-    partition: StrongScoopLirObjectPartitionV1,
-    members: Vec<EmittedStrongObjectMemberV1>,
-    backing: tempfile::TempDir,
-}
-
-impl EmittedStrongObjectSetV1 {
-    pub const fn target(&self) -> scoop_lir::LirTargetProfile {
-        self.target_selection.target()
-    }
-
-    pub const fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
-        self.target_selection
-    }
-
-    pub const fn foundation(&self) -> &scoop_lir::OdrFreeLirFoundation {
-        &self.foundation
-    }
-
-    pub const fn production(&self) -> &scoop_lir::StrongProductionSectionV1 {
-        &self.production
-    }
-
-    pub fn members(&self) -> &[EmittedStrongObjectMemberV1] {
-        &self.members
-    }
-
-    pub const fn partition(&self) -> &StrongScoopLirObjectPartitionV1 {
-        &self.partition
-    }
-
-    pub fn temporary_directory(&self) -> &Path {
-        self.backing.path()
-    }
-}
-
-/// One rendered physical member used by diagnostics and golden tests.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RenderedStrongObjectModuleV1 {
-    units: StrongScoopLirObjectUnitSetV1,
-    llvm_ir: String,
-}
-
-impl RenderedStrongObjectModuleV1 {
-    pub const fn units(&self) -> &StrongScoopLirObjectUnitSetV1 {
-        &self.units
-    }
-
-    pub fn llvm_ir(&self) -> &str {
-        &self.llvm_ir
-    }
-}
-
-/// Translate one sealed strong LIR product to its complete provisional object
-/// set and retain the exact production/patch authority required by `.slib`
-/// packaging.
-pub fn emit_object_set(
-    input: &scoop_lir::SingleConeStrongLirOutput,
-    coordinate: &scoop_lir::ConeCoordinate,
-    entry_source: scoop_lir::EntryProductionSourceV1,
-    temporary_parent: &Path,
-    profile: ValidatedBackendProfile,
-) -> Result<EmittedStrongObjectSetV1, CodegenError> {
-    let module = input.module();
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    let production = input
-        .build_production_section(coordinate.clone(), entry_source)
-        .map_err(|error| {
-            CodegenError(format!("cannot build strong production section: {error}"))
-        })?;
-    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
-        .map_err(|error| CodegenError(error.to_string()))?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let expected_eh = artifact::eh_expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    std::fs::create_dir_all(temporary_parent).map_err(|error| {
-        CodegenError(format!(
-            "cannot create object temporary parent {}: {error}",
-            temporary_parent.display()
-        ))
-    })?;
-    let backing = tempfile::Builder::new()
-        .prefix("scoop-lir-")
-        .tempdir_in(temporary_parent)
-        .map_err(|error| {
-            CodegenError(format!(
-                "cannot create immutable object backing under {}: {error}",
-                temporary_parent.display()
-            ))
-        })?;
-    let mut members = Vec::with_capacity(partition.objects().len());
-    for units in partition.objects() {
-        let path = backing
-            .path()
-            .join(format!("{}.o", units.definition_plans()[0]));
-        let context = Context::create();
-        let member = match units.kind() {
-            StrongScoopLirObjectKindV1::NonCallable => {
-                let selected_safepoints = expected_safepoints.without_body_sites();
-                let selected_eh = expected_eh.without_body_metadata();
-                let (llvm, runtime_metadata) = prepare_non_callable_strong_llvm_module(
-                    &context,
-                    module,
-                    &production,
-                    &machine,
-                    profile,
-                    &selected_safepoints,
-                )?;
-                write_object(&machine, &llvm, &path)?;
-                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
-                let digest_patches =
-                    object_materialization::resolve_digest_patch_materializations_v1(
-                        &path,
-                        module.meta.target_profile,
-                        &production,
-                        &runtime_metadata,
-                    )?;
-                EmittedStrongObjectMemberV1 {
-                    units: units.clone(),
-                    path,
-                    kind: EmittedStrongObjectMemberKind::NonCallable {
-                        runtime_metadata,
-                        digest_patches,
-                    },
-                }
-            }
-            StrongScoopLirObjectKindV1::CallableBody(body) => {
-                let function = module
-                    .functions
-                    .iter()
-                    .find(|function| function.callable_body.id() == body)
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "strong object partition selected missing callable body {body}"
-                        ))
-                    })?;
-                let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
-                let selected_eh = expected_eh.for_function(function.symbol());
-                let llvm = prepare_callable_strong_llvm_module(
-                    &context,
-                    module,
-                    &production,
-                    &machine,
-                    profile,
-                    &selected_safepoints,
-                    body,
-                )?;
-                write_object(&machine, &llvm, &path)?;
-                let definition = production
-                    .canonical_definitions()
-                    .plan(units.definition_plans()[0])
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "callable object unit {} has no canonical symbol plan",
-                            units.definition_plans()[0]
-                        ))
-                    })?;
-                if let Err(error) = crate::callable_atom_boundaries::materialize_v1(
-                    &path,
-                    module.meta.target_profile,
-                    definition,
-                    body,
-                ) {
-                    return Err(discard_invalid_object(&path, error));
-                }
-                verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
-                EmittedStrongObjectMemberV1 {
-                    units: units.clone(),
-                    path,
-                    kind: EmittedStrongObjectMemberKind::CallableBody { body },
-                }
-            }
-        };
-        members.push(member);
-    }
-    Ok(EmittedStrongObjectSetV1 {
-        target_selection: profile.lir_target_selection(),
-        foundation: input.foundation().clone(),
-        production,
-        partition,
-        members,
-        backing,
-    })
-}
-
-/// Render every physical strong object module without writing artifacts.
-pub fn render_llvm_ir_members(
-    input: &scoop_lir::SingleConeStrongLirOutput,
-    coordinate: &scoop_lir::ConeCoordinate,
-    entry_source: scoop_lir::EntryProductionSourceV1,
-    profile: ValidatedBackendProfile,
-) -> Result<Vec<RenderedStrongObjectModuleV1>, CodegenError> {
-    let module = input.module();
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    let production = input
-        .build_production_section(coordinate.clone(), entry_source)
-        .map_err(|error| {
-            CodegenError(format!("cannot build strong production section: {error}"))
-        })?;
-    let partition = StrongScoopLirObjectPartitionV1::from_input(input)
-        .map_err(|error| CodegenError(error.to_string()))?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    partition
-        .objects()
-        .iter()
-        .map(|units| {
-            let context = Context::create();
-            let llvm = match units.kind() {
-                StrongScoopLirObjectKindV1::NonCallable => {
-                    let selected = expected_safepoints.without_body_sites();
-                    prepare_non_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                    )?
-                    .0
-                }
-                StrongScoopLirObjectKindV1::CallableBody(body) => {
-                    let function = module
-                        .functions
-                        .iter()
-                        .find(|function| function.callable_body.id() == body)
-                        .ok_or_else(|| {
-                            CodegenError(format!(
-                                "strong object partition selected missing callable body {body}"
-                            ))
-                        })?;
-                    let selected = expected_safepoints.for_function(function.symbol())?;
-                    prepare_callable_strong_llvm_module(
-                        &context,
-                        module,
-                        &production,
-                        &machine,
-                        profile,
-                        &selected,
-                        body,
-                    )?
-                }
-            };
-            Ok(RenderedStrongObjectModuleV1 {
-                units: units.clone(),
-                llvm_ir: llvm.print_to_string().to_string(),
-            })
-        })
-        .collect()
-}
-
-fn prepare_non_callable_strong_llvm_module<'ctx>(
+fn prepare_non_callable_strong_llvm_module<
+    'ctx,
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+    I: Clone,
+>(
     context: &'ctx Context,
     module: &Module,
-    production: &scoop_lir::StrongProductionSectionV1,
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -355,10 +47,10 @@ fn prepare_non_callable_strong_llvm_module<'ctx>(
     Ok((llvm, runtime_metadata))
 }
 
-fn prepare_callable_strong_llvm_module<'ctx>(
+fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     context: &'ctx Context,
     module: &Module,
-    production: &scoop_lir::StrongProductionSectionV1,
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -947,14 +639,13 @@ fn initialization_unit_globals<'ctx>(
     )
 }
 
-fn declare_initialization_unit_globals<'ctx>(
+fn declare_initialization_unit_globals<'ctx, D, C, I>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     module: &Module,
-    production: &scoop_lir::StrongProductionSectionV1,
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
 ) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
     let plans = production
-        .registration_production()
         .initialization_units()
         .registrations()
         .iter()

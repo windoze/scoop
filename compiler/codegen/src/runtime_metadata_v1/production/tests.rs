@@ -10,10 +10,12 @@ use scoop_identity::{
 use scoop_lir::{
     CanonicalLirFoundation, DigestNodeV1, EntryProductionSourceV1, LirTargetProfile,
     OdrFreeLirFoundation, StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
-    StrongProductionSectionV1, StrongRegistrationProductionSurfaceV1,
+    StrongProductionSectionV1, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV1,
+    StrongRegistrationProductionSurfaceV2,
 };
 
 use super::emit_strong_runtime_metadata_v1;
+use crate::strong_production::StrongProductionEmissionSource;
 
 #[test]
 fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
@@ -50,12 +52,13 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     )
     .unwrap();
 
+    let production_view = production.emission_view();
     let emitted = emit_strong_runtime_metadata_v1(
         &context,
         &llvm,
         &target_data,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &production,
+        &production_view,
         bounds_message,
         array_size_message,
     )
@@ -120,6 +123,65 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     llvm.verify().unwrap();
 }
 
+#[test]
+fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
+    let (production, definition, primary_atom, patch_intent, symbol) = production_v2();
+    let context = Context::create();
+    let llvm = context.create_module("strong-runtime-metadata-v2");
+    let target_data =
+        TargetData::create(LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout());
+    let producer = production.image_plan().cone().identity();
+    let bounds_message = crate::emission::emit_cone_trap_message(
+        &context,
+        &llvm,
+        &target_data,
+        production.canonical_definitions(),
+        producer,
+        (
+            ConeImageSupportRole::ArrayBoundsMessage,
+            b"array index out of bounds",
+        ),
+        true,
+    )
+    .unwrap();
+    let array_size_message = crate::emission::emit_cone_trap_message(
+        &context,
+        &llvm,
+        &target_data,
+        production.canonical_definitions(),
+        producer,
+        (
+            ConeImageSupportRole::ArraySizeOverflowMessage,
+            b"array size overflow",
+        ),
+        true,
+    )
+    .unwrap();
+
+    let production_view = production.emission_view();
+    let emitted = emit_strong_runtime_metadata_v1(
+        &context,
+        &llvm,
+        &target_data,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        &production_view,
+        bounds_message,
+        array_size_message,
+    )
+    .unwrap();
+
+    let [patch] = emitted.patch_locations() else {
+        panic!("the V2 image must retain the single runtime-image patch")
+    };
+    assert_eq!(patch.intent(), patch_intent);
+    assert_eq!(patch.definition(), definition);
+    assert_eq!(patch.atom(), primary_atom);
+    assert_eq!(patch.owner(), symbol);
+    assert_eq!(patch.offset_within_owner(), 96);
+    assert_eq!(patch.width_bytes(), 32);
+    llvm.verify().unwrap();
+}
+
 fn production() -> (
     StrongProductionSectionV1,
     ObjectDefinitionPlanId,
@@ -171,6 +233,76 @@ fn production() -> (
     .unwrap();
     let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
     let production = StrongProductionSectionV1::new(
+        coordinate,
+        &foundation,
+        external,
+        digests,
+        registrations,
+        EntryProductionSourceV1::Library,
+        &[],
+        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+    )
+    .unwrap();
+    (
+        production,
+        definition_id,
+        primary_atom,
+        patch_intent,
+        symbol,
+    )
+}
+
+fn production_v2() -> (
+    StrongProductionSectionV2,
+    ObjectDefinitionPlanId,
+    ObjectDefinitionAtomId,
+    scoop_identity::DigestPatchIntentId,
+    PersistentSymbolRequest,
+) {
+    let coordinate = ConeCoordinate::reserved_single_file();
+    let producer = coordinate.identity().unwrap();
+    let definition = CborIdentityRecord::from_key(
+        ObjectDefinitionPlanKey::strong(
+            producer,
+            StrongDefinitionEntity::cone_image(producer),
+            StrongDefinitionRole::ImageDescriptor,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let definition_id = definition.id();
+    let atoms = image_atoms(definition_id);
+    let primary_atom = atoms[0].id();
+    let symbol = PersistentSymbolRequest::new(
+        PersistentSymbolKey::ImageDescriptor(producer),
+        LinkageClass::ConeStrong,
+    )
+    .unwrap();
+    let mut canonical = CanonicalLirFoundation::empty();
+    canonical.set_definition_plans(vec![definition]).unwrap();
+    canonical.set_definition_atoms(atoms).unwrap();
+    canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
+    let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
+
+    let image_key = DigestNodeKey::runtime_image(producer);
+    let image_id = DigestNodeId::from_key(&image_key).unwrap();
+    let patch_key = DigestPatchIntentKey::new(
+        image_id,
+        definition_id,
+        DefinitionAtomRole::Primary,
+        DigestSemanticFieldRole::RuntimeImage,
+    );
+    let patch_intent = scoop_identity::DigestPatchIntentId::from_key(&patch_key).unwrap();
+    let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
+    let digests = StrongDigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
+    let registrations = StrongRegistrationProductionSurfaceV2::empty(
+        LirTargetProfile::DARWIN_AARCH64,
+        &foundation,
+        &digests,
+    )
+    .unwrap();
+    let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
+    let production = StrongProductionSectionV2::new(
         coordinate,
         &foundation,
         external,

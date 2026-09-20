@@ -6,7 +6,7 @@ use inkwell::targets::TargetData;
 use inkwell::values::GlobalValue;
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentSymbolRequest, StrongProductionSectionV1,
+    PersistentSymbolRequest,
 };
 
 use super::{
@@ -114,37 +114,37 @@ impl EmittedStrongRuntimeMetadataV1 {
 ///
 /// The caller owns the LLVM module under construction. On failure that module
 /// must be discarded; no partially emitted module is a successful product.
-pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
+pub(crate) fn emit_strong_runtime_metadata_v1<
+    'ctx,
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+    I: Clone,
+>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     target_data: &TargetData,
     profile: ValidatedBackendProfile,
-    production: &StrongProductionSectionV1,
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
 ) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
-    let registrations = production.registration_production();
     let safepoints =
-        emit_strong_safepoint_registrations_v1(context, llvm, registrations.safepoints())?;
-    let callables =
-        emit_strong_callable_registrations_v1(context, llvm, registrations.callables())?;
-    let types = emit_strong_type_registrations_v1(context, llvm, registrations.types())?;
-    let immortal_objects = emit_strong_immortal_object_registrations_v1(
-        context,
-        llvm,
-        registrations.immortal_objects(),
-    )?;
+        emit_strong_safepoint_registrations_v1(context, llvm, production.safepoints())?;
+    let callables = emit_strong_callable_registrations_v1(context, llvm, production.callables())?;
+    let types = emit_strong_type_registrations_v1(context, llvm, production.types())?;
+    let immortal_objects =
+        emit_strong_immortal_object_registrations_v1(context, llvm, production.immortal_objects())?;
     let static_storages = emit_strong_static_storage_registrations_v1(
         context,
         llvm,
         target_data,
-        registrations.static_storages(),
+        production.static_storages(),
     )?;
     let initialization_units = emit_strong_initialization_unit_registrations_v1(
         context,
         llvm,
         profile,
-        registrations.initialization_units(),
+        production.initialization_units(),
     )?;
     let entry = emit_entry_production_v1(context, llvm, production.entry_plan())?;
     let image = emit_cone_image_v1(
@@ -279,8 +279,8 @@ pub(crate) fn emit_strong_runtime_metadata_v1<'ctx>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn runtime_global_atoms<'ctx>(
-    production: &StrongProductionSectionV1,
+fn runtime_global_atoms<'ctx, D, C, I>(
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     safepoints: &super::EmittedStrongSafepointRegistrationSetV1<'ctx>,
     callables: &super::EmittedStrongCallableRegistrationSetV1<'ctx>,
     types: &super::EmittedStrongTypeRegistrationSetV1<'ctx>,
@@ -290,7 +290,6 @@ fn runtime_global_atoms<'ctx>(
     entry: EmittedEntryProductionV1<'ctx>,
     image: super::EmittedConeImageV1<'ctx>,
 ) -> Result<Vec<GlobalAtomMaterializationV1<'ctx>>, CodegenError> {
-    let registrations = production.registration_production();
     let mut atoms = Vec::new();
     atoms.extend(safepoints.registrations().iter().map(|registration| {
         GlobalAtomMaterializationV1::new(
@@ -314,12 +313,12 @@ fn runtime_global_atoms<'ctx>(
     require_parallel_coverage(
         "immortal-object registration",
         immortal_objects.registrations().len(),
-        registrations.immortal_objects().registrations().len(),
+        production.immortal_objects().registrations().len(),
     )?;
     for (emitted, plan) in immortal_objects
         .registrations()
         .iter()
-        .zip(registrations.immortal_objects().registrations())
+        .zip(production.immortal_objects().registrations())
     {
         if emitted.object() != plan.object() {
             return Err(CodegenError(
@@ -339,12 +338,12 @@ fn runtime_global_atoms<'ctx>(
     require_parallel_coverage(
         "static-storage registration",
         static_storages.registrations().len(),
-        registrations.static_storages().registrations().len(),
+        production.static_storages().registrations().len(),
     )?;
     for (emitted, plan) in static_storages
         .registrations()
         .iter()
-        .zip(registrations.static_storages().registrations())
+        .zip(production.static_storages().registrations())
     {
         if emitted.storage() != plan.semantic().storage() {
             return Err(CodegenError(
@@ -375,12 +374,12 @@ fn runtime_global_atoms<'ctx>(
     require_parallel_coverage(
         "initialization registration",
         initialization_units.registrations().len(),
-        registrations.initialization_units().registrations().len(),
+        production.initialization_units().registrations().len(),
     )?;
     for (emitted, plan) in initialization_units
         .registrations()
         .iter()
-        .zip(registrations.initialization_units().registrations())
+        .zip(production.initialization_units().registrations())
     {
         if emitted.unit() != plan.semantic().unit() {
             return Err(CodegenError(
@@ -517,8 +516,8 @@ impl_patch_site_parts!(
     RuntimeImagePatchSiteV1,
 );
 
-fn record_patch(
-    production: &StrongProductionSectionV1,
+fn record_patch<D, C, I>(
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     patches: &mut Vec<ProvisionalStrongDigestPatchLocationV1>,
     patch: PatchParts<'_>,
 ) -> Result<(), CodegenError> {
@@ -572,8 +571,8 @@ fn record_patch(
     Ok(())
 }
 
-fn validate_patch_coverage(
-    production: &StrongProductionSectionV1,
+fn validate_patch_coverage<D, C, I>(
+    production: &crate::strong_production::StrongProductionEmissionView<'_, D, C, I>,
     patches: &[ProvisionalStrongDigestPatchLocationV1],
 ) -> Result<(), CodegenError> {
     let expected = production

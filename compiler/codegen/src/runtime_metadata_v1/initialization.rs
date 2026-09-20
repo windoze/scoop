@@ -6,8 +6,8 @@ use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionPlanId, PersistentInitializationUnitId, PersistentSymbolRequest,
     StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
-    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlanSetV1,
-    StrongInitializationUnitRegistrationPlanV1,
+    StrongInitializationStaticStorageRefPlanV1, StrongInitializationUnitRegistrationPlan,
+    StrongInitializationUnitRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -125,11 +125,11 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationSetV1<'ctx> {
 /// Emit separate `ic`, coordinator `id`, and runtime-registration `nr`
 /// definitions for every initialization unit. Graph-managed digest slots stay
 /// zero until the object-backed finalizer patches them.
-pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx, D: Clone>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     profile: ValidatedBackendProfile,
-    plan: &StrongInitializationUnitRegistrationPlanSetV1,
+    plan: &StrongInitializationUnitRegistrationPlanSet<D>,
 ) -> Result<EmittedStrongInitializationUnitRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let coordinator_type = coordinator_descriptor_type(context);
@@ -152,8 +152,8 @@ pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx>(
     })
 }
 
-struct PreparedInitializationRegistrationV1<'ctx> {
-    plan: StrongInitializationUnitRegistrationPlanV1,
+struct PreparedInitializationRegistrationV1<'ctx, D> {
+    plan: StrongInitializationUnitRegistrationPlan<D>,
     storage_value: GlobalValue<'ctx>,
     failure_value: GlobalValue<'ctx>,
     storage_registration: Option<GlobalValue<'ctx>>,
@@ -167,13 +167,13 @@ struct PreparedInitializationRegistrationV1<'ctx> {
     diagnostic_symbol: String,
 }
 
-fn prepare_registration<'ctx>(
+fn prepare_registration<'ctx, D: Clone>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
     coordinator_type: StructType<'ctx>,
-    plan: &StrongInitializationUnitRegistrationPlanV1,
-) -> Result<PreparedInitializationRegistrationV1<'ctx>, CodegenError> {
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
+) -> Result<PreparedInitializationRegistrationV1<'ctx, D>, CodegenError> {
     let storage_value = require_storage_value(llvm, plan.storage())?;
     let failure_value = require_storage_value(llvm, plan.failure_root())?;
     let storage_registration = prepare_global_declaration(
@@ -260,13 +260,13 @@ fn prepare_registration<'ctx>(
     })
 }
 
-fn emit_registration<'ctx>(
+fn emit_registration<'ctx, D>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     profile: ValidatedBackendProfile,
     types: &RuntimeMetadataV1Types<'ctx>,
     coordinator_type: StructType<'ctx>,
-    prepared: PreparedInitializationRegistrationV1<'ctx>,
+    prepared: PreparedInitializationRegistrationV1<'ctx, D>,
 ) -> Result<EmittedStrongInitializationUnitRegistrationV1<'ctx>, CodegenError> {
     let plan = prepared.plan;
     let semantic = plan.semantic();

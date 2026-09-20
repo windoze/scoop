@@ -207,7 +207,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
                     crate::object_materialization::resolve_digest_patch_materializations_v1(
                         &tampered_path,
                         input.module().meta.target_profile,
-                        emitted.production(),
+                        emitted.production().canonical_definitions(),
                         runtime_metadata,
                     )
                     .unwrap_err();

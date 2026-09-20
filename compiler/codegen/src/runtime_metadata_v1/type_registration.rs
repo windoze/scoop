@@ -4,8 +4,8 @@ use inkwell::types::AnyType;
 use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentExactTypeId, StrongTypeRegistrationPlanSetV1,
-    StrongTypeRegistrationPlanV1,
+    ObjectDefinitionPlanId, PersistentExactTypeId, StrongTypeRegistrationPlan,
+    StrongTypeRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -106,10 +106,14 @@ impl<'ctx> EmittedStrongTypeRegistrationSetV1<'ctx> {
 
 /// Emit every strong type registration from the closed LIR production plan.
 /// The three graph-managed digest fields remain zero until finalization.
-pub(crate) fn emit_strong_type_registrations_v1<'ctx>(
+pub(crate) fn emit_strong_type_registrations_v1<
+    'ctx,
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    plan: &StrongTypeRegistrationPlanSetV1,
+    plan: &StrongTypeRegistrationPlanSet<D, C>,
 ) -> Result<EmittedStrongTypeRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
     let prepared = plan
@@ -128,17 +132,17 @@ pub(crate) fn emit_strong_type_registrations_v1<'ctx>(
 }
 
 #[derive(Clone, Copy)]
-struct PreparedTypeRegistrationV1<'plan, 'ctx> {
-    plan: &'plan StrongTypeRegistrationPlanV1,
+struct PreparedTypeRegistrationV1<'plan, 'ctx, D, C> {
+    plan: &'plan StrongTypeRegistrationPlan<D, C>,
     type_descriptor: GlobalValue<'ctx>,
     prior_registration: Option<GlobalValue<'ctx>>,
 }
 
-fn prepare_registration<'plan, 'ctx>(
+fn prepare_registration<'plan, 'ctx, D: Copy, C>(
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
-    plan: &'plan StrongTypeRegistrationPlanV1,
-) -> Result<PreparedTypeRegistrationV1<'plan, 'ctx>, CodegenError> {
+    plan: &'plan StrongTypeRegistrationPlan<D, C>,
+) -> Result<PreparedTypeRegistrationV1<'plan, 'ctx, D, C>, CodegenError> {
     let registration_request = plan.symbol();
     let registration_symbol = registration_request.symbol();
     if registration_request.linkage() != LinkageClass::ConeStrong {
@@ -203,11 +207,11 @@ fn prepare_registration<'plan, 'ctx>(
     })
 }
 
-fn emit_registration<'ctx>(
+fn emit_registration<'ctx, D: Copy, C>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
-    prepared: PreparedTypeRegistrationV1<'_, 'ctx>,
+    prepared: PreparedTypeRegistrationV1<'_, 'ctx, D, C>,
 ) -> EmittedStrongTypeRegistrationV1<'ctx> {
     let plan = prepared.plan;
     let descriptor = prepared.prior_registration.unwrap_or_else(|| {

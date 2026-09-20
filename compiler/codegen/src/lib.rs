@@ -84,6 +84,7 @@ mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
 mod statepoint;
+mod strong_production;
 mod target;
 mod type_descriptors;
 mod validation;
@@ -103,7 +104,8 @@ pub(crate) use emission::emit_llvm_module;
 pub(crate) use emission::host_target_machine;
 pub use emission::{
     EmittedStrongObjectMemberKindV1, EmittedStrongObjectMemberV1, EmittedStrongObjectSetV1,
-    RenderedStrongObjectModuleV1, emit_object_set, render_llvm_ir_members,
+    EmittedStrongObjectSetV2, RenderedStrongObjectModuleV1, emit_object_set, emit_object_set_v2,
+    render_llvm_ir_members,
 };
 use function::emit_function;
 pub(crate) use llvm_types::*;
