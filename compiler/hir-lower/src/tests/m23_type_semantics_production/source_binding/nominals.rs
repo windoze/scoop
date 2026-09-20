@@ -13,6 +13,7 @@ mod combinations;
 mod corruption;
 mod origins;
 mod resources;
+mod root_closure;
 mod semantics;
 
 const DECLARATIONS: &str = include_str!(concat!(

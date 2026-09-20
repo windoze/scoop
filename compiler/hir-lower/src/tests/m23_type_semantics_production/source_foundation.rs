@@ -25,10 +25,11 @@ fn source_foundation_product_round_trips_real_hir_and_generated_object_roles() {
         .foundation()
         .source_transcript(&mut meter())
         .unwrap();
-    let independent = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(&output)
-        .unwrap()
-        .source_transcript(&mut meter())
-        .unwrap();
+    let independent =
+        hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(&output, &mut meter())
+            .unwrap()
+            .source_transcript(&mut meter())
+            .unwrap();
     assert_eq!(source, independent);
     assert_eq!(source.entries().representations.records().len(), 7);
     assert_eq!(source.entries().source_roots.values().len(), 8);

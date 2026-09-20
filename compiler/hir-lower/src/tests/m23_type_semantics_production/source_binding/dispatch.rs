@@ -109,7 +109,7 @@ fn independent_foundation_keeps_generic_odr_rejection() {
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
             assert!(matches!(
-                hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output),
+                hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter()),
                 Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
             ));
         },
@@ -120,7 +120,8 @@ fn independent_foundation_keeps_generic_odr_rejection() {
 fn independent_foundation_bytes_are_deterministic_and_still_budgeted() {
     let first = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output).unwrap();
+            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+                .unwrap();
         assert!(
             foundation
                 .source_transcript(&mut BudgetMeter::new(DecodeLimits {
@@ -133,7 +134,8 @@ fn independent_foundation_bytes_are_deterministic_and_still_budgeted() {
     });
     let second = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output).unwrap();
+            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+                .unwrap();
         encode(&foundation.source_transcript(&mut meter()).unwrap()).unwrap()
     });
     assert_eq!(first, second);

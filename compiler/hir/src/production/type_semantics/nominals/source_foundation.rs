@@ -1,4 +1,7 @@
 use super::*;
+use scoop_wire::BudgetMeter;
+
+mod sources;
 
 pub(super) struct Projection<'a> {
     pub concrete: Vec<ConcreteNominal<'a>>,
@@ -10,49 +13,37 @@ pub(super) struct Projection<'a> {
 impl CrossConeTypeSemanticsFoundationV1 {
     /// Projects source evidence before candidate dispatch, protected-callable,
     /// or default contracts are built. Serialization and binding have their
-    /// own shared resource meter; this sealed-HIR product is not a proof.
-    pub fn from_ordinary_hir(output: &OrdinaryHirOutput<'_>) -> Result<Self, Error> {
-        project(output).map(|projection| projection.foundation)
+    /// own validation step; this sealed-HIR product is not a proof.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        project(output, meter).map(|projection| projection.foundation)
     }
 }
 
-pub(super) fn project<'a>(output: &'a OrdinaryHirOutput<'_>) -> Result<Projection<'a>, Error> {
+pub(super) fn project<'a>(
+    output: &'a OrdinaryHirOutput<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<Projection<'a>, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
     let public = CanonicalNominalInterfacesV1::from_export_hir(export)
         .map_err(|error| Error::PublicInterface(error.to_string()))?;
+    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export, meter)?;
+    let sources = sources::project(export, &required, meter)?;
     let mut roots = Vec::new();
-    let mut concrete = Vec::new();
-    let mut sources = BTreeMap::new();
-    for local_id in public_nominals(export) {
-        let source = identity(export, local_id)?.source().ok_or_else(|| {
-            let (kind, index) = location(local_id);
-            Error::GeneratedPublicNominal { kind, index }
-        })?;
-        let id = source_id(source);
-        roots.push(id);
-        sources.insert(
-            id,
-            TypeSemanticsSourceEvidenceV1 {
-                key: source.declaration().clone(),
-                access: declaration_access(
-                    export,
-                    source.declaration(),
-                    nominal_access(export, local_id).declared.into(),
-                )?,
-            },
-        );
-        if let Some(nominal) = source_inventory::concrete(export, local, local_id, source)? {
-            concrete.push(nominal);
-        }
-    }
-    roots.sort_unstable();
-    if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err(Error::InvalidTable {
-            table: "source-root",
-            reason: "duplicate source nominal identity".into(),
-        });
-    }
+    meter
+        .try_reserve_collection_slots(
+            &mut roots,
+            required.values().len(),
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(inheritance::source_resources::resource)?;
+    roots.extend_from_slice(required.values());
+    // Source-only roots carry no concrete capability. Representation requirements
+    // are projected separately and still require a real LocalConcrete exact pair.
+    let concrete = source_inventory::roots(output, meter)?;
     let root_exacts = concrete
         .iter()
         .map(|nominal| nominal.exact)

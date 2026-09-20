@@ -26,10 +26,11 @@ struct Fixture {
 
 impl Fixture {
     fn from_output(output: &hir::OrdinaryHirOutput<'_>) -> Self {
-        let source = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output)
-            .unwrap()
-            .source_transcript(&mut meter())
-            .unwrap();
+        let source =
+            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+                .unwrap()
+                .source_transcript(&mut meter())
+                .unwrap();
         let canonical = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();
         let mut identities = identity_closure(output);
         let decoded: hir::DecodedHirFoundation =

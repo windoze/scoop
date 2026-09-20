@@ -110,7 +110,7 @@ impl CanonicalInheritanceSourceParameterProtocolsV1 {
     }
 }
 
-fn roots<'a>(
+pub(super) fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<ConcreteNominal<'a>>, Error> {

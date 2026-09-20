@@ -120,7 +120,7 @@ pub(super) fn definition_sources(export: &ExportHir) -> BTreeSet<ExportDefinitio
         .collect()
 }
 
-fn all_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> + '_ {
+pub(super) fn all_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> + '_ {
     export
         .structs
         .iter()
