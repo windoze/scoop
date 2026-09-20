@@ -103,6 +103,8 @@ pub(super) fn produce(
     let slot_selections = inheritance::slot_selections(export, &concrete, meter)?;
     let source_callables =
         inheritance::source_callables(export, &inheritance_inventory, &slot_selections, meter)?;
+    let source_constructors =
+        inheritance::source_constructors(export, &concrete, &inheritance_inventory, meter)?;
     let (inheritance, protected_sources, constructor_origins) = inheritance::produce(
         export,
         &concrete,
@@ -158,6 +160,7 @@ pub(super) fn produce(
         interface_sources,
         slot_selections,
         source_callables,
+        source_constructors,
     })
 }
 

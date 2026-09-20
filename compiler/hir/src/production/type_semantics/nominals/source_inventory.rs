@@ -53,6 +53,20 @@ impl CanonicalInheritanceSourceCallablesV1 {
     }
 }
 
+impl CanonicalInheritanceSourceConstructorsV1 {
+    /// Projects public/protected constructor contracts directly from sealed
+    /// source declarations, independently of candidate callable interfaces.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        let export = output.output().export.module();
+        let inventory = inheritance::source_inventory(export, &nominals, meter)?;
+        inheritance::source_constructors(export, &nominals, &inventory, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

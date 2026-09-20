@@ -1,0 +1,6 @@
+Defaults(value): Public, Final
+Factory(seed): Protected, Final
+Factory(text): Public, Final
+Pair(left,right): Public, Final
+Pair(text): Public, Final
+Product(count,label): Public, Final

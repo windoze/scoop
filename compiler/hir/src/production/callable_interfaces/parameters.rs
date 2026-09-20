@@ -12,7 +12,23 @@ pub(super) fn project(
     binders: &[HirSignatureBinder],
     expected_types: &[SignatureTypeKey],
 ) -> Result<CanonicalSourceParameterShapesV1, SourceParameterProjectionError> {
-    let source = unique_interface(projection.export, owner)?;
+    project_source(
+        projection.export,
+        &projection.signatures,
+        owner,
+        binders,
+        expected_types,
+    )
+}
+
+pub(in crate::production) fn project_source(
+    export: &crate::ExportHir,
+    signatures: &super::HirInterfaceSignatureProjector<'_>,
+    owner: ExportParameterOwner,
+    binders: &[HirSignatureBinder],
+    expected_types: &[SignatureTypeKey],
+) -> Result<CanonicalSourceParameterShapesV1, SourceParameterProjectionError> {
+    let source = unique_interface(export, owner)?;
     if source.parameters.len() != expected_types.len() {
         return Err(SourceParameterProjectionError::Arity {
             expected: expected_types.len(),
@@ -27,9 +43,8 @@ pub(super) fn project(
         })?;
         let name = CanonicalIdentifier::new(&parameter.name)
             .map_err(|source| SourceParameterProjectionError::InvalidName { position, source })?;
-        let value_type = calling_value_type(projection, position, parameter.calling)?;
-        let actual = projection
-            .signatures
+        let value_type = calling_value_type(export, position, parameter.calling)?;
+        let actual = signatures
             .map_type(value_type, binders)
             .map_err(|source| SourceParameterProjectionError::Signature { position, source })?;
         if &actual != expected {
@@ -63,21 +78,20 @@ fn unique_interface(
 }
 
 fn calling_value_type(
-    projection: &CallableProjection<'_>,
+    export: &crate::ExportHir,
     position: u32,
     calling: ExportParameterCalling,
 ) -> Result<TypeId, SourceParameterProjectionError> {
     match calling {
         ExportParameterCalling::Required { value_type }
         | ExportParameterCalling::Default { value_type, .. } => Ok(value_type),
-        ExportParameterCalling::Vararg { parameter_type, .. } => super::arena_get(
-            &projection.export.export_vararg_parameter_types,
-            parameter_type,
-        )
-        .map(|parameter| parameter.array_type)
-        .ok_or(SourceParameterProjectionError::UnknownVarargType {
-            position,
-            parameter_type: super::raw_index(parameter_type),
-        }),
+        ExportParameterCalling::Vararg { parameter_type, .. } => {
+            super::arena_get(&export.export_vararg_parameter_types, parameter_type)
+                .map(|parameter| parameter.array_type)
+                .ok_or(SourceParameterProjectionError::UnknownVarargType {
+                    position,
+                    parameter_type: super::raw_index(parameter_type),
+                })
+        }
     }
 }

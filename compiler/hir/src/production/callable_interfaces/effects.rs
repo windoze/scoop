@@ -63,8 +63,8 @@ pub(super) fn accessor(
     )
 }
 
-pub(super) fn source_constructor() -> Result<CallableSourceEffectsV1, CallableEffectProjectionError>
-{
+pub(in crate::production) fn source_constructor()
+-> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     CallableSourceEffectsV1::try_new(
         Effect::Ordinary,
         CallableSafetyV1::Safe,

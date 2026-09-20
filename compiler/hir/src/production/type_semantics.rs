@@ -27,6 +27,7 @@ pub struct CrossConeTypeSemanticsProductionV1 {
     interface_sources: crate::CanonicalInterfaceSourceDispatchesV1,
     slot_selections: crate::CanonicalInheritanceSourceSlotSelectionsV1,
     source_callables: crate::CanonicalInheritanceSourceCallablesV1,
+    source_constructors: crate::CanonicalInheritanceSourceConstructorsV1,
 }
 
 impl CrossConeTypeSemanticsProductionV1 {
@@ -57,6 +58,7 @@ impl CrossConeTypeSemanticsProductionV1 {
         crate::CanonicalInterfaceSourceDispatchesV1,
         crate::CanonicalInheritanceSourceSlotSelectionsV1,
         crate::CanonicalInheritanceSourceCallablesV1,
+        crate::CanonicalInheritanceSourceConstructorsV1,
     ) {
         (
             self.section,
@@ -65,6 +67,7 @@ impl CrossConeTypeSemanticsProductionV1 {
             self.interface_sources,
             self.slot_selections,
             self.source_callables,
+            self.source_constructors,
         )
     }
 
@@ -86,6 +89,10 @@ impl CrossConeTypeSemanticsProductionV1 {
 
     pub const fn source_callables(&self) -> &crate::CanonicalInheritanceSourceCallablesV1 {
         &self.source_callables
+    }
+
+    pub const fn source_constructors(&self) -> &crate::CanonicalInheritanceSourceConstructorsV1 {
+        &self.source_constructors
     }
 
     pub fn source_roots(&self) -> &[SourceNominalId] {

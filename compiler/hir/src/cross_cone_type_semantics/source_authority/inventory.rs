@@ -5,6 +5,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 use super::super::wire;
 
 mod callables;
+mod constructors;
 mod dependencies;
 mod edges;
 mod inheritance;
@@ -13,6 +14,7 @@ mod nominals;
 mod roots;
 mod slot_selections;
 pub use callables::*;
+pub use constructors::*;
 pub use dependencies::*;
 pub use edges::*;
 pub use inheritance::*;
