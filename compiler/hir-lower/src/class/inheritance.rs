@@ -300,7 +300,7 @@ impl Lowerer {
             for property in self.interfaces[value.template].properties.clone() {
                 let declaration = self.properties[property].clone();
                 if declaration.name != name
-                    || !self.access_domain_allows(&declaration.access.lookup.0, Some(receiver_ty))
+                    || !self.property_is_accessible(property, Some(receiver_ty))
                 {
                     continue;
                 }

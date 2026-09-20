@@ -101,7 +101,7 @@ impl Lowerer {
     ) -> bool {
         match origin {
             ExpressionQualifierValueOrigin::CurrentUnit(binding) => {
-                self.access_domain_allows(&self.imports.binding(binding).access.0, None)
+                self.access_domain_allows(&self.imports.binding(binding).access.0)
             }
             ExpressionQualifierValueOrigin::Core(target) => {
                 self.named_call_binding_accessible(&NamedCallBinding {

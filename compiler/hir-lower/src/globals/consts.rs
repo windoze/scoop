@@ -475,7 +475,7 @@ impl Lowerer {
                         (self.source_is_core(candidate.file)
                             && candidate.owner == wanted_owner
                             && candidate.declaration.name.text == name
-                            && self.access_domain_allows(&candidate.access.lookup.0, None))
+                            && self.access_domain_allows(&candidate.access.lookup.0))
                         .then_some(index)
                     })
                     .collect::<Vec<_>>();
@@ -492,7 +492,7 @@ impl Lowerer {
                         && candidate.declaration.name.text == name
                         && (candidate.access.declared != hir::DeclaredVisibility::Private
                             || candidate.file == file
-                            || self.access_domain_allows(&candidate.access.lookup.0, None)))
+                            || self.access_domain_allows(&candidate.access.lookup.0)))
                     .then_some(index)
                 })
         };

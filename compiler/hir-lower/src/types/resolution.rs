@@ -26,7 +26,7 @@ impl Lowerer {
                 &self.objects[id].access.lookup.0
             }
         };
-        self.access_domain_allows(domain, None)
+        self.access_domain_allows(domain)
     }
 
     pub(crate) fn top_level_type_target(

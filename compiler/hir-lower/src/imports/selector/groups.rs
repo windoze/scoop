@@ -82,7 +82,7 @@ impl CurrentUnitImports {
                         .occupies_namespace(binding_namespace)
                 }),
         ) {
-            if lowerer.access_domain_allows(&self.binding(binding).access.0, None) {
+            if lowerer.access_domain_allows(&self.binding(binding).access.0) {
                 group.current.push(binding);
             } else {
                 group.inaccessible.push(binding);

@@ -1,6 +1,7 @@
 use super::*;
 mod objects;
 mod property_slots;
+mod protected_nested;
 mod protected_overrides;
 mod protected_scopes;
 mod support;

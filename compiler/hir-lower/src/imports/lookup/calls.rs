@@ -169,7 +169,7 @@ impl Lowerer {
     pub(super) fn named_call_binding_accessible(&self, binding: &NamedCallBinding) -> bool {
         match &binding.origin {
             NamedCallOrigin::CurrentUnit(id) => {
-                self.access_domain_allows(&self.imports.binding(*id).access.0, None)
+                self.access_domain_allows(&self.imports.binding(*id).access.0)
             }
             NamedCallOrigin::Core(target) => match *target {
                 NamedCallTarget::Function(id) => self.function_is_accessible(id, None),
@@ -180,13 +180,14 @@ impl Lowerer {
                 NamedCallTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NamedCallTarget::Value(ValueTarget::Property(id))
                 | NamedCallTarget::ExtensionProperty(id) => {
-                    self.access_domain_allows(&self.properties[id].access.lookup.0, None)
+                    self.access_domain_allows(&self.properties[id].access.lookup.0)
                 }
                 NamedCallTarget::Value(ValueTarget::Object(id)) => {
-                    self.access_domain_allows(&self.objects[id].access.lookup.0, None)
+                    self.access_domain_allows(&self.objects[id].access.lookup.0)
                 }
-                NamedCallTarget::Value(ValueTarget::Variant(target)) => self
-                    .access_domain_allows(&self.enums[target.enumeration()].access.lookup.0, None),
+                NamedCallTarget::Value(ValueTarget::Variant(target)) => {
+                    self.access_domain_allows(&self.enums[target.enumeration()].access.lookup.0)
+                }
             },
             NamedCallOrigin::Dependency(_) => true,
         }

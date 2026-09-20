@@ -35,10 +35,7 @@ impl Lowerer {
         for property in properties {
             match property {
                 ExtensionPropertyTarget::Current(property) => {
-                    if !self.access_domain_allows(
-                        &self.properties[*property].access.lookup.0,
-                        Some(receiver.ty),
-                    ) {
+                    if !self.property_is_accessible(*property, Some(receiver.ty)) {
                         continue;
                     }
                     let function = self.extension_property_getter(*property);

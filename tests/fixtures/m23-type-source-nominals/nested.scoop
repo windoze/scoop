@@ -5,7 +5,7 @@ public open class Base {
 }
 public open class Envelope : Base() {
     protected open class Box<T : Marker> private constructor(val item: T) : GenericBase<T>() {
-        public fun value(value: T): T = value
+        public fun value(): T = item
         private fun helper(): Int = 1
         internal fun internalMethod(): Int = 2
         protected fun protectedMethod(): Int = 3
@@ -25,12 +25,12 @@ public open class Envelope : Base() {
     }
     protected interface View {
         public val number: Int
-        public fun read(): Int = 5
+        public fun read(): Int = helper()
         private fun helper(): Int = 5
     }
     protected object Cache : Marker {
         private val secret: Int = 7
-        public fun read(): Int = 7
+        public fun read(): Int = secret
     }
     private class Hidden {}
     internal class InternalChild {}

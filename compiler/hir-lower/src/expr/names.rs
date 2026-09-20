@@ -335,7 +335,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::Expr> {
         let declaration = self.objects[object].clone();
-        if !self.access_domain_allows(&declaration.access.lookup.0, None) {
+        if !self.access_domain_allows(&declaration.access.lookup.0) {
             let kind = match declaration.kind {
                 hir::ObjectKind::Standalone => "object",
                 hir::ObjectKind::Companion(_) => "companion object",

@@ -112,7 +112,7 @@ impl Lowerer {
                 if !self.declaration_surface.rejects_function(function) {
                     return true;
                 }
-                if self.access_domain_allows(&declaration.access.0, None) {
+                if self.access_domain_allows(&declaration.access.0) {
                     suppressed_callables.push(function);
                 }
                 false
@@ -120,9 +120,10 @@ impl Lowerer {
             suppressed_callables.sort_by_key(|function| function.into_raw().into_u32());
             suppressed_callables.dedup();
             layer.suppressed_callables = suppressed_callables;
-            let unmaterialized_value = layer.suppressed_values.iter().any(|binding| {
-                self.access_domain_allows(&self.imports.binding(*binding).access.0, None)
-            });
+            let unmaterialized_value = layer
+                .suppressed_values
+                .iter()
+                .any(|binding| self.access_domain_allows(&self.imports.binding(*binding).access.0));
             // Callable roles are consumer-specific: an ordinary function in
             // this layer must not hide a lower extension/property/reference
             // role. Keep every typed suppression attached to its raw layer;

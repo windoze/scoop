@@ -135,7 +135,7 @@ impl Lowerer {
                             return None;
                         };
                         (self.extension_receivers.contains_key(&function)
-                            && self.access_domain_allows(&binding.access.0, None))
+                            && self.access_domain_allows(&binding.access.0))
                         .then_some(function)
                     })
                     .collect();

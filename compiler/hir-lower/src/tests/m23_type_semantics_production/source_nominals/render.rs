@@ -43,5 +43,9 @@ pub(super) fn render(export: &hir::ExportHir, table: &Table) -> String {
         format!("{} {:?}/{:?} binders={} parents={} constructors={}\n  members: {}\n  children: {}\n  shape: {}\n", name(sources[&record.owner()]), record.kind(), record.modality(), record.type_parameters().len_u32(), record.supertypes().values().len(), record.constructors().values().len(), members.join(", "), children.join(", "), shape)
     }).collect::<Vec<_>>();
     records.sort();
-    records.concat()
+    records
+        .concat()
+        .lines()
+        .map(|line| format!("{}\n", line.trim_end()))
+        .collect()
 }

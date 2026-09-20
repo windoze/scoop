@@ -28,7 +28,9 @@ impl Lowerer {
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         self.check_duplicate_constructor_signatures(classes, structs);
+        let outer_owner = self.current_owner;
         for &(class, declaration, file) in classes {
+            self.current_owner = Some(Owner::Class(class));
             self.current_file = file;
             let diagnostics_before_edges = self.diagnostics.len();
             self.resolve_class_constructor_edges(class, declaration);
@@ -37,6 +39,7 @@ impl Lowerer {
             }
         }
         for &(structure, declaration, file) in structs {
+            self.current_owner = Some(Owner::Struct(structure));
             self.current_file = file;
             let diagnostics_before_edges = self.diagnostics.len();
             self.resolve_struct_constructor_edges(structure, declaration);
@@ -45,9 +48,11 @@ impl Lowerer {
             }
         }
         for &(object, declaration, file) in objects {
+            self.current_owner = Some(Owner::Object(object));
             self.current_file = file;
             self.resolve_object_base(object, declaration);
         }
+        self.current_owner = outer_owner;
     }
 
     fn resolve_object_base(

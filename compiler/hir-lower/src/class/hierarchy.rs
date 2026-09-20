@@ -147,10 +147,7 @@ impl Lowerer {
                 .properties
                 .iter()
                 .find(|property| self.properties[**property].name == name)
-                && self.access_domain_allows(
-                    &self.properties[property].access.lookup.0,
-                    Some(receiver_ty),
-                )
+                && self.property_is_accessible(property, Some(receiver_ty))
             {
                 let ty =
                     self.instantiate_ty(self.properties[property].ty, &application_value.arguments);

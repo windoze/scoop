@@ -47,7 +47,7 @@ enum ResolvedTypeAliasSource {
 
 impl Lowerer {
     pub(crate) fn source_type_alias_is_accessible(&self, id: SourceTypeAliasId) -> bool {
-        self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0, None)
+        self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0)
     }
 
     pub(crate) fn declare_type_alias(&mut self, declaration: &ast::TypeAliasDecl, file: usize) {
@@ -127,7 +127,7 @@ impl Lowerer {
             return None;
         }
         let access = self.source_type_aliases[id].access.lookup.0.clone();
-        if !self.access_domain_allows(&access, None) {
+        if !self.access_domain_allows(&access) {
             self.error(
                 name.span,
                 format!(

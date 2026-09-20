@@ -88,7 +88,7 @@ impl Lowerer {
                         self.properties[*property].representation,
                         hir::PropertyRepresentation::Const { .. }
                     )
-                    && self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
+                    && self.access_domain_allows(&self.properties[*property].access.lookup.0)
             })
     }
 
@@ -120,10 +120,7 @@ impl Lowerer {
                     .copied()
                     .find(|&property| {
                         self.properties[property].name == name
-                            && self.access_domain_allows(
-                                &self.properties[property].access.lookup.0,
-                                Some(receiver_ty),
-                            )
+                            && self.property_is_accessible(property, Some(receiver_ty))
                     })?;
                 let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
                 Some((
@@ -141,10 +138,7 @@ impl Lowerer {
                         .copied()
                         .find(|&property| {
                             self.properties[property].name == name
-                                && self.access_domain_allows(
-                                    &self.properties[property].access.lookup.0,
-                                    Some(receiver_ty),
-                                )
+                                && self.property_is_accessible(property, Some(receiver_ty))
                         })?;
                 let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
                 Some((property, hir::MethodOwnerApplication::Enum(application), ty))
@@ -185,10 +179,7 @@ impl Lowerer {
             .copied()
             .find(|&property| {
                 self.properties[property].name == name
-                    && self.access_domain_allows(
-                        &self.properties[property].access.lookup.0,
-                        Some(receiver_ty),
-                    )
+                    && self.property_is_accessible(property, Some(receiver_ty))
             })
         {
             let ty = self.instantiate_ty(self.properties[property].ty, &value.arguments);
@@ -221,8 +212,9 @@ impl Lowerer {
         self.record_property_initialization_dependency(&declaration, span);
         let getter = declaration.capability.getter();
         let accessor = self.property_getters[getter].clone();
-        if !self.access_domain_allows(
-            &accessor.access.lookup.0,
+        if !self.property_accessor_is_accessible(
+            property,
+            &accessor.access,
             receiver.as_ref().map(|receiver| receiver.ty),
         ) {
             self.error(
@@ -309,8 +301,9 @@ impl Lowerer {
             return None;
         };
         let accessor = self.property_setters[setter].clone();
-        if !self.access_domain_allows(
-            &accessor.access.lookup.0,
+        if !self.property_accessor_is_accessible(
+            property,
+            &accessor.access,
             receiver.as_ref().map(|receiver| receiver.ty),
         ) {
             self.error(

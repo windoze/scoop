@@ -76,7 +76,11 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let declaration = self.properties[property.property].clone();
         let getter = self.property_getters[declaration.capability.getter()].clone();
-        if !self.access_domain_allows(&getter.access.lookup.0, Some(property.receiver.ty)) {
+        if !self.property_accessor_is_accessible(
+            property.property,
+            &getter.access,
+            Some(property.receiver.ty),
+        ) {
             self.error(
                 span,
                 format!(
@@ -128,7 +132,11 @@ impl Lowerer {
             return None;
         };
         let setter = self.property_setters[setter].clone();
-        if !self.access_domain_allows(&setter.access.lookup.0, Some(property.receiver.ty)) {
+        if !self.property_accessor_is_accessible(
+            property.property,
+            &setter.access,
+            Some(property.receiver.ty),
+        ) {
             self.error(
                 span,
                 format!(

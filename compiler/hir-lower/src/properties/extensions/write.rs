@@ -49,7 +49,7 @@ impl Lowerer {
             return None;
         };
         let setter = self.property_setters[setter].clone();
-        if !self.access_domain_allows(&setter.access.lookup.0, Some(receiver.ty)) {
+        if !self.property_accessor_is_accessible(property, &setter.access, Some(receiver.ty)) {
             self.error(
                 span,
                 format!(

@@ -148,7 +148,7 @@ impl Lowerer {
                 }
                 NonValueTarget::Type(target) => self.top_level_type_target_is_accessible(target),
                 NonValueTarget::ExtensionProperty(id) => {
-                    self.access_domain_allows(&self.properties[id].access.lookup.0, None)
+                    self.access_domain_allows(&self.properties[id].access.lookup.0)
                 }
                 NonValueTarget::SourceExtensionProperty(_) => {
                     unreachable!("core has no provisional import properties")
@@ -172,7 +172,7 @@ impl Lowerer {
             }
             ValueOrigin::CoreNonValue(_) => unreachable!("core blocker access was checked above"),
         };
-        self.access_domain_allows(domain, None)
+        self.access_domain_allows(domain)
     }
 
     pub(crate) fn lookup_value_origin(&self, name: &str) -> LookupResult<ValueOrigin> {
