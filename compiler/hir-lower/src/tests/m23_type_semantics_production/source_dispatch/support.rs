@@ -61,7 +61,9 @@ pub(super) fn project(
     .unwrap()
 }
 
-fn owners(output: &hir::OrdinaryHirOutput<'_>) -> BTreeMap<String, PersistentExactTypeId> {
+pub(super) fn owners(
+    output: &hir::OrdinaryHirOutput<'_>,
+) -> BTreeMap<String, PersistentExactTypeId> {
     let export = output.output().export.module();
     let mut result = BTreeMap::new();
     let mut add = |name: &str, ty: hir::TypeId| {

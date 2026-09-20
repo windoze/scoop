@@ -26,6 +26,18 @@ impl CanonicalInterfaceSourceDispatchesV1 {
     }
 }
 
+impl CanonicalInheritanceSourceSlotSelectionsV1 {
+    /// Projects actual sealed dispatch decisions independently of candidate
+    /// slot contracts, generated MIR adapters, and runtime trap functions.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        inheritance::slot_selections(output.output().export.module(), &nominals, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

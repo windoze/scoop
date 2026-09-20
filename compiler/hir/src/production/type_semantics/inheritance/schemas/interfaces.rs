@@ -20,6 +20,32 @@ impl Projection<'_, '_> {
             self.export,
             self.export.interface_applications[application].canonical_type,
         )?;
+        let mut slots = Vec::new();
+        for member in self.interface_members(application)? {
+            let slot = self.interface_slot(member)?;
+            self.push(&mut slots, slot)?;
+        }
+        self.schema(
+            InheritanceSlotSchemaRoleV1::Interface { interface_exact },
+            slots,
+        )
+    }
+
+    pub(super) fn interface_slot(
+        &self,
+        member: InterfaceMethodId,
+    ) -> Result<PersistentDispatchSlotId, Error> {
+        self.export
+            .dispatch_slot_identities
+            .get_interface(member)
+            .map(|identity| identity.id())
+            .ok_or_else(|| self.invalid("interface member has no sealed dispatch identity"))
+    }
+
+    pub(super) fn interface_members(
+        &mut self,
+        application: InterfaceApplicationId,
+    ) -> Result<Vec<InterfaceMethodId>, Error> {
         let mut members = Vec::new();
         let mut suppressed = BTreeSet::new();
         for application in self.interface_postorder(application)? {
@@ -33,23 +59,15 @@ impl Projection<'_, '_> {
                 }
             }
         }
-        let mut slots = Vec::new();
+        let mut effective = Vec::new();
         for member in members {
             self.work(suppressed.len().max(1).ilog2() as usize + 1)?;
             if suppressed.contains(&member) {
                 continue;
             }
-            let identity = self
-                .export
-                .dispatch_slot_identities
-                .get_interface(member)
-                .ok_or_else(|| self.invalid("interface member has no sealed dispatch identity"))?;
-            self.push(&mut slots, identity.id())?;
+            self.push(&mut effective, member)?;
         }
-        self.schema(
-            InheritanceSlotSchemaRoleV1::Interface { interface_exact },
-            slots,
-        )
+        Ok(effective)
     }
 
     pub(super) fn interface_postorder(

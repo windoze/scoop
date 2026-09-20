@@ -3,6 +3,7 @@ use scoop_identity::PersistentDispatchSlotId;
 use scoop_wire::{decode_canonical, encode};
 
 mod replay;
+mod selections;
 mod support;
 use support::*;
 
