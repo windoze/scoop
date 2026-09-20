@@ -86,7 +86,9 @@ pub(super) fn validate_all(
     Ok(())
 }
 
-struct AccessAuthority<'b, 'a>(&'b BoundTypeFoundationSourcesV1<'a>);
+pub(in crate::cross_cone_type_semantics::source_authority) struct AccessAuthority<'b, 'a>(
+    pub(in crate::cross_cone_type_semantics::source_authority) &'b BoundTypeFoundationSourcesV1<'a>,
+);
 
 impl ExportDefinitionSourceSemanticAuthority<TypeFoundationBindingError>
     for AccessAuthority<'_, '_>

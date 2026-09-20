@@ -11,27 +11,37 @@ mod errors;
 mod keys;
 mod origins;
 mod replay;
-mod sources;
+pub(in crate::cross_cone_type_semantics::source_authority) mod sources;
 pub use closure::*;
 pub use errors::*;
 
 /// The source-side transcript joined to the identity and origin records of
 /// the owning artifact. This is not a complete type-section proof.
-#[derive(Debug)]
 pub struct BoundTypeFoundationSourcesV1<'a> {
     source: &'a TypeFoundationSourceAuthorityV1,
-    foundation: &'a OdrFreeHirFoundation,
+    pub(in crate::cross_cone_type_semantics::source_authority) foundation: &'a OdrFreeHirFoundation,
+    pub(in crate::cross_cone_type_semantics::source_authority) identities:
+        &'a ValidatedIdentityGraph,
     exact_keys: BTreeMap<PersistentExactTypeId, &'a ExactTypeKey>,
     nominal_keys: BTreeMap<SourceNominalId, &'a SourceDeclarationKey>,
     generated_keys: BTreeMap<PersistentTypeId, &'a GeneratedNominalKey>,
     accessor_keys: BTreeMap<PersistentPropertyAccessorId, &'a PropertyAccessorKey>,
 }
 
+impl fmt::Debug for BoundTypeFoundationSourcesV1<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BoundTypeFoundationSourcesV1")
+            .field("source", &self.source)
+            .field("foundation", &self.foundation)
+            .finish_non_exhaustive()
+    }
+}
+
 impl TypeFoundationSourceAuthorityV1 {
     pub fn bind_to_foundation<'a>(
         &'a self,
         foundation: &'a OdrFreeHirFoundation,
-        identities: &ValidatedIdentityGraph,
+        identities: &'a ValidatedIdentityGraph,
         meter: &mut BudgetMeter,
     ) -> Result<BoundTypeFoundationSourcesV1<'a>, TypeFoundationBindingError> {
         let result = keys::bind(self, foundation, identities, meter)?;

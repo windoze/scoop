@@ -10,7 +10,7 @@ use crate::*;
 
 mod wire;
 pub use wire::*;
-mod binding;
+pub(super) mod binding;
 #[cfg(test)]
 mod tests;
 mod validation;

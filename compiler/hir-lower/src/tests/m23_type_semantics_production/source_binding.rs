@@ -4,6 +4,7 @@ use scoop_identity::{ConeCoordinate, ValidatedIdentityGraph};
 use scoop_wire::{decode_canonical, encode};
 
 mod dispatch;
+mod dispatch_binding;
 mod rejection;
 mod replay;
 
