@@ -13,11 +13,7 @@ impl WireEncode for InheritanceSourceParameterV1 {
 }
 impl WireEncode for InheritanceSourceParameterProtocolV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.owner.encode(encoder)?;
-        encoder.field(2)?;
-        transport::sequence(encoder, &self.parameters)
+        self.source.encode(encoder)
     }
 }
 impl WireDecode for DecodedParameter {

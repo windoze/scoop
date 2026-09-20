@@ -1,0 +1,10 @@
+public class Variadic<T> public constructor(vararg values: T) {
+    private fun collect(vararg values: T): Int = 0
+    internal fun defaulted(seed: Int = 1, vararg values: Int = [seed]): Int = 0
+    public fun <U> generic(vararg values: U): Int = 0
+}
+public enum Batches<T> {
+    Items(vararg val values: T),
+    Defaulted(vararg val values: Int = [1])
+}
+fun main() {}

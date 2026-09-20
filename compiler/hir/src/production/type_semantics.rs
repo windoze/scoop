@@ -15,6 +15,7 @@ pub use authority::*;
 mod facts;
 pub(in crate::production) mod inheritance;
 mod nominal_callables;
+mod nominal_parameters;
 mod nominals;
 
 /// The transport plus the independently projected inventories needed by the

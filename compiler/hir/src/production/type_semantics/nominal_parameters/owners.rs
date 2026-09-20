@@ -29,7 +29,14 @@ pub(super) fn identity(
                 identity.key(),
             )
         }
-        ExportParameterOwner::VariantConstructor(_) => return None,
+        ExportParameterOwner::VariantConstructor(reference) => {
+            let source = export.nominal_identities[reference.enumeration()].source()?;
+            let identity = &export.enum_member_identities[reference];
+            (
+                CallableTemplateOrigin::VariantConstructor(identity.id()),
+                source.declaration(),
+            )
+        }
     })
 }
 
@@ -49,10 +56,8 @@ pub(super) fn binders(
             [export.struct_constructors[id].owner]
             .type_params
             .len(),
-        ExportParameterOwner::VariantConstructor(_) => {
-            return Err(invalid(
-                "variant constructor is outside inheritance parameter protocols",
-            ));
+        ExportParameterOwner::VariantConstructor(reference) => {
+            export.enums[reference.enumeration()].type_params.len()
         }
     };
     let path = WirePath::root();
@@ -73,10 +78,8 @@ pub(super) fn binders(
             &export.structs[export.struct_constructors[id].owner].type_params,
             0,
         ),
-        ExportParameterOwner::VariantConstructor(_) => {
-            return Err(invalid(
-                "variant constructor is outside inheritance parameter protocols",
-            ));
+        ExportParameterOwner::VariantConstructor(reference) => {
+            signatures.binder_frame(&export.enums[reference.enumeration()].type_params, 0)
         }
     }
     .map_err(invalid)

@@ -17,6 +17,7 @@ mod source_dispatch;
 mod source_foundation;
 mod source_inventory;
 mod source_nominal_callables;
+mod source_nominal_parameters;
 mod source_nominal_properties;
 mod source_nominals;
 mod source_parameters;

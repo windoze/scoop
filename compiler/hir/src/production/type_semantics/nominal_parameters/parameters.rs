@@ -1,27 +1,18 @@
 use super::*;
-use scoop_identity::{CanonicalIdentifier, DuplicateSignatureKey};
+use scoop_identity::{CanonicalIdentifier, SignatureTypeKey};
 
 pub(super) fn project(
     export: &ExportHir,
     signatures: &HirInterfaceSignatureProjector<'_>,
     declaration: CallableTemplateOrigin,
-    key: &SourceDeclarationKey,
+    expected: &[SignatureTypeKey],
     interface: &ExportParameterInterface,
     binders: &[HirSignatureBinder],
     meter: &mut BudgetMeter,
-) -> Result<InheritanceSourceParameterProtocolV1, Error> {
-    let expected = match key.duplicate_signature() {
-        DuplicateSignatureKey::Function { parameters, .. }
-        | DuplicateSignatureKey::Constructor { parameters } => parameters,
-        _ => {
-            return Err(invalid(
-                "inheritance parameter source key has another declaration kind",
-            ));
-        }
-    };
+) -> Result<NominalSourceParameterProtocolV1, Error> {
     if interface.parameters.len() != expected.len() {
         return Err(invalid(
-            "inheritance parameter arity differs from its source key",
+            "nominal parameter arity differs from its declaration",
         ));
     }
     let path = WirePath::root();
@@ -39,21 +30,21 @@ pub(super) fn project(
         let value = signatures.map_type(ty, binders).map_err(invalid)?;
         if &value != expected {
             return Err(invalid(
-                "inheritance parameter type differs from its source key",
+                "nominal parameter type differs from its declaration",
             ));
         }
         let name = CanonicalIdentifier::new(&parameter.name).map_err(invalid)?;
         let file = export
             .source_files
             .get(parameter.origin.file as usize)
-            .ok_or_else(|| invalid("inheritance parameter has no source file"))?;
+            .ok_or_else(|| invalid("nominal parameter has no source file"))?;
         resources::name(file.identity.logical_path().as_str(), meter)?;
         meter.check_semantic_depth(5, &path).map_err(resource)?;
         meter.charge_nodes(3, &path).map_err(resource)?;
         let context = export
             .source_context_identities
             .get(parameter.origin.context)
-            .ok_or_else(|| invalid("inheritance parameter has no persistent source context"))?;
+            .ok_or_else(|| invalid("nominal parameter has no persistent source context"))?;
         meter
             .charge_sha256(
                 scoop_wire::encoded_length(context.key()).map_err(invalid)?,
@@ -71,7 +62,7 @@ pub(super) fn project(
             origin,
         ));
     }
-    InheritanceSourceParameterProtocolV1::try_new(declaration, parameters, meter)
+    NominalSourceParameterProtocolV1::try_new(declaration, parameters, meter)
         .map_err(Error::SourceInventory)
 }
 
@@ -93,7 +84,7 @@ fn calling(
             if parameter_type.into_raw().into_u32() as usize
                 >= export.export_vararg_parameter_types.len()
             {
-                return Err(invalid("inheritance parameter has no sealed vararg type"));
+                return Err(invalid("nominal parameter has no sealed vararg type"));
             }
             let parameter = &export.export_vararg_parameter_types[parameter_type];
             let kind = match omission {
@@ -110,9 +101,7 @@ fn calling(
 fn require_default(export: &ExportHir, source: ExportDefaultSourceId) -> Result<(), Error> {
     let index: u32 = source.into_raw().into();
     if index as usize >= export.export_default_sources.len() {
-        Err(invalid(
-            "inheritance parameter has no sealed default source",
-        ))
+        Err(invalid("nominal parameter has no sealed default source"))
     } else {
         Ok(())
     }

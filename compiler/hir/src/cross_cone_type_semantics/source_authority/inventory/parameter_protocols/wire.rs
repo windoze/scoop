@@ -36,7 +36,7 @@ struct DecodedParameter {
     origin: DecodedExportDefinitionSourceV1,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedProtocol {
+pub(in super::super) struct DecodedProtocol {
     owner: DecodedCallableTemplateOrigin,
     parameters: Vec<DecodedParameter>,
 }
@@ -53,30 +53,8 @@ impl DecodedCanonicalInheritanceSourceParameterProtocolsV1 {
     ) -> Result<CanonicalInheritanceSourceParameterProtocolsV1, SourceInventoryError> {
         let mut records = reserve(self.records.len(), meter)?;
         for record in self.records {
-            let path = WirePath::root();
-            meter.charge_work(64, &path)?;
-            let owner = record.owner.resolve(resolver).map_err(reference)?;
-            let mut parameters = reserve(record.parameters.len(), meter)?;
-            for parameter in record.parameters {
-                let shape = parameter
-                    .shape
-                    .resolve_metered(resolver, meter)
-                    .map_err(|error| match error {
-                        MeteredInterfaceResolutionError::Resource(e) => {
-                            SourceInventoryError::Resource(e)
-                        }
-                        MeteredInterfaceResolutionError::Value(e) => reference(e),
-                    })?;
-                parameter.origin.charge_resolution_at(meter, &path, 3)?;
-                let origin = parameter.origin.resolve(resolver).map_err(reference)?;
-                parameters.push(InheritanceSourceParameterV1::new(
-                    shape,
-                    parameter.calling,
-                    origin,
-                ));
-            }
-            records.push(InheritanceSourceParameterProtocolV1::try_new(
-                owner, parameters, meter,
+            records.push(InheritanceSourceParameterProtocolV1::try_from(
+                record.resolve(resolver, meter)?,
             )?);
         }
         CanonicalInheritanceSourceParameterProtocolsV1::from_ordered(records, meter)
@@ -92,5 +70,37 @@ impl WireDecode for DecodedCanonicalInheritanceSourceParameterProtocolsV1 {
 impl WireEncode for DecodedCanonicalInheritanceSourceParameterProtocolsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         transport::sequence(encoder, &self.records)
+    }
+}
+
+impl DecodedProtocol {
+    pub(in super::super) fn resolve<R: ProtectedCallableInterfaceResolver<E>, E: fmt::Display>(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+    ) -> Result<NominalSourceParameterProtocolV1, SourceInventoryError> {
+        let path = WirePath::root();
+        meter.charge_work(64, &path)?;
+        let owner = self.owner.resolve(resolver).map_err(reference)?;
+        let mut parameters = reserve(self.parameters.len(), meter)?;
+        for parameter in self.parameters {
+            let shape = parameter
+                .shape
+                .resolve_metered(resolver, meter)
+                .map_err(|error| match error {
+                    MeteredInterfaceResolutionError::Resource(e) => {
+                        SourceInventoryError::Resource(e)
+                    }
+                    MeteredInterfaceResolutionError::Value(e) => reference(e),
+                })?;
+            parameter.origin.charge_resolution_at(meter, &path, 3)?;
+            let origin = parameter.origin.resolve(resolver).map_err(reference)?;
+            parameters.push(InheritanceSourceParameterV1::new(
+                shape,
+                parameter.calling,
+                origin,
+            ));
+        }
+        NominalSourceParameterProtocolV1::try_new(owner, parameters, meter)
     }
 }

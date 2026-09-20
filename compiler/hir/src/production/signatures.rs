@@ -59,26 +59,39 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
         &self,
         function: &crate::Function,
     ) -> Result<Vec<HirSignatureBinder>, HirInterfaceSignatureProjectionError> {
-        let (own, outer) = match &function.genericity {
-            crate::FunctionGenericity::Plain => (Vec::new(), Vec::new()),
+        match &function.genericity {
+            crate::FunctionGenericity::Plain => Ok(Vec::new()),
             crate::FunctionGenericity::Generic { parameters, .. } => {
-                (parameters.clone(), Vec::new())
+                self.binder_frame(parameters, 0)
             }
             crate::FunctionGenericity::OwnerParameterizedMethod {
                 owner_parameters, ..
-            } => (Vec::new(), owner_parameters.clone()),
+            } => self.binder_frame(owner_parameters, 0),
             crate::FunctionGenericity::GenericMethod {
                 owner_parameters,
                 method_parameters,
                 ..
-            } => (
-                method_parameters.iter().cloned().collect(),
-                owner_parameters.clone(),
-            ),
-        };
-        let mut binders = self.binder_frame(&own, 0)?;
-        binders.extend(self.binder_frame(&outer, u32::from(!own.is_empty()))?);
-        Ok(binders)
+            } => method_parameters
+                .iter()
+                .enumerate()
+                .map(|(index, parameter)| (index, parameter, 0))
+                .chain(
+                    owner_parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, parameter)| (index, parameter, 1)),
+                )
+                .map(|(index, parameter, depth)| {
+                    Ok(HirSignatureBinder {
+                        parameter: parameter.id,
+                        depth,
+                        index: u32::try_from(index).map_err(|_| {
+                            HirInterfaceSignatureProjectionError::TooManyTypeParameters
+                        })?,
+                    })
+                })
+                .collect(),
+        }
     }
 
     pub(super) fn project_binder_list(
