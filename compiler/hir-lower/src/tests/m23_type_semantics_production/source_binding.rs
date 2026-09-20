@@ -6,6 +6,7 @@ use scoop_wire::{decode_canonical, encode};
 mod constructors;
 mod dispatch;
 mod dispatch_binding;
+mod nominals;
 mod parameters;
 mod properties;
 mod protected_callables;

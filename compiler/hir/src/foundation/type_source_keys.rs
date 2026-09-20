@@ -1,6 +1,22 @@
 use super::*;
 
 impl CanonicalHirFoundation {
+    pub(crate) fn type_source_field_records(&self) -> &[FieldRecord] {
+        &self.fields
+    }
+
+    pub(crate) fn type_source_enum_variant_records(&self) -> &[EnumVariantRecord] {
+        &self.enum_variants
+    }
+
+    pub(crate) fn type_source_enum_variant_field_records(&self) -> &[EnumVariantFieldRecord] {
+        &self.enum_variant_fields
+    }
+
+    pub(crate) fn type_source_object_value_records(&self) -> &[ObjectValueRecord] {
+        &self.object_values
+    }
+
     pub(crate) fn type_source_constructor_records(&self) -> &[ConstructorRecord] {
         &self.constructors
     }

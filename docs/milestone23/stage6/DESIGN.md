@@ -235,6 +235,8 @@ nominal声明来源合同子表独立保存sealed HIR的源码结构。表按`So
 
 该表producer接收独立的required source nominal集合，逐项从sealed HIR投影，拒绝缺失来源；不得从public lookup候选、nested候选或kind猜测modality，也不能把无关private类型自动添加为root。access/typed key仍由同owner的foundation来源拥有；成员完整合同、nested递归source_support和参数/default来源在完整declarations事务中join。单独的nominal来源合同不持有source_support候选、不授予lookup或concrete物化资格，也不代表已验证required root全集。wire reader不修复乱序、重复或未知typed ref；所有集合、签名树、field/variant及投影分配共用预算。
 
+nominal来源绑定的owner集合必须精确等于同一已绑定foundation的`source_roots`，kind与own binder arity逐项join其source nominal key。constructor、Function/GenericFunction/Property member及直接词法child清单，从本artifact自有identity表独立重算并精确比较，包含非public声明；object的初始化constructor、generated adapter及backing class不计入。child引用仅证明其artifact自有identity与直接词法owner，不据此自动扩大root集合；递归support所需root仍由完整declarations事务决定。struct源码field、enum variant及variant field集合也必须完整，逐项核验同一validated identity graph中的canonical key、owner和selector；object value必须命中同artifact对应source object。binder bounds、supertypes和field signature重放既有nominal kind/arity及binder scope规则。enum variant origin借用其真实foundation subject，核对owner source文件和source/context/point闭包。identity没有编码的源码字段顺序、Named与Constructor语法区别及class modality仍由独立来源合同保存，不能声称由key反推。索引、集合比较、签名递归和必要的origin/key拷贝均使用共享预算。成功绑定只提供独立source查询，不授予source_support、default、lookup或machine-use资格。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
