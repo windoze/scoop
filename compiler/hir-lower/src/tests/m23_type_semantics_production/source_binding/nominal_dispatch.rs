@@ -5,6 +5,7 @@ use super::*;
 use hir::NominalDispatchBindingError as Error;
 
 mod contracts;
+mod declaration_entry;
 mod inventory;
 mod resources;
 mod selections;

@@ -87,3 +87,20 @@ fn retain<'c>(
     }
     Ok(())
 }
+
+pub(super) fn required_declarations(
+    authority: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
+    meter: &mut BudgetMeter,
+) -> Result<CanonicalProtectedDeclarationRefsV1, Error> {
+    let required = inventory::collect(authority, meter)?;
+    let mut values = Vec::new();
+    meter.try_reserve_collection_slots(&mut values, required.len(), &WirePath::root())?;
+    meter.charge_work(
+        (required.len() as u64)
+            .saturating_mul(u64::from(required.len().max(1).ilog2()) + 1)
+            .saturating_mul(128),
+        &WirePath::root(),
+    )?;
+    values.extend(required);
+    CanonicalProtectedDeclarationRefsV1::try_new(values).map_err(|_| Error::Inventory)
+}

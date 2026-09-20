@@ -32,7 +32,7 @@ pub(super) fn expected(
     hir::CanonicalProtectedDeclarationRefsV1::try_new(values).unwrap()
 }
 
-pub(super) fn restore(
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn restore(
     fixture: &mut Fixture,
     produced: &Production,
 ) -> (

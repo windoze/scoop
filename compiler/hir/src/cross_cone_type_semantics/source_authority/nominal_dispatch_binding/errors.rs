@@ -6,6 +6,7 @@ use std::fmt;
 pub enum NominalDispatchBindingError {
     Resource(WireError),
     Source(Box<NominalNestedBindingError>),
+    Protected(Box<ProtectedDeclarationBindingError>),
     Slot(Box<InheritanceSlotSourceBindingError>),
     Signature {
         declaration: InheritanceCallableDeclarationV1,
@@ -64,6 +65,7 @@ impl fmt::Display for NominalDispatchBindingError {
         match self {
             Self::Resource(e) => e.fmt(f),
             Self::Source(e) => e.fmt(f),
+            Self::Protected(e) => e.fmt(f),
             Self::Slot(e) => e.fmt(f),
             Self::Signature { error, .. } => error.fmt(f),
             Self::FoundationMismatch => {

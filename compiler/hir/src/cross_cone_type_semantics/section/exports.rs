@@ -85,9 +85,14 @@ where
         meter,
     )
     .map_err(|e| Error::Graph(Box::new(e)))?;
-    let protected = candidate
-        .protected_declarations
-        .validate_sources(&graph, representations.table(), declarations, meter)
+    let protected = declarations
+        .validate_protected_sources(
+            &candidate.protected_declarations,
+            &candidate.protected_source_interfaces,
+            representations.table(),
+            &graph,
+            meter,
+        )
         .map_err(|e| Error::Protected(Box::new(e)))?;
     let inheritance = candidate
         .inheritance

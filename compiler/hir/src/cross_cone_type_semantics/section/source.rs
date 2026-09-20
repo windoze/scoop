@@ -35,13 +35,24 @@ pub trait TypeSectionFoundationSemanticAuthority<E>:
     ) -> Result<&scoop_identity::PropertyAccessorKey, E>;
 }
 
+/// Declaration replay is an explicit section obligation. Artifact adapters
+/// override this entry to check complete source payloads before graph replay.
 pub trait TypeSectionDeclarationSemanticAuthority<E>:
     ProtectedDeclarationSemanticAuthority<E> + NominalInheritanceInterfaceSemanticAuthority<E>
 {
-}
-impl<A, E> TypeSectionDeclarationSemanticAuthority<E> for A where
-    A: ProtectedDeclarationSemanticAuthority<E> + NominalInheritanceInterfaceSemanticAuthority<E>
-{
+    fn validate_protected_sources<'c>(
+        &mut self,
+        table: &'c CanonicalProtectedDeclarationInterfacesV1,
+        _protocols: &'c CanonicalProtectedCallableSourceInterfacesV1,
+        representations: &'c CanonicalNominalRepresentationSupportV1,
+        graph: &CheckedNominalInheritanceGraphV1<'_>,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<CheckedProtectedDeclarationSourcesV1<'c>, ProtectedDeclarationSemanticError<E>>
+    where
+        Self: Sized,
+    {
+        table.validate_sources(graph, representations, self, meter)
+    }
 }
 
 pub trait TypeSectionDefaultSemanticAuthority<E>:

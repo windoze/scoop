@@ -1,0 +1,15 @@
+public open class Registry protected constructor(seed: Int = 1) {
+    protected open fun read(value: Int = 2): Int = value
+    protected var state: Int
+        get() = 3
+        private set(value) {}
+    protected struct Pair(val first: Int, val second: Int = 4)
+    protected enum Choice { Empty, Some(val value: Int) }
+    protected object Cache {
+        internal const val tag: Int = 5
+        private fun empty(): Int = 6
+    }
+}
+public class Child: Registry(1) {
+    protected final override fun read(value: Int): Int = value
+}

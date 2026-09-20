@@ -15,7 +15,7 @@ pub use errors::*;
 type Error = NominalParameterBindingError;
 
 /// Source protocols only; default bodies and executable uses require independent proofs.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
     members: &'p BoundNominalMemberSourcesV1<'s, 'a, 'f>,
     constructors: &'p BoundNominalConstructorSourcesV1<'s, 'a, 'f>,

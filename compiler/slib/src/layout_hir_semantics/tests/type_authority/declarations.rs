@@ -254,3 +254,5 @@ impl ProtectedDeclarationSemanticAuthority<TestAuthorityError> for EmptyDeclarat
         Ok(&self.protected)
     }
 }
+
+impl TypeSectionDeclarationSemanticAuthority<TestAuthorityError> for EmptyDeclarations {}

@@ -1,10 +1,9 @@
 use super::*;
 
-pub(super) fn validate(
+pub(super) fn collect(
     authority: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
-    table: &CanonicalProtectedDeclarationInterfacesV1,
     meter: &mut BudgetMeter,
-) -> Result<(), Error> {
+) -> Result<BTreeSet<ProtectedDeclarationRefV1>, Error> {
     let path = WirePath::root();
     meter.check_semantic_depth(1, &path)?;
     let members = authority.members();
@@ -61,11 +60,18 @@ pub(super) fn validate(
             )?;
         }
     }
+    Ok(required)
+}
+
+pub(super) fn validate(
+    authority: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
+    table: &CanonicalProtectedDeclarationInterfacesV1,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
+    let required = collect(authority, meter)?;
     meter.charge_work(
-        (required.len() as u64)
-            .saturating_add(table.records().len() as u64)
-            .saturating_mul(128),
-        &path,
+        (required.len() as u64 + table.records().len() as u64).saturating_mul(128),
+        &WirePath::root(),
     )?;
     if !required.into_iter().eq(table
         .records()
@@ -76,6 +82,7 @@ pub(super) fn validate(
     }
     Ok(())
 }
+
 fn protected(access: &DeclarationAccessSourceV1) -> bool {
     access.declared_visibility() == DeclaredVisibilityV1::Protected
 }

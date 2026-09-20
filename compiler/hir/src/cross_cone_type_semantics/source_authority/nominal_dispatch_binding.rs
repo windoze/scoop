@@ -10,6 +10,7 @@ mod errors;
 mod inventory;
 mod members;
 mod relations;
+mod source_adapter;
 pub use errors::*;
 type Error = NominalDispatchBindingError;
 
@@ -19,6 +20,7 @@ type Error = NominalDispatchBindingError;
 pub struct BoundNominalDispatchSourcesV1<'d, 'p, 's, 'a, 'f> {
     parameters: &'d BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>,
     slots: &'d BoundInheritanceSlotSourcesV1<'s, 'a, 'f>,
+    required: CanonicalProtectedDeclarationRefsV1,
 }
 impl<'d, 'p, 's, 'a, 'f> BoundNominalDispatchSourcesV1<'d, 'p, 's, 'a, 'f> {
     pub fn provider(&self) -> ConeIdentity {
@@ -56,9 +58,11 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         {
             return Err(Error::CoreUnit);
         }
+        let required = super::protected_declaration_binding::required_declarations(self, meter)?;
         let bound = BoundNominalDispatchSourcesV1 {
             parameters: self,
             slots,
+            required,
         };
         inventory::validate(&bound, meter)?;
         callables::validate(&bound, meter)?;

@@ -9,7 +9,7 @@ use scoop_identity::CallableTemplateOrigin;
 
 mod binding;
 mod rejection;
-mod support;
+pub(super) mod support;
 use support::*;
 
 const SOURCE: &str = include_str!(concat!(

@@ -21,6 +21,8 @@ impl ProtectedDeclarationSemanticAuthority<&'static str> for Fixture {
     }
 }
 
+impl TypeSectionDeclarationSemanticAuthority<&'static str> for Fixture {}
+
 #[test]
 fn protected_declaration_table_roundtrips_all_four_kinds_and_closes_sources() {
     let (mut fixture, table) = complete();
