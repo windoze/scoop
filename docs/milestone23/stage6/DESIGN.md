@@ -1,6 +1,6 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
-版本：1.0（设计完成，待实现；2026-09-19）
+版本：1.1（补充可持久化的 HIR source authority；2026-09-20）
 
 依赖：M23-5
 
@@ -22,7 +22,7 @@
 
 M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费的接口。成功解析到外部 nominal 之后，consumer 必须取得定义方的完整语义、layout、ABI、scan、TypeDescriptor 与 dispatch 证明，才能产生 machine use。
 
-1. 新增 `cross-cone-layout-strong/1` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure，并将强定义语义升级为 `strong-production/2`，以表达 ordinary dependency TD/dispatch 引用；仍拒绝全部 ODR production。
+1. 新增 `cross-cone-layout-strong/1` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、独立 HIR source authority、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure，并将强定义语义升级为 `strong-production/2`，以表达 ordinary dependency TD/dispatch 引用；仍拒绝全部 ODR production。
 2. 不改变 M23-2 的任何 persistent identity、native-boundary witness、extern/callback contract bytes，也不扩大 M23-3/M23-5 旧 capability 的含义。一般 layout 服务只能由新 required section 构造。
 3. HIR 输出每个 concrete type 完备的 `gc_free`、value `ZstStatus` 与继承/slot 语义；MIR 输出表示无关的类型、构造器、成员、slot 与生成 helper 关系；LIR 独占 target layout、Scoop ABI 与递归 scan 的生产权。
 4. 外部实体保持定义 Cone 的 Strong ownership。consumer 可以检查和在本地类型中内联外部 value 的表示，但不能重新定义其 body、layout constant、scan、TD、dispatch table、registration 或初始化 storage。
@@ -144,19 +144,42 @@ ValidatedArtifactClosure<Compile>
 org.scoop-lang.slib-profile/cross-cone-layout-strong/1
 ```
 
-其 required inventory 从 M23-5 `cross-cone-semantics-strong/1` 出发，移除 `org.scoop-lang.lir/strong-production/1`，替换为 `/2`，再加入下表前四项；`code_requirement`、`runtime_requirement`、publication、decode-cost model、extra-section policy 和 Link proof policy 原样继承，`odr = RejectAll`。
+其 required inventory 从 M23-5 `cross-cone-semantics-strong/1` 出发，移除 `org.scoop-lang.lir/strong-production/1`，替换为 `/2`，再加入下表前五项；`code_requirement`、`runtime_requirement`、publication、decode-cost model、extra-section policy 和 Link proof policy 原样继承，`odr = RejectAll`。
 
 | capability | location | required_for | sinks |
 | --- | --- | --- | --- |
 | `org.scoop-lang.hir/cross-cone-type-semantics/1` | HIR | Compile | Hir |
+| `org.scoop-lang.hir/cross-cone-type-source-authority/1` | HIR | Compile | Hir |
 | `org.scoop-lang.mir/cross-cone-type-bridge/1` | MIR | Compile | Mir |
 | `org.scoop-lang.lir/cross-cone-layout-abi/1` | LIR | Compile | Lir |
 | `org.scoop-lang.lir/cross-cone-layout-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
 | `org.scoop-lang.lir/strong-production/2` | LIR | Compile、Link | Lir + Code + RuntimeImage |
 
-新 HIR section 同时承载 type facts 与独立 inheritance surface；它不修改 `cross-cone-interface/1` 的 public-only record。前三条的完整 canonical inner bytes 分别进入对应 layer contribution。新增Link-only section仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly；strong-production/2沿用强定义section自己的三个sink。
+`cross-cone-type-semantics/1` 同时承载 type facts 与独立 inheritance surface；它不修改 `cross-cone-interface/1` 的 public-only record。`cross-cone-type-source-authority/1` 保存从同一次 sealed Export/LocalConcrete HIR 与实际 committed-use trace 独立投影的 source authority，只供 reader 重放前一 section，不能作为普通 lookup、layout 或 materialization API。前四条 Compile section 的完整 canonical inner bytes分别进入对应 layer contribution；两个 HIR section都进入 HIR contribution。新增Link-only section仅以 semantic physical-import projection进入Code，member/range/patch信息只作LinkValidationOnly；strong-production/2沿用强定义section自己的三个sink。
 
-所有 source Cone、trusted core、single-file 与 cache 产物都写新 profile、四个新增section及strong-production/2，空集合也必须显式编码。旧 profile 可以被 Graph view 识别并报告，但不能成为本阶段 completed dependency；core receipt、compiler compatibility 与 cache key 绑定新 profile fingerprint，全部重建，不做内存升级。section自身major与outer schema是两个版本维度；本次strong-production/2不表示进入M24的outer schema2或runtime release ABI。
+所有 source Cone、trusted core、single-file 与 cache 产物都写新 profile、五个新增section及strong-production/2，空集合也必须显式编码。旧 profile 可以被 Graph view 识别并报告，但不能成为本阶段 completed dependency；core receipt、compiler compatibility 与 cache key 绑定新 profile fingerprint，全部重建，不做内存升级。section自身major与outer schema是两个版本维度；本次strong-production/2不表示进入M24的outer schema2或runtime release ABI。
+
+#### 3.1.1 HIR source authority transport
+
+`cross-cone-type-semantics/1` 是待验证的发布候选，不能同时充当它自己的 source authority。只把其八张表放入 artifact 会丢失 private backing field 的真实 source type、独立 required inventory、实际 committed-use occurrence 及其 access/receiver provenance；prebuilt/cache reader 因而无法只凭 artifact bytes 重建 11.1 的第一段证明。为避免 production 时验证一次、读取时改为信任 candidate 的降格，新 profile 必须同时携带：
+
+```text
+CrossConeTypeSourceAuthoritySectionV1 {
+    foundation: TypeFoundationSourceAuthorityV1,
+    declarations: TypeDeclarationSourceAuthorityV1,
+    defaults: TypeDefaultSourceAuthorityV1,
+    committed_uses: CommittedTypeUseSourceAuthorityV1,
+}
+```
+
+四个字段依次使用field 1～4。它们是 source-side canonical transcript，而不是第二套可被consumer直接查询的语义表：
+
+- `foundation` 精确保存真实 `source_roots`、本地fact inventory、dependency fact refs、每个exact的fact shape、required representation owner与其source representation/access snapshot、本地inheritance edges、object backing/generated identity refs及accessor role keys；其中identity、definition origin与source context引用仍必须命中同artifact既有HIR foundation，不复制或改写其canonical key。
+- `declarations` 精确保存definition-side required protected declaration、inheritance owner/constructor/protected-member/slot-schema inventory，以及每个constructor/callable/property/nested source合同和slot implementation选择。顺序按相应typed key的canonical bytes；同key重复或未被validator查询的额外record均拒绝。
+- `defaults` 精确保存protected source parameter calling facts、default profile、typed body/data-flow/operation/reference-access/nested-callable transcript及每个definition-source occurrence。它复用4.3冻结的body、origin、domain和receiver-use constituent，不保存AST、arena index或host path；每个validator query必须唯一命中，全部record必须被消费。
+- `committed_uses` 保存每个实际HIR root occurrence和递归semantic edge，而不是field 8的去重target集合。root记录包含稳定definition origin/path内ordinal、`SelectedExternalTypeUseV1`、`TypeSectionCommittedRootOriginV1`及完整lookup/access/receiver witness；edge记录另包含parent request与kind-specific semantic-parent relation。reader按真实root/edge顺序重放，随后要求其去重闭包逐byte等于type-semantics field 8；遗漏、额外、错provider或把support edge伪装成source route均拒绝。
+
+producer必须先从 sealed HIR 投影并封闭source-authority section，再独立构造type-semantics candidate；writer只接受二者已通过production-side交叉校验的typed pair。reader先解析authority，再用它实现`TypeSectionFoundationSemanticAuthority`、`TypeSectionDeclarationSemanticAuthority`、`TypeSectionDefaultSemanticAuthority`和`CommittedTypeUseSemanticAuthorityV1`，完整调用同一个`validate_semantics`入口。禁止从type-semantics candidate、MIR/LIR candidate、symbol或“唯一匹配项”反向合成authority。即使四个子域均为空，该required section也必须存在并按四字段空product编码。
 
 ### 3.2 不改义的既有 section
 
@@ -233,7 +256,7 @@ fields1～3的顶层inventory由本provider的独立checked source/support全集
 
 source_roots本身只证明source identity和词法闭包，Concrete与GenericTemplate均可作为source-only根；只有被独立required_representation_owners或local_inheritance_edges要求的Concrete根必须同时闭合facts、representation与inheritance。source-only根不取得concrete target token，selected不能只凭其源码存在性通过。
 
-完整type-section保留同provider旧public十表的checked借用凭证；该凭证只能经旧section完整semantic validator构造，不能由raw DTO或单表制造。公开final成员的declaration/provider/receiver必须join旧表实际合同，protected/inheritance合同由新表闭合，重叠时逐项同值而不任选来源。local inventories、source roots、facts ownership与source inheritance edges由独立foundation/source authority投射，graph不能从候选edges构造后再以同一候选自证。producer与reader均通过相同完整组合入口取得checked section。
+完整type-section保留同provider旧public十表的checked借用凭证；该凭证只能经旧section完整semantic validator构造，不能由raw DTO或单表制造。公开final成员的declaration/provider/receiver必须join旧表实际合同，protected/inheritance合同由新表闭合，重叠时逐项同值而不任选来源。local inventories、source roots、facts ownership与source inheritance edges由独立foundation/source authority投射，graph不能从候选edges构造后再以同一候选自证。production时该authority来自sealed Export/LocalConcrete HIR；持久化后必须来自3.1.1的独立required source-authority section。producer与reader均通过相同完整组合入口取得checked section，读取prebuilt/cache artifact时不得要求源码或编译期内存token仍然存在。
 
 这些事实覆盖本 Cone 导出的 param-free exact subject，以及其必须供下游检查的表示/继承 support；generic template 不能伪装成 concrete facts。`Reference` 的 `gc` 固定为 ContainsManagedReferences，描述的是该引用值；对象内部 `object_scan` 可以为空，二者不能混淆。`Value/ZeroSized` 必须是 GcFree。enum 每个 variant 的 gc flag另随 representation record保存，并重放 `gc_free(enum) = AND(gc_free(variant))`，不是对ContainsManagedReferences取AND。
 
@@ -743,7 +766,7 @@ C端真实寄存器/aggregate lowering继续由validated generated-C toolchain�
 ```text
 envelope/profile/target/resource checks
   -> foundation identities + direct/support role
-  -> HIR type facts / access / inheritance closure
+  -> HIR source-authority transcript / type facts / access / inheritance closure
   -> MIR source-to-implementation / slot / helper relations
   -> LIR layout replay / scan normal form / ABI / TD
   -> complete source-root support obligation
@@ -752,7 +775,7 @@ envelope/profile/target/resource checks
   -> Compile/Link equality + publish
 ```
 
-继承环和by-value representation环拒绝；通过managed reference的递归class合法，layout重放在reference leaf停止，不沿对象图无限展开。所有provider来自同一target-compatible显式artifact closure。记录存在、id匹配或digest相同都不能替代逐字段关系证明。
+继承环和by-value representation环拒绝；通过managed reference的递归class合法，layout重放在reference leaf停止，不沿对象图无限展开。所有provider来自同一target-compatible显式artifact closure。prebuilt/cache验证只能读取该closure内的required section，不得要求原始source、compiler进程内token或调用方注入authority factory。记录存在、id匹配或digest相同都不能替代逐字段关系证明。
 
 错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
 
@@ -880,7 +903,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 
 ### 13.3 wire、object、cache与健壮性
 
-- 四个新增capability、strong-production/2和新profile fixed vectors，empty/nonempty、unknown required、错purpose、旧profile拒绝；M23-2 foundation/extern/callback与M23-3/5旧section vectors不变。V2的ordinary parent/itable key/dispatch target正反例必须经过真正的strong production wire round-trip，不能只在新layout sidecar中通过。
+- 五个新增capability、strong-production/2和新profile fixed vectors，empty/nonempty、unknown required、错purpose、旧profile拒绝；M23-2 foundation/extern/callback与M23-3/5旧section vectors不变。HIR source-authority逐子域覆盖缺失、额外、重复、错origin、错access/receiver、错committed root及候选表自证拒绝，并以仅artifact bytes的prebuilt/cache路径重放。V2的ordinary parent/itable key/dispatch target正反例必须经过真正的strong production wire round-trip，不能只在新layout sidecar中通过。
 - 每个record去掉/增加/错tag/错kind/错owner/乱序/重复逐项拒绝；reader独立重放字段layout、scan、ABI和source-root obligation。
 - scan/type-name共享DAG、cycle、深度/展开/bytes预算边界在分配前失败；合法递归ref class成功，by-value环失败。
 - 别名/re-export spelling改变不改变exact TD name/ABI；改变base prefix、ZST exact identity、slot contract或scan offset改变对应fingerprint。
@@ -894,7 +917,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 
 ## 14. 实现顺序
 
-1. 固定本文profile/section/wire constituent及测试vector；添加required capability gate和拒绝旧profile路径。先有验证入口，再放宽source能力。
+1. 固定本文profile/section/wire constituent及测试vector；添加required capability gate和拒绝旧profile路径。先持久化独立HIR source authority并让production与bytes-only reader共用验证入口，再放宽source能力。
 2. 收口HIR concrete facts与persistent inheritance surface，完成protected/domain/default witness和source negative；保留旧public section字节。
 3. 实现MIR type/constructor/object/slot bridge与selected closure；以golden锁定没有foreign body复制、layout offset或generic template。
 4. 收口LIR storage/refined shape、general layout replay、scan normal form和external exact arena；实现provider有限shape-support导出和consumer验证。
@@ -907,7 +930,7 @@ generic/structural cases使用1.3规定的typed test harness；对应production�
 
 ## 15. 完成门
 
-- source/access/inheritance、MIR relation、LIR layout/ABI/scan/TD、actual object use形成可从最终artifact独立重建的完整链；没有symbol/FQN/host layout fallback。
+- 独立持久化的HIR source authority、候选source/access/inheritance、MIR relation、LIR layout/ABI/scan/TD、actual object use形成可从最终artifact bytes独立重建的完整链；候选表不能自证，reader不依赖source、compiler token、symbol/FQN或host layout fallback。
 - param-free跨Cone构造、value/member/object使用、inheritance/dispatch/protected成功矩阵全部能生成新profile双view有效artifact，未选中的foreign body不复制。
 - 每个合法source subject在定义Cone拥有完整有限shape-support；consumer只引用external typed definition，全部ODR生产继续拒绝。
 - ZST logical semantics、typed ABI、place/static token、box/array/Ptr/C边界及scan/TD矩阵全部锁定；codegen/runtime不再从size0或空LLVM struct猜语义。
