@@ -56,6 +56,9 @@ impl NominalSourceParameterProtocolV1 {
         }
         Ok(Self { owner, parameters })
     }
+    pub(crate) fn into_parts(self) -> (CallableTemplateOrigin, Vec<InheritanceSourceParameterV1>) {
+        (self.owner, self.parameters)
+    }
     pub const fn owner(&self) -> CallableTemplateOrigin {
         self.owner
     }

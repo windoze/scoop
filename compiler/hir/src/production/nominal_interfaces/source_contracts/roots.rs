@@ -4,7 +4,7 @@ use super::*;
 use std::collections::BTreeMap;
 
 mod index;
-use index::Index;
+pub(super) use index::Index;
 
 impl CanonicalSourceNominalIdsV1 {
     /// Discovers local public/inheritance roots and complete protected nested

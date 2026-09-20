@@ -24,6 +24,9 @@ impl SourceParameterShapeV1 {
         Self { name, value_type }
     }
 
+    pub(crate) fn into_parts(self) -> (CanonicalIdentifier, SignatureTypeKey) {
+        (self.name, self.value_type)
+    }
     pub const fn name(&self) -> &CanonicalIdentifier {
         &self.name
     }

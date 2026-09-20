@@ -71,6 +71,22 @@ impl NominalSourceContractV1 {
             source_shape,
         })
     }
+    pub(crate) fn into_nested_interface(
+        self,
+        support: crate::CanonicalNestedSourceSupportV1,
+    ) -> Result<crate::ProtectedNestedSourceInterfaceV1, crate::NestedSourceBuildError> {
+        crate::ProtectedNestedSourceInterfaceV1::try_new(
+            self.kind(),
+            self.modality,
+            self.type_parameters,
+            self.supertypes,
+            self.constructors,
+            self.members,
+            self.children,
+            self.source_shape,
+            support,
+        )
+    }
     pub const fn owner(&self) -> SourceNominalId {
         self.owner
     }

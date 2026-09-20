@@ -390,7 +390,7 @@ pub(super) fn declaration_access(
     declaration_access_for_subject(export, key, owner, visibility)
 }
 
-pub(super) fn declaration_access_for_subject(
+pub(in crate::production) fn declaration_access_for_subject(
     export: &ExportHir,
     key: &SourceDeclarationKey,
     subject: DefinitionOriginSubject,

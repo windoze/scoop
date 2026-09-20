@@ -11,7 +11,7 @@ mod source_callables;
 mod source_constructors;
 mod source_inventory;
 mod source_parameters;
-mod source_properties;
+pub(in crate::production::type_semantics) mod source_properties;
 mod source_protected_callables;
 pub(in crate::production) mod source_resources;
 pub(super) use source_callables::project as source_callables;

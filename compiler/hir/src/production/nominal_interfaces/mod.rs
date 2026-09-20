@@ -16,6 +16,7 @@ mod members;
 mod nested_bindings;
 pub(in crate::production) mod owner_resolution;
 mod source_contracts;
+pub(in crate::production) use source_contracts::{NestedSourceNode, project_nested_sources};
 mod source_shape;
 
 pub use errors::{

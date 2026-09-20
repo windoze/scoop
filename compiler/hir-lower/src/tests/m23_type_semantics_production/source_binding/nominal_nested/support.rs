@@ -12,6 +12,7 @@ pub(super) fn with_candidates(
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let mut records = Vec::new();
+        let mut protocols = BTreeMap::new();
         for nominal in sources.members.nominals.records() {
             let access = fixture
                 .source
@@ -23,7 +24,37 @@ pub(super) fn with_candidates(
             if access.lexical_owners().is_empty() {
                 continue;
             }
-            let record = build(&fixture, &sources, nominal.owner());
+            let production = hir::NestedNominalSourceProductionV1::from_export_hir(
+                &output.output().export,
+                nominal.owner(),
+                &mut meter(),
+            )
+            .unwrap();
+            let mut expected = BTreeSet::new();
+            collect_protocols(production.record(), &mut expected);
+            assert_eq!(
+                production
+                    .protocols()
+                    .records()
+                    .iter()
+                    .map(|r| r.owner())
+                    .collect::<BTreeSet<_>>(),
+                expected
+            );
+            let repeated = hir::NestedNominalSourceProductionV1::from_export_hir(
+                &output.output().export,
+                nominal.owner(),
+                &mut meter(),
+            )
+            .unwrap();
+            assert_eq!(production.record(), repeated.record());
+            assert_eq!(production.protocols(), repeated.protocols());
+            for protocol in production.protocols().records() {
+                if let Some(previous) = protocols.insert(protocol.owner(), protocol.clone()) {
+                    assert_eq!(&previous, protocol);
+                }
+            }
+            let (record, _) = production.into_parts();
             let bytes = encode(&record).unwrap();
             let decoded: hir::DecodedNominalSupportNestedInterfaceV1 =
                 decode_canonical(&bytes, DecodeLimits::default()).unwrap();
@@ -35,12 +66,7 @@ pub(super) fn with_candidates(
         }
         assert!(!records.is_empty());
         let protocols = hir::CanonicalProtectedCallableSourceInterfacesV1::try_new(
-            sources
-                .protocols
-                .records()
-                .iter()
-                .map(|r| super::super::parameter_candidates::candidate(r.owner(), r.parameters()))
-                .collect(),
+            protocols.into_values().collect(),
         )
         .unwrap();
         let keys = hir::ProtectedDefaultKeyIndexV1::try_new(
@@ -69,71 +95,6 @@ pub(super) fn with_candidates(
             inputs.protocols().fundamental_types(),
         );
     });
-}
-fn build(fixture: &Fixture, sources: &Sources, owner: hir::SourceNominalId) -> Record {
-    let nominal = sources.members.nominals.get(owner).unwrap();
-    let mut entries = sources
-        .constructors
-        .records()
-        .iter()
-        .filter(|r| r.payload().owner() == owner)
-        .map(|r| Entry::Constructor(Box::new(r.clone())))
-        .collect::<Vec<_>>();
-    entries.extend(
-        sources
-            .members
-            .callables
-            .records()
-            .iter()
-            .filter(|r| r.payload().owner() == owner)
-            .map(|r| Entry::Callable(Box::new(r.clone()))),
-    );
-    entries.extend(
-        sources
-            .members
-            .properties
-            .records()
-            .iter()
-            .filter(|r| r.owner() == owner)
-            .map(|r| Entry::Property(Box::new(r.clone()))),
-    );
-    for child in nominal.children().values() {
-        entries.push(Entry::NestedNominal(Box::new(build(
-            fixture, sources, *child,
-        ))));
-    }
-    let interface = hir::ProtectedNestedSourceInterfaceV1::try_new(
-        nominal.kind(),
-        nominal.modality(),
-        nominal.type_parameters().clone(),
-        nominal.supertypes().clone(),
-        nominal.constructors().clone(),
-        nominal.members().clone(),
-        nominal.children().clone(),
-        nominal.source_shape().clone(),
-        hir::CanonicalNestedSourceSupportV1::try_new(entries).unwrap(),
-    )
-    .unwrap();
-    let support = match owner {
-        hir::SourceNominalId::Concrete(id) => hir::NestedNominalSupportV1::ParamFree {
-            inheritance_exact: PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(id)).unwrap(),
-            representation_owner: id,
-        },
-        hir::SourceNominalId::GenericTemplate(_) => hir::NestedNominalSupportV1::GenericTemplate,
-    };
-    Record::try_new(
-        owner,
-        fixture
-            .source
-            .entries()
-            .sources
-            .get(owner)
-            .unwrap()
-            .access()
-            .clone(),
-        hir::ProtectedNestedNominalPayloadV1::try_new(owner, interface, support).unwrap(),
-    )
-    .unwrap()
 }
 pub(super) fn rebuild(record: &Record, interface: hir::ProtectedNestedSourceInterfaceV1) -> Record {
     Record::try_new(

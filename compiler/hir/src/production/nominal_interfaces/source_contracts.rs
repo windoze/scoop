@@ -11,6 +11,8 @@ type Error = CrossConeTypeSemanticsProductionError;
 
 mod constructors;
 mod members;
+mod nested;
+pub(in crate::production) use nested::{NestedSourceNode, project as project_nested_sources};
 mod projection;
 mod roots;
 mod shapes;

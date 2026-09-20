@@ -1,11 +1,11 @@
 use super::*;
 
-pub(super) struct Node {
+pub(in crate::production::nominal_interfaces::source_contracts) struct Node {
     pub local: LocalNominalId,
     pub parent: Option<SourceNominalId>,
     pub visibility: DeclaredVisibility,
 }
-pub(super) struct Index {
+pub(in crate::production::nominal_interfaces::source_contracts) struct Index {
     pub nodes: BTreeMap<SourceNominalId, Node>,
     pub children: BTreeMap<SourceNominalId, Vec<SourceNominalId>>,
 }

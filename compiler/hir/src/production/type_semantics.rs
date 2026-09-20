@@ -14,9 +14,12 @@ mod authority;
 pub use authority::*;
 mod facts;
 pub(in crate::production) mod inheritance;
+mod nested_sources;
 mod nominal_callables;
 mod nominal_constructors;
 mod nominal_parameters;
+pub use nested_sources::*;
+pub(in crate::production) use nominals::declaration_access_for_subject;
 mod nominals;
 mod source_parameter_shapes;
 

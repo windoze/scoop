@@ -8,6 +8,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 mod contract;
 mod nominals;
+pub(in crate::production::type_semantics) use nominals::project as project_nominal;
 mod required;
 mod slots;
 

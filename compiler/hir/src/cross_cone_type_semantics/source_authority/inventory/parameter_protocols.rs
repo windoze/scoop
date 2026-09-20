@@ -25,6 +25,15 @@ impl InheritanceSourceParameterV1 {
             origin,
         }
     }
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        SourceParameterShapeV1,
+        ProtectedParameterCallingKindV1,
+        ExportDefinitionSourceV1,
+    ) {
+        (self.shape, self.calling, self.origin)
+    }
     pub const fn shape(&self) -> &SourceParameterShapeV1 {
         &self.shape
     }

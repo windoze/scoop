@@ -5,12 +5,14 @@ use hir::{
     NestedSourceSupportV1 as Entry, NominalNestedBindingError as Error,
     NominalSupportNestedInterfaceV1 as Record,
 };
-use scoop_identity::{CallableTemplateOrigin, ExactTypeKey, PersistentExactTypeId};
+use scoop_identity::CallableTemplateOrigin;
 
 mod corruption;
 mod nominals;
+mod production;
 mod protocols;
 mod support;
+mod varargs;
 use support::*;
 
 const SOURCE: &str = include_str!(concat!(
