@@ -1,0 +1,16 @@
+private fun fileDefault(value: String = "file"): String = value
+public fun publicDefault(value: Int = 1): Int = value
+internal open class LocalBase(protected val seed: Int) {
+    protected open fun choose(value: Int = seed): Int = value
+    private fun hidden(value: Int = seed): Int = value
+}
+internal class LocalChild: LocalBase(1) {
+    protected final override fun choose(value: Int): Int = value
+}
+public open class Generic<T>(protected val seed: T) {
+    protected open fun choose(value: T = seed): T = value
+    public class Static {
+        protected fun literal(value: Int = 2): Int = value
+    }
+}
+public open class Other<U>(private val seed: U) {}

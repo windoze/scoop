@@ -4,11 +4,10 @@ use scoop_identity::CallableTemplateOrigin;
 
 use super::entities::DefaultEntityProjector;
 use crate::{
-    DefaultClassConstructorIdV1, DefaultConstructorRefV1, ExportDefaultAccessWitness,
-    ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1, ExportDefaultCallableTarget,
-    ExportDefaultCallableTargetV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
-    ExportDefaultReferenceV1, ExportDefaultReferences, ExportHir, HirSignatureBinder,
-    PublicLookupAccessV1,
+    DefaultConstructorRefV1, ExportDefaultAccessWitness, ExportDefaultAccessWitnessV1,
+    ExportDefaultCallDomainV1, ExportDefaultCallableTarget, ExportDefaultCallableTargetV1,
+    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultReferences, ExportHir, HirSignatureBinder, PublicLookupAccessV1,
 };
 
 pub(super) struct ReferenceProjection<'a, 'hir, 'core, 'meter> {
@@ -244,7 +243,7 @@ fn witness(
     kind: ExportDefaultReferenceKindV1,
     index: usize,
 ) -> Result<ExportDefaultAccessWitnessV1, super::DefaultReferenceProjectionError> {
-    let actual = owner(projection.entities, witness.owner)?;
+    let actual = projection.entities.parameter_owner(witness.owner)?;
     if actual != projection.source_owner {
         return Err(super::DefaultReferenceProjectionError::Owner {
             kind,
@@ -273,35 +272,6 @@ fn witness(
         projection.target_owner,
         call_domain,
     ))
-}
-
-fn owner(
-    entities: &DefaultEntityProjector<'_, '_, '_>,
-    owner: crate::ExportParameterOwner,
-) -> Result<CallableTemplateOrigin, super::DefaultReferenceProjectionError> {
-    Ok(match owner {
-        crate::ExportParameterOwner::Function(function) => {
-            entities.source_callable_declaration(function)?
-        }
-        crate::ExportParameterOwner::StructConstructor(constructor) => {
-            CallableTemplateOrigin::Constructor(entities.struct_constructor_id(constructor)?)
-        }
-        crate::ExportParameterOwner::ClassConstructor(constructor) => {
-            match entities.class_constructor_id(constructor)? {
-                DefaultClassConstructorIdV1::Source(id) => CallableTemplateOrigin::Constructor(id),
-                DefaultClassConstructorIdV1::Generated(_) => {
-                    return Err(super::DefaultEntityProjectionError::MissingIdentity {
-                        kind: "source class constructor",
-                        index: super::raw_index(constructor),
-                    }
-                    .into());
-                }
-            }
-        }
-        crate::ExportParameterOwner::VariantConstructor(variant) => {
-            CallableTemplateOrigin::VariantConstructor(entities.variant_id(variant)?)
-        }
-    })
 }
 
 fn origin(

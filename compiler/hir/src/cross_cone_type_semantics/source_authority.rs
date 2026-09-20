@@ -48,3 +48,6 @@ pub use inheritance_binding::*;
 
 mod declarations;
 pub use declarations::*;
+
+mod default_access;
+pub use default_access::*;

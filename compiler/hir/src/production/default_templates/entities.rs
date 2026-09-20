@@ -1,6 +1,7 @@
 //! Stable identity projection for entities referenced by default templates.
 
 mod callables;
+mod owners;
 mod values;
 
 use scoop_identity::{

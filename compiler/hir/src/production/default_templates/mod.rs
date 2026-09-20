@@ -15,7 +15,9 @@ mod errors;
 mod locals;
 mod references;
 mod resources;
+mod source_access;
 mod source_body;
+pub use source_access::DefaultSourceAccessProductionError;
 pub use source_body::{DefaultSourceBodyProductionError, DefaultSourceBodyProductionV1};
 
 pub use errors::{
