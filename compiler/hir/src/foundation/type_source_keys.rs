@@ -24,6 +24,10 @@ impl CanonicalHirFoundation {
     pub(crate) fn type_source_accessor_records(&self) -> &[PropertyAccessorRecord] {
         &self.property_accessors
     }
+    pub(crate) fn type_source_generic_function_records(&self) -> &[GenericFunctionRecord] {
+        &self.generic_functions
+    }
+
     pub(crate) fn type_source_function_records(&self) -> &[FunctionRecord] {
         &self.functions
     }

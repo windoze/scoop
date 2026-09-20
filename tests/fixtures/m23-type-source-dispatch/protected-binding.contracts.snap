@@ -1,0 +1,5 @@
+Another.read(value): Final, Safe, Ordinary, binders=0, slots=0
+Container.Vault.preserve(value): Final, Safe, Ordinary, binders=1, slots=0
+Container.Vault.read(value): Final, Safe, Ordinary, binders=0, slots=0
+Vault.state.get(): Final, Safe, Ordinary, binders=0, slots=0
+Vault.state.set(value): Final, Safe, Ordinary, binders=0, slots=0

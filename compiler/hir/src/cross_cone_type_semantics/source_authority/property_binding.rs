@@ -21,8 +21,9 @@ pub use errors::*;
 /// Artifact-bound sources, without lookup, full signature or machine-use permission.
 #[derive(Debug)]
 pub struct BoundInheritancePropertySourcesV1<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
-    properties: &'a CanonicalInheritanceSourcePropertiesV1,
+    pub(super) foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    pub(super) inventory: &'a CanonicalSourceInheritanceInventoriesV1,
+    pub(super) properties: &'a CanonicalInheritanceSourcePropertiesV1,
     keys: BTreeMap<PersistentPropertyId, &'f SourceDeclarationKey>,
 }
 
@@ -59,6 +60,7 @@ impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
         }
         Ok(BoundInheritancePropertySourcesV1 {
             foundation: self.foundation,
+            inventory: self.inventory(),
             properties,
             keys,
         })

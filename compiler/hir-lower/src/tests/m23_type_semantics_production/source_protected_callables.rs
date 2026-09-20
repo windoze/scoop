@@ -40,6 +40,25 @@ fn protected_sources_preserve_methods_accessors_binders_effects_and_slots() {
 }
 
 #[test]
+fn nested_protected_source_contracts_have_a_stable_dump() {
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-type-source-dispatch/protected-binding.scoop"
+    ));
+    with_source(source, |output, _| {
+        let table = table(output);
+        contracts::verify(output, &table);
+        assert_eq!(
+            contracts::render(output, &table),
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/fixtures/m23-type-source-dispatch/protected-binding.contracts.snap"
+            ))
+        );
+    });
+}
+
+#[test]
 fn protected_source_inventory_excludes_other_visibilities_and_logical_properties() {
     for source in [
         DIRECT,

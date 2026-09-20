@@ -14,3 +14,6 @@ pub use constructor_binding::*;
 
 mod property_binding;
 pub use property_binding::*;
+
+mod protected_binding;
+pub use protected_binding::*;

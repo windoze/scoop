@@ -7,6 +7,7 @@ mod constructors;
 mod dispatch;
 mod dispatch_binding;
 mod properties;
+mod protected_callables;
 mod rejection;
 mod replay;
 

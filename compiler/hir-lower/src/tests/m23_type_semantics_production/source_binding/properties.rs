@@ -27,12 +27,12 @@ const OBJECT_OVERRIDES: &str = include_str!(concat!(
 ));
 
 #[derive(Clone)]
-struct Sources {
-    dispatch: super::dispatch_binding::Sources,
+pub(super) struct Sources {
+    pub(super) dispatch: super::dispatch_binding::Sources,
     properties: hir::CanonicalInheritanceSourcePropertiesV1,
 }
 impl Sources {
-    fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
         let dispatch = super::dispatch_binding::Sources::from_output(output, fixture);
         let source =
             hir::CanonicalInheritanceSourcePropertiesV1::from_ordinary_hir(output, &mut meter())
@@ -49,7 +49,7 @@ impl Sources {
             properties,
         }
     }
-    fn bind<'a, 'f>(
+    pub(super) fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
         meter: &mut BudgetMeter,
