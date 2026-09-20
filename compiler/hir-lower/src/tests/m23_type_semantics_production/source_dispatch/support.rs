@@ -29,8 +29,19 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source<T>(
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
+    with_hir_source_at(source, "src/main.scoop", run)
+}
+
+pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
+    source: &str,
+    path: &str,
+    run: impl FnOnce(
+        &hir::OrdinaryHirOutput<'_>,
+        &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
+    ) -> T,
+) -> T {
     let core = trusted_core();
-    let identity = test_source_identity("src/main.scoop");
+    let identity = test_source_identity(path);
     let ordinary = ast::CurrentConeParsedSources::try_new(
         ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
             ast::IdentifiedParsedSource::new(
@@ -45,10 +56,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source<T>(
             Vec::new(),
         ),
         ast::NonEmptyVec::new(
-            ast::CurrentSourceDiagnosticContext::new(
-                identity,
-                std::path::PathBuf::from("src/main.scoop"),
-            ),
+            ast::CurrentSourceDiagnosticContext::new(identity, std::path::PathBuf::from(path)),
             Vec::new(),
         ),
     )

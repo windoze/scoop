@@ -96,6 +96,20 @@ impl CanonicalInheritanceSourcePropertiesV1 {
     }
 }
 
+impl CanonicalInheritanceSourceParameterProtocolsV1 {
+    /// Projects source argument facts for the independent inheritance inventory,
+    /// without deriving names, calling categories or origins from candidates.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        let export = output.output().export.module();
+        let inventory = inheritance::source_inventory(export, &nominals, meter)?;
+        inheritance::source_parameters(export, &inventory, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

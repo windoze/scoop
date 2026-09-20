@@ -183,7 +183,16 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
         constructors,
         protected_callables,
         properties,
+        parameters,
     ) = production.into_parts();
+    assert_eq!(
+        parameters,
+        hir::CanonicalInheritanceSourceParameterProtocolsV1::from_ordinary_hir(
+            &output,
+            &mut BudgetMeter::new(DecodeLimits::default())
+        )
+        .unwrap()
+    );
     assert_eq!(
         properties,
         hir::CanonicalInheritanceSourcePropertiesV1::from_ordinary_hir(

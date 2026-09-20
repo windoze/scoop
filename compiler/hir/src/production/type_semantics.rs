@@ -30,6 +30,7 @@ pub struct CrossConeTypeSemanticsProductionV1 {
     source_constructors: crate::CanonicalInheritanceSourceConstructorsV1,
     source_protected_callables: crate::CanonicalInheritanceSourceProtectedCallablesV1,
     source_properties: crate::CanonicalInheritanceSourcePropertiesV1,
+    source_parameters: crate::CanonicalInheritanceSourceParameterProtocolsV1,
 }
 
 impl CrossConeTypeSemanticsProductionV1 {
@@ -63,6 +64,7 @@ impl CrossConeTypeSemanticsProductionV1 {
         crate::CanonicalInheritanceSourceConstructorsV1,
         crate::CanonicalInheritanceSourceProtectedCallablesV1,
         crate::CanonicalInheritanceSourcePropertiesV1,
+        crate::CanonicalInheritanceSourceParameterProtocolsV1,
     ) {
         (
             self.section,
@@ -74,6 +76,7 @@ impl CrossConeTypeSemanticsProductionV1 {
             self.source_constructors,
             self.source_protected_callables,
             self.source_properties,
+            self.source_parameters,
         )
     }
 
@@ -113,6 +116,12 @@ impl CrossConeTypeSemanticsProductionV1 {
 
     pub const fn source_properties(&self) -> &crate::CanonicalInheritanceSourcePropertiesV1 {
         &self.source_properties
+    }
+
+    pub const fn source_parameters(
+        &self,
+    ) -> &crate::CanonicalInheritanceSourceParameterProtocolsV1 {
+        &self.source_parameters
     }
 
     pub const fn local_exact_facts(&self) -> &CanonicalPersistentIdsV1<PersistentExactTypeId> {

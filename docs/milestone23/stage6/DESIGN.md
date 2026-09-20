@@ -223,6 +223,8 @@ inheritance property来源子表按`PersistentPropertyId`严格递增，复用`N
 
 protected callable来源绑定从同一已绑定property/inheritance来源取得所需Callable清单，拒绝缺失、额外、重复归属或错owner的记录。Function与GenericFunction分别只借用本artifact自有、且经同一identity graph核验的typed key；Accessor经已绑定logical property和foundation accessor role闭合，不能由普通export候选补身份。每项origin精确命中其Function/GenericFunction/PropertyAccessor subject，setter实际access与property来源一致。绑定重放既有`ProtectedCallableInterfaceV1::validate_source`，签名nominal kind/arity从同一validated canonical source key取得，getter值type与setter参数来自已绑定property；setter的Unit角色只接受已验证导入的trusted-core fundamental protocol，并在同一identity graph核对，不能临时构造Unit或把失败降为空表。泛型方法仅保留source binder/bounds，不产生ODR应用。所有索引、签名树和来源查询共用预算；成功值只提供来源合同和查询adapter，完整source/default、派发选择及机器资格仍由完整section事务闭合。
 
+inheritance参数协议来源子表按`CallableTemplateOrigin`的typed role与id严格递增，每项精确为`{1: owner, 2: 参数声明序array}`，零参数声明也必须有记录。所需owner精确为独立inheritance inventory的constructor与protected Function/GenericFunction并集，Accessor不参与源码实参协议。每个参数精确为`{1: SourceParameterShapeV1, 2: calling_kind, 3: ExportDefinitionSourceV1}`；shape复用参数名称与逻辑值type二字段product，calling_kind使用整数1～4分别表示Required、Default、VarargEmpty、VarargDefault。vararg的逻辑值type保留真实Array application，element与canonical Array的关系由完整source protocol validator重放，不另存一份可矛盾的element事实；default正文以owner与参数位置关联独立default来源，不复制candidate的template索引。producer直接读取sealed source parameter interface、vararg record、default source和参数真实origin，并核对同一source declaration key中的参数类型序列；不得从public/protected候选签名回填。参数名重复、多个vararg、未知owner/type/origin、表乱序/重复、多余字段或预算耗尽均拒绝。解析只恢复调用事实，完整source/default与artifact来源绑定仍须另行闭合，不授予调用或ODR物化资格。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
