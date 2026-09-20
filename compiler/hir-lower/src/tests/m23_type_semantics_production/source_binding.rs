@@ -3,6 +3,7 @@ use super::*;
 use scoop_identity::{ConeCoordinate, ValidatedIdentityGraph};
 use scoop_wire::{decode_canonical, encode};
 
+mod dispatch;
 mod rejection;
 mod replay;
 
@@ -18,10 +19,8 @@ struct Fixture {
 
 impl Fixture {
     fn from_output(output: &hir::OrdinaryHirOutput<'_>) -> Self {
-        let public = public_interface(output);
-        let production = produce_cross_cone_type_semantics(output, &public).unwrap();
-        let source = production
-            .foundation()
+        let source = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output)
+            .unwrap()
             .source_transcript(&mut meter())
             .unwrap();
         let canonical = hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap();

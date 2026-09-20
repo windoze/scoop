@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn with_source<T>(
+pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     source: &str,
     run: impl FnOnce(&hir::OrdinaryHirOutput<'_>, &scoop_mir::Module) -> T,
 ) -> T {

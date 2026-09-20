@@ -10,6 +10,7 @@ use crate::*;
 
 mod authority_projection;
 mod representation;
+mod source_foundation;
 mod source_inventory;
 
 #[derive(Clone, Copy)]
@@ -35,56 +36,28 @@ pub(super) fn produce(
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
-    let projected_public = CanonicalNominalInterfacesV1::from_export_hir(export)
-        .map_err(|error| Error::PublicInterface(error.to_string()))?;
+    let source_foundation::Projection {
+        concrete,
+        root_exacts,
+        public: projected_public,
+        foundation,
+    } = source_foundation::project(output)?;
     if &projected_public != public.nominal_interfaces() {
         return Err(Error::PublicInterface(
             "the supplied M23-5 section was not projected from this Export HIR".into(),
         ));
     }
-
-    let mut roots = Vec::new();
-    let mut concrete = Vec::new();
-    let mut source_evidence = BTreeMap::new();
     for local_id in public_nominals(export) {
         let identity = identity(export, local_id)?;
         let source = identity.source().ok_or_else(|| {
             let (kind, index) = location(local_id);
             Error::GeneratedPublicNominal { kind, index }
         })?;
-        let source_id = source_id(source);
-        inheritance::reject_unsupported_source_features(export, local_id, source_id)?;
-        roots.push(source_id);
-        source_evidence.insert(
-            source_id,
-            TypeSemanticsSourceEvidenceV1 {
-                key: source.declaration().clone(),
-                access: declaration_access(
-                    export,
-                    source.declaration(),
-                    nominal_access(export, local_id).declared.into(),
-                )?,
-            },
-        );
-        if let Some(nominal) = source_inventory::concrete(export, local, local_id, source)? {
-            concrete.push(nominal);
-        }
+        inheritance::reject_unsupported_source_features(export, local_id, source_id(source))?;
     }
-    roots.sort_unstable();
-    if roots.windows(2).any(|pair| pair[0] >= pair[1]) {
-        return Err(Error::InvalidTable {
-            table: "source-root",
-            reason: "duplicate source nominal identity".into(),
-        });
-    }
-    reject_protected_nominals(export, &roots.iter().copied().collect())?;
-
-    let root_exacts = concrete
-        .iter()
-        .map(|item| item.exact)
-        .collect::<BTreeSet<_>>();
+    reject_protected_nominals(export, &foundation.source_roots().iter().copied().collect())?;
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
-    let (facts, local_exact_facts, dependency_facts, fact_shapes) = facts::produce(
+    let facts = facts::candidate(
         output.imported_core(),
         export,
         local,
@@ -95,11 +68,11 @@ pub(super) fn produce(
     let mut definition_sources = Vec::new();
     for nominal in &concrete {
         let source_id = SourceNominalId::Concrete(nominal.owner);
-        let access = source_evidence
-            .get(&source_id)
-            .ok_or(Error::MissingLocalSupport(nominal.exact))?
-            .access
-            .clone();
+        let access = declaration_access(
+            export,
+            nominal.source.declaration(),
+            nominal_access(export, nominal.local).declared.into(),
+        )?;
         definition_sources.push(access.definition_origin().clone());
         let shape = representation::shape(export, local, nominal)?;
         let record =
@@ -130,29 +103,14 @@ pub(super) fn produce(
     let slot_selections = inheritance::slot_selections(export, &concrete, meter)?;
     let source_callables =
         inheritance::source_callables(export, &inheritance_inventory, &slot_selections, meter)?;
-    let (inheritance, local_inheritance_edges, protected_sources, constructor_origins) =
-        inheritance::produce(
-            export,
-            &concrete,
-            &projected_public,
-            &public_callables,
-            &public_sources,
-            meter,
-        )?;
-    for edges in &local_inheritance_edges {
-        if let DirectClassBaseV1::ClassBase { exact } = edges.direct_base()
-            && !root_exacts.contains(&exact)
-        {
-            return Err(Error::MissingLocalSupport(exact));
-        }
-        if let Some(exact) = edges
-            .direct_interfaces()
-            .iter()
-            .find(|exact| !root_exacts.contains(exact))
-        {
-            return Err(Error::MissingLocalSupport(*exact));
-        }
-    }
+    let (inheritance, protected_sources, constructor_origins) = inheritance::produce(
+        export,
+        &concrete,
+        &projected_public,
+        &public_callables,
+        &public_sources,
+        meter,
+    )?;
     definition_sources.extend(constructor_origins);
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
@@ -168,35 +126,6 @@ pub(super) fn produce(
         table: "definition-source",
         reason: error.to_string(),
     })?;
-    let representation_evidence = authority_projection::representation_evidence(
-        export,
-        local,
-        &concrete,
-        &source_evidence,
-        &projected_public,
-    )?;
-    let representation_owners =
-        CanonicalPersistentIdsV1::try_new(concrete.iter().map(|nominal| nominal.owner).collect())
-            .map_err(|error| Error::InvalidTable {
-            table: "representation inventory",
-            reason: error.to_string(),
-        })?;
-    let generated_nominals = authority_projection::generated_nominal_keys(export)?;
-    let foundation = CrossConeTypeSemanticsFoundationV1::new(
-        export.cone,
-        authority_projection::exact_type_keys(local, &generated_nominals)?,
-        source_evidence,
-        representation_evidence,
-        generated_nominals,
-        authority_projection::property_accessor_keys(export),
-        authority_projection::definition_sources(export),
-        roots,
-        local_exact_facts,
-        dependency_facts,
-        local_inheritance_edges,
-        fact_shapes,
-        representation_owners,
-    );
     let section = CrossConeTypeSemanticsSectionV1::new(
         facts,
         representation_support,

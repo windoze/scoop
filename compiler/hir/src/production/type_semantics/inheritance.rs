@@ -14,7 +14,6 @@ pub(super) use source_inventory::project as source_inventory;
 
 type InheritanceProjection = (
     CanonicalNominalInheritanceInterfacesV1,
-    Vec<NominalInheritanceEdgesV1>,
     CanonicalProtectedCallableSourceInterfacesV1,
     Vec<ExportDefinitionSourceV1>,
 );
@@ -28,7 +27,6 @@ pub(super) fn produce(
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<InheritanceProjection, Error> {
     let mut records = Vec::with_capacity(nominals.len());
-    let mut edges = Vec::with_capacity(nominals.len());
     let mut origins = Vec::new();
     let mut sources = Vec::new();
     for nominal in nominals {
@@ -37,7 +35,6 @@ pub(super) fn produce(
             .get(source_id)
             .ok_or(Error::MissingLocalSupport(nominal.exact))?;
         let edge = project_edges(export, nominal)?;
-        let authority_edge = project_edges(export, nominal)?;
         let domains = project_domains(export, nominal)?;
         let constructors = constructors::project(
             export,
@@ -71,10 +68,8 @@ pub(super) fn produce(
             exact: nominal.exact,
             reason: error.to_string(),
         })?;
-        edges.push(authority_edge);
         records.push(record);
     }
-    edges.sort_unstable_by_key(NominalInheritanceEdgesV1::owner);
     let table = CanonicalNominalInheritanceInterfacesV1::try_new(records).map_err(|error| {
         Error::InvalidTable {
             table: "inheritance",
@@ -88,7 +83,7 @@ pub(super) fn produce(
                 reason: error.to_string(),
             }
         })?;
-    Ok((table, edges, sources, origins))
+    Ok((table, sources, origins))
 }
 
 pub(super) fn reject_unsupported_source_features(
@@ -162,7 +157,7 @@ fn properties_require_dispatch(export: &ExportHir, properties: &[PropertyId]) ->
     })
 }
 
-fn project_edges(
+pub(super) fn project_edges(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
 ) -> Result<NominalInheritanceEdgesV1, Error> {

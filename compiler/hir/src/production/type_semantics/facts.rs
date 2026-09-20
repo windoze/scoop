@@ -5,27 +5,36 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use super::CrossConeTypeSemanticsProductionError as Error;
 use crate::*;
 
-type FactProjection = (
-    CanonicalExactTypeFactsV1,
+type FactSourceProjection = (
     CanonicalPersistentIdsV1<PersistentExactTypeId>,
     Vec<TypeSectionDependencyFactV1>,
     BTreeMap<PersistentExactTypeId, ExactTypeFactShapeV1>,
 );
 
-pub(super) fn produce(
+pub(super) fn candidate(
     imported_core: &SelectedImportedCoreSet<'_>,
     export: &ExportHir,
     local: &LocalConcreteHir,
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
-) -> Result<FactProjection, Error> {
+) -> Result<CanonicalExactTypeFactsV1, Error> {
     let candidate = project(imported_core, export, local, root_exacts, required_exacts)?;
+    CanonicalExactTypeFactsV1::try_new(candidate.local_facts.into_values().collect()).map_err(
+        |error| Error::InvalidTable {
+            table: "exact-facts",
+            reason: error.to_string(),
+        },
+    )
+}
+
+pub(super) fn source(
+    imported_core: &SelectedImportedCoreSet<'_>,
+    export: &ExportHir,
+    local: &LocalConcreteHir,
+    root_exacts: &BTreeSet<PersistentExactTypeId>,
+    required_exacts: &BTreeSet<PersistentExactTypeId>,
+) -> Result<FactSourceProjection, Error> {
     let authority = project(imported_core, export, local, root_exacts, required_exacts)?;
-    let facts = CanonicalExactTypeFactsV1::try_new(candidate.local_facts.into_values().collect())
-        .map_err(|error| Error::InvalidTable {
-        table: "exact-facts",
-        reason: error.to_string(),
-    })?;
     let local_exact_facts =
         CanonicalPersistentIdsV1::try_new(authority.local_facts.keys().copied().collect())
             .map_err(|error| Error::InvalidTable {
@@ -33,7 +42,6 @@ pub(super) fn produce(
                 reason: error.to_string(),
             })?;
     Ok((
-        facts,
         local_exact_facts,
         authority.dependency_facts.into_values().collect(),
         authority.shapes,

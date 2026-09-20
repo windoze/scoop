@@ -6,13 +6,14 @@ mod callables;
 mod replay;
 mod selections;
 mod support;
+pub(super) use support::with_source;
 use support::*;
 
-const VIRTUAL: &str = include_str!(concat!(
+pub(super) const VIRTUAL: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-dispatch/virtual.scoop"
 ));
-const INTERFACES: &str = include_str!(concat!(
+pub(super) const INTERFACES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-dispatch/interfaces.scoop"
 ));
