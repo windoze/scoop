@@ -131,6 +131,13 @@ fn resolve_sequence<R: DefaultSourceReferenceResolver<E>, E, D, T>(
     u32::try_from(records.len())
         .map_err(|_| Error::Build(DefaultSourceReferencesBuildError::TooMany(kind)))?;
     let path = WirePath::root();
+    meter
+        .charge_owned_bytes(
+            (records.len() as u64)
+                .saturating_mul(std::mem::size_of::<DefaultSourceReferenceV1<T>>() as u64),
+            &path,
+        )
+        .map_err(Error::Resource)?;
     let mut result = Vec::new();
     meter
         .charge_collection_slots(records.len() as u64, &path)

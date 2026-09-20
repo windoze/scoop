@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn identity(
+pub(in crate::production::type_semantics) fn identity(
     export: &ExportHir,
     owner: ExportParameterOwner,
 ) -> Option<(CallableTemplateOrigin, &SourceDeclarationKey)> {

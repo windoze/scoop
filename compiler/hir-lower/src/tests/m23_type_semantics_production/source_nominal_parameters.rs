@@ -26,7 +26,7 @@ fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-fn required(export: &hir::ExportHirOutput) -> BTreeSet<CallableTemplateOrigin> {
+pub(super) fn required(export: &hir::ExportHirOutput) -> BTreeSet<CallableTemplateOrigin> {
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
     let nominals =
         hir::CanonicalNominalSourceContractsV1::from_export_hir(export, &roots, &mut meter())

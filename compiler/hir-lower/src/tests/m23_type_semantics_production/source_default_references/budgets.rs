@@ -149,3 +149,41 @@ fn source_producer_checks_occurrence_allocation_in_the_body_budget() {
         ));
     });
 }
+
+#[test]
+fn source_reference_vector_allocation_is_charged_before_any_target_lookup() {
+    with_hir_source(SOURCE, |output, _| {
+        let body = Body::from_ordinary_hir(
+            output,
+            function(output.output().export.module(), "callable"),
+            0,
+            &mut meter(),
+        )
+        .unwrap();
+        let input: Decoded =
+            decode_canonical(&encode(body.references()).unwrap(), DecodeLimits::default()).unwrap();
+        let mut empty = scoop_identity::PendingIdentityValidation::new()
+            .finish()
+            .unwrap();
+        let error = input
+            .resolve(
+                &mut empty,
+                &mut BudgetMeter::new(DecodeLimits {
+                    owned_bytes: 0,
+                    ..DecodeLimits::default()
+                }),
+            )
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            hir::DefaultSourceReferencesResolutionError::Resource(_)
+        ));
+        assert!(matches!(
+            error.resource_error().unwrap().kind(),
+            WireErrorKind::LimitExceeded {
+                resource: ResourceKind::OwnedBytes,
+                ..
+            }
+        ));
+    });
+}

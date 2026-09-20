@@ -6,7 +6,7 @@ use scoop_identity::{CallableTemplateOrigin, SourceDeclarationKey};
 use scoop_wire::{BudgetMeter, WirePath};
 use std::collections::BTreeSet;
 
-mod owners;
+pub(super) mod owners;
 mod parameters;
 mod signatures;
 

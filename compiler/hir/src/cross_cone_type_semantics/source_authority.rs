@@ -57,3 +57,6 @@ pub use default_references::*;
 
 mod default_template;
 pub use default_template::*;
+
+mod default_table;
+pub use default_table::*;
