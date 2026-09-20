@@ -51,3 +51,6 @@ pub use declarations::*;
 
 mod default_access;
 pub use default_access::*;
+
+mod default_references;
+pub use default_references::*;

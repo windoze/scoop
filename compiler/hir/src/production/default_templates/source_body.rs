@@ -13,12 +13,13 @@ mod errors;
 pub use errors::DefaultSourceBodyProductionError;
 
 /// A production intermediate, not a persisted source authority or checked template.
-/// References still borrow the sealed source graph for subsequent access projection.
+/// Retains both raw source references and their independently projected occurrences.
 #[derive(Debug)]
 pub struct DefaultSourceBodyProductionV1<'a> {
     owner: CallableTemplateOrigin,
     parameter_position: u32,
     projected: projection::ProjectedDefaultBody<'a>,
+    references: DefaultSourceReferencesV1,
 }
 
 impl<'a> DefaultSourceBodyProductionV1<'a> {
@@ -108,7 +109,15 @@ impl<'a> DefaultSourceBodyProductionV1<'a> {
             .map_err(DefaultSourceBodyProductionError::Scope)?;
         let projected = projection::project_body(export, entities, &scope.binders, source)
             .map_err(DefaultSourceBodyProductionError::Body)?;
+        let references = super::source_references::project(
+            entities,
+            projected.root.declaration(),
+            &projected.provider_binders,
+            projected.references,
+        )
+        .map_err(DefaultSourceBodyProductionError::References)?;
         Ok(Self {
+            references,
             owner: scope.root.declaration(),
             parameter_position,
             projected,

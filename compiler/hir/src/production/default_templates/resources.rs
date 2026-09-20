@@ -22,6 +22,13 @@ impl<'meter> ProjectionResources<'meter> {
         &self,
         run: impl FnOnce(&mut BudgetMeter, u64) -> Result<T, WireError>,
     ) -> Result<T, WireError> {
+        self.with_fallible_meter(run)
+    }
+
+    pub(super) fn with_fallible_meter<T, E>(
+        &self,
+        run: impl FnOnce(&mut BudgetMeter, u64) -> Result<T, E>,
+    ) -> Result<T, E> {
         run(&mut self.meter.borrow_mut(), self.depth.get())
     }
 

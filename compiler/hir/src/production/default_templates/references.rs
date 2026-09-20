@@ -5,9 +5,9 @@ use scoop_identity::CallableTemplateOrigin;
 use super::entities::DefaultEntityProjector;
 use crate::{
     DefaultConstructorRefV1, ExportDefaultAccessWitness, ExportDefaultAccessWitnessV1,
-    ExportDefaultCallDomainV1, ExportDefaultCallableTarget, ExportDefaultCallableTargetV1,
-    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
-    ExportDefaultReferences, ExportHir, HirSignatureBinder, PublicLookupAccessV1,
+    ExportDefaultCallDomainV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
+    ExportDefaultReferenceV1, ExportDefaultReferences, ExportHir, HirSignatureBinder,
+    PublicLookupAccessV1,
 };
 
 pub(super) struct ReferenceProjection<'a, 'hir, 'core, 'meter> {
@@ -25,7 +25,9 @@ pub(super) fn project(
 ) -> Result<ExportDefaultReferenceSetV1, super::DefaultReferenceProjectionError> {
     let mut callables = Vec::with_capacity(references.callables.len());
     for (index, reference) in references.callables.iter().enumerate() {
-        let target = callable_target(projection, reference.target)?;
+        let target = projection
+            .entities
+            .reference_callable(reference.target, projection.binders)?;
         callables.push(ExportDefaultReferenceV1::new(
             target,
             origin(projection.entities.export(), reference.origin)?,
@@ -147,94 +149,6 @@ pub(super) fn project(
 fn canonicalize<T: Ord>(records: &mut Vec<T>) {
     records.sort_unstable();
     records.dedup();
-}
-
-fn callable_target(
-    projection: &ReferenceProjection<'_, '_, '_, '_>,
-    target: ExportDefaultCallableTarget,
-) -> Result<ExportDefaultCallableTargetV1, super::DefaultReferenceProjectionError> {
-    let entities = projection.entities;
-    let export = entities.export();
-    let binders = projection.binders;
-    Ok(match target {
-        ExportDefaultCallableTarget::Callable(callable) => {
-            ExportDefaultCallableTargetV1::Callable(entities.callable(callable, binders)?)
-        }
-        ExportDefaultCallableTarget::ImportedCore(callable) => {
-            ExportDefaultCallableTargetV1::Callable(entities.imported_callable(callable)?)
-        }
-        ExportDefaultCallableTarget::ImportedDependency(callable) => {
-            ExportDefaultCallableTargetV1::Callable(
-                entities.imported_dependency_callable(callable)?,
-            )
-        }
-        ExportDefaultCallableTarget::Bound(bound) => {
-            ExportDefaultCallableTargetV1::Bound(entities.bound_callable(bound, binders)?)
-        }
-        ExportDefaultCallableTarget::DerivedEquality(id) => {
-            let application = super::arena_get(&export.derived_equality_applications, id).ok_or(
-                super::DefaultEntityProjectionError::Unknown {
-                    kind: "derived equality application",
-                    index: super::raw_index(id),
-                },
-            )?;
-            ExportDefaultCallableTargetV1::DerivedEquality {
-                owner_type: entities.type_key(application.owner_ty, binders)?,
-            }
-        }
-        ExportDefaultCallableTarget::LocalFunction(id) => {
-            let function = super::arena_get(&export.local_functions, id).ok_or(
-                super::DefaultEntityProjectionError::Unknown {
-                    kind: "local function",
-                    index: super::raw_index(id),
-                },
-            )?;
-            ExportDefaultCallableTargetV1::LocalFunction {
-                declaration: entities.source_callable_declaration(function.function)?,
-            }
-        }
-        ExportDefaultCallableTarget::Lambda(id) => {
-            let lambda = super::arena_get(&export.lambdas, id).ok_or(
-                super::DefaultEntityProjectionError::Unknown {
-                    kind: "lambda",
-                    index: super::raw_index(id),
-                },
-            )?;
-            ExportDefaultCallableTargetV1::Lambda {
-                body: entities.generated_function_id(lambda.function)?,
-            }
-        }
-        ExportDefaultCallableTarget::AnonymousFunction(id) => {
-            let function = super::arena_get(&export.anonymous_functions, id).ok_or(
-                super::DefaultEntityProjectionError::Unknown {
-                    kind: "anonymous function",
-                    index: super::raw_index(id),
-                },
-            )?;
-            ExportDefaultCallableTargetV1::AnonymousFunction {
-                body: entities.generated_function_id(function.function)?,
-            }
-        }
-        ExportDefaultCallableTarget::CallableReference(id) => {
-            let reference = super::arena_get(&export.callable_references, id).ok_or(
-                super::DefaultEntityProjectionError::Unknown {
-                    kind: "callable reference",
-                    index: super::raw_index(id),
-                },
-            )?;
-            ExportDefaultCallableTargetV1::CallableReference {
-                invoke: entities.callable_reference_invoke(
-                    reference.definition_root,
-                    &reference.definition_path,
-                )?,
-            }
-        }
-        ExportDefaultCallableTarget::FunctionAddress(function) => {
-            ExportDefaultCallableTargetV1::FunctionAddress {
-                declaration: entities.callable_declaration(function)?,
-            }
-        }
-    })
 }
 
 fn witness(

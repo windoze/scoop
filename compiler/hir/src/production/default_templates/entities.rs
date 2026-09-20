@@ -2,6 +2,7 @@
 
 mod callables;
 mod owners;
+mod targets;
 mod values;
 
 use scoop_identity::{

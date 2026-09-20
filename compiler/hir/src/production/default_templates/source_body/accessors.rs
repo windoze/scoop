@@ -41,6 +41,9 @@ impl DefaultSourceBodyProductionV1<'_> {
     pub fn provider_binders(&self) -> &[HirSignatureBinder] {
         &self.projected.provider_binders
     }
+    pub fn references(&self) -> &DefaultSourceReferencesV1 {
+        &self.references
+    }
     pub fn source_references(&self) -> &ExportDefaultReferences {
         self.projected.references
     }

@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum DefaultSourceBodyProductionError {
     Resource(scoop_wire::WireError),
+    References(crate::DefaultSourceReferencesProductionError),
     MissingInterface(ExportParameterOwner),
     DuplicateInterface(ExportParameterOwner),
     MissingParameter {
@@ -26,6 +27,7 @@ impl fmt::Display for DefaultSourceBodyProductionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Resource(error) => error.fmt(f),
+            Self::References(error) => error.fmt(f),
             Self::Scope(error) | Self::Body(error) => error.fmt(f),
             Self::MissingInterface(owner) => write!(
                 f,
@@ -60,6 +62,7 @@ impl DefaultSourceBodyProductionError {
             | Self::Body(Envelope::Provider(Entity::Resource(error)))
             | Self::Body(Envelope::Body(Body::Resource(error)))
             | Self::Body(Envelope::Body(Body::Entity(Entity::Resource(error)))) => Some(error),
+            Self::References(error) => error.resource_error(),
             _ => None,
         }
     }

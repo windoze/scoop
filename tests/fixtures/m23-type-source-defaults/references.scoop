@@ -1,0 +1,15 @@
+public struct Value(val field: Int)
+public enum Choice { Item(val value: Int) }
+public class Box public constructor(public val field: Int)
+public object Marker {}
+public val seed: Int = 7
+public fun first(): Int = 1
+public fun second(): Int = 2
+public fun callable(value: Int = first()): Int = value
+public fun constructor(value: Value = Value(1)): Value = value
+public fun variant(value: Choice = Choice.Item(2)): Choice = value
+public fun classConstructor(value: Box = Box(3)): Box = value
+public fun global(value: Int = seed): Int = value
+public fun singleton(value: Marker = Marker): Marker = value
+public fun field(value: Int = Value(4).field): Int = value
+public fun combined(value: (Int, Int, Int, Int, Marker, Int) = (second(), first(), second(), seed, Marker, Value(5).field)): (Int, Int, Int, Int, Marker, Int) = value

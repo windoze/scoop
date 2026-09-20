@@ -17,8 +17,10 @@ mod references;
 mod resources;
 mod source_access;
 mod source_body;
+mod source_references;
 pub use source_access::DefaultSourceAccessProductionError;
 pub use source_body::{DefaultSourceBodyProductionError, DefaultSourceBodyProductionV1};
+pub use source_references::DefaultSourceReferencesProductionError;
 
 pub use errors::{
     DefaultBodyProjectionError, DefaultEntityProjectionError, DefaultReferenceProjectionError,
