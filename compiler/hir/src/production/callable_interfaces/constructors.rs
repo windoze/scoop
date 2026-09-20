@@ -71,6 +71,7 @@ fn project_struct(
         .ok_or(CallableProjectionError::InvalidOwner)?
         .canonical_type,
         &constructor.access,
+        constructor.safety,
     )
 }
 
@@ -122,6 +123,7 @@ fn project_class(
         .ok_or(CallableProjectionError::InvalidOwner)?
         .canonical_type,
         &constructor.access,
+        constructor.safety,
     )
     .map(Some)
 }
@@ -136,6 +138,7 @@ fn project_source(
     owner_parameters: &[TypeParamDecl],
     result_type: crate::TypeId,
     declaration_access: &crate::DeclarationAccess,
+    safety: crate::Safety,
 ) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
     validate_source_key(projection, key, owner)?;
     let DuplicateSignatureKey::Constructor {
@@ -164,7 +167,7 @@ fn project_source(
         .map_err(CallableProjectionError::Signature)?;
     let access =
         access::project_direct(declaration_access).map_err(CallableProjectionError::Access)?;
-    let effects = effects::source_constructor().map_err(CallableProjectionError::Effects)?;
+    let effects = effects::source_constructor(safety).map_err(CallableProjectionError::Effects)?;
     CallableInterfaceRecordV1::try_new(
         declaration,
         PublicDeclarationOwnerV1::Nominal(owner),

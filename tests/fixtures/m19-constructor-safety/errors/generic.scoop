@@ -1,0 +1,2 @@
+class Box<T> @Unsafe constructor(val value: T) {}
+fun main() { val box: Box<Int> = Box<Int>(1) }

@@ -1,0 +1,6 @@
+class Box/1: Unsafe
+class Box/2: Unsafe
+class Mixed/1: Safe
+class Mixed/1: Unsafe
+struct Pair/1: Unsafe
+struct Pair/2: Safe

@@ -307,6 +307,7 @@ pub struct ClassDef {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub class: ClassId,
+    pub safety: Safety,
     /// Persistent identity of this exact constructor implementation. Generic
     /// nominal owners use their constructor application as the context;
     /// parameter-free constructors use `NoSubstitution`.
@@ -350,6 +351,7 @@ impl ClassConstructor {
 #[derive(Debug, Clone)]
 pub struct StructConstructor {
     pub structure: StructId,
+    pub safety: Safety,
     /// Persistent identity of this exact constructor implementation.
     pub materialization: CallableMaterialization,
     pub source_discriminator: u32,

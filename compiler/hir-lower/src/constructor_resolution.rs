@@ -10,6 +10,7 @@ use crate::expr::{NominalArgumentInput, NominalArguments};
 use crate::{Lowerer, TypeId};
 
 mod named;
+mod safety;
 
 pub(crate) use named::NamedNominalProbe;
 

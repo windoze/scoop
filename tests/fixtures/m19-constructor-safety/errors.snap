@@ -1,0 +1,14 @@
+arguments:1:11-1:21: `@Unsafe` does not accept arguments
+body:2:35-2:46: unsafe function `dangerous` may only be called from an unsafe context
+common-init:4:12-4:23: unsafe function `dangerous` may only be called from an unsafe context
+common-property:3:22-3:33: unsafe function `dangerous` may only be called from an unsafe context
+conflict:1:13-1:43: `@Safe` and `@Unsafe` cannot be combined
+default:2:42-2:53: unsafe function `dangerous` may only be called from an unsafe context
+delegation-super:2:16-2:23: unsafe constructor `Base` requires an unsafe context
+delegation-this:2:26-2:33: unsafe constructor `Box` requires an unsafe context
+direct-class:2:29-2:35: unsafe constructor `Box` requires an unsafe context
+direct-struct:4:29-4:34: unsafe constructor `Box` requires an unsafe context
+duplicate:1:19-1:26: annotation `@Unsafe` must not be repeated
+generic:2:34-2:45: unsafe constructor `Box` requires an unsafe context
+overload:5:35-5:44: unsafe constructor `Choice` requires an unsafe context
+safe-block:3:37-3:48: unsafe function `dangerous` may only be called from an unsafe context

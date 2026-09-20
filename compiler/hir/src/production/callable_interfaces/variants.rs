@@ -144,7 +144,7 @@ pub(super) fn project_all(
                     CallableProjectionError::Parameters(source),
                 )
             })?;
-            let effects = effects::source_constructor().map_err(|source| {
+            let effects = effects::source_constructor(crate::Safety::Safe).map_err(|source| {
                 CallableInterfaceBuildError::projection(
                     subject,
                     CallableProjectionError::Effects(source),

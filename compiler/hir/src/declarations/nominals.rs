@@ -650,6 +650,7 @@ pub struct ClassConstructor {
     /// zero-argument adapter for another source constructor.
     pub identity_kind: ClassConstructorIdentityKind,
     pub access: DeclarationAccess,
+    pub safety: Safety,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,
@@ -739,6 +740,7 @@ pub struct ClassConstructorApplication {
 pub struct StructConstructor {
     pub owner: StructId,
     pub access: DeclarationAccess,
+    pub safety: Safety,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
     pub span: Span,

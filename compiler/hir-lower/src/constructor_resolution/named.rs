@@ -144,6 +144,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> ResolvedNominalConstructor {
         *self = *winner.state;
+        self.check_constructor_call_safety(winner.source, span);
         let type_args = winner.inferred.type_args;
         let args = self.materialize_nominal_arguments(
             crate::argument_materialization::NominalArgumentMaterialization {

@@ -89,7 +89,7 @@ pub(super) fn project(
         CanonicalBinderListV1::try_new(Vec::new()).map_err(invalid)?,
         parameters,
         result,
-        source_constructor_effects().map_err(invalid)?,
+        source_constructor_effects(source.safety).map_err(invalid)?,
         CallableModalityV1::Final,
         CanonicalProtectedSlotRefsV1::try_new(Vec::new()).map_err(invalid)?,
     )

@@ -133,6 +133,7 @@ impl Lowerer {
             let lowered = self.with_constructor_expression_context(
                 constructor,
                 "secondary constructor body",
+                self.class_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {
@@ -205,6 +206,7 @@ impl Lowerer {
                             self.with_constructor_expression_context(
                                 constructor,
                                 "stored property initializer",
+                                hir::Safety::Safe,
                                 |this, sink| {
                                     if !primary_parameters_visible {
                                         this.constructor_params_in_scope.clear();
@@ -273,6 +275,7 @@ impl Lowerer {
                     let lowered = self.with_constructor_expression_context(
                         constructor,
                         "init block",
+                        hir::Safety::Safe,
                         |this, _| {
                             if !primary_parameters_visible {
                                 this.constructor_params_in_scope.clear();
@@ -382,6 +385,7 @@ impl Lowerer {
         let lowered = self.with_constructor_expression_context(
             constructor,
             "delegated property initializer",
+            hir::Safety::Safe,
             |this, sink| {
                 if !primary_parameters_visible {
                     this.constructor_params_in_scope.clear();
@@ -477,6 +481,7 @@ impl Lowerer {
             let lowered = self.with_constructor_expression_context(
                 constructor,
                 "struct secondary constructor body",
+                self.struct_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {

@@ -116,6 +116,7 @@ impl Lowerer {
             .with_constructor_expression_context(
                 source,
                 "compiler exception zero-argument adapter",
+                self.class_constructors[source].safety,
                 |this, sink| {
                     Some(this.materialize_nominal_arguments(
                         crate::argument_materialization::NominalArgumentMaterialization {
@@ -138,6 +139,7 @@ impl Lowerer {
             owner: class,
             identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
             access: declaration.access,
+            safety: declaration.safety,
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Secondary {
                 delegation: hir::ClassSecondaryDelegation::This {
@@ -204,6 +206,7 @@ impl Lowerer {
             );
         }
         zero_arg.map(|constructor| {
+            self.check_compiler_exception_safety(name, constructor);
             let constructor = self.compiler_exception_callable(constructor);
             hir::CompilerException {
                 constructor: hir::ZeroArgClassConstructor {
@@ -237,6 +240,7 @@ impl Lowerer {
                     .to_string(),
             );
         }
+        self.check_compiler_exception_safety("Throwable", zero_arg?);
         let throwable = hir::CompilerException {
             constructor: hir::ZeroArgClassConstructor {
                 class: throwable,
@@ -292,5 +296,19 @@ impl Lowerer {
     /// module is rejected anyway).
     pub(crate) fn throwable_ty(&self) -> Option<TypeId> {
         self.throwable.map(|(_, ty)| ty)
+    }
+
+    fn check_compiler_exception_safety(
+        &mut self,
+        name: &str,
+        constructor: hir::ClassConstructorId,
+    ) {
+        let constructor = &self.class_constructors[constructor];
+        if constructor.safety != hir::Safety::Safe {
+            self.error(
+                constructor.span,
+                format!("compiler exception constructor `{name}` must be safe"),
+            );
+        }
     }
 }

@@ -1,3 +1,5 @@
+mod safety;
+
 use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::{DefinitionOwnerAtom, DuplicateSignatureKey, GeneratedCallableKey};

@@ -167,6 +167,7 @@ fn validate_adapter(
             .is_none()
         || !adapter_value.parameters.is_empty()
         || source_value.parameters.is_empty()
+        || adapter_value.safety != source_value.safety
         || adapter_value.origin != source_value.origin
         || adapter_value.span != source_value.span
     {

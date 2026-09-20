@@ -276,6 +276,7 @@ impl Concretizer<'_> {
         PendingClassConstructor {
             class,
             source_discriminator: source_id.into_raw().into_u32(),
+            safety: source.safety,
             origin: source.origin,
             parameters,
             kind,

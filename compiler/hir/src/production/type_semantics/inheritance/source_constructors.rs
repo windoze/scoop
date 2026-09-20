@@ -11,6 +11,7 @@ struct Constructor<'a> {
     parameters: ExportParameterOwner,
     result: TypeId,
     visibility: DeclaredVisibility,
+    safety: Safety,
 }
 
 pub(in crate::production::type_semantics) fn project(
@@ -55,6 +56,7 @@ pub(in crate::production::type_semantics) fn project(
                     parameters: ExportParameterOwner::StructConstructor(id),
                     result: export.struct_applications[owner.self_application].canonical_type,
                     visibility: source.access.declared,
+                    safety: source.safety,
                 },
                 meter,
             )?);
@@ -76,6 +78,7 @@ pub(in crate::production::type_semantics) fn project(
                     parameters: ExportParameterOwner::ClassConstructor(id),
                     result: export.class_applications[owner.self_application].canonical_type,
                     visibility: source.access.declared,
+                    safety: source.safety,
                 },
                 meter,
             )?);

@@ -50,6 +50,7 @@ impl Harness {
             })
             .collect();
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            safety: hir::Safety::Safe,
             owner,
             access: hir::DeclarationAccess::public(),
             parameters,

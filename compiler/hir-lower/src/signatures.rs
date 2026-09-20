@@ -142,6 +142,7 @@ impl Lowerer {
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
             owner: id,
             access,
+            safety: hir::Safety::Safe,
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: decl.span,
@@ -182,9 +183,11 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             );
+            let safety = self.constructor_safety(&source.annotations, source.span);
             let constructor = self.struct_constructors.alloc(hir::StructConstructor {
                 owner: id,
                 access,
+                safety,
                 parameters,
                 kind: hir::StructConstructorKind::Secondary {
                     delegation: hir::StructConstructorDelegation {

@@ -857,6 +857,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 - declaration signature中的type、receiver、base/bound、annotation type及default直接绑定实体必须同时覆盖该declaration的direct access/call domain与其承担的更宽slot contract domain。visibility在const folding、companion forwarding和desugaring前检查；M17 default继续携带kind-specific access witness；
 - class primary constructor需要modifier/annotation时写显式`constructor`关键字；无modifier的class header/explicit primary及class/struct secondary constructor均为internal。class primary property parameter可声明member visibility/override，普通parameter不可。class隐式零参数constructor为internal并与owner domain取交集；public class需要显式`public constructor`才提供public construction API。struct primary constructor与enum variant constructor属于固定public representation entry，只与owner domain取交集且不能单独声明visibility；
 - property-level custom annotation不传播到accessor/backing/delegate storage；explicit accessor可单独标注。`@Unsafe`/`@Safe`可用于constructor/accessor并进入调用contract；`@NoGC`只在完整signature/body确实GC-free的explicit accessor或struct secondary constructor合法。class/object receiver为ref，不能满足NoGC。`@Extern`/`@Global`/`@ThreadLocal`及`@CallingConvention`仍限各自13章target；普通property/object/constructor不能伪装为native symbol。
+- constructor的`@Unsafe`/`@Safe`控制该声明的参数缺省表达式、`this`/`super`委托表达式及secondary body；overload选择完成后才检查所选constructor的safety，不因safe调用上下文改选其他候选。class/object的property initializer、delegate与`init`属于共同初始化声明，使用独立safe上下文，不继承任一constructor的注解；需要unsafe操作时使用显式`@Unsafe` block。
 
 #### 9.1.6 GC-free release block
 

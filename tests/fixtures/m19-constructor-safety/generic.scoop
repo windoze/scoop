@@ -1,0 +1,22 @@
+@Unsafe
+public fun dangerous(): Int = 1
+public class Box<T> @Unsafe public constructor(val value: T) {
+    @Unsafe public constructor(value: T, count: Int = dangerous()): this(value) { dangerous() }
+    init { @Unsafe { dangerous() } }
+}
+public struct Pair<T>(val value: T, val count: Int) {
+    @Unsafe public constructor(value: T): this(value, dangerous()) { dangerous() }
+}
+public class Mixed {
+    @Unsafe public constructor(value: Int) { dangerous() }
+    @Safe public constructor(value: Boolean) {}
+    init { @Unsafe { dangerous() } }
+}
+fun main() {
+    @Unsafe {
+        val box: Box<Int> = Box(1)
+        val pair: Pair<Int> = Pair(1)
+        val mixed: Mixed = Mixed(1)
+        @Safe { val safe: Mixed = Mixed(true) }
+    }
+}

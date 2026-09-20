@@ -1,0 +1,6 @@
+class Base/1: Unsafe
+class Child/0: Unsafe
+class Secondary/1: Safe
+class Secondary/1: Unsafe
+struct Value/0: Unsafe
+struct Value/1: Safe

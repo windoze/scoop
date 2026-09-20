@@ -1,0 +1,1 @@
+class Box @Unsafe(1) constructor() {}

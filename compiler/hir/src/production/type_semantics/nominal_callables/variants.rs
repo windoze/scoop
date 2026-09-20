@@ -97,7 +97,8 @@ impl Projection<'_, '_> {
                     CanonicalBinderListV1::try_new(Vec::new()).map_err(invalid)?,
                     parameters,
                     result,
-                    callable_interfaces::source_constructor_effects().map_err(invalid)?,
+                    callable_interfaces::source_constructor_effects(Safety::Safe)
+                        .map_err(invalid)?,
                     CallableModalityV1::Final,
                     CanonicalProtectedSlotRefsV1::try_new(Vec::new()).map_err(invalid)?,
                 )

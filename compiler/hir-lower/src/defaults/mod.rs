@@ -214,7 +214,7 @@ impl Lowerer {
                             type_parameters: self.classes[class].type_params.clone(),
                             receiver: None,
                             is_suspend: false,
-                            safety: hir::Safety::Safe,
+                            safety: self.class_constructors[primary].safety,
                             callable_name: self.classes[class].name.clone(),
                         };
                         self.lower_parameter_interface(
@@ -391,7 +391,15 @@ impl Lowerer {
                 type_parameters,
                 receiver: None,
                 is_suspend: false,
-                safety: hir::Safety::Safe,
+                safety: match owner {
+                    hir::ExportParameterOwner::ClassConstructor(id) => {
+                        self.class_constructors[id].safety
+                    }
+                    hir::ExportParameterOwner::StructConstructor(id) => {
+                        self.struct_constructors[id].safety
+                    }
+                    _ => unreachable!("constructor helper receives a constructor owner"),
+                },
                 callable_name,
             },
         );
