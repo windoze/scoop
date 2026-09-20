@@ -2,6 +2,58 @@ use super::*;
 use scoop_identity::AccessorRole;
 
 #[test]
+fn interface_default_target_requires_transitive_conformance_even_without_a_parent_role() {
+    let mut fixture = Fixture::default();
+    let parent = fixture.add("Parent", SourceNominalKind::Interface);
+    let child = fixture.add("Child", SourceNominalKind::Interface);
+    let unrelated = fixture.add("Unrelated", SourceNominalKind::Interface);
+    fixture.inheritance.edges(child, None, &[parent]);
+    fixture.interface_source(child, &[parent], &[]);
+    let slot = fixture.function(parent, "method");
+    let other_slot = fixture.function(unrelated, "method");
+    fixture.schema(parent, &[slot]);
+    fixture.schema(child, &[slot]);
+    fixture.schema(unrelated, &[other_slot]);
+    let mut target = fixture.concrete(parent, slot);
+    target.modality = CallableModalityV1::InterfaceDefault;
+    let mut record = fixture.contract(
+        parent,
+        slot,
+        InheritanceSlotImplementationV1::InterfaceDefault(target),
+    );
+    let graph = CheckedNominalInheritanceGraphV1::validate(
+        fixture.inheritance.records.values(),
+        &fixture,
+        &mut meter(),
+    )
+    .unwrap();
+    let schemas = graph
+        .validate_slot_schemas(child.exact, &fixture, &mut meter())
+        .unwrap();
+    assert_eq!(schemas.schemas().records().len(), 1);
+    assert!(
+        schemas
+            .supports_interface(parent.exact, &mut meter())
+            .unwrap()
+    );
+    assert!(
+        !schemas
+            .supports_interface(unrelated.exact, &mut meter())
+            .unwrap()
+    );
+    graph
+        .validate_slot_contract(child.exact, &record, &fixture, &mut meter())
+        .unwrap();
+    let mut unrelated_target = fixture.concrete(unrelated, other_slot);
+    unrelated_target.modality = CallableModalityV1::InterfaceDefault;
+    record.implementation = InheritanceSlotImplementationV1::InterfaceDefault(unrelated_target);
+    assert!(matches!(
+        graph.validate_slot_contract(child.exact, &record, &fixture, &mut meter()),
+        Err(InheritanceSlotContractSemanticError::TargetOwner)
+    ));
+}
+
+#[test]
 fn interface_default_targets_keep_provider_identity_and_conformance() {
     let mut fixture = Fixture::default();
     let interface = fixture.add("Interface", SourceNominalKind::Interface);

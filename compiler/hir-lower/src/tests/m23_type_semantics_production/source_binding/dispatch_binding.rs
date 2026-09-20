@@ -4,6 +4,7 @@ use hir::{InheritanceDispatchBindingError as Error, InheritanceSlotSchemaSemanti
 
 mod inventories;
 mod ownership;
+mod slots;
 
 const CALLABLES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

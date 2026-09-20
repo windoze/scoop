@@ -36,10 +36,11 @@ pub trait InheritanceSlotSchemaSemanticAuthority<E> {
     fn property_key(&self, property: PersistentPropertyId) -> Result<&SourceDeclarationKey, E>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct CheckedInheritanceSlotSchemasV1<'a> {
     owner: PersistentExactTypeId,
     schemas: &'a CanonicalInheritanceSlotSchemasV1,
+    interfaces: BTreeSet<PersistentExactTypeId>,
 }
 impl CheckedInheritanceSlotSchemasV1<'_> {
     pub const fn owner(&self) -> PersistentExactTypeId {
@@ -47,6 +48,17 @@ impl CheckedInheritanceSlotSchemasV1<'_> {
     }
     pub const fn schemas(&self) -> &CanonicalInheritanceSlotSchemasV1 {
         self.schemas
+    }
+    pub fn supports_interface(
+        &self,
+        interface: PersistentExactTypeId,
+        meter: &mut BudgetMeter,
+    ) -> Result<bool, scoop_wire::WireError> {
+        meter.charge_work(
+            u64::from(self.interfaces.len().max(1).ilog2()) + 1,
+            &WirePath::root(),
+        )?;
+        Ok(self.interfaces.contains(&interface))
     }
 }
 
@@ -69,6 +81,10 @@ impl CheckedNominalInheritanceGraphV1<'_> {
         Ok(CheckedInheritanceSlotSchemasV1 {
             owner,
             schemas: validation.complete[&owner],
+            interfaces: validation
+                .conformances
+                .remove(&owner)
+                .ok_or(InheritanceSlotSchemaSemanticError::RoleCoverage(owner))?,
         })
     }
 }

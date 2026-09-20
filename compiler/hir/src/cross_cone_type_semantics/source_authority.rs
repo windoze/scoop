@@ -9,6 +9,8 @@ pub use foundation::*;
 mod binding_keys;
 mod dispatch_binding;
 pub use dispatch_binding::*;
+mod slot_binding;
+pub use slot_binding::*;
 mod constructor_binding;
 pub use constructor_binding::*;
 

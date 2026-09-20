@@ -1,16 +1,34 @@
 use super::*;
-use crate::InheritanceSlotImplementationV1;
+use crate::{
+    CheckedInheritanceSlotContractV1, InheritanceSlotContractV1, InheritanceSlotImplementationV1,
+};
 
-pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
-    record: &NominalInheritanceInterfaceV1,
-    graph: &CheckedNominalInheritanceGraphV1<'_>,
-    authority: &A,
-    meter: &mut BudgetMeter,
-) -> Result<(), InheritanceInterfaceSemanticError<E>> {
-    use InheritanceInterfaceSemanticError as Error;
-    for slot in record.slots().records() {
-        graph
-            .validate_slot_contract(record.owner(), slot, authority, meter)
+/// Source signature, access and selected implementation for one owner/slot.
+/// Whole-table completeness and machine-use permissions remain separate.
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedInheritanceSourceSlotContractV1<'a> {
+    contract: CheckedInheritanceSlotContractV1<'a>,
+}
+impl CheckedInheritanceSourceSlotContractV1<'_> {
+    pub const fn owner(&self) -> PersistentExactTypeId {
+        self.contract.owner()
+    }
+    pub const fn record(&self) -> &InheritanceSlotContractV1 {
+        self.contract.record()
+    }
+}
+impl CheckedNominalInheritanceGraphV1<'_> {
+    pub fn validate_slot_source_contract<'a, A: InheritanceSlotSourceSemanticAuthority<E>, E>(
+        &self,
+        owner: PersistentExactTypeId,
+        slot: &'a InheritanceSlotContractV1,
+        authority: &A,
+        meter: &mut BudgetMeter,
+    ) -> Result<CheckedInheritanceSourceSlotContractV1<'a>, InheritanceInterfaceSemanticError<E>>
+    {
+        use InheritanceInterfaceSemanticError as Error;
+        let contract = self
+            .validate_slot_contract(owner, slot, authority, meter)
             .map_err(Error::Slot)?;
         let source = authority
             .inheritance_callable_source(slot.declaration())
@@ -34,7 +52,7 @@ pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
             .map_err(Error::Resource)?;
         if actual_selection
             != authority
-                .inheritance_slot_selection(record.owner(), slot.slot())
+                .inheritance_slot_selection(owner, slot.slot())
                 .map_err(Error::Foundation)?
         {
             return Err(Error::SlotSelection);
@@ -53,6 +71,17 @@ pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
                 return Err(Error::SourceContract);
             }
         }
+        Ok(CheckedInheritanceSourceSlotContractV1 { contract })
+    }
+}
+pub(super) fn validate<A: NominalInheritanceInterfaceSemanticAuthority<E>, E>(
+    record: &NominalInheritanceInterfaceV1,
+    graph: &CheckedNominalInheritanceGraphV1<'_>,
+    authority: &A,
+    meter: &mut BudgetMeter,
+) -> Result<(), InheritanceInterfaceSemanticError<E>> {
+    for slot in record.slots().records() {
+        graph.validate_slot_source_contract(record.owner(), slot, authority, meter)?;
     }
     Ok(())
 }

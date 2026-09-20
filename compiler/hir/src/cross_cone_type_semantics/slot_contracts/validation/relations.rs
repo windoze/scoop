@@ -6,8 +6,8 @@ use super::{
     declarations,
 };
 use crate::{
-    CheckedNominalInheritanceGraphV1, InheritanceQueryError, InheritanceSlotContractV1,
-    InheritanceSlotImplementationV1, InheritanceSlotSchemaRoleV1, NominalInheritanceModalityV1,
+    CheckedNominalInheritanceGraphV1, DeclaredVisibilityV1, InheritanceQueryError,
+    InheritanceSlotContractV1, InheritanceSlotImplementationV1, NominalInheritanceModalityV1,
     SourceNominalId,
 };
 
@@ -96,10 +96,18 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
             if root.key.name() != implementation.key.name() {
                 return Err(Error::TargetName);
             }
-            if !access
-                .declared()
-                .covers(&domain, meter)
-                .map_err(Error::Access)?
+            let preserves_protected = record.declaration_access().declared_visibility()
+                == DeclaredVisibilityV1::Protected
+                && target.declaration_access().declared_visibility()
+                    == DeclaredVisibilityV1::Protected
+                && graph
+                    .is_subclass(implementation.exact_owner, root.exact_owner, meter)
+                    .map_err(Error::Inheritance)?;
+            if !preserves_protected
+                && !access
+                    .declared()
+                    .covers(&domain, meter)
+                    .map_err(Error::Access)?
             {
                 return Err(Error::Domain);
             }
@@ -119,11 +127,8 @@ pub(super) fn validate<A: InheritanceSlotContractSemanticAuthority<E>, E>(
                 true
             } else if is_interface {
                 schemas
-                    .schemas()
-                    .get(InheritanceSlotSchemaRoleV1::Interface {
-                        interface_exact: implementation.exact_owner,
-                    })
-                    .is_some()
+                    .supports_interface(implementation.exact_owner, meter)
+                    .map_err(Error::Resource)?
             } else if source.key.declaration_kind() == SourceDeclarationKind::Class {
                 graph
                     .is_subclass(owner, implementation.exact_owner, meter)

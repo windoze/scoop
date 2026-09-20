@@ -2,6 +2,47 @@ use super::*;
 use scoop_identity::ConeIdentity;
 
 #[test]
+fn protected_override_preserves_only_the_inherited_protected_slot_region() {
+    let mut fixture = Fixture::default();
+    let base = fixture.add("Base", SourceNominalKind::Class);
+    let derived = fixture.add("Derived", SourceNominalKind::Class);
+    fixture.inheritance.edges(derived, Some(base), &[]);
+    let slot = fixture.function(base, "method");
+    let target_slot = fixture.function(derived, "method");
+    fixture.schema(base, &[slot]);
+    fixture.schema(derived, &[slot]);
+    let mut target = fixture.concrete(derived, target_slot);
+    target.declaration_access = fixture.access(derived, DeclaredVisibilityV1::Protected);
+    let mut record = fixture.contract(
+        base,
+        slot,
+        InheritanceSlotImplementationV1::Concrete(target),
+    );
+    record.declaration_access = fixture.access(base, DeclaredVisibilityV1::Protected);
+    record.domain = PersistentSlotContractDomainV1::new(
+        PersistentAccessDomainV1::try_from_constraints(vec![
+            PersistentAccessConstraintV1::SubclassesOf(base.exact),
+        ])
+        .unwrap(),
+    );
+    let graph = CheckedNominalInheritanceGraphV1::validate(
+        fixture.inheritance.records.values(),
+        &fixture,
+        &mut meter(),
+    )
+    .unwrap();
+    graph
+        .validate_slot_contract(derived.exact, &record, &fixture, &mut meter())
+        .unwrap();
+    record.declaration_access = fixture.access(base, DeclaredVisibilityV1::Public);
+    record.domain = PersistentSlotContractDomainV1::new(PersistentAccessDomainV1::universal());
+    assert!(matches!(
+        graph.validate_slot_contract(derived.exact, &record, &fixture, &mut meter()),
+        Err(InheritanceSlotContractSemanticError::Domain)
+    ));
+}
+
+#[test]
 fn override_access_covers_root_domain_without_exporting_its_hidden_owner() {
     let mut fixture = Fixture::default();
     let base = fixture.add("Base", SourceNominalKind::Class);

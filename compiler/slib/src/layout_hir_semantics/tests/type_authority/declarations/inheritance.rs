@@ -135,7 +135,8 @@ impl NominalInheritanceInterfaceSemanticAuthority<TestAuthorityError> for EmptyD
     ) -> Result<&NominalSupportConstructorInterfaceV1, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
-
+}
+impl InheritanceSlotSourceSemanticAuthority<TestAuthorityError> for EmptyDeclarations {
     fn inheritance_callable_source(
         &self,
         _declaration: InheritanceCallableDeclarationV1,

@@ -28,7 +28,7 @@ pub enum InheritanceSourceSlotSelectionV1 {
 }
 
 pub trait NominalInheritanceInterfaceSemanticAuthority<E>:
-    InheritanceSlotContractSemanticAuthority<E> + NominalSupportCallableSemanticAuthority<E>
+    InheritanceSlotSourceSemanticAuthority<E> + NominalSupportCallableSemanticAuthority<E>
 {
     fn required_inheritance_owners(
         &self,
@@ -45,6 +45,12 @@ pub trait NominalInheritanceInterfaceSemanticAuthority<E>:
         &self,
         declaration: PersistentConstructorId,
     ) -> Result<&NominalSupportConstructorInterfaceV1, E>;
+}
+
+/// Independent callable contracts and sealed implementation choices for slots.
+pub trait InheritanceSlotSourceSemanticAuthority<E>:
+    InheritanceSlotContractSemanticAuthority<E>
+{
     fn inheritance_callable_source(
         &self,
         declaration: InheritanceCallableDeclarationV1,
@@ -55,6 +61,8 @@ pub trait NominalInheritanceInterfaceSemanticAuthority<E>:
         slot: PersistentDispatchSlotId,
     ) -> Result<InheritanceSourceSlotSelectionV1, E>;
 }
+
+pub use slots::CheckedInheritanceSourceSlotContractV1;
 
 /// Proves complete source/graph/slot joins. Representation, default coverage,
 /// terminal provider and selected-use closure remain section-level obligations.

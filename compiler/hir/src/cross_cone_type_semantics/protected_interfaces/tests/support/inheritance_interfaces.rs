@@ -126,6 +126,8 @@ impl NominalInheritanceInterfaceSemanticAuthority<&'static str> for Fixture {
             .get(&declaration)
             .ok_or("unknown constructor source")
     }
+}
+impl InheritanceSlotSourceSemanticAuthority<&'static str> for Fixture {
     fn inheritance_callable_source(
         &self,
         declaration: InheritanceCallableDeclarationV1,
