@@ -174,3 +174,29 @@ fn nominal_source_root_discovery_obeys_shared_resource_limits() {
         }
     });
 }
+
+#[test]
+fn source_root_budget_includes_object_scans_for_each_class_base() {
+    let mut source = String::from("public open class Base {}\n");
+    const COUNT: u64 = 40;
+    for index in 0..COUNT {
+        source.push_str(&format!(
+            "public class Derived{index} : Base() {{}}\nprivate object Hidden{index} {{}}\n"
+        ));
+    }
+    let usage = |source: &str| {
+        with_source(source, |output, _| {
+            let mut budget = meter();
+            let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
+                &output.output().export,
+                &mut budget,
+            )
+            .unwrap();
+            assert_eq!(roots.values().len() as u64, COUNT + 1);
+            budget.usage().validation_work_units
+        })
+    };
+    let with_bases = usage(&source);
+    let without_bases = usage(&source.replace(" : Base()", ""));
+    assert!(with_bases - without_bases >= COUNT * COUNT);
+}

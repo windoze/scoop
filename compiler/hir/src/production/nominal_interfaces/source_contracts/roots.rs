@@ -41,7 +41,13 @@ impl CanonicalSourceNominalIdsV1 {
                 roots.require(parent, false)?;
             }
             index::visit_bases(export, node.local, |ty| {
-                work(roots.meter, export.objects.len() + index.nodes.len())?;
+                work(roots.meter, index.nodes.len())?;
+                if matches!(export.types[ty], Type::Class(_)) {
+                    roots
+                        .meter
+                        .charge_work(export.objects.len() as u64, &WirePath::root())
+                        .map_err(resource)?;
+                }
                 let base = owner_resolution::from_type(export, ty)
                     .ok_or_else(|| invalid("source inheritance has no nominal identity"))?;
                 // Foreign source owners are supplied by their provider closure.
