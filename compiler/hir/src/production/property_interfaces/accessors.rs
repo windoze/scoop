@@ -224,7 +224,7 @@ pub(super) fn project_public_access(
     }
 }
 
-pub(super) fn project_representation(
+pub(in crate::production) fn project_representation(
     property: &crate::Property,
     getter: &PropertyGetter,
     setter: Option<&PropertySetter>,

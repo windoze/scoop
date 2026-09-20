@@ -217,6 +217,8 @@ schema validator必须将parents的集合与已验证继承图逐项join，并�
 
 protected callable来源子表复用`ProtectedCallableInterfaceV1`三字段record，按`CallableTemplateOrigin`的typed role与id严格递增，精确覆盖独立inheritance inventory中的Callable成员。producer直接读取sealed HIR的普通方法、getter与setter；stored accessor即使没有实现函数也须投影，public getter的protected setter只加入setter。参数名称/值类型、binder及bounds、result、effects、modality、source-interface和真实virtual-family关系均保留；FinalOverride保留原槽，Direct无槽，constructor、logical property及nested nominal由各自合同拥有。generic方法仅保存source metadata，不授予M23-7物化资格。definition origin对Function/GenericFunction/PropertyAccessor分别取真实subject；不能从public-only接口或dispatch候选反推。producer与reader的类型树、名称、集合、身份解析共用预算，reader拒绝乱序/重复/未知ref及多余字段；签名来源记录仍须结合property/default、artifact绑定和完整declarations validator验证。
 
+inheritance property来源子表按`PersistentPropertyId`严格递增，复用`NominalSupportPropertyInterfaceV1`的三字段record，并只接受Runtime payload；Const不参与本表的protected/dispatch accessor闭包，nested const继续由其独立source support拥有。所需集合精确为独立inheritance inventory中Property成员、Protected Callable accessor的logical owner，以及source slot原始声明和实际选择目标中的accessor logical owner的并集。producer从sealed property/accessor关系直接读取owner、逻辑值类型、getter、完整mutability/真实setter来源、representation和getter/setter原始dispatch槽关系；不从public property、protected callable或slot候选回填。public getter加protected setter保留Public property与Protected setter，private/internal setter也保留真实来源而不取得protected callable资格；抽象属性和interface的独立getter/setter槽同样完整保存。所有集合、签名树、来源位置及排序共用预算，reader拒绝Const、乱序/重复、未知typed ref与多余字段。来源记录不授予lookup资格，仍需artifact所属权、独立清单、accessor合同、setter域与完整source-authority组合验证。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

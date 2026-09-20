@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 
 mod accessors;
 mod functions;
-mod resources;
+use super::source_resources::{self as resources, invalid, resource, work};
 
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
@@ -153,15 +153,4 @@ fn owner(access: &DeclarationAccessSourceV1) -> Result<SourceNominalId, Error> {
         .last()
         .copied()
         .ok_or_else(|| invalid("protected callable has no lexical nominal owner"))
-}
-fn work(meter: &mut BudgetMeter, length: usize) -> Result<(), Error> {
-    meter
-        .charge_work(u64::from(length.max(1).ilog2()) + 1, &WirePath::root())
-        .map_err(resource)
-}
-fn resource(error: scoop_wire::WireError) -> Error {
-    Error::SourceInventory(SourceInventoryError::Resource(error))
-}
-fn invalid(reason: impl std::fmt::Display) -> Error {
-    Error::InvalidSourceDeclaration(reason.to_string())
 }

@@ -18,6 +18,7 @@ pub use errors::{
     ExportPropertyAccessorBuildError, PropertyInterfaceBuildError, PropertyNominalOwnerKind,
 };
 
+pub(in crate::production) use accessors::project_representation as source_property_representation;
 use accessors::{project_accessors, project_public_access, project_representation};
 use signature::project_property_signature;
 

@@ -81,6 +81,21 @@ impl CanonicalInheritanceSourceProtectedCallablesV1 {
     }
 }
 
+impl CanonicalInheritanceSourcePropertiesV1 {
+    /// Projects logical properties required by protected members and actual
+    /// dispatch sources, without using public or candidate property tables.
+    pub fn from_ordinary_hir(
+        output: &OrdinaryHirOutput<'_>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        let nominals = roots(output, meter)?;
+        let export = output.output().export.module();
+        let inventory = inheritance::source_inventory(export, &nominals, meter)?;
+        let selections = inheritance::slot_selections(export, &nominals, meter)?;
+        inheritance::source_properties(export, &inventory, &selections, meter)
+    }
+}
+
 fn roots<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,

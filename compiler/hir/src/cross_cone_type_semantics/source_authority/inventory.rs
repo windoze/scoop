@@ -11,6 +11,7 @@ mod edges;
 mod inheritance;
 mod interface_dispatch;
 mod nominals;
+mod properties;
 mod protected_callables;
 mod roots;
 mod slot_selections;
@@ -21,6 +22,7 @@ pub use edges::*;
 pub use inheritance::*;
 pub use interface_dispatch::*;
 pub use nominals::*;
+pub use properties::*;
 pub use protected_callables::*;
 pub use roots::*;
 pub use slot_selections::*;
@@ -89,6 +91,7 @@ pub enum SourceInventoryError {
         owner: scoop_identity::PersistentExactTypeId,
         constructor: scoop_identity::PersistentConstructorId,
     },
+    NonRuntimeProperty(scoop_identity::PersistentPropertyId),
 }
 
 impl From<WireError> for SourceInventoryError {
@@ -115,6 +118,9 @@ impl fmt::Display for SourceInventoryError {
                 f,
                 "source inheritance owner {owner} lists constructor {constructor} as a member"
             ),
+            Self::NonRuntimeProperty(property) => {
+                write!(f, "inheritance property source {property} cannot be const")
+            }
         }
     }
 }

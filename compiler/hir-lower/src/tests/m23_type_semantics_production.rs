@@ -16,6 +16,7 @@ mod source_constructors;
 mod source_dispatch;
 mod source_foundation;
 mod source_inventory;
+mod source_properties;
 mod source_protected_callables;
 mod source_shapes;
 

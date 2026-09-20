@@ -1,0 +1,9 @@
+Abstract.obligation: Protected, ReadOnly, AbstractSlot, slots=1
+Child.internalWriter: Public, ReadWrite(Internal), RuntimeAccessor, slots=2
+Store.exposed: Public, ReadWrite(Protected), RuntimeAccessor, slots=0
+Store.internalWriter: Public, ReadWrite(Internal), RuntimeAccessor, slots=2
+Store.privateWriter: Protected, ReadWrite(Private), RuntimeAccessor, slots=0
+Store.readonly: Protected, ReadOnly, RuntimeAccessor, slots=0
+Store.state: Protected, ReadWrite(Protected), RuntimeAccessor, slots=0
+Value.token: Public, ReadOnly, RuntimeAccessor, slots=0
+View.token: Public, ReadOnly, RuntimeAccessor, slots=1

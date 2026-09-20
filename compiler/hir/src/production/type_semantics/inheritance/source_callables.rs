@@ -38,7 +38,7 @@ pub(in crate::production::type_semantics) fn project(
     CanonicalInheritanceSourceCallablesV1::try_new(records, meter).map_err(Error::SourceInventory)
 }
 
-fn required(
+pub(super) fn required(
     export: &ExportHir,
     inventory: &CanonicalSourceInheritanceInventoriesV1,
     selections: &CanonicalInheritanceSourceSlotSelectionsV1,
