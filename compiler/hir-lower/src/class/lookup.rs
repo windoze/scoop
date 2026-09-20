@@ -55,11 +55,10 @@ impl Lowerer {
             })?;
         let function = &self.functions[candidate.function];
         if function.access.declared == hir::DeclaredVisibility::Protected
-            && let Some(current) = self.protected_access_class()
-            && function
+            && let Some(base) = function
                 .method
                 .and_then(|method| self.receiver_class(method.owner))
-                .is_some_and(|base| self.class_is_same_or_subclass_of(current, base))
+            && let Some(current) = self.protected_access_class(base)
             && self.receiver_class(receiver_ty).is_some()
         {
             return Some(format!(

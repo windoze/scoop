@@ -458,6 +458,10 @@ impl Lowerer {
                 hir::AccessConstraint::LexicalOwner(required),
             ) => self.visibility_owner_is_within(*current, *required),
             (
+                hir::AccessConstraint::LexicalOwner(owner),
+                hir::AccessConstraint::SubclassesOf(base),
+            ) => self.lexical_scope_implies_subclass(*owner, *base),
+            (
                 hir::AccessConstraint::SubclassesOf(derived),
                 hir::AccessConstraint::SubclassesOf(base),
             ) => self.class_is_same_or_subclass_of(*derived, *base),

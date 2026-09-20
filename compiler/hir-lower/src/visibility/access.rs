@@ -1,12 +1,38 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn protected_access_class(&self) -> Option<hir::ClassId> {
-        match self.current_owner? {
-            Owner::Class(class) => Some(class),
-            Owner::Object(object) => Some(self.objects[object].backing_class),
-            Owner::Interface(_) | Owner::Struct(_) | Owner::Enum(_) => None,
-        }
+    pub(super) fn protected_scope_classes(
+        &self,
+        owner: Owner,
+    ) -> impl Iterator<Item = hir::ClassId> + '_ {
+        std::iter::successors(Some(owner), |owner| self.owner_parent(*owner)).filter_map(|owner| {
+            match owner {
+                Owner::Class(class) => Some(class),
+                Owner::Object(object) => Some(self.objects[object].backing_class),
+                Owner::Interface(_) | Owner::Struct(_) | Owner::Enum(_) => None,
+            }
+        })
+    }
+
+    pub(crate) fn protected_access_class(&self, base: hir::ClassId) -> Option<hir::ClassId> {
+        self.protected_scope_classes(self.current_owner?)
+            .find(|class| self.class_is_same_or_subclass_of(*class, base))
+    }
+
+    pub(super) fn lexical_scope_implies_subclass(
+        &self,
+        owner: hir::VisibilityOwner,
+        base: hir::ClassId,
+    ) -> bool {
+        let owner = match owner {
+            hir::VisibilityOwner::Class(id) => Owner::Class(id),
+            hir::VisibilityOwner::Interface(id) => Owner::Interface(id),
+            hir::VisibilityOwner::Struct(id) => Owner::Struct(id),
+            hir::VisibilityOwner::Enum(id) => Owner::Enum(id),
+            hir::VisibilityOwner::Object(id) => Owner::Object(id),
+        };
+        self.protected_scope_classes(owner)
+            .any(|class| self.class_is_same_or_subclass_of(class, base))
     }
 
     pub(crate) fn class_is_same_or_subclass_of(
@@ -59,15 +85,14 @@ impl Lowerer {
                     .current_owner
                     .is_some_and(|current| self.lexical_owner_contains(current, *owner)),
                 hir::AccessConstraint::SubclassesOf(base) => {
-                    let Some(current) = self.protected_access_class() else {
-                        return false;
-                    };
-                    if !self.class_is_same_or_subclass_of(current, *base) {
-                        return false;
-                    }
-                    explicit_receiver.is_none_or(|receiver| {
-                        self.receiver_class(receiver).is_some_and(|receiver| {
-                            self.class_is_same_or_subclass_of(receiver, current)
+                    self.current_owner.is_some_and(|owner| {
+                        self.protected_scope_classes(owner).any(|current| {
+                            self.class_is_same_or_subclass_of(current, *base)
+                                && explicit_receiver.is_none_or(|receiver| {
+                                    self.receiver_class(receiver).is_some_and(|receiver| {
+                                        self.class_is_same_or_subclass_of(receiver, current)
+                                    })
+                                })
                         })
                     })
                 }

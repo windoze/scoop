@@ -1,6 +1,7 @@
 use super::*;
 mod objects;
 mod property_slots;
+mod protected_scopes;
 mod support;
 
 fn visibility(value: ast::DeclaredVisibility) -> ast::VisibilitySyntax {

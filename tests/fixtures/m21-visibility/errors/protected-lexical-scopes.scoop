@@ -1,0 +1,18 @@
+public open class Base {
+    protected var state: Int
+        get() = 1
+        private set(value) {}
+    protected fun secret(): Int = state
+}
+class Sibling : Base()
+class Derived : Base() {
+    struct Reader() {
+        fun fromBase(target: Base): Int = target.secret()
+        fun fromSibling(peer: Sibling): Int = peer.secret()
+        fun update(target: Derived) { target.state = 2 }
+    }
+}
+struct Outsider() {
+    fun read(target: Derived): Int = target.secret()
+}
+fun main() {}
