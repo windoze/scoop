@@ -164,10 +164,10 @@ impl Lowerer {
             | ast::BinOp::Or => None,
         };
         if let Some(operation) = operation {
-            if self
-                .registered_no_gc_integer_operation(kind, operation)
-                .is_none()
-            {
+            if !self.const_integer_operation_available(hir::IntegerIntrinsicKind::NoGcOperation {
+                kind,
+                operation,
+            }) {
                 return IntegerBinaryResult::Unsupported;
             }
             let Some(value) = evaluate_integer_no_gc_operation(operation, left, Some(right)) else {
@@ -203,15 +203,10 @@ impl Lowerer {
             ast::BinOp::Rem => hir::IntegerDivRem::Rem,
             _ => return IntegerBinaryResult::Unsupported,
         };
-        let key =
-            hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::ManagedOperation {
-                kind,
-                operation,
-            });
-        let Some(&(function, _)) = self.intrinsic_functions.get(&key) else {
-            return IntegerBinaryResult::Unsupported;
-        };
-        if hir::ManagedCallableRef::try_from_function(function, &self.functions).is_none() {
+        if !self.const_integer_operation_available(hir::IntegerIntrinsicKind::ManagedOperation {
+            kind,
+            operation,
+        }) {
             return IntegerBinaryResult::Unsupported;
         }
         evaluate_integer_binary(operator, left, right)

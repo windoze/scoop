@@ -11,7 +11,7 @@ use crate::globals::{PendingConst, PendingOrdinary};
 
 impl Lowerer {
     #[allow(clippy::too_many_arguments)]
-    fn probe_const_integer_kind(
+    pub(super) fn probe_const_integer_kind(
         &self,
         expression: &ast::Expr,
         expected: Option<hir::IntegerKind>,

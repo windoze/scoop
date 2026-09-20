@@ -129,7 +129,11 @@ impl Lowerer {
                                 unreachable!("the outer match selected an integer unary operator")
                             }
                         };
-                        self.registered_no_gc_integer_operation(kind, operation)?;
+                        if !self.const_integer_operation_available(
+                            hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
+                        ) {
+                            return None;
+                        }
                         Some(StaticValue {
                             value: evaluate_integer_no_gc_operation(operation, value, None)?,
                             ty: self.integer_no_gc_result_type(kind, operation),
@@ -146,28 +150,11 @@ impl Lowerer {
             }
             ast::Expr::Binary { op, lhs, rhs, .. } => {
                 let equality = matches!(op, ast::BinOp::Eq | ast::BinOp::Ne);
-                let source_name = match op {
-                    ast::BinOp::Add => Some("plus"),
-                    ast::BinOp::Sub => Some("minus"),
-                    ast::BinOp::Mul => Some("times"),
-                    ast::BinOp::Div => Some("div"),
-                    ast::BinOp::Rem => Some("rem"),
-                    ast::BinOp::Lt | ast::BinOp::Le | ast::BinOp::Gt | ast::BinOp::Ge => {
-                        Some("compareTo")
-                    }
-                    _ => None,
-                };
                 let operand_kind = if equality {
                     self.select_static_equality_integer_kind(lhs, rhs)
                 } else {
-                    source_name.and_then(|source_name| {
-                        self.select_static_integer_literal_receiver_kind(
-                            lhs,
-                            Some(rhs),
-                            source_name,
-                            expected,
-                            false,
-                        )
+                    self.select_const_binary_literal_kind(*op, lhs, expected, |kind| {
+                        self.probe_static_integer_kind(rhs, Some(kind)) == Some(kind)
                     })
                 };
                 let operand_expected = operand_kind.map(|kind| self.integer_type(kind));

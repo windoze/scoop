@@ -5,6 +5,7 @@ use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
 mod dependencies;
+mod integer_authority;
 mod integer_calls;
 mod integer_intrinsics;
 mod integer_values;
@@ -537,10 +538,9 @@ impl Lowerer {
                         unreachable!("the outer match selected an integer unary operator")
                     }
                 };
-                if self
-                    .registered_no_gc_integer_operation(kind, operation)
-                    .is_none()
-                {
+                if !self.const_integer_operation_available(
+                    hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
+                ) {
                     self.error(
                         span,
                         "const integer operator did not resolve to the exact typed core intrinsic"
@@ -636,15 +636,6 @@ impl Lowerer {
         }
 
         let equality = matches!(operator, ast::BinOp::Eq | ast::BinOp::Ne);
-        let source_name = match operator {
-            ast::BinOp::Add => Some("plus"),
-            ast::BinOp::Sub => Some("minus"),
-            ast::BinOp::Mul => Some("times"),
-            ast::BinOp::Div => Some("div"),
-            ast::BinOp::Rem => Some("rem"),
-            ast::BinOp::Lt | ast::BinOp::Le | ast::BinOp::Gt | ast::BinOp::Ge => Some("compareTo"),
-            _ => None,
-        };
         let operand_kind = if equality {
             self.select_const_equality_integer_kind(
                 lhs,
@@ -656,19 +647,16 @@ impl Lowerer {
                 stack,
             )
         } else {
-            source_name.and_then(|source_name| {
-                self.select_const_integer_literal_receiver_kind(
-                    lhs,
-                    Some(rhs),
-                    source_name,
-                    expected,
-                    false,
+            self.select_const_binary_literal_kind(operator, lhs, expected, |kind| {
+                self.probe_const_integer_kind(
+                    rhs,
+                    Some(kind),
                     file,
                     declarations,
                     ordinary,
                     states,
                     stack,
-                )
+                ) == Some(kind)
             })
         };
         let operand_expected = operand_kind.map(|kind| self.integer_type(kind));

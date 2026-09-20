@@ -6,6 +6,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
 use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
 
+mod constants;
 pub(crate) mod support;
 
 use support::{parsed_ordinary, trusted_core, trusted_core_with_answer};
