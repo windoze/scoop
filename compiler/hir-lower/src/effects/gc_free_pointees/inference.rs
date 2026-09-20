@@ -30,8 +30,9 @@ impl Lowerer {
                     for constructor in &declaration.constructors {
                         let constructor = &self.struct_constructors[*constructor];
                         types.extend(constructor.parameters.iter().map(|parameter| parameter.ty));
-                        if let hir::StructConstructorKind::Secondary { delegation, body } =
-                            &constructor.kind
+                        if let hir::StructConstructorKind::Secondary {
+                            delegation, body, ..
+                        } = &constructor.kind
                         {
                             collect_constructor_arguments_types(
                                 self,

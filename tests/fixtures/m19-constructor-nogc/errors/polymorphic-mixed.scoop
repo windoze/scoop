@@ -1,0 +1,3 @@
+class Spiral<T>() { init { grow<T>() } }
+fun <T> grow(): Spiral<Spiral<T>> = Spiral<Spiral<T>>()
+fun main() {}

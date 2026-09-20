@@ -144,12 +144,14 @@ pub(super) fn project_all(
                     CallableProjectionError::Parameters(source),
                 )
             })?;
-            let effects = effects::source_constructor(crate::Safety::Safe).map_err(|source| {
-                CallableInterfaceBuildError::projection(
-                    subject,
-                    CallableProjectionError::Effects(source),
-                )
-            })?;
+            let effects =
+                effects::source_constructor(crate::Safety::Safe, crate::GcEffect::Managed)
+                    .map_err(|source| {
+                        CallableInterfaceBuildError::projection(
+                            subject,
+                            CallableProjectionError::Effects(source),
+                        )
+                    })?;
             let record = CallableInterfaceRecordV1::try_new(
                 CallableTemplateOrigin::VariantConstructor(identity.id()),
                 PublicDeclarationOwnerV1::Nominal(owner),

@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use scoop_hir as hir;
 
-use super::no_gc_generics::GenericCallSite;
+use super::no_gc_generics::{GenericCallSite, GenericCallable};
 use crate::Lowerer;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,11 +35,11 @@ enum SymbolicType {
 impl Lowerer {
     pub(crate) fn check_generic_recursion(&mut self) {
         let mut node_order = self
-            .functions
-            .iter()
-            .filter_map(|(id, function)| (function.type_param_count() != 0).then_some(id))
+            .effect_callable_ids()
+            .into_iter()
+            .filter(|id| !self.effect_callable_parameters(*id).is_empty())
             .collect::<Vec<_>>();
-        node_order.sort_by_key(|id| id.into_raw().into_u32());
+        node_order.sort();
         let nodes = node_order.iter().copied().collect::<HashSet<_>>();
         let call_sites = self
             .generic_call_sites()
@@ -50,8 +50,8 @@ impl Lowerer {
             return;
         }
 
-        let mut forward = HashMap::<hir::FunctionId, Vec<hir::FunctionId>>::new();
-        let mut reverse = HashMap::<hir::FunctionId, Vec<hir::FunctionId>>::new();
+        let mut forward = HashMap::<GenericCallable, Vec<GenericCallable>>::new();
+        let mut reverse = HashMap::<GenericCallable, Vec<GenericCallable>>::new();
         for call in &call_sites {
             forward.entry(call.caller).or_default().push(call.callee);
             reverse.entry(call.callee).or_default().push(call.caller);
@@ -85,8 +85,8 @@ impl Lowerer {
             }
 
             let root = component[0];
-            let root_mapping = self.functions[root]
-                .type_params()
+            let root_mapping = self
+                .effect_callable_parameters(root)
                 .into_iter()
                 .map(|parameter| SymbolicType::Parameter(parameter.id))
                 .collect::<Vec<_>>();
@@ -95,8 +95,8 @@ impl Lowerer {
             let mut reported = HashSet::new();
             while let Some(caller) = queue.pop_front() {
                 let caller_mapping = mappings[&caller].clone();
-                let caller_bindings = self.functions[caller]
-                    .type_params()
+                let caller_bindings = self
+                    .effect_callable_parameters(caller)
                     .into_iter()
                     .map(|parameter| parameter.id)
                     .zip(caller_mapping)
@@ -118,7 +118,7 @@ impl Lowerer {
                                     call.span,
                                     component
                                         .iter()
-                                        .map(|function| self.functions[*function].name.as_str())
+                                        .map(|function| self.effect_callable_name(*function))
                                         .collect::<Vec<_>>()
                                         .join(" -> "),
                                 ));
@@ -131,11 +131,7 @@ impl Lowerer {
         }
 
         for (caller, span, cycle) in violations {
-            self.current_file = self
-                .function_files
-                .get(&caller)
-                .copied()
-                .unwrap_or_else(|| self.primary_output_file());
+            self.current_file = self.effect_callable_file(caller);
             self.error(
                 span,
                 format!(
@@ -150,8 +146,7 @@ impl Lowerer {
         call: &GenericCallSite,
         caller_bindings: &HashMap<hir::TypeParamId, SymbolicType>,
     ) -> Vec<SymbolicType> {
-        self.functions[call.callee]
-            .type_params()
+        self.effect_callable_parameters(call.callee)
             .into_iter()
             .map(|parameter| {
                 let argument = call
@@ -262,10 +257,10 @@ impl Lowerer {
 }
 
 fn finish_order(
-    node: hir::FunctionId,
-    graph: &HashMap<hir::FunctionId, Vec<hir::FunctionId>>,
-    seen: &mut HashSet<hir::FunctionId>,
-    order: &mut Vec<hir::FunctionId>,
+    node: GenericCallable,
+    graph: &HashMap<GenericCallable, Vec<GenericCallable>>,
+    seen: &mut HashSet<GenericCallable>,
+    order: &mut Vec<GenericCallable>,
 ) {
     if !seen.insert(node) {
         return;
@@ -277,10 +272,10 @@ fn finish_order(
 }
 
 fn collect_component(
-    node: hir::FunctionId,
-    graph: &HashMap<hir::FunctionId, Vec<hir::FunctionId>>,
-    seen: &mut HashSet<hir::FunctionId>,
-    component: &mut Vec<hir::FunctionId>,
+    node: GenericCallable,
+    graph: &HashMap<GenericCallable, Vec<GenericCallable>>,
+    seen: &mut HashSet<GenericCallable>,
+    component: &mut Vec<GenericCallable>,
 ) {
     if !seen.insert(node) {
         return;

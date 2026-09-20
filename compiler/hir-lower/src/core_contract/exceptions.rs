@@ -140,6 +140,7 @@ impl Lowerer {
             identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
             access: declaration.access,
             safety: declaration.safety,
+            no_gc_type_params: Vec::new(),
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Secondary {
                 delegation: hir::ClassSecondaryDelegation::This {

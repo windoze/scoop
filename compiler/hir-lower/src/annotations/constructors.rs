@@ -33,4 +33,32 @@ impl Lowerer {
         }
         safety
     }
+    pub(crate) fn constructor_gc_effect(
+        &mut self,
+        annotations: &[ast::Annotation],
+        struct_secondary: bool,
+    ) -> hir::GcEffect {
+        let mut seen = false;
+        let mut effect = hir::GcEffect::Managed;
+        for annotation in annotations.iter().filter(|a| a.name.text == "NoGC") {
+            if seen {
+                self.error(
+                    annotation.span,
+                    "annotation `@NoGC` must not be repeated".to_string(),
+                );
+                continue;
+            }
+            seen = true;
+            let valid = self.annotation_marker(annotation);
+            if !struct_secondary {
+                self.error(
+                    annotation.span,
+                    "`@NoGC` is only allowed on struct secondary constructors".to_string(),
+                );
+            } else if valid {
+                effect = hir::GcEffect::NoGc;
+            }
+        }
+        effect
+    }
 }

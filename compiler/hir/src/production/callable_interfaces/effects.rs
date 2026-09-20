@@ -65,6 +65,7 @@ pub(in crate::production) fn accessor(
 
 pub(in crate::production) fn source_constructor(
     safety: crate::Safety,
+    gc_effect: crate::GcEffect,
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     CallableSourceEffectsV1::try_new(
         Effect::Ordinary,
@@ -72,7 +73,10 @@ pub(in crate::production) fn source_constructor(
             crate::Safety::Safe => CallableSafetyV1::Safe,
             crate::Safety::Unsafe => CallableSafetyV1::Unsafe,
         },
-        GcEffect::Managed,
+        match gc_effect {
+            crate::GcEffect::Managed => GcEffect::Managed,
+            crate::GcEffect::NoGc => GcEffect::NoGc,
+        },
         CallableImplementationV1::Scoop,
         CallableOperatorRoleV1::None,
         CallableInfixV1::Ordinary,

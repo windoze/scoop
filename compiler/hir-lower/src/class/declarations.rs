@@ -133,6 +133,7 @@ impl Lowerer {
             let safety = match &decl.constructor {
                 ast::ClassConstructorDecl::Omitted => hir::Safety::Safe,
                 ast::ClassConstructorDecl::Declared(source) => {
+                    self.constructor_gc_effect(&source.annotations, false);
                     self.constructor_safety(&source.annotations, source.span)
                 }
             };
@@ -141,6 +142,7 @@ impl Lowerer {
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
                 safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::ClassConstructorKind::Primary {
                     base: hir::BaseInitialization::Root,
@@ -185,12 +187,14 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             );
+            self.constructor_gc_effect(&source.annotations, false);
             let safety = self.constructor_safety(&source.annotations, source.span);
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
                 safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::ClassConstructorKind::Secondary {
                     delegation: hir::ClassSecondaryDelegation::Terminal {

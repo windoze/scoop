@@ -168,7 +168,7 @@ impl Lowerer {
         }
     }
 
-    fn collect_no_gc_expr_violations(
+    pub(super) fn collect_no_gc_expr_violations(
         &self,
         expr: &hir::Expr,
         out: &mut Vec<(Span, String)>,
@@ -219,7 +219,17 @@ impl Lowerer {
                     }
                 }
             }
-            ExprKind::StructInit { args, .. } | ExprKind::VariantConstruct { args, .. } => {
+            ExprKind::StructInit { constructor, args } => {
+                self.check_no_gc_constructor_call(
+                    self.struct_constructor_applications[*constructor].constructor,
+                    expr.span,
+                    out,
+                );
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
+            ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }

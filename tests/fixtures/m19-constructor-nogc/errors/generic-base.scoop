@@ -1,0 +1,5 @@
+@NoGC fun <T> identity(value: T): T = value
+open class Base<T>(value: T) { init { identity(value) } }
+class Child<T>(value: T): Base<T>(value)
+fun bad() { val bad: Child<String> = Child("text") }
+fun main() {}

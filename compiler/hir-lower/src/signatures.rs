@@ -143,6 +143,7 @@ impl Lowerer {
             owner: id,
             access,
             safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: decl.span,
@@ -184,12 +185,15 @@ impl Lowerer {
                 crate::visibility::MemberSlotAccess::None,
             );
             let safety = self.constructor_safety(&source.annotations, source.span);
+            let gc_effect = self.constructor_gc_effect(&source.annotations, true);
             let constructor = self.struct_constructors.alloc(hir::StructConstructor {
                 owner: id,
                 access,
                 safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::StructConstructorKind::Secondary {
+                    gc_effect,
                     delegation: hir::StructConstructorDelegation {
                         target: primary_application,
                         arguments: hir::ConstructorArguments {

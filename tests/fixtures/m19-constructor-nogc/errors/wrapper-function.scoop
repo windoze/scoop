@@ -1,0 +1,4 @@
+struct Native<T>(val value: T) { @NoGC constructor(value: T, flag: Boolean): this(value) {} }
+fun <T> forward(value: T): Native<T> = Native(value, true)
+fun bad() { forward("text") }
+fun main() {}

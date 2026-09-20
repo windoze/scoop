@@ -1,0 +1,30 @@
+concrete Chain(): NoGc; result-gc-free true
+concrete Chain(value): NoGc; result-gc-free true
+concrete Chain(value,flag): NoGc; result-gc-free true
+concrete Defaulted(flag): NoGc; result-gc-free true
+concrete Defaulted(value): NoGc; result-gc-free true
+concrete Empty(): NoGc; result-gc-free true
+concrete Empty(flag): NoGc; result-gc-free true
+concrete Scalar(): NoGc; result-gc-free true
+concrete Scalar(value): NoGc; result-gc-free true
+concrete Scalar(value,flag): NoGc; result-gc-free true
+mir ctor.Chain/0: NoGc
+mir ctor.Chain/1: NoGc
+mir ctor.Chain/2: NoGc
+mir ctor.Defaulted/1: NoGc
+mir ctor.Defaulted/1: NoGc
+mir ctor.Empty/0: NoGc
+mir ctor.Empty/1: NoGc
+mir ctor.Scalar/0: NoGc
+mir ctor.Scalar/1: NoGc
+mir ctor.Scalar/2: NoGc
+source Chain(): NoGc; requires []
+source Chain(value): Managed; requires []
+source Chain(value,flag): NoGc; requires []
+source Defaulted(flag): NoGc; requires []
+source Defaulted(value): Managed; requires []
+source Empty(): Managed; requires []
+source Empty(flag): NoGc; requires []
+source Scalar(): NoGc; requires []
+source Scalar(value): Managed; requires []
+source Scalar(value,flag): NoGc; requires []

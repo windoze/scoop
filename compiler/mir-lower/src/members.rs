@@ -221,7 +221,9 @@ impl Lowerer {
             // value. Defaults and source arguments are evaluated by the
             // caller, so the generated constructor has no managed entry.
             hir::StructConstructorKind::Primary => mir::GcEffect::NoGc,
-            hir::StructConstructorKind::Secondary { .. } => mir::GcEffect::Managed,
+            hir::StructConstructorKind::Secondary { gc_effect, .. } => {
+                crate::lowering_support::lower_gc_effect(*gc_effect)
+            }
         };
         let id = self.functions.alloc(mir::Function {
             gc_effect,
@@ -485,6 +487,7 @@ impl Lowerer {
                 target,
                 arguments,
                 body,
+                ..
             } => {
                 lowerer.allocate_struct_argument_locals(constructor_id, arguments);
                 let mut statements = lowerer.lower_statements(&arguments.statements);

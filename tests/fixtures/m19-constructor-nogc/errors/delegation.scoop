@@ -1,0 +1,5 @@
+struct Bad(val value: Int) {
+    constructor(flag: Boolean): this(1) {}
+    @NoGC constructor(): this(true) {}
+}
+fun main() {}

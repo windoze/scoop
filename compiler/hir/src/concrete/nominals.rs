@@ -364,6 +364,7 @@ pub struct StructConstructor {
 pub enum StructConstructorKind {
     Primary,
     Secondary {
+        gc_effect: GcEffect,
         target: StructConstructorId,
         arguments: ConstructorArguments,
         body: Body,

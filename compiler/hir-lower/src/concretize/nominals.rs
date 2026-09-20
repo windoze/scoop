@@ -219,7 +219,11 @@ impl Concretizer<'_> {
             .collect();
         let kind = match &source.kind {
             export::StructConstructorKind::Primary => concrete::StructConstructorKind::Primary,
-            export::StructConstructorKind::Secondary { delegation, body } => {
+            export::StructConstructorKind::Secondary {
+                delegation,
+                body,
+                gc_effect,
+            } => {
                 let target =
                     self.lower_struct_constructor_application(delegation.target, substitution);
                 let (argument_body, locals) =
@@ -227,6 +231,7 @@ impl Concretizer<'_> {
                 let (body, _) = self.lower_body(body, substitution);
                 debug_assert_eq!(argument_body.locals.len(), locals.len());
                 concrete::StructConstructorKind::Secondary {
+                    gc_effect: *gc_effect,
                     target,
                     arguments: argument_body,
                     body,

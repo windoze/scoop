@@ -96,7 +96,10 @@ pub(in super::super) fn collect_struct_constructor_type_occurrences(
     constructor: &hir::StructConstructor,
     out: &mut Vec<TypeOccurrence>,
 ) {
-    let hir::StructConstructorKind::Secondary { delegation, body } = &constructor.kind else {
+    let hir::StructConstructorKind::Secondary {
+        delegation, body, ..
+    } = &constructor.kind
+    else {
         return;
     };
     let file = constructor.origin.file as usize;

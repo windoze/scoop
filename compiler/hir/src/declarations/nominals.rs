@@ -651,6 +651,8 @@ pub struct ClassConstructor {
     pub identity_kind: ClassConstructorIdentityKind,
     pub access: DeclarationAccess,
     pub safety: Safety,
+    /// Owner parameters required to be GC-free by this callable and its callees.
+    pub no_gc_type_params: Vec<TypeParamId>,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
     pub span: Span,
@@ -741,16 +743,28 @@ pub struct StructConstructor {
     pub owner: StructId,
     pub access: DeclarationAccess,
     pub safety: Safety,
+    /// Owner parameters required to be GC-free by this callable and its callees.
+    pub no_gc_type_params: Vec<TypeParamId>,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
     pub span: Span,
     pub origin: DefinitionOrigin,
 }
 
+impl StructConstructor {
+    pub fn source_gc_effect(&self) -> GcEffect {
+        match self.kind {
+            StructConstructorKind::Primary => GcEffect::Managed,
+            StructConstructorKind::Secondary { gc_effect, .. } => gc_effect,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum StructConstructorKind {
     Primary,
     Secondary {
+        gc_effect: GcEffect,
         delegation: StructConstructorDelegation,
         body: Body,
     },

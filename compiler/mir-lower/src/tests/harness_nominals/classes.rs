@@ -135,6 +135,7 @@ impl Harness {
             .collect();
         let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
             safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             owner: class,
             identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: hir::DeclarationAccess::public(),

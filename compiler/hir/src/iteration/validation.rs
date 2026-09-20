@@ -190,7 +190,9 @@ fn class_constructor_contains_for(constructor: &ClassConstructor) -> bool {
 fn struct_constructor_contains_for(constructor: &StructConstructor) -> bool {
     match &constructor.kind {
         StructConstructorKind::Primary => false,
-        StructConstructorKind::Secondary { delegation, body } => {
+        StructConstructorKind::Secondary {
+            delegation, body, ..
+        } => {
             statements_contain_for(&delegation.arguments.statements)
                 || statements_contain_for(&body.statements)
         }
@@ -448,7 +450,10 @@ fn validate_struct_constructor_regions(module: &Module, protocols: &DefinedCoreP
             .iter()
             .map(|parameter| parameter.id)
             .collect::<Vec<_>>();
-        if let StructConstructorKind::Secondary { delegation, body } = &constructor.kind {
+        if let StructConstructorKind::Secondary {
+            delegation, body, ..
+        } = &constructor.kind
+        {
             validate_constructor_arguments(module, protocols, &delegation.arguments, &parameters)?;
             Validator::new(module, protocols, &body.locals, parameters, false)
                 .validate(body.statements.as_slice())?;

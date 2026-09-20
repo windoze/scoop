@@ -1,25 +1,25 @@
 use crate::Lowerer;
+use scoop_hir as hir;
 
 use super::{PointeeRequirementCallSite, RequirementContext};
 
 impl Lowerer {
     pub(super) fn pointee_requirement_call_sites(&mut self) -> Vec<PointeeRequirementCallSite> {
         let mut out = Vec::new();
-        for site in self.generic_call_sites() {
+        for (caller, function) in self.functions.iter() {
+            let hir::FunctionKind::User(body) = &function.kind else {
+                continue;
+            };
             let file = self
                 .function_files
-                .get(&site.caller)
+                .get(&caller)
                 .copied()
                 .unwrap_or_else(|| self.primary_output_file());
             push_pointee_call_sites(
                 &mut out,
-                RequirementContext::Function(site.caller),
+                RequirementContext::Function(caller),
                 file,
-                [super::super::no_gc_generics::GenericCall {
-                    callee: site.callee,
-                    arguments: site.arguments,
-                    span: site.span,
-                }],
+                self.generic_calls_in_body(body),
             );
         }
 
@@ -100,12 +100,19 @@ fn push_pointee_call_sites(
     file: usize,
     calls: impl IntoIterator<Item = super::super::no_gc_generics::GenericCall>,
 ) {
-    out.extend(calls.into_iter().map(|call| PointeeRequirementCallSite {
-        context,
-        callee: call.callee,
-        arguments: call.arguments,
-        file,
-        span: call.span,
+    // Constructor pointee requirements belong to their nominal applications;
+    // the nominal occurrence pass already validates and propagates that edge.
+    out.extend(calls.into_iter().filter_map(|call| {
+        let super::super::no_gc_generics::GenericCallable::Function(callee) = call.callee else {
+            return None;
+        };
+        Some(PointeeRequirementCallSite {
+            context,
+            callee,
+            arguments: call.arguments,
+            file,
+            span: call.span,
+        })
     }));
 }
 

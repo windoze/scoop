@@ -7,6 +7,7 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod constructors;
 mod gc_free_pointees;
 mod generic_recursion;
 mod no_gc_generics;
@@ -138,6 +139,7 @@ impl Lowerer {
             self.set_function_no_gc_requirements(id, requirements);
         }
 
+        self.check_no_gc_constructors();
         self.validate_no_gc_instantiations();
 
         let safe_functions: Vec<_> = self

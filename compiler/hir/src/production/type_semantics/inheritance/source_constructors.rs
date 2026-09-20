@@ -12,6 +12,7 @@ struct Constructor<'a> {
     result: TypeId,
     visibility: DeclaredVisibility,
     safety: Safety,
+    gc_effect: GcEffect,
 }
 
 pub(in crate::production::type_semantics) fn project(
@@ -57,6 +58,7 @@ pub(in crate::production::type_semantics) fn project(
                     result: export.struct_applications[owner.self_application].canonical_type,
                     visibility: source.access.declared,
                     safety: source.safety,
+                    gc_effect: source.source_gc_effect(),
                 },
                 meter,
             )?);
@@ -79,6 +81,7 @@ pub(in crate::production::type_semantics) fn project(
                     result: export.class_applications[owner.self_application].canonical_type,
                     visibility: source.access.declared,
                     safety: source.safety,
+                    gc_effect: GcEffect::Managed,
                 },
                 meter,
             )?);

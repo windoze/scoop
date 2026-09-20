@@ -1,0 +1,31 @@
+@NoGC fun <T> identity(value: T): T = value
+public struct Native<T>(val value: T) {
+    @NoGC public constructor(value: T, flag: Boolean): this(identity(value)) {}
+}
+public struct Phantom<T>(val code: Int) {
+    @NoGC public constructor(): this(1) {}
+}
+public class Wrapper<T> {
+    public constructor(value: T) { val native: Native<T> = Native(value, true) }
+    public constructor(flag: Boolean) {}
+}
+public struct WrapperValue<T>(val value: T) {
+    public constructor(value: T, flag: Boolean): this(value) { val native: Native<T> = Native(value, true) }
+}
+fun <T> forward(value: T): WrapperValue<T> = WrapperValue(value, true)
+@NoGC fun <T> pure(value: T): Native<T> = Native(value, true)
+public struct Recursive<T>(val value: T) {
+    @NoGC public constructor(value: T, flag: Boolean): this(value) {
+        if (flag) { recurse(value) }
+    }
+}
+@NoGC fun <T> recurse(value: T): Recursive<T> = Recursive(value, false)
+fun main() {
+    val native: Native<Int> = pure(1)
+    val ordinary: Native<String> = Native("managed")
+    val recursive: Recursive<Int> = Recursive(1, true)
+    val phantom: Phantom<String> = Phantom<String>()
+    val wrapper: Wrapper<Int> = Wrapper(1)
+    val unrelated: Wrapper<String> = Wrapper<String>(true)
+    val value: WrapperValue<Int> = forward(1)
+}

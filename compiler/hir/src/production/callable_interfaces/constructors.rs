@@ -72,6 +72,7 @@ fn project_struct(
         .canonical_type,
         &constructor.access,
         constructor.safety,
+        constructor.source_gc_effect(),
     )
 }
 
@@ -124,6 +125,7 @@ fn project_class(
         .canonical_type,
         &constructor.access,
         constructor.safety,
+        crate::GcEffect::Managed,
     )
     .map(Some)
 }
@@ -139,6 +141,7 @@ fn project_source(
     result_type: crate::TypeId,
     declaration_access: &crate::DeclarationAccess,
     safety: crate::Safety,
+    gc_effect: crate::GcEffect,
 ) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
     validate_source_key(projection, key, owner)?;
     let DuplicateSignatureKey::Constructor {
@@ -167,7 +170,8 @@ fn project_source(
         .map_err(CallableProjectionError::Signature)?;
     let access =
         access::project_direct(declaration_access).map_err(CallableProjectionError::Access)?;
-    let effects = effects::source_constructor(safety).map_err(CallableProjectionError::Effects)?;
+    let effects =
+        effects::source_constructor(safety, gc_effect).map_err(CallableProjectionError::Effects)?;
     CallableInterfaceRecordV1::try_new(
         declaration,
         PublicDeclarationOwnerV1::Nominal(owner),
