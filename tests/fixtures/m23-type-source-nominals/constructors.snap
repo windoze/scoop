@@ -1,0 +1,14 @@
+Box(stored:binder(0,0),count:nominal)->application<binder(0,0)>: Private Safe Managed, owners=2
+Box(value:binder(0,0))->application<binder(0,0)>: Public Safe Managed, owners=2
+Box(value:binder(0,0),flag:nominal)->application<binder(0,0)>: Internal Safe Managed, owners=2
+Empty()->nominal: Public Safe Managed, owners=1
+Empty(flag:nominal)->nominal: Public Safe NoGc, owners=1
+Envelope(count:nominal)->nominal: Protected Safe Managed, owners=1
+Envelope(flag:nominal)->nominal: Private Safe Managed, owners=1
+Envelope(text:nominal)->nominal: Public Unsafe Managed, owners=1
+Envelope(value:nominal)->nominal: Internal Safe Managed, owners=1
+Outer()->application<binder(0,0)>: Internal Safe Managed, owners=2
+Pair(value:binder(0,0))->application<binder(0,0)>: Private Unsafe NoGc, owners=2
+Pair(value:binder(0,0),count:nominal)->application<binder(0,0)>: Public Safe Managed, owners=2
+Pair(value:binder(0,0),flag:nominal)->application<binder(0,0)>: Internal Safe Managed, owners=2
+Static(count:nominal)->nominal: Public Safe Managed, owners=3

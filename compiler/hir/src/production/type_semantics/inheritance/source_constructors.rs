@@ -1,19 +1,7 @@
 use super::*;
-use scoop_identity::{PersistentConstructorId, SourceDeclarationKey};
 use scoop_wire::{BudgetMeter, WirePath};
 use std::collections::BTreeMap;
-
-mod contract;
-
-struct Constructor<'a> {
-    declaration: PersistentConstructorId,
-    key: &'a SourceDeclarationKey,
-    parameters: ExportParameterOwner,
-    result: TypeId,
-    visibility: DeclaredVisibility,
-    safety: Safety,
-    gc_effect: GcEffect,
-}
+use std::collections::BTreeSet;
 
 pub(in crate::production::type_semantics) fn project(
     export: &ExportHir,
@@ -39,58 +27,27 @@ pub(in crate::production::type_semantics) fn project(
             }
         }
     }
-    let mut records = Vec::new();
     meter
-        .try_reserve_collection_slots(&mut records, required.len(), &path)
+        .charge_collection_slots(required.len() as u64, &path)
         .map_err(resource)?;
-    for (id, source) in export.struct_constructors.iter() {
+    meter
+        .charge_work(required.len() as u64, &path)
+        .map_err(resource)?;
+    let ids: BTreeSet<_> = required.keys().copied().collect();
+    let records = super::super::nominal_constructors::project(export, ids, meter)?;
+    for record in &records {
         work(meter, required.len())?;
-        let identity = &export.constructor_identities[id];
-        if let Some(nominal) = required.remove(&identity.id()) {
-            let owner = &export.structs[source.owner];
-            records.push(contract::project(
-                export,
-                nominal,
-                Constructor {
-                    declaration: identity.id(),
-                    key: identity.key(),
-                    parameters: ExportParameterOwner::StructConstructor(id),
-                    result: export.struct_applications[owner.self_application].canonical_type,
-                    visibility: source.access.declared,
-                    safety: source.safety,
-                    gc_effect: source.source_gc_effect(),
-                },
-                meter,
-            )?);
+        let nominal = required
+            .get(&record.declaration())
+            .ok_or_else(|| invalid("constructor is absent from inheritance inventory"))?;
+        if record.payload().owner() != SourceNominalId::Concrete(nominal.owner)
+            || !matches!(
+                record.declaration_access().declared_visibility(),
+                DeclaredVisibilityV1::Public | DeclaredVisibilityV1::Protected
+            )
+        {
+            return Err(Error::MissingConstructor(nominal.exact));
         }
-    }
-    for (id, source) in export.class_constructors.iter() {
-        work(meter, required.len())?;
-        let Some(identity) = export.constructor_identities[id].source_record() else {
-            continue;
-        };
-        if let Some(nominal) = required.remove(&identity.id()) {
-            let owner = &export.classes[source.owner];
-            records.push(contract::project(
-                export,
-                nominal,
-                Constructor {
-                    declaration: identity.id(),
-                    key: identity.key(),
-                    parameters: ExportParameterOwner::ClassConstructor(id),
-                    result: export.class_applications[owner.self_application].canonical_type,
-                    visibility: source.access.declared,
-                    safety: source.safety,
-                    gc_effect: GcEffect::Managed,
-                },
-                meter,
-            )?);
-        }
-    }
-    if !required.is_empty() {
-        return Err(invalid(
-            "required constructor has no sealed source declaration",
-        ));
     }
     CanonicalInheritanceSourceConstructorsV1::try_new(records, meter)
         .map_err(Error::SourceInventory)

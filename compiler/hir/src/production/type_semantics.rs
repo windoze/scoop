@@ -15,8 +15,10 @@ pub use authority::*;
 mod facts;
 pub(in crate::production) mod inheritance;
 mod nominal_callables;
+mod nominal_constructors;
 mod nominal_parameters;
 mod nominals;
+mod source_parameter_shapes;
 
 /// The transport plus the independently projected inventories needed by the
 /// semantic validator. Keeping both products together prevents a driver from
