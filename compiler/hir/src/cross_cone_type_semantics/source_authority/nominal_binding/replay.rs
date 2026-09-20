@@ -1,28 +1,38 @@
 use super::*;
 use scoop_identity::{PersistentGenericTypeId, PersistentTypeId, SourceDeclarationKind};
 
+impl BoundNominalSourceContractsV1<'_, '_> {
+    pub(in crate::cross_cone_type_semantics::source_authority) fn signature_nominal_shape(
+        &self,
+        owner: SourceNominalId,
+    ) -> Result<PublicNominalShapeV1, Error> {
+        let key = match owner {
+            SourceNominalId::Concrete(id) => self
+                .foundation
+                .identities
+                .canonical_key::<PersistentTypeId, SourceDeclarationKey>(id),
+            SourceNominalId::GenericTemplate(id) => {
+                self.foundation
+                    .identities
+                    .canonical_key::<PersistentGenericTypeId, SourceDeclarationKey>(id)
+            }
+        }
+        .map_err(|error| Error::Identity(error.to_string()))?;
+        shape(&key)
+    }
+}
 impl NominalInterfaceShapeAuthority<Error> for BoundNominalSourceContractsV1<'_, '_> {
     fn concrete_nominal_shape(
         &mut self,
         declaration: PersistentTypeId,
     ) -> Result<PublicNominalShapeV1, Error> {
-        let key = self
-            .foundation
-            .identities
-            .canonical_key::<PersistentTypeId, SourceDeclarationKey>(declaration)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        shape(&key)
+        self.signature_nominal_shape(SourceNominalId::Concrete(declaration))
     }
     fn generic_nominal_shape(
         &mut self,
         declaration: PersistentGenericTypeId,
     ) -> Result<PublicNominalShapeV1, Error> {
-        let key = self
-            .foundation
-            .identities
-            .canonical_key::<PersistentGenericTypeId, SourceDeclarationKey>(declaration)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        shape(&key)
+        self.signature_nominal_shape(SourceNominalId::GenericTemplate(declaration))
     }
 }
 

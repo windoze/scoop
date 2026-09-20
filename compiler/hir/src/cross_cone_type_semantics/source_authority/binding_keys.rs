@@ -83,3 +83,25 @@ where
     }
     Ok(())
 }
+
+pub(super) fn charge_inheritance_inventory(
+    inventory: &crate::CanonicalSourceInheritanceInventoriesV1,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<(), WireError> {
+    meter.check_table_entries(inventory.records().len() as u64, path)?;
+    meter.charge_work(inventory.records().len() as u64, path)?;
+    for owner in inventory.records() {
+        let count = owner
+            .constructors()
+            .values()
+            .len()
+            .saturating_add(owner.protected_members().values().len())
+            .saturating_add(owner.slot_schemas().records().len());
+        meter.charge_work((count as u64).saturating_mul(64), path)?;
+        for schema in owner.slot_schemas().records() {
+            meter.charge_work((schema.slots().len() as u64).saturating_mul(64), path)?;
+        }
+    }
+    Ok(())
+}

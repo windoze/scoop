@@ -25,3 +25,6 @@ pub use parameter_binding::*;
 
 mod nominal_binding;
 pub use nominal_binding::*;
+
+mod inheritance_binding;
+pub use inheritance_binding::*;

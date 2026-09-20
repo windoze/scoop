@@ -8,8 +8,16 @@ pub(super) fn validate(
     meter: &mut BudgetMeter,
 ) -> Result<(), InheritanceParameterBindingError> {
     use InheritanceParameterBindingError as Error;
-    charge_inventory(callables.inventory, meter)?;
-    charge_inventory(constructors.inventory, meter)?;
+    super::super::binding_keys::charge_inheritance_inventory(
+        callables.inventory,
+        meter,
+        &WirePath::root(),
+    )?;
+    super::super::binding_keys::charge_inheritance_inventory(
+        constructors.inventory,
+        meter,
+        &WirePath::root(),
+    )?;
     if callables.inventory != constructors.inventory {
         return Err(Error::Inventory);
     }
@@ -35,26 +43,6 @@ pub(super) fn validate(
         .map(InheritanceSourceParameterProtocolV1::owner))
     {
         return Err(Error::Inventory);
-    }
-    Ok(())
-}
-fn charge_inventory(
-    inventory: &CanonicalSourceInheritanceInventoriesV1,
-    meter: &mut BudgetMeter,
-) -> Result<(), InheritanceParameterBindingError> {
-    let path = WirePath::root();
-    meter.charge_work(inventory.records().len() as u64, &path)?;
-    for owner in inventory.records() {
-        let count = owner
-            .constructors()
-            .values()
-            .len()
-            .saturating_add(owner.protected_members().values().len())
-            .saturating_add(owner.slot_schemas().records().len());
-        meter.charge_work((count as u64).saturating_mul(64), &path)?;
-        for schema in owner.slot_schemas().records() {
-            meter.charge_work((schema.slots().len() as u64).saturating_mul(64), &path)?;
-        }
     }
     Ok(())
 }

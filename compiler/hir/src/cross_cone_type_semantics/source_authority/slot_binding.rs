@@ -14,7 +14,7 @@ type Error = InheritanceSlotSourceBindingError;
 
 #[derive(Debug)]
 pub struct BoundInheritanceSlotSourcesV1<'s, 'a, 'f> {
-    dispatch: &'s BoundInheritanceDispatchSourcesV1<'a, 'f>,
+    pub(super) dispatch: &'s BoundInheritanceDispatchSourcesV1<'a, 'f>,
     graph: CheckedNominalInheritanceGraphV1<'a>,
     unit: PersistentExactTypeId,
 }
