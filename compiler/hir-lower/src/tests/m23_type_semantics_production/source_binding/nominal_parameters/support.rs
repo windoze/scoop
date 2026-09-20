@@ -2,13 +2,16 @@ use super::super::nominal_members::support::Sources as Members;
 use super::*;
 
 #[derive(Clone)]
-pub(super) struct Sources {
+pub(in crate::tests::m23_type_semantics_production::source_binding) struct Sources {
     pub members: Members,
     pub constructors: hir::CanonicalNominalSourceConstructorsV1,
     pub protocols: Table,
 }
 impl Sources {
-    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(in crate::tests::m23_type_semantics_production::source_binding) fn from_output(
+        output: &hir::OrdinaryHirOutput<'_>,
+        fixture: &mut Fixture,
+    ) -> Self {
         let members = Members::from_output(output, fixture);
         let required = members
             .nominals
@@ -57,7 +60,7 @@ impl Sources {
             protocols,
         }
     }
-    pub(super) fn with_bound<R>(
+    pub(in crate::tests::m23_type_semantics_production::source_binding) fn with_bound<R>(
         &self,
         foundation: &hir::BoundTypeFoundationSourcesV1<'_>,
         core: &hir::ImportedCoreFundamentalTypeProtocol,
@@ -82,7 +85,10 @@ impl Sources {
             .unwrap();
         run(&members, &constructors)
     }
-    pub(super) fn replacing(&self, record: Record) -> Table {
+    pub(in crate::tests::m23_type_semantics_production::source_binding) fn replacing(
+        &self,
+        record: Record,
+    ) -> Table {
         Table::try_new(
             self.protocols
                 .records()
@@ -100,7 +106,7 @@ impl Sources {
         .unwrap()
     }
 }
-pub(super) fn with_sources(
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn with_sources(
     source: &str,
     run: impl FnOnce(
         &hir::OrdinaryHirOutput<'_>,

@@ -6,6 +6,7 @@ use scoop_identity::{
 };
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
+mod candidates;
 mod contracts;
 mod errors;
 mod inventory;

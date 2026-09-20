@@ -1,0 +1,22 @@
+public open class Envelope {
+    protected class Holder private constructor(private var item: Int = 1) {
+        public constructor(value: Int, unused: Int): this(value) {}
+        public fun take(value: Int = 2): Int = value
+        private class Hidden {
+            private fun helper(): Int = 3
+        }
+    }
+    protected class Generic<T>(private val item: T) {
+        internal fun <U> choose(value: T, other: U): U = other
+        private class Static public constructor(value: Int = 4) {}
+    }
+    protected struct Pair<T>(val item: T, val count: Int = 5)
+    protected enum Choice<T> {
+        Empty,
+        Some(val item: T, val count: Int = 6)
+    }
+    protected object Cache {
+        internal const val tag: Int = 7
+        private var count: Int = 8
+    }
+}

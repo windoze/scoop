@@ -10,7 +10,7 @@ mod contracts;
 mod inventories;
 mod origins;
 mod replay;
-mod support;
+pub(super) mod support;
 use support::*;
 
 const SOURCE: &str = include_str!(concat!(

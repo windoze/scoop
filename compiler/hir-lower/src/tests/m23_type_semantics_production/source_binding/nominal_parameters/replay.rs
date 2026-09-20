@@ -1,51 +1,7 @@
 use super::*;
 use hir::{ProtectedParameterCallingKindV1 as Kind, ProtectedParameterCallingV1 as Calling};
 
-fn candidate(record: &Record) -> hir::ProtectedCallableSourceInterfaceV1 {
-    let parameters = record
-        .parameters()
-        .iter()
-        .enumerate()
-        .map(|(position, parameter)| {
-            let template = || {
-                hir::ProtectedDefaultTemplateKeyV1::try_new(record.owner(), position as u32)
-                    .unwrap()
-            };
-            let element_type = || {
-                let SignatureTypeKey::NominalApplication { arguments, .. } =
-                    parameter.shape().value_type()
-                else {
-                    panic!("source vararg Array application")
-                };
-                arguments.as_slice()[0].clone()
-            };
-            let calling = match parameter.calling_kind() {
-                Kind::Required => Calling::Required,
-                Kind::Default => Calling::Default {
-                    template: template(),
-                },
-                Kind::VarargEmpty => Calling::VarargEmpty {
-                    element_type: element_type(),
-                },
-                Kind::VarargDefault => Calling::VarargDefault {
-                    element_type: element_type(),
-                    template: template(),
-                },
-            };
-            hir::ProtectedSourceParameterV1::new(
-                parameter.shape().name().clone(),
-                parameter.shape().value_type().clone(),
-                calling,
-                parameter.definition_origin().clone(),
-            )
-        })
-        .collect();
-    hir::ProtectedCallableSourceInterfaceV1::try_new(
-        record.owner(),
-        hir::CanonicalProtectedSourceParametersV1::try_new(parameters).unwrap(),
-    )
-    .unwrap()
-}
+use super::super::parameter_candidates::candidate;
 
 #[test]
 fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_swaps() {
@@ -82,7 +38,7 @@ fn complete_protocol_authority_replays_methods_variants_and_rejects_candidate_sw
                 let checked = callable
                     .validate_source(&graph, &mut candidate_members, &mut meter())
                     .unwrap();
-                let original = candidate(record);
+                let original = candidate(record.owner(), record.parameters());
                 assert_eq!(
                     original
                         .validate_nominal_support(checked, &mut authority, &mut meter())

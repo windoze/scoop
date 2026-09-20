@@ -70,7 +70,11 @@ impl ProtectedCallableSourceInterfaceV1 {
             meter,
         )
     }
-    fn validate<'a, A: ProtectedSourceProtocolSemanticAuthority<E>, E>(
+    pub(in crate::cross_cone_type_semantics) fn validate<
+        'a,
+        A: ProtectedSourceProtocolSemanticAuthority<E>,
+        E,
+    >(
         &'a self,
         declaration: CallableTemplateOrigin,
         payload: &NominalSourceCallablePayloadV1,

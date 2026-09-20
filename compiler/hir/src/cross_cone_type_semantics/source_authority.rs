@@ -22,6 +22,8 @@ pub use protected_binding::*;
 
 mod source_parameter_contracts;
 pub use source_parameter_contracts::SourceParameterContractError;
+mod nominal_nested_binding;
+pub use nominal_nested_binding::*;
 mod nominal_parameter_binding;
 pub use nominal_parameter_binding::*;
 

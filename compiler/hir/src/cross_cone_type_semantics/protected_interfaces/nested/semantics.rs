@@ -73,6 +73,14 @@ impl ProtectedNestedNominalInterfaceV1 {
     }
 }
 impl NominalSupportNestedInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics) fn validate_concrete_support<E>(
+        &self,
+        graph: &CheckedNominalInheritanceGraphV1<'_>,
+        representations: &CanonicalNominalRepresentationSupportV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), NestedSourceSemanticError<E>> {
+        concrete::validate(self, graph, representations, meter)
+    }
     pub fn validate_source<'a, A: NestedNominalSemanticAuthority<E>, E>(
         &'a self,
         graph: &CheckedNominalInheritanceGraphV1<'_>,
