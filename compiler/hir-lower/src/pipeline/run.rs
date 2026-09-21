@@ -448,6 +448,9 @@ impl Lowerer {
             &pending_methods,
         );
         self.validate_signature_exposure();
+        // Defaults and constructor expressions can select derived equality.
+        // Publish its conditional signatures before any of those bodies lower.
+        self.declare_derived_equality_methods();
         self.lower_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
@@ -457,7 +460,6 @@ impl Lowerer {
         );
         self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
         self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
-        self.declare_derived_equality_methods();
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these

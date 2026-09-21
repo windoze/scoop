@@ -18,6 +18,7 @@ mod source_constructors;
 mod source_default_access;
 mod source_default_access_declarations;
 mod source_default_bodies;
+mod source_default_derived_order;
 mod source_default_references;
 mod source_default_table;
 mod source_default_templates;

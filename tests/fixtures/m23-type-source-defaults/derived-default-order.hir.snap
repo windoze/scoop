@@ -1,0 +1,3 @@
+structDefault: DerivedEquality 1
+enumDefault: DerivedEquality 1
+Holder: DerivedEquality 1
