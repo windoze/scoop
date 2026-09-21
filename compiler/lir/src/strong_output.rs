@@ -14,11 +14,10 @@ use crate::{
     project_strong_digest_finalization_plan, project_strong_digest_finalization_plan_v2,
 };
 
-mod core_shape_support;
-pub use core_shape_support::{
-    StrongLirBoxedValueMaterialization, StrongLirCoreShapeSupportError,
-    StrongLirCoreShapeSupportPlan, StrongLirCoreShapeSupportRoot,
-    StrongLirExactShapeMaterialization,
+mod shape_support;
+pub use shape_support::{
+    StrongLirBoxedValueMaterialization, StrongLirExactShapeMaterialization,
+    StrongLirShapeSupportError, StrongLirShapeSupportPlan, StrongLirShapeSupportRoot,
 };
 
 /// One LIR graph paired with the exact ODR-free foundation projected from it.
@@ -28,7 +27,7 @@ pub use core_shape_support::{
 pub struct SingleConeStrongLirOutput {
     module: Module,
     foundation: OdrFreeLirFoundation,
-    core_shape_support: StrongLirCoreShapeSupportPlan,
+    shape_support: StrongLirShapeSupportPlan,
     core_lir_bridge: CoreLirBridgeBranchV1,
 }
 
@@ -58,14 +57,13 @@ impl PendingStrongProductionSectionV2 {
 impl SingleConeStrongLirOutput {
     pub fn try_new(
         module: Module,
-        core_shape_sources: Vec<SourceDeclarationKey>,
+        shape_sources: Vec<SourceDeclarationKey>,
         core_lir_bridge: CoreLirBridgeBranchV1,
     ) -> Result<Self, SingleConeStrongLirOutputError> {
         let foundation = OdrFreeLirFoundation::from_module(&module)
             .map_err(SingleConeStrongLirOutputError::Foundation)?;
-        let core_shape_support =
-            StrongLirCoreShapeSupportPlan::from_module(&module, core_shape_sources)
-                .map_err(SingleConeStrongLirOutputError::CoreShapeSupport)?;
+        let shape_support = StrongLirShapeSupportPlan::from_module(&module, shape_sources)
+            .map_err(SingleConeStrongLirOutputError::ShapeSupport)?;
         core_lir_bridge
             .validate_against(
                 &foundation,
@@ -76,7 +74,7 @@ impl SingleConeStrongLirOutput {
         Ok(Self {
             module,
             foundation,
-            core_shape_support,
+            shape_support,
             core_lir_bridge,
         })
     }
@@ -89,8 +87,8 @@ impl SingleConeStrongLirOutput {
         &self.foundation
     }
 
-    pub const fn core_shape_support(&self) -> &StrongLirCoreShapeSupportPlan {
-        &self.core_shape_support
+    pub const fn shape_support(&self) -> &StrongLirShapeSupportPlan {
+        &self.shape_support
     }
 
     pub const fn core_lir_bridge(&self) -> &CoreLirBridgeBranchV1 {
@@ -122,7 +120,7 @@ impl SingleConeStrongLirOutput {
             digests,
             registrations,
             entry_source,
-            &self.core_shape_support.source_declarations(),
+            &self.shape_support.source_declarations(),
             self.core_lir_bridge.clone(),
         )
         .map_err(StrongProductionWriterError::Section)
@@ -165,7 +163,7 @@ impl SingleConeStrongLirOutput {
             digests,
             registrations,
             entry_source,
-            &self.core_shape_support.source_declarations(),
+            &self.shape_support.source_declarations(),
             self.core_lir_bridge.clone(),
         )
         .map(|section| PendingStrongProductionSectionV2 { section })
@@ -180,7 +178,7 @@ impl SingleConeStrongLirOutput {
 #[derive(Debug)]
 pub enum SingleConeStrongLirOutputError {
     Foundation(OdrFreeLirFoundationProjectionError),
-    CoreShapeSupport(StrongLirCoreShapeSupportError),
+    ShapeSupport(StrongLirShapeSupportError),
     CoreLirDefinitions(crate::StrongObjectSymbolSurfaceBuildError),
     CoreLirBridge(CoreLirBridgeBuildError),
 }
@@ -189,7 +187,7 @@ impl fmt::Display for SingleConeStrongLirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Foundation(source) => source.fmt(formatter),
-            Self::CoreShapeSupport(source) => source.fmt(formatter),
+            Self::ShapeSupport(source) => source.fmt(formatter),
             Self::CoreLirDefinitions(source) => source.fmt(formatter),
             Self::CoreLirBridge(source) => source.fmt(formatter),
         }
@@ -200,7 +198,7 @@ impl std::error::Error for SingleConeStrongLirOutputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Foundation(source) => source,
-            Self::CoreShapeSupport(source) => source,
+            Self::ShapeSupport(source) => source,
             Self::CoreLirDefinitions(source) => source,
             Self::CoreLirBridge(source) => source,
         })

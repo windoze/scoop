@@ -10,7 +10,7 @@ impl Lowerer {
     pub(super) fn run(
         mut self,
         module: &hir::Module,
-        core_shape_support: &[scoop_hir::LocalCoreShapeSupportRoot],
+        shape_support: &[scoop_hir::LocalShapeSupportRoot],
     ) -> mir::Module {
         // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the temporary
@@ -237,7 +237,7 @@ impl Lowerer {
             }
         }
 
-        self.materialize_core_shape_types(module, core_shape_support);
+        self.materialize_shape_types(module, shape_support);
 
         // Finalize boxed value types to a fixed point. Function-type bridges
         // can discover additional boxed payloads.

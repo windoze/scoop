@@ -179,7 +179,7 @@ pub(super) fn seal(
         module,
         foundation,
         production,
-        CoreShapeSupportSourceInput::NotCore,
+        Vec::new(),
         StrongImportedCoreInput::Unused,
     )
 }

@@ -57,7 +57,7 @@ fn fixture() -> (
         module,
         foundation,
         production,
-        mir::CoreShapeSupportSourceInput::Core(vec![]),
+        Vec::new(),
         mir::StrongImportedCoreInput::Unused,
     )
     .unwrap();

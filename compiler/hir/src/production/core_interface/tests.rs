@@ -70,7 +70,7 @@ fn core_section_rejects_an_executable_output_contract() {
 }
 
 #[test]
-fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
+fn shape_support_sources_are_derived_from_param_free_source_nominals() {
     let fixture = fixture();
     let foundation = OdrFreeHirFoundation::try_new(fixture.foundation).unwrap();
     let sources = PublicNominalShapeRequirementsV1::from_direct_surface(

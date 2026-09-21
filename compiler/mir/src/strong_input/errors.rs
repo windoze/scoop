@@ -51,33 +51,32 @@ pub enum SingleConeStrongMirInputError {
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
     CoreBranchMismatch,
-    CoreShapeSupportSourceBranchMismatch,
-    NonCanonicalCoreShapeSupportSource {
+    NonCanonicalShapeSupportSource {
         index: usize,
         previous: PersistentTypeId,
         current: PersistentTypeId,
     },
-    InvalidCoreShapeSupportSource {
+    InvalidShapeSupportSource {
         index: usize,
     },
-    CoreShapeSupportSourceIdentity {
+    ShapeSupportSourceIdentity {
         index: usize,
         error: SourceDeclarationIdentityError,
     },
-    CoreShapeSupportExactIdentity {
+    ShapeSupportExactIdentity {
         index: usize,
         error: HashError,
     },
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
-    MissingCoreShapeSupportSource {
+    MissingShapeSupportSource {
         source: PersistentTypeId,
         exact: PersistentExactTypeId,
     },
-    MissingCoreBoxedValue(PersistentExactTypeId),
-    MissingCoreCoroutineStep(PersistentExactTypeId),
-    MissingCoreCoroutineSlot(PersistentExactTypeId),
+    MissingBoxedValue(PersistentExactTypeId),
+    MissingCoroutineStep(PersistentExactTypeId),
+    MissingCoroutineSlot(PersistentExactTypeId),
     MissingStrongCallableBridge {
         index: usize,
         implementation: CallableOwner,
@@ -104,8 +103,8 @@ impl std::error::Error for SingleConeStrongMirInputError {
         match self {
             Self::Initialization(source) => Some(source),
             Self::Foundation(source) => Some(source),
-            Self::CoreShapeSupportSourceIdentity { error, .. } => Some(error),
-            Self::CoreShapeSupportExactIdentity { error, .. } => Some(error),
+            Self::ShapeSupportSourceIdentity { error, .. } => Some(error),
+            Self::ShapeSupportExactIdentity { error, .. } => Some(error),
             Self::MissingImportedCoreAuthority
             | Self::CoreCannotImportCore
             | Self::ImportedCoreCallableCountMismatch { .. }
@@ -122,16 +121,15 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch
-            | Self::CoreShapeSupportSourceBranchMismatch
-            | Self::NonCanonicalCoreShapeSupportSource { .. }
-            | Self::InvalidCoreShapeSupportSource { .. }
+            | Self::NonCanonicalShapeSupportSource { .. }
+            | Self::InvalidShapeSupportSource { .. }
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
-            | Self::MissingCoreShapeSupportSource { .. }
-            | Self::MissingCoreBoxedValue(_)
-            | Self::MissingCoreCoroutineStep(_)
-            | Self::MissingCoreCoroutineSlot(_)
+            | Self::MissingShapeSupportSource { .. }
+            | Self::MissingBoxedValue(_)
+            | Self::MissingCoroutineStep(_)
+            | Self::MissingCoroutineSlot(_)
             | Self::MissingStrongCallableBridge { .. }
             | Self::OutputMismatch
             | Self::MissingEntryRoot(_)

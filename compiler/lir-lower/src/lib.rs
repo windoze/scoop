@@ -473,10 +473,7 @@ pub fn lower_with_dependencies(
     };
     lir::SingleConeStrongLirOutput::try_new(
         module,
-        input
-            .materialization()
-            .core_shape_support_sources()
-            .to_vec(),
+        input.materialization().shape_support_sources().to_vec(),
         core_lir_bridge,
     )
     .map_err(StrongLirLoweringError::Output)

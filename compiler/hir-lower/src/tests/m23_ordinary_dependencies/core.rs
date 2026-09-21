@@ -37,10 +37,7 @@ fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
         output.output().export.core_protocols,
         scoop_hir::CoreProtocols::Defined(_)
     ));
-    assert!(matches!(
-        output.output().local.materialization(),
-        scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(_)
-    ));
+    assert!(!output.output().local.materialization().roots().is_empty());
     assert_eq!(
         output.imported_dependencies().consumer(),
         ConeIdentity::CORE

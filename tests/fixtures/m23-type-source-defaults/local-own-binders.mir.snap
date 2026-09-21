@@ -1,3 +1,9 @@
+  enum CoroutineStep<LocalGenericHost>
+    Completed(value: LocalGenericHost)
+    Suspended()
+  enum CoroutineSlot<LocalGenericHost>
+    Empty()
+    Value(value: LocalGenericHost)
   class LocalGenericHost vtable=0 itables=0
   class GenericLocalHost<String> vtable=0 itables=0
   fun main @fn23() -> Unit
@@ -313,6 +319,8 @@
         Type String
         Local stored
       return
+  coroutine_step cs0 CoroutineStep<LocalGenericHost> result=LocalGenericHost
+  coroutine_slot cl0 CoroutineSlot<LocalGenericHost> value=LocalGenericHost
   instance mi0 function=@fn24 <- genericLocalDependency
   instance mi1 function=@fn25 <- genericLocalDependency
   instance mi2 function=@fn26 <- $local.1.keep

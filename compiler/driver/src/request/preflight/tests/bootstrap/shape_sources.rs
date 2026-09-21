@@ -4,7 +4,7 @@ use scoop_identity::{
     PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
     SourceDeclarationSite, SourceNominalKind,
 };
-use scoop_mir::{CoreShapeSupportSourceInput, SingleConeStrongMirInputError as Error};
+use scoop_mir::SingleConeStrongMirInputError as Error;
 
 #[test]
 fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy() {
@@ -14,11 +14,7 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     let sources = discover_manifest_sources(&manifest).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
     let hir = TrustedCoreBootstrapHirOutput::lower(&parsed).unwrap();
-    let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) =
-        hir.hir().local.materialization()
-    else {
-        panic!("the core HIR graph carries its complete shape demand")
-    };
+    let plan = hir.hir().local.materialization();
     let sources = plan
         .roots()
         .iter()
@@ -32,14 +28,14 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
         (vec![sources[1].clone(), sources[0].clone()], second, first),
     ] {
         assert!(matches!(seal(&hir, sources, |_| {}),
-            Err(Error::NonCanonicalCoreShapeSupportSource { index: 1, previous: actual_previous, current: actual_current })
+            Err(Error::NonCanonicalShapeSupportSource { index: 1, previous: actual_previous, current: actual_current })
                 if actual_previous == previous && actual_current == current
         ));
     }
     for (provider, parameters) in [(ConeIdentity::SINGLE_FILE, 0), (ConeIdentity::CORE, 1)] {
         assert!(matches!(
             seal(&hir, vec![declaration(provider, parameters)], |_| {}),
-            Err(Error::InvalidCoreShapeSupportSource { index: 0 })
+            Err(Error::InvalidShapeSupportSource { index: 0 })
         ));
     }
     let absent = declaration(ConeIdentity::CORE, 0);
@@ -47,7 +43,7 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     let expected_exact =
         PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(expected_source)).unwrap();
     assert!(matches!(seal(&hir, vec![absent], |_| {}),
-        Err(Error::MissingCoreShapeSupportSource { source, exact }) if source == expected_source && exact == expected_exact
+        Err(Error::MissingShapeSupportSource { source, exact }) if source == expected_source && exact == expected_exact
     ));
     for mutate in [
         |module: &mut scoop_mir::Module| module.meta.coroutine_steps.clear(),
@@ -107,7 +103,7 @@ fn seal(
         module,
         foundation,
         production,
-        CoreShapeSupportSourceInput::Core(sources),
+        sources,
         scoop_mir::StrongImportedCoreInput::Unused,
     )
 }

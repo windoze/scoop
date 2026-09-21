@@ -69,6 +69,13 @@ fn core_and_ordinary_shapes_use_the_same_local_public_binding_projection() {
         ));
         let public = CanonicalPublicExportBindingsV1::try_new(records).unwrap();
         let direct = CanonicalDirectPublicSurfaceV1::from_public_bindings(&public).unwrap();
+        let identities = crate::HirExportBindingIdentities::canonicalize(vec![
+            concrete_binding.clone(),
+            generic_binding.clone(),
+            alias_binding.clone(),
+            forwarded.clone(),
+        ])
+        .unwrap();
         let mut foundation = CanonicalHirFoundation::empty();
         foundation.set_types(vec![concrete.clone()]).unwrap();
         foundation
@@ -79,7 +86,9 @@ fn core_and_ordinary_shapes_use_the_same_local_public_binding_projection() {
                 forwarded,
             ])
             .unwrap();
-        let projected = PublicNominalShapeRequirementsV1::from_public_bindings(&public).unwrap();
+        let projected =
+            PublicNominalShapeRequirementsV1::from_public_bindings(current, &public, &identities)
+                .unwrap();
         let decoded_projection =
             PublicNominalShapeRequirementsV1::from_direct_surface(&direct, &foundation).unwrap();
         assert_eq!(projected, decoded_projection);
@@ -156,4 +165,49 @@ fn binding(
         target,
     ))
     .unwrap()
+}
+
+#[test]
+fn local_shape_projection_selects_only_the_current_exporter_in_aggregated_bindings() {
+    let providers = [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE];
+    let records = providers
+        .into_iter()
+        .map(|provider| {
+            binding(
+                provider,
+                "Record",
+                BindingTarget::type_name(&nominal(provider, "Record", 0)).unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let public = CanonicalPublicExportBindingsV1::try_new(
+        records
+            .iter()
+            .map(|record| {
+                PublicExportBindingRecordV1::new(
+                    record.id(),
+                    ExportBindingSourceV1::DeclaredCurrent {
+                        declaration: record.key().target(),
+                    },
+                )
+            })
+            .collect(),
+    )
+    .unwrap();
+    let identities = crate::HirExportBindingIdentities::canonicalize(records).unwrap();
+    for provider in providers {
+        let plan =
+            PublicNominalShapeRequirementsV1::from_public_bindings(provider, &public, &identities)
+                .unwrap();
+        assert_eq!(plan.roots().len(), 1);
+        assert_eq!(
+            plan.roots()[0].source(),
+            PersistentTypeId::from_source_declaration(&nominal(provider, "Record", 0)).unwrap()
+        );
+    }
+    let absent = crate::HirExportBindingIdentities::canonicalize(Vec::new()).unwrap();
+    assert!(matches!(
+        PublicNominalShapeRequirementsV1::from_public_bindings(providers[0], &public, &absent,),
+        Err(PublicNominalShapeProjectionError::MissingBinding(_))
+    ));
 }

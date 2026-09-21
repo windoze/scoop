@@ -111,7 +111,12 @@ pub(super) fn validate_boxing_adjust_metadata(module: &Module) -> Result<(), Mir
             );
         }
         let identity = adjust.identity();
-        if identity.slot_record().key().role() != DispatchRole::InterfaceMethod {
+        if !matches!(
+            identity.slot_record().key().role(),
+            DispatchRole::InterfaceMethod
+                | DispatchRole::PropertyGetter
+                | DispatchRole::PropertySetter
+        ) {
             return invalid_adjust(location, "the adjust does not implement an interface slot");
         }
         let GeneratedCallableKey::BoxingAdjust {

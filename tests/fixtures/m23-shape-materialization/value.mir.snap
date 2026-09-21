@@ -1,0 +1,22 @@
+Module
+  struct Payload (value: Int)
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class box<Payload> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=ae01f13c8489f74f796b7af2d88717b98db8f8047a5bed2f2ff4c5cd1aeb3e5b exact_id=29b09f3a9d3d6a871ce7f7d889da826d7d996eb116e2420f0c3496ed0bd15537
+  generated_exact_type get1 location=class0 nominal_id=8070234c20685e8a5cb9188e139c016c59acfa953aa547b773ce8a61bef65859 exact_id=ca00122ea7b5c4de24606004b4a1a86d1d9bce708fed945ae086e9651b4156ca
+  generated_exact_type get2 location=enum1 nominal_id=aedcc1d6329bccc883327cdbf5e997be48ce6e0d0706cad8582f4724a76c279c exact_id=d2b0addac309842aa1b6078b12462d21a80a99046545aa4c103b78893bd59aa1
+  fun ctor.Payload.$c0 @fn0(value: Int) -> Payload <no-gc>
+    bb0 entry
+      return
+        Type Payload
+        StructInit Payload
+          Type Int
+          Local value
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  output library

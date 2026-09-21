@@ -4,15 +4,14 @@ use std::fmt;
 use std::ops::Deref;
 
 use scoop_identity::{
-    CallableMaterializationContext, CallableTemplateOwner, CoreBuiltinNominal, ExactTypeKey,
-    ExecutableSourceEntryIdentity, PersistentExactTypeId, PersistentFunctionId, PersistentTypeId,
-    SourceDeclarationKey, SourceDeclarationKind,
+    CallableMaterializationContext, CallableTemplateOwner, ExecutableSourceEntryIdentity,
+    PersistentFunctionId,
 };
 
 use crate::{
     ConeOutputKind, CoreProtocols, ExportHir, HirExportBindingSurfaceValidationError,
     HirNativeBoundaryTypeDefinitions, LocalConcreteHir, LocalExecutableEntry,
-    LocalExecutableEntryError, PublicNominalShapeRequirementsV1, concrete,
+    LocalExecutableEntryError, concrete,
 };
 
 mod dependencies;
@@ -150,181 +149,23 @@ pub enum LocalConeOutputKind {
     },
 }
 
-/// One core shape-support requirement translated into the LocalConcrete HIR
-/// type-id domain without discarding its persistent HIR authority.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LocalCoreShapeSupportRoot {
-    declaration: SourceDeclarationKey,
-    source: PersistentTypeId,
-    exact: PersistentExactTypeId,
-    ty: concrete::TypeId,
-    boxed_value: LocalCoreBoxedValueRequirement,
-}
-
-impl LocalCoreShapeSupportRoot {
-    pub const fn declaration(&self) -> &SourceDeclarationKey {
-        &self.declaration
-    }
-
-    pub const fn source(&self) -> PersistentTypeId {
-        self.source
-    }
-
-    pub const fn exact(&self) -> PersistentExactTypeId {
-        self.exact
-    }
-
-    pub const fn ty(&self) -> concrete::TypeId {
-        self.ty
-    }
-
-    pub const fn boxed_value(&self) -> LocalCoreBoxedValueRequirement {
-        self.boxed_value
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LocalCoreBoxedValueRequirement {
-    Required,
-    NotApplicable,
-}
-
-/// Complete local projection of the trusted core's strong shape-support set.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LocalCoreShapeSupportPlan {
-    roots: Vec<LocalCoreShapeSupportRoot>,
-}
-
-impl LocalCoreShapeSupportPlan {
-    pub fn try_new(
-        module: &LocalConcreteHir,
-        requirements: &PublicNominalShapeRequirementsV1,
-    ) -> Result<Self, LocalCoreShapeSupportPlanError> {
-        let mut roots = Vec::with_capacity(requirements.roots().len());
-        for requirement in requirements.roots() {
-            let ty = module
-                .exact_type_identities
-                .type_for_identity(requirement.exact())
-                .ok_or(LocalCoreShapeSupportPlanError::MissingExactType(
-                    requirement.exact(),
-                ))?;
-            let record = &module.exact_type_identities[ty];
-            if record.key() != &ExactTypeKey::Nominal(requirement.source()) {
-                return Err(LocalCoreShapeSupportPlanError::IdentityMismatch {
-                    source: requirement.source(),
-                    exact: requirement.exact(),
-                });
-            }
-            let source = requirement.source();
-            let declaration = if source == CoreBuiltinNominal::Unit.identity_record().id() {
-                CoreBuiltinNominal::Unit.identity_record().key().clone()
-            } else if source == CoreBuiltinNominal::Any.identity_record().id() {
-                CoreBuiltinNominal::Any.identity_record().key().clone()
-            } else {
-                let mut declarations = module
-                    .structs
-                    .iter()
-                    .map(|(_, declaration)| &declaration.origin)
-                    .chain(
-                        module
-                            .enums
-                            .iter()
-                            .map(|(_, declaration)| &declaration.origin),
-                    )
-                    .chain(
-                        module
-                            .classes
-                            .iter()
-                            .map(|(_, declaration)| &declaration.origin),
-                    )
-                    .chain(
-                        module
-                            .interfaces
-                            .iter()
-                            .map(|(_, declaration)| &declaration.origin),
-                    )
-                    .chain(
-                        module
-                            .objects
-                            .iter()
-                            .map(|(_, declaration)| &declaration.origin),
-                    )
-                    .filter_map(|origin| {
-                        (origin.concrete_type_id() == Some(source))
-                            .then(|| origin.source())
-                            .flatten()
-                            .map(|identity| identity.declaration())
-                    });
-                let declaration = declarations
-                    .next()
-                    .ok_or(LocalCoreShapeSupportPlanError::MissingSourceNominal(source))?;
-                if declarations.next().is_some() {
-                    return Err(LocalCoreShapeSupportPlanError::AmbiguousSourceNominal(
-                        source,
-                    ));
-                }
-                declaration.clone()
-            };
-            let boxed_value = match declaration.declaration_kind() {
-                SourceDeclarationKind::Struct | SourceDeclarationKind::Enum => {
-                    LocalCoreBoxedValueRequirement::Required
-                }
-                SourceDeclarationKind::Class
-                | SourceDeclarationKind::Interface
-                | SourceDeclarationKind::Object
-                | SourceDeclarationKind::AnnotationClass => {
-                    LocalCoreBoxedValueRequirement::NotApplicable
-                }
-                _ => {
-                    return Err(LocalCoreShapeSupportPlanError::InvalidSourceNominal(source));
-                }
-            };
-            roots.push(LocalCoreShapeSupportRoot {
-                declaration,
-                source,
-                exact: requirement.exact(),
-                ty,
-                boxed_value,
-            });
-        }
-        Ok(Self { roots })
-    }
-
-    pub fn roots(&self) -> &[LocalCoreShapeSupportRoot] {
-        &self.roots
-    }
-}
-
-/// The lowering contract carried by a closed LocalConcrete HIR product.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum LocalConcreteMaterializationContract {
-    Ordinary,
-    CoreShapeSupport(LocalCoreShapeSupportPlan),
-}
+mod shape_support;
+pub use shape_support::*;
 
 /// LocalConcrete HIR paired with its closed output branch.
 #[derive(Debug, Clone)]
 pub struct LocalConcreteHirOutput {
     module: LocalConcreteHir,
     output_kind: LocalConeOutputKind,
-    materialization: LocalConcreteMaterializationContract,
+    materialization: LocalShapeSupportPlan,
 }
 
 impl LocalConcreteHirOutput {
     pub fn try_new(
         module: LocalConcreteHir,
         output_kind: LocalConeOutputKind,
-        materialization: LocalConcreteMaterializationContract,
+        materialization: LocalShapeSupportPlan,
     ) -> Result<Self, LocalConcreteHirOutputError> {
-        if matches!(
-            (&module.core_protocols, &materialization),
-            (
-                concrete::ConcreteCoreProtocols::Imported(_),
-                LocalConcreteMaterializationContract::CoreShapeSupport(_)
-            )
-        ) {
-            return Err(LocalConcreteHirOutputError::ImportedCoreShapeSupport);
-        }
         if let LocalConeOutputKind::Executable { local_entry } = &output_kind {
             local_entry
                 .validate(&module)
@@ -345,7 +186,7 @@ impl LocalConcreteHirOutput {
         &self.output_kind
     }
 
-    pub const fn materialization(&self) -> &LocalConcreteMaterializationContract {
+    pub const fn materialization(&self) -> &LocalShapeSupportPlan {
         &self.materialization
     }
 
@@ -518,38 +359,12 @@ impl std::error::Error for ConcreteExecutableEntryError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LocalConcreteHirOutputError {
     InvalidEntry(ConcreteExecutableEntryError),
-    ImportedCoreShapeSupport,
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LocalCoreShapeSupportPlanError {
-    MissingExactType(PersistentExactTypeId),
-    MissingSourceNominal(PersistentTypeId),
-    AmbiguousSourceNominal(PersistentTypeId),
-    InvalidSourceNominal(PersistentTypeId),
-    IdentityMismatch {
-        source: PersistentTypeId,
-        exact: PersistentExactTypeId,
-    },
-}
-
-impl fmt::Display for LocalCoreShapeSupportPlanError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot project core shape support into LocalConcrete HIR: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for LocalCoreShapeSupportPlanError {}
 
 impl fmt::Display for LocalConcreteHirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidEntry(error) => error.fmt(formatter),
-            Self::ImportedCoreShapeSupport => formatter
-                .write_str("imported-core LocalConcrete HIR cannot materialize core shape support"),
         }
     }
 }

@@ -43,7 +43,7 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         module,
         foundation,
         production,
-        mir::CoreShapeSupportSourceInput::Core(Vec::new()),
+        Vec::new(),
         mir::StrongImportedCoreInput::Unused,
     )
     .unwrap();
@@ -120,7 +120,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         core_module,
         core_foundation.clone(),
         core_production,
-        mir::CoreShapeSupportSourceInput::Core(Vec::new()),
+        Vec::new(),
         mir::StrongImportedCoreInput::Unused,
     )
     .unwrap();
@@ -191,7 +191,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         ordinary_module,
         ordinary_foundation,
         ordinary_production,
-        mir::CoreShapeSupportSourceInput::NotCore,
+        Vec::new(),
         mir::StrongImportedCoreInput::Selected(&selected_mir),
     )
     .unwrap();

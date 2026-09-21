@@ -13,6 +13,7 @@ use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
 mod cross_cone;
 mod publication;
+mod shape_materialization;
 
 #[test]
 fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {

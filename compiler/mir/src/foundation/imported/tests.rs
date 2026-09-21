@@ -9,11 +9,11 @@ use super::*;
 use crate::{
     BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
     CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, CoreShapeSupportSourceInput,
-    CoroutinePendingContext, DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1,
-    Function, GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput,
-    SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1,
-    Terminator, Type,
+    CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, CoroutinePendingContext,
+    DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1, Function, GcEffect,
+    MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput, SourceSpan,
+    Statement, StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator,
+    Type,
 };
 
 #[test]
@@ -187,7 +187,7 @@ fn selected_callable_derives_the_only_strong_implementation() {
             missing_authority_module,
             missing_authority_foundation,
             missing_authority_production,
-            CoreShapeSupportSourceInput::NotCore,
+            Vec::new(),
             crate::StrongImportedCoreInput::Unused,
         ),
         Err(crate::SingleConeStrongMirInputError::MissingImportedCoreAuthority)
@@ -196,7 +196,7 @@ fn selected_callable_derives_the_only_strong_implementation() {
         module,
         strong_foundation,
         ordinary_production,
-        CoreShapeSupportSourceInput::NotCore,
+        Vec::new(),
         crate::StrongImportedCoreInput::Selected(&selections),
     )
     .expect("the strong sealer resolves the exact imported MIR selected set");

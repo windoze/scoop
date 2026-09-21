@@ -46,10 +46,7 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
         output.output().local.core_protocols,
         scoop_hir::concrete::ConcreteCoreProtocols::Imported(_)
     ));
-    assert!(matches!(
-        output.output().local.materialization(),
-        scoop_hir::LocalConcreteMaterializationContract::Ordinary
-    ));
+    assert!(output.output().local.materialization().roots().is_empty());
     assert!(output.imported_dependencies().is_empty());
     let foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
     assert_eq!(foundation.counts().external_source_types, 10);

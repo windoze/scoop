@@ -182,10 +182,7 @@ fn lower_with_core_authority(
     >,
 ) -> mir::Module {
     let module = output.module();
-    let core_shape_support = match output.materialization() {
-        scoop_hir::LocalConcreteMaterializationContract::Ordinary => &[][..],
-        scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) => plan.roots(),
-    };
+    let shape_support = output.materialization().roots();
     let output = match output.output_kind() {
         scoop_hir::LocalConeOutputKind::Library => LoweringOutput::Library,
         scoop_hir::LocalConeOutputKind::Executable { local_entry } => {
@@ -262,7 +259,7 @@ fn lower_with_core_authority(
         imported_dependency_callables,
         imported_dependency_callable_map,
     }
-    .run(module, core_shape_support)
+    .run(module, shape_support)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

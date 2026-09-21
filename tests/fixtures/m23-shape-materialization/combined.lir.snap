@@ -1,0 +1,72 @@
+Module
+  enum CoroutineStep<Combined> tagged size=24 align=8 variants=(struct0)@8+16:refs ()@8+0
+  enum CoroutineSlot<Combined> tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
+  enum CoroutineStep<Holder> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Holder> niche(kind=managed,payload_variant=1)
+  enum Choice tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
+  enum CoroutineStep<Choice> tagged size=32 align=8 variants=(enum4)@8+24:refs ()@8+0
+  enum CoroutineSlot<Choice> tagged size=32 align=8 variants=()@8+0 (enum4)@8+24:refs
+  enum CoroutineStep<Marker> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<Marker> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$b78cf870494b0d1499a4047400b5cba9af29a40eef04b849b40e3e49706bd1e8(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000007)
+  fun @scoop$1$cb$607fc7d98f66bded6b66622d7f5af58d30c44ddbc51ff3f47f5d10a5d5623b45(ptr<managed>, indirect<struct0 size=16 align=8 scan=refs[8]>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:struct0@8]
+    heap_store param0 +16 param1
+    ret
+  fun @scoop$1$cb$b0fab5fff31cd86c7d69c8bafbbf73aee08152891868071eaa68748ac84203e7(i32, ptr<managed>) -> sret<struct0 size=16 align=8 scan=refs[8]> <no-gc>
+  block entry
+    t0 = aggregate (param0, param1) : struct0
+    ret t0
+  fun @scoop$1$cb$a993870320ecde052713cdf710d26dfee203a217b7d1df7186e8e246ab936f0a(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  fun @scoop$1$cb$df17d3958fbdd524cdabcc5e4ae467cdc565e42f2b6cd5677ac778ddbebecf61(ptr<managed>) -> i32
+    local %0 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn0(param0)
+    store t0 -> local0
+    ret local0
+  td td0 Marker @scoop$1$td$d2b2f927e18573036594f1cf00d7b5b7c4f7c252ecca18147f82993261ce2a7b type-id=1120363844398344790 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[]
+  td td1 Holder @scoop$1$td$25222f5cbfbd10f776bca4bc76fec7c301a84dd92471a3530742cd6395b690e8 type-id=2005330988925506088 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td2 box<Combined> @scoop$1$td$80e9afe6b9ac587d049719d4d77ccb4f460814d1197b92fdb2eaf7079222137a type-id=4897769272981463500 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[td0:[local-fn4]]
+  td td3 box<Choice> @scoop$1$td$545a98c66c579f89c1dc4bf9c268aa75790a572d5ae7504a1b960d9fe7e23c04 type-id=4156082029347350046 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td4 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td5 Int @scoop$1$td$5b4173e766beb9d8c1e802e267bb093ec7780edec9b83c1a9ba4061ba886f531 type-id=4986955097735443455 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 Combined @scoop$1$td$5efeec3ab24b7c6acc4b0e080543cfdffce2f246f1a34ce6c5551a0d049b2683 type-id=18081843466059585762 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td7 Hidden @scoop$1$td$7122a36338188bb51400d1ad3b895ea068cad607cbe76368a135f237886b7562 type-id=12354600997885410796 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 Choice @scoop$1$td$81f9617d17555574b4f48a140557da3dad56ffc3f2bf266d74652d85486d4089 type-id=2767177197706986538 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td9 CoroutineStep<Combined> @scoop$1$td$0f949b28c6b9d2487f2fcddc762157ebec1cdc9b01e4405aaea7fd23f58f8541 type-id=9029061912933500435 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td10 CoroutineStep<Holder> @scoop$1$td$279b0686f6bf238321dc6f3580d191e0004c5f78943bcb45cf7f0476082c1a42 type-id=14235518143677234231 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td11 CoroutineSlot<Combined> @scoop$1$td$3061b3da8c6b8dda2061e3c2d4a459c0fddf5573e1c20e70ec8b760d06857a8e type-id=2034977001097991408 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
+  td td12 CoroutineStep<Marker> @scoop$1$td$362d5e026dd8f967f39c180b07d473a0d767007e64d6bb00561bb982a7bf6924 type-id=1609149530322188574 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td13 CoroutineSlot<Marker> @scoop$1$td$4098bdfd6980aa280611108e6eed2c3b2af1358c13c9947cdf913ae3a43a1036 type-id=11215420907116227368 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td14 CoroutineSlot<Holder> @scoop$1$td$977bc4e56e6ac66bebbc58053689787e4af6942503ceb7168f4d2411cb73f02c type-id=15753544493679569003 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td15 CoroutineStep<Choice> @scoop$1$td$abdecf0b732f7605d9474e41fad26a7b98b6c2c9c37d6c7544fc3837979f7e62 type-id=1207063211073699124 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
+  td td16 CoroutineSlot<Choice> @scoop$1$td$fbefa7a1d241b5cd5fb47cd43de783f5d7c78cc4ddd308362187f21fba0b5ea9 type-id=7712591950657226091 shape=BoxedValue minimum-size=48 align=8 parent=none vtable=[] itables=[]
+  layout Combined size=16 align=8 refs=[8]
+  layout Hidden size=4 align=4 refs=[]
+  layout CoroutineStep<Combined> size=24 align=8 enum-scan=refs[16]
+  layout CoroutineSlot<Combined> size=24 align=8 enum-scan=refs[16]
+  layout CoroutineStep<Holder> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Holder> size=8 align=8 enum-scan=refs[0]
+  layout Choice size=24 align=8 enum-scan=refs[16]
+  layout CoroutineStep<Choice> size=32 align=8 enum-scan=refs[24]
+  layout CoroutineSlot<Choice> size=32 align=8 enum-scan=refs[24]
+  layout CoroutineStep<Marker> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<Marker> size=8 align=8 enum-scan=refs[0]
+  layout Marker value size=8 align=8 refs=[0]
+  layout Holder value size=8 align=8 refs=[0]
+  layout Holder size=32 align=8 refs=[24]
+  layout box<Combined> value size=8 align=8 refs=[0]
+  layout box<Combined> size=32 align=8 refs=[24]
+  layout box<Choice> value size=8 align=8 refs=[0]
+  layout box<Choice> size=40 align=8 refs=[32]
+  layout Unit size=0 align=1 refs=[]
+  layout Int size=4 align=4 refs=[]
+  output library

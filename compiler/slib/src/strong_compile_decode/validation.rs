@@ -101,15 +101,12 @@ pub(crate) fn validate_strong_profile_lir_production(
             EntryProductionSourceV1::executable(bridge.source().clone())
         }
     };
-    let core_shape_sources = match front.hir_production.core_interface() {
-        CoreHirInterfaceBranchV1::NotCore => Vec::new(),
-        CoreHirInterfaceBranchV1::Core(_) => PublicNominalShapeRequirementsV1::from_direct_surface(
-            front.hir_production.direct_public_surface(),
-            front.hir_foundation.as_canonical(),
-        )
-        .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
-        .map_err(StrongProfileLirProductionError::ShapeSources)?,
-    };
+    let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
+        front.hir_production.direct_public_surface(),
+        front.hir_foundation.as_canonical(),
+    )
+    .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
+    .map_err(StrongProfileLirProductionError::ShapeSources)?;
     let lir = lir
         .validate(
             graph.coordinate().clone(),
@@ -117,7 +114,7 @@ pub(crate) fn validate_strong_profile_lir_production(
             front.lir_foundation,
             expected_external_bridges,
             entry_source,
-            &core_shape_sources,
+            &shape_sources,
             identities,
         )
         .map_err(StrongProfileLirProductionError::Production)?;

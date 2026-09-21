@@ -1,15 +1,18 @@
 //! Transient shape obligations derived from the shared public binding surface.
 
-use std::{collections::BTreeSet, fmt};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 use scoop_identity::{
-    BindableEntity, ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
+    BindableEntity, ConeIdentity, ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
     PersistentTypeId, SourceDeclarationKey,
 };
 
 use crate::{
     CanonicalDirectPublicSurfaceV1, CanonicalHirFoundation, CanonicalPublicExportBindingsV1,
-    ExportBindingSourceV1,
+    ExportBindingSourceV1, HirExportBindingIdentities,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -37,20 +40,28 @@ pub struct PublicNominalShapeRequirementsV1 {
 
 impl PublicNominalShapeRequirementsV1 {
     pub fn from_public_bindings(
+        producer: ConeIdentity,
         bindings: &CanonicalPublicExportBindingsV1,
+        identities: &HirExportBindingIdentities,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
-        Self::from_sources(
-            bindings
-                .records()
-                .iter()
-                .filter_map(|record| match record.source() {
-                    ExportBindingSourceV1::DeclaredCurrent {
-                        declaration: BindableEntity::Type(source),
-                    } => Some(*source),
-                    _ => None,
-                })
-                .collect(),
-        )
+        let keys = identities
+            .iter()
+            .map(|record| (record.id(), record.key()))
+            .collect::<BTreeMap<_, _>>();
+        let mut sources = BTreeSet::new();
+        for record in bindings.records() {
+            let key = keys.get(&record.binding()).ok_or(
+                PublicNominalShapeProjectionError::MissingBinding(record.binding()),
+            )?;
+            if key.exporter() == producer
+                && let ExportBindingSourceV1::DeclaredCurrent {
+                    declaration: BindableEntity::Type(source),
+                } = record.source()
+            {
+                sources.insert(*source);
+            }
+        }
+        Self::from_sources(sources)
     }
 
     pub fn from_direct_surface(

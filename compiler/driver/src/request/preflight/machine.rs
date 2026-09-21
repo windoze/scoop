@@ -50,19 +50,15 @@ impl CurrentConeMachineHir<'_> {
             &dependencies,
         )
         .map_err(CurrentConeMirStageError::CrossConeBridge)?;
-        let shapes = match self.output.output().local.materialization() {
-            scoop_hir::LocalConcreteMaterializationContract::Ordinary => {
-                scoop_mir::CoreShapeSupportSourceInput::NotCore
-            }
-            scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) => {
-                scoop_mir::CoreShapeSupportSourceInput::Core(
-                    plan.roots()
-                        .iter()
-                        .map(|root| root.declaration().clone())
-                        .collect(),
-                )
-            }
-        };
+        let shapes = self
+            .output
+            .output()
+            .local
+            .materialization()
+            .roots()
+            .iter()
+            .map(|root| root.declaration().clone())
+            .collect();
         let strong = scoop_mir::SingleConeStrongMirInput::try_new_with_dependencies(
             module,
             foundation,

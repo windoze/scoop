@@ -24,14 +24,12 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
     let requirements = scoop_hir::PublicNominalShapeRequirementsV1::from_public_bindings(
+        output.export.cone,
         &output.export.public_export_bindings,
+        &output.export.export_binding_identities,
     )
     .unwrap();
-    let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) =
-        output.local.materialization()
-    else {
-        panic!("the trusted core LocalConcrete output carries its strong shape plan")
-    };
+    let plan = output.local.materialization();
     assert_eq!(plan.roots().len(), requirements.roots().len());
     assert!(
         plan.roots()
@@ -39,12 +37,12 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
             .all(|root| { output.local.exact_type_identities[root.ty()].id() == root.exact() })
     );
     assert!(
-        plan.roots().iter().any(|root| {
-            root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::Required
-        })
+        plan.roots()
+            .iter()
+            .any(|root| { root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required })
     );
     assert!(plan.roots().iter().any(|root| {
-        root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::NotApplicable
+        root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::NotApplicable
     }));
 }
 

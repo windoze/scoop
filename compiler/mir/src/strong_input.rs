@@ -168,7 +168,7 @@ pub struct SingleConeStrongMaterializationPlan {
     imported_dependency_callable_roots: Vec<StrongImportedDependencyCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
-    core_shape_support_sources: Vec<SourceDeclarationKey>,
+    shape_support_sources: Vec<SourceDeclarationKey>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
     initialization_units: Vec<InitializationUnitId>,
@@ -214,8 +214,8 @@ impl SingleConeStrongMaterializationPlan {
             .find(|root| root.location() == location)
     }
 
-    pub fn core_shape_support_sources(&self) -> &[SourceDeclarationKey] {
-        &self.core_shape_support_sources
+    pub fn shape_support_sources(&self) -> &[SourceDeclarationKey] {
+        &self.shape_support_sources
     }
 
     pub fn extern_functions(&self) -> &[ExternFunctionId] {
@@ -251,17 +251,6 @@ pub struct SingleConeStrongMirInput {
     materialization: SingleConeStrongMaterializationPlan,
 }
 
-/// HIR-owned source declarations supplied to the MIR strong sealer.
-///
-/// The sealer resolves each declaration to its actual source and helper
-/// materializations before retaining the complete source demand for LIR.
-/// Production metadata does not carry a second copy of these roots.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CoreShapeSupportSourceInput {
-    NotCore,
-    Core(Vec<SourceDeclarationKey>),
-}
-
 /// Imported-core authority supplied to the strong MIR sealer.
 ///
 /// `Unused` is valid only when the graph has no imported-core arena entries.
@@ -288,14 +277,14 @@ impl SingleConeStrongMirInput {
         module: Module,
         foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
-        core_shape_support_sources: CoreShapeSupportSourceInput,
+        shape_support_sources: Vec<SourceDeclarationKey>,
         imported_core: StrongImportedCoreInput<'_>,
     ) -> Result<Self, SingleConeStrongMirInputError> {
         Self::try_new_with_dependencies(
             module,
             foundation,
             production,
-            core_shape_support_sources,
+            shape_support_sources,
             imported_core,
             StrongImportedDependencyInput::Unused,
         )
@@ -305,7 +294,7 @@ impl SingleConeStrongMirInput {
         module: Module,
         foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
-        core_shape_support_sources: CoreShapeSupportSourceInput,
+        shape_support_sources: Vec<SourceDeclarationKey>,
         imported_core: StrongImportedCoreInput<'_>,
         imported_dependencies: StrongImportedDependencyInput<'_>,
     ) -> Result<Self, SingleConeStrongMirInputError> {
@@ -367,19 +356,15 @@ impl SingleConeStrongMirInput {
         }
         generated_nominal_shapes.sort_unstable_by_key(|root| root.exact());
 
-        let core_shape_support_sources = shape_support::validate(
-            core_shape_support_sources,
-            production.core_bridge(),
-            &module,
-            &source_nominal_shapes,
-        )?;
+        let shape_support_sources =
+            shape_support::validate(shape_support_sources, &module, &source_nominal_shapes)?;
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             imported_core_callable_roots,
             imported_dependency_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
-            core_shape_support_sources,
+            shape_support_sources,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
             initialization_units: initialization_roots

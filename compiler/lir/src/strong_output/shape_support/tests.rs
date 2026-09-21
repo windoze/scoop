@@ -1,3 +1,5 @@
+mod providers;
+
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, CoreBuiltinNominal,
@@ -8,8 +10,7 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, DecodeLimits, encode};
 
 use super::{
-    StrongLirBoxedValueMaterialization, StrongLirCoreShapeSupportError,
-    StrongLirCoreShapeSupportPlan,
+    StrongLirBoxedValueMaterialization, StrongLirShapeSupportError, StrongLirShapeSupportPlan,
 };
 use crate::{
     CanonicalCAbiMetadata, EnumDefs, ExternFunctions, Layout, LayoutIdentity, LayoutKind, LirMeta,
@@ -29,7 +30,7 @@ fn complete_value_and_reference_roots_seal_with_their_closed_box_branches() {
     let mut sources = vec![unit, any];
     sources.sort_by_key(source_nominal);
 
-    let plan = StrongLirCoreShapeSupportPlan::from_module(&module, sources).unwrap();
+    let plan = StrongLirShapeSupportPlan::from_module(&module, sources).unwrap();
 
     assert_eq!(plan.roots().len(), 2);
     for root in plan.roots() {
@@ -66,16 +67,16 @@ fn complete_value_and_reference_roots_seal_with_their_closed_box_branches() {
 }
 
 #[test]
-fn non_core_output_rejects_core_shape_sources() {
+fn non_core_output_rejects_shape_sources() {
     let producer = ConeCoordinate::reserved_single_file().identity().unwrap();
     let module = fixture_module(producer);
 
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(
+        StrongLirShapeSupportPlan::from_module(
             &module,
             vec![CoreBuiltinNominal::Unit.declaration_key()],
         ),
-        Err(StrongLirCoreShapeSupportError::SourcesForNonCore)
+        Err(StrongLirShapeSupportError::InvalidSource { index: 0 })
     ));
 }
 
@@ -86,14 +87,14 @@ fn core_output_rejects_invalid_and_noncanonical_source_authority() {
     add_shape_support(&mut module, &unit, true);
 
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![unit.clone(), unit]),
-        Err(StrongLirCoreShapeSupportError::NonCanonicalSources { index: 1, .. })
+        StrongLirShapeSupportPlan::from_module(&module, vec![unit.clone(), unit]),
+        Err(StrongLirShapeSupportError::NonCanonicalSources { index: 1, .. })
     ));
 
     let generic = source_declaration(ConeIdentity::CORE, "Generic", SourceNominalKind::Class, 1);
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![generic]),
-        Err(StrongLirCoreShapeSupportError::InvalidSource { index: 0 })
+        StrongLirShapeSupportPlan::from_module(&module, vec![generic]),
+        Err(StrongLirShapeSupportError::InvalidSource { index: 0 })
     ));
 
     let foreign = source_declaration(
@@ -103,8 +104,8 @@ fn core_output_rejects_invalid_and_noncanonical_source_authority() {
         0,
     );
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![foreign]),
-        Err(StrongLirCoreShapeSupportError::InvalidSource { index: 0 })
+        StrongLirShapeSupportPlan::from_module(&module, vec![foreign]),
+        Err(StrongLirShapeSupportError::InvalidSource { index: 0 })
     ));
 }
 
@@ -115,8 +116,8 @@ fn core_output_rejects_missing_exact_layout_and_descriptor_materialization() {
 
     let module = fixture_module(ConeIdentity::CORE);
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![unit.clone()]),
-        Err(StrongLirCoreShapeSupportError::MissingExactType(found)) if found == exact
+        StrongLirShapeSupportPlan::from_module(&module, vec![unit.clone()]),
+        Err(StrongLirShapeSupportError::MissingExactType(found)) if found == exact
     ));
 
     let mut module = fixture_module(ConeIdentity::CORE);
@@ -125,8 +126,8 @@ fn core_output_rejects_missing_exact_layout_and_descriptor_materialization() {
         .exact_types
         .push(CborIdentityRecord::from_key(ExactTypeKey::Nominal(source_nominal(&unit))).unwrap());
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![unit.clone()]),
-        Err(StrongLirCoreShapeSupportError::ManagedValueLayoutSet {
+        StrongLirShapeSupportPlan::from_module(&module, vec![unit.clone()]),
+        Err(StrongLirShapeSupportError::ManagedValueLayoutSet {
             exact: found,
             actual,
         }) if found == exact && actual.is_empty()
@@ -135,8 +136,8 @@ fn core_output_rejects_missing_exact_layout_and_descriptor_materialization() {
     let mut module = fixture_module(ConeIdentity::CORE);
     add_layout_without_descriptor(&mut module, source_nominal(&unit));
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![unit]),
-        Err(StrongLirCoreShapeSupportError::TypeDescriptorSet {
+        StrongLirShapeSupportPlan::from_module(&module, vec![unit]),
+        Err(StrongLirShapeSupportError::TypeDescriptorSet {
             exact: found,
             actual: 0,
         }) if found == exact
@@ -154,8 +155,8 @@ fn core_output_rejects_reference_box_and_mismatched_descriptor_layout() {
         generated_nominal(GeneratedNominalKey::BoxedValue { payload: any_exact }),
     );
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![any]),
-        Err(StrongLirCoreShapeSupportError::UnexpectedBoxedValue(_))
+        StrongLirShapeSupportPlan::from_module(&module, vec![any]),
+        Err(StrongLirShapeSupportError::UnexpectedBoxedValue(_))
     ));
 
     let unit = CoreBuiltinNominal::Unit.declaration_key();
@@ -172,8 +173,8 @@ fn core_output_rejects_reference_box_and_mismatched_descriptor_layout() {
     module.meta.type_descriptors[descriptor].instance_layout =
         module.meta.layouts[anchor_layout].identity.clone();
     assert!(matches!(
-        StrongLirCoreShapeSupportPlan::from_module(&module, vec![unit]),
-        Err(StrongLirCoreShapeSupportError::DescriptorLayoutMismatch(found))
+        StrongLirShapeSupportPlan::from_module(&module, vec![unit]),
+        Err(StrongLirShapeSupportError::DescriptorLayoutMismatch(found))
             if found == unit_exact
     ));
 }

@@ -335,7 +335,7 @@ fn dependency_input(
         module,
         foundation,
         production,
-        mir::CoreShapeSupportSourceInput::NotCore,
+        Vec::new(),
         mir::StrongImportedCoreInput::Unused,
         mir::StrongImportedDependencyInput::Selected(&selected_mir),
     )

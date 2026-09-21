@@ -1,3 +1,15 @@
+  enum CoroutineStep<LocalDependencyHost>
+    Completed(value: LocalDependencyHost)
+    Suspended()
+  enum CoroutineSlot<LocalDependencyHost>
+    Empty()
+    Value(value: LocalDependencyHost)
+  enum CoroutineStep<DependencyCombinationHost>
+    Completed(value: DependencyCombinationHost)
+    Suspended()
+  enum CoroutineSlot<DependencyCombinationHost>
+    Empty()
+    Value(value: DependencyCombinationHost)
   class LocalDependencyHost vtable=0 itables=0
   class DependencyCombinationHost vtable=0 itables=0
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn37 captures=1
@@ -695,6 +707,10 @@
   fun init.DependencyCombinationHost.$c8 @fn61(this: DependencyCombinationHost) -> Unit
     bb0 entry
       return
+  coroutine_step cs0 CoroutineStep<LocalDependencyHost> result=LocalDependencyHost
+  coroutine_step cs1 CoroutineStep<DependencyCombinationHost> result=DependencyCombinationHost
+  coroutine_slot cl0 CoroutineSlot<LocalDependencyHost> value=LocalDependencyHost
+  coroutine_slot cl1 CoroutineSlot<DependencyCombinationHost> value=DependencyCombinationHost
   instance mi0 function=@fn24 <- localDependency
   instance mi1 function=@fn25 <- localDependency
   instance mi2 function=@fn26 <- dependencyReference

@@ -36,20 +36,9 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     Concretizer::new(module).run()
 }
 
-pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalConcreteHirOutput {
-    lower_output_with_contract(output, None)
-}
-
-pub(crate) fn lower_core_output(
+pub(crate) fn lower_output(
     output: &export::ExportHirOutput,
     requirements: &export::PublicNominalShapeRequirementsV1,
-) -> export::LocalConcreteHirOutput {
-    lower_output_with_contract(output, Some(requirements))
-}
-
-fn lower_output_with_contract(
-    output: &export::ExportHirOutput,
-    requirements: Option<&export::PublicNominalShapeRequirementsV1>,
 ) -> export::LocalConcreteHirOutput {
     let module = output.module();
     export::validate_iteration_plans(module)
@@ -72,15 +61,8 @@ fn lower_output_with_contract(
             )
         }
     };
-    let materialization = requirements.map_or(
-        export::LocalConcreteMaterializationContract::Ordinary,
-        |requirements| {
-            export::LocalConcreteMaterializationContract::CoreShapeSupport(
-                export::LocalCoreShapeSupportPlan::try_new(&module, requirements)
-                    .expect("validated core shape roots survive concretization"),
-            )
-        },
-    );
+    let materialization = export::LocalShapeSupportPlan::try_new(&module, requirements)
+        .expect("validated public shape roots survive concretization");
     export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
         .expect("concretization produces a structurally valid closed output")
 }

@@ -169,8 +169,8 @@ impl TrustedCoreBootstrapLirOutput {
         self.lir.foundation()
     }
 
-    pub const fn core_shape_support(&self) -> &scoop_lir::StrongLirCoreShapeSupportPlan {
-        self.lir.core_shape_support()
+    pub const fn shape_support(&self) -> &scoop_lir::StrongLirShapeSupportPlan {
+        self.lir.shape_support()
     }
 
     /// Seals all three IR foundations under the strong profile's `RejectAll`

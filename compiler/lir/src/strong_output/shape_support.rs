@@ -48,10 +48,10 @@ pub enum StrongLirBoxedValueMaterialization {
     NotApplicable,
 }
 
-/// One authoritative core source root and all non-callable LIR shapes that
+/// One local source root and all non-callable LIR shapes that
 /// M23-3 requires before the production section can be built.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongLirCoreShapeSupportRoot {
+pub struct StrongLirShapeSupportRoot {
     declaration: SourceDeclarationKey,
     source: StrongLirExactShapeMaterialization,
     boxed_value: StrongLirBoxedValueMaterialization,
@@ -59,7 +59,7 @@ pub struct StrongLirCoreShapeSupportRoot {
     coroutine_slot: StrongLirExactShapeMaterialization,
 }
 
-impl StrongLirCoreShapeSupportRoot {
+impl StrongLirShapeSupportRoot {
     pub const fn declaration(&self) -> &SourceDeclarationKey {
         &self.declaration
     }
@@ -81,34 +81,25 @@ impl StrongLirCoreShapeSupportRoot {
     }
 }
 
-/// Producer-derived branch retained by a sealed strong LIR output.
+/// Complete shape plan retained by a sealed strong LIR output.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StrongLirCoreShapeSupportPlan {
-    NotCore,
-    Core(Vec<StrongLirCoreShapeSupportRoot>),
+pub struct StrongLirShapeSupportPlan {
+    roots: Vec<StrongLirShapeSupportRoot>,
 }
 
-impl StrongLirCoreShapeSupportPlan {
+impl StrongLirShapeSupportPlan {
     pub(super) fn from_module(
         module: &Module,
         sources: Vec<SourceDeclarationKey>,
-    ) -> Result<Self, StrongLirCoreShapeSupportError> {
-        if module.cone != scoop_identity::ConeIdentity::CORE {
-            return if sources.is_empty() {
-                Ok(Self::NotCore)
-            } else {
-                Err(StrongLirCoreShapeSupportError::SourcesForNonCore)
-            };
-        }
-
+    ) -> Result<Self, StrongLirShapeSupportError> {
         let mut roots = Vec::with_capacity(sources.len());
         let mut previous = None;
         for (index, declaration) in sources.into_iter().enumerate() {
-            validate_source(index, &declaration)?;
+            validate_source(index, &declaration, module.cone)?;
             let source = PersistentTypeId::from_source_declaration(&declaration)
-                .map_err(|error| StrongLirCoreShapeSupportError::SourceIdentity { index, error })?;
+                .map_err(|error| StrongLirShapeSupportError::SourceIdentity { index, error })?;
             if previous.is_some_and(|previous| previous >= source) {
-                return Err(StrongLirCoreShapeSupportError::NonCanonicalSources {
+                return Err(StrongLirShapeSupportError::NonCanonicalSources {
                     index,
                     previous: previous.expect("the non-canonical branch has a predecessor"),
                     current: source,
@@ -139,12 +130,12 @@ impl StrongLirCoreShapeSupportPlan {
                         .iter()
                         .any(|record| record.id() == exact)
                     {
-                        return Err(StrongLirCoreShapeSupportError::UnexpectedBoxedValue(exact));
+                        return Err(StrongLirShapeSupportError::UnexpectedBoxedValue(exact));
                     }
                     StrongLirBoxedValueMaterialization::NotApplicable
                 }
                 _ => {
-                    return Err(StrongLirCoreShapeSupportError::InvalidSource { index });
+                    return Err(StrongLirShapeSupportError::InvalidSource { index });
                 }
             };
             let coroutine_step = generated_exact_shape(
@@ -159,7 +150,7 @@ impl StrongLirCoreShapeSupportPlan {
                     value: source_shape.exact(),
                 },
             )?;
-            roots.push(StrongLirCoreShapeSupportRoot {
+            roots.push(StrongLirShapeSupportRoot {
                 declaration,
                 source: source_shape,
                 boxed_value,
@@ -167,14 +158,11 @@ impl StrongLirCoreShapeSupportPlan {
                 coroutine_slot,
             });
         }
-        Ok(Self::Core(roots))
+        Ok(Self { roots })
     }
 
-    pub fn roots(&self) -> &[StrongLirCoreShapeSupportRoot] {
-        match self {
-            Self::NotCore => &[],
-            Self::Core(roots) => roots,
-        }
+    pub fn roots(&self) -> &[StrongLirShapeSupportRoot] {
+        &self.roots
     }
 
     pub(super) fn source_declarations(&self) -> Vec<SourceDeclarationKey> {
@@ -188,12 +176,13 @@ impl StrongLirCoreShapeSupportPlan {
 fn validate_source(
     index: usize,
     source: &SourceDeclarationKey,
-) -> Result<(), StrongLirCoreShapeSupportError> {
-    if source.origin() != scoop_identity::ConeIdentity::CORE
+    producer: scoop_identity::ConeIdentity,
+) -> Result<(), StrongLirShapeSupportError> {
+    if source.origin() != producer
         || !source.declaration_kind().is_nominal()
         || source.duplicate_signature().type_parameter_count() != 0
     {
-        return Err(StrongLirCoreShapeSupportError::InvalidSource { index });
+        return Err(StrongLirShapeSupportError::InvalidSource { index });
     }
     Ok(())
 }
@@ -201,35 +190,35 @@ fn validate_source(
 fn generated_exact_shape(
     module: &Module,
     key: GeneratedNominalKey,
-) -> Result<StrongLirExactShapeMaterialization, StrongLirCoreShapeSupportError> {
+) -> Result<StrongLirExactShapeMaterialization, StrongLirShapeSupportError> {
     let nominal = PersistentTypeId::from_generated_key(&key)
-        .map_err(StrongLirCoreShapeSupportError::GeneratedNominalIdentity)?;
+        .map_err(StrongLirShapeSupportError::GeneratedNominalIdentity)?;
     exact_shape(module, nominal)
 }
 
 fn generated_exact_identity(
     key: GeneratedNominalKey,
-) -> Result<PersistentExactTypeId, StrongLirCoreShapeSupportError> {
+) -> Result<PersistentExactTypeId, StrongLirShapeSupportError> {
     let nominal = PersistentTypeId::from_generated_key(&key)
-        .map_err(StrongLirCoreShapeSupportError::GeneratedNominalIdentity)?;
+        .map_err(StrongLirShapeSupportError::GeneratedNominalIdentity)?;
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
-        .map_err(StrongLirCoreShapeSupportError::Hash)
+        .map_err(StrongLirShapeSupportError::Hash)
 }
 
 fn exact_shape(
     module: &Module,
     nominal: PersistentTypeId,
-) -> Result<StrongLirExactShapeMaterialization, StrongLirCoreShapeSupportError> {
+) -> Result<StrongLirExactShapeMaterialization, StrongLirShapeSupportError> {
     let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal))
-        .map_err(StrongLirCoreShapeSupportError::Hash)?;
+        .map_err(StrongLirShapeSupportError::Hash)?;
     let exact_record = module
         .meta
         .exact_types
         .iter()
         .find(|record| record.id() == exact)
-        .ok_or(StrongLirCoreShapeSupportError::MissingExactType(exact))?;
+        .ok_or(StrongLirShapeSupportError::MissingExactType(exact))?;
     if exact_record.key() != &ExactTypeKey::Nominal(nominal) {
-        return Err(StrongLirCoreShapeSupportError::ExactTypeMismatch { exact, nominal });
+        return Err(StrongLirShapeSupportError::ExactTypeMismatch { exact, nominal });
     }
 
     let layouts = module
@@ -243,7 +232,7 @@ fn exact_shape(
         })
         .collect::<Vec<_>>();
     let [layout] = layouts.as_slice() else {
-        return Err(StrongLirCoreShapeSupportError::ManagedValueLayoutSet {
+        return Err(StrongLirShapeSupportError::ManagedValueLayoutSet {
             exact,
             actual: layouts
                 .iter()
@@ -254,7 +243,7 @@ fn exact_shape(
     if layout.scan_record().key().layout() != layout.layout_record().id()
         || layout.scan_record().key().role() != ScanRole::InlineValue
     {
-        return Err(StrongLirCoreShapeSupportError::InvalidInlineScan(exact));
+        return Err(StrongLirShapeSupportError::InvalidInlineScan(exact));
     }
 
     let descriptors = module
@@ -266,7 +255,7 @@ fn exact_shape(
         })
         .collect::<Vec<_>>();
     let [descriptor] = descriptors.as_slice() else {
-        return Err(StrongLirCoreShapeSupportError::TypeDescriptorSet {
+        return Err(StrongLirShapeSupportError::TypeDescriptorSet {
             exact,
             actual: descriptors.len(),
         });
@@ -278,9 +267,7 @@ fn exact_shape(
         .exact_type()
         != exact
     {
-        return Err(StrongLirCoreShapeSupportError::DescriptorLayoutMismatch(
-            exact,
-        ));
+        return Err(StrongLirShapeSupportError::DescriptorLayoutMismatch(exact));
     }
 
     Ok(StrongLirExactShapeMaterialization {
@@ -293,8 +280,7 @@ fn exact_shape(
 }
 
 #[derive(Debug)]
-pub enum StrongLirCoreShapeSupportError {
-    SourcesForNonCore,
+pub enum StrongLirShapeSupportError {
     InvalidSource {
         index: usize,
     },
@@ -327,23 +313,22 @@ pub enum StrongLirCoreShapeSupportError {
     UnexpectedBoxedValue(PersistentExactTypeId),
 }
 
-impl fmt::Display for StrongLirCoreShapeSupportError {
+impl fmt::Display for StrongLirShapeSupportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "cannot seal core shape-support LIR materialization: {self:?}"
+            "cannot seal shape-support LIR materialization: {self:?}"
         )
     }
 }
 
-impl std::error::Error for StrongLirCoreShapeSupportError {
+impl std::error::Error for StrongLirShapeSupportError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::SourceIdentity { error, .. } => Some(error),
             Self::GeneratedNominalIdentity(error) => Some(error),
             Self::Hash(error) => Some(error),
-            Self::SourcesForNonCore
-            | Self::InvalidSource { .. }
+            Self::InvalidSource { .. }
             | Self::NonCanonicalSources { .. }
             | Self::MissingExactType(_)
             | Self::ExactTypeMismatch { .. }

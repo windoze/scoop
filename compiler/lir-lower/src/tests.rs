@@ -207,7 +207,7 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
         module,
         foundation,
         production,
-        mir::CoreShapeSupportSourceInput::NotCore,
+        Vec::new(),
         mir::StrongImportedCoreInput::Unused,
     )
     .unwrap()

@@ -184,32 +184,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     .unwrap()
     .roots()
     .len();
-    let missing_source_module = scoop_mir_lower::lower(&output.hir().local).unwrap();
-    let missing_source_foundation =
-        scoop_mir::OdrFreeMirFoundation::from_module(&missing_source_module).unwrap();
-    let missing_source_production = scoop_mir_lower::lower_production_section(
-        missing_source_module.cone,
-        output.production_section(),
-        &missing_source_foundation,
-    )
-    .unwrap();
-    assert!(matches!(
-        scoop_mir::SingleConeStrongMirInput::try_new(
-            missing_source_module,
-            missing_source_foundation,
-            missing_source_production,
-            scoop_mir::CoreShapeSupportSourceInput::NotCore,
-            scoop_mir::StrongImportedCoreInput::Unused,
-        ),
-        Err(scoop_mir::SingleConeStrongMirInputError::CoreShapeSupportSourceBranchMismatch)
-    ));
     let real_mir = output.lower_mir().unwrap();
     assert_eq!(real_mir.mir().cone, scoop_identity::ConeIdentity::CORE);
-    let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_plan) =
-        real_mir.hir().hir().local.materialization()
-    else {
-        panic!("trusted core MIR retains the authoritative local shape plan")
-    };
+    let shape_plan = real_mir.hir().hir().local.materialization();
     assert_eq!(shape_plan.roots().len(), expected_shape_roots);
     for root in shape_plan.roots() {
         let exact = root.exact();
@@ -235,7 +212,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         });
         assert_eq!(
             boxed,
-            root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::Required
+            root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required
         );
     }
     let scoop_mir::CoreMirBridgeBranchV1::Core(real_core_bridge) =
@@ -253,7 +230,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         real_mir.mir().top_level.len()
     );
     assert_eq!(
-        real_mir.materialization_plan().core_shape_support_sources(),
+        real_mir.materialization_plan().shape_support_sources(),
         shape_plan
             .roots()
             .iter()
@@ -285,11 +262,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let real_lir = real_mir
         .lower_lir(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
         .unwrap();
-    let scoop_lir::StrongLirCoreShapeSupportPlan::Core(lir_shape_roots) =
-        real_lir.core_shape_support()
-    else {
-        panic!("trusted core LIR retains its validated core shape plan")
-    };
+    let lir_shape_roots = real_lir.shape_support().roots();
     assert_eq!(lir_shape_roots.len(), expected_shape_roots);
     for (root, authority) in lir_shape_roots.iter().zip(&expected_lir_shape_roots) {
         assert_eq!(

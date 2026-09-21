@@ -1,10 +1,10 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn materialize_core_shape_types(
+    pub(super) fn materialize_shape_types(
         &mut self,
         module: &hir::Module,
-        roots: &[scoop_hir::LocalCoreShapeSupportRoot],
+        roots: &[scoop_hir::LocalShapeSupportRoot],
     ) {
         for root in roots {
             let value = Types {
@@ -23,15 +23,15 @@ impl Lowerer {
             assert_eq!(
                 self.source_exact_types
                     .get(&value)
-                    .expect("a core shape root crosses the HIR to MIR boundary")
+                    .expect("a local shape root crosses the HIR to MIR boundary")
                     .identity_record()
                     .id(),
                 root.exact(),
-                "the local core shape plan preserves its exact identity"
+                "the local shape plan preserves its exact identity"
             );
 
-            if root.boxed_value() == scoop_hir::LocalCoreBoxedValueRequirement::Required {
-                self.materialize_core_box(module, root.ty(), &value, root.exact());
+            if root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required {
+                self.materialize_shape_box(module, root.ty(), &value, root.exact());
             }
             self.coroutines.step_for(
                 &self.source_exact_types,
@@ -50,7 +50,7 @@ impl Lowerer {
         }
     }
 
-    fn materialize_core_box(
+    fn materialize_shape_box(
         &mut self,
         module: &hir::Module,
         source: hir::TypeId,
@@ -68,7 +68,7 @@ impl Lowerer {
             | hir::TypeKind::Boolean
             | hir::TypeKind::Ptr(_)
             | hir::TypeKind::FunPtr(_) => &[],
-            _ => unreachable!("only source struct and enum declarations have core boxes"),
+            _ => unreachable!("only source struct and enum declarations have shape-support boxes"),
         };
         for &interface in declared_interfaces {
             let lowered = Types {

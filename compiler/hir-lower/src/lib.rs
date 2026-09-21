@@ -433,20 +433,18 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let local = if export.module().cone == scoop_identity::ConeIdentity::CORE {
-        let requirements = hir::PublicNominalShapeRequirementsV1::from_public_bindings(
-            &export.public_export_bindings,
-        )
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to project public nominal shapes: {error}"),
-            )]
-        })?;
-        concretize::lower_core_output(&export, &requirements)
-    } else {
-        concretize::lower_output(&export)
-    };
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_public_bindings(
+        export.cone,
+        &export.public_export_bindings,
+        &export.export_binding_identities,
+    )
+    .map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to project public nominal shapes: {error}"),
+        )]
+    })?;
+    let local = concretize::lower_output(&export, &requirements);
     let native_boundary_types = crate::persistent_native_boundary::build(
         export.module(),
         local.module(),
@@ -556,7 +554,13 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
 pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
-    concretize::lower_output(export)
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_public_bindings(
+        export.cone,
+        &export.public_export_bindings,
+        &export.export_binding_identities,
+    )
+    .expect("checked HIR public bindings have valid nominal identities");
+    concretize::lower_output(export, &requirements)
 }
 
 #[derive(Clone)]
