@@ -1,3 +1,5 @@
+mod shape_sources;
+
 use super::*;
 
 #[test]
@@ -105,7 +107,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
             output.production_section(),
-            output.foundation(),
             &empty_mir_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::MissingInitializationCycleThrower)
@@ -119,7 +120,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let minimal_production = scoop_mir_lower::lower_production_section(
         scoop_identity::ConeIdentity::CORE,
         output.production_section(),
-        output.foundation(),
         &minimal_foundation,
     )
     .unwrap();
@@ -160,7 +160,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
             output.production_section(),
-            output.foundation(),
             &mismatched_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
@@ -170,7 +169,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::SINGLE_FILE,
             output.production_section(),
-            output.foundation(),
             &minimal_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::Production(
@@ -192,7 +190,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let missing_source_production = scoop_mir_lower::lower_production_section(
         missing_source_module.cone,
         output.production_section(),
-        output.foundation(),
         &missing_source_foundation,
     )
     .unwrap();
@@ -252,16 +249,8 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     );
     assert!(expected_shape_roots > 0);
     assert_eq!(
-        real_core_bridge.shape_support_roots().len(),
-        expected_shape_roots
-    );
-    assert_eq!(
         real_mir.materialization_plan().callable_roots().len(),
         real_mir.mir().top_level.len()
-    );
-    assert_eq!(
-        real_mir.materialization_plan().core_shape_support_roots(),
-        real_core_bridge.shape_support_roots()
     );
     assert_eq!(
         real_mir.materialization_plan().core_shape_support_sources(),
@@ -292,7 +281,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .len(),
         real_mir.mir().meta.callable_signatures.len()
     );
-    let expected_lir_shape_roots = real_core_bridge.shape_support_roots().to_vec();
+    let expected_lir_shape_roots = shape_plan.roots().to_vec();
     let real_lir = real_mir
         .lower_lir(scoop_lir::LirTargetProfile::DARWIN_AARCH64)
         .unwrap();

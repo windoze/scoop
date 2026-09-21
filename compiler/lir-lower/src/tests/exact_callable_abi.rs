@@ -39,15 +39,13 @@ fn fixture() -> (
             .clone(),
         module.functions[function].gc_effect,
     );
-    let core = mir::CoreMirBridgeV1::try_new(
-        vec![],
+    let core = mir::CoreMirBridgeV1::new(
         mir::CoreMirInitializationCycleThrowerV1::new(
             cycle_owner,
             scoop_identity::CallableOwner::Function(cycle_owner),
         )
         .unwrap(),
-    )
-    .unwrap();
+    );
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         mir::CoreMirBridgeBranchV1::Core(core),

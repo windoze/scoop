@@ -28,12 +28,10 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         .unwrap()
         .signature()
         .clone();
-    let core = mir::CoreMirBridgeV1::try_new(
-        Vec::new(),
+    let core = mir::CoreMirBridgeV1::new(
         mir::CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
             .unwrap(),
-    )
-    .unwrap();
+    );
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         mir::CoreMirBridgeBranchV1::Core(core),
@@ -111,13 +109,9 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         .clone();
     let core_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        mir::CoreMirBridgeBranchV1::Core(
-            mir::CoreMirBridgeV1::try_new(
-                Vec::new(),
-                mir::CoreMirInitializationCycleThrowerV1::new(definition, implementation).unwrap(),
-            )
-            .unwrap(),
-        ),
+        mir::CoreMirBridgeBranchV1::Core(mir::CoreMirBridgeV1::new(
+            mir::CoreMirInitializationCycleThrowerV1::new(definition, implementation).unwrap(),
+        )),
         mir::EntryMirBridgeBranchV1::Library,
         strong,
     )

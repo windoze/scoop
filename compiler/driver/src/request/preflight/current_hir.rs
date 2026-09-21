@@ -70,7 +70,6 @@ impl CurrentConeHirArtifacts {
     pub fn machine_input(&self) -> super::machine::CurrentConeMachineHir<'_> {
         super::machine::CurrentConeMachineHir {
             output: &self.hir,
-            foundation: &self.foundation,
             production: &self.production_section,
             public: &self.cross_cone_section,
             classifier: &self.core_classifier,

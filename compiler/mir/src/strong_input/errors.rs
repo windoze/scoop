@@ -52,9 +52,10 @@ pub enum SingleConeStrongMirInputError {
     StrongCallableSurfaceMismatch,
     CoreBranchMismatch,
     CoreShapeSupportSourceBranchMismatch,
-    CoreShapeSupportSourceCountMismatch {
-        expected: usize,
-        actual: usize,
+    NonCanonicalCoreShapeSupportSource {
+        index: usize,
+        previous: PersistentTypeId,
+        current: PersistentTypeId,
     },
     InvalidCoreShapeSupportSource {
         index: usize,
@@ -67,7 +68,6 @@ pub enum SingleConeStrongMirInputError {
         index: usize,
         error: HashError,
     },
-    CoreShapeSupportSourceMismatch(Box<CoreShapeSupportSourceMismatch>),
     MissingCallableSubject(FunctionId),
     OdrCallableSubject(FunctionId),
     OdrGeneratedNominalShape(GeneratedExactTypeLocation),
@@ -92,21 +92,10 @@ pub enum SingleConeStrongMirInputError {
 
 impl fmt::Display for SingleConeStrongMirInputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::CoreShapeSupportSourceMismatch(mismatch) => write!(
-                formatter,
-                "cannot seal single-Cone strong MIR input: core shape source {} expected source {:?} exact {:?}, found source {:?} exact {:?}",
-                mismatch.index,
-                mismatch.expected_source,
-                mismatch.expected_exact,
-                mismatch.actual_source,
-                mismatch.actual_exact,
-            ),
-            _ => write!(
-                formatter,
-                "cannot seal single-Cone strong MIR input: {self:?}"
-            ),
-        }
+        write!(
+            formatter,
+            "cannot seal single-Cone strong MIR input: {self:?}"
+        )
     }
 }
 
@@ -134,9 +123,8 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch
             | Self::CoreShapeSupportSourceBranchMismatch
-            | Self::CoreShapeSupportSourceCountMismatch { .. }
+            | Self::NonCanonicalCoreShapeSupportSource { .. }
             | Self::InvalidCoreShapeSupportSource { .. }
-            | Self::CoreShapeSupportSourceMismatch(_)
             | Self::MissingCallableSubject(_)
             | Self::OdrCallableSubject(_)
             | Self::OdrGeneratedNominalShape(_)
@@ -150,13 +138,4 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::EntryImplementationMismatch { .. } => None,
         }
     }
-}
-
-#[derive(Debug)]
-pub struct CoreShapeSupportSourceMismatch {
-    pub(super) index: usize,
-    pub(super) expected_source: PersistentTypeId,
-    pub(super) expected_exact: PersistentExactTypeId,
-    pub(super) actual_source: PersistentTypeId,
-    pub(super) actual_exact: PersistentExactTypeId,
 }

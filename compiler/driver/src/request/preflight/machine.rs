@@ -5,7 +5,6 @@ pub use errors::{CurrentConeLirStageError, CurrentConeMirStageError};
 
 pub(super) struct CurrentConeMachineHir<'a> {
     pub output: &'a scoop_hir::DependencyHirOutput,
-    pub foundation: &'a scoop_hir::CanonicalHirFoundation,
     pub production: &'a scoop_hir::CoreBootstrapInterfaceSectionV1,
     pub public: &'a scoop_hir::CrossConeHirInterfaceSectionV1,
     pub classifier: &'a scoop_hir::CoreClosedExactLeafClassifierV1,
@@ -40,13 +39,9 @@ impl CurrentConeMachineHir<'_> {
         let (module, protocols, dependencies) = mir.into_parts();
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)
             .map_err(CurrentConeMirStageError::Foundation)?;
-        let production = scoop_mir_lower::lower_production_section(
-            module.cone,
-            self.production,
-            self.foundation,
-            &foundation,
-        )
-        .map_err(CurrentConeMirStageError::ProductionSection)?;
+        let production =
+            scoop_mir_lower::lower_production_section(module.cone, self.production, &foundation)
+                .map_err(CurrentConeMirStageError::ProductionSection)?;
         let public = scoop_mir_lower::lower_cross_cone_bridge_section(
             module.cone,
             self.public,

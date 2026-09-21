@@ -126,8 +126,6 @@ pub enum StrongProfileRelationError {
     ShapeSources(PublicNominalShapeProjectionError),
     OutputMismatch,
     CoreBranchMismatch,
-    CoreShapeRootCoverage { expected: usize, actual: usize },
-    CoreShapeRootMismatch { index: usize },
     InvalidInitializationCycleDefinition,
     InitializationCycleMismatch,
     MissingInitializationCycleSignature,

@@ -163,17 +163,12 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
     ));
 
     let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
-    let mir = scoop_mir::CoreMirBridgeBranchV1::Core(
-        scoop_mir::CoreMirBridgeV1::try_new(Vec::new(), test_cycle_thrower()).unwrap(),
-    );
+    let mir = scoop_mir::CoreMirBridgeBranchV1::Core(scoop_mir::CoreMirBridgeV1::new(
+        test_cycle_thrower(),
+    ));
     let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
     assert_eq!(
-        validate_core_relation(
-            &hir,
-            &mir,
-            &strong,
-            &PublicNominalShapeRequirementsV1::from_public_bindings(&Default::default()).unwrap()
-        ),
+        validate_core_relation(&hir, &mir, &strong,),
         Err(StrongProfileRelationError::CoreBranchMismatch)
     );
 }

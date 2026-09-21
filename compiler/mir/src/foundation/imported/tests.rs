@@ -81,14 +81,10 @@ fn selected_callable_derives_the_only_strong_implementation() {
     let other_foundation = imported_foundation(canonical);
     let production = CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        CoreMirBridgeBranchV1::Core(
-            CoreMirBridgeV1::try_new(
-                Vec::new(),
-                CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
-                    .unwrap(),
-            )
-            .unwrap(),
-        ),
+        CoreMirBridgeBranchV1::Core(CoreMirBridgeV1::new(
+            CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
+                .unwrap(),
+        )),
         EntryMirBridgeBranchV1::Library,
         StrongCallableBridgeSurfaceV1::try_new(vec![
             StrongCallableBridgeV1::new(implementation, signature.clone()),

@@ -34,12 +34,10 @@ pub(super) fn fixture() -> Fixture {
     )
     .unwrap();
     let (cycle, _) = add_function_to(&mut types, ConeIdentity::CORE, "cycle");
-    let core = crate::CoreMirBridgeV1::try_new(
-        vec![crate::CoreMirShapeSupportRootV1::new(types.empty.id(), types.payload.id()).unwrap()],
+    let core = crate::CoreMirBridgeV1::new(
         crate::CoreMirInitializationCycleThrowerV1::new(cycle, CallableOwner::Function(cycle))
             .unwrap(),
-    )
-    .unwrap();
+    );
     let production = crate::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
         crate::CoreMirBridgeBranchV1::Core(core),

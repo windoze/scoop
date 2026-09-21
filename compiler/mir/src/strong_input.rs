@@ -8,11 +8,11 @@ use scoop_identity::{
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
-    CoreMirBridgeBranchV1, CoreMirShapeSupportRootV1, EntryMirBridgeBranchV1, ExternFunctionId,
-    FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
-    ImportedCoreCallableUseId, ImportedDependencyMirCallableId, InitializationUnitId, MirOutput,
-    Module, ObjectId, OdrFreeMirFoundation, SelectedDependencyMirSet, SelectedImportedMirSet,
-    SourceExactTypeOwner, StringConstId, Type,
+    CoreMirBridgeBranchV1, EntryMirBridgeBranchV1, ExternFunctionId, FunctionId,
+    GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId, ImportedCoreCallableUseId,
+    ImportedDependencyMirCallableId, InitializationUnitId, MirOutput, Module, ObjectId,
+    OdrFreeMirFoundation, SelectedDependencyMirSet, SelectedImportedMirSet, SourceExactTypeOwner,
+    StringConstId, Type,
 };
 
 mod errors;
@@ -24,6 +24,7 @@ pub use initialization::{
     StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
 };
 mod imported_core;
+mod shape_support;
 use imported_core::validate_imported_core_callables;
 mod imported_dependency;
 use imported_dependency::validate_imported_dependency_callables;
@@ -167,7 +168,6 @@ pub struct SingleConeStrongMaterializationPlan {
     imported_dependency_callable_roots: Vec<StrongImportedDependencyCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
-    core_shape_support_roots: Vec<CoreMirShapeSupportRootV1>,
     core_shape_support_sources: Vec<SourceDeclarationKey>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
@@ -214,10 +214,6 @@ impl SingleConeStrongMaterializationPlan {
             .find(|root| root.location() == location)
     }
 
-    pub fn core_shape_support_roots(&self) -> &[CoreMirShapeSupportRootV1] {
-        &self.core_shape_support_roots
-    }
-
     pub fn core_shape_support_sources(&self) -> &[SourceDeclarationKey] {
         &self.core_shape_support_sources
     }
@@ -257,9 +253,9 @@ pub struct SingleConeStrongMirInput {
 
 /// HIR-owned source declarations supplied to the MIR strong sealer.
 ///
-/// This is an untrusted boundary input. The sealer re-derives every source
-/// and exact identity and requires exact equality with the canonical MIR core
-/// bridge before retaining the declarations in its materialization plan.
+/// The sealer resolves each declaration to its actual source and helper
+/// materializations before retaining the complete source demand for LIR.
+/// Production metadata does not carry a second copy of these roots.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreShapeSupportSourceInput {
     NotCore,
@@ -371,69 +367,18 @@ impl SingleConeStrongMirInput {
         }
         generated_nominal_shapes.sort_unstable_by_key(|root| root.exact());
 
-        let core_shape_support_roots = match production.core_bridge() {
-            CoreMirBridgeBranchV1::NotCore => Vec::new(),
-            CoreMirBridgeBranchV1::Core(core) => core.shape_support_roots().to_vec(),
-        };
-        let core_shape_support_sources = validate_core_shape_support_sources(
+        let core_shape_support_sources = shape_support::validate(
             core_shape_support_sources,
             production.core_bridge(),
-            &core_shape_support_roots,
+            &module,
+            &source_nominal_shapes,
         )?;
-        for root in &core_shape_support_roots {
-            let source_shape = source_nominal_shapes
-                .iter()
-                .find(|shape| shape.source() == root.source() && shape.exact() == root.exact());
-            let Some(source_shape) = source_shape else {
-                return Err(
-                    SingleConeStrongMirInputError::MissingCoreShapeSupportSource {
-                        source: root.source(),
-                        exact: root.exact(),
-                    },
-                );
-            };
-            if !module
-                .meta
-                .coroutine_steps
-                .iter()
-                .any(|(_, step)| step.identity().result_record().id() == root.exact())
-            {
-                return Err(SingleConeStrongMirInputError::MissingCoreCoroutineStep(
-                    root.exact(),
-                ));
-            }
-            if !module
-                .meta
-                .coroutine_slots
-                .iter()
-                .any(|(_, slot)| slot.identity().value_record().id() == root.exact())
-            {
-                return Err(SingleConeStrongMirInputError::MissingCoreCoroutineSlot(
-                    root.exact(),
-                ));
-            }
-            if matches!(
-                source_shape.ty(),
-                Type::Unit | Type::Integer(_) | Type::Boolean | Type::Struct(_) | Type::Enum(_, _)
-            ) && !module.meta.boxed_types.iter().any(|boxed| {
-                matches!(
-                    boxed.identity().generated_type_record().key(),
-                    scoop_identity::GeneratedNominalKey::BoxedValue { payload }
-                        if *payload == root.exact()
-                )
-            }) {
-                return Err(SingleConeStrongMirInputError::MissingCoreBoxedValue(
-                    root.exact(),
-                ));
-            }
-        }
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             imported_core_callable_roots,
             imported_dependency_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
-            core_shape_support_roots,
             core_shape_support_sources,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
@@ -468,60 +413,6 @@ impl SingleConeStrongMirInput {
     pub const fn materialization(&self) -> &SingleConeStrongMaterializationPlan {
         &self.materialization
     }
-}
-
-fn validate_core_shape_support_sources(
-    input: CoreShapeSupportSourceInput,
-    branch: &CoreMirBridgeBranchV1,
-    roots: &[CoreMirShapeSupportRootV1],
-) -> Result<Vec<SourceDeclarationKey>, SingleConeStrongMirInputError> {
-    let sources = match (input, branch) {
-        (CoreShapeSupportSourceInput::NotCore, CoreMirBridgeBranchV1::NotCore) => {
-            return Ok(Vec::new());
-        }
-        (CoreShapeSupportSourceInput::Core(sources), CoreMirBridgeBranchV1::Core(_)) => sources,
-        (CoreShapeSupportSourceInput::NotCore, CoreMirBridgeBranchV1::Core(_))
-        | (CoreShapeSupportSourceInput::Core(_), CoreMirBridgeBranchV1::NotCore) => {
-            return Err(SingleConeStrongMirInputError::CoreShapeSupportSourceBranchMismatch);
-        }
-    };
-    if sources.len() != roots.len() {
-        return Err(
-            SingleConeStrongMirInputError::CoreShapeSupportSourceCountMismatch {
-                expected: roots.len(),
-                actual: sources.len(),
-            },
-        );
-    }
-    for (index, (declaration, root)) in sources.iter().zip(roots).enumerate() {
-        if declaration.origin() != scoop_identity::ConeIdentity::CORE
-            || !declaration.declaration_kind().is_nominal()
-            || declaration.duplicate_signature().type_parameter_count() != 0
-        {
-            return Err(SingleConeStrongMirInputError::InvalidCoreShapeSupportSource { index });
-        }
-        let source = PersistentTypeId::from_source_declaration(declaration).map_err(|error| {
-            SingleConeStrongMirInputError::CoreShapeSupportSourceIdentity { index, error }
-        })?;
-        let exact =
-            PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source)).map_err(|error| {
-                SingleConeStrongMirInputError::CoreShapeSupportExactIdentity { index, error }
-            })?;
-        if source != root.source() || exact != root.exact() {
-            return Err(
-                SingleConeStrongMirInputError::CoreShapeSupportSourceMismatch(Box::new(
-                    CoreShapeSupportSourceMismatch {
-                        index,
-                        expected_source: root.source(),
-                        expected_exact: root.exact(),
-                        actual_source: source,
-                        actual_exact: exact,
-                    },
-                )),
-            );
-        }
-    }
-    Ok(sources)
 }
 
 fn validate_core_branch(

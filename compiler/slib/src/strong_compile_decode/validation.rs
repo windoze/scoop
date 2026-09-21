@@ -76,7 +76,7 @@ pub(crate) fn validate_strong_profile_relations(
     foundation: &OdrFreeHirFoundation,
 ) -> Result<(), StrongProfileRelationError> {
     validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
-    let shapes = PublicNominalShapeRequirementsV1::from_direct_surface(
+    PublicNominalShapeRequirementsV1::from_direct_surface(
         hir.direct_public_surface(),
         foundation.as_canonical(),
     )
@@ -85,7 +85,6 @@ pub(crate) fn validate_strong_profile_relations(
         hir.core_interface(),
         mir.core_bridge(),
         mir.strong_callable_bridges(),
-        &shapes,
     )
 }
 
@@ -189,7 +188,6 @@ pub(super) fn validate_core_relation(
     hir: &CoreHirInterfaceBranchV1,
     mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
-    shapes: &PublicNominalShapeRequirementsV1,
 ) -> Result<(), StrongProfileRelationError> {
     let (CoreHirInterfaceBranchV1::Core(hir), CoreMirBridgeBranchV1::Core(mir)) = (hir, mir) else {
         return match (hir, mir) {
@@ -198,22 +196,6 @@ pub(super) fn validate_core_relation(
         };
     };
 
-    let expected_shape_roots = shapes.roots();
-    if expected_shape_roots.len() != mir.shape_support_roots().len() {
-        return Err(StrongProfileRelationError::CoreShapeRootCoverage {
-            expected: expected_shape_roots.len(),
-            actual: mir.shape_support_roots().len(),
-        });
-    }
-    for (index, (expected, actual)) in expected_shape_roots
-        .iter()
-        .zip(mir.shape_support_roots())
-        .enumerate()
-    {
-        if actual.source() != expected.source() || actual.exact() != expected.exact() {
-            return Err(StrongProfileRelationError::CoreShapeRootMismatch { index });
-        }
-    }
     let cycle = hir.compiler_protocols().initialization_cycle_thrower();
     let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) =
         cycle.definition()

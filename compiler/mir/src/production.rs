@@ -8,7 +8,7 @@ use scoop_identity::{
     ExactCallableSignature, ExactCallableSignatureResolutionError, ExactOrdinaryNoArgUnitSignature,
     ExactTypeKey, ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError,
     IdentityReferenceError, PersistentExactTypeId, PersistentFunctionId, PersistentIdResolver,
-    PersistentKeyResolver, PersistentTypeId, SourceDeclarationKey, ValidatedIdentityGraph,
+    PersistentKeyResolver, SourceDeclarationKey, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -20,7 +20,6 @@ mod core_bridge;
 use core_bridge::DecodedCoreMirBridgeBranchV1;
 pub use core_bridge::{
     CoreMirBridgeBranchV1, CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1,
-    CoreMirShapeSupportRootV1,
 };
 
 /// Fixed exact identity of core `Unit`, shared by bridge projections without
@@ -602,16 +601,9 @@ fn validate_section_relations(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MirProductionBuildError {
     DuplicateStrongCallable(CallableOwner),
-    DuplicateCoreShapeSource(PersistentTypeId),
     CoreImplementationMismatch {
         definition: PersistentFunctionId,
         implementation: CallableOwner,
-    },
-    CoreShapeExactIdentity(scoop_wire::HashError),
-    CoreShapeExactMismatch {
-        source: PersistentTypeId,
-        expected: PersistentExactTypeId,
-        actual: PersistentExactTypeId,
     },
     EntryImplementationMismatch {
         source_entry: PersistentFunctionId,
@@ -660,16 +652,6 @@ pub enum MirProductionValidationError {
     },
     StrongCallableMismatch {
         index: usize,
-    },
-    DuplicateCoreShapeSource(PersistentTypeId),
-    NonCanonicalCoreShapeSourceOrder {
-        index: usize,
-    },
-    CoreShapeExactIdentity(scoop_wire::HashError),
-    CoreShapeExactMismatch {
-        source: PersistentTypeId,
-        expected: PersistentExactTypeId,
-        actual: PersistentExactTypeId,
     },
     EntryImplementationMismatch {
         source_entry: PersistentFunctionId,

@@ -232,17 +232,13 @@ pub(super) fn trusted_core_from_source(
     );
     let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        scoop_mir::CoreMirBridgeBranchV1::Core(
-            scoop_mir::CoreMirBridgeV1::try_new(
-                Vec::new(),
-                scoop_mir::CoreMirInitializationCycleThrowerV1::new(
-                    cycle_definition,
-                    scoop_identity::CallableOwner::Function(cycle_definition),
-                )
-                .unwrap(),
+        scoop_mir::CoreMirBridgeBranchV1::Core(scoop_mir::CoreMirBridgeV1::new(
+            scoop_mir::CoreMirInitializationCycleThrowerV1::new(
+                cycle_definition,
+                scoop_identity::CallableOwner::Function(cycle_definition),
             )
             .unwrap(),
-        ),
+        )),
         scoop_mir::EntryMirBridgeBranchV1::Library,
         scoop_mir::StrongCallableBridgeSurfaceV1::try_new(
             strong_mir
