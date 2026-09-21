@@ -134,7 +134,6 @@ pub enum CoreBootstrapHirStageError {
     Lowering(Vec<scoop_ast::Diagnostic>),
     Foundation(scoop_hir::HirFoundationBuildError),
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
-    MissingCoreInterface,
     CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
     CrossConeSection(
@@ -157,9 +156,6 @@ impl fmt::Display for CoreBootstrapHirStageError {
             ),
             Self::Foundation(source) => source.fmt(formatter),
             Self::ProductionSection(source) => source.fmt(formatter),
-            Self::MissingCoreInterface => {
-                formatter.write_str("trusted core HIR output has no dedicated core interface")
-            }
             Self::CoreClassifier(source) => source.fmt(formatter),
             Self::CrossConeSection(source) => source.fmt(formatter),
             Self::SemanticWorld(source) => source.fmt(formatter),
@@ -174,7 +170,6 @@ impl std::error::Error for CoreBootstrapHirStageError {
             Self::Lowering(_) => None,
             Self::Foundation(source) => Some(source),
             Self::ProductionSection(source) => Some(source),
-            Self::MissingCoreInterface => None,
             Self::CoreClassifier(source) => Some(source),
             Self::CrossConeSection(source) => Some(source.as_ref()),
             Self::SemanticWorld(source) => Some(source),

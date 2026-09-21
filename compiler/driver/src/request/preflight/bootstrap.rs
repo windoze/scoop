@@ -102,15 +102,6 @@ impl TrustedCoreBootstrapHirOutput {
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
                 .map_err(CoreBootstrapHirStageError::ProductionSection)?;
-        let core_classifier = match production_section.core_interface() {
-            scoop_hir::CoreHirInterfaceBranchV1::Core(interface) => {
-                scoop_hir::CoreClosedExactLeafClassifierV1::try_from_core_interface(interface)
-                    .map_err(CoreBootstrapHirStageError::CoreClassifier)?
-            }
-            scoop_hir::CoreHirInterfaceBranchV1::NotCore => {
-                return Err(CoreBootstrapHirStageError::MissingCoreInterface);
-            }
-        };
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
             hir.export.cone,
             Vec::new(),
@@ -130,6 +121,11 @@ impl TrustedCoreBootstrapHirOutput {
             )
             .map_err(|source| CoreBootstrapHirStageError::CrossConeSection(Box::new(source)))?
         };
+        let core_classifier =
+            scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
+                cross_cone_section.nominal_interfaces().records(),
+            )
+            .map_err(CoreBootstrapHirStageError::CoreClassifier)?;
         foundation
             .complete_cross_cone_source_points(
                 hir.export.module(),

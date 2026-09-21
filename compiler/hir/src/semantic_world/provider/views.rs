@@ -219,6 +219,10 @@ impl<'world, 'input> DirectProviderView<'world, 'input> {
         }
     }
 
+    pub fn nominal_interfaces(self) -> &'input crate::CanonicalNominalInterfacesV1 {
+        self.provider.interface().nominal_interfaces()
+    }
+
     pub fn public_bindings(self) -> &'world [ImportedPublicBinding<'input>] {
         self.provider.public_bindings()
     }

@@ -3,7 +3,6 @@
 use scoop_hir::{
     CallableInterfaceRecordV1, CoreClosedCallableClassificationError,
     CoreClosedExactLeafClassifierBuildError, CoreClosedExactLeafClassifierV1,
-    CoreHirInterfaceBranchV1,
 };
 use scoop_identity::{DependencyCallableDeclarationId, ExactCallableSignature};
 use scoop_mir::{
@@ -16,12 +15,10 @@ use crate::MirBridgeValidatedCrossConeHirFrontSections;
 pub(super) fn core_classifier(
     core: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
 ) -> Result<CoreClosedExactLeafClassifierV1, CrossConeClosureMirBridgeError> {
-    let CoreHirInterfaceBranchV1::Core(interface) = core.hir_core_production().core_interface()
-    else {
-        return Err(CrossConeClosureMirBridgeError::MissingTrustedCoreInterface);
-    };
-    CoreClosedExactLeafClassifierV1::try_from_core_interface(interface).map_err(|error| match error
-    {
+    CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
+        core.hir_interface().nominal_interfaces().records(),
+    )
+    .map_err(|error| match error {
         CoreClosedExactLeafClassifierBuildError::Allocation { requested_slots } => {
             CrossConeClosureMirBridgeError::Allocation { requested_slots }
         }

@@ -13,14 +13,14 @@ use scoop_identity::ConeIdentity;
 /// lowering; candidate selection sidecars are introduced separately.
 pub struct OrdinarySources<'input, 'world> {
     sources: &'input ast::CurrentConeParsedSources,
-    core: hir::ImportedCoreInputs<'input>,
+    core: hir::ImportedCoreInputs,
     world: &'world hir::ImportedSemanticWorld<'input>,
 }
 
 impl<'input, 'world> OrdinarySources<'input, 'world> {
     pub fn try_new(
         sources: &'input ast::CurrentConeParsedSources,
-        core: hir::ImportedCoreInputs<'input>,
+        core: hir::ImportedCoreInputs,
         world: &'world hir::ImportedSemanticWorld<'input>,
     ) -> Result<Self, OrdinarySourceError> {
         if sources.cone() == ConeIdentity::CORE {
@@ -55,7 +55,7 @@ impl<'input, 'world> OrdinarySources<'input, 'world> {
         self.sources
     }
 
-    pub(crate) const fn core(&self) -> &hir::ImportedCoreInputs<'input> {
+    pub(crate) const fn core(&self) -> &hir::ImportedCoreInputs {
         &self.core
     }
 }

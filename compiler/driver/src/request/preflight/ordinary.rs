@@ -30,9 +30,13 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             .trusted_core
             .import_core_inputs()
             .map_err(OrdinaryConeHirStageError::CoreInterface)?;
-        let core_classifier = core
-            .core_closed_exact_leaf_classifier()
-            .map_err(OrdinaryConeHirStageError::CoreClassifier)?;
+        let nominals = world
+            .direct_provider(scoop_identity::ConeIdentity::CORE)
+            .map(|provider| provider.nominal_interfaces().records())
+            .unwrap_or_default();
+        let core_classifier =
+            scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
+                .map_err(OrdinaryConeHirStageError::CoreClassifier)?;
         let input = scoop_hir_lower::OrdinarySources::try_new(&self.sources, core, &world)
             .map_err(OrdinaryConeHirStageError::Input)?;
         let hir = scoop_hir_lower::lower_ordinary(requested, &input)

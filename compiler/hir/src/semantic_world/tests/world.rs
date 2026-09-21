@@ -110,6 +110,17 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
 
     let direct_view = world.direct_provider(direct.identity()).unwrap();
     assert_eq!(direct_view.public_bindings().len(), 2);
+    assert_eq!(
+        direct_view.nominal_interfaces(),
+        direct.interface.nominal_interfaces()
+    );
+    assert_eq!(
+        world
+            .direct_provider(ConeIdentity::CORE)
+            .unwrap()
+            .nominal_interfaces(),
+        core.interface.nominal_interfaces(),
+    );
     assert!(world.support_provider(direct.identity()).is_none());
     let support_view = world.support_provider(support.identity()).unwrap();
     assert!(

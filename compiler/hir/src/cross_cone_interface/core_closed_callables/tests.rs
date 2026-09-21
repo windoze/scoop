@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[test]
-fn only_trusted_core_nominal_leaves_are_classified() {
+fn only_known_nominal_leaves_are_classified() {
     let (classifier, unit, exact) = classifier();
 
     assert_eq!(
@@ -30,6 +30,77 @@ fn only_trusted_core_nominal_leaves_are_classified() {
         classifier.classify(&SignatureTypeKey::Nominal(foreign_type())),
         None
     );
+}
+
+#[test]
+fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
+    use crate::{CanonicalNominalInterfacesV1, SourceNominalId};
+
+    let concrete = foreign_type();
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let generic = CborIdentityRecord::<scoop_identity::PersistentGenericTypeId, _>::from_key(
+        foreign_nominal_key(1),
+    )
+    .unwrap()
+    .id();
+    let nominals = CanonicalNominalInterfacesV1::try_new(vec![
+        nominal(SourceNominalId::Concrete(concrete)),
+        nominal(SourceNominalId::Concrete(unit)),
+        nominal(SourceNominalId::GenericTemplate(generic)),
+    ])
+    .unwrap();
+    let classifier =
+        CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records()).unwrap();
+    let signature = SignatureTypeKey::Nominal(concrete);
+    let expected =
+        scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(concrete)).unwrap();
+    assert_eq!(classifier.classify(&signature), Some(expected));
+    let function = callable(
+        signature,
+        Effect::Ordinary,
+        CallableImplementationV1::Scoop,
+        GcEffect::Managed,
+    );
+    assert_eq!(
+        classifier
+            .classify_callable(&function)
+            .unwrap()
+            .unwrap()
+            .signature()
+            .result(),
+        expected
+    );
+    assert_eq!(
+        classifier.classify(&SignatureTypeKey::NominalApplication {
+            origin: generic,
+            arguments: scoop_identity::NonEmptyVec::new(vec![SignatureTypeKey::Nominal(concrete)])
+                .unwrap(),
+        }),
+        None
+    );
+}
+
+fn nominal(declaration: crate::SourceNominalId) -> crate::NominalInterfaceRecordV1 {
+    let binders = match declaration {
+        crate::SourceNominalId::Concrete(_) => Vec::new(),
+        crate::SourceNominalId::GenericTemplate(_) => vec![crate::TypeParameterBinderV1::new(
+            CanonicalIdentifier::new("T").unwrap(),
+            crate::TypeParameterBoundsV1::Unconstrained,
+        )],
+    };
+    crate::NominalInterfaceRecordV1::try_new(
+        declaration,
+        crate::PublicNominalKindV1::Struct,
+        CanonicalBinderListV1::try_new(binders).unwrap(),
+        crate::CanonicalSignatureTypesV1::try_new(Vec::new()).unwrap(),
+        crate::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+        crate::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
+        crate::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
+        crate::NominalSourceShapeV1::Struct(
+            crate::StructSourceShapeV1::try_new(Vec::new()).unwrap(),
+        ),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -95,9 +166,7 @@ fn classifier() -> (
     let exact = scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
         .expect("core Unit exact identity is valid");
     (
-        CoreClosedExactLeafClassifierV1 {
-            leaves: vec![(unit, exact)],
-        },
+        CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap(),
         unit,
         exact,
     )
@@ -151,24 +220,26 @@ fn callable(
 }
 
 fn foreign_type() -> scoop_identity::PersistentTypeId {
+    CborIdentityRecord::<scoop_identity::PersistentTypeId, _>::from_key(foreign_nominal_key(0))
+        .unwrap()
+        .id()
+}
+
+fn foreign_nominal_key(type_parameter_count: u32) -> SourceDeclarationKey {
     let artifact = ConeCoordinate::new("tests", "foreign", "1.0.0")
         .unwrap()
         .identity()
         .unwrap();
-    CborIdentityRecord::<scoop_identity::PersistentTypeId, _>::from_key(
-        SourceDeclarationKey::nominal(
-            SourceDeclarationSite::new(
-                artifact,
-                PackagePath::root(),
-                DefinitionOwnerChain::top_level(),
-                DeclarationScope::ConeWide,
-            )
-            .unwrap(),
-            CanonicalIdentifier::new("Foreign").unwrap(),
-            SourceNominalKind::Struct,
-            0,
-        ),
+    SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            artifact,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("Foreign").unwrap(),
+        SourceNominalKind::Struct,
+        type_parameter_count,
     )
-    .unwrap()
-    .id()
 }

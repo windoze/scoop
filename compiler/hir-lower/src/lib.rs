@@ -117,6 +117,7 @@ mod lowering_context;
 mod model;
 mod namespace;
 mod ordinary_input;
+mod ordinary_lowering;
 mod output_kind;
 mod overload;
 mod patterns;
@@ -151,6 +152,7 @@ mod types;
 mod visibility;
 
 pub use ordinary_input::*;
+pub use ordinary_lowering::lower_ordinary;
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -408,69 +410,6 @@ pub fn produce_cross_cone_type_semantics(
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
     hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public, meter)
-}
-
-/// Lowers current sources against one validated dependency semantic world.
-pub fn lower_ordinary<'core>(
-    requested: scoop_identity::RequestedConeKind,
-    input: &OrdinarySources<'core, '_>,
-) -> Result<hir::OrdinaryHirOutput, Vec<Diagnostic>> {
-    let (files, sources) = materialize_ordinary_sources(input.sources());
-    let world = input.semantic_world();
-    let classifier = input
-        .core()
-        .core_closed_exact_leaf_classifier()
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to classify core ABI leaves: {error}"),
-            )]
-        })?;
-    let dependency_selection = world
-        .dependency_selection_plan(&classifier)
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to prepare dependency selection: {error}"),
-            )]
-        })?;
-    let (module, warnings, completion) = Lowerer::new()
-        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
-        .with_imported_core(input.core())
-        .with_imported_dependencies(dependency_selection)
-        .run_imported(&files, world)?;
-    let output_kind = select_cone_output_kind(&module, requested)?;
-    let export = hir::ExportHirOutput::try_new(module, output_kind).map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to seal ordinary Export HIR output: {error}"),
-        )]
-    })?;
-    let local = concretize::lower_output(&export);
-    let native_boundary_types = crate::persistent_native_boundary::build(
-        export.module(),
-        local.module(),
-        hir::HirNativeBoundaryExternalTypes::TrustedCore(input.core().native_boundary_types()),
-    )
-    .map_err(native_boundary_diagnostic)?;
-    let output =
-        hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to seal ordinary HIR output: {error}"),
-            )]
-        })?;
-    hir::OrdinaryHirOutput::try_new(
-        output,
-        completion.dependencies.finish(),
-        completion.binding_witness_uses,
-    )
-    .map_err(|error| {
-        vec![Diagnostic::at(
-            Span { start: 0, end: 0 },
-            format!("failed to seal ordinary imported-core HIR: {error}"),
-        )]
-    })
 }
 
 fn finish_output(

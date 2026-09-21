@@ -9,22 +9,22 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableImplementationV1, CallableInterfaceRecordV1, CoreHirInterfaceV1,
-    CoreHirTypeCapabilityV1, CoreTypeDefinitionV1, PublicDeclarationOwnerV1,
+    CallableImplementationV1, CallableInterfaceRecordV1, NominalInterfaceRecordV1,
+    PublicDeclarationOwnerV1, SourceNominalId,
 };
 
-/// Trusted-core proof that maps the only source nominal leaves executable by
-/// the M23-5 cross-Cone bridge to their exact type identities.
+/// Maps the shared nominal declaration surface to exact leaves accepted by
+/// the current core-closed cross-Cone callable bridge.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreClosedExactLeafClassifierV1 {
     leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
 }
 
 impl CoreClosedExactLeafClassifierV1 {
-    pub fn try_from_core_interface(
-        core: &CoreHirInterfaceV1,
+    pub fn try_from_nominal_interfaces(
+        nominals: &[NominalInterfaceRecordV1],
     ) -> Result<Self, CoreClosedExactLeafClassifierBuildError> {
-        let target_count = core.type_targets().targets().len();
+        let target_count = nominals.len();
         let mut leaves = Vec::new();
         leaves.try_reserve_exact(target_count + 1).map_err(|_| {
             CoreClosedExactLeafClassifierBuildError::Allocation {
@@ -35,14 +35,12 @@ impl CoreClosedExactLeafClassifierV1 {
         let unit_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
             .map_err(CoreClosedExactLeafClassifierBuildError::Identity)?;
         leaves.push((unit, unit_exact));
-        for target in core.type_targets().targets() {
-            let (
-                CoreTypeDefinitionV1::Type(source),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
-            ) = (target.definition(), target.capability())
-            else {
+        for nominal in nominals {
+            let SourceNominalId::Concrete(source) = nominal.declaration() else {
                 continue;
             };
+            let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source))
+                .map_err(CoreClosedExactLeafClassifierBuildError::Identity)?;
             leaves.push((source, exact));
         }
         leaves.sort_unstable_by_key(|(source, _)| *source);
@@ -50,8 +48,9 @@ impl CoreClosedExactLeafClassifierV1 {
         Ok(Self { leaves })
     }
 
-    /// Returns an exact type only for a nominal leaf whose ABI and runtime
-    /// shape have already been proven by the trusted core artifact.
+    /// Returns the exact identity of a concrete nominal in the supplied
+    /// public surface, or the language builtin Unit. ABI and runtime shape
+    /// requirements are validated by the later MIR/LIR bridge checks.
     pub fn classify(&self, signature: &SignatureTypeKey) -> Option<PersistentExactTypeId> {
         let SignatureTypeKey::Nominal(source) = signature else {
             return None;
@@ -191,7 +190,7 @@ impl fmt::Display for CoreClosedExactLeafClassifierBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "failed to allocate the trusted-core exact-leaf classifier: {self:?}"
+            "failed to build the nominal exact-leaf classifier: {self:?}"
         )
     }
 }

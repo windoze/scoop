@@ -18,7 +18,6 @@ pub enum CrossConeClosureMirBridgeError {
         source: Box<CrossConeMirFrontValidationError>,
     },
     MissingTrustedCore,
-    MissingTrustedCoreInterface,
     Relation {
         identity: ConeIdentity,
         source: Box<CrossConeMirClosureRelationError>,
@@ -33,10 +32,7 @@ impl fmt::Display for CrossConeClosureMirBridgeError {
                 "cannot allocate {requested_slots} cross-Cone MIR bridge validation slots"
             ),
             Self::CoreExactTypeIdentity(source) => {
-                write!(
-                    formatter,
-                    "cannot derive the trusted-core Unit exact type: {source}"
-                )
+                write!(formatter, "cannot derive a nominal exact type: {source}")
             }
             Self::Artifact { identity, source } => {
                 write!(
@@ -47,9 +43,6 @@ impl fmt::Display for CrossConeClosureMirBridgeError {
             Self::MissingTrustedCore => {
                 formatter.write_str("cross-Cone MIR bridge closure has no trusted-core provider")
             }
-            Self::MissingTrustedCoreInterface => formatter.write_str(
-                "trusted-core provider does not expose its validated core HIR interface",
-            ),
             Self::Relation { identity, source } => {
                 write!(
                     formatter,
@@ -66,9 +59,7 @@ impl std::error::Error for CrossConeClosureMirBridgeError {
             Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::CoreExactTypeIdentity(source) => Some(source),
             Self::Relation { source, .. } => Some(source.as_ref()),
-            Self::Allocation { .. }
-            | Self::MissingTrustedCore
-            | Self::MissingTrustedCoreInterface => None,
+            Self::Allocation { .. } | Self::MissingTrustedCore => None,
         }
     }
 }

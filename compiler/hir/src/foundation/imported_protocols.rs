@@ -575,13 +575,12 @@ impl ImportedCoreProtocols {
 
 /// Compiler protocol identities and native-boundary definitions. Ordinary
 /// public name lookup uses the shared dependency semantic world.
-pub struct ImportedCoreInputs<'a> {
-    interface: &'a CoreHirInterfaceV1,
+pub struct ImportedCoreInputs {
     protocols: ImportedCoreProtocols,
     native_boundary_types: ImportedCoreNativeBoundaryTypes,
 }
 
-impl<'a> ImportedCoreInputs<'a> {
+impl ImportedCoreInputs {
     pub const fn protocols(&self) -> &ImportedCoreProtocols {
         &self.protocols
     }
@@ -589,32 +588,20 @@ impl<'a> ImportedCoreInputs<'a> {
     pub const fn native_boundary_types(&self) -> &ImportedCoreNativeBoundaryTypes {
         &self.native_boundary_types
     }
-
-    /// Derives the only exact nominal leaf classifier accepted by the
-    /// ordinary cross-Cone callable bridge from this trusted core artifact.
-    pub fn core_closed_exact_leaf_classifier(
-        &self,
-    ) -> Result<
-        crate::CoreClosedExactLeafClassifierV1,
-        crate::CoreClosedExactLeafClassifierBuildError,
-    > {
-        crate::CoreClosedExactLeafClassifierV1::try_from_core_interface(self.interface)
-    }
 }
 
 impl ImportedHirFoundation {
     /// Imports compiler protocols into the shared semantic identity session.
-    pub fn import_core_inputs<'a>(
-        &'a self,
-        interface: &'a CoreHirInterfaceV1,
-    ) -> Result<ImportedCoreInputs<'a>, CoreInterfaceImportError> {
+    pub fn import_core_inputs(
+        &self,
+        interface: &CoreHirInterfaceV1,
+    ) -> Result<ImportedCoreInputs, CoreInterfaceImportError> {
         let protocols = ImportedCoreProtocols::import(self, interface)
             .map_err(CoreInterfaceImportError::Protocols)?;
         let native_boundary_types =
             ImportedCoreNativeBoundaryTypes::import(self, protocols.fundamental_types())
                 .map_err(CoreInterfaceImportError::NativeBoundary)?;
         Ok(ImportedCoreInputs {
-            interface,
             protocols,
             native_boundary_types,
         })

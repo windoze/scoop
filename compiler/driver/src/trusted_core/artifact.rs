@@ -55,9 +55,9 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         self.artifact.compile()
     }
 
-    /// Projects prelude lookup and compiler protocols from the shared
+    /// Projects compiler protocols and native-boundary definitions from the shared
     /// dependency artifact and its decoded interface.
-    pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs<'_>, CoreInterfaceImportError> {
+    pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs, CoreInterfaceImportError> {
         self.compile().hir().import_core_inputs(&self.interface)
     }
 
