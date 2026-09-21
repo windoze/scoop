@@ -20,7 +20,7 @@ use super::{
     DependencyValidationResult, ExplicitDependencyRole, ExplicitDependencyValidationError,
     LoadedExplicitDependencyInputs,
 };
-use crate::{ValidatedExplicitDependencyInputSet, ValidatedTrustedCoreArtifact};
+use crate::ValidatedExplicitDependencyInputSet;
 
 impl LoadedExplicitDependencyInputs {
     pub(crate) fn validate_inner<'input>(
@@ -29,10 +29,7 @@ impl LoadedExplicitDependencyInputs {
         current_identity: ConeIdentity,
         target: &ResolvedTargetProfile,
         mut meter: Option<&mut SlibClosureDecodeMeterV1>,
-    ) -> DependencyValidationResult<(
-        ValidatedExplicitDependencyInputSet<'input>,
-        Box<ValidatedTrustedCoreArtifact<'input>>,
-    )> {
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
         charge_graph_nodes(meter.as_deref_mut(), self.artifacts.len())?;
 
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
@@ -126,13 +123,13 @@ impl LoadedExplicitDependencyInputs {
             );
         }
 
-        validate_manifest_direct_set(manifest, &nodes)?;
+        validate_manifest_direct_set(manifest, current_identity, &nodes)?;
         validate_dependency_records(current_identity, &nodes)?;
         let dependency_depth = validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;
         let dependency_order = dependency_first_order(&nodes)?;
         if let Some(meter) = meter.as_deref_mut() {
-            charge_graph_edges_and_depth(meter, manifest, &nodes, dependency_depth)?;
+            charge_graph_edges_and_depth(meter, &nodes, dependency_depth)?;
         }
 
         let direct = nodes
@@ -171,54 +168,12 @@ impl LoadedExplicitDependencyInputs {
                     .dependency_record()
             })
             .collect();
-        let closure = Rc::new(closure);
-        let trusted_core = ValidatedTrustedCoreArtifact::from_closure(&closure)
-            .map_err(|source| Box::new(ExplicitDependencyValidationError::CoreInterface(source)))?;
-        Ok((
-            ValidatedExplicitDependencyInputSet::ordinary(
-                closure,
-                dependency_first,
-                direct_dependencies,
-                semantic_session,
-            ),
-            Box::new(trusted_core),
+        Ok(ValidatedExplicitDependencyInputSet::new(
+            Rc::new(closure),
+            dependency_first,
+            direct_dependencies,
+            semantic_session,
         ))
-    }
-
-    pub(crate) fn validate_bootstrap_empty<'input>(
-        &'input self,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
-        if let Some(loaded) = self.artifacts.first() {
-            return Err(ExplicitDependencyValidationError::BootstrapArtifact {
-                input: loaded.input.clone(),
-            }
-            .into());
-        }
-        Ok(ValidatedExplicitDependencyInputSet::bootstrap_empty())
-    }
-
-    pub(crate) fn validate_bootstrap_empty_metered<'input>(
-        &'input self,
-        meter: &mut SlibClosureDecodeMeterV1,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
-        let dependency_nodes = u64::try_from(self.artifacts.len()).map_err(|_| {
-            Box::new(ExplicitDependencyValidationError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: SlibClosureResourceKindV1::ConeNodes,
-                },
-            ))
-        })?;
-        let nodes = dependency_nodes.checked_add(1).ok_or_else(|| {
-            Box::new(ExplicitDependencyValidationError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: SlibClosureResourceKindV1::ConeNodes,
-                },
-            ))
-        })?;
-        meter
-            .charge_graph(nodes, 0, 1)
-            .map_err(|source| Box::new(ExplicitDependencyValidationError::Resource(source)))?;
-        self.validate_bootstrap_empty()
     }
 }
 

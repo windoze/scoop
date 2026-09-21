@@ -44,81 +44,41 @@ pub use ordinary::{
 /// Proof that the manifest, explicit artifacts, and their recursive closure
 /// were validated before current-source discovery begins.
 pub struct ValidatedExplicitDependencyInputSet<'input> {
-    state: ValidatedDependencyInputState<'input>,
-}
-
-enum ValidatedDependencyInputState<'input> {
-    BootstrapEmpty,
-    Ordinary {
-        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
-        dependency_first: Vec<&'input [u8]>,
-        direct_dependencies: Vec<scoop_slib::DependencyRecord>,
-        _semantic_session: SemanticIdentitySession,
-    },
+    closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
+    dependency_first: Vec<&'input [u8]>,
+    direct_dependencies: Vec<scoop_slib::DependencyRecord>,
+    _semantic_session: SemanticIdentitySession,
 }
 
 impl<'input> ValidatedExplicitDependencyInputSet<'input> {
     pub fn is_empty(&self) -> bool {
-        match &self.state {
-            ValidatedDependencyInputState::BootstrapEmpty => true,
-            ValidatedDependencyInputState::Ordinary { closure, .. } => {
-                closure.artifact_count() == 0
-            }
-        }
+        self.closure.artifact_count() == 0
     }
 
-    pub(crate) const fn bootstrap_empty() -> Self {
-        Self {
-            state: ValidatedDependencyInputState::BootstrapEmpty,
-        }
-    }
-
-    pub(crate) fn ordinary(
+    pub(crate) fn new(
         closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
         dependency_first: Vec<&'input [u8]>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
         semantic_session: SemanticIdentitySession,
     ) -> Self {
         Self {
-            state: ValidatedDependencyInputState::Ordinary {
-                closure,
-                dependency_first,
-                direct_dependencies,
-                _semantic_session: semantic_session,
-            },
+            closure,
+            dependency_first,
+            direct_dependencies,
+            _semantic_session: semantic_session,
         }
     }
 
     pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure<'_> {
-        match &self.state {
-            ValidatedDependencyInputState::Ordinary { closure, .. } => closure.semantic(),
-            ValidatedDependencyInputState::BootstrapEmpty => {
-                panic!("trusted-core bootstrap has no imported semantic closure")
-            }
-        }
+        self.closure.semantic()
     }
 
     pub(crate) fn dependency_first(&self) -> &[&'input [u8]] {
-        match &self.state {
-            ValidatedDependencyInputState::Ordinary {
-                dependency_first, ..
-            } => dependency_first,
-            ValidatedDependencyInputState::BootstrapEmpty => {
-                panic!("trusted-core bootstrap has no dependency artifacts")
-            }
-        }
+        &self.dependency_first
     }
 
     pub(crate) fn direct_dependencies(&self) -> &[scoop_slib::DependencyRecord] {
-        match &self.state {
-            ValidatedDependencyInputState::Ordinary {
-                direct_dependencies,
-                ..
-            } => direct_dependencies,
-            ValidatedDependencyInputState::BootstrapEmpty => {
-                panic!("trusted-core bootstrap has no dependency records")
-            }
-        }
+        &self.direct_dependencies
     }
 }
 

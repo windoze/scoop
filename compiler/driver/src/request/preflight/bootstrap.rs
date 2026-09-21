@@ -70,14 +70,18 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
             .produce_artifact(
                 producer,
                 cone,
-                Vec::new(),
+                self.request.dependencies().direct_dependencies().to_vec(),
                 temporary_parent,
                 self.request.target(),
                 &core_owners,
             )
             .map_err(CoreBootstrapProductionError::Artifact)?;
         let artifact = artifact
-            .publish(self.request.output().as_path(), Vec::new(), limits)
+            .publish(
+                self.request.output().as_path(),
+                self.request.dependencies().dependency_first().to_vec(),
+                limits,
+            )
             .map_err(CoreBootstrapProductionError::Publication)?;
         Ok(SingleConeProductionSuccess::new_cross_cone(
             artifact,

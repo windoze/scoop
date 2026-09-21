@@ -149,9 +149,6 @@ pub enum ExplicitDependencyValidationError {
         source: Box<PrebuiltManifestSummaryError>,
     },
     Closure(Box<CrossConeArtifactClosureValidationError>),
-    BootstrapArtifact {
-        input: ExplicitDependencyArtifactInput,
-    },
     CoreInterface(crate::TrustedCoreArtifactValidationError),
     CurrentConeArtifact {
         input: ExplicitDependencyArtifactInput,
@@ -225,10 +222,6 @@ impl fmt::Display for ExplicitDependencyValidationError {
             Self::Closure(source) => {
                 write!(formatter, "dependency closure is not valid: {source}")
             }
-            Self::BootstrapArtifact { input } => write!(
-                formatter,
-                "trusted-core bootstrap cannot accept dependency {input}"
-            ),
             Self::CoreInterface(source) => source.fmt(formatter),
             Self::CurrentConeArtifact { input, identity } => write!(
                 formatter,
@@ -328,8 +321,7 @@ impl std::error::Error for ExplicitDependencyValidationError {
             Self::Closure(source) => Some(source.as_ref()),
             Self::CoreInterface(source) => Some(source),
             Self::ManifestIdentity { source, .. } => Some(source),
-            Self::BootstrapArtifact { .. }
-            | Self::CurrentConeArtifact { .. }
+            Self::CurrentConeArtifact { .. }
             | Self::UnsupportedArtifactShape { .. }
             | Self::DuplicateIdentity { .. }
             | Self::MultipleVersions { .. }

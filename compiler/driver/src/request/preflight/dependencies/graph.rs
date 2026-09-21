@@ -40,6 +40,7 @@ pub(super) fn validate_artifact_shape(
 
 pub(super) fn validate_manifest_direct_set(
     manifest: Option<&LoadedConeManifest>,
+    current: ConeIdentity,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
@@ -62,9 +63,11 @@ pub(super) fn validate_manifest_direct_set(
         })?;
         declared.insert(identity, coordinate.clone());
     }
-    declared
-        .entry(ConeIdentity::CORE)
-        .or_insert_with(ConeCoordinate::reserved_core);
+    if current != ConeIdentity::CORE {
+        declared
+            .entry(ConeIdentity::CORE)
+            .or_insert_with(ConeCoordinate::reserved_core);
+    }
     let actual = nodes
         .iter()
         .filter(|(_, node)| node.input.role == ExplicitDependencyRole::Direct)
@@ -337,7 +340,6 @@ fn node_order<'nodes>(
 
 pub(super) fn charge_graph_edges_and_depth(
     meter: &mut SlibClosureDecodeMeterV1,
-    manifest: Option<&LoadedConeManifest>,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
     dependency_depth: u64,
 ) -> DependencyValidationResult<()> {
@@ -357,26 +359,17 @@ pub(super) fn charge_graph_edges_and_depth(
             ))
         })
     })?;
-    let declared = manifest
-        .map(|manifest| {
-            manifest
-                .parsed()
-                .semantic()
-                .dependency_iter()
-                .filter(|(_, coordinate)| *coordinate != &ConeCoordinate::reserved_core())
-                .count()
-        })
-        .unwrap_or(0);
-    let current_edges = u64::try_from(declared)
-        .ok()
-        .and_then(|count| count.checked_add(1))
-        .ok_or_else(|| {
-            Box::new(ExplicitDependencyValidationError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: SlibClosureResourceKindV1::DependencyEdges,
-                },
-            ))
-        })?;
+    let direct_count = nodes
+        .values()
+        .filter(|node| node.input.role == ExplicitDependencyRole::Direct)
+        .count();
+    let current_edges = u64::try_from(direct_count).map_err(|_| {
+        Box::new(ExplicitDependencyValidationError::Resource(
+            SlibClosureResourceErrorV1::Overflow {
+                resource: SlibClosureResourceKindV1::DependencyEdges,
+            },
+        ))
+    })?;
     let edges = artifact_edges.checked_add(current_edges).ok_or_else(|| {
         Box::new(ExplicitDependencyValidationError::Resource(
             SlibClosureResourceErrorV1::Overflow {

@@ -140,10 +140,7 @@ fn assert_core_views_share_the_dependency_closure(
     let ValidatedCurrentConeInput::SingleFile { trusted_core, .. } = validated.current() else {
         panic!("single-file input")
     };
-    let ValidatedDependencyInputState::Ordinary { closure, .. } = &validated.dependencies().state
-    else {
-        panic!("ordinary dependencies")
-    };
+    let closure = &validated.dependencies().closure;
     let member = closure
         .share_artifact(scoop_identity::ConeIdentity::CORE)
         .unwrap();

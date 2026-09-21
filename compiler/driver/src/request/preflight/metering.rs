@@ -99,52 +99,48 @@ impl SingleConeBuildRequest {
 impl LoadedSingleConeBuildRequest {
     pub(super) fn validate_inner(
         &self,
-        mut meter: Option<&mut SlibClosureDecodeMeterV1>,
+        meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        let (current, dependencies) = match &self.current {
-            LoadedCurrentConeInput::Manifest { manifest }
-                if manifest.identity() == ConeIdentity::CORE =>
-            {
-                let dependencies = match meter {
-                    Some(meter) => self.dependencies.validate_bootstrap_empty_metered(meter),
-                    None => self.dependencies.validate_bootstrap_empty(),
-                }
-                .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest },
-                    dependencies,
-                )
-            }
+        let (manifest, current_identity) = match &self.current {
             LoadedCurrentConeInput::Manifest { manifest } => {
-                let (dependencies, trusted_core) = self
-                    .dependencies
-                    .validate_inner(
-                        Some(manifest),
-                        manifest.identity(),
-                        &self.target,
-                        meter.as_deref_mut(),
-                    )
-                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::Manifest {
-                        manifest,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
+                (Some(manifest.as_ref()), manifest.identity())
             }
-            LoadedCurrentConeInput::SingleFile { source } => {
-                let (dependencies, trusted_core) = self
-                    .dependencies
-                    .validate_inner(None, ConeIdentity::SINGLE_FILE, &self.target, meter)
-                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::SingleFile {
-                        source,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
+            LoadedCurrentConeInput::SingleFile { .. } => (None, ConeIdentity::SINGLE_FILE),
+        };
+        let dependencies = self
+            .dependencies
+            .validate_inner(manifest, current_identity, &self.target, meter)
+            .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
+        let current = match &self.current {
+            LoadedCurrentConeInput::Manifest { manifest }
+                if current_identity == ConeIdentity::CORE =>
+            {
+                ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest }
+            }
+            input => {
+                let trusted_core = Box::new(
+                    ValidatedTrustedCoreArtifact::from_closure(&dependencies.closure).map_err(
+                        |source| {
+                            CoreOnlyRequestValidationError::ExplicitDependencies(Box::new(
+                                ExplicitDependencyValidationError::CoreInterface(source),
+                            ))
+                        },
+                    )?,
+                );
+                match input {
+                    LoadedCurrentConeInput::Manifest { manifest } => {
+                        ValidatedCurrentConeInput::Manifest {
+                            manifest,
+                            trusted_core,
+                        }
+                    }
+                    LoadedCurrentConeInput::SingleFile { source } => {
+                        ValidatedCurrentConeInput::SingleFile {
+                            source,
+                            trusted_core,
+                        }
+                    }
+                }
             }
         };
         Ok(ValidatedCoreOnlyBuildRequest {

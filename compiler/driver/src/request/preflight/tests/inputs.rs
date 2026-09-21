@@ -60,7 +60,10 @@ fn explicit_artifact_is_read_during_preflight() {
 }
 
 #[test]
-fn empty_loaded_dependency_input_constructs_bootstrap_proof() {
+fn empty_core_dependencies_run_the_shared_closure_and_metering() {
+    let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
+        return;
+    };
     let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
     let loaded = LoadedExplicitDependencyInputs::load(
         dependencies.direct(),
@@ -69,7 +72,46 @@ fn empty_loaded_dependency_input_constructs_bootstrap_proof() {
     )
     .unwrap();
 
-    assert!(loaded.validate_bootstrap_empty().unwrap().is_empty());
+    let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+    let validated = loaded
+        .validate_inner(None, ConeIdentity::CORE, &target, Some(&mut meter))
+        .unwrap();
+    assert!(validated.is_empty());
+    assert!(validated.dependency_first().is_empty());
+    assert!(validated.direct_dependencies().is_empty());
+    assert_eq!(validated.semantic().current(), ConeIdentity::CORE);
+    let world = validated.semantic().imported_semantic_world().unwrap();
+    assert_eq!(world.current(), ConeIdentity::CORE);
+    assert_eq!(world.provider_count(), 0);
+    assert_eq!(meter.usage().cone_nodes, 1);
+    assert_eq!(meter.usage().dependency_edges, 0);
+    assert_eq!(meter.usage().graph_depth, 1);
+    assert!(matches!(
+        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target, None),
+        Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
+            if declared == &[ConeCoordinate::reserved_core()] && actual.is_empty()),
+    ));
+}
+
+#[test]
+fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
+    let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
+        return;
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("malformed.slib");
+    std::fs::write(&path, b"malformed library").unwrap();
+    let loaded = LoadedExplicitDependencyInputs::load(
+        &[HostArtifactLocator::new(&path).unwrap()],
+        &[],
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        loaded.validate_inner(None, ConeIdentity::CORE, &target, None),
+        Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }
+            if input.path() == path),
+    ));
 }
 
 #[test]
