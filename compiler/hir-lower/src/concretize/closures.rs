@@ -176,10 +176,13 @@ impl Concretizer<'_> {
                 }
             }
         };
-        assert!(source.owner_type_param_count <= substitution.len());
         let value = PendingCallableReference {
             source: source_id,
-            owner_arguments: substitution[..source.owner_type_param_count].to_vec(),
+            owner_arguments: source
+                .owner_type_arguments
+                .iter()
+                .map(|&argument| self.lower_type(argument, substitution))
+                .collect(),
             target,
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source

@@ -177,12 +177,13 @@ impl Lowerer {
         let definition_path = self
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
             definition_root: self.current_definition_root(),
             definition_path,
             target: hir::CallableReferenceTarget::Named(callee),
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures: Vec::new(),
             origin: self.definition_origin(span),
             span,
@@ -409,12 +410,13 @@ impl Lowerer {
         let definition_path = self
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
             definition_root: self.current_definition_root(),
             definition_path,
             target,
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures: Vec::new(),
             origin: self.definition_origin(span),
             span,
@@ -496,6 +498,7 @@ impl Lowerer {
         let definition_path = self
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
             definition_root: self.current_definition_root(),
             definition_path,
@@ -504,7 +507,7 @@ impl Lowerer {
                 callee: resolved.callable,
             },
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures,
             origin: self.definition_origin(span),
             span,

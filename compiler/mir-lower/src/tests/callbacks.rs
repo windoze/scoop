@@ -244,7 +244,7 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         definition_path,
         target: hir::CallableReferenceTarget::Named(hir::Callable::Function(target)),
         function_type,
-        owner_type_param_count: 0,
+        owner_type_arguments: Vec::new(),
         captures: Vec::new(),
         origin: definition_origin(),
         span: SPAN,

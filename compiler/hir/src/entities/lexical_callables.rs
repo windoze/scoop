@@ -76,9 +76,9 @@ pub struct CallableReference {
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
-    /// Type parameters of the callable containing this reference expression.
-    /// A non-zero value requires a concrete closure per enclosing instance.
-    pub owner_type_param_count: usize,
+    /// Complete definition-owner arguments in the current expansion frame.
+    /// Unused owner binders still determine the invoke materialization.
+    pub owner_type_arguments: Vec<TypeId>,
     pub captures: Vec<Capture>,
     /// Definition site of the source callable-reference expression. A bound
     /// receiver local value uses this origin rather than the receiver

@@ -128,7 +128,7 @@ impl BodyProjection<'_, '_, '_, '_> {
             target,
             self.function_type(reference.function_type)?,
             self.captures(&reference.captures)?,
-            owner_parameter_count(reference.owner_type_param_count)?,
+            owner_parameter_count(reference.owner_type_arguments.len())?,
         )
         .map_err(super::super::DefaultBodyProjectionError::CallableReference)
     }

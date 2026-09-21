@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::defaults::{DefaultArgumentSource, DefaultExprTemplateRef};
 use crate::{Lowerer, Type};
 
+mod closures;
 mod entities;
 mod iteration;
 

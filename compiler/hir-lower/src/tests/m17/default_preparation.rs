@@ -2,6 +2,7 @@ use super::super::*;
 
 mod errors;
 mod files;
+mod generic_references;
 mod local_calls;
 mod local_captures;
 

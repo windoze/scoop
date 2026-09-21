@@ -1,0 +1,737 @@
+  class ReferenceConstructor<Int> vtable=0 itables=0
+  class ReferenceConstructor<String> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn39 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn41 captures=1
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn48 captures=1
+  closure cc3 $Closure$lambda3 type=function_type1 invoke=@fn51 captures=1
+  closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn40 captures=1
+  closure cc5 $Closure$anonymous1 type=function_type1 invoke=@fn42 captures=1
+  closure cc6 $Closure$reference0 type=function_type0 invoke=@fn55 captures=1
+  closure cc7 $Closure$reference1 type=function_type0 invoke=@fn56 captures=1
+  closure cc8 $Closure$reference2 type=function_type0 invoke=@fn57 captures=0
+  closure cc9 $Closure$reference3 type=function_type0 invoke=@fn58 captures=0
+  closure cc10 $Closure$reference4 type=function_type0 invoke=@fn59 captures=0
+  closure cc11 $Closure$reference5 type=function_type0 invoke=@fn60 captures=0
+  closure cc12 $Closure$reference6 type=function_type0 invoke=@fn61 captures=1
+  closure cc13 $Closure$reference7 type=function_type1 invoke=@fn62 captures=1
+  fun main @fn26() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.1: () -> String = @fn27 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      call $call.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.3: () -> String = @fn28 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      call $call.4: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str3
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $parameter.left: () -> String = @fn29 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc4 $Closure$anonymous0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $parameter.right: () -> String = @fn30 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.5: String = @fn31 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.left
+        Type () -> String
+        Local $parameter.right
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $parameter.left: () -> Int = @fn32 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc5 $Closure$anonymous1
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      call $parameter.right: () -> Int = @fn33 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
+      call $call.6: Int = @fn34 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type () -> Int
+        Local $parameter.left
+        Type () -> Int
+        Local $parameter.right
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str5
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.7: () -> String = @fn35 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      call $call.8: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.7
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.9: () -> Int = @fn36 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      call $call.10: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local $call.9
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      assign $new.11
+        Type ReferenceBox
+        ClassAlloc ReferenceBox
+      call @fn71 direct
+        Type ReferenceBox
+        Local $new.11
+        Type String
+        Local $parameter.value
+      val $argument.1: ReferenceBox
+        Type ReferenceBox
+        Local $new.11
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      val $parameter.receiver: ReferenceBox
+        Type ReferenceBox
+        Local $argument.1
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc6 $Closure$reference0
+          CaptureInit field=0
+            Type ReferenceBox
+            Local $parameter.receiver
+      call $call.12: () -> String = @fn37 direct
+        Type Int
+        Local $parameter.unused
+        Type ReferenceBox
+        Local $parameter.receiver
+        Type () -> String
+        Local $parameter.value
+      call $call.13: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.12
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $argument.1: String
+        Type String
+        StringConst @str9
+      val $parameter.unused: String
+        Type String
+        Local $argument.0
+      val $parameter.receiver: String
+        Type String
+        Local $argument.1
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc7 $Closure$reference1
+          CaptureInit field=0
+            Type String
+            Local $parameter.receiver
+      call $call.14: () -> String = @fn38 direct
+        Type String
+        Local $parameter.unused
+        Type String
+        Local $parameter.receiver
+        Type () -> String
+        Local $parameter.value
+      call $call.15: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.14
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.callback: () -> String
+        Type () -> String
+        ClosureAlloc cc8 $Closure$reference2
+      assign $new.16
+        Type ReferenceConstructor<Int>
+        ClassAlloc ReferenceConstructor<Int>
+      call @fn72 direct
+        Type ReferenceConstructor<Int>
+        Local $new.16
+        Type Int
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.callback
+      call $call.17: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 0
+          Type ReferenceConstructor<Int>
+          Local $new.16
+      val $argument.0: String
+        Type String
+        StringConst @str10
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.callback: () -> String
+        Type () -> String
+        ClosureAlloc cc9 $Closure$reference3
+      assign $new.18
+        Type ReferenceConstructor<String>
+        ClassAlloc ReferenceConstructor<String>
+      call @fn73 direct
+        Type ReferenceConstructor<String>
+        Local $new.18
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.callback
+      call $call.19: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        FieldAccess 0
+          Type ReferenceConstructor<String>
+          Local $new.18
+      return
+  fun forwardReference @fn27(first: String, second: Int) -> () -> String
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local second
+      val $argument.1: String
+        Type String
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc10 $Closure$reference4
+      call $parameter.value: () -> String = @fn43 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.1: () -> String = @fn44 direct
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun forwardReference @fn28(first: Int, second: String) -> () -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local second
+      val $argument.1: Int
+        Type Int
+        Local first
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.second
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc11 $Closure$reference5
+      call $parameter.value: () -> String = @fn45 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.1: () -> String = @fn46 direct
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun lambdaProvider @fn29(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun anonymousProvider @fn30(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun closureBridge @fn31(first: Int, second: String, left: () -> String, right: () -> String) -> String
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local left
+      return
+        Type String
+        Local $call.1
+  fun lambdaProvider @fn32(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun anonymousProvider @fn33(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun closureBridge @fn34(first: String, second: Int, left: () -> Int, right: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type1> closure[function_type1]
+        Type () -> Int
+        Local left
+      return
+        Type Int
+        Local $call.1
+  fun forwardLocal @fn35(first: Int, second: String) -> () -> String
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local second
+      val $argument.1: Int
+        Type Int
+        Local first
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.ignored: Int
+        Type Int
+        Local $argument.1
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> String
+        ClosureAlloc cc12 $Closure$reference6
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> String
+        Type () -> String
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      assign $result.0
+        Type () -> String
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> String
+        Type () -> String
+        Local $result.0
+      call $call.1: () -> String = @fn49 direct
+        Type String
+        Local $parameter.seed
+        Type Int
+        Local $parameter.ignored
+        Type () -> String
+        Local $parameter.value
+      return
+        Type () -> String
+        Local $call.1
+  fun forwardLocal @fn36(first: String, second: Int) -> () -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local second
+      val $argument.1: String
+        Type String
+        Local first
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.ignored: String
+        Type String
+        Local $argument.1
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      assign $result.0
+        Type () -> Int
+        ClosureAlloc cc13 $Closure$reference7
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val fallback: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type Int
+            Local $parameter.seed
+      assign $result.0
+        Type () -> Int
+        Local fallback
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: () -> Int
+        Type () -> Int
+        Local $result.0
+      call $call.1: () -> Int = @fn52 direct
+        Type Int
+        Local $parameter.seed
+        Type String
+        Local $parameter.ignored
+        Type () -> Int
+        Local $parameter.value
+      return
+        Type () -> Int
+        Local $call.1
+  fun boundMember @fn37(unused: Int, receiver: ReferenceBox, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun boundExtension @fn38(unused: String, receiver: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $lambda.0 @fn39($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun $anonymous.0 @fn40($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc4 0
+          Type () -> String
+          Local $closure
+  fun $lambda.0 @fn41($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+  fun $anonymous.0 @fn42($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc5 0
+          Type () -> Int
+          Local $closure
+  fun referenceProvider @fn43(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceBridge @fn44(first: Int, second: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceProvider @fn45(seed: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun referenceBridge @fn46(first: String, second: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $local.0.read @fn47($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun $lambda.1 @fn48($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc2 0
+          Type () -> String
+          Local $closure
+  fun localReference @fn49(seed: String, ignored: Int, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $local.0.read @fn50($capture.seed: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun $lambda.1 @fn51($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $closure
+  fun localReference @fn52(seed: Int, ignored: String, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $reference.0 @fn55($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn22 direct
+        Type ReferenceBox
+        ClosureCapture cc6 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn56($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn25 direct
+        Type String
+        ClosureCapture cc7 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.2 @fn57($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn24 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.3 @fn58($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn24 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.4 @fn59($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn24 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.5 @fn60($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn24 direct
+      return
+        Type String
+        Local $call.1
+  fun $reference.6 @fn61($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn47 direct
+        Type String
+        ClosureCapture cc12 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.7 @fn62($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn50 direct
+        Type Int
+        ClosureCapture cc13 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.ReferenceConstructor.$c8 @fn72(this: ReferenceConstructor<Int>, seed: Int, callback: () -> String) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReferenceConstructor<Int>
+        Local this
+        Type () -> String
+        Local callback
+      return
+  fun init.ReferenceConstructor.$c8 @fn73(this: ReferenceConstructor<String>, seed: String, callback: () -> String) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReferenceConstructor<String>
+        Local this
+        Type () -> String
+        Local callback
+      return
+  instance mi0 function=@fn27 <- forwardReference
+  instance mi1 function=@fn28 <- forwardReference
+  instance mi2 function=@fn29 <- lambdaProvider
+  instance mi3 function=@fn30 <- anonymousProvider
+  instance mi4 function=@fn31 <- closureBridge
+  instance mi5 function=@fn32 <- lambdaProvider
+  instance mi6 function=@fn33 <- anonymousProvider
+  instance mi7 function=@fn34 <- closureBridge
+  instance mi8 function=@fn35 <- forwardLocal
+  instance mi9 function=@fn36 <- forwardLocal
+  instance mi10 function=@fn37 <- boundMember
+  instance mi11 function=@fn38 <- boundExtension
+  instance mi12 function=@fn39 <- $lambda.0
+  instance mi13 function=@fn40 <- $anonymous.0
+  instance mi14 function=@fn41 <- $lambda.0
+  instance mi15 function=@fn42 <- $anonymous.0
+  instance mi16 function=@fn43 <- referenceProvider
+  instance mi17 function=@fn44 <- referenceBridge
+  instance mi18 function=@fn45 <- referenceProvider
+  instance mi19 function=@fn46 <- referenceBridge
+  instance mi20 function=@fn47 <- $local.0.read
+  instance mi21 function=@fn48 <- $lambda.1
+  instance mi22 function=@fn49 <- localReference
+  instance mi23 function=@fn50 <- $local.0.read
+  instance mi24 function=@fn51 <- $lambda.1
+  instance mi25 function=@fn52 <- localReference
