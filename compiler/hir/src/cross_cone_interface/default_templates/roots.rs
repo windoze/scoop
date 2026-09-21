@@ -7,7 +7,9 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
+mod nominal_receiver;
 mod semantics;
+pub use nominal_receiver::DefaultNominalReceiverBuildError;
 
 pub use semantics::{
     DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,

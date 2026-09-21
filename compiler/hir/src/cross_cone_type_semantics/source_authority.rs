@@ -63,3 +63,6 @@ pub use default_table::*;
 
 mod default_origin_binding;
 pub use default_origin_binding::*;
+
+mod default_declaration_binding;
+pub use default_declaration_binding::*;

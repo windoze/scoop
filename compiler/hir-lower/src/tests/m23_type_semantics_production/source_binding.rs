@@ -163,3 +163,5 @@ fn binding_checks_index_budget_before_publishing_borrowed_keys() {
         ));
     }
 }
+
+mod default_declarations;

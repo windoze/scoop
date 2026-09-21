@@ -20,6 +20,54 @@ impl CanonicalTemplateValueParametersV1 {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<(), MeteredTemplateValueParameterSemanticValidationError> {
+        self.validate_prefix_with(
+            expected,
+            locals,
+            meter,
+            path,
+            |value, position, meter, path| {
+                mapping
+                    .substitute_provider_type_metered(provider, value, meter, path)
+                    .map(std::borrow::Cow::Owned)
+                    .map_err(|error| {
+                        MeteredTemplateValueParameterSemanticValidationError::Substitution {
+                            position,
+                            error,
+                        }
+                    })
+            },
+        )
+    }
+
+    /// Compares raw source locals before inherited-owner substitution.
+    pub fn validate_provider_prefix_types_metered<'a>(
+        &self,
+        expected: impl ExactSizeIterator<Item = &'a SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), MeteredTemplateValueParameterSemanticValidationError> {
+        self.validate_prefix_with(expected, locals, meter, path, |value, _, _, _| {
+            Ok(std::borrow::Cow::Borrowed(value))
+        })
+    }
+
+    fn validate_prefix_with<'a, 'l>(
+        &self,
+        expected: impl ExactSizeIterator<Item = &'a SignatureTypeKey>,
+        locals: &'l CanonicalTemplateLocalTableV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+        mut map: impl FnMut(
+            &'l SignatureTypeKey,
+            u32,
+            &mut BudgetMeter,
+            &WirePath,
+        ) -> Result<
+            std::borrow::Cow<'l, SignatureTypeKey>,
+            MeteredTemplateValueParameterSemanticValidationError,
+        >,
+    ) -> Result<(), MeteredTemplateValueParameterSemanticValidationError> {
         use MeteredTemplateValueParameterSemanticValidationError as Error;
         if self.parameters().len() != expected.len() {
             return Err(Error::PrefixArity {
@@ -39,10 +87,8 @@ impl CanonicalTemplateValueParametersV1 {
             if local.mutable() != CanonicalBooleanV1::False {
                 return Err(Error::MutableLocal { position });
             }
-            let mapped = mapping
-                .substitute_provider_type_metered(provider, local.value_type(), meter, path)
-                .map_err(|error| Error::Substitution { position, error })?;
-            if !compare_default_signature_reference_targets(&mapped, expected, meter, path)
+            let mapped = map(local.value_type(), position, meter, path)?;
+            if !compare_default_signature_reference_targets(mapped.as_ref(), expected, meter, path)
                 .map_err(Error::Resource)?
                 .is_eq()
             {

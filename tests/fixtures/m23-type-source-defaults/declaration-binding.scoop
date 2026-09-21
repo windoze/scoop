@@ -1,0 +1,16 @@
+public struct ContractValue<T>(val first: T, val second: T = first)
+public enum ContractChoice<T> { Item(val first: T, val second: T = first) }
+public open class ContractBase<A, B> {
+    protected open fun pick(first: A, second: B, value: A = first): A = value
+    protected fun <U> copy(first: A, second: U, value: U = second): U = value
+    internal fun number(value: Int = 1): Int = value
+    internal fun successive(first: A, second: A = first, third: A = second): A = third
+    protected class Static {
+        internal fun <U> copy(first: U, value: U = first): U = value
+    }
+}
+public class ContractChild<T>: ContractBase<T, T>() {
+    protected final override fun pick(first: T, second: T, value: T): T = value
+}
+
+public fun declarationSeed(value: Int = 7): Int = value

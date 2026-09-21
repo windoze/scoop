@@ -176,10 +176,10 @@ pub use references::{
     compare_default_signature_reference_targets,
 };
 pub use roots::{
-    DecodedPersistentLexicalRootV1, DefaultTemplateProviderShapeBuildError,
-    DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticAuthority,
-    DefaultTemplateRootSemanticValidationError, PersistentLexicalRootBuildError,
-    PersistentLexicalRootResolver, PersistentLexicalRootV1,
+    DecodedPersistentLexicalRootV1, DefaultNominalReceiverBuildError,
+    DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,
+    DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
+    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
 };
 pub use table::{
     CanonicalExportDefaultTemplatesV1, DecodedCanonicalExportDefaultTemplatesV1,

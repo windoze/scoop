@@ -1,6 +1,6 @@
 use super::*;
 use crate::{SignatureBinderScopeV1, SourceNominalId};
-use scoop_identity::{CallableTemplateOrigin, NonEmptyVec, SignatureTypeKey};
+use scoop_identity::SignatureTypeKey;
 use scoop_wire::WirePath;
 
 pub(super) struct OwnerShape {
@@ -40,50 +40,14 @@ pub(super) fn shape<A: NominalInterfaceShapeAuthority<E>, E>(
     let own = payload.type_parameters().len_u32();
     let binders =
         DefaultTemplateProviderShapeV1::try_new(arity, own).map_err(Error::ProviderShape)?;
-    let receiver = match source.declaration() {
-        CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_) => {
-            None
-        }
-        CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::GenericFunction(_) => {
-            meter
-                .check_semantic_depth(1, &path)
-                .map_err(Error::Resource)?;
-            meter.charge_nodes(1, &path).map_err(Error::Resource)?;
-            Some(match payload.owner() {
-                SourceNominalId::Concrete(id) => SignatureTypeKey::Nominal(id),
-                SourceNominalId::GenericTemplate(origin) => {
-                    meter
-                        .check_table_entries(u64::from(arity), &path)
-                        .map_err(Error::Resource)?;
-                    meter
-                        .charge_work(u64::from(arity), &path)
-                        .map_err(Error::Resource)?;
-                    meter
-                        .check_semantic_depth(2, &path)
-                        .map_err(Error::Resource)?;
-                    meter
-                        .charge_nodes(u64::from(arity), &path)
-                        .map_err(Error::Resource)?;
-                    meter
-                        .charge_edges(u64::from(arity), &path)
-                        .map_err(Error::Resource)?;
-                    let mut arguments = Vec::new();
-                    meter
-                        .try_reserve_collection_slots(&mut arguments, arity as usize, &path)
-                        .map_err(Error::Resource)?;
-                    arguments.extend((0..arity).map(|index| SignatureTypeKey::Binder {
-                        depth: u32::from(own != 0),
-                        index,
-                    }));
-                    SignatureTypeKey::NominalApplication {
-                        origin,
-                        arguments: NonEmptyVec::new(arguments).map_err(|_| Error::OwnerShape)?,
-                    }
-                }
-            })
-        }
-        CallableTemplateOrigin::Accessor(_) => return Err(Error::OwnerShape),
-    };
+    let root = crate::PersistentLexicalRootV1::try_from(source.declaration())
+        .map_err(|_| Error::OwnerShape)?;
+    let receiver = binders
+        .nominal_source_receiver(root, payload.owner(), meter, &path)
+        .map_err(|error| match error {
+            crate::DefaultNominalReceiverBuildError::Resource(error) => Error::Resource(error),
+            crate::DefaultNominalReceiverBuildError::OwnerShape => Error::OwnerShape,
+        })?;
     Ok(OwnerShape {
         scope: binders.signature_scope(),
         binders,
