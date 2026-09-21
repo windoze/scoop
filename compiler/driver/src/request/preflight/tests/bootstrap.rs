@@ -105,6 +105,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
             output.production_section(),
+            output.foundation(),
             &empty_mir_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::MissingInitializationCycleThrower)
@@ -118,6 +119,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let minimal_production = scoop_mir_lower::lower_production_section(
         scoop_identity::ConeIdentity::CORE,
         output.production_section(),
+        output.foundation(),
         &minimal_foundation,
     )
     .unwrap();
@@ -158,6 +160,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::CORE,
             output.production_section(),
+            output.foundation(),
             &mismatched_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
@@ -167,6 +170,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::SINGLE_FILE,
             output.production_section(),
+            output.foundation(),
             &minimal_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::Production(
@@ -175,26 +179,20 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             )
         ))
     ));
-    let expected_shape_roots = interface
-        .type_targets()
-        .targets()
-        .iter()
-        .filter(|target| {
-            matches!(
-                (target.definition(), target.capability()),
-                (
-                    scoop_hir::CoreTypeDefinitionV1::Type(_),
-                    scoop_hir::CoreHirTypeCapabilityV1::ParamFreeStrong(_)
-                )
-            )
-        })
-        .count();
+    let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_direct_surface(
+        output.production_section().direct_public_surface(),
+        output.foundation(),
+    )
+    .unwrap()
+    .roots()
+    .len();
     let missing_source_module = scoop_mir_lower::lower(&output.hir().local).unwrap();
     let missing_source_foundation =
         scoop_mir::OdrFreeMirFoundation::from_module(&missing_source_module).unwrap();
     let missing_source_production = scoop_mir_lower::lower_production_section(
         missing_source_module.cone,
         output.production_section(),
+        output.foundation(),
         &missing_source_foundation,
     )
     .unwrap();

@@ -10,9 +10,9 @@ use scoop_identity::{
 };
 
 use crate::{
-    ConeOutputKind, CoreProtocols, CoreShapeSupportRequirementsV1, ExportHir,
-    HirExportBindingSurfaceValidationError, HirNativeBoundaryTypeDefinitions, LocalConcreteHir,
-    LocalExecutableEntry, LocalExecutableEntryError, concrete,
+    ConeOutputKind, CoreProtocols, ExportHir, HirExportBindingSurfaceValidationError,
+    HirNativeBoundaryTypeDefinitions, LocalConcreteHir, LocalExecutableEntry,
+    LocalExecutableEntryError, PublicNominalShapeRequirementsV1, concrete,
 };
 
 mod ordinary;
@@ -198,7 +198,7 @@ pub struct LocalCoreShapeSupportPlan {
 impl LocalCoreShapeSupportPlan {
     pub fn try_new(
         module: &LocalConcreteHir,
-        requirements: &CoreShapeSupportRequirementsV1,
+        requirements: &PublicNominalShapeRequirementsV1,
     ) -> Result<Self, LocalCoreShapeSupportPlanError> {
         let mut roots = Vec::with_capacity(requirements.roots().len());
         for requirement in requirements.roots() {

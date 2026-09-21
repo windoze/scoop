@@ -80,7 +80,7 @@ impl std::error::Error for StrongProfileLocalProductionError {
 
 #[derive(Debug)]
 pub enum StrongProfileLirProductionError {
-    ShapeSources(CoreShapeSupportSourceProjectionError),
+    ShapeSources(PublicNominalShapeProjectionError),
     Production(StrongProductionSectionValidationError),
     CoreRelation(StrongProfileCoreLirRelationError),
 }
@@ -123,6 +123,7 @@ impl std::error::Error for StrongProfileCoreLirRelationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongProfileRelationError {
+    ShapeSources(PublicNominalShapeProjectionError),
     OutputMismatch,
     CoreBranchMismatch,
     CoreShapeRootCoverage { expected: usize, actual: usize },

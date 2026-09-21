@@ -1,8 +1,8 @@
 use std::fmt;
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1,
-    CoreTypeDefinitionV1,
+    CanonicalHirFoundation, CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1,
+    PublicNominalShapeRequirementsV1,
 };
 use scoop_mir::{
     CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
@@ -18,11 +18,12 @@ use scoop_mir::{
 pub fn lower_production_section(
     artifact: ConeIdentity,
     hir: &CoreBootstrapInterfaceSectionV1,
+    hir_foundation: &CanonicalHirFoundation,
     foundation: &OdrFreeMirFoundation,
 ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionLoweringError> {
     let strong_callable_bridges =
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
-    let core_bridge = lower_core_bridge(hir.core_interface(), &strong_callable_bridges)?;
+    let core_bridge = lower_core_bridge(hir, hir_foundation, &strong_callable_bridges)?;
     let entry_bridge = lower_entry_bridge(hir.output_contract())
         .map_err(MirProductionLoweringError::Production)?;
     CoreBootstrapBridgeSectionV1::try_new(
@@ -35,27 +36,23 @@ pub fn lower_production_section(
 }
 
 fn lower_core_bridge(
-    interface: &CoreHirInterfaceBranchV1,
+    hir: &CoreBootstrapInterfaceSectionV1,
+    foundation: &CanonicalHirFoundation,
     strong: &StrongCallableBridgeSurfaceV1,
 ) -> Result<CoreMirBridgeBranchV1, MirProductionLoweringError> {
-    let CoreHirInterfaceBranchV1::Core(interface) = interface else {
+    let CoreHirInterfaceBranchV1::Core(interface) = hir.core_interface() else {
         return Ok(CoreMirBridgeBranchV1::NotCore);
     };
 
-    let shape_support_roots = interface
-        .type_targets()
-        .targets()
+    let shapes = PublicNominalShapeRequirementsV1::from_direct_surface(
+        hir.direct_public_surface(),
+        foundation,
+    )
+    .map_err(MirProductionLoweringError::ShapeSources)?;
+    let shape_support_roots = shapes
+        .roots()
         .iter()
-        .filter_map(|target| {
-            let (
-                CoreTypeDefinitionV1::Type(source),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
-            ) = (target.definition(), target.capability())
-            else {
-                return None;
-            };
-            Some(CoreMirShapeSupportRootV1::new(source, exact))
-        })
+        .map(|root| CoreMirShapeSupportRootV1::new(root.source(), root.exact()))
         .collect::<Result<Vec<_>, _>>()
         .map_err(MirProductionLoweringError::Production)?;
 
@@ -109,6 +106,7 @@ fn lower_entry_bridge(
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum MirProductionLoweringError {
+    ShapeSources(scoop_hir::PublicNominalShapeProjectionError),
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleSignatureMismatch,
@@ -125,6 +123,7 @@ impl std::error::Error for MirProductionLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Production(source) => Some(source),
+            Self::ShapeSources(source) => Some(source),
             Self::InvalidInitializationCycleThrower
             | Self::MissingInitializationCycleThrower
             | Self::InitializationCycleSignatureMismatch => None,

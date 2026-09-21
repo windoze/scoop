@@ -3,10 +3,9 @@
 use std::fmt;
 
 use scoop_identity::{
-    BindableEntity, BindingTarget, ConeIdentity, CoreBuiltinNominal, DeclarationName,
-    DecodedExecutableSourceEntryIdentity, DecodedPersistentId, ExactOrdinaryNoArgUnitSignature,
-    ExactTypeKey, ExecutableSourceEntryIdentity, ExecutableSourceEntryIdentityError,
-    ExportBindingKey, PersistentExportBindingId, SourceDeclarationKey,
+    ConeIdentity, CoreBuiltinNominal, DecodedExecutableSourceEntryIdentity, DecodedPersistentId,
+    ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity,
+    ExecutableSourceEntryIdentityError, PersistentExportBindingId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
@@ -23,8 +22,8 @@ mod core_protocol_surface;
 #[cfg(test)]
 pub(crate) use core_protocol_surface::test_support as core_protocol_test_support;
 pub use core_protocol_surface::*;
-mod core_types;
-pub use core_types::*;
+mod public_nominal_shapes;
+pub use public_nominal_shapes::*;
 mod core_well_known;
 pub use core_well_known::*;
 mod const_values;
@@ -54,39 +53,6 @@ mod type_alias_interfaces;
 pub use type_alias_interfaces::*;
 mod type_semantics;
 pub use type_semantics::*;
-
-fn direct_binding_matches_source(
-    binding: &ExportBindingKey,
-    source: &SourceDeclarationKey,
-) -> bool {
-    let target = match binding.target() {
-        BindableEntity::Type(_) | BindableEntity::GenericType(_) => {
-            BindingTarget::type_name(source)
-        }
-        BindableEntity::ObjectValue(_) => BindingTarget::object_value(source),
-        BindableEntity::Function(_) | BindableEntity::GenericFunction(_) => {
-            if source.duplicate_signature().receiver_is_present() {
-                BindingTarget::extension_function(source)
-            } else {
-                BindingTarget::function(source)
-            }
-        }
-        BindableEntity::Property(_) => BindingTarget::property(source),
-        BindableEntity::ExtensionProperty(_) => BindingTarget::extension_property(source),
-        BindableEntity::TypeAlias(_) => BindingTarget::type_alias(source),
-        BindableEntity::EnumVariant(_) => return false,
-    };
-    let (Ok(target), DeclarationName::Named(name)) = (target, source.name()) else {
-        return false;
-    };
-    binding
-        == &ExportBindingKey::new(
-            source.origin(),
-            source.package().clone(),
-            name.clone(),
-            target,
-        )
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirOutputContractV1 {
@@ -475,7 +441,7 @@ mod tests {
     use super::{
         CanonicalDirectPublicSurfaceV1, DecodedCanonicalDirectPublicSurfaceV1,
         DecodedHirOutputContractV1, DirectPublicSurfaceValidationError, HirOutputContractV1,
-        HirOutputContractValidationError, direct_binding_matches_source,
+        HirOutputContractValidationError,
     };
     use crate::CanonicalHirFoundation;
     use crate::{
@@ -680,25 +646,6 @@ mod tests {
         assert!(matches!(
             unknown.validate_against(&foundation),
             Err(DirectPublicSurfaceValidationError::UnknownBinding { index: 0, .. })
-        ));
-    }
-
-    #[test]
-    fn direct_binding_relation_rejects_a_renamed_source_target() {
-        let (function, binding) = function_and_binding("actual");
-        assert!(direct_binding_matches_source(binding.key(), function.key()));
-
-        let renamed =
-            CborIdentityRecord::<PersistentExportBindingId, _>::from_key(ExportBindingKey::new(
-                ConeIdentity::CORE,
-                PackagePath::root(),
-                CanonicalIdentifier::new("alias").unwrap(),
-                BindingTarget::function(function.key()).unwrap(),
-            ))
-            .unwrap();
-        assert!(!direct_binding_matches_source(
-            renamed.key(),
-            function.key()
         ));
     }
 

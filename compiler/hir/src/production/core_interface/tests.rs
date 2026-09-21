@@ -12,7 +12,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{CoreTypeTargetV1, DecodedHirFoundation, ImportedHirFoundation};
+use crate::{DecodedHirFoundation, ImportedHirFoundation, PublicNominalShapeRequirementsV1};
 
 mod wire;
 
@@ -70,57 +70,16 @@ fn core_section_rejects_an_executable_output_contract() {
 }
 
 #[test]
-fn interface_relations_require_one_shared_complete_surface() {
-    let fixture = fixture();
-
-    let mut incomplete = fixture.interface.clone();
-    let string_target = incomplete
-        .type_targets
-        .targets()
-        .iter()
-        .find(|target| matches!(target.definition(), CoreTypeDefinitionV1::Type(_)))
-        .unwrap()
-        .clone();
-    incomplete.type_targets = CoreTypeTargetSurfaceV1::try_new(vec![string_target]).unwrap();
-    assert_eq!(
-        decode_interface(&incomplete).validate_against(&fixture.foundation, &fixture.direct),
-        Err(CoreHirInterfaceValidationError::TypeTargets(
-            CoreTypeTargetSurfaceValidationError::Coverage {
-                expected: 2,
-                actual: 1
-            }
-        ))
-    );
-
-    let mut wrong_string_target = fixture.interface;
-    let targets = wrong_string_target
-        .type_targets
-        .targets()
-        .iter()
-        .cloned()
-        .map(|mut target| {
-            if matches!(target.definition, CoreTypeDefinitionV1::Type(_)) {
-                target.capability =
-                    CoreHirTypeCapabilityV1::StructuralUnavailable(fixture.string_exact);
-            }
-            target
-        })
-        .collect();
-    wrong_string_target.type_targets = CoreTypeTargetSurfaceV1::try_new(targets).unwrap();
-    assert_eq!(
-        validate_relations(&wrong_string_target),
-        Err(CoreHirInterfaceRelationError::StringTypeTargetMismatch)
-    );
-}
-
-#[test]
 fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
     let fixture = fixture();
     let foundation = OdrFreeHirFoundation::try_new(fixture.foundation).unwrap();
-    let sources = fixture
-        .interface
-        .param_free_shape_support_sources(&foundation)
-        .unwrap();
+    let sources = PublicNominalShapeRequirementsV1::from_direct_surface(
+        &fixture.direct,
+        foundation.as_canonical(),
+    )
+    .unwrap()
+    .source_declarations(foundation.as_canonical())
+    .unwrap();
     assert_eq!(sources.len(), 1);
     assert_eq!(
         PersistentTypeId::from_source_declaration(&sources[0]).unwrap(),
@@ -399,7 +358,6 @@ struct Fixture {
     direct: CanonicalDirectPublicSurfaceV1,
     interface: CoreHirInterfaceV1,
     section: CoreBootstrapInterfaceSectionV1,
-    string_exact: PersistentExactTypeId,
 }
 
 fn fixture() -> Fixture {
@@ -410,7 +368,6 @@ fn fixture() -> Fixture {
     let option: CborIdentityRecord<PersistentGenericTypeId, SourceDeclarationKey> =
         CborIdentityRecord::from_key(option_key).unwrap();
     let string_id = string.id();
-    let option_id = option.id();
 
     let string_exact_record: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey> =
         CborIdentityRecord::from_key(ExactTypeKey::Nominal(string_id)).unwrap();
@@ -432,21 +389,6 @@ fn fixture() -> Fixture {
     let direct =
         CanonicalDirectPublicSurfaceV1::try_new(vec![string_binding.id(), option_binding.id()])
             .unwrap();
-    let type_targets = CoreTypeTargetSurfaceV1::try_new(vec![
-        CoreTypeTargetV1 {
-            binding: string_binding.id(),
-            definition: CoreTypeDefinitionV1::Type(string_id),
-            capability: CoreHirTypeCapabilityV1::ParamFreeStrong(string_exact_record.id()),
-        },
-        CoreTypeTargetV1 {
-            binding: option_binding.id(),
-            definition: CoreTypeDefinitionV1::GenericType(option_id),
-            capability: CoreHirTypeCapabilityV1::GenericUnavailable {
-                type_parameter_count: 1,
-            },
-        },
-    ])
-    .unwrap();
     let mut foundation = CanonicalHirFoundation::empty();
     let compiler_protocols = crate::production::core_protocol_test_support::install(
         &mut foundation,
@@ -464,7 +406,6 @@ fn fixture() -> Fixture {
             source_type: string_id,
             exact_type: string_exact_record.id(),
         },
-        type_targets,
         compiler_protocols,
     };
     let section = CoreBootstrapInterfaceSectionV1 {
@@ -482,7 +423,6 @@ fn fixture() -> Fixture {
         direct,
         interface,
         section,
-        string_exact: string_exact_record.id(),
     }
 }
 

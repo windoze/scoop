@@ -30,7 +30,7 @@ pub(crate) fn validate_strong_profile_production(
         production.mir,
     )
     .map_err(StrongProfileProductionError::Local)?;
-    validate_strong_profile_relations(graph.kind(), &local.hir, &local.mir)
+    validate_strong_profile_relations(graph.kind(), &local.hir, &local.mir, &foundations.hir)
         .map_err(StrongProfileProductionError::Relation)?;
     let lir = validate_strong_profile_lir_production(
         graph,
@@ -73,12 +73,19 @@ pub(crate) fn validate_strong_profile_relations(
     kind: ConeKind,
     hir: &CoreBootstrapInterfaceSectionV1,
     mir: &CoreBootstrapBridgeSectionV1,
+    foundation: &OdrFreeHirFoundation,
 ) -> Result<(), StrongProfileRelationError> {
     validate_output_relation(kind, hir.output_contract(), mir.entry_bridge())?;
+    let shapes = PublicNominalShapeRequirementsV1::from_direct_surface(
+        hir.direct_public_surface(),
+        foundation.as_canonical(),
+    )
+    .map_err(StrongProfileRelationError::ShapeSources)?;
     validate_core_relation(
         hir.core_interface(),
         mir.core_bridge(),
         mir.strong_callable_bridges(),
+        &shapes,
     )
 }
 
@@ -97,9 +104,12 @@ pub(crate) fn validate_strong_profile_lir_production(
     };
     let core_shape_sources = match front.hir_production.core_interface() {
         CoreHirInterfaceBranchV1::NotCore => Vec::new(),
-        CoreHirInterfaceBranchV1::Core(interface) => interface
-            .param_free_shape_support_sources(front.hir_foundation)
-            .map_err(StrongProfileLirProductionError::ShapeSources)?,
+        CoreHirInterfaceBranchV1::Core(_) => PublicNominalShapeRequirementsV1::from_direct_surface(
+            front.hir_production.direct_public_surface(),
+            front.hir_foundation.as_canonical(),
+        )
+        .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
+        .map_err(StrongProfileLirProductionError::ShapeSources)?,
     };
     let lir = lir
         .validate(
@@ -179,6 +189,7 @@ pub(super) fn validate_core_relation(
     hir: &CoreHirInterfaceBranchV1,
     mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
+    shapes: &PublicNominalShapeRequirementsV1,
 ) -> Result<(), StrongProfileRelationError> {
     let (CoreHirInterfaceBranchV1::Core(hir), CoreMirBridgeBranchV1::Core(mir)) = (hir, mir) else {
         return match (hir, mir) {
@@ -187,34 +198,19 @@ pub(super) fn validate_core_relation(
         };
     };
 
-    let mut expected_shape_roots = hir
-        .type_targets()
-        .targets()
-        .iter()
-        .filter_map(|target| {
-            let (
-                CoreTypeDefinitionV1::Type(source),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
-            ) = (target.definition(), target.capability())
-            else {
-                return None;
-            };
-            Some((source, exact))
-        })
-        .collect::<Vec<_>>();
-    expected_shape_roots.sort_unstable_by_key(|(source, _)| *source);
+    let expected_shape_roots = shapes.roots();
     if expected_shape_roots.len() != mir.shape_support_roots().len() {
         return Err(StrongProfileRelationError::CoreShapeRootCoverage {
             expected: expected_shape_roots.len(),
             actual: mir.shape_support_roots().len(),
         });
     }
-    for (index, ((expected_source, expected_exact), actual)) in expected_shape_roots
+    for (index, (expected, actual)) in expected_shape_roots
         .iter()
         .zip(mir.shape_support_roots())
         .enumerate()
     {
-        if actual.source() != *expected_source || actual.exact() != *expected_exact {
+        if actual.source() != expected.source() || actual.exact() != expected.exact() {
             return Err(StrongProfileRelationError::CoreShapeRootMismatch { index });
         }
     }

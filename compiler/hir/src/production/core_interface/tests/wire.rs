@@ -7,20 +7,20 @@ fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
     assert_eq!(
         (bytes.len(), scoop_wire::sha256(&bytes).to_string()),
         (
-            34_878,
-            "df697b31f0cd9fe306700364f67661583e8abd618a45ca877e5fc2318276a0eb".to_owned()
+            34_681,
+            "554cf9138e0dc7c5d530d575378457ab708d24be77c43fc74cb9c49629a4b1b1".to_owned()
         )
     );
 
     assert_eq!(
-        decode_interface(&fixture.interface).validate_against(&fixture.foundation, &fixture.direct),
+        decode_interface(&fixture.interface).validate_against(&fixture.foundation),
         Ok(fixture.interface)
     );
 }
 
 #[test]
 fn interface_and_section_readers_require_closed_products_and_sums() {
-    for bytes in [vec![0xa2], vec![0xa4], vec![0xa3, 0x07, 0x00]] {
+    for bytes in [vec![0xa1], vec![0xa3], vec![0xa2, 0x07, 0x00]] {
         assert!(
             decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
         );
@@ -71,7 +71,7 @@ fn core_branch_and_non_core_section_have_fixed_wire_vectors() {
 }
 
 #[test]
-fn reader_rejects_removed_core_snapshot_callable_and_value_fields() {
+fn reader_rejects_removed_core_snapshot_type_callable_and_value_fields() {
     struct WithRemovedTable<'a> {
         interface: &'a CoreHirInterfaceV1,
         removed_field: u64,
@@ -82,7 +82,7 @@ fn reader_rejects_removed_core_snapshot_callable_and_value_fields() {
             &self,
             encoder: &mut scoop_wire::Encoder,
         ) -> Result<(), scoop_wire::cbor::EncodeError> {
-            encoder.map(4)?;
+            encoder.map(3)?;
             if self.removed_field == 1 {
                 encoder.field(1)?;
                 encoder.array(0)?;
@@ -93,8 +93,10 @@ fn reader_rejects_removed_core_snapshot_callable_and_value_fields() {
                 encoder.field(3)?;
                 encoder.array(0)?;
             }
-            encoder.field(4)?;
-            self.interface.type_targets.encode(encoder)?;
+            if self.removed_field == 4 {
+                encoder.field(4)?;
+                encoder.array(0)?;
+            }
             if self.removed_field == 5 {
                 encoder.field(5)?;
                 encoder.array(0)?;
@@ -105,7 +107,7 @@ fn reader_rejects_removed_core_snapshot_callable_and_value_fields() {
     }
 
     let fixture = fixture();
-    for removed_field in [1, 3, 5] {
+    for removed_field in [1, 3, 4, 5] {
         let bytes = encode(&WithRemovedTable {
             interface: &fixture.interface,
             removed_field,

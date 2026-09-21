@@ -221,6 +221,7 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
         let production_section = scoop_mir_lower::lower_production_section(
             module.cone,
             &self.production_section,
+            &self.foundation,
             &foundation,
         )
         .map_err(OrdinaryConeMirStageError::ProductionSection)?;

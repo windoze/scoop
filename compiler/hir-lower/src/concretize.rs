@@ -42,14 +42,14 @@ pub(crate) fn lower_output(output: &export::ExportHirOutput) -> export::LocalCon
 
 pub(crate) fn lower_core_output(
     output: &export::ExportHirOutput,
-    requirements: &export::CoreShapeSupportRequirementsV1,
+    requirements: &export::PublicNominalShapeRequirementsV1,
 ) -> export::LocalConcreteHirOutput {
     lower_output_with_contract(output, Some(requirements))
 }
 
 fn lower_output_with_contract(
     output: &export::ExportHirOutput,
-    requirements: Option<&export::CoreShapeSupportRequirementsV1>,
+    requirements: Option<&export::PublicNominalShapeRequirementsV1>,
 ) -> export::LocalConcreteHirOutput {
     let module = output.module();
     export::validate_iteration_plans(module)

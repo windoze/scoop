@@ -201,6 +201,7 @@ impl TrustedCoreBootstrapHirOutput {
         let production_section = scoop_mir_lower::lower_production_section(
             mir.cone,
             &self.production_section,
+            &self.foundation,
             &foundation,
         )
         .map_err(CoreBootstrapMirStageError::ProductionSection)?;

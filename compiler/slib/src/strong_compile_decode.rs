@@ -5,10 +5,9 @@ use std::fmt;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
-    CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1, CoreShapeSupportSourceProjectionError,
-    CoreTypeDefinitionV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
+    CoreHirInterfaceBranchV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
     HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation,
-    OdrFreeHirFoundationError,
+    OdrFreeHirFoundationError, PublicNominalShapeProjectionError, PublicNominalShapeRequirementsV1,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityValidationError, SemanticIdentitySession,
@@ -595,6 +594,7 @@ impl<'input> LocallyValidatedSingleConeCompileProduction<'input> {
             self.graph.kind(),
             &self.hir_production,
             &self.mir_production,
+            &self.hir_foundation,
         )?;
         Ok(ValidatedSingleConeCompileSemanticFront { local: self })
     }

@@ -1,21 +1,17 @@
 //! Atomic HIR production interface for ordinary and trusted core Cones.
 
-use std::collections::BTreeMap;
 use std::fmt;
 
-use scoop_identity::{ConeIdentity, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey};
+use scoop_identity::ConeIdentity;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
     CanonicalDirectPublicSurfaceV1, CoreCompilerProtocolSurfaceBuildError,
     CoreCompilerProtocolSurfaceV1, CoreCompilerProtocolSurfaceValidationError,
-    CoreHirTypeCapabilityV1, CoreTypeDefinitionV1, CoreTypeTargetSurfaceBuildError,
-    CoreTypeTargetSurfaceV1, CoreTypeTargetSurfaceValidationError,
     DecodedCanonicalDirectPublicSurfaceV1, DecodedCoreCompilerProtocolSurfaceV1,
-    DecodedCoreTypeTargetSurfaceV1, DecodedHirOutputContractV1, DecodedRuntimeCoreCapabilityV1,
-    DirectPublicSurfaceBuildError, DirectPublicSurfaceValidationError, HirOutputContractV1,
-    HirOutputContractValidationError, RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1,
-    RuntimeCoreCapabilityValidationError,
+    DecodedHirOutputContractV1, DecodedRuntimeCoreCapabilityV1, DirectPublicSurfaceBuildError,
+    DirectPublicSurfaceValidationError, HirOutputContractV1, HirOutputContractValidationError,
+    RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError,
 };
 use crate::{
     CanonicalHirFoundation, ExportHir, ExportHirOutput, OdrFreeHirFoundation,
@@ -25,39 +21,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreHirInterfaceV1 {
     string_capability: RuntimeCoreCapabilityV1,
-    type_targets: CoreTypeTargetSurfaceV1,
     compiler_protocols: CoreCompilerProtocolSurfaceV1,
-}
-
-/// One parameter-free source nominal whose complete runtime shape is a
-/// mandatory strong-production obligation of the trusted core Cone.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct CoreShapeSupportRequirementV1 {
-    source: PersistentTypeId,
-    exact: PersistentExactTypeId,
-}
-
-impl CoreShapeSupportRequirementV1 {
-    pub const fn source(self) -> PersistentTypeId {
-        self.source
-    }
-
-    pub const fn exact(self) -> PersistentExactTypeId {
-        self.exact
-    }
-}
-
-/// Complete, deterministically ordered shape-support requirement set derived
-/// from the validated core HIR interface.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreShapeSupportRequirementsV1 {
-    roots: Vec<CoreShapeSupportRequirementV1>,
-}
-
-impl CoreShapeSupportRequirementsV1 {
-    pub fn roots(&self) -> &[CoreShapeSupportRequirementV1] {
-        &self.roots
-    }
 }
 
 impl CoreHirInterfaceV1 {
@@ -71,8 +35,6 @@ impl CoreHirInterfaceV1 {
         let interface = Self {
             string_capability: RuntimeCoreCapabilityV1::string_from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::String)?,
-            type_targets: CoreTypeTargetSurfaceV1::from_core_export(export)
-                .map_err(CoreHirInterfaceBuildError::TypeTargets)?,
             compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::CompilerProtocols)?,
         };
@@ -84,64 +46,16 @@ impl CoreHirInterfaceV1 {
         self.string_capability
     }
 
-    pub const fn type_targets(&self) -> &CoreTypeTargetSurfaceV1 {
-        &self.type_targets
-    }
-
     pub const fn compiler_protocols(&self) -> &CoreCompilerProtocolSurfaceV1 {
         &self.compiler_protocols
-    }
-
-    /// Projects the authoritative source/exact pairs that every later stage
-    /// must materialize. Aliases never introduce a second nominal root.
-    pub fn shape_support_requirements(&self) -> CoreShapeSupportRequirementsV1 {
-        let mut roots = BTreeMap::new();
-        for target in self.type_targets.targets() {
-            let (
-                CoreTypeDefinitionV1::Type(source),
-                CoreHirTypeCapabilityV1::ParamFreeStrong(exact),
-            ) = (target.definition(), target.capability())
-            else {
-                continue;
-            };
-            roots
-                .entry(source)
-                .or_insert(CoreShapeSupportRequirementV1 { source, exact });
-        }
-        CoreShapeSupportRequirementsV1 {
-            roots: roots.into_values().collect(),
-        }
-    }
-
-    /// Derives the complete core shape-support obligation set from the
-    /// already validated public type surface. Type aliases do not create a
-    /// second obligation for their nominal target.
-    pub fn param_free_shape_support_sources(
-        &self,
-        foundation: &OdrFreeHirFoundation,
-    ) -> Result<Vec<SourceDeclarationKey>, CoreShapeSupportSourceProjectionError> {
-        let mut sources = BTreeMap::new();
-        for requirement in self.shape_support_requirements().roots {
-            let source_type = requirement.source();
-            let (_, source) = foundation
-                .as_canonical()
-                .source_type_by_bytes(source_type.as_array())
-                .ok_or(CoreShapeSupportSourceProjectionError::MissingSourceNominal(
-                    source_type,
-                ))?;
-            sources.entry(source_type).or_insert_with(|| source.clone());
-        }
-        Ok(sources.into_values().collect())
     }
 }
 
 impl WireEncode for CoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(2)?;
         self.string_capability.encode(encoder)?;
-        encoder.field(4)?;
-        self.type_targets.encode(encoder)?;
         encoder.field(6)?;
         self.compiler_protocols.encode(encoder)
     }
@@ -150,7 +64,6 @@ impl WireEncode for CoreHirInterfaceV1 {
 #[derive(Debug)]
 pub struct DecodedCoreHirInterfaceV1 {
     string_capability: DecodedRuntimeCoreCapabilityV1,
-    type_targets: DecodedCoreTypeTargetSurfaceV1,
     compiler_protocols: DecodedCoreCompilerProtocolSurfaceV1,
 }
 
@@ -158,17 +71,12 @@ impl DecodedCoreHirInterfaceV1 {
     fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
-        direct_surface: &CanonicalDirectPublicSurfaceV1,
     ) -> Result<CoreHirInterfaceV1, CoreHirInterfaceValidationError> {
         let interface = CoreHirInterfaceV1 {
             string_capability: self
                 .string_capability
                 .validate_against(foundation)
                 .map_err(CoreHirInterfaceValidationError::String)?,
-            type_targets: self
-                .type_targets
-                .validate_against(foundation, direct_surface)
-                .map_err(CoreHirInterfaceValidationError::TypeTargets)?,
             compiler_protocols: self
                 .compiler_protocols
                 .validate_against(foundation)
@@ -181,11 +89,9 @@ impl DecodedCoreHirInterfaceV1 {
 
 impl WireEncode for DecodedCoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(2)?;
         self.string_capability.encode(encoder)?;
-        encoder.field(4)?;
-        self.type_targets.encode(encoder)?;
         encoder.field(6)?;
         self.compiler_protocols.encode(encoder)
     }
@@ -193,10 +99,9 @@ impl WireEncode for DecodedCoreHirInterfaceV1 {
 
 impl WireDecode for DecodedCoreHirInterfaceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             string_capability: decoder.field(2, DecodedRuntimeCoreCapabilityV1::decode)?,
-            type_targets: decoder.field(4, DecodedCoreTypeTargetSurfaceV1::decode)?,
             compiler_protocols: decoder.field(6, DecodedCoreCompilerProtocolSurfaceV1::decode)?,
         })
     }
@@ -367,7 +272,7 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
                 }
                 CoreHirInterfaceBranchV1::Core(Box::new(
                     interface
-                        .validate_against(foundation, &direct_public_surface)
+                        .validate_against(foundation)
                         .map_err(CoreBootstrapInterfaceValidationError::CoreInterface)?,
                 ))
             }
@@ -406,14 +311,6 @@ impl WireDecode for DecodedCoreBootstrapInterfaceSectionV1 {
 
 fn validate_relations(interface: &CoreHirInterfaceV1) -> Result<(), CoreHirInterfaceRelationError> {
     let string_source = interface.string_capability.source_type();
-    let string_exact = interface.string_capability.exact_type();
-    let matching = interface.type_targets.targets().iter().filter(|target| {
-        target.definition() == CoreTypeDefinitionV1::Type(string_source)
-            && target.capability() == CoreHirTypeCapabilityV1::ParamFreeStrong(string_exact)
-    });
-    if matching.count() != 1 {
-        return Err(CoreHirInterfaceRelationError::StringTypeTargetMismatch);
-    }
     if interface.compiler_protocols.string_source_type() != string_source {
         return Err(CoreHirInterfaceRelationError::ProtocolStringMismatch);
     }
@@ -425,7 +322,6 @@ pub enum CoreHirInterfaceBuildError {
     NotCore(ConeIdentity),
     ImportedProtocolsInCore,
     String(RuntimeCoreCapabilityBuildError),
-    TypeTargets(CoreTypeTargetSurfaceBuildError),
     CompilerProtocols(CoreCompilerProtocolSurfaceBuildError),
     Relation(CoreHirInterfaceRelationError),
 }
@@ -438,26 +334,9 @@ impl fmt::Display for CoreHirInterfaceBuildError {
 
 impl std::error::Error for CoreHirInterfaceBuildError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreShapeSupportSourceProjectionError {
-    MissingSourceNominal(PersistentTypeId),
-}
-
-impl fmt::Display for CoreShapeSupportSourceProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot project core shape-support source obligations: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for CoreShapeSupportSourceProjectionError {}
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum CoreHirInterfaceValidationError {
     String(RuntimeCoreCapabilityValidationError),
-    TypeTargets(CoreTypeTargetSurfaceValidationError),
     CompilerProtocols(CoreCompilerProtocolSurfaceValidationError),
     Relation(CoreHirInterfaceRelationError),
 }
@@ -472,7 +351,6 @@ impl std::error::Error for CoreHirInterfaceValidationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreHirInterfaceRelationError {
-    StringTypeTargetMismatch,
     ProtocolStringMismatch,
 }
 

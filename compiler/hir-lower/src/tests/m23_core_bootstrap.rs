@@ -23,8 +23,10 @@ fn core_bootstrap_lowers_directly_from_the_atomic_parser_product() {
     assert_eq!(source.identity.logical_path().as_str(), "src/core.scoop");
     assert_eq!(source.name, "<core>");
     assert!(source.source.is_empty());
-    let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
-    let requirements = interface.shape_support_requirements();
+    let requirements = scoop_hir::PublicNominalShapeRequirementsV1::from_public_bindings(
+        &output.export.public_export_bindings,
+    )
+    .unwrap();
     let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(plan) =
         output.local.materialization()
     else {
