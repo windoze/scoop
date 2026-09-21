@@ -1953,12 +1953,16 @@ CrossConeLirBridgeSectionV1 {
 
 ParamFreeLirCallableExportV1 {
     declaration: DependencyCallableDeclarationId, // field 1
-    target: StrongCallableDefinitionOwner,         // field 2
-    abi_signature: CanonicalScoopAbiFunctionSignature, // field 3
-    expected_symbol: PersistentSymbolRequest,      // field 4
-    calling_convention: CallingConvention,         // field 5
-    root_plan: ManagedStatepoint | NoGc,            // field 6
-    required_definition: ObjectDefinitionPlanId,   // field 7
+    callable: CallableAbiRecordV1,                 // field 2
+}
+
+CallableAbiRecordV1 {
+    target: StrongCallableDefinitionOwner,         // field 1
+    abi_signature: CanonicalScoopAbiFunctionSignature, // field 2
+    expected_symbol: PersistentSymbolRequest,      // field 3
+    calling_convention: CallingConvention,         // field 4
+    root_plan: ExternalCallableRootPlan,           // field 5
+    required_definition: ObjectDefinitionPlanId,   // field 6
 }
 
 SelectedDependencyLirCallableV1 {
@@ -1967,9 +1971,11 @@ SelectedDependencyLirCallableV1 {
 }
 ```
 
+M23-6合并后，普通调用的两字段product与初始化角色外层共用六字段ABI record和同一codec；旧七字段扁平product拒绝，缓存产物须重建。root plan固定编码ManagedStatepoint=1、NoGc=2，构造与reader均核对canonical GC effect，suspend不属于该record的能力范围。reader显式使用当前export或selected的provider重建symbol/definition并核对全部ABI字节，再执行共有foundation/definition关系检查；declaration的实现必须等于record target。
+
 provider exports从同artifact MIR export、LIR foundation/strong production机械重建；expected symbol和required definition由M23-2 persistent rules派生，不接受producer自由字符串。selected表逐项匹配provider export并与MIR selected exact signature重放出的canonical ABI相等。
 
-LIR module使用独立`DependencyExternalCallableId` arena。codegen只为其生成external declaration和typed relocation intent；它不能出现在local definition、registration、image plan或Strong owner集合中。
+M23-6合并后，LIR module使用共有`ExternalCallableId` arena并明确保存ordinary/initialization角色。codegen只为其生成external declaration和typed relocation intent；它不能出现在local definition、registration、image plan或Strong owner集合中。
 
 ### 13.2 Link-only physical closure
 

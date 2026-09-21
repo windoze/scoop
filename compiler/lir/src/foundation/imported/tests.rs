@@ -114,7 +114,8 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     )
     .unwrap();
     let core_bridge = crate::CoreLirBridgeV1::new(
-        crate::CoreLirInitializationCycleThrowerV1::new(
+        crate::CallableAbiRecordV1::new(
+            scoop_identity::ConeIdentity::CORE,
             target,
             abi_signature,
             crate::CallingConvention::Cdecl,

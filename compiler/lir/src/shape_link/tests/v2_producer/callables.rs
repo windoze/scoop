@@ -11,11 +11,8 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
     let ordinary = ordinary_callable(ConeIdentity::CORE);
     let ordinary_id = module.meta.external_callables.alloc(ordinary.clone());
     let protocol = crate::core_lir_cycle_thrower_for_test();
-    let selected = selected_protocol(
-        &protocol,
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
-    )
-    .unwrap();
+    let selected =
+        selected_protocol(&protocol, ExternalCallableRootPlan::ManagedStatepoint).unwrap();
     let callable = selected
         .callable(selected.initialization_cycle().unwrap())
         .unwrap()
@@ -65,14 +62,11 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
 fn compiler_protocol_uses_the_common_abi_and_gc_validation() {
     let protocol = crate::core_lir_cycle_thrower_for_test();
     assert!(matches!(
-        selected_protocol(&protocol, DependencyExternalCallableRootPlanV1::NoGc),
+        selected_protocol(&protocol, ExternalCallableRootPlan::NoGc),
         Err(ParamFreeLirCallableBuildError::RootProtocolMismatch { .. })
     ));
-    let selected = selected_protocol(
-        &protocol,
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
-    )
-    .unwrap();
+    let selected =
+        selected_protocol(&protocol, ExternalCallableRootPlan::ManagedStatepoint).unwrap();
     assert!(matches!(
         selected
             .callable(selected.initialization_cycle().unwrap())
@@ -90,8 +84,8 @@ fn compiler_protocol_uses_the_common_abi_and_gc_validation() {
 }
 
 fn selected_protocol(
-    protocol: &CoreLirInitializationCycleThrowerV1,
-    root: DependencyExternalCallableRootPlanV1,
+    protocol: &CallableAbiRecordV1,
+    root: ExternalCallableRootPlan,
 ) -> Result<SelectedExternalLirSet, ParamFreeLirCallableBuildError> {
     let StrongCallableDefinitionOwner::Function(function) = protocol.target() else {
         panic!("the service fixture is a source function")
@@ -154,7 +148,7 @@ fn ordinary_callable(provider: ConeIdentity) -> ExternalCallable {
         StrongCallableDefinitionOwner::Function(function),
         canonical,
         CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap()
     .materialize(ScoopAbiSignature::new(

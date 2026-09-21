@@ -157,10 +157,8 @@ fn dependency_external(
     )
     .unwrap();
     let root_plan = match effect {
-        scoop_lir::GcEffect::Managed => {
-            scoop_lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
-        }
-        scoop_lir::GcEffect::NoGc => scoop_lir::DependencyExternalCallableRootPlanV1::NoGc,
+        scoop_lir::GcEffect::Managed => scoop_lir::ExternalCallableRootPlan::ManagedStatepoint,
+        scoop_lir::GcEffect::NoGc => scoop_lir::ExternalCallableRootPlan::NoGc,
     };
     scoop_lir::SelectedDependencyLirCallableV1::new(
         provider,

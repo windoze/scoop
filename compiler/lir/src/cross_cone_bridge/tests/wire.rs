@@ -49,7 +49,12 @@ fn decoded_section_rejects_a_forged_required_definition() {
             .unwrap();
     assert!(matches!(
         decoded.validate(&mut fixture.identities(&[]), &fixture.foundation),
-        Err(CrossConeLirBridgeValidationError::SectionMismatch)
+        Err(CrossConeLirBridgeValidationError::Export {
+            index: 0,
+            source: ParamFreeLirCallableResolutionError::Callable(
+                crate::CallableAbiDecodeError::RecordMismatch
+            ),
+        })
     ));
 }
 
@@ -87,8 +92,7 @@ fn reader_rejects_unknown_root_plan_and_open_section_shapes() {
         );
     }
     assert!(
-        decode_canonical::<DependencyExternalCallableRootPlanV1>(&[0x03], DecodeLimits::default(),)
-            .is_err()
+        decode_canonical::<ExternalCallableRootPlan>(&[0x03], DecodeLimits::default(),).is_err()
     );
 }
 
@@ -107,5 +111,42 @@ impl WireEncode for RawSection<'_> {
         }
         encoder.field(2)?;
         encoder.array(0)
+    }
+}
+
+#[test]
+fn reader_rejects_the_removed_flat_seven_field_callable_export() {
+    let fixture = Fixture::new("legacyExport");
+    let mut bytes = vec![0xa2, 0x01, 0x81];
+    bytes.extend(encode(&LegacyExport(&fixture.export())).unwrap());
+    bytes.extend([0x02, 0x80]);
+    assert!(
+        decode_canonical::<DecodedCrossConeLirBridgeSectionV1>(&bytes, DecodeLimits::default())
+            .is_err()
+    );
+}
+
+struct LegacyExport<'a>(&'a ParamFreeLirCallableExportV1);
+
+impl WireEncode for LegacyExport<'_> {
+    fn encode(
+        &self,
+        encoder: &mut scoop_wire::Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(7)?;
+        encoder.field(1)?;
+        self.0.declaration().encode(encoder)?;
+        encoder.field(2)?;
+        self.0.target().encode(encoder)?;
+        encoder.field(3)?;
+        self.0.abi_signature().encode(encoder)?;
+        encoder.field(4)?;
+        self.0.expected_symbol().encode(encoder)?;
+        encoder.field(5)?;
+        self.0.calling_convention().encode(encoder)?;
+        encoder.field(6)?;
+        self.0.root_plan().encode(encoder)?;
+        encoder.field(7)?;
+        self.0.required_definition().encode(encoder)
     }
 }

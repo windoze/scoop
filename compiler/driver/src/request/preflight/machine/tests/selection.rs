@@ -42,7 +42,7 @@ pub(super) fn lir(
                     )
                     .unwrap(),
                     scoop_lir::CallingConvention::Cdecl,
-                    scoop_lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+                    scoop_lir::ExternalCallableRootPlan::ManagedStatepoint,
                 )
                 .unwrap()
             })

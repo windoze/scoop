@@ -7,6 +7,8 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
+use crate::{CallingConvention, ExternalCallableRootPlan};
+use scoop_identity::StrongCallableDefinitionOwner;
 
 #[test]
 fn empty_branches_have_fixed_closed_wire() {
@@ -57,9 +59,7 @@ fn initialization_protocol_bridge_binds_the_root_plan() {
     assert_eq!(bridge.root_plan(), ExternalCallableRootPlan::NoGc);
     assert!(matches!(
         callable(ExternalCallableRootPlan::ManagedStatepoint),
-        Err(CoreLirBridgeBuildError::Contract(
-            CoreExternalBuildError::RootProtocolMismatch
-        ))
+        Err(CallableAbiBuildError::RootProtocolMismatch { .. })
     ));
 }
 
@@ -89,7 +89,7 @@ fn branch_must_match_the_producer_kind() {
 
 fn callable(
     root_plan: ExternalCallableRootPlan,
-) -> Result<CoreLirInitializationCycleThrowerV1, CoreLirBridgeBuildError> {
+) -> Result<CallableAbiRecordV1, CallableAbiBuildError> {
     let declaration = declaration();
     let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
     let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
@@ -106,7 +106,8 @@ fn callable(
         CanonicalGcEffect::NoGc,
     )
     .unwrap();
-    CoreLirInitializationCycleThrowerV1::new(
+    CallableAbiRecordV1::new(
+        scoop_identity::ConeIdentity::CORE,
         StrongCallableDefinitionOwner::Function(function),
         abi,
         CallingConvention::Cdecl,

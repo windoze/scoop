@@ -136,9 +136,9 @@ fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
                 .gc_effect
             {
                 mir::GcEffect::Managed => {
-                    lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                    lir::ExternalCallableRootPlan::ManagedStatepoint
                 }
-                mir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+                mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
             }
         );
         assert_eq!(
@@ -149,9 +149,9 @@ fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
             bridge.selected()[0].bridge().root_plan(),
             match effect {
                 mir::GcEffect::Managed => {
-                    lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                    lir::ExternalCallableRootPlan::ManagedStatepoint
                 }
-                mir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+                mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
             }
         );
     }
@@ -341,8 +341,8 @@ fn dependency_input(
         mir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
     };
     let root_plan = match lir_effect {
-        mir::GcEffect::Managed => lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint,
-        mir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+        mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
+        mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
     };
     let canonical_arguments = if has_receiver {
         let storage = scoop_identity::CanonicalScoopStorage::new(

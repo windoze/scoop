@@ -93,32 +93,17 @@ impl ImportedLirFoundation {
         if bridge.abi_signature().signature() != &signature {
             return Err(ImportedLirCallableProjectionError::SignatureMismatch(kind));
         }
-        let (body, expected_symbol, required_definition) =
-            crate::core_callable_link_contract(target)
-                .map_err(ImportedLirCallableProjectionError::Contract)?;
-        if bridge.expected_symbol() != expected_symbol
-            || bridge.required_definition() != required_definition
-        {
-            return Err(ImportedLirCallableProjectionError::BridgeContractMismatch(
-                kind,
-            ));
-        }
+        let (body, _, required_definition) = bridge
+            .link_contract(self.origin())
+            .map_err(ImportedLirCallableProjectionError::Callable)?;
         self.identity(body)
             .ok_or(ImportedLirCallableProjectionError::MissingBody(body))?;
         self.identity(required_definition).ok_or(
             ImportedLirCallableProjectionError::MissingDefinition(required_definition),
         )?;
-        let plan = definitions.plan(required_definition).ok_or(
-            ImportedLirCallableProjectionError::MissingDefinition(required_definition),
-        )?;
-        if plan.owner() != StrongDefinitionEntity::callable_body(body)
-            || plan.definition_role() != StrongDefinitionRole::CallableBody
-            || plan.primary_symbol() != expected_symbol
-        {
-            return Err(ImportedLirCallableProjectionError::DefinitionMismatch(
-                required_definition,
-            ));
-        }
+        bridge
+            .validate_definition(self.origin(), definitions)
+            .map_err(ImportedLirCallableProjectionError::Callable)?;
         let StrongCallableDefinitionOwner::Function(function) = target else {
             return Err(ImportedLirCallableProjectionError::TargetMismatch(kind));
         };
@@ -128,14 +113,7 @@ impl ImportedLirFoundation {
             target,
             bridge.abi_signature().clone(),
             bridge.calling_convention(),
-            match bridge.root_plan() {
-                crate::ExternalCallableRootPlan::ManagedStatepoint => {
-                    crate::DependencyExternalCallableRootPlanV1::ManagedStatepoint
-                }
-                crate::ExternalCallableRootPlan::NoGc => {
-                    crate::DependencyExternalCallableRootPlanV1::NoGc
-                }
-            },
+            bridge.root_plan(),
         )
         .map_err(ImportedLirCallableProjectionError::Record)
     }
@@ -200,11 +178,9 @@ pub enum ImportedLirCallableProjectionError {
     FoundationNotCore(ConeIdentity),
     TargetMismatch(CoreImportedCallableKind),
     SignatureMismatch(CoreImportedCallableKind),
-    BridgeContractMismatch(CoreImportedCallableKind),
-    Contract(crate::CoreExternalBuildError),
+    Callable(crate::CallableAbiValidationError),
     MissingBody(PersistentCallableBodyId),
     MissingDefinition(ObjectDefinitionPlanId),
-    DefinitionMismatch(ObjectDefinitionPlanId),
 }
 
 #[derive(Debug)]
@@ -242,7 +218,8 @@ impl fmt::Display for ImportedLirCallableProjectionError {
 impl std::error::Error for ImportedLirCallableProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Contract(error) => Some(error),
+            Self::Callable(error) => Some(error),
+            Self::Record(error) => Some(error),
             _ => None,
         }
     }

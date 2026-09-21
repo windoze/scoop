@@ -45,11 +45,7 @@ impl ExternalCallable {
         signature: ScoopAbiSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
-        validate_signature(
-            bridge.abi_signature(),
-            &signature,
-            ExternalCallableRootPlan::from_dependency(bridge.root_plan()),
-        )?;
+        validate_signature(bridge.abi_signature(), &signature, bridge.root_plan())?;
         if signature.calling_convention() != bridge.calling_convention() {
             return Err(ExternalCallableBuildError::CallingConventionMismatch {
                 expected: bridge.calling_convention(),
@@ -73,7 +69,7 @@ impl ExternalCallable {
             canonical_signature: bridge.abi_signature().clone(),
             signature,
             calling_convention: bridge.calling_convention(),
-            root_plan: crate::ExternalCallableRootPlan::from_dependency(bridge.root_plan()),
+            root_plan: bridge.root_plan(),
             expected_symbol: bridge.expected_symbol(),
             required_definition: bridge.required_definition(),
         })

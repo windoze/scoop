@@ -1,12 +1,14 @@
 //! Compile-facing LIR bridge for M23-5 ordinary dependency callables.
 
 use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, ConeIdentity, DependencyCallableDeclarationId, GcEffect,
+    CanonicalScoopAbiFunctionSignature, ConeIdentity, DependencyCallableDeclarationId,
     ObjectDefinitionPlanId, PersistentSymbolRequest, StrongCallableDefinitionOwner,
 };
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+use scoop_wire::{Encoder, WireEncode};
 
-use crate::{CallingConvention, OdrFreeLirFoundation};
+use crate::{
+    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, OdrFreeLirFoundation,
+};
 
 mod errors;
 mod selection;
@@ -17,55 +19,11 @@ pub use errors::*;
 pub use selection::*;
 pub use wire::DecodedCrossConeLirBridgeSectionV1;
 
-/// Caller-side GC root protocol for one ordinary dependency call.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DependencyExternalCallableRootPlanV1 {
-    ManagedStatepoint,
-    NoGc,
-}
-
-impl DependencyExternalCallableRootPlanV1 {
-    pub const fn gc_effect(self) -> GcEffect {
-        match self {
-            Self::ManagedStatepoint => GcEffect::Managed,
-            Self::NoGc => GcEffect::NoGc,
-        }
-    }
-}
-
-impl WireEncode for DependencyExternalCallableRootPlanV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::ManagedStatepoint => 1,
-            Self::NoGc => 2,
-        })
-    }
-}
-
-impl WireDecode for DependencyExternalCallableRootPlanV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            1 => Ok(Self::ManagedStatepoint),
-            2 => Ok(Self::NoGc),
-            tag => Err(WireError::new(
-                WireErrorKind::UnknownTag { tag },
-                decoder.path().clone(),
-                Some(decoder.position()),
-            )),
-        }
-    }
-}
-
 /// Canonical LIR contract exported by a terminal provider.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamFreeLirCallableExportV1 {
     declaration: DependencyCallableDeclarationId,
-    target: StrongCallableDefinitionOwner,
-    abi_signature: CanonicalScoopAbiFunctionSignature,
-    expected_symbol: PersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: DependencyExternalCallableRootPlanV1,
-    required_definition: ObjectDefinitionPlanId,
+    callable: CallableAbiRecordV1,
 }
 
 impl ParamFreeLirCallableExportV1 {
@@ -75,7 +33,7 @@ impl ParamFreeLirCallableExportV1 {
         target: StrongCallableDefinitionOwner,
         abi_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
-        root_plan: DependencyExternalCallableRootPlanV1,
+        root_plan: ExternalCallableRootPlan,
     ) -> Result<Self, ParamFreeLirCallableBuildError> {
         validation::build_callable(
             provider,
@@ -87,52 +45,64 @@ impl ParamFreeLirCallableExportV1 {
         )
     }
 
+    pub(crate) fn from_abi(
+        declaration: DependencyCallableDeclarationId,
+        callable: CallableAbiRecordV1,
+    ) -> Result<Self, ParamFreeLirCallableBuildError> {
+        let expected = declaration.implementation();
+        if callable.target() != expected {
+            return Err(ParamFreeLirCallableBuildError::TargetMismatch {
+                declaration,
+                expected,
+                actual: callable.target(),
+            });
+        }
+        Ok(Self {
+            declaration,
+            callable,
+        })
+    }
+
+    pub const fn callable_abi(&self) -> &CallableAbiRecordV1 {
+        &self.callable
+    }
+
     pub const fn declaration(&self) -> DependencyCallableDeclarationId {
         self.declaration
     }
 
     pub const fn target(&self) -> StrongCallableDefinitionOwner {
-        self.target
+        self.callable.target()
     }
 
     pub const fn abi_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
-        &self.abi_signature
+        self.callable.abi_signature()
     }
 
     pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
+        self.callable.expected_symbol()
     }
 
     pub const fn calling_convention(&self) -> CallingConvention {
-        self.calling_convention
+        self.callable.calling_convention()
     }
 
-    pub const fn root_plan(&self) -> DependencyExternalCallableRootPlanV1 {
-        self.root_plan
+    pub const fn root_plan(&self) -> ExternalCallableRootPlan {
+        self.callable.root_plan()
     }
 
     pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
+        self.callable.required_definition()
     }
 }
 
 impl WireEncode for ParamFreeLirCallableExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
-        self.target.encode(encoder)?;
-        encoder.field(3)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(4)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(5)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(6)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(7)?;
-        self.required_definition.encode(encoder)
+        self.callable.encode(encoder)
     }
 }
 
@@ -150,7 +120,7 @@ impl SelectedDependencyLirCallableV1 {
         target: StrongCallableDefinitionOwner,
         abi_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
-        root_plan: DependencyExternalCallableRootPlanV1,
+        root_plan: ExternalCallableRootPlan,
     ) -> Result<Self, ParamFreeLirCallableBuildError> {
         Ok(Self {
             provider,

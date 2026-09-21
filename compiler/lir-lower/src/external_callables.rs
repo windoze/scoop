@@ -65,7 +65,7 @@ pub(super) fn lower_external_callables(
             mir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
         };
         if bridge.abi_signature().gc_effect() != expected_gc
-            || bridge.root_plan().gc_effect() != expected_gc
+            || bridge.root_plan().canonical_gc_effect() != expected_gc
         {
             return Err(StrongLirLoweringError::ExternalCallableGcEffectMismatch {
                 index,

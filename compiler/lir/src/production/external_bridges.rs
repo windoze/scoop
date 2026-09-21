@@ -1,100 +1,16 @@
 use std::fmt;
 
-use scoop_identity::{
-    CanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopAbiFunctionSignature,
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner,
-    IdentityReferenceError, ObjectDefinitionPlanId, PersistentConstructorId, PersistentExactTypeId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentIdResolver,
-    PersistentPropertyAccessorId, PersistentSymbolRequest, ScoopAbiResolutionError,
-    StrongCallableDefinitionOwner, ValidatedIdentityGraph,
-};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
-
 use crate::{
-    CallingConvention, CoreExternalBuildError, ExternalCallable, ExternalCallableRootPlan,
-    ExternalTypeDescriptor, Module, core_callable_link_contract,
+    CallableAbiBuildError, CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
+    CoreExternalBuildError, DecodedCallableAbiRecordV1, ExternalTypeDescriptor, Module,
     core_type_descriptor_link_contract,
 };
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongExternalCallableBridgeV1 {
-    target: StrongCallableDefinitionOwner,
-    abi_signature: CanonicalScoopAbiFunctionSignature,
-    expected_symbol: PersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: ExternalCallableRootPlan,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl StrongExternalCallableBridgeV1 {
-    pub fn new(
-        target: StrongCallableDefinitionOwner,
-        abi_signature: CanonicalScoopAbiFunctionSignature,
-        calling_convention: CallingConvention,
-        root_plan: ExternalCallableRootPlan,
-    ) -> Result<Self, CoreExternalBuildError> {
-        let (_, expected_symbol, required_definition) = core_callable_link_contract(target)?;
-        Ok(Self {
-            target,
-            abi_signature,
-            expected_symbol,
-            calling_convention,
-            root_plan,
-            required_definition,
-        })
-    }
-
-    fn from_lir(value: &ExternalCallable) -> Result<Self, CoreExternalBuildError> {
-        Self::new(
-            value.target(),
-            value.canonical_signature().clone(),
-            value.calling_convention(),
-            value.root_plan(),
-        )
-    }
-
-    pub const fn target(&self) -> StrongCallableDefinitionOwner {
-        self.target
-    }
-
-    pub const fn abi_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
-        &self.abi_signature
-    }
-
-    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn calling_convention(&self) -> CallingConvention {
-        self.calling_convention
-    }
-
-    pub const fn root_plan(&self) -> ExternalCallableRootPlan {
-        self.root_plan
-    }
-
-    pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
-    }
-}
-
-impl WireEncode for StrongExternalCallableBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
-        encoder.field(1)?;
-        self.target.encode(encoder)?;
-        encoder.field(2)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(3)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(4)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(5)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(6)?;
-        self.required_definition.encode(encoder)
-    }
-}
+use scoop_identity::{
+    DecodedPersistentId, DecodedPersistentSymbolRequest, IdentityReferenceError,
+    ObjectDefinitionPlanId, PersistentExactTypeId, PersistentIdResolver, PersistentSymbolRequest,
+    ValidatedIdentityGraph,
+};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalTypeDescriptorBridgeV1 {
@@ -167,14 +83,14 @@ impl WireEncode for StrongExternalTypeDescriptorBridgeV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongExternalLirBridgeV1 {
-    Callable(StrongExternalCallableBridgeV1),
+    Callable(CallableAbiRecordV1),
     TypeDescriptor(StrongExternalTypeDescriptorBridgeV1),
 }
 
 impl StrongExternalLirBridgeV1 {
     fn sort_key(&self) -> (u8, [u8; 32]) {
         match self {
-            Self::Callable(bridge) => (1, *bridge.expected_symbol.key().owner_bytes()),
+            Self::Callable(bridge) => (1, *bridge.expected_symbol().key().owner_bytes()),
             Self::TypeDescriptor(bridge) => (2, *bridge.target.as_array()),
         }
     }
@@ -217,8 +133,8 @@ impl StrongExternalLirBridgeSurfaceV1 {
                 continue;
             }
             bridges.push(StrongExternalLirBridgeV1::Callable(
-                StrongExternalCallableBridgeV1::from_lir(callable)
-                    .map_err(StrongExternalLirBridgeBuildError::Contract)?,
+                CallableAbiRecordV1::from_lir(callable)
+                    .map_err(StrongExternalLirBridgeBuildError::Callable)?,
             ));
         }
         if let Some(descriptor) = StrongExternalTypeDescriptorBridgeV1::runtime_string(module)? {
@@ -233,6 +149,13 @@ impl StrongExternalLirBridgeSurfaceV1 {
     ) -> Result<Self, StrongExternalLirBridgeBuildError> {
         if producer == scoop_identity::ConeIdentity::CORE && !bridges.is_empty() {
             return Err(StrongExternalLirBridgeBuildError::CoreBootstrapImport);
+        }
+        for bridge in &bridges {
+            if let StrongExternalLirBridgeV1::Callable(callable) = bridge {
+                callable
+                    .link_contract(scoop_identity::ConeIdentity::CORE)
+                    .map_err(StrongExternalLirBridgeBuildError::CallableContract)?;
+            }
         }
         bridges.sort_unstable_by_key(StrongExternalLirBridgeV1::sort_key);
         if let Some(pair) = bridges
@@ -262,48 +185,6 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
             bridge.encode(encoder)?;
         }
         Ok(())
-    }
-}
-
-#[derive(Clone, Debug)]
-struct DecodedStrongExternalCallableBridgeV1 {
-    target: DecodedStrongCallableDefinitionOwner,
-    abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
-    expected_symbol: DecodedPersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: ExternalCallableRootPlan,
-    required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
-}
-
-impl WireEncode for DecodedStrongExternalCallableBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
-        encoder.field(1)?;
-        self.target.encode(encoder)?;
-        encoder.field(2)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(3)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(4)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(5)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(6)?;
-        self.required_definition.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStrongExternalCallableBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
-        Ok(Self {
-            target: decoder.field(1, DecodedStrongCallableDefinitionOwner::decode)?,
-            abi_signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
-            expected_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
-            calling_convention: decoder.field(4, CallingConvention::decode)?,
-            root_plan: decoder.field(5, ExternalCallableRootPlan::decode)?,
-            required_definition: decoder.field(6, DecodedPersistentId::decode)?,
-        })
     }
 }
 
@@ -339,7 +220,7 @@ impl WireDecode for DecodedStrongExternalTypeDescriptorBridgeV1 {
 
 #[derive(Clone, Debug)]
 enum DecodedStrongExternalLirBridgeV1 {
-    Callable(DecodedStrongExternalCallableBridgeV1),
+    Callable(DecodedCallableAbiRecordV1),
     TypeDescriptor(DecodedStrongExternalTypeDescriptorBridgeV1),
 }
 
@@ -382,7 +263,7 @@ impl WireDecode for DecodedStrongExternalLirBridgeV1 {
         }
         match tag {
             1 => decoder
-                .field(1, DecodedStrongExternalCallableBridgeV1::decode)
+                .field(1, DecodedCallableAbiRecordV1::decode)
                 .map(Self::Callable),
             2 => decoder
                 .field(1, DecodedStrongExternalTypeDescriptorBridgeV1::decode)
@@ -415,21 +296,11 @@ impl DecodedStrongExternalLirBridgeSurfaceV1 {
         for bridge in &self.bridges {
             bridges.push(match bridge {
                 DecodedStrongExternalLirBridgeV1::Callable(bridge) => {
-                    let target = resolve_callable_target(bridge.target, identities)
-                        .map_err(StrongExternalLirBridgeReconstructionError::Identity)?;
-                    let abi_signature = bridge
-                        .abi_signature
-                        .clone()
-                        .resolve(identities)
-                        .map_err(StrongExternalLirBridgeReconstructionError::ScoopAbi)?;
                     StrongExternalLirBridgeV1::Callable(
-                        StrongExternalCallableBridgeV1::new(
-                            target,
-                            abi_signature,
-                            bridge.calling_convention,
-                            bridge.root_plan,
-                        )
-                        .map_err(StrongExternalLirBridgeReconstructionError::Contract)?,
+                        bridge
+                            .clone()
+                            .validate(scoop_identity::ConeIdentity::CORE, identities)
+                            .map_err(StrongExternalLirBridgeReconstructionError::Callable)?,
                     )
                 }
                 DecodedStrongExternalLirBridgeV1::TypeDescriptor(bridge) => {
@@ -465,42 +336,6 @@ impl DecodedStrongExternalLirBridgeSurfaceV1 {
     }
 }
 
-fn resolve_callable_target(
-    target: DecodedStrongCallableDefinitionOwner,
-    identities: &mut ValidatedIdentityGraph,
-) -> Result<StrongCallableDefinitionOwner, IdentityReferenceError> {
-    Ok(match target {
-        DecodedStrongCallableDefinitionOwner::Function(id) => {
-            StrongCallableDefinitionOwner::Function(
-                <ValidatedIdentityGraph as PersistentIdResolver<PersistentFunctionId>>::resolve(
-                    identities, id,
-                )?,
-            )
-        }
-        DecodedStrongCallableDefinitionOwner::Constructor(id) => {
-            StrongCallableDefinitionOwner::Constructor(
-                <ValidatedIdentityGraph as PersistentIdResolver<PersistentConstructorId>>::resolve(
-                    identities, id,
-                )?,
-            )
-        }
-        DecodedStrongCallableDefinitionOwner::PropertyAccessor(id) => {
-            StrongCallableDefinitionOwner::PropertyAccessor(
-                <ValidatedIdentityGraph as PersistentIdResolver<
-                    PersistentPropertyAccessorId,
-                >>::resolve(identities, id)?,
-            )
-        }
-        DecodedStrongCallableDefinitionOwner::GeneratedCallable(id) => {
-            StrongCallableDefinitionOwner::GeneratedCallable(
-                <ValidatedIdentityGraph as PersistentIdResolver<
-                    PersistentGeneratedCallableId,
-                >>::resolve(identities, id)?,
-            )
-        }
-    })
-}
-
 impl WireEncode for DecodedStrongExternalLirBridgeSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.array(self.bridges.len() as u64)?;
@@ -521,6 +356,8 @@ impl WireDecode for DecodedStrongExternalLirBridgeSurfaceV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongExternalLirBridgeBuildError {
+    Callable(CallableAbiBuildError),
+    CallableContract(CallableAbiValidationError),
     Contract(CoreExternalBuildError),
     CoreBootstrapImport,
     MissingRuntimeStringDescriptor,
@@ -541,6 +378,8 @@ impl std::error::Error for StrongExternalLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Contract(error) => Some(error),
+            Self::Callable(error) => Some(error),
+            Self::CallableContract(error) => Some(error),
             Self::CoreBootstrapImport
             | Self::MissingRuntimeStringDescriptor
             | Self::InvalidRuntimeStringDescriptor
@@ -558,7 +397,7 @@ pub enum StrongExternalLirBridgeValidationError {
 #[derive(Debug)]
 pub enum StrongExternalLirBridgeReconstructionError {
     Identity(IdentityReferenceError),
-    ScoopAbi(ScoopAbiResolutionError<IdentityReferenceError>),
+    Callable(CallableAbiDecodeError),
     Contract(CoreExternalBuildError),
     Surface(StrongExternalLirBridgeBuildError),
 }
@@ -576,7 +415,7 @@ impl std::error::Error for StrongExternalLirBridgeReconstructionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::Identity(error) => error,
-            Self::ScoopAbi(error) => error,
+            Self::Callable(error) => error,
             Self::Contract(error) => error,
             Self::Surface(error) => error,
         })

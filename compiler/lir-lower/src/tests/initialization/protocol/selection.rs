@@ -55,7 +55,7 @@ fn initialization_selection_uses_the_shared_gc_effect_check() {
         bridge.target(),
         no_gc,
         bridge.calling_convention(),
-        lir::DependencyExternalCallableRootPlanV1::NoGc,
+        lir::ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)

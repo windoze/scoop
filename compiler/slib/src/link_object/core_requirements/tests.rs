@@ -6,7 +6,7 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CallingConvention, ExternalCallableRootPlan, LirTargetProfile, StrongExternalCallableBridgeV1,
+    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, LirTargetProfile,
     StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongExternalTypeDescriptorBridgeV1,
 };
@@ -238,7 +238,8 @@ fn core_callable_bridge(name: &str) -> StrongExternalLirBridgeV1 {
     let target = StrongCallableDefinitionOwner::Function(core_function(name));
     let unit = core_exact_type("Unit");
     StrongExternalLirBridgeV1::Callable(
-        StrongExternalCallableBridgeV1::new(
+        CallableAbiRecordV1::new(
+            scoop_identity::ConeIdentity::CORE,
             target,
             CanonicalScoopAbiFunctionSignature::new(
                 ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),

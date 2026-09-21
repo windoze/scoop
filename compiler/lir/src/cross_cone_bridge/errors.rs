@@ -2,44 +2,11 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DependencyCallableDeclarationId, GcEffect, IdentityReferenceError,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentSymbolError, PersistentSymbolRequest, ScoopAbiResolutionError,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentSymbolRequest,
     StrongCallableDefinitionOwner,
 };
-use scoop_wire::HashError;
 
 use crate::StrongObjectSymbolSurfaceBuildError;
-
-#[derive(Debug)]
-pub enum ParamFreeLirCallableContractError {
-    Identity(HashError),
-    Symbol(PersistentSymbolError),
-    Definition(ObjectDefinitionIdentityError),
-}
-
-impl fmt::Display for ParamFreeLirCallableContractError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Identity(source) => {
-                write!(formatter, "cannot derive callable identity: {source}")
-            }
-            Self::Symbol(source) => write!(formatter, "cannot derive callable symbol: {source}"),
-            Self::Definition(source) => {
-                write!(formatter, "cannot derive callable definition: {source}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for ParamFreeLirCallableContractError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Identity(source) => Some(source),
-            Self::Symbol(source) => Some(source),
-            Self::Definition(source) => Some(source),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub enum ParamFreeLirCallableBuildError {
@@ -56,7 +23,7 @@ pub enum ParamFreeLirCallableBuildError {
         abi: GcEffect,
         root: GcEffect,
     },
-    Contract(ParamFreeLirCallableContractError),
+    Contract(crate::CallableLinkContractError),
 }
 
 impl fmt::Display for ParamFreeLirCallableBuildError {
@@ -101,8 +68,7 @@ impl std::error::Error for ParamFreeLirCallableBuildError {
 #[derive(Debug)]
 pub enum ParamFreeLirCallableResolutionError {
     Declaration(IdentityReferenceError),
-    Target(IdentityReferenceError),
-    Abi(ScoopAbiResolutionError<IdentityReferenceError>),
+    Callable(crate::CallableAbiDecodeError),
     Shape(ParamFreeLirCallableBuildError),
 }
 
@@ -110,8 +76,7 @@ impl fmt::Display for ParamFreeLirCallableResolutionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Declaration(source) => write!(formatter, "invalid declaration: {source}"),
-            Self::Target(source) => write!(formatter, "invalid target: {source}"),
-            Self::Abi(source) => write!(formatter, "invalid canonical Scoop ABI: {source}"),
+            Self::Callable(source) => source.fmt(formatter),
             Self::Shape(source) => source.fmt(formatter),
         }
     }
@@ -120,8 +85,8 @@ impl fmt::Display for ParamFreeLirCallableResolutionError {
 impl std::error::Error for ParamFreeLirCallableResolutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Declaration(source) | Self::Target(source) => Some(source),
-            Self::Abi(source) => Some(source),
+            Self::Declaration(source) => Some(source),
+            Self::Callable(source) => Some(source),
             Self::Shape(source) => Some(source),
         }
     }
@@ -154,7 +119,7 @@ impl std::error::Error for SelectedDependencyLirCallableResolutionError {
 #[derive(Debug)]
 pub enum CrossConeLirBridgeRelationError {
     DefinitionSurface(StrongObjectSymbolSurfaceBuildError),
-    Contract(ParamFreeLirCallableContractError),
+    Contract(crate::CallableLinkContractError),
     ExportContractMismatch {
         index: usize,
         declaration: DependencyCallableDeclarationId,

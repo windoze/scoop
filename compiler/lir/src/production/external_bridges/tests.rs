@@ -7,6 +7,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
+use crate::{CallingConvention, ExternalCallableRootPlan};
 
 #[test]
 fn external_bridge_surface_has_fixed_wire_and_validates_against_typed_authority() {
@@ -56,12 +57,17 @@ fn core_bootstrap_cannot_claim_external_bridges() {
 #[test]
 fn reader_does_not_repair_a_changed_protocol() {
     let surface = surface().unwrap();
-    let mut decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
-        decode_canonical(&encode(&surface).unwrap(), DecodeLimits::default()).unwrap();
-    let DecodedStrongExternalLirBridgeV1::Callable(callable) = &mut decoded.bridges[0] else {
+    let StrongExternalLirBridgeV1::Callable(callable) = &surface.bridges()[0] else {
         panic!("fixture keeps callable first")
     };
-    callable.root_plan = ExternalCallableRootPlan::NoGc;
+    let mut bytes = encode(callable).unwrap();
+    let root_offset = bytes.len() - encode(&callable.required_definition()).unwrap().len() - 2;
+    assert_eq!(&bytes[root_offset - 1..=root_offset + 1], &[5, 1, 6]);
+    bytes[root_offset] = 2;
+    let changed = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let mut decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
+        decode_canonical(&encode(&surface).unwrap(), DecodeLimits::default()).unwrap();
+    decoded.bridges[0] = DecodedStrongExternalLirBridgeV1::Callable(changed);
 
     assert!(matches!(
         decoded.validate_against(&surface),
@@ -79,7 +85,8 @@ fn surface() -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridge
         Vec::new(),
     ))
     .unwrap();
-    let callable = StrongExternalCallableBridgeV1::new(
+    let callable = CallableAbiRecordV1::new(
+        scoop_identity::ConeIdentity::CORE,
         StrongCallableDefinitionOwner::Function(function),
         CanonicalScoopAbiFunctionSignature::new(
             ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
@@ -91,7 +98,7 @@ fn surface() -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridge
         CallingConvention::Cdecl,
         ExternalCallableRootPlan::ManagedStatepoint,
     )
-    .map_err(StrongExternalLirBridgeBuildError::Contract)?;
+    .map_err(StrongExternalLirBridgeBuildError::Callable)?;
     let descriptor =
         StrongExternalTypeDescriptorBridgeV1::new(exact_type("String", SourceNominalKind::Class))
             .map_err(StrongExternalLirBridgeBuildError::Contract)?;

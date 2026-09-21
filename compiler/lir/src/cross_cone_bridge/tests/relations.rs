@@ -47,7 +47,7 @@ fn root_plan_must_equal_the_canonical_abi_gc_effect() {
             fixture.target,
             fixture.abi,
             CallingConvention::Cdecl,
-            DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+            ExternalCallableRootPlan::ManagedStatepoint,
         ),
         Err(ParamFreeLirCallableBuildError::RootProtocolMismatch {
             abi: GcEffect::NoGc,
@@ -66,7 +66,7 @@ fn selected_callable_accepts_core_but_rejects_current_provider() {
         fixture.target,
         fixture.abi.clone(),
         CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::NoGc,
+        ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     assert!(matches!(
@@ -91,7 +91,7 @@ fn selected_callable_accepts_core_but_rejects_current_provider() {
         fixture.target,
         fixture.abi,
         CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::NoGc,
+        ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     let bridge = CrossConeLirBridgeSectionV1::try_new(

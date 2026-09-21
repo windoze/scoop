@@ -195,7 +195,7 @@ mod tests {
             StrongCallableDefinitionOwner::Function(function),
             abi,
             scoop_lir::CallingConvention::Cdecl,
-            DependencyExternalCallableRootPlanV1::NoGc,
+            ExternalCallableRootPlan::NoGc,
         )
         .unwrap();
         let consumer = ConeIdentity::SINGLE_FILE;

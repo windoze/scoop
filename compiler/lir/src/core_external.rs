@@ -4,45 +4,10 @@ use std::fmt;
 
 pub use scoop_identity::ConeIdentity;
 use scoop_identity::{
-    CallableBodyKey, LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, PersistentExactTypeId,
+    PersistentSymbolError, PersistentSymbolRequest,
 };
 use scoop_wire::HashError;
-
-fn required_definition(
-    entity: StrongDefinitionEntity,
-    role: StrongDefinitionRole,
-) -> Result<ObjectDefinitionPlanId, CoreExternalBuildError> {
-    let key = ObjectDefinitionPlanKey::strong(ConeIdentity::CORE, entity, role)
-        .map_err(CoreExternalBuildError::Definition)?;
-    ObjectDefinitionPlanId::from_key(&key).map_err(CoreExternalBuildError::Identity)
-}
-
-pub(crate) fn core_callable_link_contract(
-    target: StrongCallableDefinitionOwner,
-) -> Result<
-    (
-        PersistentCallableBodyId,
-        PersistentSymbolRequest,
-        ObjectDefinitionPlanId,
-    ),
-    CoreExternalBuildError,
-> {
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))
-        .map_err(CoreExternalBuildError::Identity)?;
-    let expected_symbol = PersistentSymbolRequest::new(
-        PersistentSymbolKey::CallableBody(body),
-        LinkageClass::ConeStrong,
-    )
-    .map_err(CoreExternalBuildError::Symbol)?;
-    let required_definition = required_definition(
-        StrongDefinitionEntity::callable_body(body),
-        StrongDefinitionRole::CallableBody,
-    )?;
-    Ok((body, expected_symbol, required_definition))
-}
 
 pub(crate) fn core_type_descriptor_link_contract(
     target: PersistentExactTypeId,
@@ -63,7 +28,6 @@ pub(crate) fn core_type_descriptor_link_contract(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreExternalBuildError {
-    RootProtocolMismatch,
     Identity(HashError),
     Symbol(PersistentSymbolError),
     Definition(ObjectDefinitionIdentityError),
@@ -72,9 +36,6 @@ pub enum CoreExternalBuildError {
 impl fmt::Display for CoreExternalBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RootProtocolMismatch => formatter.write_str(
-                "core external caller root protocol disagrees with its canonical GC effect",
-            ),
             Self::Identity(error) => {
                 write!(formatter, "cannot derive core external identity: {error}")
             }
@@ -89,7 +50,6 @@ impl fmt::Display for CoreExternalBuildError {
 impl std::error::Error for CoreExternalBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::RootProtocolMismatch => None,
             Self::Identity(error) => Some(error),
             Self::Symbol(error) => Some(error),
             Self::Definition(error) => Some(error),
@@ -109,6 +69,10 @@ mod tests {
 
     use super::*;
     use crate::{AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
+    use scoop_identity::{
+        ObjectDefinitionPlanKey, StrongCallableDefinitionOwner, StrongDefinitionEntity,
+        StrongDefinitionRole,
+    };
 
     #[test]
     fn callable_binds_target_symbol_definition_and_root_protocol() {
@@ -136,7 +100,7 @@ mod tests {
             target,
             canonical_signature,
             CallingConvention::Cdecl,
-            crate::DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+            crate::ExternalCallableRootPlan::ManagedStatepoint,
         )
         .unwrap();
         let set = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)

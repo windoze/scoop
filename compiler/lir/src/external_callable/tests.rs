@@ -8,7 +8,7 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    AbiReturn, CallingConvention, DependencyExternalCallableRootPlanV1, ScoopAbiSignature,
+    AbiReturn, CallingConvention, ExternalCallableRootPlan, ScoopAbiSignature,
     SelectedDependencyLirCallableV1,
 };
 
@@ -114,7 +114,7 @@ fn selected(
         StrongCallableDefinitionOwner::Function(function),
         canonical,
         calling_convention,
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap()
 }

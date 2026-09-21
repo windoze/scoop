@@ -172,8 +172,8 @@ fn lower_export(
         &lir_function.signature,
     );
     let root_plan = match lir_function.gc_effect {
-        lir::GcEffect::Managed => lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint,
-        lir::GcEffect::NoGc => lir::DependencyExternalCallableRootPlanV1::NoGc,
+        lir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
+        lir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
     };
     lir::ParamFreeLirCallableExportV1::new(
         input.module().cone,
@@ -261,11 +261,9 @@ fn lower_selected(
                 actual.calling_convention(),
                 match actual.root_plan() {
                     lir::ExternalCallableRootPlan::ManagedStatepoint => {
-                        lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                        lir::ExternalCallableRootPlan::ManagedStatepoint
                     }
-                    lir::ExternalCallableRootPlan::NoGc => {
-                        lir::DependencyExternalCallableRootPlanV1::NoGc
-                    }
+                    lir::ExternalCallableRootPlan::NoGc => lir::ExternalCallableRootPlan::NoGc,
                 },
             )
             .map_err(|source| CrossConeLirBridgeLoweringError::Selected {

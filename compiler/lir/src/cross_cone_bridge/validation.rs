@@ -1,19 +1,15 @@
 //! Canonical relation checks for the cross-Cone LIR bridge.
 
-use scoop_identity::{
-    CallableBodyKey, ConeIdentity, DependencyCallableDeclarationId, Effect, LinkageClass,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId, PersistentSymbolKey,
-    PersistentSymbolRequest, StrongCallableDefinitionOwner, StrongDefinitionEntity,
-    StrongDefinitionRole,
+use super::{
+    CrossConeLirBridgeRelationError, ParamFreeLirCallableBuildError, ParamFreeLirCallableExportV1,
+    SelectedDependencyLirCallableV1,
 };
-
 use crate::{
-    CallingConvention, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
-    cross_cone_bridge::{
-        CrossConeLirBridgeRelationError, DependencyExternalCallableRootPlanV1,
-        ParamFreeLirCallableBuildError, ParamFreeLirCallableExportV1,
-        SelectedDependencyLirCallableV1,
-    },
+    CallableAbiBuildError, CallableAbiRecordV1, CallableAbiValidationError, CallingConvention,
+    ExternalCallableRootPlan, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
+};
+use scoop_identity::{
+    ConeIdentity, DependencyCallableDeclarationId, StrongCallableDefinitionOwner,
 };
 
 pub(super) fn build_callable(
@@ -22,37 +18,27 @@ pub(super) fn build_callable(
     target: StrongCallableDefinitionOwner,
     abi_signature: scoop_identity::CanonicalScoopAbiFunctionSignature,
     calling_convention: CallingConvention,
-    root_plan: DependencyExternalCallableRootPlanV1,
+    root_plan: ExternalCallableRootPlan,
 ) -> Result<ParamFreeLirCallableExportV1, ParamFreeLirCallableBuildError> {
-    let expected_target = declaration.implementation();
-    if target != expected_target {
-        return Err(ParamFreeLirCallableBuildError::TargetMismatch {
-            declaration,
-            expected: expected_target,
-            actual: target,
-        });
-    }
-    if abi_signature.signature().effect() != Effect::Ordinary {
-        return Err(ParamFreeLirCallableBuildError::Suspend { declaration });
-    }
-    if root_plan.gc_effect() != abi_signature.gc_effect() {
-        return Err(ParamFreeLirCallableBuildError::RootProtocolMismatch {
-            declaration,
-            abi: abi_signature.gc_effect(),
-            root: root_plan.gc_effect(),
-        });
-    }
-    let (_, expected_symbol, required_definition) =
-        derive_link_contract(provider, target).map_err(ParamFreeLirCallableBuildError::Contract)?;
-    Ok(ParamFreeLirCallableExportV1 {
-        declaration,
+    let callable = CallableAbiRecordV1::new(
+        provider,
         target,
         abi_signature,
-        expected_symbol,
         calling_convention,
         root_plan,
-        required_definition,
-    })
+    )
+    .map_err(|error| match error {
+        CallableAbiBuildError::Suspend => ParamFreeLirCallableBuildError::Suspend { declaration },
+        CallableAbiBuildError::RootProtocolMismatch { abi, root } => {
+            ParamFreeLirCallableBuildError::RootProtocolMismatch {
+                declaration,
+                abi,
+                root,
+            }
+        }
+        CallableAbiBuildError::Contract(error) => ParamFreeLirCallableBuildError::Contract(error),
+    })?;
+    ParamFreeLirCallableExportV1::from_abi(declaration, callable)
 }
 
 pub(super) fn validate_section_relations(
@@ -65,7 +51,7 @@ pub(super) fn validate_section_relations(
     let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
         .map_err(CrossConeLirBridgeRelationError::DefinitionSurface)?;
     for (index, export) in exports.iter().enumerate() {
-        validate_export(producer, index, export, foundation, &definitions)?;
+        validate_export(index, export, foundation, &definitions)?;
     }
     for (index, selected) in selected.iter().enumerate() {
         if selected.provider == producer {
@@ -75,85 +61,56 @@ pub(super) fn validate_section_relations(
             });
         }
 
-        let (_, symbol, definition) =
-            derive_link_contract(selected.provider, selected.bridge.target)
-                .map_err(CrossConeLirBridgeRelationError::Contract)?;
-        if selected.bridge.expected_symbol != symbol
-            || selected.bridge.required_definition != definition
-        {
-            return Err(CrossConeLirBridgeRelationError::SelectedContractMismatch {
-                index,
-                provider: selected.provider,
-                declaration: selected.bridge.declaration,
-            });
-        }
+        selected
+            .bridge
+            .callable
+            .link_contract(selected.provider)
+            .map_err(|error| match error {
+                CallableAbiValidationError::Contract(error) => {
+                    CrossConeLirBridgeRelationError::Contract(error)
+                }
+                _ => CrossConeLirBridgeRelationError::SelectedContractMismatch {
+                    index,
+                    provider: selected.provider,
+                    declaration: selected.bridge.declaration,
+                },
+            })?;
     }
     Ok(())
 }
 
 fn validate_export(
-    producer: ConeIdentity,
     index: usize,
     export: &ParamFreeLirCallableExportV1,
     foundation: &OdrFreeLirFoundation,
     definitions: &StrongObjectSymbolSurfaceV1,
 ) -> Result<(), CrossConeLirBridgeRelationError> {
-    let (body, symbol, definition) = derive_link_contract(producer, export.target)
-        .map_err(CrossConeLirBridgeRelationError::Contract)?;
-    if export.expected_symbol != symbol || export.required_definition != definition {
-        return Err(CrossConeLirBridgeRelationError::ExportContractMismatch {
-            index,
-            declaration: export.declaration,
-        });
-    }
-    if !foundation.contains_callable_body(body) {
-        return Err(CrossConeLirBridgeRelationError::MissingExportBody { index, body });
-    }
-    if !foundation.contains_symbol_request(symbol) {
-        return Err(CrossConeLirBridgeRelationError::MissingExportSymbol { index, symbol });
-    }
-    let Some(plan) = definitions.plan(definition) else {
-        return Err(CrossConeLirBridgeRelationError::MissingExportDefinition { index, definition });
-    };
-    if plan.owner() != StrongDefinitionEntity::callable_body(body)
-        || plan.definition_role() != StrongDefinitionRole::CallableBody
-        || plan.primary_symbol() != symbol
-    {
-        return Err(CrossConeLirBridgeRelationError::ExportDefinitionMismatch {
-            index,
-            definition,
-        });
-    }
-    Ok(())
-}
-
-fn derive_link_contract(
-    provider: ConeIdentity,
-    target: StrongCallableDefinitionOwner,
-) -> Result<
-    (
-        PersistentCallableBodyId,
-        PersistentSymbolRequest,
-        ObjectDefinitionPlanId,
-    ),
-    ParamFreeLirCallableContractError,
-> {
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))
-        .map_err(ParamFreeLirCallableContractError::Identity)?;
-    let expected_symbol = PersistentSymbolRequest::new(
-        PersistentSymbolKey::CallableBody(body),
-        LinkageClass::ConeStrong,
-    )
-    .map_err(ParamFreeLirCallableContractError::Symbol)?;
-    let definition_key = ObjectDefinitionPlanKey::strong(
-        provider,
-        StrongDefinitionEntity::callable_body(body),
-        StrongDefinitionRole::CallableBody,
-    )
-    .map_err(ParamFreeLirCallableContractError::Definition)?;
-    let required_definition = ObjectDefinitionPlanId::from_key(&definition_key)
-        .map_err(ParamFreeLirCallableContractError::Identity)?;
-    Ok((body, expected_symbol, required_definition))
+    export
+        .callable
+        .validate_against(foundation, definitions)
+        .map_err(|error| match error {
+            CallableAbiValidationError::Contract(error) => {
+                CrossConeLirBridgeRelationError::Contract(error)
+            }
+            CallableAbiValidationError::ContractMismatch => {
+                CrossConeLirBridgeRelationError::ExportContractMismatch {
+                    index,
+                    declaration: export.declaration,
+                }
+            }
+            CallableAbiValidationError::MissingBody(body) => {
+                CrossConeLirBridgeRelationError::MissingExportBody { index, body }
+            }
+            CallableAbiValidationError::MissingSymbol(symbol) => {
+                CrossConeLirBridgeRelationError::MissingExportSymbol { index, symbol }
+            }
+            CallableAbiValidationError::MissingDefinition(definition) => {
+                CrossConeLirBridgeRelationError::MissingExportDefinition { index, definition }
+            }
+            CallableAbiValidationError::DefinitionMismatch(definition) => {
+                CrossConeLirBridgeRelationError::ExportDefinitionMismatch { index, definition }
+            }
+        })
 }
 
 pub(super) fn reject_duplicate_exports(
@@ -173,5 +130,3 @@ pub(super) fn reject_duplicate_selected(
         .find(|pair| pair[0].sort_key() == pair[1].sort_key())
         .map_or(Ok(()), |pair| Err(pair[0].sort_key()))
 }
-
-use super::ParamFreeLirCallableContractError;

@@ -1,30 +1,21 @@
 //! Untrusted wire forms and identity-aware reconstruction.
 
-use scoop_identity::{
-    DecodedCanonicalScoopAbiFunctionSignature, DecodedDependencyCallableDeclarationId,
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner,
-    ObjectDefinitionPlanId, PersistentIdResolver, ValidatedIdentityGraph,
-};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
-
-use crate::{CallingConvention, OdrFreeLirFoundation};
-
 use super::{
-    CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError,
-    DependencyExternalCallableRootPlanV1, ParamFreeLirCallableExportV1,
+    CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError, ParamFreeLirCallableExportV1,
     ParamFreeLirCallableResolutionError, SelectedDependencyLirCallableResolutionError,
     SelectedDependencyLirCallableV1, validation,
 };
+use crate::{DecodedCallableAbiRecordV1, OdrFreeLirFoundation};
+use scoop_identity::{
+    DecodedDependencyCallableDeclarationId, DecodedPersistentId, PersistentIdResolver,
+    ValidatedIdentityGraph,
+};
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 #[derive(Debug)]
 struct DecodedParamFreeLirCallableExportV1 {
     declaration: DecodedDependencyCallableDeclarationId,
-    target: DecodedStrongCallableDefinitionOwner,
-    abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
-    expected_symbol: DecodedPersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: DependencyExternalCallableRootPlanV1,
-    required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
+    callable: DecodedCallableAbiRecordV1,
 }
 
 impl DecodedParamFreeLirCallableExportV1 {
@@ -37,57 +28,31 @@ impl DecodedParamFreeLirCallableExportV1 {
             .declaration
             .resolve(identities)
             .map_err(ParamFreeLirCallableResolutionError::Declaration)?;
-        let target = self
-            .target
-            .resolve(identities)
-            .map_err(ParamFreeLirCallableResolutionError::Target)?;
-        let abi_signature = self
-            .abi_signature
-            .resolve(identities)
-            .map_err(ParamFreeLirCallableResolutionError::Abi)?;
-        ParamFreeLirCallableExportV1::new(
-            provider,
-            declaration,
-            target,
-            abi_signature,
-            self.calling_convention,
-            self.root_plan,
-        )
-        .map_err(ParamFreeLirCallableResolutionError::Shape)
+        let callable = self
+            .callable
+            .validate(provider, identities)
+            .map_err(ParamFreeLirCallableResolutionError::Callable)?;
+        ParamFreeLirCallableExportV1::from_abi(declaration, callable)
+            .map_err(ParamFreeLirCallableResolutionError::Shape)
     }
 }
 
 impl WireEncode for DecodedParamFreeLirCallableExportV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
-        self.target.encode(encoder)?;
-        encoder.field(3)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(4)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(5)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(6)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(7)?;
-        self.required_definition.encode(encoder)
+        self.callable.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedParamFreeLirCallableExportV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             declaration: decoder.field(1, DecodedDependencyCallableDeclarationId::decode)?,
-            target: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
-            abi_signature: decoder.field(3, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
-            expected_symbol: decoder.field(4, DecodedPersistentSymbolRequest::decode)?,
-            calling_convention: decoder.field(5, CallingConvention::decode)?,
-            root_plan: decoder.field(6, DependencyExternalCallableRootPlanV1::decode)?,
-            required_definition: decoder.field(7, DecodedPersistentId::decode)?,
+            callable: decoder.field(2, DecodedCallableAbiRecordV1::decode)?,
         })
     }
 }

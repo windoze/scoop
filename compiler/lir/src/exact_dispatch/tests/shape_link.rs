@@ -64,7 +64,7 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
         fixture.target,
         fixture.abi.canonical_signature().clone(),
         fixture.abi.calling_convention(),
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap();
     let ordinary =
@@ -83,7 +83,8 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
     .unwrap();
     let empty =
         CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, Vec::new(), Vec::new()).unwrap();
-    let thrower = CoreLirInitializationCycleThrowerV1::new(
+    let thrower = CallableAbiRecordV1::new(
+        scoop_identity::ConeIdentity::CORE,
         fixture.target,
         fixture.abi.canonical_signature().clone(),
         fixture.abi.calling_convention(),

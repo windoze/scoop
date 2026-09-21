@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CallingConvention, CanonicalLirFoundation, CrossConeLirBridgeSectionV1,
-    DependencyExternalCallableRootPlanV1, LirTargetProfile, OdrFreeLirFoundation,
+    ExternalCallableRootPlan, LirTargetProfile, OdrFreeLirFoundation,
     SelectedDependencyLirCallableV1,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
@@ -88,7 +88,7 @@ impl CallableFixture {
             self.target,
             self.abi.clone(),
             CallingConvention::Cdecl,
-            DependencyExternalCallableRootPlanV1::NoGc,
+            ExternalCallableRootPlan::NoGc,
         )
         .unwrap()
     }

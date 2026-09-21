@@ -17,6 +17,12 @@ impl ExternalCallableRootPlan {
             Self::NoGc => GcEffect::NoGc,
         }
     }
+    pub const fn canonical_gc_effect(self) -> scoop_identity::GcEffect {
+        match self {
+            Self::ManagedStatepoint => scoop_identity::GcEffect::Managed,
+            Self::NoGc => scoop_identity::GcEffect::NoGc,
+        }
+    }
 }
 
 impl WireEncode for ExternalCallableRootPlan {
@@ -38,17 +44,6 @@ impl WireDecode for ExternalCallableRootPlan {
                 decoder.path().clone(),
                 Some(decoder.position()),
             )),
-        }
-    }
-}
-
-impl ExternalCallableRootPlan {
-    pub(crate) const fn from_dependency(plan: crate::DependencyExternalCallableRootPlanV1) -> Self {
-        match plan {
-            crate::DependencyExternalCallableRootPlanV1::ManagedStatepoint => {
-                Self::ManagedStatepoint
-            }
-            crate::DependencyExternalCallableRootPlanV1::NoGc => Self::NoGc,
         }
     }
 }

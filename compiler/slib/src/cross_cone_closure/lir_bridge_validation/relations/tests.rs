@@ -21,7 +21,7 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CallingConvention, CanonicalLirFoundation, CrossConeLirBridgeSectionV1,
-    DependencyExternalCallableRootPlanV1, OdrFreeLirFoundation, ParamFreeLirCallableExportV1,
+    ExternalCallableRootPlan, OdrFreeLirFoundation, ParamFreeLirCallableExportV1,
 };
 use scoop_mir::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
@@ -174,8 +174,8 @@ impl Fixture {
 
     fn lir_bridge(&self, gc_effect: GcEffect) -> CrossConeLirBridgeSectionV1 {
         let root_plan = match gc_effect {
-            GcEffect::Managed => DependencyExternalCallableRootPlanV1::ManagedStatepoint,
-            GcEffect::NoGc => DependencyExternalCallableRootPlanV1::NoGc,
+            GcEffect::Managed => ExternalCallableRootPlan::ManagedStatepoint,
+            GcEffect::NoGc => ExternalCallableRootPlan::NoGc,
         };
         let export = ParamFreeLirCallableExportV1::new(
             self.artifact,

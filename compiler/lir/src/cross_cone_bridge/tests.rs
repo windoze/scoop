@@ -13,6 +13,7 @@ use scoop_identity::{
 use super::*;
 use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
 
+mod abi_record;
 mod relations;
 mod wire;
 
@@ -96,7 +97,7 @@ impl Fixture {
             self.target,
             self.abi.clone(),
             CallingConvention::Cdecl,
-            DependencyExternalCallableRootPlanV1::NoGc,
+            ExternalCallableRootPlan::NoGc,
         )
         .unwrap()
     }
@@ -176,7 +177,7 @@ fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
         fixture.target,
         fixture.abi.clone(),
         CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::NoGc,
+        ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     let section = CrossConeLirBridgeSectionV1::try_new(
@@ -222,7 +223,7 @@ fn producer_side_lir_selection_is_canonical_and_closed() {
             fixture.target,
             fixture.abi.clone(),
             CallingConvention::Cdecl,
-            DependencyExternalCallableRootPlanV1::NoGc,
+            ExternalCallableRootPlan::NoGc,
         )
         .unwrap()
     };

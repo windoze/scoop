@@ -508,12 +508,14 @@ fn lower_core_lir_bridge(
         mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
         mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
     };
-    let cycle = lir::CoreLirInitializationCycleThrowerV1::new(
+    let cycle = lir::CallableAbiRecordV1::new(
+        module.cone,
         cycle_owner,
         cycle_abi_signature,
         cycle_lowered.signature.calling_convention(),
         cycle_root_plan,
     )
+    .map_err(lir::CoreLirBridgeBuildError::Callable)
     .map_err(StrongLirLoweringError::CoreLirBridge)?;
     Ok(lir::CoreLirBridgeBranchV1::Core(lir::CoreLirBridgeV1::new(
         cycle,

@@ -28,7 +28,8 @@ pub(super) fn provider_protocol(
     )
     .unwrap();
     CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(
-        CoreLirInitializationCycleThrowerV1::new(
+        CallableAbiRecordV1::new(
+            scoop_identity::ConeIdentity::CORE,
             StrongCallableDefinitionOwner::Function(protocol),
             signature,
             crate::CallingConvention::Cdecl,

@@ -57,7 +57,7 @@ fn old_callable(consumer: ConeIdentity) -> OldCallable {
         )
         .unwrap(),
         scoop_lir::CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::NoGc,
+        ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     let foundation =

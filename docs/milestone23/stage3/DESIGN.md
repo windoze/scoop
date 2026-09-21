@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+2026-09-22 当前LIR清理约定：初始化发布、外部调用与普通依赖共用CallableAbiRecordV1及ExternalCallableRootPlan；普通调用桥wire为declaration与完整ABI record组成的两字段product，旧七字段格式拒绝。provider显式输入共有identity/definition推导，初始化外层角色仍明确保存。
+
 2026-09-22 当前清理约定：MIR production 删除独立 CoreMirBridge 与字段1；所有 strong callable 记录使用必需 CallableRole，初始化声明与实现只保存在共有记录中。HIR 协议、MIR foundation 与 LIR 投影按同一 typed 实现和签名核对，旧记录格式拒绝并重建；详见实现规范的当前约定。
 
 M23-6当前约定：MIR初始化服务和普通依赖共用一个完整的`SelectedExternalMirSet`及typed选择引用。初始化角色显式保存，typed bridge与签名检查后进入共有集合，不保留core专用MIR借用凭证或泛型协议sidecar。strong输入使用共有consumer/覆盖/引用校验；旧wire与LIR协议仅在投影边界按角色区分，String与ABI契约保持完整。以`SCOOP-IMPL-SPEC.md`的共有外部调用约定为准。
@@ -1119,7 +1121,7 @@ StrongProductionSectionV1 {
 }
 ```
 
-field 10 `core_lir_bridge`当前仅保留初始化服务的旧LIR协议wire，普通callable使用共有cross-Cone bridge。其Core payload的字段2保存初始化记录：`1=target`、`2=abi_signature`、`3=expected_symbol`、`4=calling_convention`、`5=root_plan`、`6=required_definition`。symbol、body与definition从typed target推导并在共有foundation及definition surface验证，root plan须匹配canonical ABI的GC effect。reader与MIR共有strong callable表中的InitializationCycle记录直接核对target和exact签名，不再依赖已删除的CoreMirBridge。
+field 10 `core_lir_bridge`当前仅保留初始化服务的旧LIR协议wire，普通callable使用共有cross-Cone bridge。其Core payload的字段2保存共有CallableAbiRecordV1初始化记录：`1=target`、`2=abi_signature`、`3=expected_symbol`、`4=calling_convention`、`5=root_plan`、`6=required_definition`。symbol、body与definition从typed target推导并在共有foundation及definition surface验证，root plan须匹配canonical ABI的GC effect。reader与MIR共有strong callable表中的InitializationCycle记录直接核对target和exact签名，不再依赖已删除的CoreMirBridge。
 
 field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
 registration与stackmap proof所需的完整、member-independent authority。其closed product固定为：
@@ -1161,14 +1163,14 @@ type-registration relocation仍必须逐项解析为该bridge的`CoreStrong` use
 requirement，也不得因此放宽callable bridge或真实descriptor use的覆盖验证。
 
 `external_bridges`的元素sum tag固定为`Callable=1`、`TypeDescriptor=2`，payload均位于field `1`；
-顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload是closed
+顶层array先按tag、再按callable body/exact type identity bytes严格递增。callable payload使用共有CallableAbiRecordV1及codec，closed
 product：`1=target: StrongCallableDefinitionOwner`、`2=abi_signature: CanonicalScoopAbiFunctionSignature`、
 `3=expected_symbol: PersistentSymbolRequest`、`4=calling_convention`、
 `5=root_plan: ManagedStatepoint | NoGc`、`6=required_definition: ObjectDefinitionPlanId`。
 target的closed sum tag按`Function=1`、`Constructor=2`、`PropertyAccessor=3`、
 `GeneratedCallable=4`固定；它只允许param-free strong owner，不能先降格存为可包含generic/application
 分支的`CallableOwner`。body、symbol request和
-core `CallableBody` definition plan从target唯一重算。canonical ABI完整绑定exact signature、
+ `CallableBody` definition plan从target和显式provider唯一重算；这个旧初始化分区的provider明确为CORE，builder拒绝其他provider的record，普通调用桥传入其实际provider。canonical ABI完整绑定exact signature、
 direct/indirect/ZST传递、storage size/alignment/shape与GC effect；它必须与codegen消费的物理
 `ScoopAbiSignature`逐argument/result相符，并与root-plan effect相符。type descriptor payload固定为
 `1=target: PersistentExactTypeId`、`2=expected_symbol: PersistentSymbolRequest`、

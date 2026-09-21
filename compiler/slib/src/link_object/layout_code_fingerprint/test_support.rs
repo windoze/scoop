@@ -6,8 +6,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, CoreLirBridgeBranchV1,
-    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, DependencyExternalCallableRootPlanV1,
-    EntryProductionSourceV1, LirTargetProfile, OdrFreeLirFoundation,
+    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, EntryProductionSourceV1,
+    ExternalCallableRootPlan, LirTargetProfile, OdrFreeLirFoundation,
     SelectedDependencyLirCallableV1, StrongProductionSectionV2,
     StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
 };
@@ -199,7 +199,7 @@ fn nonempty_ordinary(foundation: &OdrFreeLirFoundation) -> CrossConeLirBridgeSec
         )
         .unwrap(),
         CallingConvention::Cdecl,
-        DependencyExternalCallableRootPlanV1::NoGc,
+        ExternalCallableRootPlan::NoGc,
     )
     .unwrap();
     CrossConeLirBridgeSectionV1::try_new(foundation, vec![], vec![selected]).unwrap()
