@@ -101,7 +101,7 @@ impl TrustedCoreFixture {
 }
 
 pub(crate) fn trusted_core() -> TrustedCoreFixture {
-    trusted_core_from_source(complete_core_file(), None)
+    trusted_core_from_source(complete_core_file(), "", None)
 }
 
 pub(super) fn trusted_core_with_answer() -> TrustedCoreFixture {
@@ -114,14 +114,20 @@ pub(super) fn trusted_core_with_answer() -> TrustedCoreFixture {
         int_lit(42),
     ));
     make_core_public(&mut source);
-    trusted_core_from_source(source, Some("coreAnswer"))
+    trusted_core_from_source(source, "", Some("coreAnswer"))
 }
 
-fn trusted_core_from_source(
+pub(super) fn trusted_core_from_source(
     source: scoop_ast::SourceFile,
+    source_text: &str,
     strong_callable: Option<&str>,
 ) -> TrustedCoreFixture {
-    let parsed = parsed_core(source);
+    let parsed = parsed_sources(
+        super::super::core_source_identity("src/core.scoop"),
+        source,
+        "<core>",
+        source_text,
+    );
     let input = CoreBootstrapSources::try_new(&parsed).unwrap();
     let output = lower_core_bootstrap(&input).unwrap();
     let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
@@ -268,11 +274,11 @@ fn trusted_core_from_source(
 
 pub(crate) fn parsed_core(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
     let identity = super::super::core_source_identity("src/core.scoop");
-    parsed_sources(identity, source, "<core>")
+    parsed_sources(identity, source, "<core>", "")
 }
 
 pub(crate) fn parsed_ordinary(source: scoop_ast::SourceFile) -> CurrentConeParsedSources {
-    parsed_sources(test_source_identity("src/main.scoop"), source, "<main>")
+    parsed_sources(test_source_identity("src/main.scoop"), source, "<main>", "")
 }
 
 pub(crate) fn parsed_ordinary_at(
@@ -284,13 +290,14 @@ pub(crate) fn parsed_ordinary_at(
         NormalizedSourcePath::new("src/main.scoop").unwrap(),
     )
     .unwrap();
-    parsed_sources(identity, source, "<dependency-main>")
+    parsed_sources(identity, source, "<dependency-main>", "")
 }
 
 fn parsed_sources(
     identity: SourceIdentity,
     source: scoop_ast::SourceFile,
     display: &str,
+    source_text: &str,
 ) -> CurrentConeParsedSources {
     CurrentConeParsedSources::try_new(
         AllParsedSources::try_new(NonEmptyVec::new(
@@ -299,7 +306,7 @@ fn parsed_sources(
         ))
         .unwrap(),
         NonEmptyVec::new(
-            CurrentSourceText::new(identity.clone(), String::new()),
+            CurrentSourceText::new(identity.clone(), source_text.to_owned()),
             Vec::new(),
         ),
         NonEmptyVec::new(
@@ -308,4 +315,13 @@ fn parsed_sources(
         ),
     )
     .unwrap()
+}
+
+pub(super) fn parsed_ordinary_text(source: &str) -> CurrentConeParsedSources {
+    parsed_sources(
+        test_source_identity("src/main.scoop"),
+        scoop_parser::parse(source).unwrap(),
+        "<main>",
+        source,
+    )
 }

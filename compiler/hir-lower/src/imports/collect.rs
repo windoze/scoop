@@ -186,7 +186,10 @@ impl Lowerer {
                     .filter(|binding| {
                         matches!(
                             binding.target(),
-                            hir::ImportedTarget::Function(_)
+                            hir::ImportedTarget::Type(_)
+                                | hir::ImportedTarget::GenericType(_)
+                                | hir::ImportedTarget::TypeAlias(_)
+                                | hir::ImportedTarget::Function(_)
                                 | hir::ImportedTarget::GenericFunction(_)
                                 | hir::ImportedTarget::Property(_)
                                 | hir::ImportedTarget::ExtensionProperty(_)
@@ -197,6 +200,8 @@ impl Lowerer {
                 if !targets.is_empty() {
                     surface
                         .prelude_dependencies
+                        .entry(group.namespace())
+                        .or_default()
                         .insert(group.name().as_str().to_owned(), targets);
                 }
             }

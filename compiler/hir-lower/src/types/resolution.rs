@@ -397,7 +397,7 @@ impl Lowerer {
         match &ty_ref.kind {
             ast::TypeRefKind::Unit => {
                 if let Some(declaration) = self.imported_core_builtin_declaration(self.unit)
-                    && !self.retain_core_alias_target_binding("Unit", declaration, ty_ref.span)
+                    && !self.retain_builtin_alias_target_binding("Unit", declaration, ty_ref.span)
                 {
                     return None;
                 }
@@ -688,6 +688,12 @@ impl Lowerer {
                     None => {}
                 }
                 let resolved = match name.text.as_str() {
+                    _ if matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
+                        && !matches!(name.text.as_str(), "Unit" | "Any") =>
+                    {
+                        self.error(name.span, format!("unknown type `{}`", name.text));
+                        None
+                    }
                     "Unit" => Some(self.unit),
                     "Int8" => Some(self.integer_type(hir::IntegerKind::SIGNED_8)),
                     "Int16" => Some(self.integer_type(hir::IntegerKind::SIGNED_16)),
@@ -709,7 +715,7 @@ impl Lowerer {
                 };
                 if let Some(ty) = resolved
                     && let Some(declaration) = self.imported_core_builtin_declaration(ty)
-                    && !self.retain_core_alias_target_binding(&name.text, declaration, name.span)
+                    && !self.retain_builtin_alias_target_binding(&name.text, declaration, name.span)
                 {
                     return None;
                 }

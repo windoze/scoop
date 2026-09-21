@@ -163,21 +163,6 @@ pub(crate) fn alias_expansions(
         .unwrap()
 }
 
-pub(crate) fn empty_interface() -> scoop_hir::CrossConeHirInterfaceSectionV1 {
-    scoop_hir::CrossConeHirInterfaceSectionV1::new(
-        scoop_hir::CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalCallableInterfacesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalPropertyInterfacesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalCallableSourceInterfacesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalExportDefaultTemplatesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalExportConstValuesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalExportDefinitionSourcesV1::try_new(Vec::new()).unwrap(),
-        scoop_hir::CanonicalExternalHirReferencesV1::try_new(Vec::new()).unwrap(),
-    )
-}
-
 struct EmptyAliasAuthority;
 
 impl scoop_hir::TypeAliasClosureAuthority for EmptyAliasAuthority {

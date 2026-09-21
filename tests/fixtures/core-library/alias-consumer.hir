@@ -1,0 +1,12 @@
+Module
+  typealias LocalCoreNumber = Int
+  fun identity(value: Int): Int
+    return
+      Local value : Int
+  fun pair(value: (Int, Boolean)): (Int, Boolean)
+    return
+      Local value : (Int, Boolean)
+  fun namedResult(): Int
+    return
+      ImportedDependencyCall #0 : Int
+  output library

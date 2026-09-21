@@ -128,7 +128,7 @@ impl Lowerer {
         );
         result.extend(
             self.imports
-                .prelude_value_bindings(name)
+                .prelude_bindings(scoop_identity::BindingNamespace::Value, name)
                 .iter()
                 .cloned()
                 .map(ValueOrigin::Dependency),

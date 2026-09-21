@@ -431,7 +431,6 @@ fn inspect_extensions<R>(
         })
         .collect::<Vec<_>>();
     let aliases = empty_alias_expansions();
-    let core_interface = empty_interface();
     let ordinary = parsed_ordinary(consumer);
     let direct: Vec<_> = prepared
         .iter()
@@ -446,14 +445,7 @@ fn inspect_extensions<R>(
         .collect();
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
-        std::iter::once(scoop_hir::DirectImportedProviderInput::from_validated(
-            certificate(&scoop_identity::ConeCoordinate::reserved_core(), 41),
-            &core.foundation,
-            &core_interface,
-            &aliases,
-        ))
-        .chain(direct)
-        .collect(),
+        std::iter::once(core.provider()).chain(direct).collect(),
         Vec::new(),
     )
     .unwrap();

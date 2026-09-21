@@ -18,7 +18,23 @@ impl Lowerer {
             hir::ImportedTarget::TypeAlias(_) => {
                 self.resolve_imported_dependency_type_alias(binding, name, supplied_type_arguments)
             }
-            hir::ImportedTarget::Type(_) => {
+            hir::ImportedTarget::Type(declaration) => {
+                let declaration = declaration.persistent();
+                if let Ok(ty) = self.imported_signature_type(
+                    &scoop_identity::SignatureTypeKey::Nominal(declaration),
+                ) {
+                    if supplied_type_arguments {
+                        self.error(name.span, format!("type `{}` is not generic", name.text));
+                        return None;
+                    }
+                    self.retain_imported_alias_target_bindings(
+                        binding,
+                        hir::ExternalHirTargetV1::Nominal(
+                            scoop_identity::NominalDeclarationOwner::Concrete(declaration),
+                        ),
+                    );
+                    return Some(ty);
+                }
                 self.error(
                     name.span,
                     ImportedCapabilityRequirement::Layout
@@ -95,17 +111,7 @@ impl Lowerer {
             }
         };
         let witness_target = hir::ExternalHirTargetV1::TypeAlias(candidate.interface().alias());
-        let witnesses = candidate
-            .binding()
-            .sources()
-            .map(|source| {
-                hir::ExternalHirBindingWitnessUse::new(
-                    witness_target,
-                    hir::ExternalHirBindingWitnessRole::AliasTarget,
-                    source.witness().dependency().clone(),
-                )
-            })
-            .collect::<Vec<_>>();
+        let alias_binding = candidate.binding().clone();
         if let Err(error) = self
             .dependencies
             .as_mut()
@@ -118,12 +124,26 @@ impl Lowerer {
             );
             return None;
         }
+        self.retain_imported_alias_target_bindings(&alias_binding, witness_target);
+        Some(ty)
+    }
+
+    pub(crate) fn retain_imported_alias_target_bindings(
+        &mut self,
+        binding: &hir::DirectImportedTargetBinding,
+        target: hir::ExternalHirTargetV1,
+    ) {
         for alias in self.type_alias_resolution_stack.iter().copied() {
             self.type_alias_binding_witnesses
                 .entry(alias)
                 .or_default()
-                .extend(witnesses.iter().cloned());
+                .extend(binding.sources().map(|source| {
+                    hir::ExternalHirBindingWitnessUse::new(
+                        target,
+                        hir::ExternalHirBindingWitnessRole::AliasTarget,
+                        source.witness().dependency().clone(),
+                    )
+                }));
         }
-        Some(ty)
     }
 }

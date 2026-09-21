@@ -245,14 +245,6 @@ enum CoreLoweringAuthority {
 #[derive(Clone)]
 struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
-    type_bindings: Vec<ImportedCoreTypeBinding>,
-}
-
-#[derive(Clone, Debug)]
-struct ImportedCoreTypeBinding {
-    binding: scoop_identity::PersistentExportBindingId,
-    name: String,
-    definition: hir::CoreTypeDefinitionV1,
 }
 
 enum LoweringCompletion {

@@ -205,6 +205,13 @@ impl Lowerer {
                     target: TypeLookupTarget::Current(target),
                     origin: TypeLookupOrigin::ExistingM22Core,
                 })
+                .chain(
+                    self.dependency_type_candidates(
+                        self.imports
+                            .prelude_bindings(scoop_identity::BindingNamespace::Type, name)
+                            .to_vec(),
+                    ),
+                )
                 .collect(),
         };
         match self

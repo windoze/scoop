@@ -2,7 +2,7 @@ use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{TrustedCoreFixture, parsed_ordinary, trusted_core};
 use super::m23_ordinary_dependencies::support::{
-    certificate, empty_alias_expansions, empty_interface, exact_import, project_dependency,
+    certificate, empty_alias_expansions, exact_import, project_dependency,
 };
 use super::{
     call, file, fun, fun_expr, int_lit, make_core_public, scoop_extern_fun, sp, stmt, ty_named, var,
@@ -16,7 +16,6 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
     let (foundation, interface) = dependency_with_callable_default(&core, &provider);
     let provider_foundation = core.import_dependency_foundation(&provider, &foundation, 54);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
 
     let mut consumer = file(vec![fun(
         "consumer",
@@ -29,12 +28,7 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider, 54),
                 &provider_foundation,
@@ -123,7 +117,6 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     let (foundation, interface) = project_dependency(&core, &provider, provider_source, &["Int"]);
     let provider_foundation = core.import_dependency_foundation(&provider, &foundation, 55);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
 
     let mut consumer = file(vec![
         fun("withDefault", Vec::new()),
@@ -136,12 +129,7 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider, 55),
                 &provider_foundation,

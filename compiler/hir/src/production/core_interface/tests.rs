@@ -1,10 +1,10 @@
 use la_arena::Arena;
 use scoop_identity::{
-    BindingNamespace, BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
-    CoreBuiltinNominal, DeclarationName, DeclarationScope, DefinitionOwnerChain,
-    EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey,
-    ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey,
-    PackagePath, PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
+    BindingTarget, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal,
+    DeclarationName, DeclarationScope, DefinitionOwnerChain, EnumVariantFieldKey,
+    EnumVariantFieldSelector, EnumVariantIdentityKey, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey, PackagePath,
+    PendingIdentityValidation, PersistentEnumVariantFieldId, PersistentEnumVariantId,
     PersistentExactTypeId, PersistentExportBindingId, PersistentFunctionId,
     PersistentGenericTypeId, PersistentTypeId, SemanticIdentitySession, SemanticOriginFingerprint,
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
@@ -12,10 +12,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{
-    CoreInterfaceImportError, CorePreludeImportError, CoreTypeTargetV1, DecodedHirFoundation,
-    ImportedHirFoundation,
-};
+use crate::{CoreTypeTargetV1, DecodedHirFoundation, ImportedHirFoundation};
 
 mod wire;
 
@@ -132,14 +129,11 @@ fn core_shape_support_sources_are_derived_from_param_free_source_nominals() {
 }
 
 #[test]
-fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
+fn imported_core_inputs_expose_compiler_protocols() {
     let fixture = fixture();
     let imported = imported_foundation(&fixture.foundation);
 
     let core = imported.import_core_inputs(&fixture.interface).unwrap();
-    let prelude = core.prelude();
-
-    assert_eq!(prelude.origin(), ConeIdentity::CORE);
     assert_eq!(core.protocols().fixed_subject_count(), 84);
     assert_eq!(
         core.protocols().compiler_operations().len(),
@@ -249,25 +243,6 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     assert_ne!(
         protocols.foreign_callbacks().reusable(),
         protocols.foreign_callbacks().one_shot()
-    );
-    let string = prelude
-        .candidates(BindingNamespace::Type, "String")
-        .collect::<Vec<_>>();
-    assert_eq!(string.len(), 1);
-    let string_binding = fixture
-        .interface
-        .type_targets()
-        .targets()
-        .iter()
-        .find(|target| {
-            target.capability() == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
-        })
-        .unwrap()
-        .binding();
-    assert_eq!(string[0].identity().persistent(), string_binding);
-    assert_eq!(
-        string[0].target().capability(),
-        CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact),
     );
 }
 
@@ -393,19 +368,12 @@ fn imported_fundamental_types_build_identities_without_local_core_nominals() {
 }
 
 #[test]
-fn imported_core_inputs_reject_an_interface_from_another_foundation() {
+fn imported_protocols_do_not_require_duplicate_public_bindings() {
     let fixture = fixture();
-    let first_binding = fixture.direct.bindings()[0];
-    let mut missing_binding = fixture.foundation.clone();
-    missing_binding.set_export_bindings(Vec::new()).unwrap();
-    let imported = imported_foundation(&missing_binding);
-
-    assert!(matches!(
-        imported.import_core_inputs(&fixture.interface),
-        Err(CoreInterfaceImportError::Prelude(
-            CorePreludeImportError::MissingBindingKey(binding)
-        )) if binding == first_binding
-    ));
+    let mut foundation = fixture.foundation.clone();
+    foundation.set_export_bindings(Vec::new()).unwrap();
+    let imported = imported_foundation(&foundation);
+    assert!(imported.import_core_inputs(&fixture.interface).is_ok());
 }
 
 fn decode_interface(interface: &CoreHirInterfaceV1) -> DecodedCoreHirInterfaceV1 {

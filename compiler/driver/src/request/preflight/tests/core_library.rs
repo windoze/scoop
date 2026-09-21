@@ -1,6 +1,7 @@
 use super::*;
 use crate::{HostArtifactLocator, normalize_direct_build_request};
 
+mod aliases;
 mod metadata;
 
 const EXTENSION: &str =
@@ -20,6 +21,11 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     std::fs::write(
         source.join("src/user_metadata.scoop"),
         include_str!("../../../../../../tests/fixtures/core-library/metadata.scoop"),
+    )
+    .unwrap();
+    std::fs::write(
+        source.join("src/user_aliases.scoop"),
+        include_str!("../../../../../../tests/fixtures/core-library/type-aliases.scoop"),
     )
     .unwrap();
     let artifact = workspace.path().join("user-library.slib");
@@ -56,6 +62,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
         &workspace.path().join("calls.slib"),
         &artifact,
     );
+    aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),
@@ -238,6 +245,16 @@ fn build_consumer(
     output: &Path,
     core: &Path,
 ) -> SingleConeProductionSuccess {
+    build_consumer_emitting(target, source, output, core, StageDumpPolicy::None)
+}
+
+fn build_consumer_emitting(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    source: &Path,
+    output: &Path,
+    core: &Path,
+    emit: StageDumpPolicy,
+) -> SingleConeProductionSuccess {
     SingleConeBuildRequest::new(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
@@ -247,7 +264,7 @@ fn build_consumer(
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,
-        StageDumpPolicy::None,
+        emit,
     )
     .unwrap()
     .build_and_publish(DecodeLimits::default())

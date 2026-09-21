@@ -1,8 +1,7 @@
 use std::collections::BTreeSet;
 
 use scoop_identity::{
-    BindingNamespace, BindingTarget, ConeCoordinate, ConeIdentity, ExportBindingKey,
-    NominalDeclarationOwner,
+    BindingTarget, ConeCoordinate, ConeIdentity, ExportBindingKey, NominalDeclarationOwner,
 };
 
 use super::super::super::m23_ordinary_core_only::support::{
@@ -48,7 +47,7 @@ fn project_dependency_with_core_roles(
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let witnesses = core_types
         .iter()
-        .flat_map(|name| core_type_witnesses(&core_inputs, name, include_default_role))
+        .flat_map(|name| core_type_witnesses(core, name, include_default_role))
         .collect::<Vec<_>>();
     let world = core.world(parsed.cone());
     let input = OrdinarySources::try_new(&parsed, core_inputs, &world).unwrap();
@@ -70,43 +69,32 @@ fn project_dependency_with_core_roles(
 }
 
 fn core_type_witnesses(
-    core: &scoop_hir::ImportedCoreInputs<'_>,
+    core: &TrustedCoreFixture,
     name: &str,
     include_default_role: bool,
 ) -> Vec<scoop_hir::ExternalHirBindingWitnessUse> {
-    let binding = core
-        .prelude()
-        .candidates(BindingNamespace::Type, name)
-        .next()
-        .unwrap_or_else(|| panic!("the trusted core fixture exports {name}"));
-    let target = binding.target();
-    let scoop_hir::CoreTypeDefinitionV1::Type(declaration) = target.definition() else {
+    let binding = core.type_binding(name);
+    let scoop_hir::ImportedTarget::Type(declaration) = binding.target() else {
         panic!("the {name} prelude binding must target a concrete nominal")
     };
-    let route = scoop_hir::ReexportRouteV1::try_new(
-        ConeIdentity::CORE,
-        vec![scoop_hir::ReexportRouteHopV1::new(
-            ConeIdentity::CORE,
-            binding.identity().persistent(),
-        )],
-    )
-    .unwrap();
     let target = scoop_hir::ExternalHirTargetV1::Nominal(
-        scoop_identity::NominalDeclarationOwner::Concrete(declaration),
+        scoop_identity::NominalDeclarationOwner::Concrete(declaration.persistent()),
     );
-    let mut witnesses = Vec::with_capacity(1 + usize::from(include_default_role));
-    if include_default_role {
+    let mut witnesses = Vec::new();
+    for source in binding.sources() {
+        if include_default_role {
+            witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
+                target,
+                scoop_hir::ExternalHirBindingWitnessRole::DefaultDependency,
+                source.witness().dependency().clone(),
+            ));
+        }
         witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
             target,
-            scoop_hir::ExternalHirBindingWitnessRole::DefaultDependency,
-            scoop_hir::DependencyBindingWitnessV1::new(route.clone()),
+            scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
+            source.witness().dependency().clone(),
         ));
     }
-    witnesses.push(scoop_hir::ExternalHirBindingWitnessUse::new(
-        target,
-        scoop_hir::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
-        scoop_hir::DependencyBindingWitnessV1::new(route),
-    ));
     witnesses
 }
 

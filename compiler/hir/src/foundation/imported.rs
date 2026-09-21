@@ -1,16 +1,12 @@
-use std::fmt;
-use std::marker::PhantomData;
-
 use scoop_identity::{
-    BindingNamespace, ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId,
-    ImportedIdentityMap, PersistentExportBindingId, PersistentId, PersistentTypeId,
+    ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId, ImportedIdentityMap,
+    PersistentExportBindingId, PersistentId, PersistentTypeId,
 };
 use scoop_wire::WireEncode;
 
 use super::{
     CanonicalHirFoundation, HirFoundationCounts, OdrFreeHirFoundation, ValidatedHirFoundation,
 };
-use crate::{CoreHirInterfaceV1, CoreTypeTargetV1};
 
 /// Session-local HIR identity. Its type is distinct from current HIR ids and
 /// from imported MIR/LIR ids.
@@ -119,47 +115,6 @@ impl ImportedHirFoundation {
     pub(super) fn core_source_field_count(&self, owner: PersistentTypeId) -> usize {
         self.canonical.source_field_count(owner)
     }
-
-    /// Projects the type bindings needed during ordinary HIR lowering.
-    /// Function and value lookup uses the dependency world.
-    pub(super) fn import_core_prelude<'a>(
-        &'a self,
-        interface: &'a CoreHirInterfaceV1,
-    ) -> Result<ImportedHirSet<'a, CorePreludeOnly>, CorePreludeImportError> {
-        if self.origin() != ConeIdentity::CORE {
-            return Err(CorePreludeImportError::FoundationNotCore(self.origin()));
-        }
-
-        let mut bindings = Vec::with_capacity(interface.type_targets().targets().len());
-        for target in interface.type_targets().targets() {
-            let binding = target.binding();
-            let key = self
-                .canonical
-                .export_binding_key(binding)
-                .ok_or(CorePreludeImportError::MissingBindingKey(binding))?;
-            if key.exporter() != ConeIdentity::CORE {
-                return Err(CorePreludeImportError::ForeignBinding {
-                    binding,
-                    exporter: key.exporter(),
-                });
-            }
-            let identity = self
-                .identity(binding)
-                .ok_or(CorePreludeImportError::MissingBindingIdentity(binding))?;
-            bindings.push(ImportedCorePreludeBinding {
-                identity,
-                key,
-                target,
-            });
-        }
-
-        Ok(ImportedHirSet {
-            foundation: self,
-            interface,
-            bindings,
-            capability: PhantomData,
-        })
-    }
 }
 
 impl WireEncode for ImportedHirFoundation {
@@ -170,79 +125,3 @@ impl WireEncode for ImportedHirFoundation {
         self.canonical.encode(encoder)
     }
 }
-
-/// Marker for the core type bindings used during HIR lowering.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CorePreludeOnly {}
-
-/// Imported type bindings used during HIR lowering. Compiler protocols own
-/// their identities; function and value lookup uses the shared dependency world.
-pub struct ImportedHirSet<'a, Capability> {
-    foundation: &'a ImportedHirFoundation,
-    interface: &'a CoreHirInterfaceV1,
-    bindings: Vec<ImportedCorePreludeBinding<'a>>,
-    capability: PhantomData<fn() -> Capability>,
-}
-
-impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
-    pub(super) const fn core_interface(&self) -> &'a CoreHirInterfaceV1 {
-        self.interface
-    }
-
-    pub const fn origin(&self) -> ConeIdentity {
-        self.foundation.origin()
-    }
-
-    pub fn bindings(&self) -> &[ImportedCorePreludeBinding<'a>] {
-        &self.bindings
-    }
-
-    pub fn candidates<'set>(
-        &'set self,
-        namespace: BindingNamespace,
-        name: &'set str,
-    ) -> impl Iterator<Item = &'set ImportedCorePreludeBinding<'a>> + 'set {
-        self.bindings.iter().filter(move |binding| {
-            binding.key.namespace() == namespace && binding.key.name().as_str() == name
-        })
-    }
-}
-
-pub struct ImportedCorePreludeBinding<'a> {
-    identity: ImportedHirId<PersistentExportBindingId>,
-    key: &'a ExportBindingKey,
-    target: &'a CoreTypeTargetV1,
-}
-
-impl<'a> ImportedCorePreludeBinding<'a> {
-    pub const fn identity(&self) -> ImportedHirId<PersistentExportBindingId> {
-        self.identity
-    }
-
-    pub const fn key(&self) -> &'a ExportBindingKey {
-        self.key
-    }
-
-    pub const fn target(&self) -> &'a CoreTypeTargetV1 {
-        self.target
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CorePreludeImportError {
-    FoundationNotCore(ConeIdentity),
-    MissingBindingKey(PersistentExportBindingId),
-    ForeignBinding {
-        binding: PersistentExportBindingId,
-        exporter: ConeIdentity,
-    },
-    MissingBindingIdentity(PersistentExportBindingId),
-}
-
-impl fmt::Display for CorePreludeImportError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot import trusted core prelude: {self:?}")
-    }
-}
-
-impl std::error::Error for CorePreludeImportError {}

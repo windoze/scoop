@@ -1,6 +1,9 @@
-//! Atomic imported view of the trusted core compiler protocols and prelude.
+//! Imported compiler protocol identities and native-boundary definitions.
 
 use std::fmt;
+
+mod native_boundary;
+pub use native_boundary::{CoreNativeBoundaryImportError, ImportedCoreNativeBoundaryTypes};
 
 use scoop_identity::{
     PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantFieldId,
@@ -9,9 +12,7 @@ use scoop_identity::{
     PersistentId, PersistentTypeId, SignatureCallableShape, SourceDeclarationKind,
 };
 
-use super::{
-    CorePreludeImportError, CorePreludeOnly, ImportedHirFoundation, ImportedHirId, ImportedHirSet,
-};
+use super::{ImportedHirFoundation, ImportedHirId};
 use crate::{
     COROUTINE_PROTOCOL_COUNT, CoreHirInterfaceV1, CoreProtocolCallableDefinitionV1,
     CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
@@ -572,20 +573,15 @@ impl ImportedCoreProtocols {
     }
 }
 
-/// The only ordinary-Cone HIR import granted by a trusted core artifact.
-/// Prelude lookup and compiler protocols are constructed as one value and
-/// cannot be paired independently with another artifact.
+/// Compiler protocol identities and native-boundary definitions. Ordinary
+/// public name lookup uses the shared dependency semantic world.
 pub struct ImportedCoreInputs<'a> {
-    prelude: ImportedHirSet<'a, CorePreludeOnly>,
+    interface: &'a CoreHirInterfaceV1,
     protocols: ImportedCoreProtocols,
     native_boundary_types: ImportedCoreNativeBoundaryTypes,
 }
 
 impl<'a> ImportedCoreInputs<'a> {
-    pub const fn prelude(&self) -> &ImportedHirSet<'a, CorePreludeOnly> {
-        &self.prelude
-    }
-
     pub const fn protocols(&self) -> &ImportedCoreProtocols {
         &self.protocols
     }
@@ -602,15 +598,12 @@ impl<'a> ImportedCoreInputs<'a> {
         crate::CoreClosedExactLeafClassifierV1,
         crate::CoreClosedExactLeafClassifierBuildError,
     > {
-        crate::CoreClosedExactLeafClassifierV1::try_from_core_interface(
-            self.prelude.core_interface(),
-        )
+        crate::CoreClosedExactLeafClassifierV1::try_from_core_interface(self.interface)
     }
 }
 
 impl ImportedHirFoundation {
-    /// Atomically imports the prelude and every compiler protocol from one
-    /// validated core interface into this exact semantic identity session.
+    /// Imports compiler protocols into the shared semantic identity session.
     pub fn import_core_inputs<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
@@ -620,120 +613,12 @@ impl ImportedHirFoundation {
         let native_boundary_types =
             ImportedCoreNativeBoundaryTypes::import(self, protocols.fundamental_types())
                 .map_err(CoreInterfaceImportError::NativeBoundary)?;
-        let prelude = self
-            .import_core_prelude(interface)
-            .map_err(CoreInterfaceImportError::Prelude)?;
         Ok(ImportedCoreInputs {
-            prelude,
+            interface,
             protocols,
             native_boundary_types,
         })
     }
-}
-
-/// Closed native-boundary witness authority projected from one trusted Core.
-///
-/// It deliberately contains only the non-generic fundamental source types
-/// whose complete M23-3 shape is compiler-owned. Construction is private so
-/// an ordinary Cone cannot substitute arbitrary external nominal records.
-#[derive(Clone, Debug)]
-pub struct ImportedCoreNativeBoundaryTypes {
-    records: Vec<NativeBoundaryTypeDefinitionRecord>,
-}
-
-impl ImportedCoreNativeBoundaryTypes {
-    fn import(
-        foundation: &ImportedHirFoundation,
-        fundamental: &ImportedCoreFundamentalTypeProtocol,
-    ) -> Result<Self, CoreNativeBoundaryImportError> {
-        let mut records = Vec::with_capacity(IntegerKind::ALL.len() + 2);
-        for kind in IntegerKind::ALL {
-            records.push(import_core_primitive(
-                foundation,
-                fundamental.integer(kind).persistent(),
-            )?);
-        }
-        records.push(import_core_primitive(
-            foundation,
-            fundamental.boolean().persistent(),
-        )?);
-        records.push(import_core_string(
-            foundation,
-            fundamental.string().persistent(),
-        )?);
-        records.sort_by(|left, right| left.owner().compare_sort_key(right.owner()));
-        Ok(Self { records })
-    }
-
-    pub(crate) fn definition(
-        &self,
-        owner: NativeBoundaryNominalOwner,
-    ) -> Option<&NativeBoundaryTypeDefinitionRecord> {
-        self.records
-            .binary_search_by(|record| record.owner().compare_sort_key(owner))
-            .ok()
-            .map(|index| &self.records[index])
-    }
-
-    pub fn records(&self) -> &[NativeBoundaryTypeDefinitionRecord] {
-        &self.records
-    }
-}
-
-fn import_core_primitive(
-    foundation: &ImportedHirFoundation,
-    identity: PersistentTypeId,
-) -> Result<NativeBoundaryTypeDefinitionRecord, CoreNativeBoundaryImportError> {
-    let declaration = foundation
-        .core_source_type_key(identity)
-        .ok_or(CoreNativeBoundaryImportError::MissingSourceType(identity))?;
-    let actual = declaration.declaration_kind();
-    if actual != SourceDeclarationKind::Struct {
-        return Err(CoreNativeBoundaryImportError::UnexpectedDeclarationKind {
-            identity,
-            expected: SourceDeclarationKind::Struct,
-            actual,
-        });
-    }
-    let field_count = foundation.core_source_field_count(identity);
-    if field_count != 0 {
-        return Err(CoreNativeBoundaryImportError::PrimitiveHasFields {
-            identity,
-            field_count,
-        });
-    }
-    NativeBoundaryTypeDefinitionRecord::new(
-        declaration,
-        &[0],
-        NativeBoundaryNominalShape::Struct {
-            c_layout: NativeBoundaryCLayoutPolicy::NotCLayout,
-            fields: Vec::new(),
-        },
-    )
-    .map_err(CoreNativeBoundaryImportError::InvalidDefinition)
-}
-
-fn import_core_string(
-    foundation: &ImportedHirFoundation,
-    identity: PersistentTypeId,
-) -> Result<NativeBoundaryTypeDefinitionRecord, CoreNativeBoundaryImportError> {
-    let declaration = foundation
-        .core_source_type_key(identity)
-        .ok_or(CoreNativeBoundaryImportError::MissingSourceType(identity))?;
-    let actual = declaration.declaration_kind();
-    if actual != SourceDeclarationKind::Class {
-        return Err(CoreNativeBoundaryImportError::UnexpectedDeclarationKind {
-            identity,
-            expected: SourceDeclarationKind::Class,
-            actual,
-        });
-    }
-    NativeBoundaryTypeDefinitionRecord::new(
-        declaration,
-        &[0],
-        NativeBoundaryNominalShape::Reference,
-    )
-    .map_err(CoreNativeBoundaryImportError::InvalidDefinition)
 }
 
 fn concrete_nominal<const N: usize>(
@@ -924,43 +809,7 @@ impl fmt::Display for CoreProtocolImportError {
 impl std::error::Error for CoreProtocolImportError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CoreNativeBoundaryImportError {
-    MissingSourceType(PersistentTypeId),
-    UnexpectedDeclarationKind {
-        identity: PersistentTypeId,
-        expected: SourceDeclarationKind,
-        actual: SourceDeclarationKind,
-    },
-    PrimitiveHasFields {
-        identity: PersistentTypeId,
-        field_count: usize,
-    },
-    InvalidDefinition(NativeBoundaryDefinitionError),
-}
-
-impl fmt::Display for CoreNativeBoundaryImportError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot import trusted core native-boundary fundamentals: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for CoreNativeBoundaryImportError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::InvalidDefinition(error) => Some(error),
-            Self::MissingSourceType(_)
-            | Self::UnexpectedDeclarationKind { .. }
-            | Self::PrimitiveHasFields { .. } => None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreInterfaceImportError {
-    Prelude(CorePreludeImportError),
     Protocols(CoreProtocolImportError),
     NativeBoundary(CoreNativeBoundaryImportError),
 }
@@ -968,7 +817,6 @@ pub enum CoreInterfaceImportError {
 impl fmt::Display for CoreInterfaceImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Prelude(error) => error.fmt(formatter),
             Self::Protocols(error) => error.fmt(formatter),
             Self::NativeBoundary(error) => error.fmt(formatter),
         }
@@ -978,7 +826,6 @@ impl fmt::Display for CoreInterfaceImportError {
 impl std::error::Error for CoreInterfaceImportError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Prelude(error) => Some(error),
             Self::Protocols(error) => Some(error),
             Self::NativeBoundary(error) => Some(error),
         }

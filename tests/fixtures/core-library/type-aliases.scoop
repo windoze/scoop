@@ -1,0 +1,3 @@
+public typealias UserCoreNumber = Int
+public typealias UserCorePair = (UserCoreNumber, Boolean)
+public fun UserCoreNumber(): Int = 12

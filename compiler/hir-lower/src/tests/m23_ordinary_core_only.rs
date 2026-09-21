@@ -1,11 +1,10 @@
-use scoop_identity::{
-    BindingNamespace, CallableTemplateOrigin, ConeIdentity, NominalDeclarationOwner,
-};
+use scoop_identity::{CallableTemplateOrigin, ConeIdentity, NominalDeclarationOwner};
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
 use crate::{OrdinarySources, lower_ordinary};
 
+mod aliases;
 mod constants;
 pub(crate) mod support;
 
@@ -62,16 +61,20 @@ fn public_alias_retains_the_exact_imported_core_type_binding() {
     let core = trusted_core();
     let ordinary = parsed_ordinary(file(vec![public_type_alias("Number", ty_named("Int"))]));
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let int_binding = core_inputs
-        .prelude()
-        .candidates(BindingNamespace::Type, "Int")
-        .next()
-        .expect("the trusted-core prelude exports Int");
-    let int_target = int_binding.target();
-    let scoop_hir::CoreTypeDefinitionV1::Type(int_declaration) = int_target.definition() else {
+    let int_binding = core.type_binding("Int");
+    let scoop_hir::ImportedTarget::Type(int_declaration) = int_binding.target() else {
         panic!("the Int prelude binding targets a concrete nominal")
     };
-    let expected_binding = int_binding.identity().persistent();
+    let int_declaration = int_declaration.persistent();
+    let expected_binding = int_binding
+        .sources()
+        .next()
+        .unwrap()
+        .witness()
+        .dependency()
+        .route()
+        .hops()[0]
+        .binding();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 

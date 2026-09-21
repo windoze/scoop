@@ -1,4 +1,4 @@
-use scoop_identity::{ConeCoordinate, SignatureTypeKey};
+use scoop_identity::SignatureTypeKey;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::{
@@ -28,7 +28,6 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
     let provider_foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 51);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
     let mut source = file(vec![fun(
         "consumer",
         vec![stmt(call("run", Vec::new())), stmt(call("run", Vec::new()))],
@@ -40,12 +39,7 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider.coordinate, 51),
                 &provider_foundation,
@@ -112,7 +106,6 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
     let provider_foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 54);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
     let source = in_package(
         file(vec![fun("consumer", vec![stmt(call("run", Vec::new()))])]),
         &["dependency", "api"],
@@ -121,12 +114,7 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider.coordinate, 54),
                 &provider_foundation,
@@ -162,7 +150,6 @@ fn unsupported_dependency_candidate_falls_through_to_current_package() {
     let provider_foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 52);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
     let mut source = file(vec![
         fun("run", Vec::new()),
         fun("consumer", vec![stmt(call("run", Vec::new()))]),
@@ -174,12 +161,7 @@ fn unsupported_dependency_candidate_falls_through_to_current_package() {
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider.coordinate, 52),
                 &provider_foundation,
@@ -221,7 +203,6 @@ fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
     let provider_foundation =
         core.import_dependency_foundation(&provider.coordinate, &provider.foundation, 53);
     let aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
     let mut source = file(vec![fun("consumer", vec![stmt(call("raw", Vec::new()))])]);
     source
         .imports
@@ -230,12 +211,7 @@ fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider.coordinate, 53),
                 &provider_foundation,

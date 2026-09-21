@@ -380,19 +380,8 @@ impl Lowerer {
     }
 
     pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs<'_>) -> Self {
-        let type_bindings = core
-            .prelude()
-            .bindings()
-            .iter()
-            .map(|binding| ImportedCoreTypeBinding {
-                binding: binding.identity().persistent(),
-                name: binding.key().name().as_str().to_owned(),
-                definition: binding.target().definition(),
-            })
-            .collect();
         self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
             protocols: core.protocols().clone(),
-            type_bindings,
         }));
         self
     }

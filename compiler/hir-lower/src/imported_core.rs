@@ -2,7 +2,9 @@
 
 use scoop_ast::Span;
 use scoop_hir as hir;
-use scoop_identity::{ConeIdentity, NominalDeclarationOwner, PersistentTypeId, SignatureTypeKey};
+use scoop_identity::{
+    BindingNamespace, NominalDeclarationOwner, PersistentTypeId, SignatureTypeKey,
+};
 
 use crate::{CoreLoweringAuthority, Lowerer};
 
@@ -13,56 +15,35 @@ pub(crate) enum ImportedSignatureTypeError {
 }
 
 impl Lowerer {
-    /// Retains the exact trusted-core prelude route used by a type name while
-    /// resolving one or more source type aliases. The route is attached to
-    /// every active alias so a cached inner alias still contributes its
-    /// foreign leaves to an enclosing expanded alias signature.
-    pub(crate) fn retain_core_alias_target_binding(
+    /// Retains the shared public route for a built-in spelling in an alias.
+    pub(crate) fn retain_builtin_alias_target_binding(
         &mut self,
         name: &str,
         declaration: PersistentTypeId,
         span: Span,
     ) -> bool {
-        if self.type_alias_resolution_stack.is_empty() {
+        if self.type_alias_resolution_stack.is_empty()
+            || matches!(self.core, CoreLoweringAuthority::Defined)
+        {
             return true;
         }
-        let binding = match &self.core {
-            CoreLoweringAuthority::Defined => return true,
-            CoreLoweringAuthority::Imported(authority) => authority
-                .type_bindings
-                .iter()
-                .find(|candidate| {
-                    candidate.name == name
-                        && candidate.definition == hir::CoreTypeDefinitionV1::Type(declaration)
-                })
-                .cloned(),
-        };
+        let binding = self
+            .imports
+            .prelude_bindings(BindingNamespace::Type, name)
+            .iter()
+            .find(|binding| matches!(binding.target(), hir::ImportedTarget::Type(id) if id.persistent() == declaration))
+            .cloned();
         let Some(binding) = binding else {
             self.error(
                 span,
-                format!("trusted core prelude does not expose the canonical type binding `{name}`"),
+                format!("core prelude does not expose type binding `{name}`"),
             );
             return false;
         };
-        let route = hir::ReexportRouteV1::try_new(
-            ConeIdentity::CORE,
-            vec![hir::ReexportRouteHopV1::new(
-                ConeIdentity::CORE,
-                binding.binding,
-            )],
-        )
-        .expect("one validated trusted-core prelude binding forms a direct route");
-        let witness = hir::ExternalHirBindingWitnessUse::new(
+        self.retain_imported_alias_target_bindings(
+            &binding,
             hir::ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(declaration)),
-            hir::ExternalHirBindingWitnessRole::AliasTarget,
-            hir::DependencyBindingWitnessV1::new(route),
         );
-        for alias in self.type_alias_resolution_stack.iter().copied() {
-            self.type_alias_binding_witnesses
-                .entry(alias)
-                .or_default()
-                .push(witness.clone());
-        }
         true
     }
 

@@ -2,8 +2,7 @@ use scoop_identity::ConeCoordinate;
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::m23_ordinary_dependencies::support::{
-    alias_expansions, certificate, empty_alias_expansions, empty_interface, exact_import,
-    project_dependency,
+    alias_expansions, certificate, exact_import, project_dependency,
 };
 use super::{
     Decl, file, fun_expr, generic_struct_decl, ident, make_core_public, sp, struct_decl,
@@ -85,18 +84,11 @@ fn lower_alias_fixture(
         .alias();
     let provider_foundation = core.import_dependency_foundation(&provider, &foundation, 61);
     let provider_aliases = alias_expansions(interface.type_aliases());
-    let core_aliases = empty_alias_expansions();
-    let core_semantic_interface = empty_interface();
     let ordinary = parsed_ordinary(consumer);
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
         vec![
-            scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &core.foundation,
-                &core_semantic_interface,
-                &core_aliases,
-            ),
+            core.provider(),
             scoop_hir::DirectImportedProviderInput::from_validated(
                 certificate(&provider, 61),
                 &provider_foundation,

@@ -1,0 +1,31 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/aliases.rs
+expression: dump.text()
+---
+Module
+  fun passthrough @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun main @fn1() -> Unit
+    bb0 entry
+      call initial: Int = dependency-strong0 direct
+      val combined: (Int, Boolean)
+        Type (Int, Boolean)
+        TupleLiteral
+          Type Int
+          Local initial
+          Type Boolean
+          BoolLiteral true
+      val $argument.0: Int
+        Type Int
+        Local initial
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call renamed: Int = @fn0 direct
+        Type Int
+        Local $parameter.value
+      return
+  output executable @fn1

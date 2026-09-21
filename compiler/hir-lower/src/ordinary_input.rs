@@ -47,10 +47,6 @@ impl<'input, 'world> OrdinarySources<'input, 'world> {
         self.world
     }
 
-    pub fn core_binding_count(&self) -> usize {
-        self.core.prelude().bindings().len()
-    }
-
     pub fn core_compiler_operation_count(&self) -> usize {
         self.core.protocols().compiler_operations().len()
     }
