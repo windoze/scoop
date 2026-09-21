@@ -49,6 +49,7 @@ pub enum DefaultSourceDeclarationBindingError {
     BodyEnvelope(
         Box<DefaultBodyProviderEnvelopeSemanticValidationError<NominalSourceBindingError>>,
     ),
+    ReferenceClosure(Box<DefaultSourceReferenceClosureError>),
     ResultType,
     SuspendPermission,
 }
@@ -58,6 +59,7 @@ macro_rules! boxed_from {
     })+ };
 }
 boxed_from! {
+    DefaultSourceReferenceClosureError => ReferenceClosure,
     DefaultSourceOriginBindingError => Origins, NominalSourceBindingError => Nominal,
     NominalMemberBindingError => Member, NominalConstructorBindingError => Constructor,
     NominalParameterBindingError => Parameter,
@@ -137,6 +139,7 @@ impl std::fmt::Display for Error {
                 write!(f, "default source local {index} type: {error}")
             }
             Self::BodyEnvelope(error) => error.fmt(f),
+            Self::ReferenceClosure(error) => error.fmt(f),
             Self::ResultType => {
                 f.write_str("default source result differs from its original provider parameter")
             }

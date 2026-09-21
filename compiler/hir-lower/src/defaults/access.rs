@@ -32,7 +32,9 @@ impl Lowerer {
             fallback_origin: template.origin,
             local_declarations: HashSet::new(),
         };
-        for local in template.locals.values() {
+        let mut locals = template.locals.values().collect::<Vec<_>>();
+        locals.sort_unstable_by(|left, right| left.selector.cmp(&right.selector));
+        for local in locals {
             let origin = match local.definition {
                 hir::LocalValueDefinitionSite::Source(origin) => origin,
                 hir::LocalValueDefinitionSite::Synthetic => template.origin,

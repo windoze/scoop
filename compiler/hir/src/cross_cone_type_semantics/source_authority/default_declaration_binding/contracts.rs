@@ -7,7 +7,7 @@ pub(super) fn validate<'d>(
     template: &'d DefaultSourceTemplateV1,
     meter: &mut BudgetMeter,
     path: &WirePath,
-) -> Result<DefaultSourceDeclaredContractV1<'d>, Error> {
+) -> Result<DeclarationFacts<'d>, Error> {
     let key = template.key();
     let root = template.definition_root();
     let position = key.parameter_position() as usize;
@@ -100,7 +100,7 @@ pub(super) fn validate<'d>(
     }
     super::envelope::validate(template, provider_binders, &mut shapes, meter, path)?;
     let nested_callables = template.index_nested_callables(meter, path)?;
-    Ok(DefaultSourceDeclaredContractV1 {
+    Ok(DeclarationFacts {
         nested_callables,
         key,
         definition_root: root,

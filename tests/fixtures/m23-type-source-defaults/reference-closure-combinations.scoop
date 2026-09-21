@@ -1,0 +1,12 @@
+public fun closureNumber(): Int = 3
+public class ClosureCombinationHost {
+    internal fun nested(seed: Int, fallback: () -> Int = ::closureNumber, value: Int = if (true) {
+        val copy = seed
+        val thunk: () -> Int = { copy }
+        fun <C> keep(unused: C): Int { return thunk() }
+        val reference: () -> Int = ::closureNumber
+        keep<Int>(reference())
+    } else { fallback() }): Int = value
+    internal fun conversion(source: (Any) -> Int, value: (Int) -> Any = source): (Int) -> Any = value
+    internal fun suspended(value: suspend () -> Int = suspend { 3 }): suspend () -> Int = value
+}

@@ -23,6 +23,11 @@ pub struct BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
 }
 #[derive(Debug)]
 pub struct DefaultSourceDeclaredContractV1<'s> {
+    facts: DeclarationFacts<'s>,
+    references: DefaultSourceReferenceClosureV1<'s>,
+}
+#[derive(Debug)]
+struct DeclarationFacts<'s> {
     nested_callables: DefaultSourceNestedCallablesV1<'s>,
     key: ProtectedDefaultTemplateKeyV1,
     definition_root: PersistentLexicalRootV1,
@@ -70,7 +75,11 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                     &path,
                 )?;
                 data_flow::validate(self, dependencies, template, meter, &path)?;
-                Ok(contract)
+                let references = template.bind_reference_occurrences(meter, &path)?;
+                Ok(DefaultSourceDeclaredContractV1 {
+                    facts: contract,
+                    references,
+                })
             })()
             .map_err(|error| Error::Record {
                 key: template.key(),
@@ -101,39 +110,43 @@ impl<'d, 'p, 's, 'a, 'f> BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     ) -> Result<&DefaultSourceDeclaredContractV1<'d>, Error> {
         sources::query(self.declarations.len(), meter, &WirePath::root())?;
         self.declarations
-            .binary_search_by_key(&key, |record| record.key)
+            .binary_search_by_key(&key, |record| record.key())
             .map(|index| &self.declarations[index])
             .map_err(|_| Error::MissingTemplate(key))
     }
 }
 impl<'s> DefaultSourceDeclaredContractV1<'s> {
+    /// Exact, ordered source/body occurrences; target access is a separate proof.
+    pub const fn references(&self) -> &DefaultSourceReferenceClosureV1<'s> {
+        &self.references
+    }
     /// Artifact-bound identities and borrowed source descriptors; ABI and provenance
     /// validation remain separate obligations.
     pub const fn nested_callables(&self) -> &DefaultSourceNestedCallablesV1<'s> {
-        &self.nested_callables
+        &self.facts.nested_callables
     }
     pub const fn key(&self) -> ProtectedDefaultTemplateKeyV1 {
-        self.key
+        self.facts.key
     }
     pub const fn definition_root(&self) -> PersistentLexicalRootV1 {
-        self.definition_root
+        self.facts.definition_root
     }
     pub const fn owner(&self) -> &'s NominalSourceCallablePayloadV1 {
-        self.owner
+        self.facts.owner
     }
     pub const fn provider(&self) -> &'s NominalSourceCallablePayloadV1 {
-        self.provider
+        self.facts.provider
     }
     pub const fn owner_binders(&self) -> DefaultTemplateProviderShapeV1 {
-        self.owner_binders
+        self.facts.owner_binders
     }
     pub const fn provider_binders(&self) -> DefaultTemplateProviderShapeV1 {
-        self.provider_binders
+        self.facts.provider_binders
     }
     pub const fn provider_parameter(&self) -> DefaultTemplateProviderParameterV1<'s> {
-        self.provider_parameter
+        self.facts.provider_parameter
     }
     pub const fn provider_receiver(&self) -> Option<&SignatureTypeKey> {
-        self.provider_receiver.as_ref()
+        self.facts.provider_receiver.as_ref()
     }
 }

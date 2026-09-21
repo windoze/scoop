@@ -75,7 +75,6 @@ impl ReferenceCollector<'_> {
     fn bound_callable_shape(&mut self, id: hir::BoundCallableRefId, origin: hir::DefinitionOrigin) {
         let bound = self.lowerer.bound_callable_refs[id].clone();
         let signature = self.lowerer.function_types[bound.instantiated_signature].canonical_type;
-        self.type_reference(signature, origin);
         match bound.source {
             hir::BoundCallableSource::Class { bound, callable } => {
                 let ty = self.lowerer.class_applications[bound].canonical_type;
@@ -87,6 +86,7 @@ impl ReferenceCollector<'_> {
                 self.type_reference(ty, origin);
             }
         }
+        self.type_reference(signature, origin);
     }
 
     pub(super) fn constructor_use(
@@ -169,7 +169,6 @@ impl ReferenceCollector<'_> {
         let function = self.lowerer.local_functions[id].clone();
         let origin = function.origin;
         self.local_declarations.insert(function.function);
-        self.capture_shapes(&function.captures);
         let ty = self.lowerer.function_types[function.function_type].canonical_type;
         let domain = self.lowerer.type_access_domain(ty);
         let witness = self.witness(domain, origin, "a type");
@@ -178,6 +177,7 @@ impl ReferenceCollector<'_> {
             witness,
             origin,
         });
+        self.capture_shapes(&function.captures);
         self.record_callable(hir::ExportDefaultCallableTarget::LocalFunction(id), origin);
     }
 
@@ -187,7 +187,11 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let reference = self.lowerer.callable_references[id].clone();
-        self.capture_shapes(&reference.captures);
+        self.record_callable(
+            hir::ExportDefaultCallableTarget::CallableReference(id),
+            origin,
+        );
+        self.function_type_reference(reference.function_type, origin);
         match reference.target {
             hir::CallableReferenceTarget::Named(callable)
             | hir::CallableReferenceTarget::Local {
@@ -202,11 +206,7 @@ impl ReferenceCollector<'_> {
                 self.callable_shape(callee, origin);
             }
         }
-        self.function_type_reference(reference.function_type, origin);
-        self.record_callable(
-            hir::ExportDefaultCallableTarget::CallableReference(id),
-            origin,
-        );
+        self.capture_shapes(&reference.captures);
     }
 
     fn lexical_callable_shape(
@@ -216,13 +216,13 @@ impl ReferenceCollector<'_> {
         captures: &[hir::Capture],
         origin: hir::DefinitionOrigin,
     ) {
-        self.capture_shapes(captures);
+        self.function_type_reference(function_type, origin);
         if let hir::CallableBodyTypeArguments::Explicit(arguments) = body_arguments {
             for &argument in arguments {
                 self.type_reference(argument, origin);
             }
         }
-        self.function_type_reference(function_type, origin);
+        self.capture_shapes(captures);
     }
 
     fn capture_shapes(&mut self, captures: &[hir::Capture]) {

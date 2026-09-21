@@ -1,0 +1,15 @@
+public struct ClosureValue(val field: Int)
+public struct ClosureOtherValue(val field: Int)
+public object ClosureMarker {}
+public object ClosureOtherMarker {}
+public val closureSeed: Int = 7
+public val closureOtherSeed: Int = 8
+public fun closureFirst(): Int = 1
+public fun closureSecond(): Int = 2
+public class ReferenceClosureHost {
+    internal fun all(value: (Int, Int, Int, Int, Int, Int, ClosureMarker, ClosureOtherMarker, ClosureMarker, Int, Int, Int) = (
+        closureFirst(), closureSecond(), closureFirst(), closureSeed, closureOtherSeed, closureSeed,
+        ClosureMarker, ClosureOtherMarker, ClosureMarker,
+        ClosureValue(1).field, ClosureOtherValue(2).field, ClosureValue(3).field
+    )): (Int, Int, Int, Int, Int, Int, ClosureMarker, ClosureOtherMarker, ClosureMarker, Int, Int, Int) = value
+}

@@ -7,6 +7,7 @@ use hir::{
 };
 use scoop_wire::{decode_canonical, encode};
 mod budgets;
+mod closure;
 mod wire;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

@@ -7,3 +7,6 @@ pub use errors::*;
 pub use record::*;
 pub use resolve::DefaultSourceReferenceResolver;
 pub use sequences::*;
+
+mod closure;
+pub use closure::*;

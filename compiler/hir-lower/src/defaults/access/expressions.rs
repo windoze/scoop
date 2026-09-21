@@ -77,9 +77,9 @@ impl ReferenceCollector<'_> {
                 let source_type = self.lowerer.function_coercions[*coercion].source;
                 let source_type = self.lowerer.function_types[source_type].canonical_type;
                 let target_type = self.lowerer.function_types[*target_type].canonical_type;
+                self.expression(source);
                 self.type_reference(source_type, origin);
                 self.type_reference(target_type, origin);
-                self.expression(source);
             }
             hir::ExprKind::PtrFromNonZeroULong(source)
             | hir::ExprKind::PtrToULong(source)
@@ -181,7 +181,6 @@ impl ReferenceCollector<'_> {
             hir::ExprKind::ArrayAssembly(assembly) => {
                 let result_type =
                     self.lowerer.class_applications[assembly.result_type].canonical_type;
-                self.type_reference(result_type, origin);
                 self.type_reference(assembly.element_type, origin);
                 for part in &assembly.parts {
                     match part {
@@ -189,6 +188,7 @@ impl ReferenceCollector<'_> {
                         | hir::ArrayAssemblyPart::CopyArray(value) => self.expression(value),
                     }
                 }
+                self.type_reference(result_type, origin);
             }
             hir::ExprKind::Call { callee, args } => {
                 self.callable_use(*callee, origin);
@@ -228,8 +228,8 @@ impl ReferenceCollector<'_> {
                 args,
             } => {
                 let function_type = self.lowerer.function_types[*function_type].canonical_type;
-                self.type_reference(function_type, origin);
                 self.expression(callee);
+                self.type_reference(function_type, origin);
                 self.expressions(args);
             }
             hir::ExprKind::IntegerOperation {
