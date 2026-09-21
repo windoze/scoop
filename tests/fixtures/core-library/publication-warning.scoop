@@ -1,0 +1,9 @@
+enum Signal {
+    Ready,
+    Failed
+}
+
+fun describe(value: Signal): Int = when (value) {
+    Ready -> 1
+    Raedy -> 2
+}

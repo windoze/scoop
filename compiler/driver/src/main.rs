@@ -129,6 +129,9 @@ fn build(
             ExitCode::SUCCESS
         }
         Err(error) => {
+            if let Some(warnings) = error.warnings().filter(|warnings| !warnings.is_empty()) {
+                eprintln!("{}", warnings.render_human());
+            }
             eprintln!("error: {error}");
             ExitCode::FAILURE
         }

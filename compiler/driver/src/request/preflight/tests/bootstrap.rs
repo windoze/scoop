@@ -401,9 +401,6 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
     let validated = loaded.validate().unwrap();
     let parsed = validated.parse_current_sources().unwrap();
-    let ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) = parsed else {
-        panic!("the request retains its trusted bootstrap branch")
-    };
 
     let published = parsed
         .build_and_publish(&sysroot.path().join("temporary"), DecodeLimits::default())
@@ -465,9 +462,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         .unwrap();
     let ordinary_validated = ordinary_loaded.validate().unwrap();
     let ordinary_parsed = ordinary_validated.parse_current_sources().unwrap();
-    let ParsedSingleConeBuildRequest::Ordinary(ordinary_parsed) = ordinary_parsed else {
-        panic!("the single-file request retains its ordinary branch")
-    };
+
     let ordinary_published = ordinary_parsed
         .build_and_publish(
             &sysroot.path().join("ordinary-temporary"),

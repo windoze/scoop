@@ -35,14 +35,9 @@ impl SingleConeBuildRequest {
         let parsed = validated
             .parse_current_sources_metered(&mut meter)
             .map_err(SingleConeProductionError::Sources)?;
-        match parsed {
-            ParsedSingleConeBuildRequest::Ordinary(parsed) => parsed
-                .build_and_publish(temporary.path(), limits)
-                .map_err(|source| SingleConeProductionError::Ordinary(Box::new(source))),
-            ParsedSingleConeBuildRequest::TrustedCoreBootstrap(parsed) => parsed
-                .build_and_publish(temporary.path(), limits)
-                .map_err(SingleConeProductionError::CoreBootstrap),
-        }
+        parsed
+            .build_and_publish(temporary.path(), limits)
+            .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 
     pub(super) fn load_preflight_inner(
@@ -163,36 +158,19 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
         &'request self,
         meter: &mut SlibClosureDecodeMeterV1,
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
-        match &self.current {
-            ValidatedCurrentConeInput::Manifest {
-                manifest,
-                trusted_core,
-            } => Ok(ParsedSingleConeBuildRequest::Ordinary(
-                ParsedOrdinaryConeBuildRequest {
-                    request: self,
-                    trusted_core,
-                    sources: parse_manifest_current_metered(manifest, meter)?,
-                },
-            )),
-            ValidatedCurrentConeInput::SingleFile {
-                source,
-                trusted_core,
-            } => Ok(ParsedSingleConeBuildRequest::Ordinary(
-                ParsedOrdinaryConeBuildRequest {
-                    request: self,
-                    trusted_core,
-                    sources: parse_single_file_current_metered(source, meter)?,
-                },
-            )),
-            ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
-                Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
-                    ParsedCoreBootstrapBuildRequest {
-                        request: self,
-                        sources: parse_manifest_current_metered(manifest, meter)?,
-                    },
-                ))
+        let sources = match &self.current {
+            ValidatedCurrentConeInput::Manifest { manifest, .. }
+            | ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
+                parse_manifest_current_metered(manifest, meter)?
             }
-        }
+            ValidatedCurrentConeInput::SingleFile { source, .. } => {
+                parse_single_file_current_metered(source, meter)?
+            }
+        };
+        Ok(ParsedSingleConeBuildRequest {
+            request: self,
+            sources,
+        })
     }
 }
 

@@ -1,108 +1,6 @@
-//! Core library lowering and publication.
+//! Isolated stage-fixture adapters over the shared production helpers.
 
 use super::*;
-
-mod errors;
-pub use errors::*;
-
-pub struct ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
-    pub(super) request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
-    pub(super) sources: CurrentConeParsedSources,
-}
-
-impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
-    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
-        self.request
-    }
-
-    pub const fn sources(&self) -> &CurrentConeParsedSources {
-        &self.sources
-    }
-
-    /// Builds the core library and publishes to the requested output path.
-    pub fn build_and_publish(
-        self,
-        temporary_parent: &Path,
-        limits: DecodeLimits,
-    ) -> Result<SingleConeProductionSuccess, CoreBootstrapProductionError> {
-        let emit = self.request.emit();
-        let mut emitted_dump = capture_stage_dump(emit, StageDumpKind::Ast, || {
-            self.sources
-                .sources()
-                .sources()
-                .iter()
-                .map(|source| scoop_ast::dump(source.ast()))
-                .collect()
-        });
-        let world = self
-            .request
-            .dependencies()
-            .semantic()
-            .imported_semantic_world()
-            .map_err(|error| {
-                CoreBootstrapProductionError::Hir(CurrentConeHirStageError::SemanticWorld(error))
-            })?;
-        let hir = TrustedCoreBootstrapHirOutput::lower_with_world(&self.sources, &world)
-            .map_err(CoreBootstrapProductionError::Hir)?;
-        let warnings = CurrentConeDiagnosticSet::try_new(hir.hir().warnings.clone(), &self.sources)
-            .map_err(CoreBootstrapProductionError::Warnings)?;
-        emitted_dump = emitted_dump.or_else(|| {
-            capture_stage_dump(emit, StageDumpKind::Hir, || {
-                scoop_hir::dump(&hir.hir().export)
-            })
-        });
-        let mir = hir
-            .lower_mir_with_dependencies(self.request.dependencies().semantic())
-            .map_err(CoreBootstrapProductionError::Mir)?;
-        emitted_dump = emitted_dump.or_else(|| {
-            capture_stage_dump(emit, StageDumpKind::Mir, || scoop_mir::dump(mir.mir()))
-        });
-        let lir = mir
-            .lower_lir_with_dependencies(
-                self.request.dependencies().semantic(),
-                self.request.target().lir_target(),
-            )
-            .map_err(CoreBootstrapProductionError::Lir)?;
-        emitted_dump = emitted_dump.or_else(|| {
-            capture_stage_dump(emit, StageDumpKind::Lir, || scoop_lir::dump(lir.lir()))
-        });
-        let strong = lir
-            .seal_strong_profile()
-            .map_err(CoreBootstrapProductionError::StrongProfile)?;
-        let producer =
-            scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
-                .map_err(CoreBootstrapProductionError::Producer)?;
-        let cone = scoop_slib::ConeRecord::new(
-            ConeCoordinate::reserved_core(),
-            scoop_slib::ConeKind::Library,
-            scoop_slib::ConeSourceForm::Manifest,
-        )
-        .map_err(CoreBootstrapProductionError::Cone)?;
-        let core_owners = scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
-        let artifact = strong
-            .produce_artifact(
-                producer,
-                cone,
-                self.request.dependencies().direct_dependencies().to_vec(),
-                temporary_parent,
-                self.request.target(),
-                &core_owners,
-            )
-            .map_err(CoreBootstrapProductionError::Artifact)?;
-        let artifact = artifact
-            .publish(
-                self.request.output().as_path(),
-                self.request.dependencies().dependency_first().to_vec(),
-                limits,
-            )
-            .map_err(CoreBootstrapProductionError::Publication)?;
-        Ok(SingleConeProductionSuccess::new_cross_cone(
-            artifact,
-            warnings,
-            emitted_dump,
-        ))
-    }
-}
 
 impl TrustedCoreBootstrapHirOutput {
     #[cfg(test)]
@@ -175,16 +73,6 @@ impl TrustedCoreBootstrapHirOutput {
         Ok(self.with_mir(artifacts))
     }
 
-    fn lower_mir_with_dependencies(
-        self,
-        closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    ) -> Result<TrustedCoreBootstrapMirOutput, CurrentConeMirStageError> {
-        let artifacts = self
-            .machine_input()
-            .lower_mir(scoop_mir::CurrentMirProtocolDeclarations, closure)?;
-        Ok(self.with_mir(artifacts))
-    }
-
     pub(super) fn machine_input(&self) -> machine::CurrentConeMachineHir<'_> {
         self.artifacts.machine_input()
     }
@@ -196,7 +84,6 @@ impl TrustedCoreBootstrapHirOutput {
         TrustedCoreBootstrapMirOutput {
             hir: self,
             strong: artifacts.strong,
-            selected_dependencies: artifacts.dependencies,
             cross_cone_bridge: artifacts.public,
         }
     }
@@ -209,7 +96,6 @@ impl TrustedCoreBootstrapHirOutput {
 pub struct TrustedCoreBootstrapMirOutput {
     hir: TrustedCoreBootstrapHirOutput,
     strong: scoop_mir::SingleConeStrongMirInput,
-    selected_dependencies: scoop_mir::SelectedDependencyMirSet,
     cross_cone_bridge: scoop_mir::CrossConeMirBridgeSectionV1,
 }
 
@@ -222,16 +108,8 @@ impl TrustedCoreBootstrapMirOutput {
         self.strong.module()
     }
 
-    pub const fn foundation(&self) -> &scoop_mir::OdrFreeMirFoundation {
-        self.strong.foundation()
-    }
-
     pub const fn production_section(&self) -> &scoop_mir::CoreBootstrapBridgeSectionV1 {
         self.strong.production()
-    }
-
-    pub const fn cross_cone_bridge(&self) -> &scoop_mir::CrossConeMirBridgeSectionV1 {
-        &self.cross_cone_bridge
     }
 
     pub const fn materialization_plan(&self) -> &scoop_mir::SingleConeStrongMaterializationPlan {
@@ -265,26 +143,6 @@ impl TrustedCoreBootstrapMirOutput {
             cross_cone_bridge,
         })
     }
-
-    fn lower_lir_with_dependencies(
-        self,
-        closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-        target_profile: scoop_lir::LirTargetProfile,
-    ) -> Result<TrustedCoreBootstrapLirOutput, CurrentConeLirStageError> {
-        let (lir, cross_cone_bridge) = machine::lower_lir(
-            &self.strong,
-            &self.cross_cone_bridge,
-            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
-            &self.selected_dependencies,
-            closure,
-            target_profile,
-        )?;
-        Ok(TrustedCoreBootstrapLirOutput {
-            mir: self,
-            lir,
-            cross_cone_bridge,
-        })
-    }
 }
 
 /// Atomic trusted-core LIR product for the single-Cone strong pipeline.
@@ -299,10 +157,6 @@ pub struct TrustedCoreBootstrapLirOutput {
 }
 
 impl TrustedCoreBootstrapLirOutput {
-    pub const fn mir_stage(&self) -> &TrustedCoreBootstrapMirOutput {
-        &self.mir
-    }
-
     pub const fn lir(&self) -> &scoop_lir::Module {
         self.lir.module()
     }
@@ -317,10 +171,6 @@ impl TrustedCoreBootstrapLirOutput {
 
     pub const fn core_shape_support(&self) -> &scoop_lir::StrongLirCoreShapeSupportPlan {
         self.lir.core_shape_support()
-    }
-
-    pub const fn cross_cone_bridge(&self) -> &scoop_lir::CrossConeLirBridgeSectionV1 {
-        &self.cross_cone_bridge
     }
 
     /// Seals all three IR foundations under the strong profile's `RejectAll`

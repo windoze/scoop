@@ -101,10 +101,24 @@ fn execute_request(
     };
     match build.build_and_publish(scoop_wire::DecodeLimits::default()) {
         Ok(success) => success_response(request_id, &success),
-        Err(error) => {
-            failure_response(request_id, production_error_code(&error), error.to_string())
-        }
+        Err(error) => production_failure_response(request_id, &error),
     }
+}
+
+fn production_failure_response(
+    request_id: RequestCorrelationId,
+    error: &scoopc::SingleConeProductionError,
+) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
+    let warnings = error
+        .warnings()
+        .map(|warnings| warnings.diagnostics())
+        .unwrap_or_default();
+    failure_response_with_warnings(
+        request_id,
+        production_error_code(error),
+        error.to_string(),
+        warnings,
+    )
 }
 
 fn production_error_code(error: &scoopc::SingleConeProductionError) -> &'static str {
@@ -139,6 +153,15 @@ fn failure_response(
     code: &'static str,
     message: String,
 ) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
+    failure_response_with_warnings(request_id, code, message, &[])
+}
+
+fn failure_response_with_warnings(
+    request_id: RequestCorrelationId,
+    code: &'static str,
+    message: String,
+    warnings: &[scoop_ast::Diagnostic],
+) -> Result<ScoopcResponseEnvelopeV1, ChildProtocolError> {
     let diagnostic = StructuredDiagnosticV1::new(
         DiagnosticSeverityV1::Error,
         code.to_owned(),
@@ -147,7 +170,14 @@ fn failure_response(
         Vec::new(),
     )
     .map_err(ChildProtocolError::ConstructResponse)?;
-    ScoopcResponseEnvelopeV1::failure(request_id, vec![diagnostic])
+    let mut diagnostics = vec![diagnostic];
+    diagnostics.extend(
+        warnings
+            .iter()
+            .map(protocol_warning)
+            .collect::<Result<Vec<_>, _>>()?,
+    );
+    ScoopcResponseEnvelopeV1::failure(request_id, diagnostics)
         .map_err(ChildProtocolError::ConstructResponse)
 }
 
@@ -315,6 +345,37 @@ mod tests {
             )
             .unwrap(),
         )
+    }
+
+    #[test]
+    fn failure_response_roundtrips_warnings_as_separate_typed_diagnostics() {
+        let request_id = non_machine_request().request_id();
+        let warning = scoop_ast::Diagnostic::warning_at(
+            scoop_ast::Span::new(4, 9),
+            "retained catch-all warning",
+        );
+        let response = failure_response_with_warnings(
+            request_id,
+            CHILD_BUILD_ERROR_CODE,
+            "publication failed".to_owned(),
+            &[warning],
+        )
+        .unwrap();
+        let frame = scoop_protocol::encode_response_frame(&response).unwrap();
+        let ScoopcResponseEnvelopeV1::Failure {
+            request_id: actual,
+            diagnostics,
+        } = scoop_protocol::decode_response_frame(&frame).unwrap()
+        else {
+            panic!("warnings must not turn the failed build into a success");
+        };
+        assert_eq!(actual, request_id);
+        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics[0].severity(), DiagnosticSeverityV1::Error);
+        assert_eq!(diagnostics[0].message(), "publication failed");
+        assert_eq!(diagnostics[1].severity(), DiagnosticSeverityV1::Warning);
+        assert_eq!(diagnostics[1].code(), CHILD_WARNING_CODE);
+        assert_eq!(diagnostics[1].message(), "retained catch-all warning");
     }
 
     #[test]
