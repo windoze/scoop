@@ -9,6 +9,15 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for DefaultAuthority {
     ) -> Result<DefaultTemplateProviderShapeV1, &'static str> {
         Err("fixture has no default template")
     }
+    fn protected_default_provider_parameter(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+        _meter: &mut BudgetMeter,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
+        Err("fixture has no default template")
+    }
+
     fn protected_default_provider_receiver(
         &mut self,
         _root: PersistentLexicalRootV1,

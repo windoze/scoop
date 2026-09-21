@@ -85,12 +85,13 @@ fn inherited_defaults_keep_the_raw_provider_receiver() {
             identifier("pick"),
             2 - u32::from(generic),
             None,
-            provider_parameters,
+            provider_parameters.clone(),
         );
         fixture.provider = PersistentLexicalRootV1::GenericFunction(
             PersistentGenericFunctionId::from_source_declaration(&key).unwrap(),
         );
         authority.provider = fixture.provider;
+        authority.provider_parameters = source_shapes(provider_parameters);
         authority.provider_shape =
             DefaultTemplateProviderShapeV1::try_new(u32::from(generic), 2 - u32::from(generic))
                 .unwrap();
@@ -159,6 +160,7 @@ fn inherited_defaults_keep_the_raw_provider_receiver() {
         authority.provider = direct.definition_root();
         authority.provider_receiver = Some(publishing);
         authority.provider_shape = DefaultTemplateProviderShapeV1::try_new(0, 2).unwrap();
+        authority.provider_parameters = callable.parameters().clone();
         assert_eq!(
             direct.validate_contract_semantics(&callable, &fixture.source(), &mut authority),
             Ok(())
@@ -185,6 +187,7 @@ fn direct_defaults_require_owner_shape_receiver_and_identity_mapping() {
     let mut authority = fixture.authority();
     authority.provider = template.definition_root();
     authority.provider_shape = DefaultTemplateProviderShapeV1::try_new(0, 2).unwrap();
+    authority.provider_parameters = callable.parameters().clone();
     assert_eq!(
         template.validate_contract_semantics(&callable, &source, &mut authority),
         Ok(())
@@ -196,6 +199,7 @@ fn direct_defaults_require_owner_shape_receiver_and_identity_mapping() {
         Err(ExportDefaultTemplateContractSemanticValidationError::ProviderOwnerBinders)
     ));
     authority.provider_shape = DefaultTemplateProviderShapeV1::try_new(0, 2).unwrap();
+    authority.provider_parameters = callable.parameters().clone();
     authority.provider_receiver = Some(binder(0, 0));
     assert!(matches!(
         template.validate_contract_semantics(&callable, &source, &mut authority),
@@ -246,6 +250,7 @@ fn inherited_relation_receives_even_unused_mapping_arguments() {
     .unwrap();
     let mut authority = fixture.authority();
     authority.expected_mapping = Some(fixture.identity_mapping());
+    authority.provider_position = 0;
     assert_eq!(
         template.validate_contract_semantics(&callable, &source, &mut authority),
         Ok(())

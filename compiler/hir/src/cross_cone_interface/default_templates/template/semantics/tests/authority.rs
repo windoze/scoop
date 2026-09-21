@@ -7,6 +7,8 @@ pub(super) struct Authority {
     pub(super) definition_path: StructuralDefinitionPath,
     pub(super) nominals: Vec<(crate::SourceNominalId, PublicNominalShapeV1)>,
     pub(super) provider_receiver: Option<SignatureTypeKey>,
+    pub(super) provider_parameters: CanonicalSourceParameterShapesV1,
+    pub(super) provider_position: u32,
     pub(super) provider_shape: DefaultTemplateProviderShapeV1,
     pub(super) expected_mapping: Option<CanonicalBinderUseListV1>,
     pub(super) inherited_validations: usize,
@@ -65,6 +67,21 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
             return Err(AuthorityError::Provider);
         }
         Ok(self.provider_shape)
+    }
+
+    fn default_template_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, AuthorityError> {
+        if root != self.provider || path != &self.definition_path {
+            return Err(AuthorityError::Provider);
+        }
+        crate::DefaultTemplateProviderParameterV1::try_new(
+            &self.provider_parameters,
+            self.provider_position,
+        )
+        .map_err(|_| AuthorityError::Provider)
     }
 
     fn default_template_provider_receiver(

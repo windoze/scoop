@@ -133,6 +133,14 @@ pub trait DefaultTemplateRootSemanticAuthority<E> {
         path: &StructuralDefinitionPath,
     ) -> Result<Option<SignatureTypeKey>, E>;
 
+    /// Borrows the original declaration parameters and the position selected by
+    /// this source path, independently of the candidate key, locals and result.
+    fn default_template_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, E>;
+
     /// Verifies the unique override/default-source relation, complete binder
     /// substitution (including unused arguments), and publishing receiver's
     /// relation to the substituted provider receiver using independent sources.

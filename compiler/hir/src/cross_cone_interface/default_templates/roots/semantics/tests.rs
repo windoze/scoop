@@ -188,6 +188,14 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
         }
     }
 
+    fn default_template_provider_parameter(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, AuthorityError> {
+        Err(AuthorityError::Provider)
+    }
+
     fn default_template_provider_receiver(
         &mut self,
         _root: crate::PersistentLexicalRootV1,

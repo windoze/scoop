@@ -120,6 +120,8 @@ impl ExportDefaultTemplateV1 {
             );
         }
 
+        parameters::validate(self, source, provider, authority)?;
+
         let expected_suspend =
             CanonicalBooleanV1::from(callable.effects().execution() == Effect::Suspend);
         if self.allows_suspend() != expected_suspend {
@@ -151,6 +153,13 @@ pub enum ExportDefaultTemplateContractSemanticValidationError<E> {
     CallableInterface(CallableInterfaceSemanticValidationError<E>),
     DefinitionRoot(DefaultTemplateRootSemanticValidationError<E>),
     ProviderReceiver(E),
+    ProviderParameter(E),
+    ProviderParameterPosition,
+    ProviderParameterArity,
+    ProviderParameterType {
+        index: usize,
+    },
+    ProviderResultMismatch,
     ProviderOwnerBinders,
     ProviderOwnerReceiver,
     DirectMapping {
@@ -203,6 +212,21 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultTemplateContractSemanticVali
             Self::ProviderReceiver(error) => {
                 write!(formatter, "invalid default provider receiver: {error}")
             }
+            Self::ProviderParameter(error) => {
+                write!(formatter, "invalid default provider parameter: {error}")
+            }
+            Self::ProviderParameterPosition => {
+                formatter.write_str("default path denotes a different provider parameter position")
+            }
+            Self::ProviderParameterArity => formatter.write_str(
+                "default provider parameter count differs from the publishing declaration",
+            ),
+            Self::ProviderParameterType { index } => write!(
+                formatter,
+                "default provider parameter {index} differs after substitution"
+            ),
+            Self::ProviderResultMismatch => formatter
+                .write_str("raw default result differs from the original provider parameter type"),
             Self::ProviderOwnerBinders => {
                 formatter.write_str("direct default provider binder shape differs from its owner")
             }

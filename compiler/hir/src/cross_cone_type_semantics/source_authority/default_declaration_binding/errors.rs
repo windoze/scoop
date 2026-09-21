@@ -9,6 +9,7 @@ pub enum DefaultSourceDeclarationBindingError {
     Constructor(Box<NominalConstructorBindingError>),
     Parameter(Box<NominalParameterBindingError>),
     Shape(DefaultTemplateProviderShapeBuildError),
+    ProviderParameter(DefaultTemplateProviderParameterBuildError),
     ReceiverShape(DefaultNominalReceiverBuildError),
     Signature(Box<MeteredSignatureTypeSemanticError<NominalSourceBindingError>>),
     Receiver(MeteredTemplateReceiverSemanticValidationError),
@@ -54,6 +55,7 @@ macro_rules! direct_from {
     })+ };
 }
 direct_from! {
+    DefaultTemplateProviderParameterBuildError => ProviderParameter,
     WireError => Resource, DefaultTemplateProviderShapeBuildError => Shape,
     DefaultNominalReceiverBuildError => ReceiverShape,
     MeteredTemplateReceiverSemanticValidationError => Receiver,
@@ -70,6 +72,7 @@ impl std::fmt::Display for Error {
             Self::Constructor(e) => e.fmt(f),
             Self::Parameter(e) => e.fmt(f),
             Self::Shape(e) => e.fmt(f),
+            Self::ProviderParameter(e) => e.fmt(f),
             Self::ReceiverShape(e) => e.fmt(f),
             Self::Signature(e) => e.fmt(f),
             Self::Receiver(e) => e.fmt(f),

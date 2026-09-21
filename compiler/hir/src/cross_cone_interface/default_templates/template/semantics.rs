@@ -1,4 +1,5 @@
 mod contract;
+mod parameters;
 mod receiver;
 pub use contract::ExportDefaultTemplateContractSemanticValidationError;
 

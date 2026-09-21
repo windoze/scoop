@@ -21,6 +21,12 @@ pub enum ProtectedDefaultTemplateContractSemanticError<E> {
     ProviderShape(DefaultTemplateProviderShapeBuildError),
     DefinitionRoot(DefaultTemplateRootSemanticValidationError<E>),
     ProviderOwnerShape,
+    ProviderParameterPosition,
+    ProviderParameterArity,
+    ProviderParameterType {
+        index: usize,
+    },
+    ProviderResultMismatch,
     ProviderOwnerReceiver,
     DirectMapping {
         index: usize,
@@ -72,6 +78,19 @@ impl<E: std::fmt::Display> std::fmt::Display for ProtectedDefaultTemplateContrac
             }
             Self::OwnerShape => {
                 f.write_str("protected default source owner has an invalid nominal binder shape")
+            }
+            Self::ProviderParameterPosition => {
+                f.write_str("default path denotes a different provider parameter position")
+            }
+            Self::ProviderParameterArity => f.write_str(
+                "default provider parameter count differs from the publishing declaration",
+            ),
+            Self::ProviderParameterType { index } => write!(
+                f,
+                "default provider parameter {index} differs after substitution"
+            ),
+            Self::ProviderResultMismatch => {
+                f.write_str("raw default result differs from the original provider parameter type")
             }
             Self::ProviderOwnerShape => {
                 f.write_str("direct default provider binder shape differs from its checked source")

@@ -91,6 +91,7 @@ fn generic_member_receiver_uses_the_declared_host_frame() {
         ));
         authority.provider_shape = DefaultTemplateProviderShapeV1::try_new(1, own_arity).unwrap();
         authority.provider_receiver = Some(receiver);
+        authority.provider_parameters = callable.parameters().clone();
         assert_eq!(
             template.validate_contract_semantics(&callable, &source, &mut authority),
             Ok(())

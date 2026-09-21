@@ -53,14 +53,61 @@ impl CanonicalTemplateValueParametersV1 {
                 },
             );
         }
-        if self.len_u32() != position {
+        self.validate_prefix(
+            position,
+            source_parameters[..position_index]
+                .iter()
+                .map(|p| p.value_type()),
+            locals,
+            |value, position| {
+                type_parameters
+                    .substitute_provider_type(provider, value)
+                    .map(std::borrow::Cow::Owned)
+                    .map_err(|error| {
+                        TemplateValueParameterSemanticValidationError::TypeSubstitution {
+                            position,
+                            error,
+                        }
+                    })
+            },
+        )
+    }
+
+    /// Checks original provider locals before inherited-owner substitution.
+    pub fn validate_provider_prefix_semantics(
+        &self,
+        provider: crate::DefaultTemplateProviderParameterV1<'_>,
+        locals: &CanonicalTemplateLocalTableV1,
+    ) -> Result<(), TemplateValueParameterSemanticValidationError> {
+        self.validate_prefix(
+            provider.position(),
+            provider.prefix().iter().map(|p| p.value_type()),
+            locals,
+            |value, _| Ok(std::borrow::Cow::Borrowed(value)),
+        )
+    }
+
+    fn validate_prefix<'e, 'l>(
+        &self,
+        expected_len: u32,
+        expected: impl Iterator<Item = &'e SignatureTypeKey>,
+        locals: &'l CanonicalTemplateLocalTableV1,
+        mut map: impl FnMut(
+            &'l SignatureTypeKey,
+            u32,
+        ) -> Result<
+            std::borrow::Cow<'l, SignatureTypeKey>,
+            TemplateValueParameterSemanticValidationError,
+        >,
+    ) -> Result<(), TemplateValueParameterSemanticValidationError> {
+        if self.len_u32() != expected_len {
             return Err(TemplateValueParameterSemanticValidationError::PrefixArity {
-                expected: position,
+                expected: expected_len,
                 actual: self.len_u32(),
             });
         }
 
-        for (parameter, source_parameter) in self.parameters().iter().zip(source_parameters) {
+        for (parameter, source_parameter) in self.parameters().iter().zip(expected) {
             let position = parameter.position();
             let local = locals.get(parameter.local()).ok_or_else(|| {
                 TemplateValueParameterSemanticValidationError::MissingLocal {
@@ -73,19 +120,12 @@ impl CanonicalTemplateValueParametersV1 {
                     TemplateValueParameterSemanticValidationError::MutableLocal { position },
                 );
             }
-            let mapped_type = type_parameters
-                .substitute_provider_type(provider, local.value_type())
-                .map_err(|error| {
-                    TemplateValueParameterSemanticValidationError::TypeSubstitution {
-                        position,
-                        error,
-                    }
-                })?;
-            if &mapped_type != source_parameter.value_type() {
+            let mapped_type = map(local.value_type(), position)?;
+            if mapped_type.as_ref() != source_parameter {
                 return Err(TemplateValueParameterSemanticValidationError::LocalType {
                     position,
-                    expected: Box::new(source_parameter.value_type().clone()),
-                    actual: Box::new(mapped_type),
+                    expected: Box::new(source_parameter.clone()),
+                    actual: Box::new(mapped_type.into_owned()),
                 });
             }
         }

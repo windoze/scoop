@@ -24,6 +24,7 @@ pub struct DefaultSourceDeclaredContractV1<'s> {
     provider: &'s NominalSourceCallablePayloadV1,
     owner_binders: DefaultTemplateProviderShapeV1,
     provider_binders: DefaultTemplateProviderShapeV1,
+    provider_parameter: DefaultTemplateProviderParameterV1<'s>,
     provider_receiver: Option<SignatureTypeKey>,
 }
 impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
@@ -108,6 +109,9 @@ impl<'s> DefaultSourceDeclaredContractV1<'s> {
     }
     pub const fn provider_binders(&self) -> DefaultTemplateProviderShapeV1 {
         self.provider_binders
+    }
+    pub const fn provider_parameter(&self) -> DefaultTemplateProviderParameterV1<'s> {
+        self.provider_parameter
     }
     pub const fn provider_receiver(&self) -> Option<&SignatureTypeKey> {
         self.provider_receiver.as_ref()

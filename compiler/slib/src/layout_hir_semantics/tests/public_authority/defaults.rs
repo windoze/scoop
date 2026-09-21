@@ -9,6 +9,14 @@ impl DefaultTemplateRootSemanticAuthority<TestAuthorityError> for EmptyPublicAut
         Err(TestAuthorityError::UnexpectedCall)
     }
 
+    fn default_template_provider_parameter(
+        &mut self,
+        _root: scoop_hir::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<scoop_hir::DefaultTemplateProviderParameterV1<'_>, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
+
     fn default_template_provider_receiver(
         &mut self,
         _root: scoop_hir::PersistentLexicalRootV1,

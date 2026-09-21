@@ -262,6 +262,14 @@ impl DefaultTemplateRootSemanticAuthority<Infallible> for EmptyAuthority {
         unreachable!()
     }
 
+    fn default_template_provider_parameter(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, Infallible> {
+        panic!("empty public interface has no default provider")
+    }
+
     fn default_template_provider_receiver(
         &mut self,
         _root: crate::PersistentLexicalRootV1,

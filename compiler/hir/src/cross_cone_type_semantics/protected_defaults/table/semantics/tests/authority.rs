@@ -8,6 +8,7 @@ mod references;
 pub(super) struct Authority<'a> {
     pub fixture: &'a Fixture,
     pub source: SourceFixture,
+    pub provider_parameters: CanonicalSourceParameterShapesV1,
     pub template: &'a ProtectedDefaultTemplateV1,
     pub resources: *const BudgetMeter,
     pub path: &'a WirePath,
@@ -32,6 +33,19 @@ impl<'a> Authority<'a> {
         Self {
             fixture,
             source: fixture.source.clone(),
+            provider_parameters: fixture
+                .protected
+                .records()
+                .iter()
+                .find_map(|record| match record {
+                    ProtectedDeclarationInterfaceV1::Callable(record)
+                        if record.declaration() == fixture.key.owner() =>
+                    {
+                        Some(record.payload().parameters().clone())
+                    }
+                    _ => None,
+                })
+                .expect("fixture contains the default provider declaration"),
             template,
             resources: std::ptr::from_ref(meter),
             path,
@@ -106,6 +120,20 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         DefaultTemplateProviderShapeV1::try_new(u32::from(self.case.generic()), 0)
             .map_err(|_| "invalid provider binders")
     }
+    fn protected_default_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+        meter: &mut BudgetMeter,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
+        self.check_source(self.fixture.key, root, path, meter)?;
+        crate::DefaultTemplateProviderParameterV1::try_new(
+            &self.provider_parameters,
+            self.fixture.key.parameter_position(),
+        )
+        .map_err(|_| "wrong provider position")
+    }
+
     fn protected_default_provider_receiver(
         &mut self,
         root: PersistentLexicalRootV1,

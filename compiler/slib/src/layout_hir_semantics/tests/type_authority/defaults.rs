@@ -108,6 +108,15 @@ impl ProtectedDefaultRootSemanticAuthority<TestAuthorityError> for EmptyDefaults
         Err(TestAuthorityError::UnexpectedCall)
     }
 
+    fn protected_default_provider_parameter(
+        &mut self,
+        _root: scoop_hir::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+        _meter: &mut BudgetMeter,
+    ) -> Result<scoop_hir::DefaultTemplateProviderParameterV1<'_>, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
+
     fn protected_default_provider_receiver(
         &mut self,
         _root: PersistentLexicalRootV1,

@@ -797,6 +797,10 @@ impl Fixture {
         Authority {
             owner: self.owner,
             value_type: self.value_type_id,
+            provider_parameters: CanonicalSourceParameterShapesV1::try_new(vec![
+                SourceParameterShapeV1::new(identifier("value"), self.value_type.clone()),
+            ])
+            .unwrap(),
             definition_path: self.definition_path.clone(),
             definition_source_validations: 0,
             template_origin_validations: 0,
@@ -809,6 +813,7 @@ impl Fixture {
 struct Authority {
     owner: CallableTemplateOrigin,
     value_type: PersistentTypeId,
+    provider_parameters: CanonicalSourceParameterShapesV1,
     definition_path: StructuralDefinitionPath,
     definition_source_validations: usize,
     template_origin_validations: usize,
@@ -864,6 +869,18 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
             return Err(AuthorityError::Provider);
         }
         Ok(DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap())
+    }
+
+    fn default_template_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, AuthorityError> {
+        if root.declaration() != self.owner || path != &self.definition_path {
+            return Err(AuthorityError::Provider);
+        }
+        crate::DefaultTemplateProviderParameterV1::try_new(&self.provider_parameters, 0)
+            .map_err(|_| AuthorityError::Provider)
     }
 
     fn default_template_provider_receiver(

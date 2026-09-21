@@ -9,6 +9,7 @@ mod contract;
 mod errors;
 mod origin;
 mod owner;
+mod parameters;
 mod receiver;
 mod root;
 mod types;

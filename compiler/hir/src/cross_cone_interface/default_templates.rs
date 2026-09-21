@@ -177,6 +177,7 @@ pub use references::{
 };
 pub use roots::{
     DecodedPersistentLexicalRootV1, DefaultNominalReceiverBuildError,
+    DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderParameterV1,
     DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
     PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,

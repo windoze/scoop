@@ -66,6 +66,13 @@ fn default_declarations_join_real_artifact_sources_for_every_parameter_owner() {
                 for template in table.records() {
                     let declared = bound.declaration(template.key(), &mut meter()).unwrap();
                     assert_eq!(declared.key(), template.key());
+                    let parameter = declared.provider_parameter();
+                    assert_eq!(parameter.position(), template.key().parameter_position());
+                    assert!(std::ptr::eq(
+                        parameter.parameters(),
+                        declared.provider().parameters()
+                    ));
+                    assert_eq!(parameter.current().value_type(), template.result());
                     assert_eq!(declared.definition_root(), template.definition_root());
                     assert_eq!(
                         declared.provider_receiver(),

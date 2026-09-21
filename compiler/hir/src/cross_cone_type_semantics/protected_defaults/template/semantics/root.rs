@@ -25,6 +25,15 @@ pub trait ProtectedDefaultRootSemanticAuthority<E> {
         meter: &mut BudgetMeter,
     ) -> Result<Option<SignatureTypeKey>, E>;
 
+    /// Borrows the independently declared parameters and the exact parameter
+    /// position denoted by this provider path, in the original binder frame.
+    fn protected_default_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+        meter: &mut BudgetMeter,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, E>;
+
     /// Replays the actual override relation, its complete binder substitution
     /// (including unused arguments), and publishing-to-provider receiver use.
     fn validate_inherited_protected_default_provider(

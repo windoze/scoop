@@ -97,6 +97,7 @@ where
     {
         return Err(Error::ResultMismatch);
     }
+    parameters::validate(template, parameters, provider, authority, meter)?;
     let suspend =
         CanonicalBooleanV1::from(owner.payload().effects().execution() == Effect::Suspend);
     if template.allows_suspend() != suspend {

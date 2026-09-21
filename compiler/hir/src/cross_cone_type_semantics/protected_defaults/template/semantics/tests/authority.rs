@@ -11,6 +11,8 @@ pub(super) struct Authority {
     pub path: StructuralDefinitionPath,
     pub provider: DefaultTemplateProviderShapeV1,
     pub inherited: bool,
+    pub provider_parameters: CanonicalSourceParameterShapesV1,
+    pub provider_position: u32,
     pub provider_receiver: Option<SignatureTypeKey>,
     pub expected_mapping: CanonicalBinderUseListV1,
     pub inherited_calls: usize,
@@ -28,6 +30,8 @@ impl Authority {
             path: template.definition_path().clone(),
             provider: case.provider,
             inherited: true,
+            provider_parameters: case.record.payload().parameters().clone(),
+            provider_position: case.key.parameter_position(),
             provider_receiver: case.expected_receiver.clone(),
             expected_mapping: template.type_parameters().clone(),
             inherited_calls: 0,
@@ -73,6 +77,25 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
             Err("wrong provider")
         }
     }
+    fn protected_default_provider_parameter(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+        meter: &mut BudgetMeter,
+    ) -> Result<crate::DefaultTemplateProviderParameterV1<'_>, &'static str> {
+        meter
+            .charge_work(1, &WirePath::root())
+            .map_err(|_| "provider budget")?;
+        if root != self.root || path != &self.path {
+            return Err("wrong provider parameter");
+        }
+        crate::DefaultTemplateProviderParameterV1::try_new(
+            &self.provider_parameters,
+            self.provider_position,
+        )
+        .map_err(|_| "wrong provider position")
+    }
+
     fn protected_default_provider_receiver(
         &mut self,
         root: PersistentLexicalRootV1,

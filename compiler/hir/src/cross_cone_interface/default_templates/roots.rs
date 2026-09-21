@@ -8,6 +8,10 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 mod nominal_receiver;
+mod provider_parameter;
+pub use provider_parameter::{
+    DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderParameterV1,
+};
 mod semantics;
 pub use nominal_receiver::DefaultNominalReceiverBuildError;
 

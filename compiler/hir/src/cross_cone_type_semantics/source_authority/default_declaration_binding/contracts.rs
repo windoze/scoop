@@ -110,6 +110,10 @@ pub(super) fn validate<'d>(
         provider,
         owner_binders,
         provider_binders,
+        provider_parameter: DefaultTemplateProviderParameterV1::try_new(
+            provider.parameters(),
+            key.parameter_position(),
+        )?,
         provider_receiver,
     })
 }

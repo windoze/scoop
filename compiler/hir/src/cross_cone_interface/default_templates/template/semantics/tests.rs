@@ -25,6 +25,7 @@ use crate::{
 mod authority;
 use authority::{Authority, AuthorityError};
 mod origins;
+mod provider_parameters;
 mod provider_receiver;
 
 #[test]
@@ -438,6 +439,8 @@ impl Fixture {
             nominals: Vec::new(),
             provider_receiver: None,
             provider_shape: DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap(),
+            provider_parameters: source_shapes(vec![binder(0, 0), binder(1, 0)]),
+            provider_position: 1,
             expected_mapping: None,
             inherited_validations: 0,
             definition_source_validations: 0,

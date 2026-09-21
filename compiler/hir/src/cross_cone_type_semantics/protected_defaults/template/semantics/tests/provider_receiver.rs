@@ -28,13 +28,16 @@ fn set_receiver(template: &mut ProtectedDefaultTemplateV1, receiver: SignatureTy
     .unwrap();
 }
 
-fn inherited(generic: bool) -> (Case, ProtectedDefaultTemplateV1, Authority) {
+pub(super) fn inherited(
+    generic_arity: u32,
+    parameter_types: Option<Vec<SignatureTypeKey>>,
+) -> (Case, ProtectedDefaultTemplateV1, Authority) {
     let mut case = Case::method(false, false, false);
     let key = SourceDeclarationKey::nominal(
         site(&[]),
         CanonicalIdentifier::new("ProviderBase").unwrap(),
         SourceNominalKind::Class,
-        u32::from(generic),
+        generic_arity,
     );
     let owner = SourceNominalId::from_source_declaration(&key).unwrap();
     case.fixture.graph.keys.insert(owner, key);
@@ -51,18 +54,19 @@ fn inherited(generic: bool) -> (Case, ProtectedDefaultTemplateV1, Authority) {
         .graph
         .origins
         .insert(owner, case.origin.clone());
-    if !generic {
+    if generic_arity == 0 {
         let base = case.fixture.class("ProviderBase");
         let child = case.fixture.class("Owner");
         case.fixture.graph.edges(child, Some(base), &[]);
     }
     let mut template = case.template();
+    let parameter_types = parameter_types.unwrap_or_else(|| vec![template.result().clone(); 2]);
     let provider_key = SourceDeclarationKey::function(
         site(&[owner]),
         CanonicalIdentifier::new("provider").unwrap(),
         0,
         None,
-        vec![template.result().clone(); 2],
+        parameter_types.clone(),
     );
     let function = PersistentFunctionId::from_source_declaration(&provider_key).unwrap();
     case.fixture
@@ -73,26 +77,39 @@ fn inherited(generic: bool) -> (Case, ProtectedDefaultTemplateV1, Authority) {
         SourceNominalId::Concrete(id) => SignatureTypeKey::Nominal(id),
         SourceNominalId::GenericTemplate(origin) => SignatureTypeKey::NominalApplication {
             origin,
-            arguments: NonEmptyVec::from_first(binder(0, 0), []),
+            arguments: NonEmptyVec::from_first(
+                binder(0, 0),
+                (1..generic_arity).map(|index| binder(0, index)),
+            ),
         },
     };
     set_receiver(&mut template, receiver.clone());
-    template.type_parameters = CanonicalBinderUseListV1::try_new(if generic {
-        vec![template.result().clone()]
-    } else {
-        vec![]
-    })
-    .unwrap();
+    template.type_parameters =
+        CanonicalBinderUseListV1::try_new(vec![template.result().clone(); generic_arity as usize])
+            .unwrap();
     let mut authority = Authority::new(&case, &template);
-    authority.provider = DefaultTemplateProviderShapeV1::try_new(u32::from(generic), 0).unwrap();
+    authority.provider = DefaultTemplateProviderShapeV1::try_new(generic_arity, 0).unwrap();
     authority.provider_receiver = Some(receiver);
+    authority.provider_parameters = CanonicalSourceParameterShapesV1::try_new(
+        parameter_types
+            .into_iter()
+            .enumerate()
+            .map(|(index, ty)| {
+                SourceParameterShapeV1::new(
+                    CanonicalIdentifier::new(&format!("p{index}")).unwrap(),
+                    ty,
+                )
+            })
+            .collect(),
+    )
+    .unwrap();
     (case, template, authority)
 }
 
 #[test]
 fn inherited_default_keeps_the_base_receiver_in_its_original_binder_frame() {
     for generic in [false, true] {
-        let (case, mut template, mut authority) = inherited(generic);
+        let (case, mut template, mut authority) = inherited(u32::from(generic), None);
         case.validate(&template, &mut authority, &mut meter())
             .unwrap();
         assert_eq!(authority.inherited_calls, 1);
@@ -109,7 +126,7 @@ fn inherited_default_keeps_the_base_receiver_in_its_original_binder_frame() {
 
 #[test]
 fn inherited_relation_checks_the_complete_mapping_even_for_unused_binders() {
-    let (case, mut template, mut authority) = inherited(true);
+    let (case, mut template, mut authority) = inherited(1, None);
     case.validate(&template, &mut authority, &mut meter())
         .unwrap();
     // The value locals and result have no binders, so their type checks cannot

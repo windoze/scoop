@@ -196,6 +196,7 @@ pub use default_templates::{
     DefaultStatementKindV1, DefaultStatementOperationV1, DefaultStatementReferenceResolver,
     DefaultStatementResolutionError, DefaultStatementV1, DefaultStringOwnerResolutionError,
     DefaultStringOwnerV1, DefaultTemplateOriginSemanticAuthority,
+    DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderParameterV1,
     DefaultTemplateProviderShapeBuildError, DefaultTemplateProviderShapeV1,
     DefaultTemplateRootSemanticAuthority, DefaultTemplateRootSemanticValidationError,
     DefaultTemplateTypeSubstitutionError, DefaultTryV1, DefaultUnaryOperatorV1,
