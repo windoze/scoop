@@ -41,7 +41,7 @@ impl Lowerer {
         &mut self,
         request: CallableArgumentMaterialization<'_>,
         sink: &mut Vec<hir::Statement>,
-    ) -> (Option<hir::Expr>, Vec<hir::Expr>) {
+    ) -> Option<(Option<hir::Expr>, Vec<hir::Expr>)> {
         let receiver = request.receiver.map(|receiver| {
             self.materialize_temporary("$receiver".to_string(), receiver, request.call_span, sink)
         });
@@ -114,14 +114,14 @@ impl Lowerer {
                 sink,
             },
         );
-        (receiver, args)
+        Some((receiver, args?))
     }
 
     pub(crate) fn materialize_nominal_arguments(
         &mut self,
         request: NominalArgumentMaterialization<'_>,
         sink: &mut Vec<hir::Statement>,
-    ) -> Vec<hir::Expr> {
+    ) -> Option<Vec<hir::Expr>> {
         let mut argument_sinks = request.argument_sinks;
         let source_args = request
             .source_args
@@ -175,7 +175,7 @@ impl Lowerer {
         parameters: &[(String, hir::TypeId)],
         callings: &[SourceParameterCalling],
         context: ParameterMaterialization<'_>,
-    ) -> Vec<hir::Expr> {
+    ) -> Option<Vec<hir::Expr>> {
         assert_eq!(callings.len(), parameters.len());
         assert_eq!(context.argument_map.parameters.len(), parameters.len());
 
@@ -201,7 +201,7 @@ impl Lowerer {
                     &materialized,
                     context.call_span,
                     context.sink,
-                ),
+                )?,
                 ResolvedParameterInput::Vararg(input) => {
                     let SourceParameterCalling::Vararg {
                         element_type,
@@ -254,7 +254,7 @@ impl Lowerer {
                             &materialized,
                             context.call_span,
                             context.sink,
-                        ),
+                        )?,
                     }
                 }
             };
@@ -266,7 +266,7 @@ impl Lowerer {
                 context.sink,
             ));
         }
-        materialized
+        Some(materialized)
     }
 
     fn array_assembly(

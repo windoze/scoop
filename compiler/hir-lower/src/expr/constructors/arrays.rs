@@ -93,7 +93,7 @@ impl Lowerer {
                 call_span: call.span,
             },
             sink,
-        );
+        )?;
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(
                 args.pop()

@@ -1,4 +1,4 @@
-public struct OriginValue(val field: Int)
+public struct OriginValue(val field: Int = 1)
 public enum OriginChoice { Item(val value: Int = 2) }
 public object OriginMarker {}
 public val originSeed: Int = 7

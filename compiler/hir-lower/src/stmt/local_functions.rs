@@ -146,7 +146,7 @@ impl Lowerer {
             &mut self.definition_paths,
             crate::definition_paths::DefinitionPathContext::nested(&definition_path),
         );
-        self.lower_local_parameter_interface(function);
+        self.lower_local_parameter_interface(function, &decl.name.text);
 
         let capture_environment = self.capture_environment();
         let outer_locals = std::mem::take(&mut self.locals);

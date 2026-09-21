@@ -514,14 +514,17 @@ impl Lowerer {
             .position(|candidate| candidate.candidate == winner)
             .expect("MSC winner has an applicability transaction");
         let transaction = applicable.swap_remove(transaction_index);
-        OverloadResolutionOutcome::Resolved(Box::new(self.commit_overload_candidate(
+        match self.commit_overload_candidate(
             candidate,
             transaction,
             evaluation_receiver,
             extension,
             matches!(arguments, OverloadArguments::Source(_)),
             sink,
-        )))
+        ) {
+            Some(resolved) => OverloadResolutionOutcome::Resolved(Box::new(resolved)),
+            None => OverloadResolutionOutcome::Failed,
+        }
     }
 }
 

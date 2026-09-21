@@ -149,7 +149,7 @@ impl Lowerer {
                 call_span: span,
             },
             sink,
-        );
+        )?;
 
         let application = self.enum_application_id(enum_id, type_args);
         let variant = hir::AppliedEnumVariantRef::checked(

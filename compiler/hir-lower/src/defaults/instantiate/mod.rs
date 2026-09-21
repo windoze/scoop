@@ -1,7 +1,7 @@
 use scoop_hir as hir;
 use std::collections::HashMap;
 
-use crate::defaults::DefaultExprTemplateRef;
+use crate::defaults::{DefaultArgumentSource, DefaultExprTemplateRef};
 use crate::{Lowerer, Type};
 
 mod entities;
@@ -24,13 +24,14 @@ enum InstantiationEvaluation {
 impl Lowerer {
     pub(crate) fn instantiate_default(
         &mut self,
-        template: DefaultExprTemplateRef,
+        source: DefaultArgumentSource,
         bindings: &[(hir::TypeParamId, hir::TypeId)],
         receiver: Option<&hir::Expr>,
         value_parameters: &[hir::Expr],
         call_span: scoop_ast::Span,
         sink: &mut Vec<hir::Statement>,
-    ) -> hir::Expr {
+    ) -> Option<hir::Expr> {
+        let template = self.resolve_default_argument(source, call_span)?;
         let (template, captures, template_bindings) = match template {
             DefaultExprTemplateRef::Local(template) => {
                 let template = self.local_default_exprs[template].clone();
@@ -114,7 +115,7 @@ impl Lowerer {
             sink.push(self.instantiate_default_statement(statement, &mut context));
         }
         debug_assert!(context.loop_targets.is_empty());
-        self.instantiate_default_expr(&template.value, &mut context)
+        Some(self.instantiate_default_expr(&template.value, &mut context))
     }
 
     fn instantiate_default_statement(

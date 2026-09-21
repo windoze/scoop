@@ -5,7 +5,7 @@ use scoop_ast as ast;
 use super::candidates::{
     ArgumentMode, CallableView, NominalConstructorView, ReceiverShape, ValueParameter,
 };
-use crate::defaults::{DefaultExprTemplateRef, SourceParameterCalling, SourceVarargOmission};
+use crate::defaults::{DefaultArgumentSource, SourceParameterCalling, SourceVarargOmission};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct SourceInputId(u32);
@@ -53,7 +53,7 @@ pub(crate) struct ParameterInput {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ResolvedParameterInput {
     Explicit(SourceInputId),
-    Default(DefaultExprTemplateRef),
+    Default(DefaultArgumentSource),
     Vararg(ResolvedVarargInput),
 }
 
@@ -62,7 +62,7 @@ pub(crate) enum ResolvedVarargInput {
     Parts(Vec<VarargPart>),
     WholeArray(SourceInputId),
     Empty,
-    Default(DefaultExprTemplateRef),
+    Default(DefaultArgumentSource),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -473,7 +473,7 @@ mod tests {
     use crate::call_resolution::candidates::{
         CallableEffects, CallableSource, NominalConstructorSource, SourceDispatch, ValueParameter,
     };
-    use crate::defaults::{DefaultExprTemplateRef, SourceParameterCalling, SourceVarargOmission};
+    use crate::defaults::{DefaultArgumentSource, SourceParameterCalling, SourceVarargOmission};
     use scoop_ast::Span;
     use scoop_hir as hir;
 
@@ -519,8 +519,10 @@ mod tests {
         }
     }
 
-    fn template(index: u32) -> DefaultExprTemplateRef {
-        DefaultExprTemplateRef::Export(hir::ExportDefaultSourceId::from_raw(index.into()))
+    fn template(index: u32) -> DefaultArgumentSource {
+        DefaultArgumentSource::Ready(crate::defaults::DefaultExprTemplateRef::Export(
+            hir::ExportDefaultSourceId::from_raw(index.into()),
+        ))
     }
 
     #[test]

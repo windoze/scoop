@@ -133,7 +133,7 @@ impl Lowerer {
         probe: NamedNominalProbe,
         span: ast::Span,
         sink: &mut Vec<hir::Statement>,
-    ) -> ResolvedNominalConstructor {
+    ) -> Option<ResolvedNominalConstructor> {
         self.commit_nominal_candidate(probe.candidate, span, sink)
     }
 
@@ -142,7 +142,7 @@ impl Lowerer {
         winner: ApplicableConstructor,
         span: ast::Span,
         sink: &mut Vec<hir::Statement>,
-    ) -> ResolvedNominalConstructor {
+    ) -> Option<ResolvedNominalConstructor> {
         *self = *winner.state;
         self.check_constructor_call_safety(winner.source, span);
         let type_args = winner.inferred.type_args;
@@ -156,11 +156,11 @@ impl Lowerer {
                 call_span: span,
             },
             sink,
-        );
-        ResolvedNominalConstructor {
+        )?;
+        Some(ResolvedNominalConstructor {
             source: winner.source,
             type_args,
             args,
-        }
+        })
     }
 }

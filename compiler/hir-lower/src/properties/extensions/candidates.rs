@@ -111,7 +111,9 @@ impl Lowerer {
         let commit = commits.swap_remove(winner);
         let (write, current_read) = match (probe, commit) {
             (NamedFunctionLikeProbe::Callable(probe), ExtensionPropertyCommit::Current) => {
-                let resolved = self.commit_named_callable(*probe, sink);
+                let Some(resolved) = self.commit_named_callable(*probe, sink) else {
+                    return ExtensionPropertySelectionOutcome::Failed;
+                };
                 let function = resolved.function();
                 let property = self.extension_property_by_getter[&function];
                 let receiver = resolved

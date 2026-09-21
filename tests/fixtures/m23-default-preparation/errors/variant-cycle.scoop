@@ -1,0 +1,3 @@
+enum Cycle { Item(val value: Int = helper()) }
+fun helper(value: Cycle = Cycle.Item()): Int = 0
+fun main() {}

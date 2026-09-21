@@ -699,6 +699,7 @@ fun references() {
 - default直接绑定的每个实体都必须在该callable的**全部合法调用位置**可访问，即callable调用域必须是该实体可访问域的子集。对导出的`public` callable，这意味着只能引用下游可见的`public`或经`public import` re-export的实体，不能引用声明Cone的`private`/`internal`实现；`internal`、private/member及local callable可以引用覆盖各自完整调用域的实体。该检查适用于已选择的callable/overload、constructor、property accessor、operator目标及nominal type，并在const folding与desugaring之前执行；不能靠编译期折叠绕过可见性。
 - `abstract`函数和interface方法可以声明默认值。`override`声明不得重新声明默认值；它按静态可见的override关系继承唯一的默认来源。若一个override位置从互不相关的父声明继承到无法唯一确定的默认来源，必须在类型定义处诊断，不能任选一个表达式。override的`vararg`形态必须与被覆写声明一致。
 - override参数名不参与签名匹配；命名调用使用调用点静态接收者所见声明的参数名，动态分派只选择函数体，不重新映射实参或替换默认来源。
+- 默认值之间的依赖不受声明顺序、文件顺序或function/constructor/variant类别影响。仅当已选定调用实际省略某个参数时，才建立到该参数默认值的展开依赖；显式提供参数的普通调用不建立该边。源码默认值展开依赖必须无环，自环或跨声明环在定义处报编译错误，即使外部尚未调用该声明；按参数位置区分节点，不能因同一个callable出现在链中便误判成环。普通callee正文中的递归调用不属于该展开依赖图。
 
 #### 8.5.2 调用处实参映射
 

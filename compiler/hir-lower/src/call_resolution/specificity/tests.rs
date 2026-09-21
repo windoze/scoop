@@ -235,7 +235,9 @@ fn argument(name: Option<&str>, spread: bool) -> ast::CallArgument {
 fn callable_and_constructor_mappings_share_default_and_named_source_order() {
     let state = Lowerer::new();
     let integer = state.integer_type(hir::IntegerKind::SIGNED_32);
-    let default = DefaultExprTemplateRef::Export(hir::ExportDefaultSourceId::from_raw(0.into()));
+    let default = crate::defaults::DefaultArgumentSource::Ready(DefaultExprTemplateRef::Export(
+        hir::ExportDefaultSourceId::from_raw(0.into()),
+    ));
     let parameters = vec![
         ValueParameter {
             name: "first".to_string(),

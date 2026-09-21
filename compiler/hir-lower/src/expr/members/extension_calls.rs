@@ -128,7 +128,9 @@ impl Lowerer {
         match probes.swap_remove(winner) {
             NamedFunctionLikeProbe::Callable(probe) => {
                 let mut layer_sink = Vec::new();
-                let resolved = state.commit_named_callable(*probe, &mut layer_sink);
+                let Some(resolved) = state.commit_named_callable(*probe, &mut layer_sink) else {
+                    return PropertyExtensionInvokeOutcome::Failed(Box::new(state));
+                };
                 let callee = state.materialize_resolved_callee(&resolved);
                 state.check_call_effects(callee, call.span);
                 let expression = hir::Expr {

@@ -742,6 +742,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
     pub(crate) default_templates:
         HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
+    pub(crate) default_preparation: defaults::DefaultPreparation,
     /// True only while constructing a declaration-bound default template.
     /// Nested omissions remain definition-only until the outer template is
     /// instantiated at an actual call site.

@@ -142,7 +142,7 @@ impl Lowerer {
         &mut self,
         probe: NamedCallableProbe,
         sink: &mut Vec<hir::Statement>,
-    ) -> ResolvedCallee {
+    ) -> Option<ResolvedCallee> {
         let NamedCallableProbe {
             prepared,
             transaction,
@@ -233,7 +233,7 @@ impl Lowerer {
         extension: bool,
         source_arguments: bool,
         sink: &mut Vec<hir::Statement>,
-    ) -> ResolvedCallee {
+    ) -> Option<ResolvedCallee> {
         let probe::ApplicableCandidate {
             state,
             type_args,
@@ -264,7 +264,7 @@ impl Lowerer {
                     call_span: candidate.call_span,
                 },
                 sink,
-            );
+            )?;
             if extension {
                 args.insert(
                     0,
@@ -284,7 +284,7 @@ impl Lowerer {
                 (evaluation_receiver, args)
             }
         };
-        ResolvedCallee {
+        Some(ResolvedCallee {
             target: CallableCandidate {
                 function: candidate.function,
                 owner: candidate.owner.clone(),
@@ -296,6 +296,6 @@ impl Lowerer {
             args,
             receiver: instance_receiver,
             return_ty,
-        }
+        })
     }
 }

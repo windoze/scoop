@@ -7,3 +7,4 @@ OriginHost.constructor: body:Expression=1, root=1, type=1
 OriginHost.generic: body:Expression=1, local=2, root=1, type=1
 OriginHost.inherited: body:Expression=1, local=2, root=1, type=3
 OriginHost.local: body:Expression=5, body:Statement=4, local=3, root=1, type=9
+OriginValue.constructor: body:Expression=1, root=1, type=1

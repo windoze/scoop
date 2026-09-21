@@ -114,7 +114,7 @@ impl Lowerer {
             _ => self.most_specific_nominal_constructor(name, &applicable, span)?,
         };
         let winner = applicable.swap_remove(winner);
-        Some(self.commit_nominal_candidate(winner, span, sink))
+        self.commit_nominal_candidate(winner, span, sink)
     }
 
     fn most_specific_nominal_constructor(

@@ -118,7 +118,7 @@ impl Lowerer {
                 "compiler exception zero-argument adapter",
                 self.class_constructors[source].safety,
                 |this, sink| {
-                    Some(this.materialize_nominal_arguments(
+                    this.materialize_nominal_arguments(
                         crate::argument_materialization::NominalArgumentMaterialization {
                             view: &view,
                             argument_map: &argument_map,
@@ -128,7 +128,7 @@ impl Lowerer {
                             call_span: span,
                         },
                         sink,
-                    ))
+                    )
                 },
             )
             .expect("compiler exception adapter lowering always returns its arguments");

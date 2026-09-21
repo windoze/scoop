@@ -329,11 +329,11 @@ impl Lowerer {
         let commit = commits.swap_remove(winner);
         let expression = match (probe, commit) {
             (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::TopLevel) => {
-                let resolved = self.commit_named_callable(*probe, sink);
+                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
                 self.finish_resolved_top_level_function_call(call, resolved, sink)
             }
             (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::Member) => {
-                let resolved = self.commit_named_callable(*probe, sink);
+                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
                 self.finish_resolved_method_call(resolved, call.span)
             }
             (
@@ -341,7 +341,9 @@ impl Lowerer {
                 NamedFunctionCommit::ImportedDependency,
             ) => return Ok(self.commit_imported_dependency_callable(*probe, sink)),
             (NamedFunctionLikeProbe::Nominal(probe), NamedFunctionCommit::Nominal) => {
-                let resolved = self.commit_named_nominal(*probe, call.span, sink);
+                let resolved = self
+                    .commit_named_nominal(*probe, call.span, sink)
+                    .ok_or(())?;
                 Some(self.finish_named_nominal(resolved, call.span))
             }
             (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {
