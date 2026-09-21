@@ -8,7 +8,7 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
     /// the exact trusted-core artifact that owns every selected import.
     pub fn lower_hir<'stage>(
         &'stage self,
-    ) -> Result<OrdinaryConeHirOutput<'stage, 'artifact>, OrdinaryConeHirStageError> {
+    ) -> Result<OrdinaryConeHirOutput<'stage, 'artifact>, CurrentConeHirStageError> {
         let requested = match self.request.current() {
             ValidatedCurrentConeInput::Manifest { manifest, .. } => {
                 manifest.parsed().semantic().requested_kind()
@@ -25,55 +25,22 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
             .dependencies()
             .semantic()
             .imported_semantic_world()
-            .map_err(OrdinaryConeHirStageError::SemanticWorld)?;
+            .map_err(CurrentConeHirStageError::SemanticWorld)?;
         let core = self
             .trusted_core
             .import_core_inputs()
-            .map_err(OrdinaryConeHirStageError::CoreInterface)?;
-        let nominals = world
-            .direct_provider(scoop_identity::ConeIdentity::CORE)
-            .map(|provider| provider.nominal_interfaces().records())
-            .unwrap_or_default();
-        let core_classifier =
-            scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
-                .map_err(OrdinaryConeHirStageError::CoreClassifier)?;
-        let input = scoop_hir_lower::CurrentConeSources::try_new(&self.sources, core, &world)
-            .map_err(OrdinaryConeHirStageError::Input)?;
-        let hir = scoop_hir_lower::lower_current_cone(requested, &input)
-            .map_err(OrdinaryConeHirStageError::Lowering)?;
-        let mut foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&hir)
-            .map_err(OrdinaryConeHirStageError::Foundation)?;
-        let production_section =
-            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
-                .map_err(OrdinaryConeHirStageError::ProductionSection)?;
-        let cross_cone_section = {
-            let mut authority = scoop_hir::CrossConeHirProductionAuthority::new(
-                &foundation,
-                &hir.output().export.public_export_bindings,
-                &world,
-            );
-            scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
-                &hir,
-                &[],
-                &mut authority,
-            )
-            .map_err(OrdinaryConeHirStageError::CrossConeSection)?
-        };
-        foundation
-            .complete_cross_cone_source_points(
-                hir.output().export.module(),
-                cross_cone_section.definition_sources(),
-            )
-            .map_err(OrdinaryConeHirStageError::Foundation)?;
+            .map_err(CurrentConeHirStageError::CoreInterface)?;
+        let artifacts = current_hir::CurrentConeHirArtifacts::lower(
+            requested,
+            &self.sources,
+            core.into(),
+            &world,
+        )?;
         Ok(OrdinaryConeHirOutput {
             trusted_core: self.trusted_core,
             dependencies: self.request.dependencies(),
             target_profile: self.request.target().lir_target(),
-            hir,
-            foundation,
-            production_section,
-            cross_cone_section,
-            core_classifier,
+            artifacts,
         })
     }
 
@@ -170,28 +137,24 @@ pub struct OrdinaryConeHirOutput<'stage, 'artifact> {
     trusted_core: &'stage ValidatedTrustedCoreArtifact<'artifact>,
     dependencies: &'stage ValidatedExplicitDependencyInputSet<'artifact>,
     target_profile: scoop_lir::LirTargetProfile,
-    hir: scoop_hir::DependencyHirOutput,
-    foundation: scoop_hir::CanonicalHirFoundation,
-    production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
-    cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
-    core_classifier: scoop_hir::CoreClosedExactLeafClassifierV1,
+    artifacts: current_hir::CurrentConeHirArtifacts,
 }
 
 impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
     pub const fn hir(&self) -> &scoop_hir::DependencyHirOutput {
-        &self.hir
+        &self.artifacts.hir
     }
 
     pub const fn foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
-        &self.foundation
+        &self.artifacts.foundation
     }
 
     pub const fn production_section(&self) -> &scoop_hir::CoreBootstrapInterfaceSectionV1 {
-        &self.production_section
+        &self.artifacts.production_section
     }
 
     pub const fn cross_cone_section(&self) -> &scoop_hir::CrossConeHirInterfaceSectionV1 {
-        &self.cross_cone_section
+        &self.artifacts.cross_cone_section
     }
 
     /// Projects the complete HIR selection through the same trusted artifact,
@@ -204,6 +167,7 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
             .trusted_core
             .project_initialization_protocol_to_mir(
                 !self
+                    .artifacts
                     .hir
                     .output()
                     .local
@@ -217,14 +181,10 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
             protocols: selected,
             dependencies: selected_dependencies,
             public: cross_cone_bridge,
-        } = machine::CurrentConeMachineHir {
-            output: &self.hir,
-            foundation: &self.foundation,
-            production: &self.production_section,
-            public: &self.cross_cone_section,
-            classifier: &self.core_classifier,
-        }
-        .lower_mir(selected, self.dependencies.semantic())?;
+        } = self
+            .artifacts
+            .machine_input()
+            .lower_mir(selected, self.dependencies.semantic())?;
         Ok(OrdinaryConeMirOutput {
             hir: self,
             strong,
@@ -321,10 +281,7 @@ impl OrdinaryConeLirOutput<'_, '_> {
     /// Seals the three stage foundations as one strong production input.
     pub fn seal_strong_profile(
         self,
-    ) -> Result<CrossConeStrongIrProductionV1, OrdinaryConeStrongProfileError> {
-        let hir_foundation =
-            scoop_hir::OdrFreeHirFoundation::try_new(self.mir.hir.foundation.clone())
-                .map_err(OrdinaryConeStrongProfileError::HirOdr)?;
+    ) -> Result<CrossConeStrongIrProductionV1, CurrentConeStrongProfileError> {
         let Self {
             mir,
             lir,
@@ -336,15 +293,7 @@ impl OrdinaryConeLirOutput<'_, '_> {
             cross_cone_bridge: mir_cross_cone,
             ..
         } = mir;
-        Ok(CrossConeStrongIrProductionV1::new(
-            hir_foundation,
-            hir.production_section,
-            hir.cross_cone_section,
-            strong.foundation().clone(),
-            strong.production().clone(),
-            mir_cross_cone,
-            lir,
-            lir_cross_cone,
-        ))
+        hir.artifacts
+            .seal_strong_profile(strong, mir_cross_cone, lir, lir_cross_cone)
     }
 }

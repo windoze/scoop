@@ -24,6 +24,8 @@ use super::{
 use crate::{CrossConeStrongIrProductionV1, ValidatedTrustedCoreArtifact};
 
 mod bootstrap;
+mod current_hir;
+pub use current_hir::{CurrentConeHirStageError, CurrentConeStrongProfileError};
 mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;
@@ -38,8 +40,8 @@ pub use dependencies::{
     ExplicitDependencyRole, ExplicitDependencyValidationError,
 };
 pub use ordinary::{
-    OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput, OrdinaryConeMirOutput,
-    OrdinaryConeProductionError, OrdinaryConeStrongProfileError,
+    OrdinaryConeHirOutput, OrdinaryConeLirOutput, OrdinaryConeMirOutput,
+    OrdinaryConeProductionError,
 };
 
 /// Proof that the manifest, explicit artifacts, and their recursive closure
