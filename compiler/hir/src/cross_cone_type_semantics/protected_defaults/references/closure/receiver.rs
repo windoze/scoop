@@ -1,6 +1,6 @@
-use scoop_wire::{BudgetMeter, WirePath};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
-use super::{ProtectedDefaultBodyClosureError, collect::Collected};
+use super::collect::DefaultReferenceExpressionIndexV1;
 use crate::{
     DefaultBodyReferenceAttachmentV1, DefaultBodyReferenceMetadataV1,
     DefaultBodyReferenceOccurrenceV1, DefaultBodyReferenceTargetV1, DefaultExpressionKindV1,
@@ -8,39 +8,33 @@ use crate::{
     ProtectedDefaultReceiverUseV1,
 };
 
-/// Actual typed receiver context. Metadata deliberately retains its full node
-/// instead of claiming that an iterator, assignment or binding has no receiver.
-#[derive(Clone, Copy, Debug)]
-pub enum ProtectedDefaultReferenceReceiverV1<'a> {
-    None,
-    Member {
-        expression: &'a DefaultExpressionV1,
-        implicit_this: bool,
-        direct_super: bool,
-    },
-    Metadata(DefaultBodyReferenceMetadataV1<'a>),
+mod context;
+pub use context::*;
+
+pub(crate) enum DefaultReferenceReceiverError {
+    Resource(WireError),
+    ReceiverOutsideBody,
+}
+impl From<WireError> for DefaultReferenceReceiverError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
 }
 
-pub(super) fn project<'a, E>(
+pub(crate) fn project_default_reference_context<'a>(
     occurrence: DefaultBodyReferenceOccurrenceV1<'a>,
     template_receiver: &OptionalTemplateReceiverV1,
-    collected: &Collected<'_>,
+    expressions: &DefaultReferenceExpressionIndexV1,
     meter: &mut BudgetMeter,
     path: &WirePath,
-) -> Result<
-    (
-        Option<ProtectedDefaultExpressionUseV1>,
-        ProtectedDefaultReferenceReceiverV1<'a>,
-    ),
-    ProtectedDefaultBodyClosureError<E>,
-> {
+) -> Result<DefaultReferenceContextV1<'a>, DefaultReferenceReceiverError> {
     use DefaultBodyReferenceTargetV1 as Target;
     use DefaultExpressionKindV1 as Kind;
-    use ProtectedDefaultReferenceReceiverV1 as Receiver;
+    use DefaultExpressionReferenceReceiverV1 as Receiver;
     let (index, expression) = match occurrence.attachment {
         DefaultBodyReferenceAttachmentV1::Expression { index, expression } => (index, expression),
         DefaultBodyReferenceAttachmentV1::Metadata(metadata) => {
-            return Ok((None, Receiver::Metadata(metadata)));
+            return Ok(DefaultReferenceContextV1::Metadata(metadata));
         }
     };
     meter.charge_work(1, path)?;
@@ -64,8 +58,9 @@ pub(super) fn project<'a, E>(
                 ProtectedDefaultReceiverUseV1::ImplicitThis
             } else {
                 ProtectedDefaultReceiverUseV1::Explicit {
-                    receiver_expression_index: collected
-                        .expression_index(expression, meter, path)?,
+                    receiver_expression_index: expressions
+                        .get(expression, meter, path)?
+                        .ok_or(DefaultReferenceReceiverError::ReceiverOutsideBody)?,
                 }
             };
             (
@@ -79,8 +74,8 @@ pub(super) fn project<'a, E>(
         }
         None => (ProtectedDefaultReceiverUseV1::None, Receiver::None),
     };
-    Ok((
-        Some(ProtectedDefaultExpressionUseV1::new(index, use_kind)),
+    Ok(DefaultReferenceContextV1::Expression {
+        usage: ProtectedDefaultExpressionUseV1::new(index, use_kind),
         receiver,
-    ))
+    })
 }

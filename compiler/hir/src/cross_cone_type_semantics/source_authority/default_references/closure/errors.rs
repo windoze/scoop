@@ -5,6 +5,7 @@ use std::fmt;
 pub enum DefaultSourceReferenceClosureError {
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
+    ReceiverOutsideBody,
     Missing {
         kind: ExportDefaultReferenceKindV1,
         index: u32,
@@ -35,6 +36,9 @@ impl fmt::Display for DefaultSourceReferenceClosureError {
         match self {
             Self::Resource(error) => error.fmt(f),
             Self::Encoding(error) => error.fmt(f),
+            Self::ReceiverOutsideBody => f.write_str(
+                "default source receiver is absent from the complete expression traversal",
+            ),
             Self::Missing { kind, index, site } => write!(
                 f,
                 "missing default source {kind} occurrence {index} at {site:?}"

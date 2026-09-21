@@ -53,8 +53,23 @@ impl<'a> Domains<'a> {
         ) {
             return Ok(());
         }
-        let (expected_use, receiver) =
-            receiver::project(occurrence, template_receiver, collected, meter, path)?;
+        let context = receiver::project_default_reference_context(
+            occurrence,
+            template_receiver,
+            &collected.expressions,
+            meter,
+            path,
+        )
+        .map_err(|error| match error {
+            receiver::DefaultReferenceReceiverError::Resource(error) => {
+                ProtectedDefaultBodyClosureError::Resource(error)
+            }
+            receiver::DefaultReferenceReceiverError::ReceiverOutsideBody => {
+                ProtectedDefaultBodyClosureError::ReceiverOutsideBody
+            }
+        })?;
+        let expected_use = context.expression_use();
+        let receiver = context.receiver();
         macro_rules! observe {
             ($domain:ident, $compare:expr) => {
                 self.$domain.observe(

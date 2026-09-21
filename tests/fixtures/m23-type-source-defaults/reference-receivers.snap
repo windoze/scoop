@@ -1,0 +1,6 @@
+ReceiverHost.ownField: Field expression 0 ImplicitThis; super false
+ReceiverHost.implicit: Callable expression 1 Explicit { receiver_expression_index: 2 }; super false
+ReceiverHost.explicit: Callable expression 1 Explicit { receiver_expression_index: 2 }; super false
+ReceiverHost.field: Field expression 0 Explicit { receiver_expression_index: 1 }; super false
+ReceiverHost.parent: Callable expression 1 Explicit { receiver_expression_index: 2 }; super true
+ReceiverHost.construct: Constructor expression 2 None

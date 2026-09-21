@@ -17,8 +17,13 @@ mod records;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use collect::DefaultReferenceExpressionIndexV1;
 pub use errors::*;
-pub use receiver::ProtectedDefaultReferenceReceiverV1;
+pub use receiver::{
+    DefaultExpressionReferenceReceiverV1, DefaultReferenceContextV1,
+    ProtectedDefaultReferenceReceiverV1,
+};
+pub(crate) use receiver::{DefaultReferenceReceiverError, project_default_reference_context};
 
 /// Replays each actual occurrence against independent definition-side source,
 /// origin, access, receiver and whole-default domain authorities. Metadata

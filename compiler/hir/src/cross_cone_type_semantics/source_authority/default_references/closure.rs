@@ -18,6 +18,7 @@ pub struct DefaultSourceReferenceOccurrenceV1<'a> {
     index: u32,
     body: DefaultBodyReferenceOccurrenceV1<'a>,
     source: DefaultSourceReferenceRecordV1<'a>,
+    context: DefaultReferenceContextV1<'a>,
 }
 impl DefaultSourceTemplateV1 {
     pub fn bind_reference_occurrences(
@@ -25,7 +26,14 @@ impl DefaultSourceTemplateV1 {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultSourceReferenceClosureV1<'_>, DefaultSourceReferenceClosureError> {
-        let mut visitor = visitor::Visitor::new(self, meter, path)?;
+        let expressions = DefaultReferenceExpressionIndexV1::collect(
+            self.body(),
+            self.locals(),
+            self.definition_origin(),
+            meter,
+            path,
+        )?;
+        let mut visitor = visitor::Visitor::new(self, &expressions, meter, path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),
@@ -45,6 +53,10 @@ impl<'a> DefaultSourceReferenceClosureV1<'a> {
     }
 }
 impl<'a> DefaultSourceReferenceOccurrenceV1<'a> {
+    /// Actual body context; target and protected receiver permission remain separate.
+    pub const fn context(&self) -> DefaultReferenceContextV1<'a> {
+        self.context
+    }
     pub const fn index(&self) -> u32 {
         self.index
     }

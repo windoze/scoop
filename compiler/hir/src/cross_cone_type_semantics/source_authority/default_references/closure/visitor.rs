@@ -4,7 +4,9 @@ use DefaultSourceReferenceClosureError as Error;
 use DefaultSourceReferenceRecordV1 as Record;
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
 
-pub(super) struct Visitor<'a> {
+pub(super) struct Visitor<'a, 'i> {
+    expressions: &'i DefaultReferenceExpressionIndexV1,
+    receiver: &'a OptionalTemplateReceiverV1,
     result: DefaultSourceReferenceClosureV1<'a>,
     callables: Domain<'a, ExportDefaultCallableTargetV1>,
     constructors: Domain<'a, DefaultConstructorRefV1>,
@@ -13,9 +15,10 @@ pub(super) struct Visitor<'a> {
     singletons: Domain<'a, PersistentObjectValueId>,
     fields: Domain<'a, DefaultFieldRefV1>,
 }
-impl<'a> Visitor<'a> {
+impl<'a, 'i> Visitor<'a, 'i> {
     pub fn new(
         template: &'a DefaultSourceTemplateV1,
+        expressions: &'i DefaultReferenceExpressionIndexV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<Self, Error> {
@@ -39,6 +42,8 @@ impl<'a> Visitor<'a> {
         let mut occurrences = Vec::new();
         meter.try_reserve_exact(&mut occurrences, count, slot_bytes, path)?;
         Ok(Self {
+            expressions,
+            receiver: template.receiver(),
             result: DefaultSourceReferenceClosureV1 {
                 template: template.key(),
                 occurrences,
@@ -65,7 +70,7 @@ impl<'a> Visitor<'a> {
         Ok(self.result)
     }
 }
-impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a> {
+impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a, '_> {
     type Error = Error;
     fn expression(
         &mut self,
@@ -141,12 +146,24 @@ impl<'a> DefaultBodyReferenceVisitorV1<'a> for Visitor<'a> {
                 (i, Record::Field(r))
             }
         };
+        let context = project_default_reference_context(
+            occurrence,
+            self.receiver,
+            self.expressions,
+            meter,
+            path,
+        )
+        .map_err(|error| match error {
+            DefaultReferenceReceiverError::Resource(error) => Error::Resource(error),
+            DefaultReferenceReceiverError::ReceiverOutsideBody => Error::ReceiverOutsideBody,
+        })?;
         self.result
             .occurrences
             .push(DefaultSourceReferenceOccurrenceV1 {
                 index,
                 body: occurrence,
                 source,
+                context,
             });
         Ok(())
     }

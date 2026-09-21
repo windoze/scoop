@@ -1,0 +1,13 @@
+public struct ReceiverPair(val value: Int)
+public open class ReceiverBase {
+    public open fun ping(): Int = 1
+}
+public class ReceiverHost(public var number: Int) : ReceiverBase() {
+    public fun read(): Int = 2
+    internal fun ownField(value: Int = this.number): Int = value
+    internal fun implicit(value: Int = this.read()): Int = value
+    internal fun explicit(other: ReceiverHost, value: Int = other.read()): Int = value
+    internal fun field(pair: ReceiverPair, value: Int = pair.value): Int = value
+    internal fun parent(value: Int = super.ping()): Int = value
+    internal fun construct(value: ReceiverPair = ReceiverPair(1)): ReceiverPair = value
+}
