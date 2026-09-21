@@ -6,6 +6,7 @@ use scoop_identity::{
 #[derive(Clone, Copy, Debug)]
 enum Change {
     Path,
+    NestedPath,
     Mapping,
     Prefix,
     Result,
@@ -40,6 +41,12 @@ fn corrupt(t: &Template, change: Change) -> Template {
                 StructuralPathSegment::new(StructuralDefinitionSiteRole::DefaultValue, 9),
                 [],
             )
+        }
+        Change::NestedPath => {
+            path = StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(StructuralDefinitionSiteRole::LocalDeclaration, 0),
+                path.segments().iter().copied(),
+            );
         }
         Change::Mapping => {
             let mut arguments = mapping.arguments().to_vec();
@@ -121,6 +128,7 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                 .unwrap();
             for change in [
                 Change::Path,
+                Change::NestedPath,
                 Change::Mapping,
                 Change::Prefix,
                 Change::Result,
@@ -142,6 +150,7 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                 assert_eq!(failed, original.key());
                 assert!(match (change, *error) {
                     (Change::Path, Error::DefinitionPath)
+                    | (Change::NestedPath, Error::DefinitionPath)
                     | (Change::Mapping, Error::DirectMapping { index: 0 })
                     | (
                         Change::Prefix,
@@ -161,6 +170,30 @@ fn bound_default_declarations_reject_raw_types_even_when_substitution_collapses_
                     | (Change::Suspend, Error::SuspendPermission) => true,
                     (_, error) => panic!("unexpected {change:?}: {error:?}"),
                 });
+            }
+        });
+    });
+}
+
+#[test]
+fn nominal_default_paths_cannot_claim_a_nested_lexical_root() {
+    with_sources(SOURCE, |output, fixture, sources, core| {
+        let table = templates(output);
+        let foundation = fixture.bind().unwrap();
+        sources.with_bound(&foundation, core, |members, constructors| {
+            let parameters = members
+                .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())
+                .unwrap();
+            for original in table.records() {
+                let changed = replace(&table, corrupt(original, Change::NestedPath));
+                let Error::Record { key, error } = parameters
+                    .bind_default_declarations(&changed, &[], &mut meter())
+                    .unwrap_err()
+                else {
+                    panic!("expected nominal default path failure");
+                };
+                assert_eq!(key, original.key());
+                assert!(matches!(*error, Error::DefinitionPath), "{error:?}");
             }
         });
     });

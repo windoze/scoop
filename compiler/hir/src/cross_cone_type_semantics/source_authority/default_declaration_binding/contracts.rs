@@ -26,14 +26,9 @@ pub(super) fn validate<'d>(
         .iter()
         .filter(|p| has_default(p.calling_kind()))
         .count();
-    if !template
-        .definition_path()
-        .segments()
-        .last()
-        .is_some_and(|last| {
-            last.site_role() == StructuralDefinitionSiteRole::DefaultValue
-                && last.ordinal() as usize == ordinal
-        })
+    if !matches!(template.definition_path().segments(), [segment]
+        if segment.site_role() == StructuralDefinitionSiteRole::DefaultValue
+            && segment.ordinal() as usize == ordinal)
     {
         return Err(Error::DefinitionPath);
     }
