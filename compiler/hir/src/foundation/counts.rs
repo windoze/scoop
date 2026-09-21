@@ -32,8 +32,8 @@ pub struct HirFoundationCounts {
     pub odr_members: usize,
     pub definition_origins: usize,
     pub native_boundary_types: usize,
-    pub core_external_source_types: usize,
-    pub core_external_generic_types: usize,
+    pub external_source_types: usize,
+    pub external_generic_types: usize,
 }
 
 impl CanonicalHirFoundation {
@@ -78,8 +78,8 @@ impl CanonicalHirFoundation {
             odr_members: self.odr_members.len(),
             definition_origins: self.definition_origins.len(),
             native_boundary_types: self.native_boundary_types.len(),
-            core_external_source_types: self.core_external_source_types.len(),
-            core_external_generic_types: self.core_external_generic_types.len(),
+            external_source_types: self.external_source_types.len(),
+            external_generic_types: self.external_generic_types.len(),
         }
     }
 }

@@ -116,8 +116,8 @@ pub struct CanonicalHirFoundation {
     odr_members: Vec<OdrMemberRecord>,
     definition_origins: Vec<DefinitionOriginRecord>,
     native_boundary_types: Vec<NativeBoundaryTypeDefinitionRecord>,
-    core_external_source_types: Vec<PersistentTypeId>,
-    core_external_generic_types: Vec<PersistentGenericTypeId>,
+    external_source_types: Vec<PersistentTypeId>,
+    external_generic_types: Vec<PersistentGenericTypeId>,
 }
 
 macro_rules! simple_identity_setter {
@@ -162,8 +162,8 @@ impl CanonicalHirFoundation {
             odr_members: Vec::new(),
             definition_origins: Vec::new(),
             native_boundary_types: Vec::new(),
-            core_external_source_types: Vec::new(),
-            core_external_generic_types: Vec::new(),
+            external_source_types: Vec::new(),
+            external_generic_types: Vec::new(),
         }
     }
 
@@ -668,25 +668,25 @@ impl CanonicalHirFoundation {
         Ok(())
     }
 
-    pub fn set_core_external_source_types(
+    pub fn set_external_source_types(
         &mut self,
         records: Vec<PersistentTypeId>,
     ) -> Result<(), HirFoundationBuildError> {
-        self.core_external_source_types = sort_unique(
+        self.external_source_types = sort_unique(
             records,
-            HirFoundationTable::CoreExternalSourceType,
+            HirFoundationTable::ExternalSourceType,
             |identity| *identity,
         )?;
         Ok(())
     }
 
-    pub fn set_core_external_generic_types(
+    pub fn set_external_generic_types(
         &mut self,
         records: Vec<PersistentGenericTypeId>,
     ) -> Result<(), HirFoundationBuildError> {
-        self.core_external_generic_types = sort_unique(
+        self.external_generic_types = sort_unique(
             records,
-            HirFoundationTable::CoreExternalGenericType,
+            HirFoundationTable::ExternalGenericType,
             |identity| *identity,
         )?;
         Ok(())
@@ -726,8 +726,8 @@ impl WireEncode for CanonicalHirFoundation {
         encode_table_field(encoder, 28, &self.odr_members)?;
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 30, &self.native_boundary_types)?;
-        encode_table_field(encoder, 31, &self.core_external_source_types)?;
-        encode_table_field(encoder, 32, &self.core_external_generic_types)
+        encode_table_field(encoder, 31, &self.external_source_types)?;
+        encode_table_field(encoder, 32, &self.external_generic_types)
     }
 }
 
@@ -763,8 +763,8 @@ pub enum HirFoundationTable {
     OdrMember,
     DefinitionOrigin,
     NativeBoundaryType,
-    CoreExternalSourceType,
-    CoreExternalGenericType,
+    ExternalSourceType,
+    ExternalGenericType,
 }
 
 impl HirFoundationTable {
@@ -800,8 +800,8 @@ impl HirFoundationTable {
             Self::OdrMember => "ODR member",
             Self::DefinitionOrigin => "definition origin",
             Self::NativeBoundaryType => "native boundary type",
-            Self::CoreExternalSourceType => "core-external source type",
-            Self::CoreExternalGenericType => "core-external generic type",
+            Self::ExternalSourceType => "external source type",
+            Self::ExternalGenericType => "external generic type",
         }
     }
 }

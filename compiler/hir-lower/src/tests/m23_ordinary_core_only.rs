@@ -53,8 +53,8 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     ));
     assert!(output.imported_dependencies().is_empty());
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
-    assert_eq!(foundation.counts().core_external_source_types, 10);
-    assert_eq!(foundation.counts().core_external_generic_types, 0);
+    assert_eq!(foundation.counts().external_source_types, 10);
+    assert_eq!(foundation.counts().external_generic_types, 0);
 }
 
 #[test]

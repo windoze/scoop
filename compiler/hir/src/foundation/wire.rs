@@ -103,8 +103,8 @@ struct DecodedHirFoundationWire {
     odr_members: Vec<DecodedOdrMemberRecord>,
     definition_origins: Vec<DecodedDefinitionOriginRecord>,
     native_boundary_types: Vec<DecodedNativeBoundaryTypeDefinitionRecord>,
-    core_external_source_types: Vec<DecodedPersistentId<PersistentTypeId>>,
-    core_external_generic_types: Vec<DecodedPersistentId<PersistentGenericTypeId>>,
+    external_source_types: Vec<DecodedPersistentId<PersistentTypeId>>,
+    external_generic_types: Vec<DecodedPersistentId<PersistentGenericTypeId>>,
 }
 
 /// Canonically decoded HIR foundation wire graph.
@@ -136,10 +136,10 @@ impl DecodedHirFoundation {
         &self,
         validation: &mut PendingIdentityValidation<'_>,
     ) -> Result<(), IdentityValidationError> {
-        for identity in &self.decoded.core_external_source_types {
+        for identity in &self.decoded.external_source_types {
             validation.register_external_source_type(*identity)?;
         }
-        for identity in &self.decoded.core_external_generic_types {
+        for identity in &self.decoded.external_generic_types {
             validation.register_external_generic_type(*identity)?;
         }
         macro_rules! register_tables {
@@ -268,8 +268,8 @@ impl WireEncode for DecodedHirFoundationWire {
         encode_table_field(encoder, 28, &self.odr_members)?;
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 30, &self.native_boundary_types)?;
-        encode_table_field(encoder, 31, &self.core_external_source_types)?;
-        encode_table_field(encoder, 32, &self.core_external_generic_types)
+        encode_table_field(encoder, 31, &self.external_source_types)?;
+        encode_table_field(encoder, 32, &self.external_generic_types)
     }
 }
 
@@ -307,8 +307,8 @@ impl WireDecode for DecodedHirFoundationWire {
             odr_members: decode_table_field(decoder, 28)?,
             definition_origins: decode_table_field(decoder, 29)?,
             native_boundary_types: decode_table_field(decoder, 30)?,
-            core_external_source_types: decode_table_field(decoder, 31)?,
-            core_external_generic_types: decode_table_field(decoder, 32)?,
+            external_source_types: decode_table_field(decoder, 31)?,
+            external_generic_types: decode_table_field(decoder, 32)?,
         })
     }
 }
@@ -385,8 +385,8 @@ mod tests {
         assert!(decoded.odr_members.is_empty());
         assert!(decoded.definition_origins.is_empty());
         assert!(decoded.native_boundary_types.is_empty());
-        assert!(decoded.core_external_source_types.is_empty());
-        assert!(decoded.core_external_generic_types.is_empty());
+        assert!(decoded.external_source_types.is_empty());
+        assert!(decoded.external_generic_types.is_empty());
     }
 
     #[test]

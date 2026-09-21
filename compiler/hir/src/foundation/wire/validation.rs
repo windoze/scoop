@@ -15,6 +15,9 @@ use crate::{
     SourceRecordValidationError,
 };
 
+mod external_types;
+use external_types::validate_external_types;
+
 mod origins;
 pub use origins::DefinitionOriginValidationError;
 mod native_boundary;
@@ -153,8 +156,8 @@ fn validate_foundation(
         odr_members: _,
         definition_origins,
         native_boundary_types,
-        core_external_source_types,
-        core_external_generic_types,
+        external_source_types,
+        external_generic_types,
     } = foundation.decoded;
 
     let mut validated_sources = Vec::new();
@@ -235,22 +238,20 @@ fn validate_foundation(
     let odr_groups: Vec<OdrGroupRecord> = records!(27, OdrGroupId, SpecializationKey);
     let odr_members: Vec<OdrMemberRecord> = records!(28, OdrMemberId, OdrMemberKey);
 
-    let core_external_source_types = core_external_source_types
+    let external_source_types = external_source_types
         .into_iter()
         .enumerate()
         .map(|(index, identity)| {
-            PersistentIdResolver::resolve(identities, identity).map_err(|error| {
-                HirFoundationValidationError::CoreExternalSourceType { index, error }
-            })
+            PersistentIdResolver::resolve(identities, identity)
+                .map_err(|error| HirFoundationValidationError::ExternalSourceType { index, error })
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let core_external_generic_types = core_external_generic_types
+    let external_generic_types = external_generic_types
         .into_iter()
         .enumerate()
         .map(|(index, identity)| {
-            PersistentIdResolver::resolve(identities, identity).map_err(|error| {
-                HirFoundationValidationError::CoreExternalGenericType { index, error }
-            })
+            PersistentIdResolver::resolve(identities, identity)
+                .map_err(|error| HirFoundationValidationError::ExternalGenericType { index, error })
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -267,14 +268,13 @@ fn validate_foundation(
         &type_aliases,
     )?;
     validate_source_contexts(&source_contexts, &validated_sources, meter)?;
-    validate_core_external_types(
-        artifact,
+    validate_external_types(
         &types,
         &generic_types,
         &generated_types,
         &exact_types,
-        &core_external_source_types,
-        &core_external_generic_types,
+        &external_source_types,
+        &external_generic_types,
     )?;
 
     let mut contracts = Vec::new();
@@ -344,8 +344,8 @@ fn validate_foundation(
             boundary
                 .resolve_with_external_core(
                     identities,
-                    &core_external_source_types,
-                    &core_external_generic_types,
+                    &external_source_types,
+                    &external_generic_types,
                 )
                 .map_err(|error| HirFoundationValidationError::NativeBoundaryType {
                     index,
@@ -399,8 +399,8 @@ fn validate_foundation(
     set!(set_odr_members, odr_members);
     set!(set_definition_origins, origins);
     set!(set_native_boundary_types, boundary_types);
-    set!(set_core_external_source_types, core_external_source_types);
-    set!(set_core_external_generic_types, core_external_generic_types);
+    set!(set_external_source_types, external_source_types);
+    set!(set_external_generic_types, external_generic_types);
 
     let rebuilt = encode_canonical_temporary_with_meter(&canonical, meter, &WirePath::root())
         .map_err(HirFoundationValidationError::Resource)?;
@@ -411,57 +411,6 @@ fn validate_foundation(
         artifact,
         canonical,
     })
-}
-
-fn validate_core_external_types(
-    artifact: ConeIdentity,
-    types: &[TypeRecord],
-    generic_types: &[GenericTypeRecord],
-    generated_types: &[GeneratedTypeRecord],
-    exact_types: &[ExactTypeRecord],
-    external_source_types: &[PersistentTypeId],
-    external_generic_types: &[PersistentGenericTypeId],
-) -> Result<(), HirFoundationValidationError> {
-    if artifact == ConeIdentity::CORE
-        && (!external_source_types.is_empty() || !external_generic_types.is_empty())
-    {
-        return Err(HirFoundationValidationError::CoreDeclaresExternalTypeAuthority);
-    }
-
-    let declared_source_types = types
-        .iter()
-        .map(CborIdentityRecord::id)
-        .chain(generated_types.iter().map(CborIdentityRecord::id))
-        .collect::<HashSet<_>>();
-    let declared_generic_types = generic_types
-        .iter()
-        .map(CborIdentityRecord::id)
-        .collect::<HashSet<_>>();
-
-    for &identity in external_source_types {
-        if declared_source_types.contains(&identity)
-            || !exact_types.iter().any(|record| {
-                matches!(record.key(), ExactTypeKey::Nominal(source) if *source == identity)
-            })
-        {
-            return Err(HirFoundationValidationError::InvalidCoreExternalSourceType(
-                identity,
-            ));
-        }
-    }
-    for &identity in external_generic_types {
-        if declared_generic_types.contains(&identity)
-            || !exact_types.iter().any(|record| {
-                matches!(
-                    record.key(),
-                    ExactTypeKey::NominalApplication { origin, .. } if *origin == identity
-                )
-            })
-        {
-            return Err(HirFoundationValidationError::InvalidCoreExternalGenericType(identity));
-        }
-    }
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -604,17 +553,16 @@ pub enum HirFoundationValidationError {
     MissingCoreBuiltin {
         identity: [u8; 32],
     },
-    CoreExternalSourceType {
+    ExternalSourceType {
         index: usize,
         error: IdentityReferenceError,
     },
-    CoreExternalGenericType {
+    ExternalGenericType {
         index: usize,
         error: IdentityReferenceError,
     },
-    CoreDeclaresExternalTypeAuthority,
-    InvalidCoreExternalSourceType(PersistentTypeId),
-    InvalidCoreExternalGenericType(PersistentGenericTypeId),
+    InvalidExternalSourceType(PersistentTypeId),
+    InvalidExternalGenericType(PersistentGenericTypeId),
     UnknownContextSource {
         context: [u8; 32],
         source: scoop_identity::SourceIdentity,
@@ -672,23 +620,21 @@ impl fmt::Display for HirFoundationValidationError {
                 "HIR foundation is missing trusted core nominal {}",
                 HexIdentity(identity),
             ),
-            Self::CoreExternalSourceType { index, error } => write!(
+            Self::ExternalSourceType { index, error } => write!(
                 formatter,
-                "core-external HIR source type {index} is invalid: {error}"
+                "external HIR source type {index} is invalid: {error}"
             ),
-            Self::CoreExternalGenericType { index, error } => write!(
+            Self::ExternalGenericType { index, error } => write!(
                 formatter,
-                "core-external HIR generic type {index} is invalid: {error}"
+                "external HIR generic type {index} is invalid: {error}"
             ),
-            Self::CoreDeclaresExternalTypeAuthority => formatter
-                .write_str("the trusted core HIR foundation cannot declare core-external types"),
-            Self::InvalidCoreExternalSourceType(identity) => write!(
+            Self::InvalidExternalSourceType(identity) => write!(
                 formatter,
-                "core-external source type {identity} is declared locally or unused"
+                "external source type {identity} is declared locally or unused"
             ),
-            Self::InvalidCoreExternalGenericType(identity) => write!(
+            Self::InvalidExternalGenericType(identity) => write!(
                 formatter,
-                "core-external generic type {identity} is declared locally or unused"
+                "external generic type {identity} is declared locally or unused"
             ),
             Self::UnknownContextSource { context, source } => write!(
                 formatter,
