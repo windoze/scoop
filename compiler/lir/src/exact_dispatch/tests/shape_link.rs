@@ -72,12 +72,11 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
             .unwrap();
     let callable = ExternalStrongShapeSubjectV1::Callable(fixture.target);
     assert!(
-        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, &CoreLirBridgeBranchV1::NotCore, &CoreShapeSupportPlanV1::NotCore, callable, &mut meter()), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
+        matches!(ShapeLinkProviderV1::reject_legacy_subject(&ordinary, &CoreLirBridgeBranchV1::NotCore, callable, &mut meter()), Err(ShapeLinkError::LegacyPartition(actual)) if actual == callable)
     );
     ShapeLinkProviderV1::reject_legacy_subject(
         &ordinary,
         &CoreLirBridgeBranchV1::NotCore,
-        &CoreShapeSupportPlanV1::NotCore,
         ExternalStrongShapeSubjectV1::DispatchTable(fixture.vtable.identity_record().id()),
         &mut meter(),
     )
@@ -93,13 +92,7 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
     .unwrap();
     let core = CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(thrower));
     assert!(matches!(
-        ShapeLinkProviderV1::reject_legacy_subject(
-            &empty,
-            &core,
-            &CoreShapeSupportPlanV1::NotCore,
-            callable,
-            &mut meter()
-        ),
+        ShapeLinkProviderV1::reject_legacy_subject(&empty, &core, callable, &mut meter()),
         Err(ShapeLinkError::LegacyPartition(_))
     ));
 }

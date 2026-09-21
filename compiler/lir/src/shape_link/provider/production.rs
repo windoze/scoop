@@ -43,10 +43,4 @@ impl<'a> ShapeLinkProductionV1<'a> {
             Self::Reader(section) => section.core_lir_bridge(),
         }
     }
-    pub(super) fn core_shapes(self) -> &'a CoreShapeSupportPlanV1 {
-        match self {
-            Self::Producer(section) => section.core_shape_support(),
-            Self::Reader(section) => section.core_shape_support(),
-        }
-    }
 }

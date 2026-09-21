@@ -222,10 +222,13 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
         validated.lir_production().entry_plan(),
         scoop_lir::EntryProductionPlanV1::Library
     ));
-    assert!(matches!(
-        validated.lir_production().core_shape_support(),
-        scoop_lir::CoreShapeSupportPlanV1::NotCore
-    ));
+    assert!(
+        validated
+            .lir_production()
+            .shape_support_plan()
+            .closures()
+            .is_empty()
+    );
     let native = validated.validate_native_boundary().unwrap();
     assert_eq!(native.identity(), cone().identity());
     let mut session = SemanticIdentitySession::new();

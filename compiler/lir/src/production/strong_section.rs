@@ -7,18 +7,19 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
     CoreLirBridgeBranchV1, CoreLirBridgeBuildError, CoreLirBridgeValidationError,
-    CoreShapeSupportPlanBuildError, CoreShapeSupportPlanV1, DecodedConeImagePlanV1,
-    DecodedCoreLirBridgeBranchV1, DecodedCoreShapeSupportPlanV1, DecodedEntryProductionPlanV1,
-    DecodedGeneratedBridgePlanSetV1, DecodedStrongDigestFinalizationPlanV1,
-    DecodedStrongExternalLirBridgeSurfaceV1, DecodedStrongObjectDefinitionPlanSurfaceV1,
-    DecodedStrongObjectSymbolSurfaceV1, DecodedStrongRegistrationProductionSurfaceV1,
-    DigestPlanError, EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1,
-    GeneratedBridgePlanBuildError, GeneratedBridgePlanSetV1, OdrFreeLirFoundation,
-    StrongDigestFinalizationPlanV1, StrongDigestPlanValidationError,
-    StrongExternalLirBridgeReconstructionError, StrongExternalLirBridgeSurfaceV1,
-    StrongObjectDefinitionPlanBuildError, StrongObjectDefinitionPlanSurfaceV1,
-    StrongObjectSymbolSurfaceBuildError, StrongObjectSymbolSurfaceV1,
-    StrongRegistrationProductionSurfaceV1, StrongRegistrationProductionValidationError,
+    DecodedConeImagePlanV1, DecodedCoreLirBridgeBranchV1, DecodedEntryProductionPlanV1,
+    DecodedGeneratedBridgePlanSetV1, DecodedParamFreeShapeSupportPlanSetV1,
+    DecodedStrongDigestFinalizationPlanV1, DecodedStrongExternalLirBridgeSurfaceV1,
+    DecodedStrongObjectDefinitionPlanSurfaceV1, DecodedStrongObjectSymbolSurfaceV1,
+    DecodedStrongRegistrationProductionSurfaceV1, DigestPlanError, EntryProductionPlanBuildError,
+    EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
+    GeneratedBridgePlanSetV1, OdrFreeLirFoundation, ParamFreeShapeSupportBuildError,
+    ParamFreeShapeSupportPlanSetV1, StrongDigestFinalizationPlanV1,
+    StrongDigestPlanValidationError, StrongExternalLirBridgeReconstructionError,
+    StrongExternalLirBridgeSurfaceV1, StrongObjectDefinitionPlanBuildError,
+    StrongObjectDefinitionPlanSurfaceV1, StrongObjectSymbolSurfaceBuildError,
+    StrongObjectSymbolSurfaceV1, StrongRegistrationProductionSurfaceV1,
+    StrongRegistrationProductionValidationError,
 };
 
 use crate::{ConeImagePlanBuildError, ConeImagePlanV1};
@@ -44,7 +45,7 @@ pub struct StrongProductionSection<D, C, I> {
     registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
     image_plan: ConeImagePlanV1,
     entry_plan: EntryProductionPlanV1,
-    core_shape_support: CoreShapeSupportPlanV1,
+    shape_support_plan: ParamFreeShapeSupportPlanSetV1,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
     core_lir_bridge: CoreLirBridgeBranchV1,
 }
@@ -58,7 +59,7 @@ impl StrongProductionSectionV1 {
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
-        core_shape_sources: &[SourceDeclarationKey],
+        shape_sources: &[SourceDeclarationKey],
         core_lir_bridge: CoreLirBridgeBranchV1,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
@@ -68,7 +69,7 @@ impl StrongProductionSectionV1 {
             digest_finalization_plan,
             registration_production,
             entry_source,
-            core_shape_sources,
+            shape_sources,
             core_lir_bridge,
         )
     }
@@ -83,7 +84,7 @@ impl StrongProductionSectionV2 {
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurfaceV2,
         entry_source: EntryProductionSourceV1,
-        core_shape_sources: &[SourceDeclarationKey],
+        shape_sources: &[SourceDeclarationKey],
         core_lir_bridge: CoreLirBridgeBranchV1,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
@@ -93,7 +94,7 @@ impl StrongProductionSectionV2 {
             digest_finalization_plan,
             registration_production,
             entry_source,
-            core_shape_sources,
+            shape_sources,
             core_lir_bridge,
         )
     }
@@ -108,7 +109,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
         registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
-        core_shape_sources: &[SourceDeclarationKey],
+        shape_sources: &[SourceDeclarationKey],
         core_lir_bridge: CoreLirBridgeBranchV1,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         if external_bridges.producer() != foundation.producer() {
@@ -140,12 +141,12 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             &digest_finalization_plan,
         )
         .map_err(StrongProductionSectionBuildError::Entry)?;
-        let core_shape_support = CoreShapeSupportPlanV1::new(
-            core_shape_sources.iter(),
+        let shape_support_plan = ParamFreeShapeSupportPlanSetV1::from_sources(
+            shape_sources.iter(),
             foundation,
             registration_production.identities(),
         )
-        .map_err(StrongProductionSectionBuildError::CoreShapeSupport)?;
+        .map_err(StrongProductionSectionBuildError::ShapeSupport)?;
         let generated_bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(foundation)
             .map_err(StrongProductionSectionBuildError::GeneratedBridges)?;
         Ok(Self {
@@ -156,7 +157,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             registration_production,
             image_plan,
             entry_plan,
-            core_shape_support,
+            shape_support_plan,
             generated_bridge_plan,
             core_lir_bridge,
         })
@@ -192,8 +193,8 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         &self.entry_plan
     }
 
-    pub const fn core_shape_support(&self) -> &CoreShapeSupportPlanV1 {
-        &self.core_shape_support
+    pub const fn shape_support_plan(&self) -> &ParamFreeShapeSupportPlanSetV1 {
+        &self.shape_support_plan
     }
 
     pub const fn generated_bridge_plan(&self) -> &GeneratedBridgePlanSetV1 {
@@ -225,7 +226,7 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
         encoder.field(7)?;
         self.entry_plan.encode(encoder)?;
         encoder.field(8)?;
-        self.core_shape_support.encode(encoder)?;
+        self.shape_support_plan.encode(encoder)?;
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(10)?;
@@ -251,7 +252,7 @@ impl DecodedStrongProductionSectionV1 {
         foundation: &OdrFreeLirFoundation,
         expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
         entry_source: EntryProductionSourceV1,
-        core_shape_sources: &[SourceDeclarationKey],
+        shape_sources: &[SourceDeclarationKey],
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<StrongProductionSectionV1, StrongProductionSectionValidationError> {
         let actual = encode(&self).map_err(StrongProductionSectionValidationError::Encode)?;
@@ -285,7 +286,7 @@ impl DecodedStrongProductionSectionV1 {
             digest_finalization_plan,
             registration_production,
             entry_source,
-            core_shape_sources,
+            shape_sources,
             core_lir_bridge,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
@@ -306,7 +307,7 @@ pub enum StrongProductionSectionBuildError {
     DigestPlan(DigestPlanError),
     Image(ConeImagePlanBuildError),
     Entry(EntryProductionPlanBuildError),
-    CoreShapeSupport(CoreShapeSupportPlanBuildError),
+    ShapeSupport(ParamFreeShapeSupportBuildError),
     GeneratedBridges(GeneratedBridgePlanBuildError),
     CoreLirBridge(CoreLirBridgeBuildError),
 }

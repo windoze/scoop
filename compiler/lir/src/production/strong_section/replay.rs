@@ -24,7 +24,7 @@ impl DecodedStrongProductionSectionV2 {
         expected_external_bridges: StrongExternalLirBridgeSurfaceV1,
         expected_digests: StrongDigestFinalizationPlanV1,
         entry_source: EntryProductionSourceV1,
-        core_shape_sources: &[SourceDeclarationKey],
+        shape_sources: &[SourceDeclarationKey],
         expected_core_bridge: CoreLirBridgeBranchV1,
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
@@ -34,7 +34,7 @@ impl DecodedStrongProductionSectionV2 {
         budget::charge_replay(
             foundation,
             &expected_digests,
-            core_shape_sources,
+            shape_sources,
             &expected_core_bridge,
             meter,
         )?;
@@ -58,7 +58,7 @@ impl DecodedStrongProductionSectionV2 {
             expected_digests,
             registrations.surface,
             entry_source,
-            core_shape_sources,
+            shape_sources,
             expected_core_bridge,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;

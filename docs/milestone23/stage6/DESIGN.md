@@ -381,10 +381,10 @@ nominal来源绑定的owner集合必须精确等于同一已绑定foundation的`
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。
 - `NativeBoundaryTypeDefinitionRecordV1` 只服务原 extern/callback witness，不通过它提供一般 field/scan/TD 查询。
-- core与其他Cone共用通用MIR/LIR shape-support表。每个source root均由当前provider的typed source声明及完整类型、layout、descriptor记录验证，完整section核对独立source-root集合的精确覆盖。不得因provider为core而要求空表、跳过验证或委托旧core表；MIR查询与依赖选择直接读取同一通用表。旧production的LIR core shape-support字段在其生产路径迁移期间仍由原reader验证，但不能为通用section补齐缺失记录或提供第二份root来源。MIR CoreMirBridge的重复shape_support_roots及wire字段2已删除；本地物化直接消费HIR提交的完整source声明并验证MIR实体，reader从共有公共声明推导LIR义务。
+- core与其他Cone共用通用MIR/LIR shape-support表。每个source root均由当前provider的typed source声明及完整类型、layout、descriptor记录验证，完整section核对独立source-root集合的精确覆盖。不得因provider为core而要求空表、跳过验证或委托旧core表；MIR查询与依赖选择直接读取同一通用表。LIR production字段8直接保存所有producer共有的有限shape-support计划数组，删除Core/NotCore包装；source、closure root与definition owner必须属于实际producer，reader从独立source集合完整重算，不能为通用section补齐缺失记录或提供第二份root来源。MIR CoreMirBridge的重复shape_support_roots及wire字段2已删除；本地物化直接消费HIR提交的完整source声明并验证MIR实体，reader从共有公共声明推导LIR义务。
 - M23-5 最大 core-closed callable export 集不变，ordinary dependency 的该子集仍走旧 MIR/LIR bridge 和旧 Link 分区。
-- 新 callable bridge 只承载上述旧集合以外、现在可证明的 target；同一 callable 不能同时登记在旧、新 external arena。完整类型证明可以被两类 bridge 共用。分区优先检查冻结的 core bridge，其次检查 M23-5 ordinary bridge，剩余 target 才进入新 bridge；新开放的 core member/constructor/shape use 若不属于旧 bridge 的固定集合，也走新 bridge，不能借此扩大旧集合。
-- `strong-production/1` 保留旧格式和验证规则，新profile不再生产/要求它。`strong-production/2`保持既有top-level十字段及identity、definition plan、digest DAG、core shape/bridge、image plan结构，只把TD/dispatch语义中无法表示ordinary provider的引用sum版本化；runtime registration/image的C ABI不改变。
+- 新 callable bridge 只承载上述旧集合以外、现在可证明的 target；同一 callable 不能同时登记在旧、新 external arena。完整类型证明可以被两类 bridge 共用。callable分区优先检查保留的core初始化协议bridge，其次检查M23-5 ordinary bridge，剩余target才进入新bridge；shape的layout、scan、TD与registration不因出现在production形状计划中而被整组排除，按共有shape-link校验实际provider与definition；新开放的 core member/constructor/shape use 若不属于旧 bridge 的固定集合，也走新 bridge，不能借此扩大旧集合。
+- `strong-production/1`与`strong-production/2`共有的字段8改为直接shape-support计划数组，旧Core/NotCore tagged sum拒绝读取，已有产物必须重建。新profile只生产/要求V2；两版保持top-level十字段及identity、definition plan、digest DAG、协议bridge、image plan结构，V2另将TD/dispatch语义中无法表示ordinary provider的引用sum版本化；runtime registration/image的C ABI不改变。
 
 本阶段不提升 container/outer schema，不改 `persistent-v1` mangler，不重分配既有 tag。新增 mandatory section 使旧 reader fail closed。
 

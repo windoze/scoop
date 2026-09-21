@@ -22,7 +22,7 @@ pub(super) fn build_closure(
     foundation: &OdrFreeLirFoundation,
     registrations: &StrongRegistrationIdentitySurfaceV1,
 ) -> Result<ParamFreeShapeSupportClosureV1, ParamFreeShapeSupportBuildError> {
-    validate_source(source)?;
+    validate_source(source, foundation.producer())?;
     let source_nominal = PersistentTypeId::from_source_declaration(source)
         .map_err(ParamFreeShapeSupportBuildError::SourceIdentity)?;
     let owner = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source_nominal))
@@ -64,7 +64,7 @@ pub(super) fn build_closure(
     )?;
     Ok(ParamFreeShapeSupportClosureV1 {
         owner,
-        root: scoop_identity::ConeIdentity::CORE,
+        root: foundation.producer(),
         roles: ParamFreeShapeSupportRolesV1 {
             source_nominal: ShapeSupportAvailabilityV1::Available(source_nominal),
             value_layout: ShapeSupportAvailabilityV1::Available(owner_support.layout),
@@ -78,8 +78,11 @@ pub(super) fn build_closure(
     })
 }
 
-fn validate_source(source: &SourceDeclarationKey) -> Result<(), ParamFreeShapeSupportBuildError> {
-    if source.origin() != scoop_identity::ConeIdentity::CORE {
+fn validate_source(
+    source: &SourceDeclarationKey,
+    producer: scoop_identity::ConeIdentity,
+) -> Result<(), ParamFreeShapeSupportBuildError> {
+    if source.origin() != producer {
         return Err(ParamFreeShapeSupportBuildError::ForeignSource(
             source.origin(),
         ));
@@ -241,7 +244,7 @@ fn require_definition(
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<ObjectDefinitionPlanId, ParamFreeShapeSupportBuildError> {
-    let key = ObjectDefinitionPlanKey::strong(scoop_identity::ConeIdentity::CORE, entity, role)
+    let key = ObjectDefinitionPlanKey::strong(foundation.producer(), entity, role)
         .map_err(ParamFreeShapeSupportBuildError::DefinitionIdentity)?;
     let id =
         ObjectDefinitionPlanId::from_key(&key).map_err(ParamFreeShapeSupportBuildError::Hash)?;
@@ -293,7 +296,6 @@ pub enum ParamFreeShapeSupportBuildError {
     DefinitionIdentity(ObjectDefinitionIdentityError),
     Symbol(PersistentSymbolError),
     Hash(HashError),
-    ProducerNotCore(scoop_identity::ConeIdentity),
     ForeignSource(scoop_identity::ConeIdentity),
     NonNominalSource,
     GenericSource,
@@ -333,7 +335,7 @@ impl fmt::Display for ParamFreeShapeSupportBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "invalid core param-free shape-support closure: {self:?}"
+            "invalid param-free shape-support closure: {self:?}"
         )
     }
 }
@@ -354,7 +356,7 @@ impl fmt::Display for ParamFreeShapeSupportValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "invalid decoded core param-free shape-support plan: {self:?}"
+            "invalid decoded param-free shape-support plan: {self:?}"
         )
     }
 }

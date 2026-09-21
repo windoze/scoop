@@ -16,10 +16,12 @@ use crate::{
     StrongDigestFinalizationPlanV1, StrongRegistrationIdentitySurfaceV1,
 };
 
+mod providers;
+
 #[test]
 fn struct_subject_materializes_all_eight_roles_and_round_trips() {
     let fixture = fixture(CoreBuiltinNominal::Unit);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -56,7 +58,7 @@ fn struct_subject_materializes_all_eight_roles_and_round_trips() {
 #[test]
 fn reference_subject_closes_only_the_boxed_value_role() {
     let fixture = fixture(CoreBuiltinNominal::Any);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -107,7 +109,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
     .unwrap();
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    let empty = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let empty = ParamFreeShapeSupportPlanSetV1::from_sources(
         std::iter::empty(),
         &foundation,
         &registrations,
@@ -119,7 +121,7 @@ fn availability_and_empty_plan_have_fixed_wire_shapes() {
 #[test]
 fn roles_wire_is_closed_to_eight_fields() {
     let fixture = fixture(CoreBuiltinNominal::Unit);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -142,7 +144,7 @@ fn roles_wire_is_closed_to_eight_fields() {
 #[test]
 fn reader_rebuilds_roles_instead_of_accepting_a_checked_but_wrong_closure() {
     let fixture = fixture(CoreBuiltinNominal::Unit);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -168,7 +170,7 @@ fn reader_rebuilds_roles_instead_of_accepting_a_checked_but_wrong_closure() {
 #[test]
 fn reader_requires_complete_authoritative_source_coverage() {
     let fixture = fixture(CoreBuiltinNominal::Any);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -192,7 +194,7 @@ fn reader_requires_complete_authoritative_source_coverage() {
 #[test]
 fn reader_rejects_a_non_core_root_and_non_closed_availability_sum() {
     let fixture = fixture(CoreBuiltinNominal::Any);
-    let plan = ParamFreeShapeSupportPlanSetV1::from_core_sources(
+    let plan = ParamFreeShapeSupportPlanSetV1::from_sources(
         [&fixture.source],
         &fixture.foundation,
         &fixture.registrations,
@@ -257,7 +259,7 @@ fn builder_rejects_a_missing_strong_definition() {
         .id();
     let fixture = finish_fixture(fixture, Some(missing));
     assert!(matches!(
-        ParamFreeShapeSupportPlanSetV1::from_core_sources(
+        ParamFreeShapeSupportPlanSetV1::from_sources(
             [&fixture.source],
             &fixture.foundation,
             &fixture.registrations,
@@ -267,7 +269,7 @@ fn builder_rejects_a_missing_strong_definition() {
 }
 
 #[test]
-fn non_core_foundation_cannot_build_the_core_branch() {
+fn foreign_source_cannot_build_a_local_shape_plan() {
     let foundation =
         OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, CanonicalLirFoundation::empty())
             .unwrap();
@@ -286,13 +288,13 @@ fn non_core_foundation_cannot_build_the_core_branch() {
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
     assert!(matches!(
-        ParamFreeShapeSupportPlanSetV1::from_core_sources(
+        ParamFreeShapeSupportPlanSetV1::from_sources(
             [&CoreBuiltinNominal::Unit.declaration_key()],
             &foundation,
             &registrations,
         ),
-        Err(ParamFreeShapeSupportBuildError::ProducerNotCore(
-            ConeIdentity::SINGLE_FILE
+        Err(ParamFreeShapeSupportBuildError::ForeignSource(
+            ConeIdentity::CORE
         ))
     ));
 }
@@ -319,7 +321,10 @@ fn fixture(builtin: CoreBuiltinNominal) -> Fixture {
 }
 
 fn fixture_parts(builtin: CoreBuiltinNominal) -> FixtureParts {
-    let source = builtin.declaration_key();
+    source_fixture_parts(builtin.declaration_key())
+}
+
+fn source_fixture_parts(source: SourceDeclarationKey) -> FixtureParts {
     let source_nominal = PersistentTypeId::from_source_declaration(&source).unwrap();
     let owner = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source_nominal)).unwrap();
     let mut parts = FixtureParts {
@@ -333,7 +338,10 @@ fn fixture_parts(builtin: CoreBuiltinNominal) -> FixtureParts {
         symbols: Vec::new(),
     };
     add_exact_subject(&mut parts, source_nominal);
-    if builtin == CoreBuiltinNominal::Unit {
+    if matches!(
+        parts.source.declaration_kind(),
+        scoop_identity::SourceDeclarationKind::Struct | scoop_identity::SourceDeclarationKind::Enum
+    ) {
         let boxed = PersistentTypeId::from_generated_key(&GeneratedNominalKey::BoxedValue {
             payload: owner,
         })
@@ -397,7 +405,7 @@ fn add_definition(
     symbol: PersistentSymbolKey,
 ) {
     let plan = CborIdentityRecord::from_key(
-        ObjectDefinitionPlanKey::strong(ConeIdentity::CORE, entity, role).unwrap(),
+        ObjectDefinitionPlanKey::strong(parts.source.origin(), entity, role).unwrap(),
     )
     .unwrap();
     let atom = CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
@@ -436,7 +444,7 @@ fn finish_fixture(
     canonical.set_definition_plans(parts.plans).unwrap();
     canonical.set_definition_atoms(parts.atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(parts.symbols).unwrap());
-    let foundation = OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical).unwrap();
+    let foundation = OdrFreeLirFoundation::try_new(parts.source.origin(), canonical).unwrap();
     let mut nodes = foundation
         .definition_plans()
         .iter()
@@ -460,7 +468,7 @@ fn finish_fixture(
     let inputs = nodes.iter().map(DigestInputRefV1::from_node).collect();
     nodes.push(
         DigestNodeV1::new(
-            DigestNodeKey::runtime_image(ConeIdentity::CORE),
+            DigestNodeKey::runtime_image(parts.source.origin()),
             inputs,
             Vec::new(),
         )
@@ -481,7 +489,7 @@ fn source_graph(source: &SourceDeclarationKey) -> ValidatedIdentityGraph {
     let decoded: DecodedCborIdentityRecord<PersistentTypeId, DecodedSourceDeclarationKey> =
         decode_canonical(&encode(&record).unwrap(), DecodeLimits::default()).unwrap();
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(source.origin()).unwrap();
     pending.register(IdentityLayer::Hir, &decoded).unwrap();
     pending.resolve(&decoded).unwrap();
     pending.finish().unwrap()

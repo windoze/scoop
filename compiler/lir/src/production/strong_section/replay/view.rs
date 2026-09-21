@@ -67,8 +67,8 @@ impl ReplayedStrongProductionSectionV2 {
         self.section.entry_plan()
     }
 
-    pub fn core_shape_support(&self) -> &CoreShapeSupportPlanV1 {
-        self.section.core_shape_support()
+    pub fn shape_support_plan(&self) -> &ParamFreeShapeSupportPlanSetV1 {
+        self.section.shape_support_plan()
     }
 
     pub fn generated_bridge_plan(&self) -> &GeneratedBridgePlanSetV1 {

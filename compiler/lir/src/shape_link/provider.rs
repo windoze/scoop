@@ -50,7 +50,6 @@ impl<'a> ShapeLinkProviderV1<'a> {
         .into_iter()
         .any(|actual| actual != provider)
             || parts.production.core().core().is_some() != (provider == ConeIdentity::CORE)
-            || parts.production.core_shapes().core().is_some() != (provider == ConeIdentity::CORE)
         {
             return Err(ShapeLinkError::Provider);
         }

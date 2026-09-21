@@ -342,11 +342,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             scoop_lir::EntryProductionSourceV1::Library,
         )
         .unwrap();
-    let scoop_lir::CoreShapeSupportPlanV1::Core(production_shape_support) =
-        production.core_shape_support()
-    else {
-        panic!("trusted core production retains its core shape-support branch")
-    };
+    let production_shape_support = production.shape_support_plan();
     assert_eq!(
         production_shape_support.closures().len(),
         expected_shape_roots

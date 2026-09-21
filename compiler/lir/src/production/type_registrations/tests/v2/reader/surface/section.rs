@@ -98,7 +98,7 @@ fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
     );
     assert_eq!(replayed.image_plan(), original.image_plan());
     assert_eq!(replayed.entry_plan(), original.entry_plan());
-    assert_eq!(replayed.core_shape_support(), original.core_shape_support());
+    assert_eq!(replayed.shape_support_plan(), original.shape_support_plan());
     assert_eq!(
         replayed.generated_bridge_plan(),
         original.generated_bridge_plan()

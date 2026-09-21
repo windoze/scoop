@@ -107,18 +107,16 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .core()
             .expect("a validated trusted core artifact has a core LIR bridge");
         let string_exact = self.interface.string_capability().exact_type();
-        let shape_support = self
+        let shape_support_plan = self
             .compile()
             .production()
             .lir_strong()
-            .core_shape_support()
-            .core()
-            .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
-        let string_shape = shape_support
+            .shape_support_plan();
+        let string_shape = shape_support_plan
             .closures()
             .binary_search_by_key(&string_exact, |closure| closure.owner())
             .ok()
-            .map(|index| &shape_support.closures()[index])
+            .map(|index| &shape_support_plan.closures()[index])
             .ok_or(TrustedCoreLirSetProjectionError::MissingRuntimeStringShapeSupport)?;
         let string_descriptor = string_shape
             .roles()

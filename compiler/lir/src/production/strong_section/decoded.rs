@@ -16,7 +16,7 @@ pub struct DecodedStrongProductionSection<R> {
     pub(super) registration_production: R,
     pub(super) image_plan: DecodedConeImagePlanV1,
     pub(super) entry_plan: DecodedEntryProductionPlanV1,
-    pub(super) core_shape_support: DecodedCoreShapeSupportPlanV1,
+    pub(super) shape_support_plan: DecodedParamFreeShapeSupportPlanSetV1,
     pub(super) generated_bridge_plan: DecodedGeneratedBridgePlanSetV1,
     pub(super) core_lir_bridge: DecodedCoreLirBridgeBranchV1,
 }
@@ -49,7 +49,7 @@ impl<R: WireEncode> WireEncode for DecodedStrongProductionSection<R> {
         encoder.field(7)?;
         self.entry_plan.encode(encoder)?;
         encoder.field(8)?;
-        self.core_shape_support.encode(encoder)?;
+        self.shape_support_plan.encode(encoder)?;
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(10)?;
@@ -70,7 +70,7 @@ impl<R: WireDecode> WireDecode for DecodedStrongProductionSection<R> {
             registration_production: decoder.field(5, R::decode)?,
             image_plan: decoder.field(6, DecodedConeImagePlanV1::decode)?,
             entry_plan: decoder.field(7, DecodedEntryProductionPlanV1::decode)?,
-            core_shape_support: decoder.field(8, DecodedCoreShapeSupportPlanV1::decode)?,
+            shape_support_plan: decoder.field(8, DecodedParamFreeShapeSupportPlanSetV1::decode)?,
             generated_bridge_plan: decoder.field(9, DecodedGeneratedBridgePlanSetV1::decode)?,
             core_lir_bridge: decoder.field(10, DecodedCoreLirBridgeBranchV1::decode)?,
         })

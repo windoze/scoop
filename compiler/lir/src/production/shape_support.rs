@@ -14,9 +14,6 @@ mod validation;
 use validation::build_closure;
 pub use validation::{ParamFreeShapeSupportBuildError, ParamFreeShapeSupportValidationError};
 
-mod branch;
-pub use branch::*;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClosedShapeSupportReasonV1 {
     ReferenceNominalRequiresNoBox,
@@ -374,16 +371,11 @@ pub struct ParamFreeShapeSupportPlanSetV1 {
 }
 
 impl ParamFreeShapeSupportPlanSetV1 {
-    pub fn from_core_sources<'source>(
+    pub fn from_sources<'source>(
         sources: impl IntoIterator<Item = &'source SourceDeclarationKey>,
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
     ) -> Result<Self, ParamFreeShapeSupportBuildError> {
-        if foundation.producer() != scoop_identity::ConeIdentity::CORE {
-            return Err(ParamFreeShapeSupportBuildError::ProducerNotCore(
-                foundation.producer(),
-            ));
-        }
         let mut closures = sources
             .into_iter()
             .map(|source| build_closure(source, foundation, registrations))
@@ -657,7 +649,7 @@ impl DecodedParamFreeShapeSupportPlanSetV1 {
         for closure in &self.closures {
             closure
                 .root
-                .verify(scoop_identity::ConeIdentity::CORE)
+                .verify(foundation.producer())
                 .map_err(|_| ParamFreeShapeSupportValidationError::WrongRoot)?;
             let source = closure.roles.source_nominal()?;
             let key = identities
@@ -666,7 +658,7 @@ impl DecodedParamFreeShapeSupportPlanSetV1 {
             let _: std::sync::Arc<SourceDeclarationKey> = key;
         }
         let expected =
-            ParamFreeShapeSupportPlanSetV1::from_core_sources(sources, foundation, registrations)
+            ParamFreeShapeSupportPlanSetV1::from_sources(sources, foundation, registrations)
                 .map_err(ParamFreeShapeSupportValidationError::Expected)?;
         let expected_bytes =
             encode(&expected).map_err(ParamFreeShapeSupportValidationError::Encode)?;

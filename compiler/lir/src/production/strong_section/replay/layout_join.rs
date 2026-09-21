@@ -147,8 +147,8 @@ impl ValidatedStrongProductionSectionV2 {
         self.replayed.entry_plan()
     }
 
-    pub fn core_shape_support(&self) -> &crate::CoreShapeSupportPlanV1 {
-        self.replayed.core_shape_support()
+    pub fn shape_support_plan(&self) -> &crate::ParamFreeShapeSupportPlanSetV1 {
+        self.replayed.shape_support_plan()
     }
 
     pub fn generated_bridge_plan(&self) -> &crate::GeneratedBridgePlanSetV1 {

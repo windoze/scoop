@@ -652,7 +652,7 @@ output发布。调用方不能另传Cone、dependency、producer、output或core
 
 `CoreMirBridgeV1::Core`包含HIR callable candidate到实际存在的strong exact signature subject及
 implementation的typed bridge；没有strong body的extern或intrinsic不会被伪造成bridge。
-`CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`core_shape_support`字段唯一承载，不在callable bridge中复制第二份authority。
+`CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`shape_support_plan`字段唯一承载，不在callable bridge中复制第二份authority。
 
 这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。普通HIR
 把compiler protocol surface导入为`ImportedCoreProtocols`，core bootstrap则持有互斥的
@@ -734,7 +734,7 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   signature的第二构造路径。selected MIR target再以同样方式投影成绑定同一LIR
   foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
   相容的`ImportedCoreLirCallableId`。该LIR set还必须从同一artifact的String capability及
-  `core_shape_support`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
+  `shape_support_plan`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
   definition plan和唯一symbol request，String authority同时保留exact type、definition plan和唯一symbol request；
   普通Cone lowering据此只产生`TypeDescriptorRef::CoreExternal`及external definition requirement，不能本地复制String
   layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
@@ -757,12 +757,12 @@ M23-5把普通direct dependency surface接入同一resolver层级，M23-7开放g
 
 ### 7.6 param-free shape-support closure
 
-对core中每个可跨Cone引用的、type parameter count为0的source nominal exact subject，bootstrap在定义Cone预物化：
+M23-6 core普通library清理后，本节有限形状义务适用于实际定义provider提交的每个type parameter count为0的source nominal exact subject，所有provider共用production计划：
 
 ```text
 ParamFreeShapeSupportClosure {
     owner: PersistentExactTypeId,
-    root: ExactOwnerRoot::SourceCone(ConeIdentity::CORE),
+    root: ExactOwnerRoot::SourceCone(producer),
     roles: CompleteSet<ParamFreeShapeSupportRole>,
 }
 
@@ -786,9 +786,9 @@ ParamFreeShapeSupportRole =
 
 closure wire固定为`1=owner`、`2=root`、`3=roles`，并按`owner`严格递增。`SourceNominal`
 payload是source `PersistentTypeId`，reader必须从validated identity graph取回完整
-`SourceDeclarationKey`，证明origin为core、declaration kind为nominal、type parameter count为0，且
+`SourceDeclarationKey`，证明origin为实际producer、declaration kind为nominal、type parameter count为0，且
 `owner`严格等于`ExactTypeKey::Nominal(source)`的派生identity；不能信任wire中的category。
-reader还必须接收同一core public-surface proof给出的完整param-free exported source集合，以该集合重建
+reader还必须接收独立来源投影给出的完整param-free source需求集合，以该集合重建
 closures后逐byte比较；从wire自身枚举source再宣布“完整”不构成coverage proof。
 `ValueLayout`与`RefScan`分别携带semantic id、definition plan和`ConeStrong` symbol；layout固定为当前
 target的`ManagedValue` representation，scan固定为该layout的`InlineValue` role。
@@ -812,15 +812,13 @@ application；这些application按M23-2必须进入Nominal ODR group。helper自
 ODR member/definition proof可用后一次性加入这两个callable closure；M23-3 reader不解码旧的10-field
 roles product，也不提供可选占位、legacy tag或兼容分支。
 
-所有实际definition沿M23-2的`ExactOwnerRoot`回到core Cone并使用`ConeStrong`；每个definition plan
+所有实际definition沿M23-2的`ExactOwnerRoot`回到实际source Cone并使用`ConeStrong`；每个definition plan
 必须存在且有唯一primary atom，每个registration必须出现在`StrongRegistrationPlanSet`。因此
 body/layout/scan/TD/registration及其关联constant作为一个完整subject closure验证。任何role错误落到
 Nominal/Structural ODR root、缺definition/registration、或consumer准备重发Strong都失败。
 
 M23-3只把该闭包作为core authority下的窄external bridge；普通dependency没有通用layout查询API。M23-6新增required layout/ABI/scan capability后，将同一obligation推广到所有可跨Cone引用的param-free exported source nominal，并提供通用consumer proof。
-`core_shape_support`分支由foundation producer唯一决定：producer为core时必须是`Core`并完整覆盖上述
-authority source集合，其他producer必须是`NotCore`且调用方不得夹带source集合。reader不接受把空
-`Core`与`NotCore`互换，也不以artifact自报分支决定producer身份。
+M23-6清理删除了`shape_support_plan`的Core/NotCore分支；strong-production两版的field 8均直接编码计划数组，空需求编码空array。source、closure root与definition owner必须等于foundation的实际producer，reader重建完整需求并拒绝旧tagged sum；旧artifact必须重建。通用shape-link可选取这些形状定义，保留的初始化协议callable与普通窄callable仍分别校验既有分区。
 
 ## 8. strong-only production profile
 
@@ -1135,7 +1133,7 @@ StrongProductionSectionV1 {
     registration_production: StrongRegistrationProductionSurfaceV1,
     image_plan: ConeImagePlanV1,
     entry_plan: Library | Executable(ExecutableEntryPlan),
-    core_shape_support: NotCore | Core(ParamFreeShapeSupportPlanSet),
+    shape_support_plan: ParamFreeShapeSupportPlanSet,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
     core_lir_bridge: NotCore | Core(CanonicalVec<CoreLirCallableBridgeV1>),
 }
@@ -1432,7 +1430,7 @@ manifest field 8的精确类型是去除source/diagnostic provenance的
 | --- | --- |
 | `CoreBootstrapInterfaceSectionV1` | `1=core_interface`, `2=output_contract`, `3=direct_public_surface` |
 | `CoreBootstrapBridgeSectionV1` | `1=core_bridge`, `2=entry_bridge`, `3=strong_callable_bridges` |
-| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=core_shape_support`, `9=generated_bridge_plan`, `10=core_lir_bridge` |
+| `StrongProductionSectionV1` | `1=external_bridges`, `2=canonical_definitions`, `3=object_definition_plans`, `4=digest_finalization_plan`, `5=registration_production`, `6=image_plan`, `7=entry_plan`, `8=shape_support_plan`, `9=generated_bridge_plan`, `10=core_lir_bridge` |
 | `LinkIdentityClosureSectionV1` | `1=materializations`, `2=definition_indexes`, `3=patch_sites`, `4=defined_symbols`, `5=undefined_symbols`, `6=verified_link_objects`, `7=image_owner`, `8=entry_owner` |
 | `SingleConeProductionManifestV1` | `1=distribution`, `2=output`, `3=image_owner_member`, `4=runtime_registration_projection`, `5=strong_registration_set`, `6=runtime_image_fingerprint`, `7=code_fingerprint`, `8=native_contracts`, `9=native_library_requirements`, `10=c_bridge_production` |
 
