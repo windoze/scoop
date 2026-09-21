@@ -1,0 +1,99 @@
+  fun localCall @fn23(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun main @fn24() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @fn25 direct
+        Type String
+        Local $parameter.value
+      assign $result.0
+        Type String
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $call.2: String = @fn23 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $call.3: String = @fn26 direct
+        Type String
+        Local $parameter.value
+      assign $result.1
+        Type String
+        Local $call.3
+      goto bb6
+    bb5 if.else.5
+      assign $result.1
+        Type String
+        Local $parameter.seed
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: String
+        Type String
+        Local $result.1
+      call $call.4: String = @fn27 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      return
+  fun $local.0.copy @fn25(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.1.copy @fn26(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun localCallGeneric @fn27(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  instance mi0 function=@fn26 <- $local.1.copy
+  instance mi1 function=@fn27 <- localCallGeneric

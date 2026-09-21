@@ -171,6 +171,7 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         let function = self.lowerer.local_functions[id].clone();
+        self.local_declarations.insert(function.function);
         self.capture_shapes(&function.captures);
         self.function_type_reference(function.function_type, origin);
         self.record_callable(hir::ExportDefaultCallableTarget::LocalFunction(id), origin);

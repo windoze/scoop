@@ -4,4 +4,13 @@ public class NestedIndexHost {
         val callback: () -> String = { seed }
         callback()
     } else { seed })::indexCopy): () -> String = value
+    internal fun local(seed: String, value: () -> String = if (true) {
+        fun copy(): String { return seed }
+        val result = copy()
+        val callback: () -> String = { result }
+        callback
+    } else {
+        val fallback: () -> String = { seed }
+        fallback
+    }): () -> String = value
 }

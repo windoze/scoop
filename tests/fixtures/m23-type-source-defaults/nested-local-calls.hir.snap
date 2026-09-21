@@ -1,0 +1,54 @@
+  fun localCall(seed: String, value: String): String
+    return
+      Local value : String
+  fun localCallGeneric<T>(seed: T0, value: T0): T0
+    return
+      Local value : T0
+  fun main(): Unit
+    val local0
+      StringLiteral "value" : String
+    val local1
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local0 body=$local.0.copy captures=0
+      val local2
+        Local $parameter.seed : String
+      val local3
+        Local $argument.0 : String
+      assign $result.0
+        LocalFunctionCall local0 $local.0.copy captures=0 : String
+          Local $parameter.value : String
+    else
+      assign $result.0
+        Local $parameter.seed : String
+    val local5
+      Local $result.0 : String
+    Call localCall : String
+      Local $parameter.seed : String
+      Local $parameter.value : String
+    val local6
+      StringLiteral "generic" : String
+    val local7
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local1 body=$local.1.copy captures=0
+      val local8
+        Local $parameter.seed : String
+      val local9
+        Local $argument.0 : String
+      assign $result.1
+        LocalFunctionCall local1 $local.1.copy<String> captures=0 : String
+          Local $parameter.value : String
+    else
+      assign $result.1
+        Local $parameter.seed : String
+    val local11
+      Local $result.1 : String
+    Call localCallGeneric<String> : String
+      Local $parameter.seed : String
+      Local $parameter.value : String
+  instance $local.1.copy<T0>
+  instance $local.1.copy<String>
+  instance localCallGeneric<String>

@@ -1,0 +1,8 @@
+private fun copy(): String = "outer"
+public fun sameNameDefault(value: String = if (true) {
+    if (true) {
+        fun copy(): String { return "local" }
+        copy()
+    }
+    copy()
+} else { "fallback" }): String = value

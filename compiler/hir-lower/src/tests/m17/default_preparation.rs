@@ -2,6 +2,7 @@ use super::super::*;
 
 mod errors;
 mod files;
+mod local_calls;
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

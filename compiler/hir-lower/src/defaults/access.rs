@@ -1,4 +1,5 @@
 use scoop_hir as hir;
+use std::collections::HashSet;
 
 use crate::Lowerer;
 
@@ -13,6 +14,7 @@ struct ReferenceCollector<'a> {
     owner: hir::ExportParameterOwner,
     call_domain: hir::CallDomain,
     fallback_origin: hir::DefinitionOrigin,
+    local_declarations: HashSet<hir::FunctionId>,
 }
 
 impl Lowerer {
@@ -28,6 +30,7 @@ impl Lowerer {
             owner,
             call_domain,
             fallback_origin: template.origin,
+            local_declarations: HashSet::new(),
         };
         for local in template.locals.values() {
             let origin = match local.definition {
@@ -76,8 +79,13 @@ impl ReferenceCollector<'_> {
     }
 
     fn callable_domain(&self, callable: hir::Callable) -> hir::AccessDomain {
-        self.lowerer
-            .function_access_domain(self.lowerer.callable_function_id(callable))
+        let function = self.lowerer.callable_function_id(callable);
+        if self.local_declarations.contains(&function) {
+            // This definition is carried by the default body itself.
+            hir::AccessDomain::universal()
+        } else {
+            self.lowerer.function_access_domain(function)
+        }
     }
 
     fn method_callee_domain(&self, callee: hir::MethodCallee) -> hir::AccessDomain {

@@ -54,11 +54,18 @@ fn bound_source_nested_index_preserves_descriptor_preorder_and_lowered_receivers
                     }
                 }
                 let expected: &[(&str, u32, &[Kind])] = if source == SOURCE {
-                    &[(
-                        "NestedIndexHost.bound",
-                        1,
-                        &[Kind::Lambda, Kind::CallableReference],
-                    )]
+                    &[
+                        (
+                            "NestedIndexHost.bound",
+                            1,
+                            &[Kind::Lambda, Kind::CallableReference],
+                        ),
+                        (
+                            "NestedIndexHost.local",
+                            1,
+                            &[Kind::LocalFunction, Kind::Lambda, Kind::Lambda],
+                        ),
+                    ]
                 } else {
                     &[
                         ("NestedIdentityHost.lambda", 1, &[Kind::Lambda]),

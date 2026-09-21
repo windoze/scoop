@@ -1487,6 +1487,7 @@ GenericFunction，并由其source declaration key重放local path；三个lexica
 persistent key必须分别具有`LambdaBody`、`AnonymousFunctionBody`或`CallableReferenceInvoke`的精确
 root/path/role。`DerivedEquality`在winner替换前没有exact generated callable identity，所以保留
 provider-scope的`owner_type`并由type authority重放；不能为它伪造一个persistent callable id。
+`LocalFunctionCall`同时保留local declaration与applied callee引用。来源收集器按typed function identity记录当前default正文实际出现的local声明；对应callee沿该声明的可用性处理，不再次要求调用方lookup其词法private名字。普通callee、未在该正文声明的local function及其外部依赖仍使用原有访问域规则。reader的nested declaration/use闭包和operation typing继续核对该local declaration与callee的对应关系，不能把任意lexical key视为Universal。
 constructor、field与type target保留完整applied/structural ref，因此同一declaration的不同
 provider-scope application不会被错误合并。tuple field是合法的structural `DefaultFieldRefV1`，不为它
 制造persistent field id。
