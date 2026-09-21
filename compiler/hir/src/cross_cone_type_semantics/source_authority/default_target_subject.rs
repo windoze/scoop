@@ -3,11 +3,13 @@ use super::binding_keys;
 use crate::*;
 use scoop_identity::{DefinitionOriginSubject as Subject, *};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
+mod applied_fields;
 mod constructors;
 mod errors;
 mod fields;
 mod keys;
 mod owners;
+pub use applied_fields::DefaultSourceFieldAccessSubjectV1;
 pub use errors::DefaultSourceTargetSubjectError;
 type Error = DefaultSourceTargetSubjectError;
 
@@ -39,7 +41,9 @@ impl BoundTypeFoundationSourcesV1<'_> {
         query.meter.charge_nodes(1, &query.path)?;
         let canonical = self.foundation.as_canonical();
         match target {
-            Target::StructField(id) | Target::ClassField(id) => query.field(target, id),
+            Target::StructField(id) | Target::ClassField(id) => {
+                query.field(target, id).map(|(subject, _)| subject)
+            }
             Target::EnumVariant(id) => {
                 let key = query.key(canonical.type_source_enum_variant_records(), id, || {
                     Error::MissingTarget(target)

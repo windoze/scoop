@@ -5,14 +5,15 @@ impl Query<'_, '_, '_> {
         &mut self,
         target: Target,
         id: PersistentFieldId,
-    ) -> Result<Subject, Error> {
+    ) -> Result<(Subject, SourceNominalId), Error> {
+        self.meter.charge_edges(1, &self.path)?;
         let canonical = self.foundation.foundation.as_canonical();
         let key = self.key(canonical.type_source_field_records(), id, || {
             Error::MissingTarget(target)
         })?;
         let (owner, property) = match (target, key.view()) {
             (Target::StructField(_), FieldIdentityView::SourceDeclared { owner, .. }) => {
-                return self.nominal(owner, SourceDeclarationKind::Struct);
+                return Ok((self.nominal(owner, SourceDeclarationKind::Struct)?, owner));
             }
             (
                 Target::ClassField(_),
@@ -48,6 +49,6 @@ impl Query<'_, '_, '_> {
                 property,
             });
         }
-        Ok(subject)
+        Ok((subject, owner))
     }
 }

@@ -13,14 +13,15 @@ impl<'f> Query<'_, 'f, '_> {
     {
         self.meter
             .check_table_entries(records.len() as u64, &self.path)?;
-        self.meter.charge_work(
-            (u64::from(records.len().max(1).ilog2()) + 1) * 65,
-            &self.path,
-        )?;
-        let index = records
-            .binary_search_by_key(&id, CborIdentityRecord::id)
-            .map_err(|_| missing())?;
-        let key = records[index].key();
+        // Foundation records may be dependency-first rather than ID-sorted.
+        // Charge the complete scan without copying or reordering the artifact.
+        self.meter
+            .charge_work((records.len() as u64).saturating_mul(65), &self.path)?;
+        let record = records
+            .iter()
+            .find(|record| record.id() == id)
+            .ok_or_else(missing)?;
+        let key = record.key();
         binding_keys::verify(id, key, self.foundation.identities, self.meter, &self.path)?;
         Ok(key)
     }

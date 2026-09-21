@@ -1,0 +1,12 @@
+internal open class Envelope<T> {
+    protected struct Packet<U>(val value: U)
+    protected class Cell<U>(private var stored: U) {
+        private fun read(value: U = this.stored): U = value
+    }
+    internal object Cache {
+        private var stored: Int = 3
+        private fun read(value: Int = this.stored): Int = value
+    }
+    private fun <U> packet(seed: U, value: U = Packet<U>(seed).value): U = value
+    private fun <U> tuple(source: (U, Int), value: U = source._1): U = value
+}

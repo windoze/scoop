@@ -26,7 +26,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.choice", 1),
     ("Envelope.nested", 0),
 ];
-fn reference(
+pub(super) fn reference(
     output: &hir::OrdinaryHirOutput<'_>,
     name: &str,
     position: u32,

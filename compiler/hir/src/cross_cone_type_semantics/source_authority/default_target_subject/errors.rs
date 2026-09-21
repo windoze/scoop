@@ -68,7 +68,7 @@ impl std::fmt::Display for Error {
             }
             Self::AppliedOwner(owner) => write!(
                 f,
-                "default constructor owner type differs from source owner {owner:?}"
+                "default target owner type differs from source owner {owner:?}"
             ),
             Self::AppliedOwnerArity {
                 owner,
@@ -76,7 +76,7 @@ impl std::fmt::Display for Error {
                 actual,
             } => write!(
                 f,
-                "default constructor owner {owner:?} requires {expected} type arguments, got {actual}"
+                "default target owner {owner:?} requires {expected} type arguments, got {actual}"
             ),
             Self::MissingDeclaration(id) => {
                 write!(f, "artifact has no indirect access declaration {id:?}")
