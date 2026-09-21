@@ -61,9 +61,7 @@ pub(super) fn validate_section_relations(
     selected: &[SelectedDependencyLirCallableV1],
 ) -> Result<(), CrossConeLirBridgeRelationError> {
     let producer = foundation.producer();
-    if producer == ConeIdentity::CORE && !exports.is_empty() {
-        return Err(CrossConeLirBridgeRelationError::CoreExportsOrdinaryDependencyCallable);
-    }
+
     let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
         .map_err(CrossConeLirBridgeRelationError::DefinitionSurface)?;
     for (index, export) in exports.iter().enumerate() {

@@ -136,7 +136,14 @@ pub enum CoreBootstrapHirStageError {
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
     MissingCoreInterface,
     CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
-    CrossConeSection(scoop_hir::CoreCrossConeHirInterfaceProductionError),
+    SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
+    CrossConeSection(
+        Box<
+            scoop_hir::CrossConeHirInterfaceProductionError<
+                scoop_hir::CrossConeHirProductionAuthorityError,
+            >,
+        >,
+    ),
 }
 
 impl fmt::Display for CoreBootstrapHirStageError {
@@ -155,6 +162,7 @@ impl fmt::Display for CoreBootstrapHirStageError {
             }
             Self::CoreClassifier(source) => source.fmt(formatter),
             Self::CrossConeSection(source) => source.fmt(formatter),
+            Self::SemanticWorld(source) => source.fmt(formatter),
         }
     }
 }
@@ -168,7 +176,8 @@ impl std::error::Error for CoreBootstrapHirStageError {
             Self::ProductionSection(source) => Some(source),
             Self::MissingCoreInterface => None,
             Self::CoreClassifier(source) => Some(source),
-            Self::CrossConeSection(source) => Some(source),
+            Self::CrossConeSection(source) => Some(source.as_ref()),
+            Self::SemanticWorld(source) => Some(source),
         }
     }
 }

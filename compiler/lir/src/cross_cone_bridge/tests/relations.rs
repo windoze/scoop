@@ -106,17 +106,11 @@ fn selected_callable_cannot_name_current_or_trusted_core() {
 }
 
 #[test]
-fn trusted_core_uses_only_its_dedicated_bridge() {
-    let fixture = Fixture::new("notCoreExport");
-
-    assert!(matches!(
-        CrossConeLirBridgeSectionV1::try_new(
-            &empty_foundation(ConeIdentity::CORE),
-            vec![fixture.export()],
-            Vec::new(),
-        ),
-        Err(CrossConeLirBridgeBuildError::Relation(
-            CrossConeLirBridgeRelationError::CoreExportsOrdinaryDependencyCallable
-        ))
-    ));
+fn core_exports_use_the_common_strong_implementation_contract() {
+    let fixture = Fixture::for_producer(ConeIdentity::CORE, "coreExport");
+    let export = fixture.export();
+    let section =
+        CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, vec![export.clone()], Vec::new())
+            .unwrap();
+    assert_eq!(section.exports(), &[export]);
 }

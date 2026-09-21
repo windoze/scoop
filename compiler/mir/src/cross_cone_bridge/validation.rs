@@ -36,9 +36,6 @@ pub(super) fn validate_section_relations(
     exports: &[ParamFreeMirCallableExportV1],
     selected: &[SelectedDependencyMirCallableV1],
 ) -> Result<(), CrossConeMirBridgeRelationError> {
-    if artifact == ConeIdentity::CORE && !exports.is_empty() {
-        return Err(CrossConeMirBridgeRelationError::CoreExportsOrdinaryDependencyCallable);
-    }
     for (index, export) in exports.iter().enumerate() {
         let subject = CallableSignatureSubject::Strong(export.implementation.callable_owner());
         let Some(expected) = foundation

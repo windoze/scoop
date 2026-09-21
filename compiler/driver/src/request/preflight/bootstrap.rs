@@ -93,7 +93,7 @@ impl TrustedCoreBootstrapHirOutput {
             .map_err(CoreBootstrapHirStageError::Sources)?;
         let hir = scoop_hir_lower::lower_core_bootstrap(&sources)
             .map_err(CoreBootstrapHirStageError::Lowering)?;
-        let foundation = scoop_hir::CanonicalHirFoundation::from_modules(
+        let mut foundation = scoop_hir::CanonicalHirFoundation::from_modules(
             &hir.export,
             &hir.local,
             &hir.native_boundary_types,
@@ -111,9 +111,32 @@ impl TrustedCoreBootstrapHirOutput {
                 return Err(CoreBootstrapHirStageError::MissingCoreInterface);
             }
         };
-        let cross_cone_section =
-            scoop_hir::CrossConeHirInterfaceSectionV1::from_core_export(hir.export.module())
-                .map_err(CoreBootstrapHirStageError::CrossConeSection)?;
+        let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
+            hir.export.cone,
+            None,
+            Vec::new(),
+            Vec::new(),
+        )
+        .map_err(CoreBootstrapHirStageError::SemanticWorld)?;
+        let cross_cone_section = {
+            let mut authority = scoop_hir::CrossConeHirProductionAuthority::new(
+                &foundation,
+                &hir.export.public_export_bindings,
+                &world,
+            );
+            scoop_hir::CrossConeHirInterfaceSectionV1::from_export_hir(
+                hir.export.module(),
+                &[],
+                &mut authority,
+            )
+            .map_err(|source| CoreBootstrapHirStageError::CrossConeSection(Box::new(source)))?
+        };
+        foundation
+            .complete_cross_cone_source_points(
+                hir.export.module(),
+                cross_cone_section.definition_sources(),
+            )
+            .map_err(CoreBootstrapHirStageError::Foundation)?;
         Ok(TrustedCoreBootstrapHirOutput {
             hir,
             foundation,

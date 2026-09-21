@@ -126,22 +126,28 @@ fn lowering_rejects_a_selection_owned_by_another_consumer() {
 }
 
 #[test]
-fn trusted_core_never_publishes_ordinary_dependency_exports() {
-    let foundation = OdrFreeMirFoundation::try_new(CanonicalMirFoundation::empty()).unwrap();
+fn core_publishes_the_same_eligible_callable_exports_as_other_libraries() {
+    let declaration = source_function(ConeIdentity::CORE, "coreCallable");
+    let signature = unit_signature();
+    let classifier = FixtureClassifier {
+        classified: vec![classified(declaration, signature.clone())],
+        failure: None,
+    };
+    let foundation = foundation(declaration, signature);
     let selected = SelectedDependencyMirSet::empty(ConeIdentity::CORE);
     let bridge = lower_cross_cone_bridge_with_classifier(
         ConeIdentity::CORE,
-        &[callable(source_function(
-            ConeIdentity::CORE,
-            "coreCallable",
-        ))],
-        &PanicClassifier,
+        &[callable(declaration)],
+        &classifier,
         &foundation,
         &selected,
     )
     .unwrap();
-
-    assert!(bridge.exports().is_empty());
+    assert_eq!(bridge.exports().len(), 1);
+    assert_eq!(
+        bridge.exports()[0].declaration(),
+        DependencyCallableDeclarationId::Function(declaration)
+    );
     assert!(bridge.selected().is_empty());
 }
 
@@ -200,17 +206,6 @@ impl CoreClosedCallableClassifier for FixtureClassifier {
                     == DependencyCallableDeclarationId::Function(function(callable))
             })
             .cloned())
-    }
-}
-
-struct PanicClassifier;
-
-impl CoreClosedCallableClassifier for PanicClassifier {
-    fn classify_callable(
-        &self,
-        _callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, scoop_hir::CoreClosedCallableClassificationError> {
-        panic!("trusted core export derivation must not invoke the ordinary classifier")
     }
 }
 

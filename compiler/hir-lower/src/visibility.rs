@@ -13,12 +13,7 @@ pub(crate) enum MemberSlotAccess {
 
 impl Lowerer {
     fn declaration_is_exported(access: &hir::DeclarationAccess) -> bool {
-        access.declared == hir::DeclaredVisibility::Public
-            && (access.lookup.0.is_universal()
-                || access
-                    .slot
-                    .as_ref()
-                    .is_some_and(|slot| slot.0.is_universal()))
+        access.declared == hir::DeclaredVisibility::Public && access.lookup.0.is_universal()
     }
 
     fn nominal_is_exported(access: &hir::NominalAccess) -> bool {

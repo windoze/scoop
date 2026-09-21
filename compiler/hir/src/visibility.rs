@@ -92,7 +92,9 @@ impl AccessDomain {
 /// Authoritative cross-Cone declaration surface. The enclosing Export HIR
 /// retains the complete current-Cone graph for concretization, but consumers
 /// may discover source declarations only through these explicitly public
-/// identities. M23 serializes this surface and its typed dependency closure.
+/// identities with universal lookup domains. Implementations reachable only
+/// through inherited public slots remain in the complete graph, not here.
+/// M23 serializes this surface and its typed dependency closure.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PublicSemanticSurface {
     pub functions: Vec<FunctionId>,

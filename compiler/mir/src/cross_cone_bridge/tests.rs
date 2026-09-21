@@ -82,21 +82,22 @@ fn callable_records_reject_mismatched_implementation_and_suspend() {
 }
 
 #[test]
-fn bridge_rejects_core_exports_and_core_or_current_selections() {
-    let fixture = fixture();
+fn core_exports_use_the_common_strong_implementation_contract() {
+    let fixture = fixture_for(ConeIdentity::CORE);
     let export = fixture.export();
-    assert_eq!(
-        CrossConeMirBridgeSectionV1::try_new(
-            ConeIdentity::CORE,
-            &fixture.foundation,
-            vec![export],
-            Vec::new(),
-        ),
-        Err(CrossConeMirBridgeBuildError::Relation(
-            CrossConeMirBridgeRelationError::CoreExportsOrdinaryDependencyCallable,
-        ))
-    );
+    let section = CrossConeMirBridgeSectionV1::try_new(
+        fixture.artifact,
+        &fixture.foundation,
+        vec![export.clone()],
+        Vec::new(),
+    )
+    .unwrap();
+    assert_eq!(section.exports(), &[export]);
+}
 
+#[test]
+fn bridge_rejects_core_or_current_selections() {
+    let fixture = fixture();
     for (provider, expected) in [
         (
             fixture.artifact,
@@ -347,7 +348,10 @@ impl Fixture {
 }
 
 fn fixture() -> Fixture {
-    let artifact = cone("consumer");
+    fixture_for(cone("consumer"))
+}
+
+fn fixture_for(artifact: ConeIdentity) -> Fixture {
     let provider = cone("provider");
     let local_function = CborIdentityRecord::from_key(source_function(artifact, "local")).unwrap();
     let foreign_function =

@@ -1,6 +1,8 @@
 use super::*;
 use crate::{HostArtifactLocator, normalize_direct_build_request};
 
+mod metadata;
+
 const EXTENSION: &str =
     include_str!("../../../../../../tests/fixtures/core-library/extension.scoop");
 const CONSUMER: &str = include_str!("../../../../../../tests/fixtures/core-library/consumer.scoop");
@@ -15,6 +17,11 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let source = workspace.path().join("edited-library");
     std::fs::rename(workspace.path().join("lib/scoop.core"), &source).unwrap();
     std::fs::write(source.join("src/user_extension.scoop"), EXTENSION).unwrap();
+    std::fs::write(
+        source.join("src/user_metadata.scoop"),
+        include_str!("../../../../../../tests/fixtures/core-library/metadata.scoop"),
+    )
+    .unwrap();
     let artifact = workspace.path().join("user-library.slib");
     let first = build_core(&source, &artifact);
     let first_dependency = first.artifact().validation().dependency_record();
@@ -109,6 +116,7 @@ fn assert_core_views_share_the_dependency_closure(
     let member = closure
         .share_artifact(scoop_identity::ConeIdentity::CORE)
         .unwrap();
+    metadata::assert_ordinary_interfaces(member.compile().production());
     assert!(std::ptr::eq(trusted_core.compile(), member.compile()));
     assert!(std::ptr::eq(
         trusted_core.defined_symbols(),

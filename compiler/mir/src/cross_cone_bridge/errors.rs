@@ -108,7 +108,6 @@ impl std::error::Error for SelectedDependencyMirCallableResolutionError {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CrossConeMirBridgeRelationError {
-    CoreExportsOrdinaryDependencyCallable,
     MissingExportImplementation {
         index: usize,
         implementation: StrongCallableDefinitionOwner,
@@ -129,9 +128,6 @@ pub enum CrossConeMirBridgeRelationError {
 impl fmt::Display for CrossConeMirBridgeRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CoreExportsOrdinaryDependencyCallable => formatter.write_str(
-                "trusted core must use its dedicated bridge and cannot export ordinary dependency callables",
-            ),
             Self::MissingExportImplementation {
                 index,
                 implementation,

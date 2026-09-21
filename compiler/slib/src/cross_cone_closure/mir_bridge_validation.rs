@@ -124,7 +124,7 @@ impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
             })?);
         }
 
-        if current != ConeIdentity::CORE {
+        if !validated.is_empty() {
             let core_position = positions
                 .get(&ConeIdentity::CORE)
                 .copied()

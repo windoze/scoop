@@ -29,7 +29,10 @@ struct Fixture {
 impl Fixture {
     fn new(name: &str) -> Self {
         let coordinate = ConeCoordinate::new("test", "lir-bridge-provider", "1.0.0").unwrap();
-        let producer = coordinate.identity().unwrap();
+        Self::for_producer(coordinate.identity().unwrap(), name)
+    }
+
+    fn for_producer(producer: ConeIdentity, name: &str) -> Self {
         let function = function(producer, name);
         let declaration = DependencyCallableDeclarationId::Function(function);
         let target = StrongCallableDefinitionOwner::Function(function);

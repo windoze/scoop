@@ -5,7 +5,7 @@ use scoop_hir::{
     CoreClosedExactLeafClassifierBuildError, CoreClosedExactLeafClassifierV1,
     CoreHirInterfaceBranchV1,
 };
-use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature};
+use scoop_identity::{DependencyCallableDeclarationId, ExactCallableSignature};
 use scoop_mir::{
     CrossConeMirBridgeSectionV1, ParamFreeMirCallableExportV1, StrongCallableBridgeSurfaceV1,
 };
@@ -65,7 +65,6 @@ pub(super) fn validate_export_surface(
     classifier: &CoreClosedExactLeafClassifierV1,
 ) -> Result<(), CrossConeMirClosureRelationError> {
     validate_export_relation(
-        front.identity(),
         front.hir_interface().callable_interfaces().records(),
         front.mir_core_production().strong_callable_bridges(),
         front.mir_cross_cone_bridge(),
@@ -74,7 +73,6 @@ pub(super) fn validate_export_surface(
 }
 
 fn validate_export_relation<C>(
-    artifact: ConeIdentity,
     callable_records: &[CallableInterfaceRecordV1],
     strong_bridges: &StrongCallableBridgeSurfaceV1,
     dependency_bridge: &CrossConeMirBridgeSectionV1,
@@ -83,10 +81,6 @@ fn validate_export_relation<C>(
 where
     C: CoreClosedCallableClassifier,
 {
-    if artifact == ConeIdentity::CORE {
-        return Ok(());
-    }
-
     let mut expected = Vec::new();
     expected
         .try_reserve_exact(callable_records.len())

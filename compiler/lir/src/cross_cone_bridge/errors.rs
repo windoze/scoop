@@ -153,7 +153,6 @@ impl std::error::Error for SelectedDependencyLirCallableResolutionError {
 
 #[derive(Debug)]
 pub enum CrossConeLirBridgeRelationError {
-    CoreExportsOrdinaryDependencyCallable,
     DefinitionSurface(StrongObjectSymbolSurfaceBuildError),
     Contract(ParamFreeLirCallableContractError),
     ExportContractMismatch {

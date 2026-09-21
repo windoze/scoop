@@ -26,14 +26,32 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         output.production_section().core_interface(),
         scoop_hir::CoreHirInterfaceBranchV1::Core(_)
     ));
-    assert_eq!(
-        output.foundation(),
-        &scoop_hir::CanonicalHirFoundation::from_modules(
-            &output.hir().export,
-            &output.hir().local,
-            &output.hir().native_boundary_types,
+    let mut expected_foundation = scoop_hir::CanonicalHirFoundation::from_modules(
+        &output.hir().export,
+        &output.hir().local,
+        &output.hir().native_boundary_types,
+    )
+    .unwrap();
+    expected_foundation
+        .complete_cross_cone_source_points(
+            output.hir().export.module(),
+            output.cross_cone_section().definition_sources(),
         )
-        .unwrap()
+        .unwrap();
+    assert!(output.foundation() == &expected_foundation);
+    assert!(
+        !output
+            .cross_cone_section()
+            .nominal_interfaces()
+            .records()
+            .is_empty()
+    );
+    assert!(
+        !output
+            .cross_cone_section()
+            .callable_interfaces()
+            .records()
+            .is_empty()
     );
     let production_bytes = scoop_wire::encode(output.production_section()).unwrap();
     let decoded =

@@ -59,7 +59,7 @@ where
     }
 
     let strong = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
-    let exports = derive_exports(artifact, callable_records, &strong, classifier)?;
+    let exports = derive_exports(callable_records, &strong, classifier)?;
     let selected = clone_selected(selected)?;
     CrossConeMirBridgeSectionV1::try_new(artifact, foundation, exports, selected)
         .map_err(CrossConeMirBridgeLoweringError::Bridge)
@@ -110,7 +110,6 @@ struct ClassifiedCallable {
 }
 
 fn derive_exports<C>(
-    artifact: ConeIdentity,
     callable_records: &[CallableInterfaceRecordV1],
     strong: &StrongCallableBridgeSurfaceV1,
     classifier: &C,
@@ -118,10 +117,6 @@ fn derive_exports<C>(
 where
     C: CoreClosedCallableClassifier,
 {
-    if artifact == ConeIdentity::CORE {
-        return Ok(Vec::new());
-    }
-
     let mut exports = Vec::new();
     exports
         .try_reserve_exact(callable_records.len())

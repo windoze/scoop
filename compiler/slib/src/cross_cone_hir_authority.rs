@@ -16,11 +16,10 @@ pub use definition_source::*;
 pub use errors::*;
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1, CoreTypeDefinitionV1,
-    CrossConeHirInterfaceSectionV1, ExportBindingSourceV1, NominalInterfaceSemanticAuthority,
-    NominalInterfaceShapeAuthority, NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation,
-    PublicDeclarationOwnerV1, PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1,
-    SourceNominalId,
+    CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
+    NominalInterfaceSemanticAuthority, NominalInterfaceShapeAuthority,
+    NominalSourceShapeSemanticAuthority, OdrFreeHirFoundation, PublicDeclarationOwnerV1,
+    PublicMemberRefV1, PublicNominalKindV1, PublicNominalShapeV1, SourceNominalId,
 };
 use scoop_identity::{
     BindableEntity, CallableTemplateOrigin, ConeIdentity, DefinitionOwnerAtom, EnumVariantFieldKey,
@@ -147,30 +146,19 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
                 }
             })?;
         let expected_arity = key.duplicate_signature().type_parameter_count();
-        if origin == ConeIdentity::CORE {
-            let core = self
-                .trusted_core()
-                .ok_or(CrossConeHirNominalAuthorityError::MissingTrustedCore)?;
-            let CoreHirInterfaceBranchV1::Core(core) = core.core_interface() else {
-                return Err(CrossConeHirNominalAuthorityError::InvalidTrustedCore);
-            };
-            let definition = match declaration {
-                SourceNominalId::Concrete(id) => CoreTypeDefinitionV1::Type(id),
-                SourceNominalId::GenericTemplate(id) => CoreTypeDefinitionV1::GenericType(id),
-            };
-            if !core
-                .type_targets()
-                .targets()
-                .iter()
-                .any(|target| target.definition() == definition)
-            {
-                return Err(
-                    CrossConeHirNominalAuthorityError::MissingCoreNominalAuthority { declaration },
-                );
-            }
+        let interface = self.provider_interface(origin)?;
+        // Unit and Any are intrinsic language types without source declaration
+        // arena entries. All source-defined nominals use the provider table.
+        if let SourceNominalId::Concrete(id) = declaration
+            && [
+                scoop_identity::CoreBuiltinNominal::Unit,
+                scoop_identity::CoreBuiltinNominal::Any,
+            ]
+            .iter()
+            .any(|builtin| builtin.identity_record().id() == id)
+        {
             return Ok(PublicNominalShapeV1::new(expected_kind, expected_arity));
         }
-        let interface = self.provider_interface(origin)?;
         let record = interface.nominal_interfaces().get(declaration).ok_or(
             CrossConeHirNominalAuthorityError::MissingNominalInterface {
                 origin,

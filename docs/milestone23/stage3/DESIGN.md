@@ -674,6 +674,8 @@ artifact时，从共有closure取得带完整Compile、Link和publication访问�
 也不另外构造core closure。core和其他依赖的缺失、重复、kind、source form、ABI与闭包错误使用同一检查和诊断。
 后续专用协议投影合并由core普通library工作项跟踪。
 
+core普通library清理后，general HIR section按实际Export HIR完整投影，删除只复制binding而清空声明表的factory。core普通callable的general MIR/LIR bridge与其他library使用同一资格、实现和ABI关系；reader不按core identity跳过export关系校验。
+
 ### 7.5 M23-3 resolver边界
 
 HIR只从`ValidatedCoreInterface`构造：

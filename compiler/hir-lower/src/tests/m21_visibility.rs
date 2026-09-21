@@ -323,8 +323,7 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
         Vec::new(),
         vec![override_method],
     );
-    let module = lower_user(file(vec![base, derived, fun("main", Vec::new())]))
-        .expect("an internal class may explicitly implement a public slot");
+    let module = lower_core_with_additional_declarations(vec![base, derived]);
     let (derived_method, function) = module
         .functions
         .iter()
@@ -339,7 +338,20 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
             .is_some_and(|slot| slot.0.is_universal())
     );
     assert_eq!(function.override_access.len(), 1);
-    assert!(module.public_surface.functions.contains(&derived_method));
+    assert!(!module.public_surface.functions.contains(&derived_method));
+    let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
+    let hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(identity)) =
+        &module.function_identities[derived_method]
+    else {
+        panic!("the override has a source function identity")
+    };
+    assert!(
+        callables
+            .get(scoop_identity::CallableTemplateOrigin::Function(
+                identity.id()
+            ))
+            .is_none()
+    );
 }
 
 #[test]

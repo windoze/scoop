@@ -73,8 +73,7 @@ pub struct CrossConeHirInterfaceSectionV1 {
 }
 
 impl CrossConeHirInterfaceSectionV1 {
-    /// The structurally complete general interface used by trusted core,
-    /// which exports only through its dedicated core branch.
+    /// An interface containing no exported declarations.
     pub fn empty() -> Self {
         Self::default()
     }

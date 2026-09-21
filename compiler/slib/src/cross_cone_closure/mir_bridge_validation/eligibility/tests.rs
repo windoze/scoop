@@ -33,7 +33,6 @@ fn eligible_callable_is_required_in_the_maximal_export_set() {
     .unwrap();
     assert_eq!(
         validate_export_relation(
-            fixture.artifact,
             std::slice::from_ref(&fixture.callable),
             &fixture.strong,
             &empty,
@@ -62,13 +61,7 @@ fn bridge_cannot_export_a_callable_absent_from_the_public_hir_surface() {
     )
     .unwrap();
     assert_eq!(
-        validate_export_relation(
-            fixture.artifact,
-            &[],
-            &fixture.strong,
-            &bridge,
-            &fixture.classifier,
-        ),
+        validate_export_relation(&[], &fixture.strong, &bridge, &fixture.classifier,),
         Err(CrossConeMirClosureRelationError::UnexpectedExport {
             declaration: fixture.declaration,
         })
