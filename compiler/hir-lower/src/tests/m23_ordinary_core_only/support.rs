@@ -17,6 +17,7 @@ use crate::{CoreBootstrapSources, lower_core_bootstrap};
 
 pub(crate) struct TrustedCoreFixture {
     pub(crate) foundation: scoop_hir::ImportedHirFoundation,
+    pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
     pub(crate) interface: scoop_hir::CoreHirInterfaceV1,
     mir_foundation: scoop_mir::ImportedMirFoundation,
     mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
@@ -204,10 +205,9 @@ fn trusted_core_from_source(
         )
         .unwrap();
     let (hir, mir, _) = imported.into_parts();
-    let foundation = scoop_hir::ImportedHirFoundation::from_odr_free(
-        scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap(),
-        hir,
-    );
+    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
+    let foundation =
+        scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
     let strong_mir = strong_targets
         .iter()
         .map(|target| {
@@ -307,6 +307,7 @@ fn trusted_core_from_source(
     .unwrap();
     TrustedCoreFixture {
         foundation,
+        source_foundation,
         interface,
         mir_foundation,
         mir_production,

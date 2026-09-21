@@ -60,3 +60,6 @@ pub use default_template::*;
 
 mod default_table;
 pub use default_table::*;
+
+mod default_origin_binding;
+pub use default_origin_binding::*;
