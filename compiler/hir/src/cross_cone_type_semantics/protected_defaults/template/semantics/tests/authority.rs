@@ -11,6 +11,9 @@ pub(super) struct Authority {
     pub path: StructuralDefinitionPath,
     pub provider: DefaultTemplateProviderShapeV1,
     pub inherited: bool,
+    pub provider_receiver: Option<SignatureTypeKey>,
+    pub expected_mapping: CanonicalBinderUseListV1,
+    pub inherited_calls: usize,
     pub origin: ExportDefinitionSourceV1,
     pub locals: Vec<LocalValueSelector>,
     pub reject_origin: bool,
@@ -25,6 +28,9 @@ impl Authority {
             path: template.definition_path().clone(),
             provider: case.provider,
             inherited: true,
+            provider_receiver: case.expected_receiver.clone(),
+            expected_mapping: template.type_parameters().clone(),
+            inherited_calls: 0,
             origin: case.origin.clone(),
             locals: template
                 .locals()
@@ -67,17 +73,39 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority {
             Err("wrong provider")
         }
     }
+    fn protected_default_provider_receiver(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<SignatureTypeKey>, &'static str> {
+        meter
+            .charge_work(1, &WirePath::root())
+            .map_err(|_| "provider budget")?;
+        if root == self.root && path == &self.path {
+            Ok(self.provider_receiver.clone())
+        } else {
+            Err("wrong provider receiver")
+        }
+    }
     fn validate_inherited_protected_default_provider(
         &mut self,
         key: ProtectedDefaultTemplateKeyV1,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
+        mapping: &CanonicalBinderUseListV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         meter
             .charge_work(1, &WirePath::root())
             .map_err(|_| "provider budget")?;
-        if self.inherited && key == self.key && root == self.root && path == &self.path {
+        self.inherited_calls += 1;
+        if self.inherited
+            && key == self.key
+            && root == self.root
+            && path == &self.path
+            && mapping == &self.expected_mapping
+        {
             Ok(())
         } else {
             Err("wrong inherited provider")

@@ -40,6 +40,7 @@ where
         key,
         template.definition_root(),
         template.definition_path(),
+        template.type_parameters(),
         authority,
         meter,
     )
@@ -48,13 +49,27 @@ where
         return Err(Error::ProviderOwnerShape);
     }
     types::validate(template, provider, &owner_shape.scope, authority, meter)?;
+    let provider_receiver = authority
+        .protected_default_provider_receiver(
+            template.definition_root(),
+            template.definition_path(),
+            meter,
+        )
+        .map_err(Error::Foundation)?;
+    if template.definition_root().declaration() == key.owner() {
+        receiver::validate_direct(
+            template,
+            provider,
+            owner_shape.receiver.as_ref(),
+            provider_receiver.as_ref(),
+            meter,
+        )?;
+    }
     template
         .receiver()
-        .validate_expected_semantics_metered(
-            owner_shape.receiver.as_ref(),
+        .validate_provider_semantics_metered(
+            provider_receiver.as_ref(),
             template.locals(),
-            provider,
-            template.type_parameters(),
             meter,
             &path,
         )

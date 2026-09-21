@@ -108,11 +108,20 @@ impl ProtectedDefaultRootSemanticAuthority<TestAuthorityError> for EmptyDefaults
         Err(TestAuthorityError::UnexpectedCall)
     }
 
+    fn protected_default_provider_receiver(
+        &mut self,
+        _root: PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+        _meter: &mut BudgetMeter,
+    ) -> Result<Option<SignatureTypeKey>, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
     fn validate_inherited_protected_default_provider(
         &mut self,
         _key: ProtectedDefaultTemplateKeyV1,
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
+        _mapping: &CanonicalBinderUseListV1,
         _meter: &mut BudgetMeter,
     ) -> Result<(), TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)

@@ -21,6 +21,10 @@ pub enum ProtectedDefaultTemplateContractSemanticError<E> {
     ProviderShape(DefaultTemplateProviderShapeBuildError),
     DefinitionRoot(DefaultTemplateRootSemanticValidationError<E>),
     ProviderOwnerShape,
+    ProviderOwnerReceiver,
+    DirectMapping {
+        index: usize,
+    },
     MappingArity {
         expected: u32,
         actual: u32,
@@ -72,6 +76,13 @@ impl<E: std::fmt::Display> std::fmt::Display for ProtectedDefaultTemplateContrac
             Self::ProviderOwnerShape => {
                 f.write_str("direct default provider binder shape differs from its checked source")
             }
+            Self::ProviderOwnerReceiver => {
+                f.write_str("direct default provider receiver differs from its checked source")
+            }
+            Self::DirectMapping { index } => write!(
+                f,
+                "direct default provider binder mapping is not identity at argument {index}"
+            ),
             Self::MappingArity { expected, actual } => write!(
                 f,
                 "protected default provider has {expected} binders, mapping has {actual}"

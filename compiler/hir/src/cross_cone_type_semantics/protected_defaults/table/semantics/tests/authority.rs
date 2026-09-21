@@ -106,11 +106,21 @@ impl ProtectedDefaultRootSemanticAuthority<&'static str> for Authority<'_> {
         DefaultTemplateProviderShapeV1::try_new(u32::from(self.case.generic()), 0)
             .map_err(|_| "invalid provider binders")
     }
+    fn protected_default_provider_receiver(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<SignatureTypeKey>, &'static str> {
+        self.check_source(self.fixture.key, root, path, meter)?;
+        Ok(Some(self.fixture.receiver.clone()))
+    }
     fn validate_inherited_protected_default_provider(
         &mut self,
         _key: ProtectedDefaultTemplateKeyV1,
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
+        _mapping: &CanonicalBinderUseListV1,
         _meter: &mut BudgetMeter,
     ) -> Result<(), &'static str> {
         Err("fixture has no inherited default provider")

@@ -7,6 +7,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 mod authority;
 mod contracts;
 mod origins;
+mod provider_receiver;
 mod sources;
 mod support;
 use authority::Authority;

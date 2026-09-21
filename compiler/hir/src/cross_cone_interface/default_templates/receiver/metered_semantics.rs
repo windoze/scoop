@@ -20,9 +20,63 @@ impl OptionalTemplateReceiverV1 {
         path: &WirePath,
     ) -> Result<(), MeteredTemplateReceiverSemanticValidationError> {
         use MeteredTemplateReceiverSemanticValidationError as Error;
+        let Some((receiver, expected)) = self.checked_receiver(expected, locals, meter, path)?
+        else {
+            return Ok(());
+        };
+        let mapped = mapping
+            .substitute_provider_type_metered(provider, receiver.value_type(), meter, path)
+            .map_err(Error::Substitution)?;
+        if !compare_default_signature_reference_targets(&mapped, expected, meter, path)
+            .map_err(Error::Resource)?
+            .is_eq()
+        {
+            return Err(Error::CallableType);
+        }
+        Ok(())
+    }
+
+    /// Checks the raw source receiver before any inherited-owner substitution.
+    pub fn validate_provider_semantics_metered(
+        &self,
+        expected: Option<&SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), MeteredTemplateReceiverSemanticValidationError> {
+        use MeteredTemplateReceiverSemanticValidationError as Error;
+        let Some((receiver, expected)) = self.checked_receiver(expected, locals, meter, path)?
+        else {
+            return Ok(());
+        };
+        if !compare_default_signature_reference_targets(
+            receiver.value_type(),
+            expected,
+            meter,
+            path,
+        )
+        .map_err(Error::Resource)?
+        .is_eq()
+        {
+            return Err(Error::CallableType);
+        }
+        Ok(())
+    }
+
+    fn checked_receiver<'r, 'e>(
+        &'r self,
+        expected: Option<&'e SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<
+        Option<(&'r super::TemplateReceiverV1, &'e SignatureTypeKey)>,
+        MeteredTemplateReceiverSemanticValidationError,
+    > {
+        use MeteredTemplateReceiverSemanticValidationError as Error;
         meter.charge_work(1, path).map_err(Error::Resource)?;
         let (receiver, expected) = match (self.receiver(), expected) {
-            (None, None) => return Ok(()),
+            (None, None) => return Ok(None),
             (None, Some(_)) => return Err(Error::Missing),
             (Some(_), None) => return Err(Error::Unexpected),
             (Some(receiver), Some(expected)) => (receiver, expected),
@@ -46,16 +100,7 @@ impl OptionalTemplateReceiverV1 {
         {
             return Err(Error::LocalType);
         }
-        let mapped = mapping
-            .substitute_provider_type_metered(provider, receiver.value_type(), meter, path)
-            .map_err(Error::Substitution)?;
-        if !compare_default_signature_reference_targets(&mapped, expected, meter, path)
-            .map_err(Error::Resource)?
-            .is_eq()
-        {
-            return Err(Error::CallableType);
-        }
-        Ok(())
+        Ok(Some((receiver, expected)))
     }
 }
 
@@ -83,7 +128,7 @@ impl std::fmt::Display for MeteredTemplateReceiverSemanticValidationError {
             Self::MutableLocal => f.write_str("default receiver local is mutable"),
             Self::LocalType => f.write_str("default receiver type differs from its local"),
             Self::CallableType => {
-                f.write_str("mapped default receiver type differs from its source owner")
+                f.write_str("default receiver type differs from its checked source contract")
             }
         }
     }

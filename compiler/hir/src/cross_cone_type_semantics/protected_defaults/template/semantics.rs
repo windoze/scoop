@@ -9,6 +9,7 @@ mod contract;
 mod errors;
 mod origin;
 mod owner;
+mod receiver;
 mod root;
 mod types;
 pub use errors::*;
