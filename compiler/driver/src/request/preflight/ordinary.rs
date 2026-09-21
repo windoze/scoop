@@ -199,7 +199,7 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
     /// materialization roots.
     pub fn lower_mir(
         self,
-    ) -> Result<OrdinaryConeMirOutput<'stage, 'artifact>, OrdinaryConeMirStageError> {
+    ) -> Result<OrdinaryConeMirOutput<'stage, 'artifact>, CurrentConeMirStageError> {
         let selected = self
             .trusted_core
             .project_initialization_protocol_to_mir(
@@ -211,41 +211,20 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
                     .initialization_units
                     .is_empty(),
             )
-            .map_err(OrdinaryConeMirStageError::Projection)?;
-        let dependency_selection = self
-            .dependencies
-            .semantic()
-            .project_dependency_callables_to_mir(self.hir.imported_dependencies())
-            .map_err(OrdinaryConeMirStageError::DependencyProjection)?;
-        let mir = scoop_mir_lower::lower_current_cone(&self.hir, selected, dependency_selection)
-            .map_err(OrdinaryConeMirStageError::Lowering)?;
-        let (module, selected, selected_dependencies) = mir.into_parts();
-        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)
-            .map_err(OrdinaryConeMirStageError::Foundation)?;
-        let production_section = scoop_mir_lower::lower_production_section(
-            module.cone,
-            &self.production_section,
-            &self.foundation,
-            &foundation,
-        )
-        .map_err(OrdinaryConeMirStageError::ProductionSection)?;
-        let cross_cone_bridge = scoop_mir_lower::lower_cross_cone_bridge_section(
-            module.cone,
-            &self.cross_cone_section,
-            &self.core_classifier,
-            &foundation,
-            &selected_dependencies,
-        )
-        .map_err(OrdinaryConeMirStageError::CrossConeBridge)?;
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new_with_dependencies(
-            module,
-            foundation,
-            production_section,
-            scoop_mir::CoreShapeSupportSourceInput::NotCore,
-            scoop_mir::StrongImportedCoreInput::Selected(&selected),
-            scoop_mir::StrongImportedDependencyInput::Selected(&selected_dependencies),
-        )
-        .map_err(OrdinaryConeMirStageError::Sealing)?;
+            .map_err(CurrentConeMirStageError::Projection)?;
+        let machine::CurrentConeMirArtifacts {
+            strong,
+            protocols: selected,
+            dependencies: selected_dependencies,
+            public: cross_cone_bridge,
+        } = machine::CurrentConeMachineHir {
+            output: &self.hir,
+            foundation: &self.foundation,
+            production: &self.production_section,
+            public: &self.cross_cone_section,
+            classifier: &self.core_classifier,
+        }
+        .lower_mir(selected, self.dependencies.semantic())?;
         Ok(OrdinaryConeMirOutput {
             hir: self,
             strong,
@@ -296,31 +275,20 @@ impl<'stage, 'artifact> OrdinaryConeMirOutput<'stage, 'artifact> {
     /// authority and consumes it immediately during strong LIR lowering.
     pub fn lower_lir(
         self,
-    ) -> Result<OrdinaryConeLirOutput<'stage, 'artifact>, OrdinaryConeLirStageError> {
+    ) -> Result<OrdinaryConeLirOutput<'stage, 'artifact>, CurrentConeLirStageError> {
         let selected = self
             .hir
             .trusted_core
             .project_core_callables_to_lir(&self.selected)
-            .map_err(OrdinaryConeLirStageError::Projection)?;
-        let selected_dependencies = self
-            .hir
-            .dependencies
-            .semantic()
-            .project_dependency_callables_to_lir(&self.selected_dependencies)
-            .map_err(OrdinaryConeLirStageError::DependencyProjection)?;
-        let lir = scoop_lir_lower::lower_with_dependencies(
-            &self.strong,
-            scoop_lir_lower::StrongImportedCoreLirInput::Selected(&selected),
-            scoop_lir_lower::StrongImportedDependencyLirInput::Selected(&selected_dependencies),
-            self.hir.target_profile,
-        )
-        .map_err(OrdinaryConeLirStageError::Lowering)?;
-        let cross_cone_bridge = scoop_lir_lower::lower_cross_cone_bridge_section(
+            .map_err(CurrentConeLirStageError::Projection)?;
+        let (lir, cross_cone_bridge) = machine::lower_lir(
             &self.strong,
             &self.cross_cone_bridge,
-            &lir,
-        )
-        .map_err(OrdinaryConeLirStageError::CrossConeBridge)?;
+            scoop_lir_lower::StrongImportedCoreLirInput::Selected(&selected),
+            &self.selected_dependencies,
+            self.hir.dependencies.semantic(),
+            self.hir.target_profile,
+        )?;
         Ok(OrdinaryConeLirOutput {
             mir: self,
             lir,

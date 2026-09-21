@@ -20,11 +20,6 @@ pub(super) fn validate_imported_dependency_callables(
         StrongImportedDependencyInput::Unused => {
             return Err(SingleConeStrongMirInputError::MissingImportedDependencyAuthority);
         }
-        StrongImportedDependencyInput::Selected(_)
-            if module.cone == scoop_identity::ConeIdentity::CORE =>
-        {
-            return Err(SingleConeStrongMirInputError::CoreCannotImportDependency);
-        }
         StrongImportedDependencyInput::Selected(selected) => selected,
     };
     if selected.consumer() != module.cone {

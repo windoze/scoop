@@ -29,7 +29,6 @@ pub enum SingleConeStrongMirInputError {
         index: u32,
     },
     MissingImportedDependencyAuthority,
-    CoreCannotImportDependency,
     ForeignImportedDependencySelection {
         expected: ConeIdentity,
         actual: ConeIdentity,
@@ -126,7 +125,6 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::UnsupportedImportedCoreCallableShape { .. }
             | Self::UnreferencedImportedCoreCallable { .. }
             | Self::MissingImportedDependencyAuthority
-            | Self::CoreCannotImportDependency
             | Self::ForeignImportedDependencySelection { .. }
             | Self::ImportedDependencyCallableCountMismatch { .. }
             | Self::ForeignImportedDependencyCallable { .. }

@@ -27,7 +27,9 @@ mod bootstrap;
 mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;
+mod machine;
 mod metering;
+pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod ordinary;
 pub use bootstrap::*;
 use dependencies::LoadedExplicitDependencyInputs;
@@ -36,8 +38,7 @@ pub use dependencies::{
     ExplicitDependencyRole, ExplicitDependencyValidationError,
 };
 pub use ordinary::{
-    OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput,
-    OrdinaryConeLirStageError, OrdinaryConeMirOutput, OrdinaryConeMirStageError,
+    OrdinaryConeHirOutput, OrdinaryConeHirStageError, OrdinaryConeLirOutput, OrdinaryConeMirOutput,
     OrdinaryConeProductionError, OrdinaryConeStrongProfileError,
 };
 

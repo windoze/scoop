@@ -1,0 +1,155 @@
+  global0 $singleton$LocalTools: LocalTools managed initial=zeroed-for-runtime-unit
+  init0 object:LocalTools singleton lazy global0 initializer=@fn73 ensure=@fn74 failure=1 deps=[]
+  enum CoroutineStep<LocalTools>
+    Completed(value: LocalTools)
+    Suspended()
+  enum CoroutineSlot<LocalTools>
+    Empty()
+    Value(value: LocalTools)
+  class LocalTools vtable=0 itables=0
+  fun userCoreDependency @fn71() -> Unit
+    bb0 entry
+      call dependency-strong0 direct
+      return
+  fun userCoreCombined @fn72(flag: Boolean) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      call dependency-strong0 direct
+      goto bb6
+    bb5 if.else.5
+      call dependency-strong0 direct
+      goto bb6
+    bb6 if.merge.6
+      return
+  fun $init$body$0 @fn73() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalTools
+        ClassAlloc LocalTools
+      call @fn102 direct
+        Type LocalTools
+        Local $new.1
+      global_assign $singleton$LocalTools
+        Type LocalTools
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn74() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocalTools
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn73 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocalTools
+      goto bb10
+    bb12 try.catch.12
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          CaughtException
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call $init.materialized: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocalTools
+        Type Any
+        Local $init.materialized
+      throw unwind bb6
+        Type Any
+        Local $init.materialized
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocalTools
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocalTools
+      call @fn70 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun init.LocalTools.$c18 @fn102(this: LocalTools) -> Unit
+    bb0 entry
+      return
+  coroutine_step cs21 CoroutineStep<LocalTools> result=LocalTools
+  coroutine_slot cl21 CoroutineSlot<LocalTools> value=LocalTools

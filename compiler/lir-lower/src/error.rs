@@ -43,7 +43,6 @@ pub enum StrongLirLoweringError {
         lir: scoop_identity::PersistentExactTypeId,
     },
     MissingImportedDependencyLirAuthority,
-    CoreCannotImportDependency,
     ForeignImportedDependencyLirSelection {
         expected: scoop_identity::ConeIdentity,
         actual: scoop_identity::ConeIdentity,
@@ -139,8 +138,6 @@ impl fmt::Display for StrongLirLoweringError {
             Self::MissingImportedDependencyLirAuthority => formatter.write_str(
                 "ordinary dependency MIR roots require the exact selected LIR authority",
             ),
-            Self::CoreCannotImportDependency => formatter
-                .write_str("the core bootstrap Cone cannot import ordinary dependency callables"),
             Self::ForeignImportedDependencyLirSelection { expected, actual } => write!(
                 formatter,
                 "ordinary dependency LIR selection belongs to consumer {actual}, expected {expected}"
@@ -241,7 +238,6 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::MissingImportedCoreResultType { .. }
             | Self::ImportedCoreRuntimeStringMismatch { .. }
             | Self::MissingImportedDependencyLirAuthority
-            | Self::CoreCannotImportDependency
             | Self::ForeignImportedDependencyLirSelection { .. }
             | Self::ImportedDependencyLirCountMismatch { .. }
             | Self::MissingImportedDependencyLirCallable { .. }

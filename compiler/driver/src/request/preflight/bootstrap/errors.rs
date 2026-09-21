@@ -1,10 +1,11 @@
+use super::super::{CurrentConeLirStageError, CurrentConeMirStageError};
 use super::*;
 
 #[derive(Debug)]
 pub enum CoreBootstrapProductionError {
     Hir(CoreBootstrapHirStageError),
-    Mir(CoreBootstrapMirStageError),
-    Lir(CoreBootstrapLirStageError),
+    Mir(CurrentConeMirStageError),
+    Lir(CurrentConeLirStageError),
     StrongProfile(CoreBootstrapStrongProfileError),
     Warnings(super::CurrentConeDiagnosticSetError),
     Producer(scoop_slib::ProducerRecordError),
@@ -63,68 +64,6 @@ impl std::error::Error for CoreBootstrapStrongProfileError {
         match self {
             Self::HirOdr(source) => Some(source),
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapLirStageError {
-    Lowering(scoop_lir_lower::StrongLirLoweringError),
-    CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
-}
-
-impl fmt::Display for CoreBootstrapLirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapLirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Lowering(source) => Some(source),
-            Self::CrossConeBridge(source) => Some(source),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapMirStageError {
-    MissingCoreShapeSupportPlan,
-    Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
-    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
-    ProductionSection(scoop_mir_lower::MirProductionLoweringError),
-    CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
-    Sealing(scoop_mir::SingleConeStrongMirInputError),
-}
-
-impl fmt::Display for CoreBootstrapMirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::MissingCoreShapeSupportPlan => {
-                formatter.write_str("trusted core HIR output has no core shape-support plan")
-            }
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::Foundation(source) => source.fmt(formatter),
-            Self::ProductionSection(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-            Self::Sealing(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapMirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::MissingCoreShapeSupportPlan => return None,
-            Self::Lowering(source) => source,
-            Self::Foundation(source) => source,
-            Self::ProductionSection(source) => source,
-            Self::CrossConeBridge(source) => source,
-            Self::Sealing(source) => source,
-        })
     }
 }
 

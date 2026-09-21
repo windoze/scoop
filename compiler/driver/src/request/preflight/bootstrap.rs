@@ -51,12 +51,17 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
                 scoop_hir::dump(&hir.hir().export)
             })
         });
-        let mir = hir.lower_mir().map_err(CoreBootstrapProductionError::Mir)?;
+        let mir = hir
+            .lower_mir_with_dependencies(self.request.dependencies().semantic())
+            .map_err(CoreBootstrapProductionError::Mir)?;
         emitted_dump = emitted_dump.or_else(|| {
             capture_stage_dump(emit, StageDumpKind::Mir, || scoop_mir::dump(mir.mir()))
         });
         let lir = mir
-            .lower_lir(self.request.target().lir_target())
+            .lower_lir_with_dependencies(
+                self.request.dependencies().semantic(),
+                self.request.target().lir_target(),
+            )
             .map_err(CoreBootstrapProductionError::Lir)?;
         emitted_dump = emitted_dump.or_else(|| {
             capture_stage_dump(emit, StageDumpKind::Lir, || scoop_lir::dump(lir.lir()))
@@ -111,7 +116,7 @@ impl TrustedCoreBootstrapHirOutput {
         Self::lower_with_world(sources, &world)
     }
 
-    fn lower_with_world(
+    pub(super) fn lower_with_world(
         sources: &CurrentConeParsedSources,
         world: &scoop_hir::ImportedSemanticWorld<'_>,
     ) -> Result<Self, CoreBootstrapHirStageError> {
@@ -204,58 +209,45 @@ impl TrustedCoreBootstrapHirOutput {
     /// Consuming `self` keeps the HIR graph, its mandatory production
     /// section, the MIR graph, and the derived ODR-free foundation in one
     /// inseparable stage product.
-    pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CoreBootstrapMirStageError> {
-        let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_support) =
-            self.hir.output().local.materialization()
-        else {
-            return Err(CoreBootstrapMirStageError::MissingCoreShapeSupportPlan);
-        };
-        let shape_sources = scoop_mir::CoreShapeSupportSourceInput::Core(
-            shape_support
-                .roots()
-                .iter()
-                .map(|root| root.declaration().clone())
-                .collect(),
-        );
-        let dependency_selection =
-            scoop_mir::SelectedDependencyMirSet::empty(self.hir.output().export.cone);
-        let mir = scoop_mir_lower::lower_current_cone(
-            &self.hir,
-            scoop_mir::CurrentMirProtocolDeclarations,
-            dependency_selection,
-        )
-        .map_err(CoreBootstrapMirStageError::Lowering)?;
-        let (mir, _, dependency_selection) = mir.into_parts();
-        let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
-            .map_err(CoreBootstrapMirStageError::Foundation)?;
-        let production_section = scoop_mir_lower::lower_production_section(
-            mir.cone,
-            &self.production_section,
-            &self.foundation,
-            &foundation,
-        )
-        .map_err(CoreBootstrapMirStageError::ProductionSection)?;
-        let cross_cone_bridge = scoop_mir_lower::lower_cross_cone_bridge_section(
-            mir.cone,
-            &self.cross_cone_section,
-            &self.core_classifier,
-            &foundation,
-            &dependency_selection,
-        )
-        .map_err(CoreBootstrapMirStageError::CrossConeBridge)?;
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
-            mir,
-            foundation,
-            production_section,
-            shape_sources,
-            scoop_mir::StrongImportedCoreInput::Unused,
-        )
-        .map_err(CoreBootstrapMirStageError::Sealing)?;
-        Ok(TrustedCoreBootstrapMirOutput {
+    #[cfg(test)]
+    pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CurrentConeMirStageError> {
+        let selected = scoop_mir::SelectedDependencyMirSet::empty(self.hir.output().export.cone);
+        let artifacts = self
+            .machine_input()
+            .lower_selected_mir(scoop_mir::CurrentMirProtocolDeclarations, selected)?;
+        Ok(self.with_mir(artifacts))
+    }
+
+    fn lower_mir_with_dependencies(
+        self,
+        closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
+    ) -> Result<TrustedCoreBootstrapMirOutput, CurrentConeMirStageError> {
+        let artifacts = self
+            .machine_input()
+            .lower_mir(scoop_mir::CurrentMirProtocolDeclarations, closure)?;
+        Ok(self.with_mir(artifacts))
+    }
+
+    pub(super) fn machine_input(&self) -> machine::CurrentConeMachineHir<'_> {
+        machine::CurrentConeMachineHir {
+            output: &self.hir,
+            foundation: &self.foundation,
+            production: &self.production_section,
+            public: &self.cross_cone_section,
+            classifier: &self.core_classifier,
+        }
+    }
+
+    fn with_mir(
+        self,
+        artifacts: machine::CurrentConeMirArtifacts<scoop_mir::CurrentMirProtocolDeclarations>,
+    ) -> TrustedCoreBootstrapMirOutput {
+        TrustedCoreBootstrapMirOutput {
             hir: self,
-            strong,
-            cross_cone_bridge,
-        })
+            strong: artifacts.strong,
+            selected_dependencies: artifacts.dependencies,
+            cross_cone_bridge: artifacts.public,
+        }
     }
 }
 
@@ -266,6 +258,7 @@ impl TrustedCoreBootstrapHirOutput {
 pub struct TrustedCoreBootstrapMirOutput {
     hir: TrustedCoreBootstrapHirOutput,
     strong: scoop_mir::SingleConeStrongMirInput,
+    selected_dependencies: scoop_mir::SelectedDependencyMirSet,
     cross_cone_bridge: scoop_mir::CrossConeMirBridgeSectionV1,
 }
 
@@ -298,22 +291,43 @@ impl TrustedCoreBootstrapMirOutput {
     ///
     /// Consuming `self` keeps the complete bootstrap proof chain attached to
     /// the resulting ODR-free LIR graph.
+    #[cfg(test)]
     pub fn lower_lir(
         self,
         target_profile: scoop_lir::LirTargetProfile,
-    ) -> Result<TrustedCoreBootstrapLirOutput, CoreBootstrapLirStageError> {
-        let lir = scoop_lir_lower::lower(
-            &self.strong,
-            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
-            target_profile,
+    ) -> Result<TrustedCoreBootstrapLirOutput, CurrentConeLirStageError> {
+        let selected = scoop_lir::SelectedDependencyLirSet::try_from_callables(
+            self.strong.module().cone,
+            Vec::new(),
         )
-        .map_err(CoreBootstrapLirStageError::Lowering)?;
-        let cross_cone_bridge = scoop_lir_lower::lower_cross_cone_bridge_section(
+        .expect("empty test selection");
+        let (lir, cross_cone_bridge) = machine::lower_selected_lir(
             &self.strong,
             &self.cross_cone_bridge,
-            &lir,
-        )
-        .map_err(CoreBootstrapLirStageError::CrossConeBridge)?;
+            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            &selected,
+            target_profile,
+        )?;
+        Ok(TrustedCoreBootstrapLirOutput {
+            mir: self,
+            lir,
+            cross_cone_bridge,
+        })
+    }
+
+    fn lower_lir_with_dependencies(
+        self,
+        closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
+        target_profile: scoop_lir::LirTargetProfile,
+    ) -> Result<TrustedCoreBootstrapLirOutput, CurrentConeLirStageError> {
+        let (lir, cross_cone_bridge) = machine::lower_lir(
+            &self.strong,
+            &self.cross_cone_bridge,
+            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            &self.selected_dependencies,
+            closure,
+            target_profile,
+        )?;
         Ok(TrustedCoreBootstrapLirOutput {
             mir: self,
             lir,
@@ -375,6 +389,7 @@ impl TrustedCoreBootstrapLirOutput {
             hir,
             strong,
             cross_cone_bridge: mir_cross_cone,
+            ..
         } = mir;
         Ok(CrossConeStrongIrProductionV1::new(
             hir_foundation,

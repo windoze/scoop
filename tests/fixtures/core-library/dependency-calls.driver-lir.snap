@@ -1,0 +1,39 @@
+  init0 object:LocalTools lazy storage=@scoop$1$ss$5a0177d37866b548d6b83247912e75c73c95142103309f1256d07b5baac2369d failure=@scoop$1$ss$da09589bc7be548e5dc58e2b8ead5c634bef4d08653439aead225b63a0db43e6 initializer=@scoop$1$cb$ef04e9fe663d065f833dbfe53ffe4d11c3066835f9fd17885cebc50d8adcb2ae ensure=@scoop$1$cb$305b04ad29a35bf47529baff0ede33d4164b5d847c1b83c3803d5cf555fa6bae deps=[]
+  enum CoroutineStep<LocalTools> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<LocalTools> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$7cbcf2cf13b33a1dc5cb923990ceee7867c77a61ba432f44406250921a23f90b() -> void
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () dependency-external-fn0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$0e02f6d5b9e765126220cf10dbf7071e9a5cc025cd652c44754f91dca3fd09d6(i1) -> void
+    local %0 $logic.1: i1
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    cbr param0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    store true -> local0
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local0
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local0 then @if.then.4 else @if.else.5
+  block if.then.4
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 () dependency-external-fn0()
+    t0 = aggregate () : {}
+    br @if.merge.6
+  block if.else.5
+    call managed-void-target1 sp<managed-call:0> live=[] sig=void1 () dependency-external-fn0()
+    t1 = aggregate () : {}
+    br @if.merge.6
+  block if.merge.6
+    ret
+  td td12 LocalTools @scoop$1$td$3eb168e79f89664ce64b02bfe679ad503422e832d214ae2a27b9072d2890abd0 type-id=10263454389031268026 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td48 CoroutineStep<LocalTools> @scoop$1$td$1b690b8a6f47194ec58dfb46787d24552cb7da17860c15336de358ddb1c8ce78 type-id=18007273985109092458 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td77 CoroutineSlot<LocalTools> @scoop$1$td$b3c442bae6dbf2f84adcc462d7824066b9cee424837e94ea32ef52d2a7f1fa49 type-id=10220696205521467096 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<LocalTools> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<LocalTools> size=8 align=8 enum-scan=refs[0]
+  layout LocalTools value size=8 align=8 refs=[0]
+  layout LocalTools size=16 align=8 refs=[]

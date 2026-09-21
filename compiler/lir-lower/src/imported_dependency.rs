@@ -39,11 +39,6 @@ pub(super) fn lower_imported_dependency_callables(
         StrongImportedDependencyLirInput::Unused => {
             return Err(StrongLirLoweringError::MissingImportedDependencyLirAuthority);
         }
-        StrongImportedDependencyLirInput::Selected(_)
-            if input.module().cone == lir::ConeIdentity::CORE =>
-        {
-            return Err(StrongLirLoweringError::CoreCannotImportDependency);
-        }
         StrongImportedDependencyLirInput::Selected(selected) => selected,
     };
     if selected.consumer() != input.module().cone {

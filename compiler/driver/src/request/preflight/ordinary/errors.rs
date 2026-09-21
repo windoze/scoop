@@ -3,8 +3,8 @@ use std::fmt;
 #[derive(Debug)]
 pub enum OrdinaryConeProductionError {
     Hir(super::OrdinaryConeHirStageError),
-    Mir(super::OrdinaryConeMirStageError),
-    Lir(super::OrdinaryConeLirStageError),
+    Mir(super::CurrentConeMirStageError),
+    Lir(super::CurrentConeLirStageError),
     StrongProfile(super::OrdinaryConeStrongProfileError),
     Warnings(crate::request::CurrentConeDiagnosticSetError),
     Producer(scoop_slib::ProducerRecordError),
@@ -63,75 +63,6 @@ impl std::error::Error for OrdinaryConeStrongProfileError {
         match self {
             Self::HirOdr(source) => Some(source),
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum OrdinaryConeLirStageError {
-    Projection(crate::TrustedCoreLirSetProjectionError),
-    DependencyProjection(scoop_slib::CrossConeLirSelectionProjectionError),
-    Lowering(scoop_lir_lower::StrongLirLoweringError),
-    CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
-}
-
-impl fmt::Display for OrdinaryConeLirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Projection(source) => source.fmt(formatter),
-            Self::DependencyProjection(source) => source.fmt(formatter),
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for OrdinaryConeLirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::Projection(source) => source,
-            Self::DependencyProjection(source) => source,
-            Self::Lowering(source) => source,
-            Self::CrossConeBridge(source) => source,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub enum OrdinaryConeMirStageError {
-    Projection(crate::TrustedCoreCallableSetProjectionError),
-    DependencyProjection(scoop_slib::CrossConeMirSelectionProjectionError),
-    Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
-    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
-    ProductionSection(scoop_mir_lower::MirProductionLoweringError),
-    CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
-    Sealing(scoop_mir::SingleConeStrongMirInputError),
-}
-
-impl fmt::Display for OrdinaryConeMirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Projection(source) => source.fmt(formatter),
-            Self::DependencyProjection(source) => source.fmt(formatter),
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::Foundation(source) => source.fmt(formatter),
-            Self::ProductionSection(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-            Self::Sealing(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for OrdinaryConeMirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::Projection(source) => source,
-            Self::DependencyProjection(source) => source,
-            Self::Lowering(source) => source,
-            Self::Foundation(source) => source,
-            Self::ProductionSection(source) => source,
-            Self::CrossConeBridge(source) => source,
-            Self::Sealing(source) => source,
-        })
     }
 }
 
