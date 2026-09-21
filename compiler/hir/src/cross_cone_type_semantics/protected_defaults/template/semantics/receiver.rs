@@ -27,19 +27,7 @@ pub(super) fn validate_direct<E>(
     }
     for (index, argument) in template.type_parameters().arguments().iter().enumerate() {
         meter.charge_work(1, &path).map_err(Error::Resource)?;
-        let position = index as u32;
-        let expected = if position < provider.nominal_owner_binder_arity() {
-            SignatureTypeKey::Binder {
-                depth: u32::from(provider.callable_own_binder_arity() != 0),
-                index: position,
-            }
-        } else {
-            SignatureTypeKey::Binder {
-                depth: 0,
-                index: position - provider.nominal_owner_binder_arity(),
-            }
-        };
-        if argument != &expected {
+        if provider.identity_binder_at(index as u32).as_ref() != Some(argument) {
             return Err(Error::DirectMapping { index });
         }
     }

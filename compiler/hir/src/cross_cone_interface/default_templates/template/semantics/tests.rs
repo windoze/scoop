@@ -22,7 +22,10 @@ use crate::{
     TemplateLocalRecordV1, TemplateValueParameterV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
+mod authority;
+use authority::{Authority, AuthorityError};
 mod origins;
+mod provider_receiver;
 
 #[test]
 fn validates_an_inherited_two_frame_default_contract() {
@@ -432,6 +435,10 @@ impl Fixture {
             identity: self.identity.clone(),
             provider: self.provider,
             definition_path: self.definition_path.clone(),
+            nominals: Vec::new(),
+            provider_receiver: None,
+            provider_shape: DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap(),
+            expected_mapping: None,
             inherited_validations: 0,
             definition_source_validations: 0,
             root_origin_validations: 0,
@@ -442,95 +449,6 @@ impl Fixture {
         }
     }
 }
-
-struct Authority {
-    declaration: CallableTemplateOrigin,
-    identity: CallableDeclarationIdentityShapeV1,
-    provider: PersistentLexicalRootV1,
-    definition_path: StructuralDefinitionPath,
-    inherited_validations: usize,
-    definition_source_validations: usize,
-    root_origin_validations: usize,
-    local_origin_validations: usize,
-    reject_definition_source: bool,
-    reject_root_origin: bool,
-    reject_local_origin: bool,
-}
-
-impl NominalInterfaceShapeAuthority<AuthorityError> for Authority {
-    fn concrete_nominal_shape(
-        &mut self,
-        declaration: PersistentTypeId,
-    ) -> Result<PublicNominalShapeV1, AuthorityError> {
-        Err(AuthorityError::ConcreteNominal(declaration))
-    }
-
-    fn generic_nominal_shape(
-        &mut self,
-        declaration: PersistentGenericTypeId,
-    ) -> Result<PublicNominalShapeV1, AuthorityError> {
-        Err(AuthorityError::GenericNominal(declaration))
-    }
-}
-
-impl CallableInterfaceSemanticAuthority<AuthorityError> for Authority {
-    fn callable_declaration_identity_shape(
-        &mut self,
-        declaration: CallableTemplateOrigin,
-    ) -> Result<CallableDeclarationIdentityShapeV1, AuthorityError> {
-        if declaration == self.declaration {
-            Ok(self.identity.clone())
-        } else {
-            Err(AuthorityError::Callable(declaration))
-        }
-    }
-}
-
-impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
-    fn default_template_provider_shape(
-        &mut self,
-        root: PersistentLexicalRootV1,
-        path: &StructuralDefinitionPath,
-    ) -> Result<DefaultTemplateProviderShapeV1, AuthorityError> {
-        if root != self.provider || path != &self.definition_path {
-            return Err(AuthorityError::Provider);
-        }
-        Ok(DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap())
-    }
-
-    fn validate_inherited_default_provider(
-        &mut self,
-        _key: ExportDefaultTemplateKeyV1,
-        root: PersistentLexicalRootV1,
-        path: &StructuralDefinitionPath,
-    ) -> Result<(), AuthorityError> {
-        if root != self.provider || path != &self.definition_path {
-            return Err(AuthorityError::Inherited);
-        }
-        self.inherited_validations += 1;
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AuthorityError {
-    Callable(CallableTemplateOrigin),
-    ConcreteNominal(PersistentTypeId),
-    GenericNominal(PersistentGenericTypeId),
-    Provider,
-    Inherited,
-    DefinitionSource,
-    RootOrigin,
-    LocalOrigin,
-}
-
-impl std::fmt::Display for AuthorityError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "missing default-contract authority: {self:?}")
-    }
-}
-
-impl std::error::Error for AuthorityError {}
 
 fn parameter_locals(
     value_type: SignatureTypeKey,

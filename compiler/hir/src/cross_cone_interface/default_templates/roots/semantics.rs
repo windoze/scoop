@@ -1,11 +1,15 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    CallableTemplateOrigin, SignatureTypeKey, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole,
 };
 
 use super::PersistentLexicalRootV1;
-use crate::{ExportDefaultTemplateKeyV1, SignatureBinderScopeError, SignatureBinderScopeV1};
+use crate::{
+    CanonicalBinderUseListV1, ExportDefaultTemplateKeyV1, SignatureBinderScopeError,
+    SignatureBinderScopeV1,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DefaultTemplateProviderShapeV1 {
@@ -51,6 +55,24 @@ impl DefaultTemplateProviderShapeV1 {
             self.callable_own_binder_arity,
             (self.nominal_owner_binder_arity != 0).then_some(self.nominal_owner_binder_arity),
         )
+    }
+
+    /// Returns the canonical identity argument in flattened host/own order.
+    pub(crate) fn identity_binder_at(self, position: u32) -> Option<SignatureTypeKey> {
+        if position >= self.binder_arity {
+            return None;
+        }
+        Some(if position < self.nominal_owner_binder_arity {
+            SignatureTypeKey::Binder {
+                depth: u32::from(self.callable_own_binder_arity != 0),
+                index: position,
+            }
+        } else {
+            SignatureTypeKey::Binder {
+                depth: 0,
+                index: position - self.nominal_owner_binder_arity,
+            }
+        })
     }
 
     pub(crate) fn flattened_binder_position(
@@ -103,13 +125,23 @@ pub trait DefaultTemplateRootSemanticAuthority<E> {
         path: &StructuralDefinitionPath,
     ) -> Result<DefaultTemplateProviderShapeV1, E>;
 
-    /// Verifies the unique override/default-source relation when the
-    /// publishing owner differs from the source provider.
+    /// Returns the original provider receiver in its own binder frame,
+    /// independently of the candidate template and publishing override.
+    fn default_template_provider_receiver(
+        &mut self,
+        root: PersistentLexicalRootV1,
+        path: &StructuralDefinitionPath,
+    ) -> Result<Option<SignatureTypeKey>, E>;
+
+    /// Verifies the unique override/default-source relation, complete binder
+    /// substitution (including unused arguments), and publishing receiver's
+    /// relation to the substituted provider receiver using independent sources.
     fn validate_inherited_default_provider(
         &mut self,
         key: ExportDefaultTemplateKeyV1,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
+        mapping: &CanonicalBinderUseListV1,
     ) -> Result<(), E>;
 }
 
@@ -118,6 +150,7 @@ impl PersistentLexicalRootV1 {
         self,
         key: ExportDefaultTemplateKeyV1,
         definition_path: &StructuralDefinitionPath,
+        mapping: &CanonicalBinderUseListV1,
         authority: &mut A,
     ) -> Result<DefaultTemplateProviderShapeV1, DefaultTemplateRootSemanticValidationError<E>>
     where
@@ -142,7 +175,7 @@ impl PersistentLexicalRootV1 {
             .map_err(DefaultTemplateRootSemanticValidationError::Provider)?;
         if self.declaration() != key.owner() {
             authority
-                .validate_inherited_default_provider(key, self, definition_path)
+                .validate_inherited_default_provider(key, self, definition_path, mapping)
                 .map_err(DefaultTemplateRootSemanticValidationError::InheritedRelation)?;
         }
         Ok(shape)

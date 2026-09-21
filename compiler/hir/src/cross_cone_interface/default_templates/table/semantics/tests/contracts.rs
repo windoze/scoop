@@ -866,11 +866,20 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
         Ok(DefaultTemplateProviderShapeV1::try_new(0, 0).unwrap())
     }
 
+    fn default_template_provider_receiver(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<Option<SignatureTypeKey>, AuthorityError> {
+        Ok(None)
+    }
+
     fn validate_inherited_default_provider(
         &mut self,
         _key: ExportDefaultTemplateKeyV1,
         _root: PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
+        _mapping: &crate::CanonicalBinderUseListV1,
     ) -> Result<(), AuthorityError> {
         Err(AuthorityError::UnexpectedInheritedProvider)
     }

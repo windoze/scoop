@@ -9,11 +9,20 @@ impl DefaultTemplateRootSemanticAuthority<TestAuthorityError> for EmptyPublicAut
         Err(TestAuthorityError::UnexpectedCall)
     }
 
+    fn default_template_provider_receiver(
+        &mut self,
+        _root: scoop_hir::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<Option<SignatureTypeKey>, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
+
     fn validate_inherited_default_provider(
         &mut self,
         _key: ExportDefaultTemplateKeyV1,
         _root: scoop_hir::PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
+        _mapping: &scoop_hir::CanonicalBinderUseListV1,
     ) -> Result<(), TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }

@@ -17,8 +17,51 @@ impl OptionalTemplateReceiverV1 {
         provider: DefaultTemplateProviderShapeV1,
         type_parameters: &CanonicalBinderUseListV1,
     ) -> Result<(), TemplateReceiverSemanticValidationError> {
-        let (receiver, expected_type) = match (self, callable.receiver()) {
-            (Self::Absent, None) => return Ok(()),
+        let Some((receiver, expected_type)) =
+            self.checked_receiver_unmetered(callable.receiver(), locals)?
+        else {
+            return Ok(());
+        };
+        let mapped_type = type_parameters
+            .substitute_provider_type(provider, receiver.value_type())
+            .map_err(TemplateReceiverSemanticValidationError::TypeSubstitution)?;
+        if &mapped_type != expected_type {
+            return Err(TemplateReceiverSemanticValidationError::CallableType {
+                expected: Box::new(expected_type.clone()),
+                actual: Box::new(mapped_type),
+            });
+        }
+        Ok(())
+    }
+
+    /// Checks the unchanged source receiver in the original provider scope.
+    pub fn validate_provider_semantics(
+        &self,
+        expected: Option<&SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+    ) -> Result<(), TemplateReceiverSemanticValidationError> {
+        let Some((receiver, expected)) = self.checked_receiver_unmetered(expected, locals)? else {
+            return Ok(());
+        };
+        if receiver.value_type() != expected {
+            return Err(TemplateReceiverSemanticValidationError::CallableType {
+                expected: Box::new(expected.clone()),
+                actual: Box::new(receiver.value_type().clone()),
+            });
+        }
+        Ok(())
+    }
+
+    fn checked_receiver_unmetered<'r, 'e>(
+        &'r self,
+        expected: Option<&'e SignatureTypeKey>,
+        locals: &CanonicalTemplateLocalTableV1,
+    ) -> Result<
+        Option<(&'r super::TemplateReceiverV1, &'e SignatureTypeKey)>,
+        TemplateReceiverSemanticValidationError,
+    > {
+        let (receiver, expected_type) = match (self, expected) {
+            (Self::Absent, None) => return Ok(None),
             (Self::Absent, Some(expected)) => {
                 return Err(TemplateReceiverSemanticValidationError::Missing {
                     expected: Box::new(expected.clone()),
@@ -44,16 +87,7 @@ impl OptionalTemplateReceiverV1 {
                 actual: Box::new(local.value_type().clone()),
             });
         }
-        let mapped_type = type_parameters
-            .substitute_provider_type(provider, receiver.value_type())
-            .map_err(TemplateReceiverSemanticValidationError::TypeSubstitution)?;
-        if &mapped_type != expected_type {
-            return Err(TemplateReceiverSemanticValidationError::CallableType {
-                expected: Box::new(expected_type.clone()),
-                actual: Box::new(mapped_type),
-            });
-        }
-        Ok(())
+        Ok(Some((receiver, expected_type)))
     }
 }
 
@@ -106,7 +140,7 @@ impl fmt::Display for TemplateReceiverSemanticValidationError {
             ),
             Self::CallableType { expected, actual } => write!(
                 formatter,
-                "mapped default-template receiver has type {actual:?}, callable interface requires {expected:?}"
+                "default-template receiver has type {actual:?}, checked source contract requires {expected:?}"
             ),
         }
     }

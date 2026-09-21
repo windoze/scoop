@@ -262,11 +262,20 @@ impl DefaultTemplateRootSemanticAuthority<Infallible> for EmptyAuthority {
         unreachable!()
     }
 
+    fn default_template_provider_receiver(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<Option<SignatureTypeKey>, Infallible> {
+        panic!("empty public interface has no default provider")
+    }
+
     fn validate_inherited_default_provider(
         &mut self,
         _key: ExportDefaultTemplateKeyV1,
         _root: crate::PersistentLexicalRootV1,
         _path: &StructuralDefinitionPath,
+        _mapping: &crate::CanonicalBinderUseListV1,
     ) -> Result<(), Infallible> {
         unreachable!()
     }

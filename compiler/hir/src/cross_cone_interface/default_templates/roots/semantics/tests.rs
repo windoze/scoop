@@ -17,7 +17,12 @@ fn direct_provider_uses_typed_identity_equality() {
     let mut authority = Authority::new(1, 2);
 
     assert_eq!(
-        root.validate_semantics(key, &path, &mut authority),
+        root.validate_semantics(
+            key,
+            &path,
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut authority
+        ),
         Ok(DefaultTemplateProviderShapeV1::try_new(1, 2).unwrap())
     );
     assert_eq!(authority.provider_calls, vec![(root, path)]);
@@ -35,7 +40,12 @@ fn inherited_provider_requires_an_explicit_relation() {
     let mut accepted = Authority::new(1, 1);
 
     assert_eq!(
-        provider.validate_semantics(key, &path, &mut accepted),
+        provider.validate_semantics(
+            key,
+            &path,
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut accepted
+        ),
         Ok(DefaultTemplateProviderShapeV1::try_new(1, 1).unwrap())
     );
     assert_eq!(
@@ -46,7 +56,12 @@ fn inherited_provider_requires_an_explicit_relation() {
     let mut rejected = Authority::new(1, 1);
     rejected.fail_relation = true;
     assert_eq!(
-        provider.validate_semantics(key, &path, &mut rejected),
+        provider.validate_semantics(
+            key,
+            &path,
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut rejected
+        ),
         Err(
             DefaultTemplateRootSemanticValidationError::InheritedRelation(AuthorityError::Relation)
         )
@@ -65,7 +80,12 @@ fn provider_authority_and_definition_path_fail_closed() {
     let mut authority = Authority::new(0, 0);
 
     assert_eq!(
-        root.validate_semantics(key, &invalid_path, &mut authority),
+        root.validate_semantics(
+            key,
+            &invalid_path,
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut authority
+        ),
         Err(
             DefaultTemplateRootSemanticValidationError::InvalidDefinitionPathRole {
                 actual: StructuralDefinitionSiteRole::Lambda,
@@ -76,7 +96,12 @@ fn provider_authority_and_definition_path_fail_closed() {
 
     authority.fail_provider = true;
     assert_eq!(
-        root.validate_semantics(key, &default_path(0), &mut authority),
+        root.validate_semantics(
+            key,
+            &default_path(0),
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut authority
+        ),
         Err(DefaultTemplateRootSemanticValidationError::Provider(
             AuthorityError::Provider
         ))
@@ -90,7 +115,12 @@ fn property_accessor_cannot_own_a_template() {
     let mut authority = Authority::new(0, 0);
 
     assert_eq!(
-        root.validate_semantics(key, &default_path(0), &mut authority),
+        root.validate_semantics(
+            key,
+            &default_path(0),
+            &CanonicalBinderUseListV1::try_new(vec![]).unwrap(),
+            &mut authority
+        ),
         Err(DefaultTemplateRootSemanticValidationError::PropertyAccessorOwner)
     );
     assert!(authority.provider_calls.is_empty());
@@ -158,11 +188,20 @@ impl DefaultTemplateRootSemanticAuthority<AuthorityError> for Authority {
         }
     }
 
+    fn default_template_provider_receiver(
+        &mut self,
+        _root: crate::PersistentLexicalRootV1,
+        _path: &StructuralDefinitionPath,
+    ) -> Result<Option<SignatureTypeKey>, AuthorityError> {
+        Ok(None)
+    }
+
     fn validate_inherited_default_provider(
         &mut self,
         key: ExportDefaultTemplateKeyV1,
         root: PersistentLexicalRootV1,
         path: &StructuralDefinitionPath,
+        _mapping: &crate::CanonicalBinderUseListV1,
     ) -> Result<(), AuthorityError> {
         self.inherited_calls.push((key, root, path.clone()));
         if self.fail_relation {
@@ -226,4 +265,23 @@ fn site() -> SourceDeclarationSite {
         DeclarationScope::ConeWide,
     )
     .unwrap()
+}
+
+#[test]
+fn identity_mapping_preserves_host_and_own_binder_frames() {
+    for (host, own, expected) in [
+        (0, 0, vec![]),
+        (0, 2, vec![(0, 0), (0, 1)]),
+        (2, 0, vec![(0, 0), (0, 1)]),
+        (2, 1, vec![(1, 0), (1, 1), (0, 0)]),
+    ] {
+        let shape = DefaultTemplateProviderShapeV1::try_new(host, own).unwrap();
+        for (position, (depth, index)) in expected.into_iter().enumerate() {
+            assert_eq!(
+                shape.identity_binder_at(position as u32),
+                Some(SignatureTypeKey::Binder { depth, index })
+            );
+        }
+        assert_eq!(shape.identity_binder_at(host + own), None);
+    }
 }
