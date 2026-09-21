@@ -1,0 +1,14 @@
+private struct BindingItem()
+private struct BindingBox<T>(val value: T)
+public class BindingHost {
+    private fun nominal(first: BindingItem, value: BindingItem = first): BindingItem = value
+    private fun applied(first: BindingBox<BindingItem>, value: BindingBox<BindingItem> = first): BindingBox<BindingItem> = value
+    private fun tuple(first: BindingItem, value: (BindingItem, BindingItem) = (first, first)): (BindingItem, BindingItem) = value
+    private fun function(first: (BindingItem) -> BindingItem, value: (BindingItem) -> BindingItem = first): (BindingItem) -> BindingItem = value
+    private fun suspended(first: suspend (BindingItem) -> BindingItem, value: suspend (BindingItem) -> BindingItem = first): suspend (BindingItem) -> BindingItem = value
+    internal fun <T> local(first: T, value: T = when ((first, first)) { else -> {
+        fun <A, B> keep(a: A, b: B): T { return first }
+        keep<T, T>(first, first)
+    } }): T = value
+    internal fun unit(value: Unit = ()): Unit = value
+}

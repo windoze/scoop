@@ -4,9 +4,19 @@ use hir::{
     ExportDefaultReferenceKindV1 as Kind,
 };
 
-pub(super) fn change(
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn change(
     t: &Template,
     kind: Kind,
+    update: impl FnOnce(&Witness) -> Witness,
+    output: &hir::OrdinaryHirOutput<'_>,
+) -> Template {
+    change_at(t, kind, 0, update, output)
+}
+
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn change_at(
+    t: &Template,
+    kind: Kind,
+    index: usize,
     update: impl FnOnce(&Witness) -> Witness,
     output: &hir::OrdinaryHirOutput<'_>,
 ) -> Template {
@@ -18,12 +28,12 @@ pub(super) fn change(
     let mut singletons = refs.singleton_values().to_vec();
     let mut fields = refs.fields().to_vec();
     match kind {
-        Kind::Callable => overwrite(&mut callables[0], update),
-        Kind::Constructor => overwrite(&mut constructors[0], update),
-        Kind::Type => overwrite(&mut types[0], update),
-        Kind::Global => overwrite(&mut globals[0], update),
-        Kind::Singleton => overwrite(&mut singletons[0], update),
-        Kind::Field => overwrite(&mut fields[0], update),
+        Kind::Callable => overwrite(&mut callables[index], update),
+        Kind::Constructor => overwrite(&mut constructors[index], update),
+        Kind::Type => overwrite(&mut types[index], update),
+        Kind::Global => overwrite(&mut globals[index], update),
+        Kind::Singleton => overwrite(&mut singletons[index], update),
+        Kind::Field => overwrite(&mut fields[index], update),
     }
     let refs = hir::DefaultSourceReferencesV1::try_new(
         callables,

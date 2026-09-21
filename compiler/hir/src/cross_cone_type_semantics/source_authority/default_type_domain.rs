@@ -6,7 +6,9 @@ use scoop_identity::{
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationKind,
 };
 use scoop_wire::{BudgetMeter, WireError, WirePath};
+mod binding;
 mod core;
+pub use binding::*;
 mod errors;
 mod merge;
 mod providers;
@@ -51,17 +53,22 @@ impl<'b, 's, 'a, 'f> DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
         scope: &SignatureBinderScopeV1,
         meter: &mut BudgetMeter,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
+        self.type_source_domain_at(ty, scope, meter, &WirePath::root())
+    }
+
+    fn type_source_domain_at(
+        &self,
+        ty: &SignatureTypeKey,
+        scope: &SignatureBinderScopeV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<DefaultSourceAccessDomainV1, Error> {
         let mut result = DefaultSourceAccessDomainV1::universal();
-        visit_default_source_type_access_demands(
-            ty,
-            meter,
-            &WirePath::root(),
-            &mut |demand, meter, path| {
-                let part = self.demand_domain(demand, scope, meter, path)?;
-                result = merge::intersect(&result, &part, meter, path)?;
-                Ok::<_, Error>(())
-            },
-        )
+        visit_default_source_type_access_demands(ty, meter, path, &mut |demand, meter, path| {
+            let part = self.demand_domain(demand, scope, meter, path)?;
+            result = merge::intersect(&result, &part, meter, path)?;
+            Ok::<_, Error>(())
+        })
         .map_err(|error| match error {
             DefaultSourceTypeAccessVisitError::Resource(error) => Error::Resource(error),
             DefaultSourceTypeAccessVisitError::Visitor(error) => error,
