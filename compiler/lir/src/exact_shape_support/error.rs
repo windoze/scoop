@@ -5,7 +5,6 @@ use super::ParamFreeShapeSupportWireError;
 
 #[derive(Debug)]
 pub enum ParamFreeShapeSupportExportError {
-    CoreUsesExistingAuthority,
     Provider,
     Target,
     ForeignSource {
@@ -54,10 +53,7 @@ from_error!(WireError, Resource);
 
 impl std::fmt::Display for ParamFreeShapeSupportExportError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "invalid ordinary param-free shape support: {self:?}"
-        )
+        write!(formatter, "invalid param-free shape support: {self:?}")
     }
 }
 
@@ -66,7 +62,6 @@ impl std::error::Error for ParamFreeShapeSupportExportError {}
 #[derive(Debug)]
 pub enum ParamFreeShapeSupportTableError {
     CountOverflow,
-    CoreUsesExistingAuthority,
     Duplicate(PersistentTypeId),
     DuplicateRequiredSource(PersistentTypeId),
     TableProvider,
@@ -107,7 +102,7 @@ impl From<WireError> for ParamFreeShapeSupportTableError {
 
 impl std::fmt::Display for ParamFreeShapeSupportTableError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "invalid ordinary shape-support table: {self:?}")
+        write!(formatter, "invalid shape-support table: {self:?}")
     }
 }
 

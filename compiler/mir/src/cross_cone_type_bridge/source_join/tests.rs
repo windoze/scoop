@@ -1,6 +1,6 @@
 use super::*;
 use crate::cross_cone_type_bridge::tests::support::Fixture;
-use scoop_identity::{CallableOwner, CallableTemplateOwner, SourceNominalKind};
+use scoop_identity::{CallableTemplateOwner, SourceNominalKind};
 use scoop_wire::DecodeLimits;
 
 mod dispatch;
@@ -55,22 +55,18 @@ impl Source {
             identities: &self.fixture.graph,
             types: &types,
         };
-        let shapes = if self.provider == ConeIdentity::CORE {
-            vec![]
-        } else {
-            vec![
-                ParamFreeMirShapeSupportV1::try_new(
-                    shape_authority,
-                    self.fixture.empty.id(),
-                    self.fixture.payload.id(),
-                    MirBoxedShapeSupportV1::Available(self.fixture.boxed_export().exact()),
-                    self.fixture.step_export().exact(),
-                    self.fixture.slot_export().exact(),
-                    &mut meter(),
-                )
-                .unwrap(),
-            ]
-        };
+        let shapes = vec![
+            ParamFreeMirShapeSupportV1::try_new(
+                shape_authority,
+                self.fixture.empty.id(),
+                self.fixture.payload.id(),
+                MirBoxedShapeSupportV1::Available(self.fixture.boxed_export().exact()),
+                self.fixture.step_export().exact(),
+                self.fixture.slot_export().exact(),
+                &mut meter(),
+            )
+            .unwrap(),
+        ];
         let shapes = CanonicalMirShapeSupportsV1::try_new(
             self.provider,
             shape_authority,
@@ -107,23 +103,6 @@ impl Source {
             unreachable!()
         };
         id
-    }
-    fn core_bridge(&self) -> crate::CoreMirBridgeV1 {
-        crate::CoreMirBridgeV1::try_new(
-            vec![
-                crate::CoreMirShapeSupportRootV1::new(
-                    self.fixture.empty.id(),
-                    self.fixture.payload.id(),
-                )
-                .unwrap(),
-            ],
-            crate::CoreMirInitializationCycleThrowerV1::new(
-                self.frame_owner(),
-                CallableOwner::Function(self.frame_owner()),
-            )
-            .unwrap(),
-        )
-        .unwrap()
     }
 }
 impl MirTypeBridgeSourceSemanticAuthorityV1<&'static str> for Source {

@@ -45,13 +45,9 @@ pub(super) fn complete<'a, E>(
     let provider = input.authority.provider();
     input.authority.validate(meter)?;
     validate_selection_input(provider, &input.selection, meter)?;
-    input.exports.validate_sources(
-        provider,
-        graph,
-        input.authority.shape_authority(),
-        source,
-        meter,
-    )?;
+    input
+        .exports
+        .validate_sources(provider, graph, source, meter)?;
     let types = dependencies::types(input.exports.types(), &input.dependencies, meter)?;
     replay::exports(
         input.authority,
@@ -62,25 +58,11 @@ pub(super) fn complete<'a, E>(
         meter,
     )?;
     let units = units::build(input.authority, source, graph, &types, meter)?;
-    let mut core_shapes = Vec::new();
-    if let MirTypeBridgeShapeRootAuthorityV1::Core(core) = input.authority.shape_authority() {
-        core_shapes = reserve(core.shape_support_roots().len(), meter)?;
-        for root in core.shape_support_roots() {
-            core_shapes.push(source_join::validation::roots::core_family::<E>(
-                &input.exports,
-                graph,
-                root.source(),
-                root.exact(),
-                meter,
-            )?);
-        }
-    }
     let legacy_callables = input.authority.legacy_callables(meter)?;
     let local = LocalView {
         provider,
         exports: &input.exports,
         units: &units,
-        core_shapes: &core_shapes,
         legacy: &legacy_callables,
     };
     let committed = source
@@ -101,7 +83,6 @@ pub(super) fn complete<'a, E>(
         authority: input.authority,
         exports: input.exports,
         units,
-        core_shapes,
         legacy_callables,
         dependencies: input.dependencies,
         selected,

@@ -115,7 +115,7 @@ fn table_enforces_independent_coverage_and_round_trips() {
 }
 
 #[test]
-fn table_rejects_duplicate_core_and_exhausted_budget() {
+fn table_rejects_duplicates_extra_core_records_and_exhausted_budget() {
     let fixture = Fixture::new(SourceNominalKind::Struct, false);
     let record = fixture.replay().unwrap();
     assert!(matches!(
@@ -171,6 +171,8 @@ fn table_rejects_duplicate_core_and_exhausted_budget() {
             vec![record],
             &mut fixture.meter(),
         ),
-        Err(ParamFreeShapeSupportTableError::CoreUsesExistingAuthority)
+        Err(ParamFreeShapeSupportTableError::Coverage)
     ));
 }
+
+mod core;

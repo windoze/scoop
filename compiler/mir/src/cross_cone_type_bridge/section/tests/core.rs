@@ -56,13 +56,17 @@ pub(super) fn fixture() -> Fixture {
 }
 
 #[test]
-fn existing_core_roots_supply_shapes_without_duplicate_wire_authority() {
+fn core_shape_selection_uses_the_common_table_and_round_trips() {
     let provider = fixture();
     let mut consumer = Fixture::new("core-client");
     consumer.source.uses = vec![provider.shape_use()];
     let mut graph = graph(&[&provider, &consumer]);
     let core = provider.section(&[], &graph).unwrap();
-    assert!(core.shape_support().records().is_empty());
+    assert_eq!(core.shape_support().records().len(), 1);
+    assert_eq!(
+        core.shape_support().records()[0].source(),
+        provider.types.empty.id()
+    );
     let section = consumer.section(&[&core], &graph).unwrap();
     assert_eq!(section.selected().len(), 5);
     let bytes = encode(&core).unwrap();
@@ -122,4 +126,44 @@ fn fixed_core_and_ordinary_callable_partitions_cannot_be_selected_again() {
             matches!(consumer.section(&[&core, &old], &graph), Err(MirTypeBridgeSectionError::OldCallablePartition(actual)) if actual == StrongCallableDefinitionOwner::Function(target))
         );
     }
+}
+
+#[test]
+fn mixed_core_and_ordinary_shape_selections_keep_their_terminal_records() {
+    let core_provider = fixture();
+    let ordinary_provider = Fixture::new("mixed-shape-provider");
+    let mut consumer = Fixture::new("mixed-shape-client");
+    consumer.source.uses = vec![core_provider.shape_use(), ordinary_provider.shape_use()];
+    consumer.source.uses.sort_unstable();
+    let mut graph = graph(&[&core_provider, &ordinary_provider, &consumer]);
+    let core = core_provider.section(&[], &graph).unwrap();
+    let ordinary = ordinary_provider.section(&[], &graph).unwrap();
+    let section = consumer.section(&[&core, &ordinary], &graph).unwrap();
+    assert_eq!(section.selected().len(), 10);
+    for provider in [&core_provider, &ordinary_provider] {
+        let reference = section
+            .selected()
+            .reference(provider.source.provider, provider.shape_use().target())
+            .unwrap();
+        let Some(MirTypeBridgeSemanticRecordV1::ShapeSupport(selected)) =
+            section.selected().resolve(reference)
+        else {
+            panic!("shape selection resolves to its terminal shape record")
+        };
+        assert_eq!(selected.provider(), provider.source.provider);
+        assert_eq!(selected.source(), provider.types.empty.id());
+    }
+    let bytes = encode(&section).unwrap();
+    let decoded: DecodedCrossConeMirTypeBridgeSectionV1 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    let replayed = decoded
+        .validate(
+            consumer.authority(),
+            &[&core, &ordinary],
+            &consumer.source,
+            &mut graph,
+            &mut meter(),
+        )
+        .unwrap();
+    assert_eq!(encode(&replayed).unwrap(), bytes);
 }

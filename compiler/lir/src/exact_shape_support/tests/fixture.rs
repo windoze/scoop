@@ -19,9 +19,33 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub(super) fn new(kind: SourceNominalKind, wrong_step_payload: bool) -> Self {
-        let source = crate::exact_layout::tests::source("Subject", kind, 0);
+        Self::for_provider(
+            ConeCoordinate::reserved_single_file(),
+            kind,
+            wrong_step_payload,
+        )
+    }
+
+    pub(super) fn for_provider(
+        coordinate: ConeCoordinate,
+        kind: SourceNominalKind,
+        wrong_step_payload: bool,
+    ) -> Self {
+        let provider = coordinate.identity().unwrap();
+        let source = SourceDeclarationKey::nominal(
+            SourceDeclarationSite::new(
+                provider,
+                PackagePath::root(),
+                DefinitionOwnerChain::top_level(),
+                DeclarationScope::ConeWide,
+            )
+            .unwrap(),
+            CanonicalIdentifier::new("Subject").unwrap(),
+            kind,
+            0,
+        );
         let built = layouts::build(&source, wrong_step_payload);
-        let foundation = foundation(&built);
+        let foundation = foundation(provider, &built);
         let layouts = CanonicalExactLayoutExportsV1::try_new(
             TARGET,
             &foundation,
@@ -29,7 +53,7 @@ impl Fixture {
             &mut meter(),
         )
         .unwrap();
-        let graph = Graph::new(source.clone(), &built.shapes);
+        let graph = Graph::new(source.clone(), &built.shapes, coordinate);
         let descriptors = built
             .shapes
             .iter()
@@ -135,7 +159,7 @@ fn descriptor(
     })
 }
 
-fn foundation(built: &layouts::LayoutFixture) -> OdrFreeLirFoundation {
+fn foundation(provider: ConeIdentity, built: &layouts::LayoutFixture) -> OdrFreeLirFoundation {
     let mut layouts = Vec::new();
     let mut scans = Vec::new();
     let mut plans = Vec::new();
@@ -157,7 +181,7 @@ fn foundation(built: &layouts::LayoutFixture) -> OdrFreeLirFoundation {
             ExternalStrongShapeSubjectV1::TypeRegistration(exact),
             ExternalStrongShapeSubjectV1::DispatchTable(table.id()),
         ] {
-            add_subject(subject, &mut plans, &mut atoms, &mut symbols);
+            add_subject(provider, subject, &mut plans, &mut atoms, &mut symbols);
         }
         dispatch.push(table);
     }
@@ -171,18 +195,17 @@ fn foundation(built: &layouts::LayoutFixture) -> OdrFreeLirFoundation {
     canonical.set_definition_plans(plans).unwrap();
     canonical.set_definition_atoms(atoms).unwrap();
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-    OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap()
+    OdrFreeLirFoundation::try_new(provider, canonical).unwrap()
 }
 
 fn add_subject(
+    provider: ConeIdentity,
     subject: ExternalStrongShapeSubjectV1,
     plans: &mut Vec<CborIdentityRecord<ObjectDefinitionPlanId, ObjectDefinitionPlanKey>>,
     atoms: &mut Vec<CborIdentityRecord<ObjectDefinitionAtomId, ObjectDefinitionAtomKey>>,
     symbols: &mut Vec<PersistentSymbolRequest>,
 ) {
-    let (plan, symbol) = subject
-        .expected_definition(ConeIdentity::SINGLE_FILE)
-        .unwrap();
+    let (plan, symbol) = subject.expected_definition(provider).unwrap();
     let plan = CborIdentityRecord::from_key(plan).unwrap();
     atoms.push(
         CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
@@ -205,7 +228,11 @@ struct Graph {
 }
 
 impl Graph {
-    fn new(source: SourceDeclarationKey, shapes: &[layouts::Shape]) -> Self {
+    fn new(
+        source: SourceDeclarationKey,
+        shapes: &[layouts::Shape],
+        coordinate: ConeCoordinate,
+    ) -> Self {
         let source_nominal = PersistentTypeId::from_source_declaration(&source).unwrap();
         let exact = shapes
             .iter()
@@ -232,7 +259,7 @@ impl Graph {
             generated,
             source_nominal,
             source,
-            coordinate: ConeCoordinate::reserved_single_file(),
+            coordinate,
         }
     }
 }
@@ -258,7 +285,7 @@ impl ExactTypeDiagnosticGraph for Graph {
     }
 
     fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate> {
-        (id == ConeIdentity::SINGLE_FILE).then_some(&self.coordinate)
+        (id == self.source.origin()).then_some(&self.coordinate)
     }
 }
 

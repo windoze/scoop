@@ -91,13 +91,6 @@ pub enum MirTypeBridgeSourceRecordV1 {
     InitializationUses,
 }
 
-/// Keeps core's existing root records as the unique authority.
-#[derive(Clone, Copy)]
-pub enum MirTypeBridgeShapeRootAuthorityV1<'a> {
-    Ordinary,
-    Core(&'a crate::CoreMirBridgeV1),
-}
-
 /// A checked local source join. It grants no terminal-provider eligibility.
 #[derive(Clone, Copy)]
 pub struct CheckedMirTypeBridgeSourceJoinV1<'a> {

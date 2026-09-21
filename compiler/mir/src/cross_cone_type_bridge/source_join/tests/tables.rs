@@ -46,13 +46,7 @@ impl SourceTables {
         graph: &ValidatedIdentityGraph,
     ) -> Result<(), MirTypeBridgeSourceJoinError<&'static str>> {
         candidate
-            .validate_sources(
-                ConeIdentity::SINGLE_FILE,
-                graph,
-                MirTypeBridgeShapeRootAuthorityV1::Ordinary,
-                self,
-                &mut meter(),
-            )
+            .validate_sources(ConeIdentity::SINGLE_FILE, graph, self, &mut meter())
             .map(|_| ())
     }
 }

@@ -52,9 +52,6 @@ impl CanonicalMirShapeSupportsV1 {
         if let Some(index) = required.windows(2).position(|pair| pair[0] >= pair[1]) {
             return Err(MirShapeSupportError::NonCanonicalRequiredSources { index: index + 1 });
         }
-        if self.provider == ConeIdentity::CORE && !required.is_empty() {
-            return Err(MirShapeSupportError::CoreUsesExistingAuthority);
-        }
         let mut actual = self.records.iter().peekable();
         for source in required {
             meter.charge_work(1, &path)?;
@@ -86,9 +83,6 @@ fn check_provider(
 ) -> Result<(), MirShapeSupportError> {
     meter.check_table_entries(records.len() as u64, &WirePath::root())?;
     meter.charge_work(records.len() as u64, &WirePath::root())?;
-    if provider == ConeIdentity::CORE && !records.is_empty() {
-        return Err(MirShapeSupportError::CoreUsesExistingAuthority);
-    }
     for record in records {
         if record.provider() != provider {
             return Err(MirShapeSupportError::ProviderMismatch {
@@ -114,9 +108,6 @@ impl DecodedCanonicalMirShapeSupportsV1 {
         let mut records: Vec<ParamFreeMirShapeSupportV1> = Vec::new();
         let path = WirePath::root();
         meter.check_table_entries(self.records.len() as u64, &path)?;
-        if provider == ConeIdentity::CORE && !self.records.is_empty() {
-            return Err(MirShapeSupportError::CoreUsesExistingAuthority);
-        }
         meter.try_reserve_collection_slots(&mut records, self.records.len(), &path)?;
         for (index, decoded) in self.records.into_iter().enumerate() {
             meter.charge_nodes(1, &path.clone().index(index as u64))?;

@@ -5,7 +5,6 @@ pub(super) struct LocalView<'a> {
     pub provider: ConeIdentity,
     pub exports: &'a MirTypeBridgeExportConstituentsV1,
     pub units: &'a [MirTypeBridgeInitializationUnitV1],
-    pub core_shapes: &'a [ParamFreeMirShapeSupportV1],
     pub legacy: &'a [StrongCallableDefinitionOwner],
 }
 impl<'a> LocalView<'a> {
@@ -34,17 +33,11 @@ impl<'a> LocalView<'a> {
                 .objects()
                 .get(value)
                 .map(MirTypeBridgeSemanticRecordV1::Object),
-            MirTypeBridgeTargetV1::ShapeSupport(source) => {
-                let shape = if self.provider == ConeIdentity::CORE {
-                    self.core_shapes
-                        .binary_search_by_key(&source, ParamFreeMirShapeSupportV1::source)
-                        .ok()
-                        .map(|index| &self.core_shapes[index])
-                } else {
-                    self.exports.shapes().get(source)
-                };
-                shape.map(MirTypeBridgeSemanticRecordV1::ShapeSupport)
-            }
+            MirTypeBridgeTargetV1::ShapeSupport(source) => self
+                .exports
+                .shapes()
+                .get(source)
+                .map(MirTypeBridgeSemanticRecordV1::ShapeSupport),
             MirTypeBridgeTargetV1::InitializationUnit(unit) => self
                 .units
                 .binary_search_by_key(&unit, MirTypeBridgeInitializationUnitV1::unit)
@@ -68,12 +61,7 @@ impl<'a> LocalView<'a> {
         for record in self.exports.objects().records() {
             visit(MirTypeBridgeTargetV1::Object(record.value()))?;
         }
-        let shapes = if self.provider == ConeIdentity::CORE {
-            self.core_shapes
-        } else {
-            self.exports.shapes().records()
-        };
-        for record in shapes {
+        for record in self.exports.shapes().records() {
             visit(MirTypeBridgeTargetV1::ShapeSupport(record.source()))?;
         }
         for record in self.units {
@@ -89,7 +77,6 @@ impl CrossConeMirTypeBridgeSectionV1<'_> {
             provider: self.provider(),
             exports: &self.exports,
             units: &self.units,
-            core_shapes: &self.core_shapes,
             legacy: &self.legacy_callables,
         }
     }

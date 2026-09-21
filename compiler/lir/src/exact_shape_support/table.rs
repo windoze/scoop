@@ -65,18 +65,6 @@ impl CanonicalParamFreeShapeSupportExportsV1 {
         if layouts.target() != descriptors.target() {
             return Err(ParamFreeShapeSupportTableError::TableTarget);
         }
-        if foundation.producer() == ConeIdentity::CORE {
-            return if sources.is_empty() && records.is_empty() {
-                Ok(Self(Arc::new(ShapeSupportTable {
-                    provider: ConeIdentity::CORE,
-                    target: layouts.target(),
-                    records,
-                })))
-            } else {
-                Err(ParamFreeShapeSupportTableError::CoreUsesExistingAuthority)
-            };
-        }
-
         records.sort_unstable_by_key(ParamFreeShapeSupportExportV1::source_nominal);
         for pair in records.windows(2) {
             if pair[0].source_nominal() == pair[1].source_nominal() {

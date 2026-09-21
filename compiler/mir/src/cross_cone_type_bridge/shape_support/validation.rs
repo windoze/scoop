@@ -11,7 +11,6 @@ pub enum MirShapeSupportError {
     HelperRole { exact: PersistentExactTypeId },
     HelperGc { exact: PersistentExactTypeId },
     ProviderMismatch { source: PersistentTypeId },
-    CoreUsesExistingAuthority,
     DuplicateSource { source: PersistentTypeId },
     NonCanonicalSourceOrder { index: usize },
     NonCanonicalRequiredSources { index: usize },

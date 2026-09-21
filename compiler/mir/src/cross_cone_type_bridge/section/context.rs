@@ -40,14 +40,6 @@ impl<'a> MirTypeBridgeLocalAuthorityV1<'a> {
         }
         Ok(())
     }
-    pub(super) fn shape_authority(self) -> MirTypeBridgeShapeRootAuthorityV1<'a> {
-        match self.production().core_bridge() {
-            crate::CoreMirBridgeBranchV1::Core(core) => {
-                MirTypeBridgeShapeRootAuthorityV1::Core(core)
-            }
-            crate::CoreMirBridgeBranchV1::NotCore => MirTypeBridgeShapeRootAuthorityV1::Ordinary,
-        }
-    }
     pub(super) fn legacy_callables<E>(
         self,
         meter: &mut BudgetMeter,

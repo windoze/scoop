@@ -110,7 +110,7 @@ fn source_identity_cannot_be_replaced_by_an_unrelated_nominal_or_a_helper() {
 }
 
 #[test]
-fn ordinary_table_checks_provider_and_core_keeps_its_existing_authority() {
+fn shape_table_checks_all_providers_and_duplicate_sources() {
     let family = Family::value(false);
     let record = family.build(&mut meter()).unwrap();
     let other_provider = scoop_identity::ConeCoordinate::new("test", "other", "1.0.0")
@@ -133,7 +133,7 @@ fn ordinary_table_checks_provider_and_core_keeps_its_existing_authority() {
             vec![record.clone()],
             &mut meter()
         ),
-        Err(MirShapeSupportError::CoreUsesExistingAuthority)
+        Err(MirShapeSupportError::ProviderMismatch { .. })
     ));
     let empty_core = CanonicalMirShapeSupportsV1::try_new(
         ConeIdentity::CORE,
@@ -147,7 +147,7 @@ fn ordinary_table_checks_provider_and_core_keeps_its_existing_authority() {
         .unwrap();
     assert!(matches!(
         empty_core.validate_required_sources(&[record.source()], &mut meter()),
-        Err(MirShapeSupportError::CoreUsesExistingAuthority)
+        Err(MirShapeSupportError::MissingSource { source }) if source == record.source()
     ));
     assert!(matches!(
         CanonicalMirShapeSupportsV1::try_new(

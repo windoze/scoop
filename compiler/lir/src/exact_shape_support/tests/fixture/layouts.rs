@@ -1,7 +1,8 @@
 use scoop_identity::{
-    CborIdentityRecord, EnumVariantFieldKey, EnumVariantFieldSelector, EnumVariantIdentityKey,
-    ExactTypeKey, GeneratedEnumVariantRole, GeneratedNominalKey, PersistentExactTypeId,
-    PersistentTypeId, SourceDeclarationKey, SourceDeclarationKind,
+    CborIdentityRecord, ConeIdentity, EnumVariantFieldKey, EnumVariantFieldSelector,
+    EnumVariantIdentityKey, ExactTypeKey, GeneratedEnumVariantRole, GeneratedNominalKey,
+    PersistentExactTypeId, PersistentTypeId, RepresentationRole, ScanRole, SourceDeclarationKey,
+    SourceDeclarationKind,
 };
 
 use crate::exact_layout::tests::{Bound, meter};
@@ -43,8 +44,9 @@ pub(super) fn build(source: &SourceDeclarationKey, wrong_step_payload: bool) -> 
             payload: source_exact_record.id(),
         };
         let exact = generated_exact(&key);
-        let (value, value_foundation) = managed_value(exact.clone());
-        let (instance, instance_foundation) = boxed_instance(exact.clone(), &source_value);
+        let (value, value_foundation) = managed_value(source.origin(), exact.clone());
+        let (instance, instance_foundation) =
+            boxed_instance(source.origin(), exact.clone(), &source_value);
         shapes.push(Shape {
             exact,
             value,
@@ -59,7 +61,7 @@ pub(super) fn build(source: &SourceDeclarationKey, wrong_step_payload: bool) -> 
             scoop_identity::SourceNominalKind::Struct,
             0,
         ));
-        let (value, foundation) = empty_struct(exact);
+        let (value, foundation) = empty_struct(source.origin(), exact);
         extra.push(value.clone().into());
         foundations.push(foundation);
         Some(value)
@@ -70,6 +72,7 @@ pub(super) fn build(source: &SourceDeclarationKey, wrong_step_payload: bool) -> 
         result: source_exact_record.id(),
     };
     let (shape, shape_foundations) = helper_shape(
+        source.origin(),
         &step,
         [
             GeneratedEnumVariantRole::CoroutineStepCompleted,
@@ -84,6 +87,7 @@ pub(super) fn build(source: &SourceDeclarationKey, wrong_step_payload: bool) -> 
         value: source_exact_record.id(),
     };
     let (shape, shape_foundations) = helper_shape(
+        source.origin(),
         &slot,
         [
             GeneratedEnumVariantRole::CoroutineSlotEmpty,
@@ -135,19 +139,25 @@ fn source_value(
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
 ) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
     match source.declaration_kind() {
-        SourceDeclarationKind::Struct => empty_struct(exact),
-        SourceDeclarationKind::Interface => managed_value(exact),
+        SourceDeclarationKind::Struct => empty_struct(source.origin(), exact),
+        SourceDeclarationKind::Interface => managed_value(source.origin(), exact),
         _ => panic!("fixture source kind"),
     }
 }
 
 fn empty_struct(
+    provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
 ) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
     let Bound {
         identity,
         foundation,
-    } = Bound::value(exact);
+    } = Bound::for_provider(
+        provider,
+        exact,
+        RepresentationRole::ManagedValue,
+        ScanRole::InlineValue,
+    );
     let value =
         ExactValueLayoutV1::ordinary_struct(identity, false, &[], &foundation, &mut meter())
             .unwrap();
@@ -155,12 +165,18 @@ fn empty_struct(
 }
 
 fn managed_value(
+    provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
 ) -> (ExactValueLayoutV1, crate::OdrFreeLirFoundation) {
     let Bound {
         identity,
         foundation,
-    } = Bound::value(exact);
+    } = Bound::for_provider(
+        provider,
+        exact,
+        RepresentationRole::ManagedValue,
+        ScanRole::InlineValue,
+    );
     let value = ExactValueLayoutV1::qualified_pointer(
         identity,
         NichePointerKind::Managed,
@@ -178,7 +194,12 @@ fn source_instance(
     let Bound {
         identity,
         foundation,
-    } = Bound::instance(value.identity().exact_record().clone());
+    } = Bound::for_provider(
+        source.origin(),
+        value.identity().exact_record().clone(),
+        RepresentationRole::ManagedObject,
+        ScanRole::ManagedObject,
+    );
     let instance = match source.declaration_kind() {
         SourceDeclarationKind::Struct => {
             ExactInstanceLayoutV1::boxed_payload(identity, value, &foundation, &mut meter())
@@ -193,19 +214,26 @@ fn source_instance(
 }
 
 fn boxed_instance(
+    provider: ConeIdentity,
     exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
     payload: &ExactValueLayoutV1,
 ) -> (ExactInstanceLayoutV1, crate::OdrFreeLirFoundation) {
     let Bound {
         identity,
         foundation,
-    } = Bound::instance(exact);
+    } = Bound::for_provider(
+        provider,
+        exact,
+        RepresentationRole::ManagedObject,
+        ScanRole::ManagedObject,
+    );
     let instance =
         ExactInstanceLayoutV1::boxed_payload(identity, payload, &foundation, &mut meter()).unwrap();
     (instance, foundation)
 }
 
 fn helper_shape(
+    provider: ConeIdentity,
     owner: &GeneratedNominalKey,
     roles: [GeneratedEnumVariantRole; 2],
     payload_index: usize,
@@ -246,10 +274,15 @@ fn helper_shape(
     let Bound {
         identity,
         foundation: value_foundation,
-    } = Bound::value(exact.clone());
+    } = Bound::for_provider(
+        provider,
+        exact.clone(),
+        RepresentationRole::ManagedValue,
+        ScanRole::InlineValue,
+    );
     let value = ExactValueLayoutV1::enumeration(identity, &inputs, &value_foundation, &mut meter())
         .unwrap();
-    let (instance, instance_foundation) = boxed_instance(exact.clone(), &value);
+    let (instance, instance_foundation) = boxed_instance(provider, exact.clone(), &value);
     (
         Shape {
             exact,

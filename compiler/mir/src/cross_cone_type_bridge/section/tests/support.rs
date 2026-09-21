@@ -129,17 +129,9 @@ pub(super) fn exports(
         &mut meter(),
     )
     .unwrap();
-    let shapes = CanonicalMirShapeSupportsV1::try_new(
-        provider,
-        shape_authority,
-        if provider == ConeIdentity::CORE {
-            vec![]
-        } else {
-            vec![shape]
-        },
-        &mut meter(),
-    )
-    .unwrap();
+    let shapes =
+        CanonicalMirShapeSupportsV1::try_new(provider, shape_authority, vec![shape], &mut meter())
+            .unwrap();
     let callables = CanonicalMirCallableBindingsV1::try_new(vec![]).unwrap();
     let dispatch = CanonicalMirDispatchSchemasV1::try_new(
         MirDispatchSchemaAuthority {

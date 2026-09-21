@@ -8,7 +8,6 @@ fn independent_source_inventory_and_complete_records_produce_a_local_join() {
         .validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter(),
         )
@@ -27,7 +26,6 @@ fn source_inventory_is_not_inferred_from_the_transport_table() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -40,7 +38,6 @@ fn source_inventory_is_not_inferred_from_the_transport_table() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -63,7 +60,6 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -77,7 +73,6 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -93,7 +88,6 @@ fn every_export_inventory_is_checked_even_when_the_transport_table_is_empty() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -138,7 +132,7 @@ fn same_exact_with_changed_fields_and_facts_cannot_replace_the_source_record() {
     )
     .unwrap();
     assert!(
-        matches!(exports.validate_sources(source.provider, &source.fixture.graph, MirTypeBridgeShapeRootAuthorityV1::Ordinary, &source, &mut meter()), Err(MirTypeBridgeSourceJoinError::Record(MirTypeBridgeSourceRecordV1::Type(exact))) if exact == source.fixture.payload.id())
+        matches!(exports.validate_sources(source.provider, &source.fixture.graph, &source, &mut meter()), Err(MirTypeBridgeSourceJoinError::Record(MirTypeBridgeSourceRecordV1::Type(exact))) if exact == source.fixture.payload.id())
     );
 }
 
@@ -149,7 +143,6 @@ fn local_source_join_does_not_accept_a_different_manifest_provider() {
         source.exports().validate_sources(
             ConeIdentity::CORE,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut meter()
         ),
@@ -166,7 +159,6 @@ fn source_comparisons_share_an_inclusive_validation_budget() {
         .validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut measured,
         )
@@ -176,7 +168,6 @@ fn source_comparisons_share_an_inclusive_validation_budget() {
         .validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut BudgetMeter::new(DecodeLimits {
                 validation_work_units: work,
@@ -188,7 +179,6 @@ fn source_comparisons_share_an_inclusive_validation_budget() {
         exports.validate_sources(
             source.provider,
             &source.fixture.graph,
-            MirTypeBridgeShapeRootAuthorityV1::Ordinary,
             &source,
             &mut BudgetMeter::new(DecodeLimits {
                 validation_work_units: work - 1,

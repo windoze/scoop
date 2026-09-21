@@ -20,7 +20,6 @@ pub enum MirTypeBridgeSourceJoinError<E> {
     SourceRootProvider { source: PersistentTypeId },
     SourceRootType { source: PersistentTypeId },
     Provider,
-    CoreRootAuthority,
     WorkOverflow,
 }
 impl<E: std::fmt::Debug> std::fmt::Display for MirTypeBridgeSourceJoinError<E> {
@@ -35,7 +34,6 @@ impl MirTypeBridgeExportConstituentsV1 {
         &'a self,
         provider: ConeIdentity,
         identities: &ValidatedIdentityGraph,
-        roots: MirTypeBridgeShapeRootAuthorityV1<'_>,
         authority: &A,
         meter: &mut BudgetMeter,
     ) -> Result<CheckedMirTypeBridgeSourceJoinV1<'a>, MirTypeBridgeSourceJoinError<E>> {
@@ -121,7 +119,6 @@ impl MirTypeBridgeExportConstituentsV1 {
             self,
             provider,
             identities,
-            roots,
             authority.required_source_roots().map_err(Error::Source)?,
             meter,
         )?;

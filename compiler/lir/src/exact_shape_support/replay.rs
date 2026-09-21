@@ -97,9 +97,6 @@ fn validate_inputs(
     descriptors: &CanonicalExactDescriptorExportsV1,
     foundation: &OdrFreeLirFoundation,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
-    if foundation.producer() == scoop_identity::ConeIdentity::CORE {
-        return Err(ParamFreeShapeSupportExportError::CoreUsesExistingAuthority);
-    }
     if layouts.provider() != foundation.producer()
         || descriptors.provider() != foundation.producer()
     {

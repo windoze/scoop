@@ -52,6 +52,14 @@ impl Bound {
         role: RepresentationRole,
         scan_role: ScanRole,
     ) -> Self {
+        Self::for_provider(ConeIdentity::SINGLE_FILE, exact, role, scan_role)
+    }
+    pub(crate) fn for_provider(
+        provider: ConeIdentity,
+        exact: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
+        role: RepresentationRole,
+        scan_role: ScanRole,
+    ) -> Self {
         let layout =
             CborIdentityRecord::from_key(LayoutKey::new(exact.id(), TARGET.wire_id(), role))
                 .unwrap();
@@ -64,9 +72,7 @@ impl Bound {
             ExternalStrongShapeSubjectV1::Layout(layout.id()),
             ExternalStrongShapeSubjectV1::Scan(scan.id()),
         ] {
-            let (plan, symbol) = subject
-                .expected_definition(ConeIdentity::SINGLE_FILE)
-                .unwrap();
+            let (plan, symbol) = subject.expected_definition(provider).unwrap();
             let plan = CborIdentityRecord::from_key(plan).unwrap();
             atoms.push(
                 CborIdentityRecord::from_key(ObjectDefinitionAtomKey::new(
@@ -84,8 +90,7 @@ impl Bound {
         foundation.set_definition_plans(plans).unwrap();
         foundation.set_definition_atoms(atoms).unwrap();
         foundation.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
-        let foundation =
-            OdrFreeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, foundation).unwrap();
+        let foundation = OdrFreeLirFoundation::try_new(provider, foundation).unwrap();
         let identity =
             ExactLayoutIdentityV1::from_foundation(TARGET, exact, role, &foundation, &mut meter())
                 .unwrap();

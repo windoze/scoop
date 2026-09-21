@@ -6,7 +6,6 @@ pub struct CrossConeMirTypeBridgeSectionV1<'a> {
     pub(super) authority: MirTypeBridgeLocalAuthorityV1<'a>,
     pub(super) exports: MirTypeBridgeExportConstituentsV1,
     pub(super) units: Vec<MirTypeBridgeInitializationUnitV1>,
-    pub(super) core_shapes: Vec<ParamFreeMirShapeSupportV1>,
     pub(super) legacy_callables: Vec<StrongCallableDefinitionOwner>,
     pub(super) dependencies: Vec<&'a CrossConeMirTypeBridgeSectionV1<'a>>,
     pub(super) selected: SelectedDependencyMirTypeSetV1<'a>,
