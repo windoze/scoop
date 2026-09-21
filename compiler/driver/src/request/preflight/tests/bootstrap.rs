@@ -7,16 +7,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let (bootstrap, artifact_slot) = slot.into_bootstrap_parts();
-    let sources = discover_manifest_sources(bootstrap.source_slot().manifest()).unwrap();
+    let sources = discover_manifest_sources(slot.source().manifest()).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
-    let input =
-        TrustedCoreBootstrapHirInput::try_new(&parsed, bootstrap.authority(), &artifact_slot)
-            .unwrap();
-
-    assert!(std::ptr::eq(input.authority(), bootstrap.authority()));
-    assert_eq!(input.artifact_slot(), &artifact_slot);
-    let output = input.lower().unwrap();
+    let output = TrustedCoreBootstrapHirOutput::lower(&parsed).unwrap();
     assert!(matches!(
         output.output_kind(),
         scoop_hir::ConeOutputKind::Library
@@ -447,13 +440,12 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     .unwrap();
     let artifact_path = slot.artifact().path().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
-    let (bootstrap, artifact_slot) = slot.into_bootstrap_parts();
     let request = SingleConeBuildRequest::new(
-        CurrentConeInput::TrustedCoreBootstrap {
-            input: Box::new(bootstrap),
+        CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(slot.source().manifest().real_root()),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::BootstrapSelf { artifact_slot },
+        TrustedCoreInput::BootstrapSelf,
         target,
         SlibOutputDestination::new(&artifact_path).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -552,42 +544,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     );
 }
 
-#[test]
-fn bootstrap_hir_input_rejects_an_artifact_slot_from_another_sysroot() {
-    let slot = crate::trusted_core::resolve_trusted_core_slot_at(
-        &crate::workspace_root().join("sysroot"),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
-    let (bootstrap, _) = slot.into_bootstrap_parts();
-    let sources = discover_manifest_sources(bootstrap.source_slot().manifest()).unwrap();
-    let parsed = parse_discovered_sources(&sources).unwrap();
-
-    let other = tempfile::tempdir().unwrap();
-    let other_core = other.path().join("lib/scoop.core");
-    std::fs::create_dir_all(&other_core).unwrap();
-    std::fs::write(
-            other_core.join("Cone.toml"),
-            "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
-        )
-        .unwrap();
-    let other_slot = crate::trusted_core::resolve_trusted_core_slot_at(
-        other.path(),
-        scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    )
-    .unwrap();
-
-    assert!(matches!(
-        TrustedCoreBootstrapHirInput::try_new(
-            &parsed,
-            bootstrap.authority(),
-            other_slot.artifact(),
-        ),
-        Err(CoreBootstrapHirInputError::ArtifactSlotMismatch)
-    ));
-}
-
-fn copy_trusted_core_sources(sysroot: &Path) {
+pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
     let source = crate::workspace_root().join("sysroot/lib/scoop.core");
     let destination = sysroot.join("lib/scoop.core");
     std::fs::create_dir_all(destination.join("src")).unwrap();

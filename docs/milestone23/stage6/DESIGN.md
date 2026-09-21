@@ -1,6 +1,10 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
-版本：1.1（补充可持久化的 HIR source authority；2026-09-20）
+core 是可由用户修改、扩展和重建的普通 library Cone。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。
+
+当前优先目标与验收改为[core 普通 library 清理](../CORE-LIBRARY.md)。暂停扩展六类default来源授权、防篡改证明及独立source-authority框架。已有typed语义和普通metadata保持可用，专用证明链按实际依赖删除或合并。
+
+版本：1.2（core 普通 library 与重复检查清理；2026-09-21）
 
 依赖：M23-5
 
@@ -271,7 +275,7 @@ type来源域查询显式接收当前已绑定声明表及按Cone严格递增的
 
 nominal default的type引用绑定只接收BoundNominalDefaultDeclarationsV1，复用其原provider声明、nested identity及精确occurrence闭包；当前access表必须来自同一份bound foundation。逐occurrence选择原provider scope，LocalFunction metadata attachment才增加同一graph内已验证函数key声明的自身非空frame，不能从descriptor的binder出现情况推断。每次独立重放完整target域并与其source witness逐项相等比较，保留模板key和type序号的错误定位；重复target、继承发布与空引用模板均不能跳过事务预算。全部成功后交付借用原声明凭证的独立BoundNominalDefaultTypeDomainsV1，不复制正文或借用witness反推来源，也不授予其他target、receiver、profile或执行资格。
 
-core foundation来源投影必须直接接收已闭合的core Export/LocalConcrete HIR pair，核验CORE归属、Defined协议分支及实际CoreShapeSupport计划。source roots、origin、表示及exact facts仍从该pair独立投影，不能构造空foundation或把core伪装成ordinary依赖。core自身的builtin leaf与实际本地闭合generic应用记录为本地来源facts，完整保留其真实exact与继承边；此分支只保存core既有实例的source证据，不产生新的ODR、dispatch或machine-use资格。ordinary投影保持原有generic/外部物化门限。
+foundation投影对所有Cone共用入口，按实际typed声明归属处理本地和依赖类型；移除core专用来源入口及其CORE、Defined协议、shape-support授权检查。generic物化和ODR是独立的代码生成语义，不用于建立core信任链。
 
 重复约束canonical去重，完整外层visibility保持不变，static nested边界不得丢弃外层generic约束。公共成员和private setter各按自身声明visibility重放，外层protected区域不自动产生成员receiver限制。查询、哈希、域分配、交集去重与编码排序共用预算；结果仍是原始source域，不因已有继承图而提前删减约束，也不授予checked lookup/slot、protected receiver或default执行资格。六类正文target到权限所属声明的映射、组合type域和candidate witness比较仍由完整引用访问事务负责。
 

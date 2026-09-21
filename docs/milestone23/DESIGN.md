@@ -1,5 +1,9 @@
 # M23 系列设计：多 Cone、导入系统与 `.slib`
 
+core 是可由用户修改、扩展和重建的普通 library Cone。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。
+
+本轮实施与验收见[core 普通 library 清理](CORE-LIBRARY.md)。
+
 版本：0.6（设计完成，待实现；2026-09-16）
 
 对应`docs/ROADMAP.md`的M23-1…M23-11。M23系列在M16/M17统一调用决议与default template、M20 exact generic application、M21 typed access domain/全局初始化以及M22非generic typealias之上，把“core源码与用户源码同一编译单元”的过渡模型替换为真正的独立Cone编译：低层编译器`scoopc`每次只把一个Cone编译为可复用`.slib`，umbrella build tool `scoop`负责解析多Cone图、缓存与调度，独立link stage再把依赖闭包中的link input和image descriptor静态链接成最终程序。下游编译只通过版本化metadata消费上游语义接口。本文仍是这些子里程碑的唯一总体设计，避免拆分完整的identity/wire/runtime契约或制造重复真源。
@@ -99,7 +103,7 @@ kind = "executable" # 或 "library"
 - dependency key是exact `group:name`，value给出exact version。字符串短式等价于只写`version`；不接受`^`、`~`、区间、`latest`或可选dependency；
 - table value至多有一个locator：`path`指向source Cone根，`artifact`指向`.slib`，二者都省略时由`scoop`依次检查每个`--cone-path`下的`<group>/<name>/<version>/cone.slib`（三项均使用canonical文本，不拆`.`）。所有存在的候选必须具有相同完整artifact fingerprint，否则报告ambiguous artifact；root顺序不能决定选取不同内容。relative path相对当前manifest，仅用于定位；它不写入`.slib`、stable key、diagnostic source identity或缓存语义。`scoopc`读取同一manifest中的exact dependency声明，但不解释或跟随这些locator；
 - path Cone或artifact manifest中的coordinate必须与dependency key/version逐字canonical相等，否则在读取源码前失败；
-- 除reserved coordinate `scoop:scoop.core:0.1.0`外不存在隐式dependency。这里的Cone name `scoop.core`与源码package `scoop.core`只是当前core发布约定，不存在由package推导Cone的规则。用户manifest不能声明、覆盖或用path伪造该coordinate；`scoop`只从当前sysroot的trusted core slot注入direct edge，`scoopc`再验证显式传入的core artifact确实来自该slot；
+- 除reserved coordinate `scoop:scoop.core:0.1.0`外不存在隐式dependency。这里的Cone name `scoop.core`与源码package `scoop.core`只是当前core发布约定，不存在由package推导Cone的规则。用户manifest可以声明该coordinate并构建修改后的core；`scoop`从默认sysroot或指定locator解析其普通direct edge，`scoopc`使用共用artifact检查，不限定其物理路径；
 - `scoop:single-file:0.0.0`同样是reserved coordinate，只能由第1.3节的typed `SingleFileRoot`产生。用户manifest不能声明该coordinate，dependency locator不能指向该artifact，也不能因artifact自报同coordinate而获得single-file身份；
 - v1没有dev/build dependency、feature、platform条件、dependency alias或native link option。native library仍由已经验证的FFI declaration进入LIR/link metadata；
 - executable不能作为另一个Cone的dependency。build root可以是library或executable：root为executable时graph中恰有一个executable且只能是root；root为library时graph中没有executable。library产物不含program descriptor或C `main`；

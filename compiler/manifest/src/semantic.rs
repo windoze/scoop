@@ -432,10 +432,7 @@ fn parse_manifest(
         )
     })?;
     match coordinate_policy {
-        ManifestCoordinatePolicy::User
-            if coordinate == ConeCoordinate::reserved_core()
-                || coordinate == ConeCoordinate::reserved_single_file() =>
-        {
+        ManifestCoordinatePolicy::User if coordinate == ConeCoordinate::reserved_single_file() => {
             return Err(ManifestParseError::new(
                 ManifestParseErrorKind::ReservedConeCoordinate,
                 Some(group_span.start..version_span.end),
@@ -460,8 +457,7 @@ fn parse_manifest(
             ));
         }
     };
-    if matches!(coordinate_policy, ManifestCoordinatePolicy::TrustedCore)
-        && requested_kind != RequestedConeKind::Library
+    if coordinate == ConeCoordinate::reserved_core() && requested_kind != RequestedConeKind::Library
     {
         return Err(ManifestParseError::new(
             ManifestParseErrorKind::TrustedCoreMustBeLibrary,
@@ -469,7 +465,7 @@ fn parse_manifest(
         ));
     }
 
-    if matches!(coordinate_policy, ManifestCoordinatePolicy::TrustedCore) {
+    if coordinate == ConeCoordinate::reserved_core() {
         if let Some(dependency) = raw.dependencies.values().next() {
             return Err(ManifestParseError::new(
                 ManifestParseErrorKind::TrustedCoreHasDependencies,
@@ -802,8 +798,8 @@ kind = "library"
         );
         assert!(parsed.semantic().is_dependency_free());
         assert_eq!(
-            *parse_cone_manifest(&core).unwrap_err().kind(),
-            ManifestParseErrorKind::ReservedConeCoordinate
+            parse_cone_manifest(&core).unwrap().semantic(),
+            parsed.semantic()
         );
 
         let wrong_coordinate = MINIMAL.to_owned();

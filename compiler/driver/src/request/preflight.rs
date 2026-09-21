@@ -22,9 +22,8 @@ use super::{
     SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreInput,
 };
 use crate::{
-    CoreBootstrapAuthority, CrossConeStrongIrProductionV1, LoadedTrustedCoreArtifact,
-    TrustedCoreArtifactLoadError, TrustedCoreArtifactSlot, TrustedCoreArtifactValidationError,
-    TrustedCoreBootstrapInput, ValidatedTrustedCoreArtifact,
+    CrossConeStrongIrProductionV1, LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError,
+    TrustedCoreArtifactValidationError, ValidatedTrustedCoreArtifact,
 };
 
 mod bootstrap;
@@ -129,17 +128,14 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
 
 #[derive(Debug)]
 pub enum LoadedCurrentConeInput {
-    Manifest { manifest: LoadedConeManifest },
+    Manifest { manifest: Box<LoadedConeManifest> },
     SingleFile { source: SingleFileLocator },
-    TrustedCoreBootstrap { input: TrustedCoreBootstrapInput },
 }
 
 #[derive(Debug)]
 pub enum LoadedTrustedCoreInput {
-    Artifact(LoadedTrustedCoreArtifact),
-    BootstrapSelf {
-        artifact_slot: TrustedCoreArtifactSlot,
-    },
+    Artifact(Box<LoadedTrustedCoreArtifact>),
+    BootstrapSelf,
 }
 
 #[derive(Debug)]
@@ -232,13 +228,12 @@ fn load_current_input(
 ) -> Result<LoadedCurrentConeInput, SingleConePreflightError> {
     match current {
         CurrentConeInput::Manifest { root } => load_cone_manifest(&root)
-            .map(|manifest| LoadedCurrentConeInput::Manifest { manifest })
+            .map(|manifest| LoadedCurrentConeInput::Manifest {
+                manifest: Box::new(manifest),
+            })
             .map_err(|source| SingleConePreflightError::Manifest(Box::new(source))),
         CurrentConeInput::SingleFile { source } => {
             Ok(LoadedCurrentConeInput::SingleFile { source })
-        }
-        CurrentConeInput::TrustedCoreBootstrap { input } => {
-            Ok(LoadedCurrentConeInput::TrustedCoreBootstrap { input: *input })
         }
     }
 }
@@ -300,8 +295,7 @@ pub enum ValidatedCurrentConeInput<'input> {
         trusted_core: Box<ValidatedTrustedCoreArtifact<'input>>,
     },
     TrustedCoreBootstrap {
-        input: &'input TrustedCoreBootstrapInput,
-        artifact_slot: &'input TrustedCoreArtifactSlot,
+        manifest: &'input LoadedConeManifest,
     },
 }
 
@@ -360,17 +354,14 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
                     sources: parse_single_file_current(source)?,
                 },
             )),
-            ValidatedCurrentConeInput::TrustedCoreBootstrap {
-                input,
-                artifact_slot,
-            } => Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
-                ParsedCoreBootstrapBuildRequest {
-                    request: self,
-                    authority: input.authority(),
-                    artifact_slot,
-                    sources: parse_manifest_current(input.source_slot().manifest())?,
-                },
-            )),
+            ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
+                Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
+                    ParsedCoreBootstrapBuildRequest {
+                        request: self,
+                        sources: parse_manifest_current(manifest)?,
+                    },
+                ))
+            }
         }
     }
 }

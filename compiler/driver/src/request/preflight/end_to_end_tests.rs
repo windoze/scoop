@@ -558,13 +558,12 @@ fn bootstrap_core(
             .unwrap();
     let artifact_path = slot.artifact().path().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
-    let (bootstrap, artifact_slot) = slot.into_bootstrap_parts();
     SingleConeBuildRequest::new(
-        CurrentConeInput::TrustedCoreBootstrap {
-            input: Box::new(bootstrap),
+        CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(slot.source().manifest().real_root()),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::BootstrapSelf { artifact_slot },
+        TrustedCoreInput::BootstrapSelf,
         target.clone(),
         SlibOutputDestination::new(&artifact_path).unwrap(),
         DiagnosticOutputPolicy::Human,

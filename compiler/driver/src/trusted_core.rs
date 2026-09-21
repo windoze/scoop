@@ -1,7 +1,7 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use scoop_identity::{ConeCoordinate, ConeIdentity};
+use scoop_identity::ConeCoordinate;
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{LoadedConeManifest, ManifestRootError, ManifestRootLocator};
 use scoop_slib::{CompositeIdentityAbiFingerprint, IdentityAbiDescriptor};
@@ -63,98 +63,10 @@ impl TrustedCoreSlot {
         &self.artifact
     }
 
-    pub fn into_bootstrap_parts(self) -> (TrustedCoreBootstrapInput, TrustedCoreArtifactSlot) {
-        let authority = CoreBootstrapAuthority {
-            source_root: self.source.manifest.real_root().to_path_buf(),
-            artifact_path: self.artifact.path.clone(),
-            expected_identity: ConeIdentity::CORE,
-            target: self.artifact.target,
-            toolchain_compatibility: self.artifact.toolchain_compatibility,
-        };
-        (
-            TrustedCoreBootstrapInput {
-                source_slot: self.source,
-                authority,
-            },
-            self.artifact,
-        )
-    }
-
     pub fn existing_artifact_input(
         &self,
     ) -> Result<TrustedCoreArtifactInput, TrustedCoreArtifactInputError> {
-        self.existing_artifact_input_at(self.artifact.path())
-    }
-
-    pub fn existing_artifact_input_at(
-        &self,
-        requested: &Path,
-    ) -> Result<TrustedCoreArtifactInput, TrustedCoreArtifactInputError> {
-        let configured = canonical_regular_file(self.artifact.path())?;
-        let requested = canonical_regular_file(requested)?;
-        if configured != requested {
-            return Err(TrustedCoreArtifactInputError::WrongSlot {
-                configured,
-                requested,
-            });
-        }
-        Ok(TrustedCoreArtifactInput {
-            path: configured,
-            expected_coordinate: self.artifact.expected_coordinate.clone(),
-            target: self.artifact.target,
-            toolchain_compatibility: self.artifact.toolchain_compatibility,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct TrustedCoreBootstrapInput {
-    source_slot: TrustedCoreSourceSlot,
-    authority: CoreBootstrapAuthority,
-}
-
-impl TrustedCoreBootstrapInput {
-    pub const fn source_slot(&self) -> &TrustedCoreSourceSlot {
-        &self.source_slot
-    }
-
-    pub const fn authority(&self) -> &CoreBootstrapAuthority {
-        &self.authority
-    }
-
-    pub fn into_parts(self) -> (TrustedCoreSourceSlot, CoreBootstrapAuthority) {
-        (self.source_slot, self.authority)
-    }
-}
-
-#[derive(Debug)]
-pub struct CoreBootstrapAuthority {
-    source_root: PathBuf,
-    artifact_path: PathBuf,
-    expected_identity: ConeIdentity,
-    target: ValidatedLirTargetSelection,
-    toolchain_compatibility: CompositeIdentityAbiFingerprint,
-}
-
-impl CoreBootstrapAuthority {
-    pub fn source_root(&self) -> &Path {
-        &self.source_root
-    }
-
-    pub fn artifact_path(&self) -> &Path {
-        &self.artifact_path
-    }
-
-    pub const fn expected_identity(&self) -> ConeIdentity {
-        self.expected_identity
-    }
-
-    pub const fn target(&self) -> ValidatedLirTargetSelection {
-        self.target
-    }
-
-    pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
-        self.toolchain_compatibility
+        TrustedCoreArtifactInput::new(self.artifact.path(), self.artifact.target())
     }
 }
 
@@ -167,6 +79,20 @@ pub struct TrustedCoreArtifactInput {
 }
 
 impl TrustedCoreArtifactInput {
+    pub fn new(
+        path: &Path,
+        target: ValidatedLirTargetSelection,
+    ) -> Result<Self, TrustedCoreArtifactInputError> {
+        Ok(Self {
+            path: canonical_regular_file(path)?,
+            expected_coordinate: ConeCoordinate::reserved_core(),
+            target,
+            toolchain_compatibility: IdentityAbiDescriptor::current()
+                .and_then(IdentityAbiDescriptor::fingerprint)
+                .map_err(TrustedCoreArtifactInputError::ToolchainCompatibility)?,
+        })
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -282,10 +208,7 @@ pub enum TrustedCoreArtifactInputError {
         source: std::io::Error,
     },
     NotRegularFile(PathBuf),
-    WrongSlot {
-        configured: PathBuf,
-        requested: PathBuf,
-    },
+    ToolchainCompatibility(HashError),
 }
 
 impl fmt::Display for TrustedCoreArtifactInputError {
@@ -303,15 +226,7 @@ impl fmt::Display for TrustedCoreArtifactInputError {
                 "trusted core artifact {} is not a regular file",
                 path.display()
             ),
-            Self::WrongSlot {
-                configured,
-                requested,
-            } => write!(
-                formatter,
-                "core artifact {} is not the configured trusted slot {}",
-                requested.display(),
-                configured.display()
-            ),
+            Self::ToolchainCompatibility(error) => error.fmt(formatter),
         }
     }
 }
@@ -320,7 +235,8 @@ impl std::error::Error for TrustedCoreArtifactInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-            Self::NotRegularFile(_) | Self::WrongSlot { .. } => None,
+            Self::NotRegularFile(_) => None,
+            Self::ToolchainCompatibility(error) => Some(error),
         }
     }
 }
@@ -414,122 +330,4 @@ fn canonical_regular_file(path: &Path) -> Result<PathBuf, TrustedCoreArtifactInp
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    use super::*;
-
-    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-
-    struct TempDirectory(PathBuf);
-
-    impl TempDirectory {
-        fn new() -> Self {
-            let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
-            let path = std::env::temp_dir().join(format!(
-                "scoop-trusted-core-slot-{}-{serial}",
-                std::process::id()
-            ));
-            std::fs::create_dir(&path).unwrap();
-            Self(std::fs::canonicalize(path).unwrap())
-        }
-
-        fn write_core_manifest(&self, coordinate: (&str, &str, &str)) {
-            let source = TrustedCoreSlotLayoutV1::new(&self.0, target())
-                .source_root()
-                .to_path_buf();
-            std::fs::create_dir_all(&source).unwrap();
-            std::fs::write(
-                source.join("Cone.toml"),
-                format!(
-                    "schema = 1\n[cone]\ngroup = {:?}\nname = {:?}\nversion = {:?}\nkind = \"library\"\n",
-                    coordinate.0, coordinate.1, coordinate.2
-                ),
-            )
-            .unwrap();
-        }
-
-        fn artifact_path(&self) -> PathBuf {
-            TrustedCoreSlotLayoutV1::new(&self.0, target())
-                .artifact()
-                .to_path_buf()
-        }
-    }
-
-    impl Drop for TempDirectory {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-
-    fn target() -> ValidatedLirTargetSelection {
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-    }
-
-    #[test]
-    fn resolver_mints_bootstrap_authority_for_the_exact_workspace_layout() {
-        let sysroot = TempDirectory::new();
-        sysroot.write_core_manifest(("scoop", "scoop.core", "0.1.0"));
-
-        let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
-        assert_eq!(slot.artifact().path(), sysroot.artifact_path());
-        let (bootstrap, artifact) = slot.into_bootstrap_parts();
-        let source = bootstrap.source_slot();
-        let authority = bootstrap.authority();
-        assert_eq!(
-            source.manifest().parsed().semantic().coordinate(),
-            &ConeCoordinate::reserved_core()
-        );
-        assert_eq!(authority.expected_identity(), ConeIdentity::CORE);
-        assert_eq!(authority.source_root(), source.manifest().real_root());
-        assert_eq!(authority.artifact_path(), artifact.path());
-        assert_eq!(authority.target(), target());
-        assert_eq!(
-            authority.toolchain_compatibility(),
-            artifact.toolchain_compatibility()
-        );
-    }
-
-    #[test]
-    fn resolver_rejects_a_non_core_source_manifest() {
-        let sysroot = TempDirectory::new();
-        sysroot.write_core_manifest(("dev.example", "fake", "1.0.0"));
-
-        assert!(matches!(
-            resolve_trusted_core_slot_at(&sysroot.0, target())
-                .unwrap_err()
-                .kind(),
-            TrustedCoreSlotErrorKind::SourceManifest(error)
-                if matches!(
-                    error.kind(),
-                    scoop_manifest::ManifestRootErrorKind::Parse(parse)
-                        if parse.kind()
-                            == &scoop_manifest::ManifestParseErrorKind::TrustedCoreCoordinateMismatch
-                )
-        ));
-    }
-
-    #[test]
-    fn artifact_input_requires_the_configured_regular_file() {
-        let sysroot = TempDirectory::new();
-        sysroot.write_core_manifest(("scoop", "scoop.core", "0.1.0"));
-        let configured = sysroot.artifact_path();
-        std::fs::create_dir_all(configured.parent().unwrap()).unwrap();
-        std::fs::write(&configured, b"configured core").unwrap();
-        let other = sysroot.0.join("other.slib");
-        std::fs::write(&other, b"impostor").unwrap();
-
-        let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
-        let input = slot.existing_artifact_input().unwrap();
-        assert_eq!(input.path(), configured);
-        assert_eq!(
-            input.expected_coordinate(),
-            &ConeCoordinate::reserved_core()
-        );
-        assert_eq!(input.target(), target());
-        assert!(matches!(
-            slot.existing_artifact_input_at(&other),
-            Err(TrustedCoreArtifactInputError::WrongSlot { .. })
-        ));
-    }
-}
+mod tests;

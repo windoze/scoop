@@ -139,10 +139,6 @@ pub(super) fn validate_output_isolation(
             OutputAliasRole::CurrentSource,
             source.resolved_path().to_path_buf(),
         )),
-        CurrentConeInput::TrustedCoreBootstrap { input } => inputs.push((
-            OutputAliasRole::CurrentManifest,
-            input.source_slot().manifest().manifest_path().to_path_buf(),
-        )),
     }
     if let TrustedCoreInput::Artifact(core) = trusted_core {
         inputs.push((

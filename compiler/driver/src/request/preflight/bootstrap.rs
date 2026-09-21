@@ -1,11 +1,12 @@
-//! Trusted-core bootstrap stage chain and publication.
+//! Core library lowering and publication.
 
 use super::*;
 
+mod errors;
+pub use errors::*;
+
 pub struct ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
     pub(super) request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
-    pub(super) authority: &'request CoreBootstrapAuthority,
-    pub(super) artifact_slot: &'request TrustedCoreArtifactSlot,
     pub(super) sources: CurrentConeParsedSources,
 }
 
@@ -18,15 +19,7 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
         &self.sources
     }
 
-    pub fn hir_input(
-        &self,
-    ) -> Result<TrustedCoreBootstrapHirInput<'_>, CoreBootstrapHirInputError> {
-        TrustedCoreBootstrapHirInput::try_new(&self.sources, self.authority, self.artifact_slot)
-    }
-
-    /// Consumes the complete parsed bootstrap request through the shared
-    /// strong object pipeline and atomically publishes the independently
-    /// revalidated artifact to its trusted sysroot slot.
+    /// Builds the core library and publishes to the requested output path.
     pub fn build_and_publish(
         self,
         temporary_parent: &Path,
@@ -41,10 +34,7 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
                 .map(|source| scoop_ast::dump(source.ast()))
                 .collect()
         });
-        let hir = self
-            .hir_input()
-            .map_err(CoreBootstrapProductionError::HirInput)?
-            .lower()
+        let hir = TrustedCoreBootstrapHirOutput::lower(&self.sources)
             .map_err(CoreBootstrapProductionError::Hir)?;
         let warnings = CurrentConeDiagnosticSet::try_new(hir.hir().warnings.clone(), &self.sources)
             .map_err(CoreBootstrapProductionError::Warnings)?;
@@ -87,7 +77,7 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
             )
             .map_err(CoreBootstrapProductionError::Artifact)?;
         let artifact = artifact
-            .publish(self.artifact_slot.path(), Vec::new(), limits)
+            .publish(self.request.output().as_path(), Vec::new(), limits)
             .map_err(CoreBootstrapProductionError::Publication)?;
         Ok(SingleConeProductionSuccess::new_cross_cone(
             artifact,
@@ -97,93 +87,11 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
     }
 }
 
-#[derive(Debug)]
-pub enum CoreBootstrapProductionError {
-    HirInput(CoreBootstrapHirInputError),
-    Hir(CoreBootstrapHirStageError),
-    Mir(CoreBootstrapMirStageError),
-    Lir(CoreBootstrapLirStageError),
-    StrongProfile(CoreBootstrapStrongProfileError),
-    Warnings(super::CurrentConeDiagnosticSetError),
-    Producer(scoop_slib::ProducerRecordError),
-    Cone(scoop_slib::ConeRecordError),
-    Artifact(crate::CrossConeStrongIrArtifactProductionError),
-    Publication(crate::CrossConeArtifactProductionError),
-}
-
-impl fmt::Display for CoreBootstrapProductionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::HirInput(source) => source.fmt(formatter),
-            Self::Hir(source) => source.fmt(formatter),
-            Self::Mir(source) => source.fmt(formatter),
-            Self::Lir(source) => source.fmt(formatter),
-            Self::StrongProfile(source) => source.fmt(formatter),
-            Self::Warnings(source) => source.fmt(formatter),
-            Self::Producer(source) => source.fmt(formatter),
-            Self::Cone(source) => source.fmt(formatter),
-            Self::Artifact(source) => source.fmt(formatter),
-            Self::Publication(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapProductionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::HirInput(source) => Some(source),
-            Self::Hir(source) => Some(source),
-            Self::Mir(source) => Some(source),
-            Self::Lir(source) => Some(source),
-            Self::StrongProfile(source) => Some(source),
-            Self::Warnings(source) => Some(source),
-            Self::Producer(source) => Some(source),
-            Self::Cone(source) => Some(source),
-            Self::Artifact(source) => Some(source),
-            Self::Publication(source) => Some(source),
-        }
-    }
-}
-
-/// Authority-bearing driver projection for the trusted-core HIR stage.
-///
-/// The source-only lowerer input cannot mint this value: it additionally
-/// binds the resolver authority to the configured artifact slot that must
-/// receive the eventual bootstrap artifact.
-pub struct TrustedCoreBootstrapHirInput<'a> {
-    sources: scoop_hir_lower::CoreBootstrapSources<'a>,
-    authority: &'a CoreBootstrapAuthority,
-    artifact_slot: &'a TrustedCoreArtifactSlot,
-}
-
-impl<'a> TrustedCoreBootstrapHirInput<'a> {
-    pub(super) fn try_new(
-        sources: &'a CurrentConeParsedSources,
-        authority: &'a CoreBootstrapAuthority,
-        artifact_slot: &'a TrustedCoreArtifactSlot,
-    ) -> Result<Self, CoreBootstrapHirInputError> {
-        if authority.expected_identity() != scoop_identity::ConeIdentity::CORE {
-            return Err(CoreBootstrapHirInputError::InvalidAuthorityIdentity(
-                authority.expected_identity(),
-            ));
-        }
-        if authority.artifact_path() != artifact_slot.path()
-            || authority.target() != artifact_slot.target()
-            || authority.toolchain_compatibility() != artifact_slot.toolchain_compatibility()
-        {
-            return Err(CoreBootstrapHirInputError::ArtifactSlotMismatch);
-        }
+impl TrustedCoreBootstrapHirOutput {
+    pub fn lower(sources: &CurrentConeParsedSources) -> Result<Self, CoreBootstrapHirStageError> {
         let sources = scoop_hir_lower::CoreBootstrapSources::try_new(sources)
-            .map_err(CoreBootstrapHirInputError::Sources)?;
-        Ok(Self {
-            sources,
-            authority,
-            artifact_slot,
-        })
-    }
-
-    pub fn lower(&self) -> Result<TrustedCoreBootstrapHirOutput, CoreBootstrapHirStageError> {
-        let hir = scoop_hir_lower::lower_core_bootstrap(&self.sources)
+            .map_err(CoreBootstrapHirStageError::Sources)?;
+        let hir = scoop_hir_lower::lower_core_bootstrap(&sources)
             .map_err(CoreBootstrapHirStageError::Lowering)?;
         let foundation = scoop_hir::CanonicalHirFoundation::from_modules(
             &hir.export,
@@ -213,14 +121,6 @@ impl<'a> TrustedCoreBootstrapHirInput<'a> {
             cross_cone_section,
             core_classifier,
         })
-    }
-
-    pub const fn authority(&self) -> &'a CoreBootstrapAuthority {
-        self.authority
-    }
-
-    pub const fn artifact_slot(&self) -> &'a TrustedCoreArtifactSlot {
-        self.artifact_slot
     }
 }
 
@@ -438,161 +338,5 @@ impl TrustedCoreBootstrapLirOutput {
             lir,
             lir_cross_cone,
         ))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreBootstrapStrongProfileError {
-    HirOdr(scoop_hir::OdrFreeHirFoundationError),
-}
-
-impl fmt::Display for CoreBootstrapStrongProfileError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::HirOdr(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapStrongProfileError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::HirOdr(source) => Some(source),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapLirStageError {
-    Lowering(scoop_lir_lower::StrongLirLoweringError),
-    CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
-}
-
-impl fmt::Display for CoreBootstrapLirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapLirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Lowering(source) => Some(source),
-            Self::CrossConeBridge(source) => Some(source),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapMirStageError {
-    MissingCoreShapeSupportPlan,
-    Lowering(scoop_mir_lower::DefinedCoreMirLoweringError),
-    Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
-    ProductionSection(scoop_mir_lower::MirProductionLoweringError),
-    CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),
-    Sealing(scoop_mir::SingleConeStrongMirInputError),
-}
-
-impl fmt::Display for CoreBootstrapMirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::MissingCoreShapeSupportPlan => {
-                formatter.write_str("trusted core HIR output has no core shape-support plan")
-            }
-            Self::Lowering(source) => source.fmt(formatter),
-            Self::Foundation(source) => source.fmt(formatter),
-            Self::ProductionSection(source) => source.fmt(formatter),
-            Self::CrossConeBridge(source) => source.fmt(formatter),
-            Self::Sealing(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapMirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::MissingCoreShapeSupportPlan => return None,
-            Self::Lowering(source) => source,
-            Self::Foundation(source) => source,
-            Self::ProductionSection(source) => source,
-            Self::CrossConeBridge(source) => source,
-            Self::Sealing(source) => source,
-        })
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapHirStageError {
-    Lowering(Vec<scoop_ast::Diagnostic>),
-    Foundation(scoop_hir::HirFoundationBuildError),
-    ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),
-    MissingCoreInterface,
-    CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
-    CrossConeSection(scoop_hir::CoreCrossConeHirInterfaceProductionError),
-}
-
-impl fmt::Display for CoreBootstrapHirStageError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Lowering(diagnostics) => write!(
-                formatter,
-                "trusted core HIR lowering failed with {} diagnostic(s)",
-                diagnostics.len()
-            ),
-            Self::Foundation(source) => source.fmt(formatter),
-            Self::ProductionSection(source) => source.fmt(formatter),
-            Self::MissingCoreInterface => {
-                formatter.write_str("trusted core HIR output has no dedicated core interface")
-            }
-            Self::CoreClassifier(source) => source.fmt(formatter),
-            Self::CrossConeSection(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapHirStageError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Lowering(_) => None,
-            Self::Foundation(source) => Some(source),
-            Self::ProductionSection(source) => Some(source),
-            Self::MissingCoreInterface => None,
-            Self::CoreClassifier(source) => Some(source),
-            Self::CrossConeSection(source) => Some(source),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreBootstrapHirInputError {
-    InvalidAuthorityIdentity(scoop_identity::ConeIdentity),
-    ArtifactSlotMismatch,
-    Sources(scoop_hir_lower::CoreBootstrapSourceError),
-}
-
-impl fmt::Display for CoreBootstrapHirInputError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::InvalidAuthorityIdentity(actual) => write!(
-                formatter,
-                "trusted core bootstrap authority names Cone {actual}, expected the reserved core Cone"
-            ),
-            Self::ArtifactSlotMismatch => formatter.write_str(
-                "trusted core bootstrap authority and configured artifact slot do not match",
-            ),
-            Self::Sources(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreBootstrapHirInputError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Sources(source) => Some(source),
-            Self::InvalidAuthorityIdentity(_) | Self::ArtifactSlotMismatch => None,
-        }
     }
 }

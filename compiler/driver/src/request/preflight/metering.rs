@@ -84,11 +84,9 @@ impl SingleConeBuildRequest {
                     None => input.load(limits),
                 }
                 .map_err(|source| SingleConePreflightError::TrustedCoreLoad(Box::new(source)))?;
-                LoadedTrustedCoreInput::Artifact(loaded)
+                LoadedTrustedCoreInput::Artifact(Box::new(loaded))
             }
-            TrustedCoreInput::BootstrapSelf { artifact_slot } => {
-                LoadedTrustedCoreInput::BootstrapSelf { artifact_slot }
-            }
+            TrustedCoreInput::BootstrapSelf => LoadedTrustedCoreInput::BootstrapSelf,
         };
         Ok(LoadedSingleConeBuildRequest {
             current,
@@ -193,8 +191,8 @@ impl LoadedSingleConeBuildRequest {
                 )
             }
             (
-                LoadedCurrentConeInput::TrustedCoreBootstrap { input },
-                LoadedTrustedCoreInput::BootstrapSelf { artifact_slot },
+                LoadedCurrentConeInput::Manifest { manifest },
+                LoadedTrustedCoreInput::BootstrapSelf,
             ) => {
                 let dependencies = match meter {
                     Some(meter) => self.dependencies.validate_bootstrap_empty_metered(meter),
@@ -202,10 +200,7 @@ impl LoadedSingleConeBuildRequest {
                 }
                 .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
                 (
-                    ValidatedCurrentConeInput::TrustedCoreBootstrap {
-                        input,
-                        artifact_slot,
-                    },
+                    ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest },
                     dependencies,
                 )
             }
@@ -302,17 +297,14 @@ impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
                     sources: parse_single_file_current_metered(source, meter)?,
                 },
             )),
-            ValidatedCurrentConeInput::TrustedCoreBootstrap {
-                input,
-                artifact_slot,
-            } => Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
-                ParsedCoreBootstrapBuildRequest {
-                    request: self,
-                    authority: input.authority(),
-                    artifact_slot,
-                    sources: parse_manifest_current_metered(input.source_slot().manifest(), meter)?,
-                },
-            )),
+            ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
+                Ok(ParsedSingleConeBuildRequest::TrustedCoreBootstrap(
+                    ParsedCoreBootstrapBuildRequest {
+                        request: self,
+                        sources: parse_manifest_current_metered(manifest, meter)?,
+                    },
+                ))
+            }
         }
     }
 }

@@ -23,8 +23,8 @@ use scoop_protocol::{
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
 use crate::{
-    TrustedCoreArtifactInput, TrustedCoreArtifactInputError, TrustedCoreArtifactSlot,
-    TrustedCoreBootstrapInput, TrustedCoreSlotError, resolve_trusted_core_slot,
+    TrustedCoreArtifactInput, TrustedCoreArtifactInputError, TrustedCoreSlotError,
+    resolve_trusted_core_slot,
 };
 
 const MAX_EXPLICIT_ARTIFACTS_PER_ROLE: usize = 4_096;
@@ -87,23 +87,14 @@ impl ExplicitDependencyInputs {
 
 #[derive(Debug)]
 pub enum CurrentConeInput {
-    Manifest {
-        root: ManifestRootLocator,
-    },
-    SingleFile {
-        source: SingleFileLocator,
-    },
-    TrustedCoreBootstrap {
-        input: Box<TrustedCoreBootstrapInput>,
-    },
+    Manifest { root: ManifestRootLocator },
+    SingleFile { source: SingleFileLocator },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TrustedCoreInput {
     Artifact(TrustedCoreArtifactInput),
-    BootstrapSelf {
-        artifact_slot: TrustedCoreArtifactSlot,
-    },
+    BootstrapSelf,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -176,8 +167,6 @@ pub enum SingleConeBuildRequestError {
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
     BootstrapHasDependencies,
-    BootstrapSlotMismatch,
-    BootstrapOutputMismatch,
     OutputIsolation {
         path: PathBuf,
         kind: OutputIsolationErrorKind,
@@ -210,12 +199,6 @@ impl fmt::Display for SingleConeBuildRequestError {
             }
             Self::BootstrapHasDependencies => formatter
                 .write_str("trusted core bootstrap cannot carry direct or support artifacts"),
-            Self::BootstrapSlotMismatch => formatter.write_str(
-                "trusted core bootstrap source, authority, and artifact slot do not match",
-            ),
-            Self::BootstrapOutputMismatch => formatter.write_str(
-                "trusted core bootstrap output must be the configured target artifact slot",
-            ),
             Self::OutputIsolation { path, kind } => {
                 write!(formatter, "invalid .slib output {}: {kind}", path.display())
             }
@@ -396,13 +379,28 @@ pub fn normalize_direct_build_request(
         ResolvedTargetProfile::resolve_host().map_err(BuildRequestNormalizationError::Target)?;
     scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::Backend)?;
-    let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
-        .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
-    let trusted_core = TrustedCoreInput::Artifact(
-        core_slot
-            .existing_artifact_input()
-            .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?,
-    );
+    let is_core = match &current {
+        CurrentConeInput::Manifest { root } => {
+            scoop_manifest::load_cone_manifest(root)
+                .map_err(BuildRequestNormalizationError::ManifestRoot)?
+                .parsed()
+                .semantic()
+                .coordinate()
+                == &scoop_identity::ConeCoordinate::reserved_core()
+        }
+        CurrentConeInput::SingleFile { .. } => false,
+    };
+    let trusted_core = if is_core {
+        TrustedCoreInput::BootstrapSelf
+    } else {
+        let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
+            .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
+        TrustedCoreInput::Artifact(
+            core_slot
+                .existing_artifact_input()
+                .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?,
+        )
+    };
     SingleConeBuildRequest::new(
         current,
         dependencies,
@@ -447,9 +445,6 @@ pub fn normalize_protocol_build_request(
         .map_err(BuildRequestNormalizationError::Target)?;
     scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::Backend)?;
-    let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
-        .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
-
     let (current, trusted_core) = match (current_path, build.trusted_core()) {
         (Some((true, path)), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
             let root = ManifestRootLocator::from_path(path)
@@ -457,8 +452,7 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = core_slot
-                .existing_artifact_input_at(&artifact)
+            let input = TrustedCoreArtifactInput::new(&artifact, target.lir_target_selection())
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
             (
                 CurrentConeInput::Manifest { root },
@@ -471,8 +465,7 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = core_slot
-                .existing_artifact_input_at(&artifact)
+            let input = TrustedCoreArtifactInput::new(&artifact, target.lir_target_selection())
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
             (
                 CurrentConeInput::SingleFile { source },
@@ -480,12 +473,15 @@ pub fn normalize_protocol_build_request(
             )
         }
         (None, TrustedCoreRequestV1::Bootstrap) => {
-            let (input, artifact_slot) = core_slot.into_bootstrap_parts();
+            let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
+                .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
             (
-                CurrentConeInput::TrustedCoreBootstrap {
-                    input: Box::new(input),
+                CurrentConeInput::Manifest {
+                    root: ManifestRootLocator::cone_directory(
+                        core_slot.source().manifest().real_root(),
+                    ),
                 },
-                TrustedCoreInput::BootstrapSelf { artifact_slot },
+                TrustedCoreInput::BootstrapSelf,
             )
         }
         _ => {
@@ -522,25 +518,12 @@ fn validate_request_shape(
                 Err(SingleConeBuildRequestError::SingleFileHasDependencies)
             }
         }
-        (
-            CurrentConeInput::TrustedCoreBootstrap { input },
-            TrustedCoreInput::BootstrapSelf { artifact_slot },
-        ) => {
-            if !dependencies.is_empty() {
-                return Err(SingleConeBuildRequestError::BootstrapHasDependencies);
+        (CurrentConeInput::Manifest { .. }, TrustedCoreInput::BootstrapSelf) => {
+            if dependencies.is_empty() {
+                Ok(())
+            } else {
+                Err(SingleConeBuildRequestError::BootstrapHasDependencies)
             }
-            if input.source_slot().manifest().real_root() != input.authority().source_root()
-                || artifact_slot.path() != input.authority().artifact_path()
-                || artifact_slot.target() != input.authority().target()
-                || artifact_slot.toolchain_compatibility()
-                    != input.authority().toolchain_compatibility()
-            {
-                return Err(SingleConeBuildRequestError::BootstrapSlotMismatch);
-            }
-            if output.as_path() != artifact_slot.path() {
-                return Err(SingleConeBuildRequestError::BootstrapOutputMismatch);
-            }
-            Ok(())
         }
         _ => Err(SingleConeBuildRequestError::InvalidCurrentCoreCombination),
     }?;
@@ -556,10 +539,6 @@ fn validate_dependency_shape_before_toolchain(
         CurrentConeInput::SingleFile { .. } if dependencies.is_empty() => Ok(()),
         CurrentConeInput::SingleFile { .. } => {
             Err(SingleConeBuildRequestError::SingleFileHasDependencies)
-        }
-        CurrentConeInput::TrustedCoreBootstrap { .. } if dependencies.is_empty() => Ok(()),
-        CurrentConeInput::TrustedCoreBootstrap { .. } => {
-            Err(SingleConeBuildRequestError::BootstrapHasDependencies)
         }
     }
 }

@@ -397,7 +397,7 @@ mod tests {
     }
 
     #[test]
-    fn trusted_core_loader_does_not_weaken_the_ordinary_loader() {
+    fn ordinary_loader_accepts_core_from_a_user_source_directory() {
         let directory = TempDirectory::new();
         std::fs::write(
             directory.manifest(),
@@ -411,10 +411,7 @@ mod tests {
             trusted.parsed().semantic().coordinate(),
             &scoop_identity::ConeCoordinate::reserved_core()
         );
-        assert!(matches!(
-            load_cone_manifest(&locator).unwrap_err().kind(),
-            ManifestRootErrorKind::Parse(error)
-                if error.kind() == &crate::ManifestParseErrorKind::ReservedConeCoordinate
-        ));
+        let ordinary = load_cone_manifest(&locator).unwrap();
+        assert_eq!(ordinary.parsed().semantic(), trusted.parsed().semantic());
     }
 }
