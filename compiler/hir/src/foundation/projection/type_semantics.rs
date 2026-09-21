@@ -2,6 +2,7 @@ use super::*;
 use scoop_identity::ExactTypeKey;
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
+mod callable_references;
 mod default_sources;
 
 impl CanonicalHirFoundation {
@@ -24,6 +25,7 @@ impl CanonicalHirFoundation {
         meter: &mut BudgetMeter,
     ) -> Result<Self, HirFoundationBuildError> {
         let mut foundation = Self::from_ordinary_output(output)?;
+        callable_references::complete(&output.output().export, &mut foundation, meter)?;
         let mut exacts = foundation
             .exact_types
             .iter()

@@ -2,10 +2,11 @@ use super::*;
 
 #[test]
 fn default_declaration_binding_uses_one_budget_and_rejects_invalid_dependency_routing() {
-    with_sources(SOURCE, |output, fixture, sources, core| {
-        let table = templates(output);
-        let foundation = fixture.bind().unwrap();
-        sources.with_bound(&foundation, core, |members, constructors| {
+    for source in [SOURCE, super::nested_identities::SOURCE] {
+        with_sources(source, |output, fixture, sources, core| {
+            let table = templates(output);
+            let foundation = fixture.bind().unwrap();
+            sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
             assert!(matches!(parameters.bind_default_declarations(&table, &[&parameters], &mut meter()),
                 Err(Error::Origins(error)) if matches!(*error, hir::DefaultSourceOriginBindingError::DependencyOrder(_))));
@@ -25,5 +26,6 @@ fn default_declaration_binding_uses_one_budget_and_rejects_invalid_dependency_ro
             parameters.bind_default_declarations(&table, &[], &mut shared).unwrap();
             assert!(parameters.bind_default_declarations(&table, &[], &mut shared).is_err());
         });
-    });
+        });
+    }
 }

@@ -1,0 +1,15 @@
+public fun nestedIdentityValue(): String = "identity"
+public class NestedIdentityHost {
+    internal fun lambda(seed: String, value: () -> String = { seed }): () -> String = value
+    protected fun anonymous(seed: String, value: () -> String = fun(): String { return seed }): () -> String = value
+    internal fun reference(value: () -> String = ::nestedIdentityValue): () -> String = value
+    internal fun local(seed: String, value: () -> String = if (true) {
+        fun copy(): String { return seed }
+        ::copy
+    } else { val fallback: () -> String = { seed }; fallback }): () -> String = value
+    internal fun <T> generic(seed: T, value: () -> T = { seed }): () -> T = value
+    internal fun <T> genericLocal(seed: T, value: () -> T = if (true) {
+        fun copy(): T { return seed }
+        ::copy
+    } else { val fallback: () -> T = { seed }; fallback }): () -> T = value
+}

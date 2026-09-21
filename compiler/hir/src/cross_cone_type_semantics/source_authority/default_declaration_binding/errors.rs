@@ -37,6 +37,10 @@ pub enum DefaultSourceDeclarationBindingError {
     },
     BindingFieldOwner(scoop_identity::PersistentFieldId),
     DataFlow(Box<ExportDefaultLocalDataFlowValidationError<Self>>),
+    NestedIdentity {
+        identity: DefaultNestedCallableIdentityV1,
+        reason: DefaultSourceNestedIdentityFailureV1,
+    },
     LocalScope(TemplateLocalScopeValidationError),
     LocalType {
         index: usize,
@@ -125,6 +129,9 @@ impl std::fmt::Display for Error {
                 "default binding field {field:?} differs from its source struct owner"
             ),
             Self::DataFlow(error) => error.fmt(f),
+            Self::NestedIdentity { identity, reason } => {
+                write!(f, "default nested identity {identity:?}: {reason:?}")
+            }
             Self::LocalScope(error) => error.fmt(f),
             Self::LocalType { index, error } => {
                 write!(f, "default source local {index} type: {error}")
@@ -140,3 +147,11 @@ impl std::fmt::Display for Error {
     }
 }
 impl std::error::Error for Error {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefaultSourceNestedIdentityFailureV1 {
+    MissingArtifactRecord,
+    Kind,
+    DefinitionPath,
+    DefinitionSource,
+}

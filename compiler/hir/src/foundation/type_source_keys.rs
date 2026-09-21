@@ -1,6 +1,10 @@
 use super::*;
 
 impl CanonicalHirFoundation {
+    pub(crate) fn type_source_generated_callable_records(&self) -> &[GeneratedCallableRecord] {
+        &self.generated_callables
+    }
+
     pub(crate) fn type_source_field_records(&self) -> &[FieldRecord] {
         &self.fields
     }

@@ -17,9 +17,11 @@ mod references;
 mod resources;
 mod source_access;
 mod source_body;
+mod source_callable_keys;
 mod source_references;
 pub use source_access::DefaultSourceAccessProductionError;
 pub use source_body::{DefaultSourceBodyProductionError, DefaultSourceBodyProductionV1};
+pub(crate) use source_callable_keys::visit_source_callable_reference_keys;
 pub use source_references::DefaultSourceReferencesProductionError;
 
 pub use errors::{

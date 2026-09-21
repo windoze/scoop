@@ -12,6 +12,25 @@ use crate::{
 mod walk;
 
 impl ExportDefaultBodyV1 {
+    pub(crate) fn visit_nested_callable_identities_metered<V, E>(
+        &self,
+        visitor: &mut V,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), E>
+    where
+        V: FnMut(
+            crate::DefaultNestedCallableIdentityV1,
+            &scoop_identity::StructuralDefinitionPath,
+            &ExportDefinitionSourceV1,
+            &mut BudgetMeter,
+            &WirePath,
+        ) -> Result<(), E>,
+        E: From<WireError>,
+    {
+        walk::visit_nested_identities(self, visitor, meter, path)
+    }
+
     /// Validates every provider-scoped type and inline definition origin in
     /// this body. Operation typing, local data flow, nested callable ABI, and
     /// the exact reference closure remain separate semantic passes.

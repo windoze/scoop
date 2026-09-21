@@ -7,6 +7,7 @@ use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKe
 mod corruption;
 mod data_flow;
 mod envelope;
+mod nested_identities;
 mod providers;
 mod resources;
 const SOURCE: &str = include_str!(concat!(
@@ -44,6 +45,7 @@ fn default_declarations_join_real_artifact_sources_for_every_parameter_owner() {
         "public class Empty {}",
         SOURCE,
         envelope::SOURCE,
+        nested_identities::SOURCE,
         data_flow::SOURCE,
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),

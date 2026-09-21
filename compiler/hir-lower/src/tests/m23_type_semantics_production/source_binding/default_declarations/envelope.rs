@@ -8,7 +8,7 @@ pub(super) const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-defaults/type-envelope.scoop"
 ));
 
-fn rebuild(
+pub(super) fn rebuild(
     t: &Template,
     locals: Vec<hir::TemplateLocalRecordV1>,
     body: hir::ExportDefaultBodyV1,

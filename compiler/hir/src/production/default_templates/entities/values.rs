@@ -245,13 +245,21 @@ impl DefaultEntityProjector<'_, '_, '_> {
         root: LexicalDefinitionRoot,
         path: &scoop_identity::StructuralDefinitionPath,
     ) -> Result<PersistentGeneratedCallableId, super::super::DefaultEntityProjectionError> {
-        self.resources.path(path)?;
-        let key = GeneratedCallableKey::CallableReferenceInvoke {
-            parent: self.lexical_parent(root)?,
-            path: path.clone(),
-        };
+        let key = self.callable_reference_key(root, path)?;
         PersistentGeneratedCallableId::from_key(&key)
             .map_err(super::super::DefaultEntityProjectionError::GeneratedIdentity)
+    }
+
+    pub(in crate::production::default_templates) fn callable_reference_key(
+        &self,
+        root: LexicalDefinitionRoot,
+        path: &scoop_identity::StructuralDefinitionPath,
+    ) -> Result<GeneratedCallableKey, super::super::DefaultEntityProjectionError> {
+        self.resources.path(path)?;
+        Ok(GeneratedCallableKey::CallableReferenceInvoke {
+            parent: self.lexical_parent(root)?,
+            path: path.clone(),
+        })
     }
 
     pub(in crate::production::default_templates) fn struct_constructor_id(

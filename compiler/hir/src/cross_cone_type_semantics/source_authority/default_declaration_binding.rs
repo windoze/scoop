@@ -7,6 +7,7 @@ mod contracts;
 mod data_flow;
 mod envelope;
 mod errors;
+mod nested_identities;
 mod sources;
 pub use errors::*;
 type Error = DefaultSourceDeclarationBindingError;
@@ -60,6 +61,7 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             )?;
             let contract = (|| {
                 let contract = contracts::validate(self, provider, template, meter, &path)?;
+                nested_identities::validate(self, dependencies, template, meter, &path)?;
                 data_flow::validate(self, dependencies, template, meter, &path)?;
                 Ok(contract)
             })()
