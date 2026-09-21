@@ -1,0 +1,18 @@
+public open class ProviderSlotParent {
+    protected open fun inherited(value: Int = 1): Int = value
+}
+public class ProviderSlotChild : ProviderSlotParent() {
+    public final override fun inherited(value: Int): Int = value
+}
+public interface ProviderSlotRoot {
+    public fun chosen(value: Int = 2): Int
+}
+public class ProviderSlotImpl : ProviderSlotRoot {
+    public override fun chosen(value: Int): Int = value
+}
+public open class ProviderSlotGeneric<T> {
+    protected open fun own(seed: T, value: T = seed): T = value
+    protected open class Static {
+        public open fun nested(value: Int = 3): Int = value
+    }
+}

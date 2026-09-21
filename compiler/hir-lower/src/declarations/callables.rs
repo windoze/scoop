@@ -55,7 +55,7 @@ impl Lowerer {
         let name = format!("{}.{}", owner.describe_name(self), decl.name.text);
         let slot_access = if decl.is_override {
             crate::visibility::MemberSlotAccess::Override
-        } else if modifier != hir::MethodModifier::Final || matches!(owner, Owner::Interface(_)) {
+        } else if modifier != hir::MethodModifier::Final {
             crate::visibility::MemberSlotAccess::Declared
         } else {
             crate::visibility::MemberSlotAccess::None

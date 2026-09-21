@@ -15,9 +15,11 @@ mod nested_index;
 mod nested_parents;
 mod own_binders;
 mod owner_arguments;
+mod provider_slots;
 mod providers;
 mod reference_closure;
 mod reference_receivers;
+mod reference_witness;
 mod resources;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

@@ -1,0 +1,9 @@
+ProviderSlotInterface.abstractValue: RootSlot; generic 0
+ProviderSlotInterface.bodyValue: RootSlot; generic 0
+ProviderSlotInterface.helper: Direct
+ProviderSlotBase.virtualValue: RootSlot; generic 0
+ProviderSlotBase.otherValue: RootSlot; generic 0
+ProviderSlotBase.direct: Direct
+ProviderSlotBase.generic: Direct
+constructor and variant defaults: Direct
+reference-free constructor: Direct

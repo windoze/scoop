@@ -51,6 +51,7 @@ pub enum DefaultSourceDeclarationBindingError {
     ),
     ReferenceClosure(Box<DefaultSourceReferenceClosureError>),
     DirectDomain(Box<DefaultSourceDirectDomainError>),
+    ProviderSlot(Box<DefaultSourceProviderSlotError>),
     ResultType,
     SuspendPermission,
 }
@@ -61,6 +62,7 @@ macro_rules! boxed_from {
 }
 boxed_from! {
     DefaultSourceDirectDomainError => DirectDomain,
+    DefaultSourceProviderSlotError => ProviderSlot,
     DefaultSourceReferenceClosureError => ReferenceClosure,
     DefaultSourceOriginBindingError => Origins, NominalSourceBindingError => Nominal,
     NominalMemberBindingError => Member, NominalConstructorBindingError => Constructor,
@@ -143,6 +145,7 @@ impl std::fmt::Display for Error {
             Self::BodyEnvelope(error) => error.fmt(f),
             Self::ReferenceClosure(error) => error.fmt(f),
             Self::DirectDomain(error) => error.fmt(f),
+            Self::ProviderSlot(error) => error.fmt(f),
             Self::ResultType => {
                 f.write_str("default source result differs from its original provider parameter")
             }

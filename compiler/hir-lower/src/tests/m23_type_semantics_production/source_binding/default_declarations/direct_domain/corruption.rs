@@ -1,5 +1,5 @@
 use super::*;
-use hir::{DefaultSourceReferenceV1 as Reference, ExportDefaultReferenceKindV1 as Kind};
+use hir::ExportDefaultReferenceKindV1 as Kind;
 
 #[test]
 fn default_direct_domains_reject_witness_replacement_in_every_reference_kind() {
@@ -53,65 +53,18 @@ fn changed(
     domain: Domain,
     output: &hir::OrdinaryHirOutput<'_>,
 ) -> Template {
-    let refs = t.references();
-    let mut callables = refs.callables().to_vec();
-    let mut constructors = refs.constructors().to_vec();
-    let mut types = refs.types().to_vec();
-    let mut globals = refs.globals().to_vec();
-    let mut singletons = refs.singleton_values().to_vec();
-    let mut fields = refs.fields().to_vec();
-    match kind {
-        Kind::Callable => overwrite(&mut callables[0], domain),
-        Kind::Constructor => overwrite(&mut constructors[0], domain),
-        Kind::Type => overwrite(&mut types[0], domain),
-        Kind::Global => overwrite(&mut globals[0], domain),
-        Kind::Singleton => overwrite(&mut singletons[0], domain),
-        Kind::Field => overwrite(&mut fields[0], domain),
-    }
-    let refs = hir::DefaultSourceReferencesV1::try_new(
-        callables,
-        constructors,
-        types,
-        globals,
-        singletons,
-        fields,
+    super::super::reference_witness::change(
+        t,
+        kind,
+        |source| {
+            hir::DefaultSourceAccessWitnessV1::try_new(
+                source.owner(),
+                domain,
+                source.slot_call_domain().clone(),
+                source.target_domain().clone(),
+            )
+            .unwrap()
+        },
+        output,
     )
-    .unwrap();
-    let changed = Template::try_new(
-        t.key(),
-        t.definition_root(),
-        t.definition_path().clone(),
-        t.locals().clone(),
-        t.body().clone(),
-        t.result().clone(),
-        t.allows_suspend(),
-        t.type_parameters().clone(),
-        t.receiver().clone(),
-        t.value_parameters().clone(),
-        refs,
-        t.definition_origin().clone(),
-        &mut meter(),
-    )
-    .unwrap();
-    let bytes = encode(&changed.index_locals(&mut meter()).unwrap()).unwrap();
-    let decoded: hir::DecodedDefaultSourceTemplateV1 =
-        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    decoded
-        .resolve(&mut identity_closure(output), &mut meter())
-        .unwrap()
-}
-fn overwrite<T: Clone>(record: &mut Reference<T>, direct: Domain) {
-    let source = record.witness();
-    let witness = hir::DefaultSourceAccessWitnessV1::try_new(
-        source.owner(),
-        direct,
-        source.slot_call_domain().clone(),
-        source.target_domain().clone(),
-    )
-    .unwrap();
-    *record = Reference::new(
-        record.target().clone(),
-        record.definition_origin().clone(),
-        witness,
-    );
 }

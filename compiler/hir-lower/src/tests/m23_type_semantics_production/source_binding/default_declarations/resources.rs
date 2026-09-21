@@ -4,6 +4,8 @@ use super::*;
 fn default_declaration_binding_uses_one_budget_and_rejects_invalid_dependency_routing() {
     for source in [
         SOURCE,
+        super::provider_slots::SOURCE,
+        super::provider_slots::COMBINATIONS,
         super::nested_identities::SOURCE,
         super::nested_parents::SOURCE,
         super::dependency_binders::SOURCE,
