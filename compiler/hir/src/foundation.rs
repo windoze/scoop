@@ -354,16 +354,6 @@ impl CanonicalHirFoundation {
             .map(|index| &self.definition_origins[index])
     }
 
-    pub(crate) fn generic_type_key(
-        &self,
-        id: PersistentGenericTypeId,
-    ) -> Option<&SourceDeclarationKey> {
-        self.generic_types
-            .iter()
-            .find(|record| record.id() == id)
-            .map(CborIdentityRecord::key)
-    }
-
     pub(crate) fn enum_variant_by_bytes(
         &self,
         bytes: &[u8; 32],

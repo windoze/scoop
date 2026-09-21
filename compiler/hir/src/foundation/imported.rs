@@ -3,8 +3,7 @@ use std::marker::PhantomData;
 
 use scoop_identity::{
     BindingNamespace, ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId,
-    ImportedIdentityMap, PersistentEnumVariantFieldId, PersistentEnumVariantId,
-    PersistentExactTypeId, PersistentExportBindingId, PersistentId, PersistentTypeId,
+    ImportedIdentityMap, PersistentExportBindingId, PersistentId, PersistentTypeId,
 };
 use scoop_wire::WireEncode;
 
@@ -121,8 +120,8 @@ impl ImportedHirFoundation {
         self.canonical.source_field_count(owner)
     }
 
-    /// Projects the type bindings and compiler protocols needed during
-    /// ordinary HIR lowering. Function and value lookup uses the dependency world.
+    /// Projects the type bindings needed during ordinary HIR lowering.
+    /// Function and value lookup uses the dependency world.
     pub(super) fn import_core_prelude<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
@@ -154,33 +153,10 @@ impl ImportedHirFoundation {
             });
         }
 
-        let snapshot = interface.prelude_snapshot();
-        let option_some = self
-            .identity(snapshot.option_some())
-            .ok_or(CorePreludeImportError::MissingOptionSome)?;
-        let option_some_payload = self
-            .identity(snapshot.option_some_payload())
-            .ok_or(CorePreludeImportError::MissingOptionSomePayload)?;
-        let option_none = self
-            .identity(snapshot.option_none())
-            .ok_or(CorePreludeImportError::MissingOptionNone)?;
-        let string = interface.string_capability();
-        let string_source = self
-            .identity(string.source_type())
-            .ok_or(CorePreludeImportError::MissingStringSource)?;
-        let string_exact = self
-            .identity(string.exact_type())
-            .ok_or(CorePreludeImportError::MissingStringExact)?;
-
         Ok(ImportedHirSet {
             foundation: self,
             interface,
             bindings,
-            option_some,
-            option_some_payload,
-            option_none,
-            string_source,
-            string_exact,
             capability: PhantomData,
         })
     }
@@ -195,21 +171,16 @@ impl WireEncode for ImportedHirFoundation {
     }
 }
 
-/// Marker for the core type and protocol bindings used during HIR lowering.
+/// Marker for the core type bindings used during HIR lowering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorePreludeOnly {}
 
-/// Imported type bindings with the Option and String identities needed by
-/// HIR lowering. Function and value lookup uses the shared dependency world.
+/// Imported type bindings used during HIR lowering. Compiler protocols own
+/// their identities; function and value lookup uses the shared dependency world.
 pub struct ImportedHirSet<'a, Capability> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
     bindings: Vec<ImportedCorePreludeBinding<'a>>,
-    option_some: ImportedHirId<PersistentEnumVariantId>,
-    option_some_payload: ImportedHirId<PersistentEnumVariantFieldId>,
-    option_none: ImportedHirId<PersistentEnumVariantId>,
-    string_source: ImportedHirId<PersistentTypeId>,
-    string_exact: ImportedHirId<PersistentExactTypeId>,
     capability: PhantomData<fn() -> Capability>,
 }
 
@@ -234,26 +205,6 @@ impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
         self.bindings.iter().filter(move |binding| {
             binding.key.namespace() == namespace && binding.key.name().as_str() == name
         })
-    }
-
-    pub const fn option_some(&self) -> ImportedHirId<PersistentEnumVariantId> {
-        self.option_some
-    }
-
-    pub const fn option_some_payload(&self) -> ImportedHirId<PersistentEnumVariantFieldId> {
-        self.option_some_payload
-    }
-
-    pub const fn option_none(&self) -> ImportedHirId<PersistentEnumVariantId> {
-        self.option_none
-    }
-
-    pub const fn string_source(&self) -> ImportedHirId<PersistentTypeId> {
-        self.string_source
-    }
-
-    pub const fn string_exact(&self) -> ImportedHirId<PersistentExactTypeId> {
-        self.string_exact
     }
 }
 
@@ -286,11 +237,6 @@ pub enum CorePreludeImportError {
         exporter: ConeIdentity,
     },
     MissingBindingIdentity(PersistentExportBindingId),
-    MissingOptionSome,
-    MissingOptionSomePayload,
-    MissingOptionNone,
-    MissingStringSource,
-    MissingStringExact,
 }
 
 impl fmt::Display for CorePreludeImportError {

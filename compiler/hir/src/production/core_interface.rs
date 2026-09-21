@@ -9,14 +9,13 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 use super::{
     CanonicalDirectPublicSurfaceV1, CoreCompilerProtocolSurfaceBuildError,
     CoreCompilerProtocolSurfaceV1, CoreCompilerProtocolSurfaceValidationError,
-    CoreHirTypeCapabilityV1, CorePreludeSnapshotBuildError, CorePreludeSnapshotV1,
-    CorePreludeSnapshotValidationError, CoreTypeDefinitionV1, CoreTypeTargetSurfaceBuildError,
+    CoreHirTypeCapabilityV1, CoreTypeDefinitionV1, CoreTypeTargetSurfaceBuildError,
     CoreTypeTargetSurfaceV1, CoreTypeTargetSurfaceValidationError,
     DecodedCanonicalDirectPublicSurfaceV1, DecodedCoreCompilerProtocolSurfaceV1,
-    DecodedCorePreludeSnapshotV1, DecodedCoreTypeTargetSurfaceV1, DecodedHirOutputContractV1,
-    DecodedRuntimeCoreCapabilityV1, DirectPublicSurfaceBuildError,
-    DirectPublicSurfaceValidationError, HirOutputContractV1, HirOutputContractValidationError,
-    RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1, RuntimeCoreCapabilityValidationError,
+    DecodedCoreTypeTargetSurfaceV1, DecodedHirOutputContractV1, DecodedRuntimeCoreCapabilityV1,
+    DirectPublicSurfaceBuildError, DirectPublicSurfaceValidationError, HirOutputContractV1,
+    HirOutputContractValidationError, RuntimeCoreCapabilityBuildError, RuntimeCoreCapabilityV1,
+    RuntimeCoreCapabilityValidationError,
 };
 use crate::{
     CanonicalHirFoundation, ExportHir, ExportHirOutput, OdrFreeHirFoundation,
@@ -25,7 +24,6 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreHirInterfaceV1 {
-    prelude_snapshot: CorePreludeSnapshotV1,
     string_capability: RuntimeCoreCapabilityV1,
     type_targets: CoreTypeTargetSurfaceV1,
     compiler_protocols: CoreCompilerProtocolSurfaceV1,
@@ -64,15 +62,6 @@ impl CoreShapeSupportRequirementsV1 {
 
 impl CoreHirInterfaceV1 {
     pub fn from_core_export(export: &ExportHir) -> Result<Self, CoreHirInterfaceBuildError> {
-        let direct_surface = CanonicalDirectPublicSurfaceV1::from_export_hir(export)
-            .map_err(CoreHirInterfaceBuildError::DirectSurface)?;
-        Self::from_core_export_against(export, &direct_surface)
-    }
-
-    fn from_core_export_against(
-        export: &ExportHir,
-        direct_surface: &CanonicalDirectPublicSurfaceV1,
-    ) -> Result<Self, CoreHirInterfaceBuildError> {
         if export.cone != ConeIdentity::CORE {
             return Err(CoreHirInterfaceBuildError::NotCore(export.cone));
         }
@@ -80,8 +69,6 @@ impl CoreHirInterfaceV1 {
             return Err(CoreHirInterfaceBuildError::ImportedProtocolsInCore);
         };
         let interface = Self {
-            prelude_snapshot: CorePreludeSnapshotV1::from_core_export(export, protocols)
-                .map_err(CoreHirInterfaceBuildError::Prelude)?,
             string_capability: RuntimeCoreCapabilityV1::string_from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::String)?,
             type_targets: CoreTypeTargetSurfaceV1::from_core_export(export)
@@ -89,13 +76,8 @@ impl CoreHirInterfaceV1 {
             compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export, protocols)
                 .map_err(CoreHirInterfaceBuildError::CompilerProtocols)?,
         };
-        validate_relations(&interface, direct_surface)
-            .map_err(CoreHirInterfaceBuildError::Relation)?;
+        validate_relations(&interface).map_err(CoreHirInterfaceBuildError::Relation)?;
         Ok(interface)
-    }
-
-    pub const fn prelude_snapshot(&self) -> &CorePreludeSnapshotV1 {
-        &self.prelude_snapshot
     }
 
     pub const fn string_capability(&self) -> RuntimeCoreCapabilityV1 {
@@ -155,9 +137,7 @@ impl CoreHirInterfaceV1 {
 
 impl WireEncode for CoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.prelude_snapshot.encode(encoder)?;
+        encoder.map(3)?;
         encoder.field(2)?;
         self.string_capability.encode(encoder)?;
         encoder.field(4)?;
@@ -169,7 +149,6 @@ impl WireEncode for CoreHirInterfaceV1 {
 
 #[derive(Debug)]
 pub struct DecodedCoreHirInterfaceV1 {
-    prelude_snapshot: DecodedCorePreludeSnapshotV1,
     string_capability: DecodedRuntimeCoreCapabilityV1,
     type_targets: DecodedCoreTypeTargetSurfaceV1,
     compiler_protocols: DecodedCoreCompilerProtocolSurfaceV1,
@@ -182,10 +161,6 @@ impl DecodedCoreHirInterfaceV1 {
         direct_surface: &CanonicalDirectPublicSurfaceV1,
     ) -> Result<CoreHirInterfaceV1, CoreHirInterfaceValidationError> {
         let interface = CoreHirInterfaceV1 {
-            prelude_snapshot: self
-                .prelude_snapshot
-                .validate_against(foundation)
-                .map_err(CoreHirInterfaceValidationError::Prelude)?,
             string_capability: self
                 .string_capability
                 .validate_against(foundation)
@@ -199,17 +174,14 @@ impl DecodedCoreHirInterfaceV1 {
                 .validate_against(foundation)
                 .map_err(CoreHirInterfaceValidationError::CompilerProtocols)?,
         };
-        validate_relations(&interface, direct_surface)
-            .map_err(CoreHirInterfaceValidationError::Relation)?;
+        validate_relations(&interface).map_err(CoreHirInterfaceValidationError::Relation)?;
         Ok(interface)
     }
 }
 
 impl WireEncode for DecodedCoreHirInterfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.prelude_snapshot.encode(encoder)?;
+        encoder.map(3)?;
         encoder.field(2)?;
         self.string_capability.encode(encoder)?;
         encoder.field(4)?;
@@ -221,9 +193,8 @@ impl WireEncode for DecodedCoreHirInterfaceV1 {
 
 impl WireDecode for DecodedCoreHirInterfaceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(3)?;
         Ok(Self {
-            prelude_snapshot: decoder.field(1, DecodedCorePreludeSnapshotV1::decode)?,
             string_capability: decoder.field(2, DecodedRuntimeCoreCapabilityV1::decode)?,
             type_targets: decoder.field(4, DecodedCoreTypeTargetSurfaceV1::decode)?,
             compiler_protocols: decoder.field(6, DecodedCoreCompilerProtocolSurfaceV1::decode)?,
@@ -306,7 +277,7 @@ impl CoreBootstrapInterfaceSectionV1 {
                 return Err(CoreBootstrapInterfaceBuildError::CoreMustBeLibrary);
             }
             CoreHirInterfaceBranchV1::Core(Box::new(
-                CoreHirInterfaceV1::from_core_export_against(module, &direct_public_surface)
+                CoreHirInterfaceV1::from_core_export(module)
                     .map_err(CoreBootstrapInterfaceBuildError::CoreInterface)?,
             ))
         } else {
@@ -433,13 +404,7 @@ impl WireDecode for DecodedCoreBootstrapInterfaceSectionV1 {
     }
 }
 
-fn validate_relations(
-    interface: &CoreHirInterfaceV1,
-    direct_surface: &CanonicalDirectPublicSurfaceV1,
-) -> Result<(), CoreHirInterfaceRelationError> {
-    if interface.prelude_snapshot.ordinary_bindings() != direct_surface {
-        return Err(CoreHirInterfaceRelationError::PreludeSurfaceMismatch);
-    }
+fn validate_relations(interface: &CoreHirInterfaceV1) -> Result<(), CoreHirInterfaceRelationError> {
     let string_source = interface.string_capability.source_type();
     let string_exact = interface.string_capability.exact_type();
     let matching = interface.type_targets.targets().iter().filter(|target| {
@@ -452,13 +417,6 @@ fn validate_relations(
     if interface.compiler_protocols.string_source_type() != string_source {
         return Err(CoreHirInterfaceRelationError::ProtocolStringMismatch);
     }
-    if interface.compiler_protocols.option_some() != interface.prelude_snapshot.option_some()
-        || interface.compiler_protocols.option_some_payload()
-            != interface.prelude_snapshot.option_some_payload()
-        || interface.compiler_protocols.option_none() != interface.prelude_snapshot.option_none()
-    {
-        return Err(CoreHirInterfaceRelationError::ProtocolOptionMismatch);
-    }
     Ok(())
 }
 
@@ -466,8 +424,6 @@ fn validate_relations(
 pub enum CoreHirInterfaceBuildError {
     NotCore(ConeIdentity),
     ImportedProtocolsInCore,
-    DirectSurface(DirectPublicSurfaceBuildError),
-    Prelude(CorePreludeSnapshotBuildError),
     String(RuntimeCoreCapabilityBuildError),
     TypeTargets(CoreTypeTargetSurfaceBuildError),
     CompilerProtocols(CoreCompilerProtocolSurfaceBuildError),
@@ -500,7 +456,6 @@ impl std::error::Error for CoreShapeSupportSourceProjectionError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum CoreHirInterfaceValidationError {
-    Prelude(CorePreludeSnapshotValidationError),
     String(RuntimeCoreCapabilityValidationError),
     TypeTargets(CoreTypeTargetSurfaceValidationError),
     CompilerProtocols(CoreCompilerProtocolSurfaceValidationError),
@@ -517,10 +472,8 @@ impl std::error::Error for CoreHirInterfaceValidationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreHirInterfaceRelationError {
-    PreludeSurfaceMismatch,
     StringTypeTargetMismatch,
     ProtocolStringMismatch,
-    ProtocolOptionMismatch,
 }
 
 impl fmt::Display for CoreHirInterfaceRelationError {

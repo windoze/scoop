@@ -299,3 +299,37 @@ fn compiler_protocol_surface_replays_owner_variant_and_dispatch_relations() {
 fn decode(surface: &CoreCompilerProtocolSurfaceV1) -> DecodedCoreCompilerProtocolSurfaceV1 {
     decode_canonical(&encode(surface).unwrap(), DecodeLimits::default()).unwrap()
 }
+
+#[test]
+fn option_protocol_rejects_incomplete_some_and_nonempty_none_shapes() {
+    use scoop_identity::{CborIdentityRecord, EnumVariantFieldKey, EnumVariantFieldSelector};
+
+    let (surface, foundation) = test_support::standalone();
+    let (_, payload_key) = foundation
+        .enum_variant_field_by_bytes(surface.option_some_payload().as_array())
+        .unwrap();
+    let payload = CborIdentityRecord::from_key(payload_key.clone()).unwrap();
+    for (variant, expected) in [(surface.option_some(), 1), (surface.option_none(), 0)] {
+        let extra = CborIdentityRecord::from_key(EnumVariantFieldKey::new(
+            variant,
+            EnumVariantFieldSelector::Positional {
+                declaration_index: expected as u32,
+            },
+        ))
+        .unwrap();
+        let mut invalid = foundation.clone();
+        invalid
+            .set_enum_variant_fields(vec![payload.clone(), extra])
+            .unwrap();
+        assert_eq!(
+            decode(&surface).validate_against(&invalid),
+            Err(
+                CoreCompilerProtocolSurfaceValidationError::OptionVariantFieldCount {
+                    variant,
+                    expected,
+                    actual: expected + 1,
+                }
+            )
+        );
+    }
+}

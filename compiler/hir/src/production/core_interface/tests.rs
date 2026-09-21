@@ -76,14 +76,6 @@ fn core_section_rejects_an_executable_output_contract() {
 fn interface_relations_require_one_shared_complete_surface() {
     let fixture = fixture();
 
-    let mut wrong_prelude = fixture.interface.clone();
-    wrong_prelude.prelude_snapshot.ordinary_bindings =
-        CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap();
-    assert_eq!(
-        validate_relations(&wrong_prelude, &fixture.direct),
-        Err(CoreHirInterfaceRelationError::PreludeSurfaceMismatch)
-    );
-
     let mut incomplete = fixture.interface.clone();
     let string_target = incomplete
         .type_targets
@@ -119,7 +111,7 @@ fn interface_relations_require_one_shared_complete_surface() {
         .collect();
     wrong_string_target.type_targets = CoreTypeTargetSurfaceV1::try_new(targets).unwrap();
     assert_eq!(
-        validate_relations(&wrong_string_target, &fixture.direct),
+        validate_relations(&wrong_string_target),
         Err(CoreHirInterfaceRelationError::StringTypeTargetMismatch)
     );
 }
@@ -207,15 +199,15 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     );
     assert_eq!(
         protocols.option().some().persistent(),
-        fixture.interface.prelude_snapshot().option_some()
+        fixture.interface.compiler_protocols().option_some()
     );
     assert_eq!(
         protocols.option().some_payload().persistent(),
-        fixture.interface.prelude_snapshot().option_some_payload()
+        fixture.interface.compiler_protocols().option_some_payload()
     );
     assert_eq!(
         protocols.option().none().persistent(),
-        fixture.interface.prelude_snapshot().option_none()
+        fixture.interface.compiler_protocols().option_none()
     );
     let operations = protocols.compiler_operations();
     assert_eq!(
@@ -276,19 +268,6 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
     assert_eq!(
         string[0].target().capability(),
         CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact),
-    );
-    assert_eq!(prelude.string_exact().persistent(), fixture.string_exact);
-    assert_eq!(
-        prelude.option_some().persistent(),
-        fixture.interface.prelude_snapshot().option_some()
-    );
-    assert_eq!(
-        prelude.option_some_payload().persistent(),
-        fixture.interface.prelude_snapshot().option_some_payload()
-    );
-    assert_eq!(
-        prelude.option_none().persistent(),
-        fixture.interface.prelude_snapshot().option_none()
     );
 }
 
@@ -513,12 +492,6 @@ fn fixture() -> Fixture {
         },
     );
     let interface = CoreHirInterfaceV1 {
-        prelude_snapshot: CorePreludeSnapshotV1 {
-            ordinary_bindings: direct.clone(),
-            option_some: some.id(),
-            option_some_payload: some_payload.id(),
-            option_none: none.id(),
-        },
         string_capability: RuntimeCoreCapabilityV1::String {
             source_type: string_id,
             exact_type: string_exact_record.id(),

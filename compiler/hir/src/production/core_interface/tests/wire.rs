@@ -4,10 +4,12 @@ use super::*;
 fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
     let fixture = fixture();
     let bytes = encode(&fixture.interface).unwrap();
-    assert_eq!(bytes.len(), 35_055);
     assert_eq!(
-        scoop_wire::sha256(&bytes).to_string(),
-        "92e662ca1942f9c97501db013abbb566bec337349fca52cc336e84b2f5c8545c"
+        (bytes.len(), scoop_wire::sha256(&bytes).to_string()),
+        (
+            34_878,
+            "df697b31f0cd9fe306700364f67661583e8abd618a45ca877e5fc2318276a0eb".to_owned()
+        )
     );
 
     assert_eq!(
@@ -18,7 +20,7 @@ fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
 
 #[test]
 fn interface_and_section_readers_require_closed_products_and_sums() {
-    for bytes in [vec![0xa3], vec![0xa5], vec![0xa4, 0x07, 0x00]] {
+    for bytes in [vec![0xa2], vec![0xa4], vec![0xa3, 0x07, 0x00]] {
         assert!(
             decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
         );
@@ -69,7 +71,7 @@ fn core_branch_and_non_core_section_have_fixed_wire_vectors() {
 }
 
 #[test]
-fn reader_rejects_removed_core_callable_and_value_tables() {
+fn reader_rejects_removed_core_snapshot_callable_and_value_fields() {
     struct WithRemovedTable<'a> {
         interface: &'a CoreHirInterfaceV1,
         removed_field: u64,
@@ -80,9 +82,11 @@ fn reader_rejects_removed_core_callable_and_value_tables() {
             &self,
             encoder: &mut scoop_wire::Encoder,
         ) -> Result<(), scoop_wire::cbor::EncodeError> {
-            encoder.map(5)?;
-            encoder.field(1)?;
-            self.interface.prelude_snapshot.encode(encoder)?;
+            encoder.map(4)?;
+            if self.removed_field == 1 {
+                encoder.field(1)?;
+                encoder.array(0)?;
+            }
             encoder.field(2)?;
             self.interface.string_capability.encode(encoder)?;
             if self.removed_field == 3 {
@@ -101,7 +105,7 @@ fn reader_rejects_removed_core_callable_and_value_tables() {
     }
 
     let fixture = fixture();
-    for removed_field in [3, 5] {
+    for removed_field in [1, 3, 5] {
         let bytes = encode(&WithRemovedTable {
             interface: &fixture.interface,
             removed_field,
