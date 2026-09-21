@@ -58,7 +58,7 @@ fn fixture() -> (
         foundation,
         production,
         Vec::new(),
-        mir::StrongImportedCoreInput::Unused,
+        mir::StrongExternalCallableInput::Unused,
     )
     .unwrap();
     let output = crate::lower(

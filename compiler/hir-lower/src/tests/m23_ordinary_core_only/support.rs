@@ -29,14 +29,9 @@ pub(crate) struct TrustedCoreFixture {
 }
 
 impl TrustedCoreFixture {
-    pub(crate) fn empty_core_mir_selection(&self) -> scoop_mir::SelectedImportedMirSet<'_> {
-        scoop_mir::SelectedImportedMirSet::new(&self.mir_foundation, &self.mir_production)
-    }
-
-    pub(crate) fn project_initialization_cycle_to_mir<'a>(
-        &'a self,
-        selected: &mut scoop_mir::SelectedImportedMirSet<'a>,
-    ) {
+    pub(crate) fn project_initialization_cycle_to_mir(
+        &self,
+    ) -> scoop_mir::SelectedDependencyMirCallableV1 {
         let scoop_hir::CoreProtocolCallableDefinitionV1::Function(definition) = self
             .interface
             .compiler_protocols()
@@ -51,17 +46,9 @@ impl TrustedCoreFixture {
             vec![self.interface.string_capability().exact_type()],
             scoop_mir::core_unit_exact_type(),
         );
-        selected
-            .insert(
-                self.mir_foundation
-                    .project_initialization_cycle_thrower(
-                        &self.mir_production,
-                        definition,
-                        signature,
-                    )
-                    .unwrap(),
-            )
-            .unwrap();
+        self.mir_foundation
+            .project_initialization_cycle_thrower(&self.mir_production, definition, signature)
+            .unwrap()
     }
 
     pub(crate) fn import_dependency_foundation(

@@ -10,19 +10,22 @@ use crate::{FunctionId, GeneratedExactTypeLocation, MirFoundationBuildError};
 
 #[derive(Debug)]
 pub enum SingleConeStrongMirInputError {
-    MissingImportedCoreAuthority,
-    CoreCannotImportCore,
-    ImportedCoreCallableCountMismatch {
+    MissingExternalCallableSelection,
+    ForeignExternalCallableSelection {
+        expected: ConeIdentity,
+        actual: ConeIdentity,
+    },
+    ExternalCallableCountMismatch {
         module: usize,
         selected: usize,
     },
-    ForeignImportedCoreCallable {
+    ForeignExternalCallable {
         index: u32,
     },
-    DuplicateImportedCoreCallable {
+    DuplicateExternalCallable {
         index: u32,
     },
-    UnsupportedImportedCoreCallableShape {
+    InitializationCycleGcEffect {
         index: u32,
     },
     UnreferencedExternalCallable {
@@ -30,21 +33,6 @@ pub enum SingleConeStrongMirInputError {
     },
     DuplicateExternalImplementation {
         implementation: scoop_identity::StrongCallableDefinitionOwner,
-    },
-    MissingImportedDependencyAuthority,
-    ForeignImportedDependencySelection {
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
-    ImportedDependencyCallableCountMismatch {
-        module: usize,
-        selected: usize,
-    },
-    ForeignImportedDependencyCallable {
-        index: u32,
-    },
-    DuplicateImportedDependencyCallable {
-        index: u32,
     },
     Initialization(super::StrongInitializationUnitError),
     Foundation(MirFoundationBuildError),
@@ -105,19 +93,14 @@ impl std::error::Error for SingleConeStrongMirInputError {
             Self::Foundation(source) => Some(source),
             Self::ShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::ShapeSupportExactIdentity { error, .. } => Some(error),
-            Self::MissingImportedCoreAuthority
-            | Self::CoreCannotImportCore
-            | Self::ImportedCoreCallableCountMismatch { .. }
-            | Self::ForeignImportedCoreCallable { .. }
-            | Self::DuplicateImportedCoreCallable { .. }
-            | Self::UnsupportedImportedCoreCallableShape { .. }
+            Self::MissingExternalCallableSelection
+            | Self::ForeignExternalCallableSelection { .. }
+            | Self::ExternalCallableCountMismatch { .. }
+            | Self::ForeignExternalCallable { .. }
+            | Self::DuplicateExternalCallable { .. }
+            | Self::InitializationCycleGcEffect { .. }
             | Self::UnreferencedExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
-            | Self::MissingImportedDependencyAuthority
-            | Self::ForeignImportedDependencySelection { .. }
-            | Self::ImportedDependencyCallableCountMismatch { .. }
-            | Self::ForeignImportedDependencyCallable { .. }
-            | Self::DuplicateImportedDependencyCallable { .. }
             | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch

@@ -12,7 +12,7 @@ use super::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeRelationError, CrossConeMirBridgeSectionV1,
     CrossConeMirBridgeValidationError, DecodedCrossConeMirBridgeSectionV1,
     ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedDependencyMirCallableV1,
-    SelectedDependencyMirSet, SelectedDependencyMirSetBuildError,
+    SelectedExternalMirSet, SelectedExternalMirSetBuildError,
 };
 use crate::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
@@ -127,9 +127,15 @@ fn core_provider_uses_common_callable_selection() {
     .unwrap();
     assert_eq!(bridge.selected(), std::slice::from_ref(&selected));
     let selection =
-        SelectedDependencyMirSet::try_from_callables(fixture.artifact, vec![selected.clone()])
+        SelectedExternalMirSet::try_from_callables(fixture.artifact, vec![selected.clone()])
             .unwrap();
-    assert_eq!(selection.callables(), &[selected]);
+    assert_eq!(
+        selection
+            .dependency_callables()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![selected]
+    );
 }
 
 #[test]
@@ -234,33 +240,37 @@ fn producer_side_selection_is_canonical_and_closed() {
     ];
     expected.sort_unstable_by_key(|callable| (callable.provider(), callable.declaration()));
 
-    let selection = SelectedDependencyMirSet::try_from_callables(
+    let selection = SelectedExternalMirSet::try_from_callables(
         fixture.artifact,
         expected.iter().cloned().rev().collect(),
     )
     .unwrap();
-    assert_eq!(selection.callables(), expected);
+    assert_eq!(
+        selection
+            .dependency_callables()
+            .cloned()
+            .collect::<Vec<_>>(),
+        expected
+    );
 
     let duplicate = fixture.selected_from(fixture.provider);
     assert!(matches!(
-        SelectedDependencyMirSet::try_from_callables(
+        SelectedExternalMirSet::try_from_callables(
             fixture.artifact,
             vec![duplicate.clone(), duplicate],
         ),
-        Err(SelectedDependencyMirSetBuildError::DuplicateCallable { .. })
+        Err(SelectedExternalMirSetBuildError::DuplicateCallable { .. })
     ));
 
     assert_eq!(
-        SelectedDependencyMirSet::try_from_callables(
+        SelectedExternalMirSet::try_from_callables(
             fixture.artifact,
             vec![fixture.selected_from(fixture.artifact)],
         )
         .err(),
-        Some(
-            SelectedDependencyMirSetBuildError::SelectedCurrentProvider {
-                provider: fixture.artifact,
-            }
-        ),
+        Some(SelectedExternalMirSetBuildError::SelectedCurrentProvider {
+            provider: fixture.artifact,
+        }),
     );
 }
 

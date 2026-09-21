@@ -17,37 +17,44 @@ fn selected_dependency_set_preserves_canonical_bridge_order_and_typed_lookup() {
     let second = selected(second_provider, "second");
     let bridge = bridge(consumer, vec![second.clone(), first.clone()]);
 
-    let selected = SelectedDependencyMirSet::try_from_bridge(&bridge).unwrap();
+    let selected = SelectedExternalMirSet::try_from_bridge(&bridge).unwrap();
     let mut expected = vec![first.clone(), second.clone()];
     expected.sort_unstable_by_key(|record| (record.provider(), record.declaration()));
 
     assert_eq!(selected.consumer(), consumer);
-    assert_eq!(selected.callables(), expected);
+    assert_eq!(
+        selected.dependency_callables().cloned().collect::<Vec<_>>(),
+        expected
+    );
     assert_eq!(selected.len(), 2);
     assert!(!selected.is_empty());
 
     let first_id = selected
         .callable_for(first.provider(), first.declaration())
         .unwrap();
-    assert_eq!(selected.callable(first_id), Some(&first));
+    assert_eq!(
+        selected
+            .callable(first_id)
+            .map(SelectedExternalMirCallable::record),
+        Some(&first)
+    );
     let reference = selected.callable_ref(first_id).unwrap();
     assert_eq!(reference.callable(), first_id);
-    assert_eq!(selected.resolve_callable(reference), Some(&first));
+    assert_eq!(
+        selected
+            .resolve_callable(reference)
+            .map(SelectedExternalMirCallable::record),
+        Some(&first)
+    );
     let managed = selected
         .callable_use(first_id, crate::GcEffect::Managed)
         .unwrap();
     let no_gc = selected
         .callable_use(first_id, crate::GcEffect::NoGc)
         .unwrap();
-    assert_eq!(
-        managed.selection(),
-        crate::ExternalCallableSelection::Dependency(reference)
-    );
+    assert_eq!(managed.reference(), reference);
     assert_eq!(managed.gc_effect(), crate::GcEffect::Managed);
-    assert_eq!(
-        no_gc.selection(),
-        crate::ExternalCallableSelection::Dependency(reference)
-    );
+    assert_eq!(no_gc.reference(), reference);
     assert_eq!(no_gc.gc_effect(), crate::GcEffect::NoGc);
 }
 
@@ -57,8 +64,8 @@ fn equal_dependency_selections_have_distinct_request_local_brands() {
     let provider = cone("provider");
     let callable = selected(provider, "run");
     let bridge = bridge(consumer, vec![callable.clone()]);
-    let first = SelectedDependencyMirSet::try_from_bridge(&bridge).unwrap();
-    let second = SelectedDependencyMirSet::try_from_bridge(&bridge).unwrap();
+    let first = SelectedExternalMirSet::try_from_bridge(&bridge).unwrap();
+    let second = SelectedExternalMirSet::try_from_bridge(&bridge).unwrap();
     let first_id = first
         .callable_for(callable.provider(), callable.declaration())
         .unwrap();
@@ -77,11 +84,11 @@ fn equal_dependency_selections_have_distinct_request_local_brands() {
 #[test]
 fn empty_dependency_selection_retains_its_consumer_authority() {
     let consumer = cone("consumer");
-    let selected = SelectedDependencyMirSet::empty(consumer);
+    let selected = SelectedExternalMirSet::empty(consumer);
 
     assert_eq!(selected.consumer(), consumer);
     assert!(selected.is_empty());
-    assert!(selected.callables().is_empty());
+    assert!(selected.dependency_callables().next().is_none());
 }
 
 fn bridge(

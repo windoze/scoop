@@ -5,7 +5,8 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     run: impl FnOnce(&hir::DependencyHirOutput, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
-        let mut imported = core.empty_core_mir_selection();
+        let mut dependencies =
+            scoop_mir::SelectedExternalMirSet::empty(output.output().local.module().cone);
         if !output
             .output()
             .local
@@ -13,11 +14,11 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
             .initialization_units
             .is_empty()
         {
-            core.project_initialization_cycle_to_mir(&mut imported);
+            dependencies = dependencies
+                .with_initialization_cycle(core.project_initialization_cycle_to_mir())
+                .unwrap();
         }
-        let dependencies =
-            scoop_mir::SelectedDependencyMirSet::empty(output.output().local.module().cone);
-        let mir = scoop_mir_lower::lower_current_cone(output, imported, dependencies).unwrap();
+        let mir = scoop_mir_lower::lower_current_cone(output, dependencies).unwrap();
         run(output, mir.module())
     })
 }

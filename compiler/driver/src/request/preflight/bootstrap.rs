@@ -66,10 +66,8 @@ impl TrustedCoreBootstrapHirOutput {
     #[cfg(test)]
     pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CurrentConeMirStageError> {
         let selected =
-            scoop_mir::SelectedDependencyMirSet::empty(self.artifacts.hir.output().export.cone);
-        let artifacts = self
-            .machine_input()
-            .lower_selected_mir(scoop_mir::CurrentMirProtocolDeclarations, selected)?;
+            scoop_mir::SelectedExternalMirSet::empty(self.artifacts.hir.output().export.cone);
+        let artifacts = self.machine_input().lower_selected_mir(selected)?;
         Ok(self.with_mir(artifacts))
     }
 
@@ -79,7 +77,7 @@ impl TrustedCoreBootstrapHirOutput {
 
     fn with_mir(
         self,
-        artifacts: machine::CurrentConeMirArtifacts<scoop_mir::CurrentMirProtocolDeclarations>,
+        artifacts: machine::CurrentConeMirArtifacts,
     ) -> TrustedCoreBootstrapMirOutput {
         TrustedCoreBootstrapMirOutput {
             hir: self,

@@ -8,7 +8,7 @@ use scoop_hir::{
 };
 use scoop_mir::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
-    ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedDependencyMirSet,
+    ParamFreeMirCallableBuildError, ParamFreeMirCallableExportV1, SelectedExternalMirSet,
     StrongCallableBridgeSurfaceV1,
 };
 
@@ -30,7 +30,7 @@ pub fn lower_cross_cone_bridge_section(
     hir: &CrossConeHirInterfaceSectionV1,
     classifier: &CoreClosedExactLeafClassifierV1,
     foundation: &OdrFreeMirFoundation,
-    selected: &SelectedDependencyMirSet,
+    selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError> {
     lower_cross_cone_bridge_with_classifier(
         artifact,
@@ -46,7 +46,7 @@ fn lower_cross_cone_bridge_with_classifier<C>(
     callable_records: &[CallableInterfaceRecordV1],
     classifier: &C,
     foundation: &OdrFreeMirFoundation,
-    selected: &SelectedDependencyMirSet,
+    selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError>
 where
     C: CoreClosedCallableClassifier,
@@ -66,7 +66,7 @@ where
 }
 
 fn clone_selected(
-    selected: &SelectedDependencyMirSet,
+    selected: &SelectedExternalMirSet,
 ) -> Result<Vec<scoop_mir::SelectedDependencyMirCallableV1>, CrossConeMirBridgeLoweringError> {
     let mut records = Vec::new();
     records.try_reserve_exact(selected.len()).map_err(|_| {
@@ -74,7 +74,7 @@ fn clone_selected(
             requested_slots: selected.len(),
         }
     })?;
-    records.extend_from_slice(selected.callables());
+    records.extend(selected.dependency_callables().cloned());
     Ok(records)
 }
 

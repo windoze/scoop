@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+M23-6当前约定：MIR初始化服务和普通依赖共用一个完整的`SelectedExternalMirSet`及typed选择引用。初始化角色显式保存，typed bridge与签名检查后进入共有集合，不保留core专用MIR借用凭证或泛型协议sidecar。strong输入使用共有consumer/覆盖/引用校验；旧wire与LIR协议仅在投影边界按角色区分，String与ABI契约保持完整。以`SCOOP-IMPL-SPEC.md`的共有外部调用约定为准。
+
 版本：1.0（实现完成；2026-09-16）
 
 依赖：M23-2
@@ -728,22 +730,21 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
 - 本阶段跨Cone callable只接受无receiver的`Effect::Ordinary`精确签名；suspend callable与带receiver的member
   callable在MIR投影边界稳定拒绝。前者需要先把跨Cone coroutine hidden ABI与其shape-support closure纳入strong
   bridge，后者需要先定义receiver dispatch/ownership proof，均不得借本地call lowering的结构猜测；
-- driver一次消费整份HIR callable selection，通过同一core proof逐项投影后产生唯一
-  `SelectedImportedMirSet<'core>`。该set自身绑定同artifact的MIR foundation与production，使用独立
-  `ImportedCoreMirCallableId`，并在任一项失败时不返回部分集合；不存在接受裸binding/definition/
-  signature的第二构造路径。selected MIR target再以同样方式投影成绑定同一LIR
-  foundation与strong-definition surface的`SelectedImportedLirSet<'core>`，并使用与前两层都不
-  相容的`ImportedCoreLirCallableId`。该LIR set还必须从同一artifact的String capability及
+- driver从共有依赖闭包投影普通HIR callable，并按实际初始化需求加入经typed bridge验证的初始化服务，
+  原子构造唯一`SelectedExternalMirSet`。每条记录拥有provider、typed declaration、implementation、signature及
+  普通调用/初始化服务角色；选择引用使用共有`SelectedExternalMirCallableId`，与实际MIR use id不同。
+  MIR集合不借用core foundation或production，不另保留core专用品牌或协议sidecar。
+  旧LIR协议投影只读取明确的初始化角色，经已有canonical ABI、typed body与definition检查后生成
+  `SelectedImportedLirSet<'core>`；普通角色继续走共有依赖LIR投影。该旧LIR set仍从String capability及
   `shape_support_plan`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
   definition plan和唯一symbol request，String authority同时保留exact type、definition plan和唯一symbol request；
   普通Cone lowering据此只产生共有`TypeDescriptorRef::External`及external definition requirement，不能本地复制String
   layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
   well-known String `LayoutId`；String物理格式由封闭intrinsic representation和target ABI决定；
-- `mir-lower`只返回拥有上述MIR selected set的`OrdinaryMirOutput<'core>`；构造时验证每个arena entry的品牌、
-  binding唯一性、每项至少被一个direct call引用以及整图MIR合法性。strong sealer必须显式接收
-  `StrongImportedCoreInput::{Unused, Selected}`：有imported-core arena时只允许`Selected`，逐项通过该set解析品牌后，
-  在`SingleConeStrongMaterializationPlan`中保存自有的`StrongImportedCoreCallableRoot { use-id, binding,
-  implementation, exact-signature }`；不能把sidecar生命周期泄漏到sealed MIR，也不能从裸arena entry复制id；
+- `mir-lower`返回持有完整共有选择的`DependencyMirOutput`；HIR已决定协议在本地定义还是导入。
+  输出和strong sealer使用同一个`StrongExternalCallableInput::{Unused, Selected}`校验入口，统一检查consumer、
+  完整数量、选择引用、每项至少一个direct call使用及重复implementation；初始化服务必须无receiver且使用Managed effect。
+  `Unused`仅用于没有任何外部callable的图。解析后的自有根仅为旧LIR投影按角色分组，不能按provider归类；
 - `lir-lower`对应接收`StrongImportedCoreLirInput::{Unused, Selected}`。存在上述MIR root时必须给出同artifact投影的
   LIR selected set，并逐项核对binding、strong owner和exact signature；随后用本模块exact type relation及target
   profile生成物理`ScoopAbiSignature`，再由selected LIR项独占的materialize入口与canonical ABI、calling convention、
@@ -1178,7 +1179,7 @@ count、object大小/内容反推出LIR语义。
 `external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
 M23-6清理后的LIR内存模型中，所有外部TypeDescriptor使用同一个`ExternalTypeDescriptor`实体、typed id与arena，必需携带实际provider、exact type、symbol request和definition plan；`TypeDescriptorRef`只区分Local/External。foundation投影与通用layout/ABI selection物化使用同一实体，codegen统一发射external声明，并拒绝当前Cone provider、重复exact及与local描述符重叠。旧协议wire的String分区只从`WellKnownTypeDescriptors.string`的明确引用投影，并验证core provider和strong definition契约；arena中其他core描述符不进入该分区，由M23-6通用layout selection证明。
 
-MIR同样统一为`ExternalCallableUse`及一个arena；每项保存初始化协议或普通依赖的明确选择来源与GC effect。所有调用和initialization unit使用共有typed use id，旧selected id仍属于独立domain。当前Cone输出与strong sealer复用来源覆盖、实际引用及重复implementation校验；两种来源的选择记录只在根投影时区分，不能按provider归类。LIR lowering只建立一个MIR→LIR映射。
+MIR同样统一为`ExternalCallableUse`及一个arena；每项保存初始化协议或普通依赖的明确选择来源与GC effect。所有调用和initialization unit使用共有typed use id，选择记录也使用共有typed id/ref，并与use id保持不同domain。当前Cone输出与strong sealer复用来源覆盖、实际引用及重复implementation校验；每条共有选择通过明确角色在旧LIR根投影时区分，不能按provider归类。LIR lowering只建立一个MIR→LIR映射。
 
 初始化循环服务与普通依赖统一使用`ExternalCallable`、一个typed id和arena；每项保存实际provider、`StrongCallableDefinitionOwner`、`PersistentCallableBodyId`、canonical/physical ABI、`ExternalCallableRootPlan`、symbol及definition plan。旧协议wire仅投影明确的InitializationCycle角色，M23-5选择只投影其普通声明角色，通用layout选择保留自身重放；不得从provider为core反推协议角色。MIR的外部use id在lowering中经同一个映射连接该共有arena，call destination及dispatch只携带统一External引用。codegen共用声明、ABI/GC校验与调用发射，不再有core/ordinary执行分支；当前provider、重复body及与local body重叠均按共有规则拒绝。此合并不使internal服务成为public声明，不放宽旧metadata分区的definition及selection覆盖检查。
 

@@ -3,14 +3,11 @@
 use super::*;
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
-    pub fn project_initialization_protocol_to_mir<'artifact>(
-        &'artifact self,
+    pub fn project_initialization_protocol_to_mir(
+        &self,
+        selected: scoop_mir::SelectedExternalMirSet,
         include_initialization_cycle_thrower: bool,
-    ) -> Result<SelectedImportedMirSet<'artifact>, TrustedCoreCallableSetProjectionError> {
-        let mut projected = SelectedImportedMirSet::new(
-            self.compile().mir(),
-            self.compile().production().mir_core(),
-        );
+    ) -> Result<scoop_mir::SelectedExternalMirSet, TrustedCoreCallableSetProjectionError> {
         if include_initialization_cycle_thrower {
             let cycle = self
                 .interface
@@ -42,26 +39,18 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
                     signature,
                 )
                 .map_err(TrustedCoreCallableSetProjectionError::InitializationCycleMir)?;
-            projected
-                .insert(callable)
-                .map_err(TrustedCoreCallableSetProjectionError::MirSet)?;
+            return selected
+                .with_initialization_cycle(callable)
+                .map_err(TrustedCoreCallableSetProjectionError::MirSet);
         }
-        Ok(projected)
+        Ok(selected)
     }
 
-    /// Projects an MIR selection from this artifact into the exact LIR body,
-    /// symbol request, and strong definition authority supplied by the same
-    /// artifact. A value borrowed from another proof is rejected before any
-    /// persistent identity is reused, even if both artifacts have equal bytes.
-    pub fn project_core_callable_to_lir<'artifact>(
+    /// Projects the selected typed service through the provider's canonical LIR ABI.
+    fn project_core_callable_to_lir<'artifact>(
         &'artifact self,
-        selected: &SelectedImportedMirCallable<'_>,
-    ) -> Result<SelectedImportedLirCallable<'artifact>, TrustedCoreCallableProjectionError> {
-        if !selected.belongs_to(self.compile().mir(), self.compile().production().mir_core()) {
-            return Err(TrustedCoreCallableProjectionError::ForeignMirSelection {
-                kind: selected.kind(),
-            });
-        }
+        selected: &scoop_mir::SelectedExternalMirCallable,
+    ) -> Result<SelectedImportedLirCallable<'artifact>, ImportedLirCallableProjectionError> {
         let bridge = self
             .compile()
             .production()
@@ -74,26 +63,20 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .production()
             .lir_strong()
             .canonical_definitions();
-        self.compile()
-            .lir()
-            .project_initialization_cycle_thrower(
-                bridge,
-                definitions,
-                selected.implementation(),
-                selected.signature().clone(),
-            )
-            .map_err(TrustedCoreCallableProjectionError::Lir)
+        self.compile().lir().project_initialization_cycle_thrower(
+            bridge,
+            definitions,
+            selected.implementation(),
+            selected.signature().clone(),
+        )
     }
 
     /// Atomically projects a MIR selection set into the exact LIR external
     /// body/definition/symbol authority retained by this artifact.
     pub fn project_core_callables_to_lir<'artifact>(
         &'artifact self,
-        selected: &SelectedImportedMirSet<'_>,
+        selected: &scoop_mir::SelectedExternalMirSet,
     ) -> Result<SelectedImportedLirSet<'artifact>, TrustedCoreLirSetProjectionError> {
-        if !selected.belongs_to(self.compile().mir(), self.compile().production().mir_core()) {
-            return Err(TrustedCoreLirSetProjectionError::ForeignMirSet);
-        }
         let definitions = self
             .compile()
             .production()
@@ -144,7 +127,8 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             runtime_string,
         )
         .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
-        for selected in selected.callable_selections() {
+        if let Some(id) = selected.initialization_cycle() {
+            let selected = selected.callable(id).expect("the selected service exists");
             let callable = self
                 .project_core_callable_to_lir(selected)
                 .map_err(TrustedCoreLirSetProjectionError::Callable)?;
@@ -161,7 +145,7 @@ pub enum TrustedCoreCallableSetProjectionError {
     InvalidInitializationCycleThrower,
     InitializationCycleUnitIdentity(scoop_wire::HashError),
     InitializationCycleMir(ImportedMirCallableProjectionError),
-    MirSet(ImportedMirSelectionError),
+    MirSet(scoop_mir::SelectedExternalMirSetBuildError),
 }
 
 impl fmt::Display for TrustedCoreCallableSetProjectionError {
@@ -189,20 +173,16 @@ impl std::error::Error for TrustedCoreCallableSetProjectionError {
 
 #[derive(Debug)]
 pub enum TrustedCoreLirSetProjectionError {
-    ForeignMirSet,
     MissingRuntimeStringShapeSupport,
     RuntimeStringShapeSupportMismatch,
     RuntimeString(ImportedLirTypeDescriptorProjectionError),
-    Callable(TrustedCoreCallableProjectionError),
+    Callable(ImportedLirCallableProjectionError),
     LirSet(ImportedLirSelectionError),
 }
 
 impl fmt::Display for TrustedCoreLirSetProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ForeignMirSet => {
-                formatter.write_str("selected core MIR set belongs to another artifact projection")
-            }
             Self::MissingRuntimeStringShapeSupport => formatter.write_str(
                 "trusted core LIR shape support is missing the runtime String descriptor",
             ),
@@ -219,39 +199,12 @@ impl fmt::Display for TrustedCoreLirSetProjectionError {
 impl std::error::Error for TrustedCoreLirSetProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ForeignMirSet
-            | Self::MissingRuntimeStringShapeSupport
-            | Self::RuntimeStringShapeSupportMismatch => None,
+            Self::MissingRuntimeStringShapeSupport | Self::RuntimeStringShapeSupportMismatch => {
+                None
+            }
             Self::RuntimeString(error) => Some(error),
             Self::Callable(error) => Some(error),
             Self::LirSet(error) => Some(error),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum TrustedCoreCallableProjectionError {
-    ForeignMirSelection { kind: CoreImportedCallableKind },
-    Lir(ImportedLirCallableProjectionError),
-}
-
-impl fmt::Display for TrustedCoreCallableProjectionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ForeignMirSelection { kind } => write!(
-                formatter,
-                "selected core MIR callable {kind:?} belongs to another artifact projection"
-            ),
-            Self::Lir(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreCallableProjectionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Lir(error) => Some(error),
-            _ => None,
         }
     }
 }

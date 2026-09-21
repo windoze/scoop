@@ -33,14 +33,16 @@ impl ValidatedCompilerProtocols<'_> {
         request: &ValidatedSingleConeBuildRequest<'_>,
         dump: &mut Option<EmittedStageDump>,
     ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
+        let selected = request
+            .dependencies()
+            .semantic()
+            .project_dependency_callables_to_mir(hir.hir.imported_dependencies())
+            .map_err(CurrentConeMirStageError::DependencyProjection)
+            .map_err(CurrentConeProductionFailure::Mir)?;
         match self {
-            Self::CurrentDeclarations => lower_machine(
-                hir,
-                request,
-                scoop_mir::CurrentMirProtocolDeclarations,
-                |_| Ok(LirProtocols::Declared),
-                dump,
-            ),
+            Self::CurrentDeclarations => {
+                lower_machine(hir, request, selected, |_| Ok(LirProtocols::Declared), dump)
+            }
             Self::Imported(core) => {
                 let needs_cycle = !hir
                     .hir
@@ -50,7 +52,7 @@ impl ValidatedCompilerProtocols<'_> {
                     .initialization_units
                     .is_empty();
                 let selected = core
-                    .project_initialization_protocol_to_mir(needs_cycle)
+                    .project_initialization_protocol_to_mir(selected, needs_cycle)
                     .map_err(CurrentConeMirStageError::Projection)
                     .map_err(CurrentConeProductionFailure::Mir)?;
                 lower_machine(
@@ -85,29 +87,32 @@ impl LirProtocols<'_> {
     }
 }
 
-fn lower_machine<'protocol, P: scoop_mir::MirProtocolSelection>(
+fn lower_machine<'protocol>(
     hir: current_hir::CurrentConeHirArtifacts,
     request: &ValidatedSingleConeBuildRequest<'_>,
-    protocols: P,
-    project_lir: impl FnOnce(&P) -> Result<LirProtocols<'protocol>, CurrentConeLirStageError>,
+    selected: scoop_mir::SelectedExternalMirSet,
+    project_lir: impl FnOnce(
+        &scoop_mir::SelectedExternalMirSet,
+    ) -> Result<LirProtocols<'protocol>, CurrentConeLirStageError>,
     dump: &mut Option<EmittedStageDump>,
 ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
     let closure = request.dependencies().semantic();
     let mir = hir
         .machine_input()
-        .lower_mir(protocols, closure)
+        .lower_selected_mir(selected)
         .map_err(CurrentConeProductionFailure::Mir)?;
     if dump.is_none() {
         *dump = capture_stage_dump(request.emit(), StageDumpKind::Mir, || {
             scoop_mir::dump(mir.strong.module())
         });
     }
-    let protocols = project_lir(&mir.protocols).map_err(CurrentConeProductionFailure::Lir)?;
+    let protocols =
+        project_lir(&mir.selected_callables).map_err(CurrentConeProductionFailure::Lir)?;
     let (lir, lir_public) = machine::lower_lir(
         &mir.strong,
         &mir.public,
         protocols.as_input(),
-        &mir.dependencies,
+        &mir.selected_callables,
         closure,
         request.target().lir_target(),
     )

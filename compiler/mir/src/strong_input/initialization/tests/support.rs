@@ -180,6 +180,6 @@ pub(super) fn seal(
         foundation,
         production,
         Vec::new(),
-        StrongImportedCoreInput::Unused,
+        StrongExternalCallableInput::Unused,
     )
 }

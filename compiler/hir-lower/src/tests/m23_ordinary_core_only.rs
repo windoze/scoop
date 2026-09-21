@@ -249,8 +249,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
     let hir = lower_current_cone(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("ordinary HIR selects the trusted-core callable");
-    let selected_core = core.empty_core_mir_selection();
-    let selected_dependencies = scoop_mir::SelectedDependencyMirSet::try_from_callables(
+    let selected_dependencies = scoop_mir::SelectedExternalMirSet::try_from_callables(
         ordinary.cone(),
         hir.imported_dependencies()
             .callables()
@@ -272,10 +271,10 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
             .collect(),
     )
     .unwrap();
-    let mir = scoop_mir_lower::lower_current_cone(&hir, selected_core, selected_dependencies)
+    let mir = scoop_mir_lower::lower_current_cone(&hir, selected_dependencies)
         .expect("ordinary MIR retains the shared dependency selection");
 
-    assert_eq!(mir.protocols().len(), 0);
+    assert!(mir.selected_callables().initialization_cycle().is_none());
     assert_eq!(mir.module().meta.external_callables.len(), 1);
     let calls =
         mir.module()

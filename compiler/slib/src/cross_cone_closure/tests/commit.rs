@@ -86,7 +86,7 @@ fn semantic_commit_accepts_the_valid_empty_core_closure() {
         committed.project_dependency_callables_to_mir(&foreign_hir),
         Err(crate::CrossConeMirSelectionProjectionError::ConsumerMismatch { .. })
     ));
-    let foreign_mir = scoop_mir::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE);
+    let foreign_mir = scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE);
     assert!(matches!(
         committed.project_dependency_callables_to_lir(&foreign_mir),
         Err(crate::CrossConeLirSelectionProjectionError::ConsumerMismatch { .. })

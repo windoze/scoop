@@ -65,25 +65,20 @@ impl Fixture {
         }
     }
 
-    pub(super) fn mixed(
-        &self,
-        duplicate: bool,
-    ) -> (Module, SelectedImportedMirSet<'_>, SelectedDependencyMirSet) {
-        let mut protocols = SelectedImportedMirSet::new(&self.foundation, &self.production);
-        let protocol = protocols
-            .insert(
-                self.foundation
-                    .project_initialization_cycle_thrower(
-                        &self.production,
-                        self.cycle,
-                        self.signature.clone(),
-                    )
-                    .unwrap(),
+    pub(super) fn cycle_record(&self) -> SelectedDependencyMirCallableV1 {
+        self.foundation
+            .project_initialization_cycle_thrower(
+                &self.production,
+                self.cycle,
+                self.signature.clone(),
             )
-            .unwrap();
-        let function = if duplicate { self.cycle } else { self.ordinary };
+            .unwrap()
+    }
+
+    pub(super) fn mixed(&self) -> (Module, SelectedExternalMirSet) {
+        let function = self.ordinary;
         let declaration = DependencyCallableDeclarationId::Function(function);
-        let dependencies = SelectedDependencyMirSet::try_from_callables(
+        let dependencies = SelectedExternalMirSet::try_from_callables(
             ConeIdentity::SINGLE_FILE,
             vec![
                 SelectedDependencyMirCallableV1::try_new(
@@ -95,16 +90,20 @@ impl Fixture {
                 .unwrap(),
             ],
         )
+        .unwrap()
+        .with_initialization_cycle(self.cycle_record())
         .unwrap();
+        let protocol = dependencies.initialization_cycle().unwrap();
         let selected = dependencies
             .callable_for(ConeIdentity::CORE, declaration)
             .unwrap();
         let mut module =
             ordinary_module(dependencies.callable_use(selected, GcEffect::NoGc).unwrap());
-        let protocol = module
-            .meta
-            .external_callables
-            .alloc(protocols.callable_use(protocol).unwrap());
+        let protocol = module.meta.external_callables.alloc(
+            dependencies
+                .callable_use(protocol, GcEffect::Managed)
+                .unwrap(),
+        );
         let function = module.functions.iter_mut().next().unwrap().1;
         let statements = &mut function.body.blocks[function.body.entry].statements;
         statements.push(Statement {
@@ -118,14 +117,13 @@ impl Fixture {
             })),
             span: SourceSpan::new(0, 0).unwrap(),
         });
-        (module, protocols, dependencies)
+        (module, dependencies)
     }
 }
 
 pub(super) fn seal(
     module: Module,
-    protocols: &SelectedImportedMirSet<'_>,
-    dependencies: &SelectedDependencyMirSet,
+    dependencies: &SelectedExternalMirSet,
 ) -> Result<SingleConeStrongMirInput, SingleConeStrongMirInputError> {
     let foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
@@ -135,12 +133,11 @@ pub(super) fn seal(
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )
     .unwrap();
-    SingleConeStrongMirInput::try_new_with_dependencies(
+    SingleConeStrongMirInput::try_new(
         module,
         foundation,
         production,
         Vec::new(),
-        StrongImportedCoreInput::Selected(protocols),
-        StrongImportedDependencyInput::Selected(dependencies),
+        StrongExternalCallableInput::Selected(dependencies),
     )
 }

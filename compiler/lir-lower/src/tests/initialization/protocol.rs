@@ -44,7 +44,7 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         foundation,
         production,
         Vec::new(),
-        mir::StrongImportedCoreInput::Unused,
+        mir::StrongExternalCallableInput::Unused,
     )
     .unwrap();
 
@@ -121,7 +121,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         core_foundation.clone(),
         core_production,
         Vec::new(),
-        mir::StrongImportedCoreInput::Unused,
+        mir::StrongExternalCallableInput::Unused,
     )
     .unwrap();
     let core_lir = crate::lower(
@@ -148,9 +148,10 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     let mir_callable = imported_mir
         .project_initialization_cycle_thrower(core_input.production(), definition, exact.clone())
         .unwrap();
-    let mut selected_mir = mir::SelectedImportedMirSet::new(&imported_mir, core_input.production());
-    let mir_selection = selected_mir.insert(mir_callable).unwrap();
-
+    let selected_mir = mir::SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE)
+        .with_initialization_cycle(mir_callable)
+        .unwrap();
+    let mir_selection = selected_mir.initialization_cycle().unwrap();
     let mut ordinary_builder = Builder::new();
     let mut caller_locals = Arena::new();
     let caller_argument = caller_locals.alloc(local("message", mir::Type::String));
@@ -165,7 +166,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     ordinary_module.output = mir::MirOutput::Library;
     let imported_use = ordinary_module.meta.external_callables.alloc(
         selected_mir
-            .callable_use(mir_selection)
+            .callable_use(mir_selection, mir::GcEffect::Managed)
             .expect("selected MIR callable mints one use"),
     );
     let entry = ordinary_module.functions[caller].body.entry;
@@ -192,7 +193,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         ordinary_foundation,
         ordinary_production,
         Vec::new(),
-        mir::StrongImportedCoreInput::Selected(&selected_mir),
+        mir::StrongExternalCallableInput::Selected(&selected_mir),
     )
     .unwrap();
 

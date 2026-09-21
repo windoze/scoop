@@ -1,7 +1,7 @@
 pub(super) fn mir(
     input: &super::super::CurrentConeMachineHir<'_>,
-) -> scoop_mir::SelectedDependencyMirSet {
-    scoop_mir::SelectedDependencyMirSet::try_from_callables(
+) -> scoop_mir::SelectedExternalMirSet {
+    scoop_mir::SelectedExternalMirSet::try_from_callables(
         input.output.output().export.cone,
         input
             .output
@@ -23,13 +23,12 @@ pub(super) fn mir(
 }
 
 pub(super) fn lir(
-    selected: &scoop_mir::SelectedDependencyMirSet,
+    selected: &scoop_mir::SelectedExternalMirSet,
 ) -> scoop_lir::SelectedDependencyLirSet {
     scoop_lir::SelectedDependencyLirSet::try_from_callables(
         selected.consumer(),
         selected
-            .callables()
-            .iter()
+            .dependency_callables()
             .map(|callable| {
                 scoop_lir::SelectedDependencyLirCallableV1::new(
                     callable.provider(),

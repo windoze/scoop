@@ -11,7 +11,7 @@ use crate::{
     CoreMirBridgeBranchV1, EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId,
     FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
     InitializationUnitId, MirOutput, Module, ObjectId, OdrFreeMirFoundation,
-    SelectedDependencyMirSet, SelectedImportedMirSet, SourceExactTypeOwner, StringConstId, Type,
+    SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
 };
 
 mod errors;
@@ -23,8 +23,6 @@ pub use initialization::{
     StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
 };
 mod external;
-mod imported_core;
-mod imported_dependency;
 mod shape_support;
 pub(crate) use external::validate_external_callables;
 
@@ -250,25 +248,11 @@ pub struct SingleConeStrongMirInput {
     materialization: SingleConeStrongMaterializationPlan,
 }
 
-/// Imported-core authority supplied to the strong MIR sealer.
-///
-/// `Unused` is valid only when the graph has no imported-core arena entries.
-/// `Selected` must be the exact request-local selected set that minted every
-/// retained arena reference; the sealer resolves it immediately into owned
-/// materialization roots.
-pub enum StrongImportedCoreInput<'a> {
+/// Complete external callable selection supplied to the strong MIR sealer.
+/// `Unused` is valid only when the graph has no external callable entries.
+pub enum StrongExternalCallableInput<'a> {
     Unused,
-    Selected(&'a SelectedImportedMirSet<'a>),
-}
-
-/// Ordinary-dependency authority supplied to the strong MIR sealer.
-///
-/// `Unused` is valid only when the graph has no dependency-callable arena
-/// entries. `Selected` must be the exact request-local set that minted every
-/// retained use.
-pub enum StrongImportedDependencyInput<'a> {
-    Unused,
-    Selected(&'a SelectedDependencyMirSet),
+    Selected(&'a SelectedExternalMirSet),
 }
 
 impl SingleConeStrongMirInput {
@@ -277,25 +261,7 @@ impl SingleConeStrongMirInput {
         foundation: OdrFreeMirFoundation,
         production: CoreBootstrapBridgeSectionV1,
         shape_support_sources: Vec<SourceDeclarationKey>,
-        imported_core: StrongImportedCoreInput<'_>,
-    ) -> Result<Self, SingleConeStrongMirInputError> {
-        Self::try_new_with_dependencies(
-            module,
-            foundation,
-            production,
-            shape_support_sources,
-            imported_core,
-            StrongImportedDependencyInput::Unused,
-        )
-    }
-
-    pub fn try_new_with_dependencies(
-        module: Module,
-        foundation: OdrFreeMirFoundation,
-        production: CoreBootstrapBridgeSectionV1,
-        shape_support_sources: Vec<SourceDeclarationKey>,
-        imported_core: StrongImportedCoreInput<'_>,
-        imported_dependencies: StrongImportedDependencyInput<'_>,
+        external_callables: StrongExternalCallableInput<'_>,
     ) -> Result<Self, SingleConeStrongMirInputError> {
         let expected_foundation = CanonicalMirFoundation::from_module(&module)
             .map_err(SingleConeStrongMirInputError::Foundation)?;
@@ -311,7 +277,7 @@ impl SingleConeStrongMirInput {
 
         validate_core_branch(module.cone, production.core_bridge())?;
         let (imported_core_callable_roots, imported_dependency_callable_roots) =
-            validate_external_callables(&module, imported_core, imported_dependencies)?;
+            validate_external_callables(&module, external_callables)?;
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, &expected_bridges)?;
         validate_output(&module, &production, &callable_roots)?;

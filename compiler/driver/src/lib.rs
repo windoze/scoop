@@ -44,10 +44,9 @@ pub use request::{
     normalize_protocol_build_request,
 };
 pub use trusted_core::{
-    TrustedCoreArtifactValidationError, TrustedCoreCallableProjectionError,
-    TrustedCoreCallableSetProjectionError, TrustedCoreLirSetProjectionError, TrustedCoreSlotError,
-    TrustedCoreSlotErrorKind, TrustedCoreSlotIoOperation, ValidatedTrustedCoreArtifact,
-    resolve_trusted_core_slot,
+    TrustedCoreArtifactValidationError, TrustedCoreCallableSetProjectionError,
+    TrustedCoreLirSetProjectionError, TrustedCoreSlotError, TrustedCoreSlotErrorKind,
+    TrustedCoreSlotIoOperation, ValidatedTrustedCoreArtifact, resolve_trusted_core_slot,
 };
 
 /// Root of the Cargo workspace (the driver crate lives in `compiler/driver`).

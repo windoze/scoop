@@ -12,7 +12,7 @@ use scoop_identity::{
 };
 use scoop_mir::{
     CallableSignatureRecord, CallableSignatureSubject, CanonicalMirFoundation,
-    OdrFreeMirFoundation, SelectedDependencyMirCallableV1, SelectedDependencyMirSet,
+    OdrFreeMirFoundation, SelectedDependencyMirCallableV1, SelectedExternalMirSet,
 };
 
 use super::{
@@ -50,7 +50,7 @@ fn lowering_derives_maximal_strong_exports_and_preserves_selected_uses() {
     )
     .unwrap();
     let selected =
-        SelectedDependencyMirSet::try_from_callables(artifact, vec![selected_record.clone()])
+        SelectedExternalMirSet::try_from_callables(artifact, vec![selected_record.clone()])
             .unwrap();
 
     let bridge = lower_cross_cone_bridge_with_classifier(
@@ -87,7 +87,7 @@ fn lowering_rejects_a_strong_signature_that_disagrees_with_hir() {
         signature.result(),
     );
     let foundation = foundation(declaration, wrong_signature);
-    let selected = SelectedDependencyMirSet::empty(artifact);
+    let selected = SelectedExternalMirSet::empty(artifact);
 
     assert_eq!(
         lower_cross_cone_bridge_with_classifier(
@@ -108,7 +108,7 @@ fn lowering_rejects_a_selection_owned_by_another_consumer() {
     let artifact = cone("producer");
     let foreign = cone("foreign-consumer");
     let foundation = OdrFreeMirFoundation::try_new(CanonicalMirFoundation::empty()).unwrap();
-    let selected = SelectedDependencyMirSet::empty(foreign);
+    let selected = SelectedExternalMirSet::empty(foreign);
 
     assert_eq!(
         lower_cross_cone_bridge_with_classifier(
@@ -134,7 +134,7 @@ fn core_publishes_the_same_eligible_callable_exports_as_other_libraries() {
         failure: None,
     };
     let foundation = foundation(declaration, signature);
-    let selected = SelectedDependencyMirSet::empty(ConeIdentity::CORE);
+    let selected = SelectedExternalMirSet::empty(ConeIdentity::CORE);
     let bridge = lower_cross_cone_bridge_with_classifier(
         ConeIdentity::CORE,
         &[callable(declaration)],
@@ -156,7 +156,7 @@ fn lowering_preserves_classifier_failures_with_the_declaration() {
     let artifact = cone("producer");
     let declaration = source_function(artifact, "exported");
     let foundation = OdrFreeMirFoundation::try_new(CanonicalMirFoundation::empty()).unwrap();
-    let selected = SelectedDependencyMirSet::empty(artifact);
+    let selected = SelectedExternalMirSet::empty(artifact);
     let source =
         scoop_hir::CoreClosedCallableClassificationError::Allocation { requested_slots: 7 };
     let classifier = FixtureClassifier {

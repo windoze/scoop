@@ -104,6 +104,6 @@ fn seal(
         foundation,
         production,
         sources,
-        scoop_mir::StrongImportedCoreInput::Unused,
+        scoop_mir::StrongExternalCallableInput::Unused,
     )
 }

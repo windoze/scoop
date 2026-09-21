@@ -5,17 +5,14 @@ use scoop_hir::{
     CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs,
 };
 use scoop_identity::{
-    ConeIdentity, CoreBuiltinNominal, CoreImportedCallableKind, Effect, ExactCallableSignature,
-    ExactTypeKey, PersistentExactTypeId,
+    ConeIdentity, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
+    PersistentExactTypeId,
 };
 use scoop_lir::{
     ImportedLirCallableProjectionError, ImportedLirSelectionError,
     ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
 };
-use scoop_mir::{
-    ImportedMirCallableProjectionError, ImportedMirSelectionError, SelectedImportedMirCallable,
-    SelectedImportedMirSet,
-};
+use scoop_mir::ImportedMirCallableProjectionError;
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeSemanticsStrongProfile, SharedCrossConeArtifact,
     ValidatedCompileArtifact, ValidatedCrossConeArtifactClosure,

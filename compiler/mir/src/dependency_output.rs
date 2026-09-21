@@ -1,43 +1,32 @@
-//! Current-Cone MIR paired with its exact protocol and dependency selections.
+//! Current-Cone MIR paired with its complete external callable selection.
 
 use std::fmt;
 
-mod protocols;
-pub use protocols::{CurrentMirProtocolDeclarations, MirProtocolSelection};
+use crate::{MirValidationError, Module, SelectedExternalMirSet};
 
-use crate::{MirValidationError, Module, SelectedDependencyMirSet};
-
-/// Closed MIR product whose imported protocol references are branded by
-/// and resolved through one exact selected set.
-///
-/// Owning the sidecar prevents later stages from pairing an already-lowered
-/// MIR graph with an equal-looking selection projected from another artifact.
-pub struct DependencyMirOutput<P: MirProtocolSelection> {
+/// Complete MIR graph paired with the one selection resolving every external use.
+pub struct DependencyMirOutput {
     module: Module,
-    protocols: P,
-    imported_dependencies: SelectedDependencyMirSet,
+    selected_callables: SelectedExternalMirSet,
 }
 
-impl<P: MirProtocolSelection> DependencyMirOutput<P> {
+impl DependencyMirOutput {
     pub fn try_new(
         module: Module,
-        protocols: P,
-        imported_dependencies: SelectedDependencyMirSet,
+        selected_callables: SelectedExternalMirSet,
     ) -> Result<Self, DependencyMirOutputError> {
         module
             .validate()
             .map_err(DependencyMirOutputError::InvalidModule)?;
         crate::strong_input::validate_external_callables(
             &module,
-            protocols.as_strong_input(),
-            crate::StrongImportedDependencyInput::Selected(&imported_dependencies),
+            crate::StrongExternalCallableInput::Selected(&selected_callables),
         )
         .map_err(DependencyMirOutputError::ExternalCallables)?;
 
         Ok(Self {
             module,
-            protocols,
-            imported_dependencies,
+            selected_callables,
         })
     }
 
@@ -45,16 +34,12 @@ impl<P: MirProtocolSelection> DependencyMirOutput<P> {
         &self.module
     }
 
-    pub const fn protocols(&self) -> &P {
-        &self.protocols
+    pub const fn selected_callables(&self) -> &SelectedExternalMirSet {
+        &self.selected_callables
     }
 
-    pub const fn imported_dependencies(&self) -> &SelectedDependencyMirSet {
-        &self.imported_dependencies
-    }
-
-    pub fn into_parts(self) -> (Module, P, SelectedDependencyMirSet) {
-        (self.module, self.protocols, self.imported_dependencies)
+    pub fn into_parts(self) -> (Module, SelectedExternalMirSet) {
+        (self.module, self.selected_callables)
     }
 }
 

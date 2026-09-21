@@ -1,74 +1,32 @@
-//! External Scoop callable uses and their committed selection origins.
-
-use std::collections::HashSet;
+//! External Scoop callable uses and their committed selection references.
 
 use crate::{
-    Callee, ExternalCallableUseId, GcEffect, ImportedCoreMirCallableRef, MirMeta, Module,
-    SelectedDependencyMirCallableRef, StatementKind,
+    Callee, ExternalCallableUseId, GcEffect, Module, SelectedExternalMirCallableRef, StatementKind,
 };
+use std::collections::HashSet;
 
 /// A selected external implementation and its inseparable caller GC effect.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExternalCallableUse {
-    selection: ExternalCallableSelection,
+    reference: SelectedExternalMirCallableRef,
     gc_effect: GcEffect,
 }
 
-/// The selection record is distinct from the MIR use allocated from it.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ExternalCallableSelection {
-    InitializationCycle(ImportedCoreMirCallableRef),
-    Dependency(SelectedDependencyMirCallableRef),
-}
-
 impl ExternalCallableUse {
-    pub(crate) const fn initialization_cycle(reference: ImportedCoreMirCallableRef) -> Self {
-        Self {
-            selection: ExternalCallableSelection::InitializationCycle(reference),
-            gc_effect: GcEffect::Managed,
-        }
-    }
-
-    pub(crate) const fn dependency(
-        reference: SelectedDependencyMirCallableRef,
+    pub(crate) const fn new(
+        reference: SelectedExternalMirCallableRef,
         gc_effect: GcEffect,
     ) -> Self {
         Self {
-            selection: ExternalCallableSelection::Dependency(reference),
+            reference,
             gc_effect,
         }
     }
-
-    pub const fn selection(self) -> ExternalCallableSelection {
-        self.selection
+    pub const fn reference(self) -> SelectedExternalMirCallableRef {
+        self.reference
     }
-
     pub const fn gc_effect(self) -> GcEffect {
         self.gc_effect
-    }
-}
-
-impl MirMeta {
-    pub(crate) fn initialization_callables(
-        &self,
-    ) -> impl Iterator<Item = (ExternalCallableUseId, ImportedCoreMirCallableRef)> + '_ {
-        self.external_callables
-            .iter()
-            .filter_map(|(id, callable)| match callable.selection() {
-                ExternalCallableSelection::InitializationCycle(reference) => Some((id, reference)),
-                ExternalCallableSelection::Dependency(_) => None,
-            })
-    }
-
-    pub(crate) fn dependency_callables(
-        &self,
-    ) -> impl Iterator<Item = (ExternalCallableUseId, SelectedDependencyMirCallableRef)> + '_ {
-        self.external_callables
-            .iter()
-            .filter_map(|(id, callable)| match callable.selection() {
-                ExternalCallableSelection::Dependency(reference) => Some((id, reference)),
-                ExternalCallableSelection::InitializationCycle(_) => None,
-            })
     }
 }
 

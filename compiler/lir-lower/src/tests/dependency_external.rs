@@ -294,7 +294,7 @@ fn dependency_input(
         vec![mir_record],
     )
     .unwrap();
-    let selected_mir = mir::SelectedDependencyMirSet::try_from_bridge(&mir_bridge).unwrap();
+    let selected_mir = mir::SelectedExternalMirSet::try_from_bridge(&mir_bridge).unwrap();
     let selected_id = selected_mir.callable_for(provider, declaration).unwrap();
     let imported = module.meta.external_callables.alloc(
         selected_mir
@@ -325,13 +325,12 @@ fn dependency_input(
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )
     .unwrap();
-    let input = mir::SingleConeStrongMirInput::try_new_with_dependencies(
+    let input = mir::SingleConeStrongMirInput::try_new(
         module,
         foundation,
         production,
         Vec::new(),
-        mir::StrongImportedCoreInput::Unused,
-        mir::StrongImportedDependencyInput::Selected(&selected_mir),
+        mir::StrongExternalCallableInput::Selected(&selected_mir),
     )
     .unwrap();
 

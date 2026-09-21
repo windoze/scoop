@@ -24,7 +24,7 @@ LIR的全部外部Scoop callable使用同一个`ExternalCallable`实体、typed 
 
 MIR展开初始化ensure时，隐式创建的String消息同样是HIR→MIR类型使用，必须通过LocalConcrete的typed String引用登记共有source exact identity，即使用户源码没有String字面量或显式String类型。后续外部调用ABI分类只按该identity查询MIR类型，不按名称、固定digest或provider补齐缺失类型；内部异常carrier继续遵守2.2的Any值流限制。
 
-MIR的初始化服务与普通依赖调用共用`ExternalCallableUse`、typed id及arena；每项非可选地保存已提交的选择来源与GC effect，调用只使用`Callee::External`，初始化unit也直接引用同一id。来源是初始化协议或普通依赖选择的封闭sum，不能凭provider推断；它只决定如何解析旧选择记录和投影物化根。当前Cone输出与strong sealer使用同一套来源覆盖、实际引用、签名及重复implementation校验，共用外部引用扫描；后续LIR lowering使用一个MIR→LIR映射，不能重新拆回两套调用arena或漏掉任一来源。选择实体的id与实际MIR use id仍属于不同typed domain，旧metadata选择分区继续按其现有契约读取，直到完成后续合并。
+MIR的初始化服务与普通依赖调用共用`ExternalCallableUse`、typed id及arena；每项非可选地保存已提交的选择来源与GC effect，调用只使用`Callee::External`，初始化unit也直接引用同一id。选择引用统一指向同一`SelectedExternalMirSet`；每条选择保存完整provider、typed declaration、implementation、signature及明确的普通调用/初始化服务角色，不能凭provider推断。初始化服务经既有typed bridge验证后进入共有集合，不再保留core专用选择实体、借用凭证或第二套引用编号。当前Cone输出与strong sealer使用同一套来源覆盖、实际引用、签名及重复implementation校验，共用外部引用扫描；后续LIR lowering使用一个MIR→LIR映射，不能重新拆回两套调用arena或漏掉任一来源。选择实体的id与实际MIR use id仍属于不同typed domain。当前Cone MIR输出持有一个完整选择集合，strong sealer只接收该集合，统一检查consumer、选择覆盖、引用和implementation；HIR决定协议在本地定义还是导入，不另传泛型协议sidecar。旧metadata选择分区仅按明确角色投影，继续按其现有契约读取，直到完成后续合并。
 
 ## 2. 编译器 pipeline
 

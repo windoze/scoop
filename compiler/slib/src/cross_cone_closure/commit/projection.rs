@@ -5,7 +5,7 @@ use std::fmt;
 use scoop_hir::SelectedImportedDependencySet;
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 use scoop_lir::{SelectedDependencyLirCallableV1, SelectedDependencyLirSet};
-use scoop_mir::{SelectedDependencyMirCallableV1, SelectedDependencyMirSet};
+use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
 
 use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
 
@@ -18,7 +18,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
     pub fn project_dependency_callables_to_mir(
         &self,
         selected: &SelectedImportedDependencySet,
-    ) -> Result<SelectedDependencyMirSet, CrossConeMirSelectionProjectionError> {
+    ) -> Result<SelectedExternalMirSet, CrossConeMirSelectionProjectionError> {
         if selected.consumer() != self.current {
             return Err(CrossConeMirSelectionProjectionError::ConsumerMismatch {
                 closure: self.current,
@@ -73,7 +73,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
             );
         }
 
-        SelectedDependencyMirSet::try_from_callables(self.current, projected)
+        SelectedExternalMirSet::try_from_callables(self.current, projected)
             .map_err(CrossConeMirSelectionProjectionError::Selection)
     }
 
@@ -81,7 +81,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
     /// by the same atomically validated closure.
     pub fn project_dependency_callables_to_lir(
         &self,
-        selected: &SelectedDependencyMirSet,
+        selected: &SelectedExternalMirSet,
     ) -> Result<SelectedDependencyLirSet, CrossConeLirSelectionProjectionError> {
         if selected.consumer() != self.current {
             return Err(CrossConeLirSelectionProjectionError::ConsumerMismatch {
@@ -91,7 +91,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
         }
 
         let mut projected = Vec::with_capacity(selected.len());
-        for callable in selected.callables() {
+        for callable in selected.dependency_callables() {
             let provider = callable.provider();
             let declaration = callable.declaration();
             let artifact = self
@@ -161,7 +161,7 @@ pub enum CrossConeMirSelectionProjectionError {
         declaration: DependencyCallableDeclarationId,
     },
     Record(scoop_mir::ParamFreeMirCallableBuildError),
-    Selection(scoop_mir::SelectedDependencyMirSetBuildError),
+    Selection(scoop_mir::SelectedExternalMirSetBuildError),
 }
 
 impl fmt::Display for CrossConeMirSelectionProjectionError {

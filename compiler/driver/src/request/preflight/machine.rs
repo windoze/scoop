@@ -10,33 +10,20 @@ pub(super) struct CurrentConeMachineHir<'a> {
     pub classifier: &'a scoop_hir::CoreClosedExactLeafClassifierV1,
 }
 
-pub(super) struct CurrentConeMirArtifacts<P: scoop_mir::MirProtocolSelection> {
+pub(super) struct CurrentConeMirArtifacts {
     pub strong: scoop_mir::SingleConeStrongMirInput,
-    pub protocols: P,
-    pub dependencies: scoop_mir::SelectedDependencyMirSet,
+    pub selected_callables: scoop_mir::SelectedExternalMirSet,
     pub public: scoop_mir::CrossConeMirBridgeSectionV1,
 }
 
 impl CurrentConeMachineHir<'_> {
-    pub fn lower_mir<P: scoop_mir::MirProtocolSelection>(
+    pub fn lower_selected_mir(
         self,
-        protocols: P,
-        closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    ) -> Result<CurrentConeMirArtifacts<P>, CurrentConeMirStageError> {
-        let selected = closure
-            .project_dependency_callables_to_mir(self.output.imported_dependencies())
-            .map_err(CurrentConeMirStageError::DependencyProjection)?;
-        self.lower_selected_mir(protocols, selected)
-    }
-
-    pub fn lower_selected_mir<P: scoop_mir::MirProtocolSelection>(
-        self,
-        protocols: P,
-        dependencies: scoop_mir::SelectedDependencyMirSet,
-    ) -> Result<CurrentConeMirArtifacts<P>, CurrentConeMirStageError> {
-        let mir = scoop_mir_lower::lower_current_cone(self.output, protocols, dependencies)
+        selected_callables: scoop_mir::SelectedExternalMirSet,
+    ) -> Result<CurrentConeMirArtifacts, CurrentConeMirStageError> {
+        let mir = scoop_mir_lower::lower_current_cone(self.output, selected_callables)
             .map_err(CurrentConeMirStageError::Lowering)?;
-        let (module, protocols, dependencies) = mir.into_parts();
+        let (module, selected_callables) = mir.into_parts();
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)
             .map_err(CurrentConeMirStageError::Foundation)?;
         let production =
@@ -47,7 +34,7 @@ impl CurrentConeMachineHir<'_> {
             self.public,
             self.classifier,
             &foundation,
-            &dependencies,
+            &selected_callables,
         )
         .map_err(CurrentConeMirStageError::CrossConeBridge)?;
         let shapes = self
@@ -59,19 +46,17 @@ impl CurrentConeMachineHir<'_> {
             .iter()
             .map(|root| root.declaration().clone())
             .collect();
-        let strong = scoop_mir::SingleConeStrongMirInput::try_new_with_dependencies(
+        let strong = scoop_mir::SingleConeStrongMirInput::try_new(
             module,
             foundation,
             production,
             shapes,
-            protocols.as_strong_input(),
-            scoop_mir::StrongImportedDependencyInput::Selected(&dependencies),
+            scoop_mir::StrongExternalCallableInput::Selected(&selected_callables),
         )
         .map_err(CurrentConeMirStageError::Sealing)?;
         Ok(CurrentConeMirArtifacts {
             strong,
-            protocols,
-            dependencies,
+            selected_callables,
             public,
         })
     }
@@ -81,7 +66,7 @@ pub(super) fn lower_lir(
     strong: &scoop_mir::SingleConeStrongMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
     protocols: scoop_lir_lower::StrongImportedCoreLirInput<'_>,
-    dependencies: &scoop_mir::SelectedDependencyMirSet,
+    selected_callables: &scoop_mir::SelectedExternalMirSet,
     closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
     target: scoop_lir::LirTargetProfile,
 ) -> Result<
@@ -92,7 +77,7 @@ pub(super) fn lower_lir(
     CurrentConeLirStageError,
 > {
     let selected = closure
-        .project_dependency_callables_to_lir(dependencies)
+        .project_dependency_callables_to_lir(selected_callables)
         .map_err(CurrentConeLirStageError::DependencyProjection)?;
     lower_selected_lir(strong, public, protocols, &selected, target)
 }
@@ -101,7 +86,7 @@ pub(super) fn lower_selected_lir(
     strong: &scoop_mir::SingleConeStrongMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
     protocols: scoop_lir_lower::StrongImportedCoreLirInput<'_>,
-    dependencies: &scoop_lir::SelectedDependencyLirSet,
+    selected_callables: &scoop_lir::SelectedDependencyLirSet,
     target: scoop_lir::LirTargetProfile,
 ) -> Result<
     (
@@ -113,7 +98,7 @@ pub(super) fn lower_selected_lir(
     let lir = scoop_lir_lower::lower_with_dependencies(
         strong,
         protocols,
-        scoop_lir_lower::StrongImportedDependencyLirInput::Selected(dependencies),
+        scoop_lir_lower::StrongImportedDependencyLirInput::Selected(selected_callables),
         target,
     )
     .map_err(CurrentConeLirStageError::Lowering)?;

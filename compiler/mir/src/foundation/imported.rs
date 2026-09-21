@@ -11,9 +11,6 @@ use super::{
     CanonicalMirFoundation, MirFoundationCounts, OdrFreeMirFoundation, ValidatedMirFoundation,
 };
 
-mod selection;
-pub use selection::*;
-
 /// Session-local MIR identity. It cannot be interchanged with imported HIR or
 /// LIR identities even when the persistent kind is the same.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -76,12 +73,12 @@ impl ImportedMirFoundation {
 
     /// Projects the required core-internal initialization cycle service. Its
     /// typed role is disjoint from public prelude bindings.
-    pub fn project_initialization_cycle_thrower<'a>(
-        &'a self,
-        production: &'a crate::CoreBootstrapBridgeSectionV1,
+    pub fn project_initialization_cycle_thrower(
+        &self,
+        production: &crate::CoreBootstrapBridgeSectionV1,
         definition: PersistentFunctionId,
         signature: ExactCallableSignature,
-    ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
+    ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
         let kind = CoreImportedCallableKind::InitializationCycleThrower;
         if self.origin() != ConeIdentity::CORE {
             return Err(ImportedMirCallableProjectionError::FoundationNotCore(
@@ -96,17 +93,16 @@ impl ImportedMirFoundation {
         if bridge.definition() != definition || bridge.implementation() != implementation {
             return Err(ImportedMirCallableProjectionError::CallableMismatch(kind));
         }
-        self.project_checked_callable(production, kind, definition, implementation, signature)
+        self.project_checked_callable(production, definition, implementation, signature)
     }
 
-    fn project_checked_callable<'a>(
-        &'a self,
-        production: &'a crate::CoreBootstrapBridgeSectionV1,
-        kind: CoreImportedCallableKind,
+    fn project_checked_callable(
+        &self,
+        production: &crate::CoreBootstrapBridgeSectionV1,
         definition: PersistentFunctionId,
         implementation: CallableOwner,
         signature: ExactCallableSignature,
-    ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
+    ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
         let strong_bridge = production
             .strong_callable_bridges()
             .bridges()
@@ -135,14 +131,13 @@ impl ImportedMirFoundation {
                 definition,
             ));
         }
-        Ok(SelectedImportedMirCallable {
-            foundation: self,
-            production,
-            kind,
-            definition,
-            implementation: StrongCallableDefinitionOwner::Function(definition),
+        crate::SelectedDependencyMirCallableV1::try_new(
+            self.origin(),
+            scoop_identity::DependencyCallableDeclarationId::Function(definition),
+            StrongCallableDefinitionOwner::Function(definition),
             signature,
-        })
+        )
+        .map_err(ImportedMirCallableProjectionError::CallableShape)
     }
 }
 
@@ -155,8 +150,9 @@ impl WireEncode for ImportedMirFoundation {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedMirCallableProjectionError {
+    CallableShape(crate::ParamFreeMirCallableBuildError),
     FoundationNotCore(ConeIdentity),
     MissingCoreBridge,
     CallableMismatch(CoreImportedCallableKind),
@@ -171,9 +167,6 @@ impl fmt::Display for ImportedMirCallableProjectionError {
 }
 
 impl std::error::Error for ImportedMirCallableProjectionError {}
-
-#[cfg(test)]
-use selection::next_imported_core_mir_selection;
 
 #[cfg(test)]
 mod tests;

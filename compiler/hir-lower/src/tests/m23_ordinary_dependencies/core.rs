@@ -48,7 +48,7 @@ fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
     let dump = scoop_hir::dump(&output.output().export);
     assert_eq!(dump.matches("ImportedDependencyCall #0").count(), 3);
     assert_core_snapshot("hir", &dump);
-    mir::check(&output, core.empty_core_mir_selection());
+    mir::check(&output);
     let selected = output.imported_dependencies().callables().next().unwrap();
     assert_eq!(
         selected.interface().declaration(),
