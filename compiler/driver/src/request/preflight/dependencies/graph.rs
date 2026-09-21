@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_identity::ConeIdentity;
+use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::{
     ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1, SlibClosureDecodeMeterV1,
@@ -42,6 +42,7 @@ pub(super) fn validate_artifact_shape(
 
 pub(super) fn validate_manifest_direct_set(
     manifest: Option<&LoadedConeManifest>,
+    trusted_core: &ValidatedTrustedCoreArtifact<'_>,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
@@ -64,11 +65,16 @@ pub(super) fn validate_manifest_direct_set(
         })?;
         declared.insert(identity, coordinate.clone());
     }
-    let actual = nodes
+    declared
+        .entry(ConeIdentity::CORE)
+        .or_insert_with(ConeCoordinate::reserved_core);
+    let mut actual = nodes
         .iter()
         .filter(|(_, node)| node.input.role == ExplicitDependencyRole::Direct)
         .map(|(identity, node)| (*identity, node.summary.cone().coordinate().clone()))
         .collect::<BTreeMap<_, _>>();
+    let core = trusted_core.dependency_record();
+    actual.insert(core.identity(), core.coordinate().clone());
     if declared != actual {
         return Err(ExplicitDependencyValidationError::ManifestDirectSet {
             declared: declared.into_values().collect(),
@@ -371,7 +377,14 @@ pub(super) fn charge_graph_edges_and_depth(
         })
     })?;
     let declared = manifest
-        .map(|manifest| manifest.parsed().semantic().dependency_iter().count())
+        .map(|manifest| {
+            manifest
+                .parsed()
+                .semantic()
+                .dependency_iter()
+                .filter(|(_, coordinate)| *coordinate != &ConeCoordinate::reserved_core())
+                .count()
+        })
         .unwrap_or(0);
     let current_edges = u64::try_from(declared)
         .ok()

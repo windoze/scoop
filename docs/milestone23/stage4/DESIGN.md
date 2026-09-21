@@ -21,7 +21,7 @@
 M23-4 第一次建立多 Cone 的**构建图**，但不建立多 Cone 的**语言世界**。完成本阶段后：
 
 1. `compiler/scoop` 提供独立于 `scoopc` implementation crate 的 orchestration library；它解析 root、locator、trusted core、静态 exact DAG、cache 与 child 生命周期，只通过版本化协议启动配套 `scoopc`；
-2. `BuildRootInput::{ManifestCone, SingleFile}` 先变成只供定位和调度的 `ResolvedBuildGraph`。该图只含 source projection、trusted-core projection和 bounded prebuilt summary，不能冒充 Graph/Compile/Link artifact proof；
+2. `BuildRootInput::{ManifestCone, SingleFile}` 先变成只供定位和调度的 `ResolvedBuildGraph`。该图只含 source projection、single-file projection和 bounded prebuilt summary，不能冒充 Graph/Compile/Link artifact proof；
 3. manifest `path`、`artifact` 与 search-root locator 都按 exact coordinate 工作。同一 `ConeIdentity` 的全部 locator claim 必须收敛到同一种、同一份内容；同 coordinate 的不同 source root、不同 artifact fingerprint或 source/artifact 混用均在启动第一个 compiler child 前失败；
 4. 整张图先验证 reserved identity、coordinate、kind、single version、无环、唯一 root、core 注入和 target/schema/ABI summary，再按 canonical dependency-first Kahn order 调度。manifest 枚举顺序、locator 参数顺序、hash seed与未来并发完成顺序不影响图、child 顺序或诊断顺序；
 5. prebuilt、cache hit和新 child 输出都必须从不可变 byte snapshot 分别重建完整 Compile 与 Link view。只有两种 view 都成功且依赖记录与当前图逐项相等，节点才进入 completed set；Graph-only、summary-only或 response 中声称的 fingerprint都不能提升节点状态；
@@ -54,7 +54,7 @@ completed node = immutable artifact snapshot
 - `compiler/scoop` orchestration library及其production/test runner边界；
 - shared target/toolchain registry从stage implementation crate中抽离，使`scoop`无需依赖codegen实现；
 - `BuildGraphRequest`、`BuildRootInput`、`ResolvedBuildGraph`、`PreparedBuildGraph`与`BuildGraphOutcome`的typed状态链；
-- manifest source、prebuilt artifact、trusted core与single-file四类graph input projection；
+- manifest source、prebuilt artifact与single-file三类graph input projection；
 - `path`、`artifact`、search-root及artifact dependency record的exact locator算法；
 - bounded `.slib` manifest summary probe；
 - identity/content claim合并、reserved identity、kind、single-version、cycle与canonical topological order验证；
@@ -317,7 +317,6 @@ discovery阶段使用：
 DiscoveredNode =
     ManifestSource(ManifestSourceProjection)
   | PrebuiltSummary(PrebuiltArtifactProjection)
-  | TrustedCore(TrustedCoreProjection)
   | SingleFile(SingleFileProjection)
 
 DiscoveredEdge {
@@ -358,7 +357,7 @@ source symlink alias若canonicalize到同一real root可以合并；用户原始
 2. 目标跟随symlink后必须是regular file，directory、device、dangling/cycle均失败；
 3. `scoop-slib`执行bounded summary probe，取得coordinate/id/kind/source form、direct dependency records、compatibility、target selection、profile id、member总量及claimed `ArtifactFingerprint`；
 4. summary coordinate必须与dependency declaration逐字相等；
-5. manifest dependency位置禁止executable、single-file与reserved core artifact；
+5. manifest dependency位置禁止executable与single-file artifact；core source/artifact使用普通依赖locator；
 6. claim内容为`ArtifactClaim { coordinate, artifact_fingerprint, resolved_locator }`。
 
 同一coordinate的多个artifact claim只有claimed完整`ArtifactFingerprint`相等才可继续；不同fingerprint立即报告ambiguous/conflicting artifact。相等仍不是可复用proof：第6章preflight会对**每个**实际候选形成immutable snapshot并完整双视图验证，防止两个损坏文件只伪造了相同summary。
@@ -388,7 +387,7 @@ search root本身不会被递归遍历，也不接受“最接近版本”或任
 
 - 若同coordinate已由某个manifest的显式`path`/`artifact`/search-root claim唯一解析，则复用该graph node；
 - 否则按当前request的artifact search roots解析；
-- reserved core始终绑定trusted sysroot slot，绝不进入普通search roots；
+- core显式locator使用普通source/artifact/search-root规则；仅当全图显式发现完成且无core节点时才使用默认sysroot源码位置；
 - 不能从当前artifact所在目录、文件名、相邻`Cone.toml`或任意环境变量猜locator。
 
 artifact edge的expected semantic fingerprint在node完成时验证，不参与选择另一个版本或另一个coordinate。
@@ -445,7 +444,7 @@ summary只允许：
 
 discovery不用递归调用栈追locator。它维护按expected coordinate排序的bounded worklist：
 
-1. 插入root source projection；根不是core时再通过普通依赖manifest loader加载默认core源码manifest，同样作为普通source projection插入；
+1. 插入root source projection，完成显式source/artifact与search-root依赖发现；仍无core节点时再通过普通依赖manifest loader加载默认core源码manifest，同样作为普通source projection插入；
 2. 取最小pending claim，解析其manifest或summary并立即按ConeIdentity intern；
 3. claim与已有node冲突时记录4.6错误，不覆盖已有值；
 4. 对source manifest的每条dependency生成带原span和locator kind的claim；

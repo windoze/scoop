@@ -406,9 +406,7 @@ fn validate_artifact_shape(
             path: path.to_path_buf(),
         });
     }
-    if summary.cone().identity() == ConeIdentity::CORE
-        || summary.cone().identity() == ConeIdentity::SINGLE_FILE
-    {
+    if summary.cone().identity() == ConeIdentity::SINGLE_FILE {
         return Err(DependencyLocatorError::ReservedArtifact {
             coordinate: expected.clone(),
             path: path.to_path_buf(),

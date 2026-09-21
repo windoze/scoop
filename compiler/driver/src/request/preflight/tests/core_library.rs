@@ -19,6 +19,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let first = build_core(&source, &artifact);
     let first_dependency = first.artifact().validation().dependency_record();
     let first_fingerprint = first.artifact().validation().artifact_fingerprint();
+    assert_explicit_core_version_is_checked(&target, workspace.path(), &artifact);
     let consumer_source = workspace.path().join("consumer.scoop");
     std::fs::write(&consumer_source, CONSUMER).unwrap();
     let consumer_artifact = workspace.path().join("consumer.slib");
@@ -73,6 +74,42 @@ fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
     .unwrap()
     .build_and_publish(DecodeLimits::default())
     .unwrap()
+}
+
+fn assert_explicit_core_version_is_checked(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    workspace: &Path,
+    core: &Path,
+) {
+    let root = workspace.join("wrong-core-version");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"consumer\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.core\" = \"0.2.0\"\n").unwrap();
+    let error = SingleConeBuildRequest::new(
+        CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(&root),
+        },
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        TrustedCoreInput::Artifact(
+            TrustedCoreArtifactInput::new(core, target.lir_target_selection()).unwrap(),
+        ),
+        target.clone(),
+        SlibOutputDestination::new(workspace.join("wrong-version.slib")).unwrap(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap()
+    .load_preflight(DecodeLimits::default())
+    .unwrap()
+    .validate()
+    .err()
+    .expect("the explicit core version must match the supplied artifact");
+    assert!(
+        matches!(error, CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        if matches!(source.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
+            if declared.iter().any(|coordinate| coordinate.version() == "0.2.0")
+                && actual == &[scoop_identity::ConeCoordinate::reserved_core()]))
+    );
+    assert!(!root.join("src").exists());
 }
 
 fn build_consumer(

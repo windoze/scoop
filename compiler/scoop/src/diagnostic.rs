@@ -172,7 +172,6 @@ impl ClassifyBuildFailure for LoadBuildRootError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::RootManifest(_) => phase_only(BuildFailurePhase::Root),
-            Self::DefaultDependency(source) => source.classification(),
             Self::Resource(_) => classified(
                 BuildFailurePhase::Root,
                 BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
@@ -433,7 +432,6 @@ impl ClassifyBuildFailure for PrebuiltCompletionError {
             | Self::EmptyCandidateSet(_)
             | Self::DuplicateCompletedNode(_)
             | Self::CurrentNodeAlreadyCompleted(_)
-            | Self::MissingTrustedCore
             | Self::CandidateArtifact { .. }
             | Self::CandidatePlan { .. } => classified(
                 BuildFailurePhase::PrebuiltArtifact,

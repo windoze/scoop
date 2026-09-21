@@ -281,7 +281,6 @@ pub enum ManifestParseErrorKind {
         key: String,
         source: ConeCoordinateError,
     },
-    ReservedCoreDependency,
     ConflictingDependencyLocators,
     EmptyDependencyLocator,
 }
@@ -291,7 +290,10 @@ impl fmt::Display for ManifestParseErrorKind {
         match self {
             Self::InvalidToml(message) => write!(formatter, "invalid Cone.toml: {message}"),
             Self::UnsupportedSchema(schema) => {
-                write!(formatter, "unsupported Cone.toml schema {schema}; expected 1")
+                write!(
+                    formatter,
+                    "unsupported Cone.toml schema {schema}; expected 1"
+                )
             }
             Self::InvalidConeCoordinate(error) => error.fmt(formatter),
             Self::ReservedConeCoordinate => {
@@ -314,9 +316,6 @@ impl fmt::Display for ManifestParseErrorKind {
             Self::InvalidDependencyCoordinate { key, source } => {
                 write!(formatter, "invalid dependency {key:?}: {source}")
             }
-            Self::ReservedCoreDependency => formatter.write_str(
-                "Cone.toml must not declare scoop:scoop.core:0.1.0; core is injected by the typed request",
-            ),
             Self::ConflictingDependencyLocators => {
                 formatter.write_str("a dependency cannot specify both path and artifact")
             }
@@ -492,12 +491,6 @@ pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestP
                     Some(declaration_span.clone()),
                 )
             })?;
-        if dependency_coordinate == ConeCoordinate::reserved_core() {
-            return Err(ManifestParseError::new(
-                ManifestParseErrorKind::ReservedCoreDependency,
-                Some(declaration_span),
-            ));
-        }
 
         let inline_fields = dependency_item
             .and_then(toml_edit::Item::as_value)
@@ -721,10 +714,6 @@ kind = "library"
                 ManifestParseErrorKind::InvalidDependencyKey("bad:key:extra".to_owned()),
             ),
             (
-                "\"scoop:scoop.core\" = \"0.1.0\"",
-                ManifestParseErrorKind::ReservedCoreDependency,
-            ),
-            (
                 "\"org.foo:bar\" = { version = \"1.0.0\", path = \"a\", artifact = \"b\" }",
                 ManifestParseErrorKind::ConflictingDependencyLocators,
             ),
@@ -750,6 +739,27 @@ kind = "library"
             parse_cone_manifest(&source).unwrap_err().kind(),
             ManifestParseErrorKind::InvalidToml(_)
         ));
+    }
+
+    #[test]
+    fn core_dependency_accepts_the_same_locators_as_other_libraries() {
+        for locator in [
+            "\"0.1.0\"",
+            "{ version = \"0.1.0\", path = \"../core\" }",
+            "{ version = \"0.1.0\", artifact = \"../core.slib\" }",
+        ] {
+            let source = format!("{MINIMAL}\n[dependencies]\n\"scoop:scoop.core\" = {locator}\n");
+            let parsed = parse_cone_manifest(&source).unwrap();
+            let (key, coordinate) = parsed.semantic().dependency_iter().next().unwrap();
+            assert_eq!(coordinate, &ConeCoordinate::reserved_core());
+            let span = parsed
+                .diagnostic_spans()
+                .dependency(key)
+                .unwrap()
+                .declaration()
+                .range();
+            assert_eq!(&source[span], locator);
+        }
     }
 
     #[test]

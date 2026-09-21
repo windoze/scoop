@@ -1379,7 +1379,7 @@ kind = "library" # 或 "executable"
 - M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
 - `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
 - core可从任意普通manifest目录作为`scoop`构建根；当前根已经定义core时不读取默认sysroot、不加载另一份core，也不注入self edge。graph、源码快照、缓存和产物返回均使用普通Manifest library节点。
-- `scoop`为除core自身外的每个Cone注入12.6的core direct dependency；core artifact使用普通依赖输入与一致性检查，sysroot仅提供默认locator。除该边外不存在隐式dependency；
+- `scoop`为除core自身外且未显式声明core的每个Cone注入12.6的core direct dependency；core artifact使用普通依赖输入与一致性检查，sysroot仅提供默认locator。除该边外不存在隐式dependency；
 - single-file resolved graph恰好由trusted core与唯一synthetic executable root组成，不运行manifest locator发现；其源码对非core Cone的import按普通不可达诊断。这不禁止`@Extern`产生的逻辑native library requirement；该requirement只能由`scoop`/program-link经显式library search root解析，不是Cone dependency，也不能用无typed来源的raw object/archive输入替代；
 - dependency path、manifest枚举与输入顺序不影响结果。canonical topological order使用dependency-first的Kahn顺序，并在每个ready set按`(group UTF-8 bytes, name UTF-8 bytes, canonical version)`取最小者；
 - 对manifest root，`scoop`必须先只读解析全部source manifest与prebuilt `.slib`的bounded manifest summary；对single-file root，它改用12.2的固定semantic projection且不读取manifest。两条分支都必须在第一个compiler child启动前验证完整`ResolvedBuildGraph`，之后才按上述dependency-first顺序处理节点；summary/projection只用于locator/调度，不是validated artifact view。prebuilt或cache候选必须完整验证全部payload envelope/hash，并分别成功构造Compile与Link purpose的typed closure后才可复用、作为已发布上游或作为library root返回；单独通过Graph view不能提升为这两种proof。每个source cache miss只能在其全部上游`.slib`已通过同一双view门禁后调用一次`scoopc`，其输出也由父进程重新构造两种view后才发布。当前source dependency不匹配时由`scoop`调度重编译；无source可重建时报告stale dependency，不能把旧typed identity接到新metadata；
@@ -1584,9 +1584,9 @@ HIR/MIR/LIR semantic fingerprint都是Merkle值：除本层canonical semantic pr
 
 ### 12.6 核心库
 
-第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，由当前sysroot以独立`.slib`提供；`scoop.core`同时是其源码当前使用的package和Cone `name`，这只是明确约定，不是package与Cone identity之间的语言推导规则。
+第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置；`scoop.core`同时是其源码当前使用的package和Cone `name`，这只是明确约定，不是package与Cone identity之间的语言推导规则。
 
-- 除core自身外，每个Cone都具有到该exact core Cone的隐式direct dependency，无需且不得在用户`Cone.toml`中声明、覆盖或以`path`/`artifact`伪造；
+- 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认sysroot源码位置。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
 - core自身不隐式依赖自身。用户可以在普通源码目录声明core coordinate、修改或扩展其源码，并重新构建library；`@Intrinsic`的识别与类型检查在前端完成，desugar引用解析后的普通声明，不要求sysroot来源授权；
 - `scoop.core.*`与`scoop.core.Option.*`默认可见性来自core `.slib`中的typed prelude binding，不通过把core源码拼入用户AST、扫描package name或对`Some`/`None`写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。

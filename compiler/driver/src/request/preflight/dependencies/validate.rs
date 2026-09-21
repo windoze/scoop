@@ -167,7 +167,7 @@ impl LoadedExplicitDependencyInputs {
             );
         }
 
-        validate_manifest_direct_set(manifest, &nodes)?;
+        validate_manifest_direct_set(manifest, trusted_core, &nodes)?;
         validate_dependency_records(current_identity, trusted_core, &nodes)?;
         let dependency_depth = validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;

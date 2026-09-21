@@ -349,9 +349,13 @@ fn default_core_uses_the_common_dependency_coordinate_check() {
     let sysroot = temp.path().join("sysroot");
     write_manifest(&root, "root", "");
     write_manifest(&sysroot.join("lib/scoop.core"), "different-library", "");
-    let error = request(&root, &sysroot, vec![]).load_root().unwrap_err();
+    let error = request(&root, &sysroot, vec![])
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap_err();
     assert!(matches!(error,
-        LoadBuildRootError::DefaultDependency(ref source)
+        BuildGraphDiscoveryError::Locator(ref source)
             if matches!(source.as_ref(), DependencyLocatorError::CoordinateMismatch { expected, actual, .. }
                 if expected.as_ref() == &ConeCoordinate::reserved_core()
                 && actual.name() == "different-library")
@@ -361,3 +365,5 @@ fn default_core_uses_the_common_dependency_coordinate_check() {
         Some(crate::BuildDiagnosticCode::LOCATOR_COORDINATE_MISMATCH)
     );
 }
+
+mod core_locators;

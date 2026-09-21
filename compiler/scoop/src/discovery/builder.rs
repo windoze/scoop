@@ -1,3 +1,6 @@
+use super::plans::{
+    ManifestDependencyPlanLocator, manifest_dependency_plans, prebuilt_dependency_plans,
+};
 use super::*;
 
 pub(super) struct DiscoveryBuilder {
@@ -14,7 +17,6 @@ impl DiscoveryBuilder {
     pub(super) fn new(loaded: LoadedBuildRoot) -> Result<Self, BuildGraphDiscoveryError> {
         let LoadedBuildRoot {
             root,
-            default_sources,
             context,
             meter,
         } = loaded;
@@ -31,11 +33,6 @@ impl DiscoveryBuilder {
             context,
             meter,
         };
-        for manifest in default_sources {
-            let identity = manifest.identity();
-            builder.insert_node(identity, GraphNode::ManifestSource(Box::new(manifest)))?;
-            builder.expand_source(identity)?;
-        }
         match root {
             LoadedRootInput::Manifest(manifest) => {
                 builder.insert_node(root_identity, GraphNode::ManifestSource(manifest))?;
@@ -56,6 +53,34 @@ impl DiscoveryBuilder {
     }
 
     pub(super) fn run(mut self) -> Result<DiscoveredBuildGraph, BuildGraphDiscoveryError> {
+        loop {
+            self.discover_declared_dependencies()?;
+            if self.nodes.contains_key(&ConeIdentity::CORE) {
+                break;
+            }
+            let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+                self.context.sysroot.as_path(),
+                self.context.target.lir_target_selection(),
+            );
+            let manifest = crate::locator::load_dependency_manifest(
+                &ConeCoordinate::reserved_core(),
+                layout.source_root().to_path_buf(),
+            )
+            .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
+            let identity = manifest.identity();
+            self.insert_node(identity, GraphNode::ManifestSource(Box::new(manifest)))?;
+            self.expand_source(identity)?;
+        }
+        Ok(DiscoveredBuildGraph {
+            root: self.root,
+            nodes: self.nodes,
+            edges: self.edges,
+            context: self.context,
+            meter: self.meter,
+        })
+    }
+
+    fn discover_declared_dependencies(&mut self) -> Result<(), BuildGraphDiscoveryError> {
         while let Some(pending) = pop_explicit(&mut self.explicit) {
             let claim = {
                 let (nodes, meter) = (&self.nodes, &mut self.meter);
@@ -103,13 +128,7 @@ impl DiscoveryBuilder {
             self.intern_claim(LocatedDependencyClaim::Prebuilt(Box::new(claim)))?;
         }
 
-        Ok(DiscoveredBuildGraph {
-            root: self.root,
-            nodes: self.nodes,
-            edges: self.edges,
-            context: self.context,
-            meter: self.meter,
-        })
+        Ok(())
     }
 
     fn intern_claim(
@@ -271,7 +290,11 @@ impl DiscoveryBuilder {
             };
             manifest_dependency_plans(manifest)?
         };
-        if identity != ConeIdentity::CORE {
+        if identity != ConeIdentity::CORE
+            && !plans
+                .iter()
+                .any(|plan| plan.edge.dependency() == ConeIdentity::CORE)
+        {
             self.insert_edge(DiscoveredDependencyEdge::new(
                 identity,
                 ConeIdentity::CORE,
@@ -319,105 +342,6 @@ impl DiscoveryBuilder {
         }
         Ok(())
     }
-}
-
-struct ManifestDependencyPlan {
-    coordinate: ConeCoordinate,
-    locator: ManifestDependencyPlanLocator,
-    edge: DiscoveredDependencyEdge,
-}
-
-enum ManifestDependencyPlanLocator {
-    Explicit(DependencyCoordinateKey),
-    SearchRoots,
-}
-
-fn manifest_dependency_plans(
-    manifest: &LoadedConeManifest,
-) -> Result<Vec<ManifestDependencyPlan>, BuildGraphDiscoveryError> {
-    let dependent = manifest.identity();
-    manifest
-        .parsed()
-        .semantic()
-        .dependency_iter()
-        .map(|(key, coordinate)| {
-            let dependency = coordinate
-                .identity()
-                .map_err(BuildGraphDiscoveryError::Identity)?;
-            let locator =
-                manifest.parsed().locators().get(key).ok_or_else(|| {
-                    BuildGraphDiscoveryError::MissingLocatorProjection(key.clone())
-                })?;
-            let span = manifest
-                .parsed()
-                .diagnostic_spans()
-                .dependency(key)
-                .ok_or_else(|| BuildGraphDiscoveryError::MissingDependencySpan(key.clone()))?
-                .declaration()
-                .range();
-            let (locator_kind, plan_locator) = match locator {
-                DependencyLocator::SourcePath(_) => (
-                    ManifestLocatorKind::SourcePath,
-                    ManifestDependencyPlanLocator::Explicit(key.clone()),
-                ),
-                DependencyLocator::ArtifactPath(_) => (
-                    ManifestLocatorKind::ArtifactPath,
-                    ManifestDependencyPlanLocator::Explicit(key.clone()),
-                ),
-                DependencyLocator::SearchRoots => (
-                    ManifestLocatorKind::SearchRoots,
-                    ManifestDependencyPlanLocator::SearchRoots,
-                ),
-            };
-            Ok(ManifestDependencyPlan {
-                coordinate: coordinate.clone(),
-                locator: plan_locator,
-                edge: DiscoveredDependencyEdge::new(
-                    dependent,
-                    dependency,
-                    coordinate.clone(),
-                    EdgeOrigin::ManifestDeclaration {
-                        manifest: manifest.manifest_path().to_path_buf(),
-                        span,
-                        locator_kind,
-                    },
-                    None,
-                ),
-            })
-        })
-        .collect()
-}
-
-struct PrebuiltDependencyPlan {
-    coordinate: ConeCoordinate,
-    edge: DiscoveredDependencyEdge,
-}
-
-fn prebuilt_dependency_plans(
-    dependent: ConeIdentity,
-    prebuilt: &PrebuiltArtifactProjection,
-) -> Vec<PrebuiltDependencyPlan> {
-    let artifact = prebuilt.first_candidate().resolved_path().to_path_buf();
-    prebuilt
-        .first_candidate()
-        .summary()
-        .direct_dependencies()
-        .iter()
-        .enumerate()
-        .map(|(record_index, dependency)| PrebuiltDependencyPlan {
-            coordinate: dependency.coordinate().clone(),
-            edge: DiscoveredDependencyEdge::new(
-                dependent,
-                dependency.identity(),
-                dependency.coordinate().clone(),
-                EdgeOrigin::ArtifactDependencyRecord {
-                    artifact: artifact.clone(),
-                    record_index,
-                },
-                Some(dependency.clone()),
-            ),
-        })
-        .collect()
 }
 
 struct PendingExplicitDependency {

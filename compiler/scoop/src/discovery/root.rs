@@ -3,7 +3,6 @@ use super::*;
 #[derive(Debug)]
 pub struct LoadedBuildRoot {
     pub(super) root: LoadedRootInput,
-    pub(super) default_sources: Vec<LoadedConeManifest>,
     pub(super) context: BuildContext,
     pub(super) meter: SlibClosureDecodeMeterV1,
 }
@@ -15,7 +14,7 @@ pub(super) enum LoadedRootInput {
 }
 
 impl BuildGraphRequest {
-    /// Loads the selected root operand and any default dependency manifests.
+    /// Loads only the selected root operand.
     /// No dependency locator or current-Cone source tree is traversed here.
     pub fn load_root(self) -> Result<LoadedBuildRoot, LoadBuildRootError> {
         let BuildGraphRequestParts {
@@ -44,25 +43,8 @@ impl BuildGraphRequest {
             )),
             BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
         };
-        let (default_sources, sysroot) = if matches!(
-            &root, LoadedRootInput::Manifest(manifest) if manifest.identity() == ConeIdentity::CORE
-        ) {
-            (Vec::new(), sysroot)
-        } else {
-            let core_layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-                sysroot.as_path(),
-                target.lir_target_selection(),
-            );
-            let core = crate::locator::load_dependency_manifest(
-                &ConeCoordinate::reserved_core(),
-                core_layout.source_root().to_path_buf(),
-            )
-            .map_err(|error| LoadBuildRootError::DefaultDependency(Box::new(error)))?;
-            (vec![core], sysroot)
-        };
         Ok(LoadedBuildRoot {
             root,
-            default_sources,
             context: BuildContext {
                 artifact_search_roots,
                 cache_root,

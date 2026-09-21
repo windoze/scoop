@@ -234,7 +234,6 @@ pub enum PrebuiltCompletionError {
     EmptyCandidateSet(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
     CurrentNodeAlreadyCompleted(ConeIdentity),
-    MissingTrustedCore,
     CandidateArtifact {
         path: PathBuf,
         source: Box<CrossConeArtifactValidationError>,
@@ -275,9 +274,6 @@ impl fmt::Display for PrebuiltCompletionError {
                 formatter,
                 "prebuilt Cone {identity} was supplied as its own completed dependency"
             ),
-            Self::MissingTrustedCore => {
-                formatter.write_str("prebuilt validation requires completed trusted core")
-            }
             Self::CandidateArtifact { path, source } => write!(
                 formatter,
                 "prebuilt candidate {} failed dual-view validation: {source}",
@@ -356,9 +352,6 @@ pub(crate) fn complete_prebuilt_candidates(
         {
             return Err(PrebuiltCompletionError::DuplicateCompletedNode(node.cone));
         }
-    }
-    if !artifacts.contains_key(&ConeIdentity::CORE) {
-        return Err(PrebuiltCompletionError::MissingTrustedCore);
     }
 
     let mut validated = Vec::with_capacity(candidates.len());

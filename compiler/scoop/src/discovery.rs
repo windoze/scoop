@@ -26,6 +26,7 @@ use crate::{
 };
 
 mod builder;
+mod plans;
 mod root;
 use builder::DiscoveryBuilder;
 pub use root::LoadedBuildRoot;
@@ -329,7 +330,6 @@ pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate)
 #[derive(Debug)]
 pub enum LoadBuildRootError {
     RootManifest(ManifestRootError),
-    DefaultDependency(Box<DependencyLocatorError>),
     Resource(SlibClosureResourceErrorV1),
 }
 
@@ -337,7 +337,6 @@ impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
-            Self::DefaultDependency(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),
         }
     }
@@ -347,7 +346,6 @@ impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RootManifest(error) => Some(error),
-            Self::DefaultDependency(error) => Some(error),
             Self::Resource(error) => Some(error),
         }
     }

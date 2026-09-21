@@ -515,7 +515,7 @@ fn validate_edge_representation(
                     matches!(
                         (to_core, origin),
                         (true, EdgeOrigin::InjectedTrustedCore { .. })
-                            | (false, EdgeOrigin::ManifestDeclaration { .. })
+                            | (_, EdgeOrigin::ManifestDeclaration { .. })
                     )
                 })
         }
