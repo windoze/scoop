@@ -23,7 +23,7 @@ fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
-    let constants: BTreeSet<_> = export
+    let mut internal: BTreeSet<_> = export
         .properties
         .iter()
         .filter_map(|(_, property)| {
@@ -35,6 +35,15 @@ pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
                 })
         })
         .collect();
+    for (id, constructor) in export.class_constructors.iter() {
+        if export.nominal_identities[constructor.owner]
+            .source()
+            .is_none()
+            && let Some(identity) = export.constructor_identities[id].source_record()
+        {
+            internal.insert(Subject::Constructor(identity.id()));
+        }
+    }
     export
         .export_definition_origins
         .records()
@@ -42,7 +51,7 @@ pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
         .filter(|r| {
             r.origin().source().cone() == export.cone
                 && r.subject().kind_tag() <= 8
-                && !constants.contains(&r.subject())
+                && !internal.contains(&r.subject())
         })
         .map(|r| r.subject())
         .collect()

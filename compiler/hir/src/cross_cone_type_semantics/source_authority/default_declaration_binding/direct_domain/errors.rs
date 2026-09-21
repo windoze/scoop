@@ -22,6 +22,24 @@ impl From<WireError> for DomainError {
         Self::Resource(error)
     }
 }
+impl From<DefaultSourceDomainReplayError<TypeFoundationBindingError>> for DomainError {
+    fn from(error: DefaultSourceDomainReplayError<TypeFoundationBindingError>) -> Self {
+        use DefaultSourceDomainReplayError as Replay;
+        match error {
+            Replay::Resource(error) => Self::Resource(error),
+            Replay::Authority(TypeFoundationBindingError::Resource(error)) => Self::Resource(error),
+            Replay::Authority(error) => Self::Foundation(error),
+            Replay::ProtectedOwner => Self::ProtectedOwner,
+            Replay::ProtectedClass(owner) => Self::ProtectedClass(owner),
+            Replay::ExactClass(exact) => Self::ExactClass(exact),
+            Replay::Identity(error) => Self::Identity(error),
+            Replay::Encoding(error) => Self::Encoding(error),
+            Replay::Domain(error) => Self::Domain(error),
+            Replay::GenericSubclasses(error) => Self::GenericSubclasses(error),
+            Replay::Build(error) => Self::Build(error),
+        }
+    }
+}
 impl std::fmt::Display for DomainError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

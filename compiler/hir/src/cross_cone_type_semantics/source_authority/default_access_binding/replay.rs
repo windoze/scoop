@@ -24,6 +24,20 @@ pub(super) fn validate(
         access
             .validate_for_declaration(key, &mut replay)
             .map_err(|e| Error::access(subject, e))?;
+        if matches!(subject, Subject::Constructor(_)) {
+            let owner = access
+                .lexical_owners()
+                .last()
+                .ok_or(Error::ConstructorOwner(subject))?;
+            let owner_key = bound.source_key(nominal_subject(*owner), replay.meter.get_mut())?;
+            if !matches!(
+                owner_key.declaration_kind(),
+                scoop_identity::SourceDeclarationKind::Class
+                    | scoop_identity::SourceDeclarationKind::Struct
+            ) {
+                return Err(Error::ConstructorOwner(subject));
+            }
+        }
         let nominal = match subject {
             Subject::Type(id) => Some(SourceNominalId::Concrete(id)),
             Subject::GenericType(id) => Some(SourceNominalId::GenericTemplate(id)),

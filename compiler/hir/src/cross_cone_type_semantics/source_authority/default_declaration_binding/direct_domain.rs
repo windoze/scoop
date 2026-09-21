@@ -1,11 +1,9 @@
 //! Replays provider lookup visibility from artifact-bound declaration sources.
+use super::super::default_access::lookup_domain;
 use super::*;
-use scoop_identity::{
-    ExactTypeKey, PersistentExactTypeId, PersistentGenericTypeId, SourceDeclarationKind,
-};
+use scoop_identity::{PersistentExactTypeId, PersistentGenericTypeId};
 
 mod errors;
-mod replay;
 pub use errors::DefaultSourceDirectDomainError;
 type DomainError = DefaultSourceDirectDomainError;
 
@@ -36,7 +34,11 @@ pub(super) fn validate(
         CallableTemplateOrigin::VariantConstructor(_) => {
             sources::query(provider.members().callables().records().len(), meter, path)?;
             let nominal = provider.members().callable_source(owner)?.payload().owner();
-            replay::query(foundation, meter, path)?;
+            sources::query(
+                foundation.source().entries().sources.records().len(),
+                meter,
+                path,
+            )?;
             foundation
                 .nominal_source(nominal)
                 .map_err(DomainError::Foundation)?
@@ -44,18 +46,7 @@ pub(super) fn validate(
         }
         CallableTemplateOrigin::Accessor(_) => return Err(Error::Declaration(owner)),
     };
-    let mut replay =
-        replay::Replay::new(foundation, access.lexical_owners().len() + 1, meter, path)?;
-    replay.declared(access)?;
-    for owner in access.lexical_owners() {
-        replay::query(foundation, replay.meter, path)?;
-        let outer = foundation
-            .nominal_source(*owner)
-            .map_err(DomainError::Foundation)?
-            .access();
-        replay.declared(outer)?;
-    }
-    let expected = replay.finish()?;
+    let expected = lookup_domain(access, foundation, meter, path).map_err(DomainError::from)?;
     let expected_bytes = scoop_wire::encoded_length(&expected).map_err(DomainError::Encoding)?;
     for occurrence in references.occurrences() {
         let actual = occurrence.source().witness().direct_call_domain();

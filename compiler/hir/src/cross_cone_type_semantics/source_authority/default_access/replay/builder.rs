@@ -1,29 +1,20 @@
 use super::*;
 use PersistentAccessConstraintV1 as Constraint;
 
-pub(super) struct Replay<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+pub(super) struct Builder<'a, A: SourceDomainAuthority> {
+    authority: &'a A,
     pub meter: &'a mut BudgetMeter,
     path: &'a WirePath,
     persistent: Vec<Constraint>,
     generic: Vec<PersistentGenericTypeId>,
 }
-pub(super) fn query(
-    foundation: &BoundTypeFoundationSourcesV1<'_>,
-    meter: &mut BudgetMeter,
-    path: &WirePath,
-) -> Result<(), DomainError> {
-    let count = foundation.source().entries().sources.records().len();
-    meter.charge_work((u64::from(count.max(1).ilog2()) + 1) * 65, path)?;
-    Ok(())
-}
-impl<'a, 'f> Replay<'a, 'f> {
+impl<'a, A: SourceDomainAuthority> Builder<'a, A> {
     pub fn new(
-        foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+        authority: &'a A,
         count: usize,
         meter: &'a mut BudgetMeter,
         path: &'a WirePath,
-    ) -> Result<Self, DomainError> {
+    ) -> Result<Self, Error<A::Error>> {
         meter.check_semantic_depth(count as u64, path)?;
         meter.check_table_entries((count as u64).saturating_mul(2), path)?;
         let mut persistent = Vec::new();
@@ -48,14 +39,14 @@ impl<'a, 'f> Replay<'a, 'f> {
             path,
         )?;
         Ok(Self {
-            foundation,
+            authority,
             meter,
             path,
             persistent,
             generic,
         })
     }
-    pub fn declared(&mut self, access: &DeclarationAccessSourceV1) -> Result<(), DomainError> {
+    pub fn declared(&mut self, access: &DeclarationAccessSourceV1) -> Result<(), Error<A::Error>> {
         self.meter.charge_nodes(1, self.path)?;
         self.meter.charge_edges(1, self.path)?;
         let source = access.definition_origin().origin().source();
@@ -74,18 +65,17 @@ impl<'a, 'f> Replay<'a, 'f> {
                 self.push(Constraint::File(source.clone()))?;
             }
             (DeclaredVisibilityV1::Protected, Some(owner)) => self.protected(*owner)?,
-            (DeclaredVisibilityV1::Protected, None) => return Err(DomainError::ProtectedOwner),
+            (DeclaredVisibilityV1::Protected, None) => return Err(Error::ProtectedOwner),
         }
         Ok(())
     }
-    fn protected(&mut self, owner: SourceNominalId) -> Result<(), DomainError> {
-        query(self.foundation, self.meter, self.path)?;
+    fn protected(&mut self, owner: SourceNominalId) -> Result<(), Error<A::Error>> {
         let key = self
-            .foundation
-            .nominal_key(owner)
-            .map_err(DomainError::Foundation)?;
+            .authority
+            .nominal_key(owner, self.meter, self.path)
+            .map_err(Error::Authority)?;
         if key.declaration_kind() != SourceDeclarationKind::Class {
-            return Err(DomainError::ProtectedClass(owner));
+            return Err(Error::ProtectedClass(owner));
         }
         match owner {
             SourceNominalId::GenericTemplate(id) => {
@@ -99,44 +89,28 @@ impl<'a, 'f> Replay<'a, 'f> {
             }
             SourceNominalId::Concrete(id) => {
                 let expected = ExactTypeKey::Nominal(id);
-                let bytes = scoop_wire::encoded_length(&expected).map_err(DomainError::Encoding)?;
+                let bytes = scoop_wire::encoded_length(&expected).map_err(Error::Encoding)?;
                 self.meter.charge_sha256(bytes, self.path)?;
-                let exact =
-                    PersistentExactTypeId::from_key(&expected).map_err(DomainError::Identity)?;
-                self.meter.charge_work(
-                    (u64::from(
-                        self.foundation
-                            .source()
-                            .entries()
-                            .exact_keys
-                            .values()
-                            .len()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1)
-                        * 65,
-                    self.path,
-                )?;
+                let exact = PersistentExactTypeId::from_key(&expected).map_err(Error::Identity)?;
                 if self
-                    .foundation
-                    .exact_type_key(exact)
-                    .map_err(DomainError::Foundation)?
+                    .authority
+                    .exact_key(exact, self.meter, self.path)
+                    .map_err(Error::Authority)?
                     != &expected
                 {
-                    return Err(DomainError::ExactClass(exact));
+                    return Err(Error::ExactClass(exact));
                 }
                 self.push(Constraint::SubclassesOf(exact))?;
             }
         }
         Ok(())
     }
-    fn push(&mut self, constraint: Constraint) -> Result<(), DomainError> {
-        let length = scoop_wire::encoded_length(&constraint).map_err(DomainError::Encoding)?;
+    fn push(&mut self, constraint: Constraint) -> Result<(), Error<A::Error>> {
+        let length = scoop_wire::encoded_length(&constraint).map_err(Error::Encoding)?;
         let mut work = length.saturating_mul(self.persistent.len() as u64 + 1);
         for previous in &self.persistent {
-            work = work.saturating_add(
-                scoop_wire::encoded_length(previous).map_err(DomainError::Encoding)?,
-            );
+            work =
+                work.saturating_add(scoop_wire::encoded_length(previous).map_err(Error::Encoding)?);
         }
         self.meter.charge_work(work, self.path)?;
         if !self.persistent.contains(&constraint) {
@@ -144,13 +118,13 @@ impl<'a, 'f> Replay<'a, 'f> {
         }
         Ok(())
     }
-    pub fn finish(self) -> Result<DefaultSourceAccessDomainV1, DomainError> {
+    pub fn finish(self) -> Result<DefaultSourceAccessDomainV1, Error<A::Error>> {
         for _ in 0..3 {
             self.meter
                 .charge_collection_slots(self.persistent.len() as u64, self.path)?;
         }
         for constraint in &self.persistent {
-            let length = scoop_wire::encoded_length(constraint).map_err(DomainError::Encoding)?;
+            let length = scoop_wire::encoded_length(constraint).map_err(Error::Encoding)?;
             self.meter
                 .charge_owned_bytes(length.saturating_mul(2), self.path)?;
             self.meter.charge_work(
@@ -166,9 +140,9 @@ impl<'a, 'f> Replay<'a, 'f> {
             self.path,
         )?;
         let persistent = PersistentAccessDomainV1::try_from_constraints(self.persistent)
-            .map_err(DomainError::Domain)?;
-        let generic = CanonicalPersistentIdsV1::try_new(self.generic)
-            .map_err(DomainError::GenericSubclasses)?;
-        DefaultSourceAccessDomainV1::try_new(persistent, generic).map_err(DomainError::Build)
+            .map_err(Error::Domain)?;
+        let generic =
+            CanonicalPersistentIdsV1::try_new(self.generic).map_err(Error::GenericSubclasses)?;
+        DefaultSourceAccessDomainV1::try_new(persistent, generic).map_err(Error::Build)
     }
 }

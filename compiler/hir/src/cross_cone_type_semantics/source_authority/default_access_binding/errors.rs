@@ -11,6 +11,7 @@ pub enum DefaultSourceAccessBindingError {
     UnexpectedRecord(Subject),
     ForeignKey(Subject),
     NonNominalOwner(Subject),
+    ConstructorOwner(Subject),
     Origin(Subject),
     NominalOverlap(SourceNominalId),
     Encoding(String),
@@ -67,6 +68,10 @@ impl fmt::Display for Error {
             Self::NonNominalOwner(id) => write!(
                 f,
                 "default access declaration {id:?} has a non-nominal lexical owner"
+            ),
+            Self::ConstructorOwner(id) => write!(
+                f,
+                "default access constructor {id:?} must belong to a source class or struct"
             ),
             Self::Origin(id) => write!(
                 f,

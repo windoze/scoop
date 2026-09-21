@@ -7,9 +7,11 @@ use hir::{
 };
 use scoop_identity::{DefinitionOriginSubject as Subject, SourceDeclarationKey};
 mod corruption;
+mod domains;
 mod foundation;
 mod inventory;
 mod keys;
+mod object_initializers;
 mod resources;
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

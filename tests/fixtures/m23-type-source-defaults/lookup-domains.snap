@@ -1,0 +1,10 @@
+exposed: []; generic 0
+local: [Cone]; generic 0
+fileOnly: [Cone, File]; generic 0
+generic: [Cone]; generic 0
+FileHost.inherited: [Cone, File, SubclassesOf]; generic 0
+Host.visible: []; generic 0
+Host.localMember: [Cone]; generic 0
+Host.privateMember: [LexicalOwner]; generic 0
+Host.protectedMember: [SubclassesOf]; generic 0
+Host.Nested.Inner.layered: [LexicalOwner, SubclassesOf]; generic 0

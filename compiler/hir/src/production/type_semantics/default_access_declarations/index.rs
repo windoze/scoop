@@ -46,6 +46,9 @@ pub(super) fn collect<'a>(
     }
     for (id, source) in export.class_constructors.iter() {
         work(index.meter, 1)?;
+        if export.nominal_identities[source.owner].source().is_none() {
+            continue;
+        }
         let Some(identity) = export.constructor_identities[id].source_record() else {
             continue;
         };

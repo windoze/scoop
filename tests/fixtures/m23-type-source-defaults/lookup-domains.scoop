@@ -1,0 +1,26 @@
+public fun exposed(): Int = 1
+internal fun local(): Int = 1
+private fun fileOnly(): Int = 1
+internal fun <T> generic(value: T): T = value
+private var storage: Int = 1
+public var global: Int
+    get() = storage
+    private set(next) { storage = next }
+internal val Int.extension: Int
+    get() = this
+private open class FileHost {
+    protected fun inherited(): Int = 1
+    private fun use(value: Int = inherited()): Int = value
+}
+public class Host {
+    public fun visible(): Int = 1
+    internal fun localMember(): Int = 1
+    private fun privateMember(): Int = 1
+    protected fun protectedMember(): Int = 1
+    protected class Nested {
+        private class Inner {
+            public fun layered(): Int = 1
+        }
+    }
+}
+private struct Value(val field: Int)
