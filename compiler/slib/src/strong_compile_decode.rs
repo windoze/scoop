@@ -5,10 +5,10 @@ use std::fmt;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
-    CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
-    CoreHirTypeCapabilityV1, CoreShapeSupportSourceProjectionError, CoreTypeDefinitionV1,
-    DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation, HirFoundationValidationError,
-    HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation, OdrFreeHirFoundationError,
+    CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1, CoreShapeSupportSourceProjectionError,
+    CoreTypeDefinitionV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
+    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation,
+    OdrFreeHirFoundationError,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityValidationError, SemanticIdentitySession,

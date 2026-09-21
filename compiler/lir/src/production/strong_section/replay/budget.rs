@@ -54,8 +54,8 @@ pub(super) fn charge_replay(
         let bytes = encode_canonical_temporary_with_meter(source, meter, &path)?;
         meter.charge_sha256(bytes.len() as u64, &path)?;
     }
-    if let CoreLirBridgeBranchV1::Core(bridge) = core_bridge {
-        let count = bridge.callables().len() as u64;
+    if let CoreLirBridgeBranchV1::Core(_) = core_bridge {
+        let count = 1_u64;
         meter.charge_collection_slots(count.saturating_mul(4), &path)?;
         meter.charge_work(
             count

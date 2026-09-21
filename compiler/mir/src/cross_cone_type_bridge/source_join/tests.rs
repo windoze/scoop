@@ -110,7 +110,6 @@ impl Source {
     }
     fn core_bridge(&self) -> crate::CoreMirBridgeV1 {
         crate::CoreMirBridgeV1::try_new(
-            vec![],
             vec![
                 crate::CoreMirShapeSupportRootV1::new(
                     self.fixture.empty.id(),

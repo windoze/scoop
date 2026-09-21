@@ -493,73 +493,6 @@ fn lower_core_lir_bridge(
         return Ok(lir::CoreLirBridgeBranchV1::NotCore);
     };
 
-    let mut callables = Vec::with_capacity(core.callable_targets().len());
-    for target in core.callable_targets() {
-        let binding = target.binding();
-        let implementation = target.implementation();
-        let root = input
-            .materialization()
-            .callable_roots()
-            .iter()
-            .find(|root| root.implementation() == implementation)
-            .ok_or(StrongLirLoweringError::MissingCoreCallableMaterialization(
-                implementation,
-            ))?;
-        let exact = input
-            .production()
-            .strong_callable_bridges()
-            .bridges()
-            .iter()
-            .find(|bridge| bridge.implementation() == implementation)
-            .ok_or(StrongLirLoweringError::MissingCoreCallableSignature(
-                implementation,
-            ))?
-            .signature();
-        if exact.effect() != scoop_identity::Effect::Ordinary {
-            return Err(StrongLirLoweringError::UnsupportedCoreCallableEffect(
-                implementation,
-            ));
-        }
-        if exact.receiver().is_present() {
-            return Err(StrongLirLoweringError::UnsupportedCoreCallableReceiver(
-                implementation,
-            ));
-        }
-        let function = &module.functions[root.function()];
-        let lowered = &functions[local_function_map[&root.function()]
-            .declaration()
-            .into_u32() as usize];
-        let owner = strong_callable_owner(implementation).ok_or(
-            StrongLirLoweringError::UnsupportedCoreCallableOwner(implementation),
-        )?;
-        let abi_signature = native_abi::canonical_scoop_signature(
-            module,
-            enums,
-            exact.clone(),
-            &function
-                .params
-                .iter()
-                .map(|parameter| parameter.ty.clone())
-                .collect::<Vec<_>>(),
-            &function.return_ty,
-            function.gc_effect,
-            &lowered.signature,
-        );
-        let root_plan = match function.gc_effect {
-            mir::GcEffect::Managed => lir::CoreExternalCallableRootPlan::ManagedStatepoint,
-            mir::GcEffect::NoGc => lir::CoreExternalCallableRootPlan::NoGc,
-        };
-        callables.push(
-            lir::CoreLirCallableBridgeV1::new(
-                binding,
-                owner,
-                abi_signature,
-                lowered.signature.calling_convention(),
-                root_plan,
-            )
-            .map_err(StrongLirLoweringError::CoreLirBridge)?,
-        );
-    }
     let cycle = core.initialization_cycle_thrower();
     let cycle_implementation = cycle.implementation();
     let cycle_root = input
@@ -621,9 +554,9 @@ fn lower_core_lir_bridge(
         cycle_root_plan,
     )
     .map_err(StrongLirLoweringError::CoreLirBridge)?;
-    lir::CoreLirBridgeV1::try_new(callables, cycle)
-        .map(lir::CoreLirBridgeBranchV1::Core)
-        .map_err(StrongLirLoweringError::CoreLirBridge)
+    Ok(lir::CoreLirBridgeBranchV1::Core(lir::CoreLirBridgeV1::new(
+        cycle,
+    )))
 }
 
 fn strong_callable_owner(

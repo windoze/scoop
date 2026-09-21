@@ -1,20 +1,19 @@
 use la_arena::Arena;
 use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect,
-    ExactTypeKey, ExportBindingKey, PackagePath, PendingIdentityValidation, PersistentExactTypeId,
-    SemanticIdentitySession, SemanticOriginFingerprint, SourceDeclarationKey,
-    SourceDeclarationSite,
+    CanonicalIdentifier, DeclarationScope, DefinitionOwnerChain, Effect, ExactTypeKey, PackagePath,
+    PendingIdentityValidation, PersistentExactTypeId, SemanticIdentitySession,
+    SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite,
 };
 
 use super::*;
 use crate::{
     BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
     CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirInitializationCycleThrowerV1,
-    CoreShapeSupportSourceInput, CoroutinePendingContext, EntryMirBridgeBranchV1, Function,
-    GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, OrdinaryMirOutput,
-    OrdinaryMirOutputError, SingleConeStrongMirInput, SourceSpan, Statement, StatementKind,
-    StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1, Terminator, Type,
+    CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, CoreShapeSupportSourceInput,
+    CoroutinePendingContext, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
+    Module, OdrFreeMirFoundation, OrdinaryMirOutput, OrdinaryMirOutputError,
+    SingleConeStrongMirInput, SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1,
+    StrongCallableBridgeV1, Terminator, Type,
 };
 
 #[test]
@@ -41,13 +40,6 @@ fn selected_callable_derives_the_only_strong_implementation() {
         Vec::new(),
     );
     let definition = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
-    let binding = PersistentExportBindingId::from_key(&ExportBindingKey::new(
-        ConeIdentity::CORE,
-        PackagePath::root(),
-        CanonicalIdentifier::new("run").unwrap(),
-        BindingTarget::function(&declaration).unwrap(),
-    ))
-    .unwrap();
     let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
         scoop_identity::CoreBuiltinNominal::Unit
             .identity_record()
@@ -91,7 +83,6 @@ fn selected_callable_derives_the_only_strong_implementation() {
         ConeIdentity::CORE,
         CoreMirBridgeBranchV1::Core(
             CoreMirBridgeV1::try_new(
-                vec![CoreMirCallableBridgeV1::new(binding, definition, implementation).unwrap()],
                 Vec::new(),
                 CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
                     .unwrap(),
@@ -108,19 +99,22 @@ fn selected_callable_derives_the_only_strong_implementation() {
     .unwrap();
 
     let selected = foundation
-        .project_core_callable(&production, binding, definition, signature.clone())
+        .project_initialization_cycle_thrower(&production, cycle_definition, signature.clone())
         .unwrap();
     let foreign = other_foundation
-        .project_core_callable(&production, binding, definition, signature.clone())
+        .project_initialization_cycle_thrower(&production, cycle_definition, signature.clone())
         .unwrap();
 
     assert!(selected.belongs_to(&foundation, &production));
     assert!(!selected.belongs_to(&other_foundation, &production));
-    assert_eq!(selected.kind(), CoreImportedCallableKind::Prelude(binding));
-    assert_eq!(selected.definition(), definition);
+    assert_eq!(
+        selected.kind(),
+        CoreImportedCallableKind::InitializationCycleThrower
+    );
+    assert_eq!(selected.definition(), cycle_definition);
     assert_eq!(
         selected.implementation(),
-        StrongCallableDefinitionOwner::Function(definition)
+        StrongCallableDefinitionOwner::Function(cycle_definition)
     );
     assert_eq!(selected.signature(), &signature);
 
@@ -129,14 +123,17 @@ fn selected_callable_derives_the_only_strong_implementation() {
     assert_eq!(selections.insert(selected).unwrap(), first);
     assert_eq!(selections.len(), 1);
     assert_eq!(
-        selections.callable_for_kind(CoreImportedCallableKind::Prelude(binding)),
+        selections.callable_for_kind(CoreImportedCallableKind::InitializationCycleThrower),
         Some(first)
     );
-    assert_eq!(selections.callable(first).unwrap().definition(), definition);
+    assert_eq!(
+        selections.callable(first).unwrap().definition(),
+        cycle_definition
+    );
     assert_eq!(
         selections.insert(foreign),
         Err(ImportedMirSelectionError::ForeignSelection(
-            CoreImportedCallableKind::Prelude(binding)
+            CoreImportedCallableKind::InitializationCycleThrower
         ))
     );
     assert_eq!(selections.len(), 1);
@@ -146,7 +143,7 @@ fn selected_callable_derives_the_only_strong_implementation() {
     let foreign_id = foreign_selections
         .insert(
             foundation
-                .project_core_callable(&production, binding, definition, signature)
+                .project_initialization_cycle_thrower(&production, cycle_definition, signature)
                 .unwrap(),
         )
         .unwrap();
@@ -209,10 +206,13 @@ fn selected_callable_derives_the_only_strong_implementation() {
     .expect("the strong sealer resolves the exact imported MIR selected set");
     let roots = strong.materialization().imported_core_callable_roots();
     assert_eq!(roots.len(), 1);
-    assert_eq!(roots[0].kind(), CoreImportedCallableKind::Prelude(binding));
+    assert_eq!(
+        roots[0].kind(),
+        CoreImportedCallableKind::InitializationCycleThrower
+    );
     assert_eq!(
         roots[0].implementation(),
-        StrongCallableDefinitionOwner::Function(definition)
+        StrongCallableDefinitionOwner::Function(cycle_definition)
     );
 }
 

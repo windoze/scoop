@@ -6,11 +6,10 @@ use scoop_identity::{
     CanonicalScoopAbiFunctionSignature, DecodedCanonicalScoopAbiFunctionSignature,
     DecodedPersistentId, DecodedPersistentSymbolRequest, DecodedStrongCallableDefinitionOwner,
     GcEffect as CanonicalGcEffect, IdentityReferenceError, ObjectDefinitionPlanId,
-    PersistentConstructorId, PersistentExportBindingId, PersistentFunctionId,
-    PersistentGeneratedCallableId, PersistentIdResolver, PersistentPropertyAccessorId,
-    PersistentSymbolRequest, PersistentSymbolResolutionError, ScoopAbiResolutionError,
-    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
-    ValidatedIdentityGraph,
+    PersistentConstructorId, PersistentFunctionId, PersistentGeneratedCallableId,
+    PersistentIdResolver, PersistentPropertyAccessorId, PersistentSymbolRequest,
+    PersistentSymbolResolutionError, ScoopAbiResolutionError, StrongCallableDefinitionOwner,
+    StrongDefinitionEntity, StrongDefinitionRole, ValidatedIdentityGraph,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -18,97 +17,6 @@ use crate::{
     CallingConvention, ConeIdentity, CoreExternalBuildError, CoreExternalCallableRootPlan,
     OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1, core_callable_link_contract,
 };
-
-/// Canonical LIR contract for one callable exported by the core Cone.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreLirCallableBridgeV1 {
-    binding: PersistentExportBindingId,
-    target: StrongCallableDefinitionOwner,
-    abi_signature: CanonicalScoopAbiFunctionSignature,
-    expected_symbol: PersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl CoreLirCallableBridgeV1 {
-    pub fn new(
-        binding: PersistentExportBindingId,
-        target: StrongCallableDefinitionOwner,
-        abi_signature: CanonicalScoopAbiFunctionSignature,
-        calling_convention: CallingConvention,
-        root_plan: CoreExternalCallableRootPlan,
-    ) -> Result<Self, CoreLirBridgeBuildError> {
-        let expected_effect = match abi_signature.gc_effect() {
-            CanonicalGcEffect::Managed => crate::GcEffect::Managed,
-            CanonicalGcEffect::NoGc => crate::GcEffect::NoGc,
-        };
-        if root_plan.gc_effect() != expected_effect {
-            return Err(CoreLirBridgeBuildError::Contract(
-                CoreExternalBuildError::RootProtocolMismatch,
-            ));
-        }
-        let (_, expected_symbol, required_definition) =
-            core_callable_link_contract(target).map_err(CoreLirBridgeBuildError::Contract)?;
-        Ok(Self {
-            binding,
-            target,
-            abi_signature,
-            expected_symbol,
-            calling_convention,
-            root_plan,
-            required_definition,
-        })
-    }
-
-    pub const fn binding(&self) -> PersistentExportBindingId {
-        self.binding
-    }
-
-    pub const fn target(&self) -> StrongCallableDefinitionOwner {
-        self.target
-    }
-
-    pub const fn abi_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
-        &self.abi_signature
-    }
-
-    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn calling_convention(&self) -> CallingConvention {
-        self.calling_convention
-    }
-
-    pub const fn root_plan(&self) -> CoreExternalCallableRootPlan {
-        self.root_plan
-    }
-
-    pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
-    }
-}
-
-impl WireEncode for CoreLirCallableBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
-        encoder.field(1)?;
-        self.binding.encode(encoder)?;
-        encoder.field(2)?;
-        self.target.encode(encoder)?;
-        encoder.field(3)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(4)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(5)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(6)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(7)?;
-        self.required_definition.encode(encoder)
-    }
-}
 
 /// Canonical LIR contract for the core-internal initialization cycle service.
 /// It intentionally has no public export binding.
@@ -266,56 +174,14 @@ pub(crate) fn core_lir_cycle_thrower_for_test() -> CoreLirInitializationCycleThr
 /// Complete canonical Scoop ABI publication surface of the core Cone.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreLirBridgeV1 {
-    callables: Vec<CoreLirCallableBridgeV1>,
     initialization_cycle_thrower: Box<CoreLirInitializationCycleThrowerV1>,
 }
 
 impl CoreLirBridgeV1 {
-    pub fn try_new(
-        mut callables: Vec<CoreLirCallableBridgeV1>,
-        initialization_cycle_thrower: CoreLirInitializationCycleThrowerV1,
-    ) -> Result<Self, CoreLirBridgeBuildError> {
-        callables.sort_unstable_by_key(CoreLirCallableBridgeV1::binding);
-        if let Some(pair) = callables
-            .windows(2)
-            .find(|pair| pair[0].binding() == pair[1].binding())
-        {
-            return Err(CoreLirBridgeBuildError::DuplicateBinding(pair[0].binding()));
-        }
-        if let Some((index, callable)) = callables.iter().enumerate().find(|(index, callable)| {
-            callables[..*index]
-                .iter()
-                .any(|existing| existing.target() == callable.target())
-        }) {
-            return Err(CoreLirBridgeBuildError::DuplicateTarget {
-                index,
-                target: callable.target(),
-            });
-        }
-        if let Some(index) = callables
-            .iter()
-            .position(|callable| callable.target() == initialization_cycle_thrower.target())
-        {
-            return Err(CoreLirBridgeBuildError::DuplicateTarget {
-                index,
-                target: initialization_cycle_thrower.target(),
-            });
-        }
-        Ok(Self {
-            callables,
+    pub fn new(initialization_cycle_thrower: CoreLirInitializationCycleThrowerV1) -> Self {
+        Self {
             initialization_cycle_thrower: Box::new(initialization_cycle_thrower),
-        })
-    }
-
-    pub fn callables(&self) -> &[CoreLirCallableBridgeV1] {
-        &self.callables
-    }
-
-    pub fn callable(&self, binding: PersistentExportBindingId) -> Option<&CoreLirCallableBridgeV1> {
-        self.callables
-            .binary_search_by_key(&binding, CoreLirCallableBridgeV1::binding)
-            .ok()
-            .map(|index| &self.callables[index])
+        }
     }
 
     pub fn initialization_cycle_thrower(&self) -> &CoreLirInitializationCycleThrowerV1 {
@@ -327,28 +193,6 @@ impl CoreLirBridgeV1 {
         foundation: &OdrFreeLirFoundation,
         definitions: &StrongObjectSymbolSurfaceV1,
     ) -> Result<(), CoreLirBridgeBuildError> {
-        for callable in &self.callables {
-            let (body, expected_symbol, required_definition) =
-                core_callable_link_contract(callable.target())
-                    .map_err(CoreLirBridgeBuildError::Contract)?;
-            if !foundation.contains_callable_body(body) {
-                return Err(CoreLirBridgeBuildError::MissingBody(body));
-            }
-            if !foundation.contains_symbol_request(expected_symbol) {
-                return Err(CoreLirBridgeBuildError::MissingSymbol(expected_symbol));
-            }
-            let plan = definitions.plan(required_definition).ok_or(
-                CoreLirBridgeBuildError::MissingDefinition(required_definition),
-            )?;
-            if plan.owner() != StrongDefinitionEntity::callable_body(body)
-                || plan.definition_role() != StrongDefinitionRole::CallableBody
-                || plan.primary_symbol() != expected_symbol
-            {
-                return Err(CoreLirBridgeBuildError::DefinitionMismatch(
-                    required_definition,
-                ));
-            }
-        }
         let cycle = &self.initialization_cycle_thrower;
         let (body, expected_symbol, required_definition) =
             core_callable_link_contract(cycle.target())
@@ -376,12 +220,7 @@ impl CoreLirBridgeV1 {
 
 impl WireEncode for CoreLirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        encoder.array(self.callables.len() as u64)?;
-        for callable in &self.callables {
-            callable.encode(encoder)?;
-        }
+        encoder.map(1)?;
         encoder.field(2)?;
         self.initialization_cycle_thrower.encode(encoder)
     }
@@ -435,52 +274,6 @@ impl WireEncode for CoreLirBridgeBranchV1 {
 }
 
 #[derive(Debug)]
-struct DecodedCoreLirCallableBridgeV1 {
-    binding: DecodedPersistentId<PersistentExportBindingId>,
-    target: DecodedStrongCallableDefinitionOwner,
-    abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
-    expected_symbol: DecodedPersistentSymbolRequest,
-    calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
-    required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
-}
-
-impl WireEncode for DecodedCoreLirCallableBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
-        encoder.field(1)?;
-        self.binding.encode(encoder)?;
-        encoder.field(2)?;
-        self.target.encode(encoder)?;
-        encoder.field(3)?;
-        self.abi_signature.encode(encoder)?;
-        encoder.field(4)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(5)?;
-        self.calling_convention.encode(encoder)?;
-        encoder.field(6)?;
-        self.root_plan.encode(encoder)?;
-        encoder.field(7)?;
-        self.required_definition.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedCoreLirCallableBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
-        Ok(Self {
-            binding: decoder.field(1, DecodedPersistentId::decode)?,
-            target: decoder.field(2, DecodedStrongCallableDefinitionOwner::decode)?,
-            abi_signature: decoder.field(3, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
-            expected_symbol: decoder.field(4, DecodedPersistentSymbolRequest::decode)?,
-            calling_convention: decoder.field(5, CallingConvention::decode)?,
-            root_plan: decoder.field(6, CoreExternalCallableRootPlan::decode)?,
-            required_definition: decoder.field(7, DecodedPersistentId::decode)?,
-        })
-    }
-}
-
-#[derive(Debug)]
 struct DecodedCoreLirInitializationCycleThrowerV1 {
     target: DecodedStrongCallableDefinitionOwner,
     abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
@@ -524,18 +317,12 @@ impl WireDecode for DecodedCoreLirInitializationCycleThrowerV1 {
 
 #[derive(Debug)]
 pub struct DecodedCoreLirBridgeV1 {
-    callables: Vec<DecodedCoreLirCallableBridgeV1>,
     initialization_cycle_thrower: Box<DecodedCoreLirInitializationCycleThrowerV1>,
 }
 
 impl WireEncode for DecodedCoreLirBridgeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        encoder.array(self.callables.len() as u64)?;
-        for callable in &self.callables {
-            callable.encode(encoder)?;
-        }
+        encoder.map(1)?;
         encoder.field(2)?;
         self.initialization_cycle_thrower.encode(encoder)
     }
@@ -543,11 +330,8 @@ impl WireEncode for DecodedCoreLirBridgeV1 {
 
 impl WireDecode for DecodedCoreLirBridgeV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        decoder.expect_map(1)?;
         Ok(Self {
-            callables: decoder.field(1, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedCoreLirCallableBridgeV1::decode(decoder))
-            })?,
             initialization_cycle_thrower: Box::new(
                 decoder.field(2, DecodedCoreLirInitializationCycleThrowerV1::decode)?,
             ),
@@ -571,39 +355,6 @@ impl DecodedCoreLirBridgeBranchV1 {
         let branch = match self {
             Self::NotCore => CoreLirBridgeBranchV1::NotCore,
             Self::Core(decoded) => {
-                let mut callables = Vec::with_capacity(decoded.callables.len());
-                for decoded in decoded.callables {
-                    let binding = identities
-                        .resolve(decoded.binding)
-                        .map_err(CoreLirBridgeValidationError::Identity)?;
-                    let target = resolve_target(decoded.target, identities)
-                        .map_err(CoreLirBridgeValidationError::Identity)?;
-                    let abi_signature = decoded
-                        .abi_signature
-                        .resolve(identities)
-                        .map_err(CoreLirBridgeValidationError::Abi)?;
-                    let expected_symbol = decoded
-                        .expected_symbol
-                        .resolve(identities)
-                        .map_err(CoreLirBridgeValidationError::Symbol)?;
-                    let required_definition = identities
-                        .resolve(decoded.required_definition)
-                        .map_err(CoreLirBridgeValidationError::Identity)?;
-                    let callable = CoreLirCallableBridgeV1::new(
-                        binding,
-                        target,
-                        abi_signature,
-                        decoded.calling_convention,
-                        decoded.root_plan,
-                    )
-                    .map_err(CoreLirBridgeValidationError::Build)?;
-                    if callable.expected_symbol() != expected_symbol
-                        || callable.required_definition() != required_definition
-                    {
-                        return Err(CoreLirBridgeValidationError::LinkContractMismatch(binding));
-                    }
-                    callables.push(callable);
-                }
                 let decoded_cycle = *decoded.initialization_cycle_thrower;
                 let cycle_target = resolve_target(decoded_cycle.target, identities)
                     .map_err(CoreLirBridgeValidationError::Identity)?;
@@ -632,13 +383,7 @@ impl DecodedCoreLirBridgeBranchV1 {
                         CoreLirBridgeValidationError::InitializationCycleLinkContractMismatch,
                     );
                 }
-                let original = callables.clone();
-                let bridge = CoreLirBridgeV1::try_new(callables, cycle)
-                    .map_err(CoreLirBridgeValidationError::Build)?;
-                if original != bridge.callables {
-                    return Err(CoreLirBridgeValidationError::NonCanonicalOrder);
-                }
-                CoreLirBridgeBranchV1::Core(bridge)
+                CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(cycle))
             }
         };
         branch
@@ -739,11 +484,6 @@ fn resolve_target(
 #[derive(Debug)]
 pub enum CoreLirBridgeBuildError {
     Contract(CoreExternalBuildError),
-    DuplicateBinding(PersistentExportBindingId),
-    DuplicateTarget {
-        index: usize,
-        target: StrongCallableDefinitionOwner,
-    },
     ProducerBranchMismatch,
     MissingBody(scoop_identity::PersistentCallableBodyId),
     MissingSymbol(PersistentSymbolRequest),
@@ -772,9 +512,7 @@ pub enum CoreLirBridgeValidationError {
     Symbol(PersistentSymbolResolutionError<IdentityReferenceError>),
     Abi(ScoopAbiResolutionError<IdentityReferenceError>),
     Build(CoreLirBridgeBuildError),
-    LinkContractMismatch(PersistentExportBindingId),
     InitializationCycleLinkContractMismatch,
-    NonCanonicalOrder,
 }
 
 impl fmt::Display for CoreLirBridgeValidationError {
@@ -790,9 +528,7 @@ impl std::error::Error for CoreLirBridgeValidationError {
             Self::Symbol(error) => Some(error),
             Self::Abi(error) => Some(error),
             Self::Build(error) => Some(error),
-            Self::LinkContractMismatch(_)
-            | Self::InitializationCycleLinkContractMismatch
-            | Self::NonCanonicalOrder => None,
+            Self::InitializationCycleLinkContractMismatch => None,
         }
     }
 }

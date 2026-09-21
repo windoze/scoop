@@ -1,4 +1,6 @@
 use super::*;
+
+mod protocol;
 use scoop_identity::{
     InitializationCallableRole, PersistentGeneratedCallableId, PersistentInitializationUnitId,
 };

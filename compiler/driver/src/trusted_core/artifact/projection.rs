@@ -74,29 +74,15 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .production()
             .lir_strong()
             .canonical_definitions();
-        match selected.kind() {
-            CoreImportedCallableKind::Prelude(binding) => self
-                .compile()
-                .lir()
-                .project_core_callable(
-                    bridge,
-                    definitions,
-                    binding,
-                    selected.implementation(),
-                    selected.signature().clone(),
-                )
-                .map_err(TrustedCoreCallableProjectionError::Lir),
-            CoreImportedCallableKind::InitializationCycleThrower => self
-                .compile()
-                .lir()
-                .project_initialization_cycle_thrower(
-                    bridge,
-                    definitions,
-                    selected.implementation(),
-                    selected.signature().clone(),
-                )
-                .map_err(TrustedCoreCallableProjectionError::Lir),
-        }
+        self.compile()
+            .lir()
+            .project_initialization_cycle_thrower(
+                bridge,
+                definitions,
+                selected.implementation(),
+                selected.signature().clone(),
+            )
+            .map_err(TrustedCoreCallableProjectionError::Lir)
     }
 
     /// Atomically projects a MIR selection set into the exact LIR external

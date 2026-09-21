@@ -1,8 +1,8 @@
 use scoop_identity::{
-    BindingTarget, CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, DeclarationScope,
-    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey, ExportBindingKey,
-    GcEffect as CanonicalGcEffect, PackagePath, PersistentExactTypeId, PersistentExportBindingId,
-    PersistentFunctionId, ScoopAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
+    CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, DeclarationScope,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactTypeKey,
+    GcEffect as CanonicalGcEffect, PackagePath, PersistentExactTypeId, PersistentFunctionId,
+    ScoopAbiReturn, SourceDeclarationKey, SourceDeclarationSite,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -14,9 +14,9 @@ fn empty_branches_have_fixed_closed_wire() {
         encode(&CoreLirBridgeBranchV1::NotCore).unwrap(),
         vec![0xa1, 0x00, 0x01]
     );
-    let encoded = encode(&CoreLirBridgeBranchV1::Core(
-        CoreLirBridgeV1::try_new(Vec::new(), core_lir_cycle_thrower_for_test()).unwrap(),
-    ))
+    let encoded = encode(&CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(
+        core_lir_cycle_thrower_for_test(),
+    )))
     .unwrap();
     let decoded =
         decode_canonical::<DecodedCoreLirBridgeBranchV1>(&encoded, DecodeLimits::default())
@@ -39,25 +39,27 @@ fn decoded_branch_rejects_unknown_incomplete_and_extended_shapes() {
 }
 
 #[test]
-fn callable_bridge_binds_root_protocol_and_unique_target() {
-    let first = callable("first", CoreExternalCallableRootPlan::NoGc).unwrap();
+fn reader_rejects_the_removed_core_callable_table() {
+    let mut bytes = encode(&CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(
+        core_lir_cycle_thrower_for_test(),
+    )))
+    .unwrap();
+    assert_eq!(&bytes[..5], &[0xa2, 0x00, 0x02, 0x01, 0xa1]);
+    bytes.splice(4..5, [0xa2, 0x01, 0x80]);
+    assert!(
+        decode_canonical::<DecodedCoreLirBridgeBranchV1>(&bytes, DecodeLimits::default(),).is_err()
+    );
+}
+
+#[test]
+fn initialization_protocol_bridge_binds_the_root_plan() {
+    let bridge = callable(CoreExternalCallableRootPlan::NoGc).unwrap();
+    assert_eq!(bridge.root_plan(), CoreExternalCallableRootPlan::NoGc);
     assert!(matches!(
-        callable("managed", CoreExternalCallableRootPlan::ManagedStatepoint),
+        callable(CoreExternalCallableRootPlan::ManagedStatepoint),
         Err(CoreLirBridgeBuildError::Contract(
             CoreExternalBuildError::RootProtocolMismatch
         ))
-    ));
-    let second = CoreLirCallableBridgeV1::new(
-        binding("second"),
-        first.target(),
-        first.abi_signature().clone(),
-        CallingConvention::Cdecl,
-        CoreExternalCallableRootPlan::NoGc,
-    )
-    .unwrap();
-    assert!(matches!(
-        CoreLirBridgeV1::try_new(vec![first, second], core_lir_cycle_thrower_for_test(),),
-        Err(CoreLirBridgeBuildError::DuplicateTarget { .. })
     ));
 }
 
@@ -70,10 +72,8 @@ fn branch_must_match_the_producer_kind() {
     .unwrap();
     let definitions = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     assert!(matches!(
-        CoreLirBridgeBranchV1::Core(
-            CoreLirBridgeV1::try_new(Vec::new(), core_lir_cycle_thrower_for_test()).unwrap(),
-        )
-        .validate_against(&foundation, &definitions),
+        CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(core_lir_cycle_thrower_for_test()),)
+            .validate_against(&foundation, &definitions),
         Err(CoreLirBridgeBuildError::ProducerBranchMismatch)
     ));
     let core_foundation =
@@ -88,9 +88,8 @@ fn branch_must_match_the_producer_kind() {
 }
 
 fn callable(
-    name: &str,
     root_plan: CoreExternalCallableRootPlan,
-) -> Result<CoreLirCallableBridgeV1, CoreLirBridgeBuildError> {
+) -> Result<CoreLirInitializationCycleThrowerV1, CoreLirBridgeBuildError> {
     let declaration = declaration();
     let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();
     let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
@@ -107,23 +106,12 @@ fn callable(
         CanonicalGcEffect::NoGc,
     )
     .unwrap();
-    CoreLirCallableBridgeV1::new(
-        binding(name),
+    CoreLirInitializationCycleThrowerV1::new(
         StrongCallableDefinitionOwner::Function(function),
         abi,
         CallingConvention::Cdecl,
         root_plan,
     )
-}
-
-fn binding(name: &str) -> PersistentExportBindingId {
-    PersistentExportBindingId::from_key(&ExportBindingKey::new(
-        ConeIdentity::CORE,
-        PackagePath::root(),
-        CanonicalIdentifier::new(name).unwrap(),
-        BindingTarget::function(&declaration()).unwrap(),
-    ))
-    .unwrap()
 }
 
 fn declaration() -> SourceDeclarationKey {

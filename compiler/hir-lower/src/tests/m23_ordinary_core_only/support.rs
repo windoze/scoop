@@ -240,17 +240,6 @@ fn trusted_core_from_source(
         ConeIdentity::CORE,
         scoop_mir::CoreMirBridgeBranchV1::Core(
             scoop_mir::CoreMirBridgeV1::try_new(
-                strong_mir
-                    .iter()
-                    .map(|(binding, definition, _)| {
-                        scoop_mir::CoreMirCallableBridgeV1::new(
-                            *binding,
-                            *definition,
-                            scoop_identity::CallableOwner::Function(*definition),
-                        )
-                        .unwrap()
-                    })
-                    .collect(),
                 Vec::new(),
                 scoop_mir::CoreMirInitializationCycleThrowerV1::new(
                     cycle_definition,

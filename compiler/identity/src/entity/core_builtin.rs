@@ -1,14 +1,11 @@
 use crate::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
-    PackagePath, PersistentExportBindingId, PersistentTypeId, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind,
+    PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
-/// Closed origin of a callable that an ordinary Cone may import from trusted
-/// core during the currently supported bridge phase.
+/// Compiler protocol role of a callable imported from the core library.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CoreImportedCallableKind {
-    Prelude(PersistentExportBindingId),
     InitializationCycleThrower,
 }
 

@@ -41,7 +41,6 @@ fn fixture() -> (
     );
     let core = mir::CoreMirBridgeV1::try_new(
         vec![],
-        vec![],
         mir::CoreMirInitializationCycleThrowerV1::new(
             cycle_owner,
             scoop_identity::CallableOwner::Function(cycle_owner),

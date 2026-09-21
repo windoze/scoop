@@ -1,22 +1,20 @@
 use std::fmt;
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CoreCallableDefinitionV1, CoreHirCallableCapabilityV1,
-    CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1, CoreTypeDefinitionV1,
+    CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1, CoreHirTypeCapabilityV1,
+    CoreTypeDefinitionV1,
 };
 use scoop_mir::{
     CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirCallableBridgeV1, CoreMirInitializationCycleThrowerV1,
-    CoreMirShapeSupportRootV1, MirProductionBuildError, OdrFreeMirFoundation,
-    StrongCallableBridgeSurfaceV1,
+    CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, CoreMirShapeSupportRootV1,
+    MirProductionBuildError, OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
 };
 
 /// Projects one checked HIR production section and the complete strong MIR
 /// foundation into the mandatory MIR production section.
 ///
-/// The projection is intentionally atomic: callers cannot obtain a public
-/// entry-only bridge and later pair it with an unrelated core-callable
-/// surface.
+/// Entry contracts and compiler protocols use the same complete strong MIR
+/// foundation.
 pub fn lower_production_section(
     artifact: ConeIdentity,
     hir: &CoreBootstrapInterfaceSectionV1,
@@ -43,36 +41,6 @@ fn lower_core_bridge(
     let CoreHirInterfaceBranchV1::Core(interface) = interface else {
         return Ok(CoreMirBridgeBranchV1::NotCore);
     };
-
-    let mut callable_targets = Vec::new();
-    for (index, target) in interface.callable_targets().targets().iter().enumerate() {
-        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = target.capability() else {
-            continue;
-        };
-        let CoreCallableDefinitionV1::Function(definition) = target.definition() else {
-            return Err(
-                MirProductionLoweringError::InvalidCoreCallableCandidateDefinition { index },
-            );
-        };
-        let implementation = CallableOwner::Function(definition);
-        let Some(bridge) = strong
-            .bridges()
-            .iter()
-            .find(|bridge| bridge.implementation() == implementation)
-        else {
-            continue;
-        };
-        if bridge.signature() != signature {
-            return Err(MirProductionLoweringError::CoreCallableSignatureMismatch {
-                index,
-                implementation,
-            });
-        }
-        callable_targets.push(
-            CoreMirCallableBridgeV1::new(target.binding(), definition, implementation)
-                .map_err(MirProductionLoweringError::Production)?,
-        );
-    }
 
     let shape_support_roots = interface
         .type_targets()
@@ -118,7 +86,7 @@ fn lower_core_bridge(
     let cycle = CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
         .map_err(MirProductionLoweringError::Production)?;
 
-    CoreMirBridgeV1::try_new(callable_targets, shape_support_roots, cycle)
+    CoreMirBridgeV1::try_new(shape_support_roots, cycle)
         .map(CoreMirBridgeBranchV1::Core)
         .map_err(MirProductionLoweringError::Production)
 }
@@ -141,13 +109,6 @@ fn lower_entry_bridge(
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum MirProductionLoweringError {
-    InvalidCoreCallableCandidateDefinition {
-        index: usize,
-    },
-    CoreCallableSignatureMismatch {
-        index: usize,
-        implementation: CallableOwner,
-    },
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleSignatureMismatch,
@@ -164,9 +125,7 @@ impl std::error::Error for MirProductionLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Production(source) => Some(source),
-            Self::InvalidCoreCallableCandidateDefinition { .. }
-            | Self::CoreCallableSignatureMismatch { .. }
-            | Self::InvalidInitializationCycleThrower
+            Self::InvalidInitializationCycleThrower
             | Self::MissingInitializationCycleThrower
             | Self::InitializationCycleSignatureMismatch => None,
         }

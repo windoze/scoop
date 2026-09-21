@@ -2,8 +2,8 @@ use std::fmt;
 
 use scoop_identity::{
     CallableOwner, ConeIdentity, CoreImportedCallableKind, ExactCallableSignature,
-    ImportedIdentityId, ImportedIdentityMap, MirIdentityLayer, PersistentExportBindingId,
-    PersistentFunctionId, PersistentId, StrongCallableDefinitionOwner,
+    ImportedIdentityId, ImportedIdentityMap, MirIdentityLayer, PersistentFunctionId, PersistentId,
+    StrongCallableDefinitionOwner,
 };
 use scoop_wire::WireEncode;
 
@@ -72,36 +72,6 @@ impl ImportedMirFoundation {
 
     pub fn identity<I: PersistentId + 'static>(&self, id: I) -> Option<ImportedMirId<I>> {
         self.identities.get(id).map(ImportedMirId)
-    }
-
-    /// Projects a callable only after replaying the complete core MIR bridge
-    /// relation against this exact imported foundation.
-    pub fn project_core_callable<'a>(
-        &'a self,
-        production: &'a crate::CoreBootstrapBridgeSectionV1,
-        binding: PersistentExportBindingId,
-        definition: PersistentFunctionId,
-        signature: ExactCallableSignature,
-    ) -> Result<SelectedImportedMirCallable<'a>, ImportedMirCallableProjectionError> {
-        let kind = CoreImportedCallableKind::Prelude(binding);
-        if self.origin() != ConeIdentity::CORE {
-            return Err(ImportedMirCallableProjectionError::FoundationNotCore(
-                self.origin(),
-            ));
-        }
-        let crate::CoreMirBridgeBranchV1::Core(core_bridge) = production.core_bridge() else {
-            return Err(ImportedMirCallableProjectionError::MissingCoreBridge);
-        };
-        let bridge = core_bridge
-            .callable_targets()
-            .iter()
-            .find(|bridge| bridge.binding() == binding)
-            .ok_or(ImportedMirCallableProjectionError::MissingCallable(kind))?;
-        let implementation = CallableOwner::Function(definition);
-        if bridge.definition() != definition || bridge.implementation() != implementation {
-            return Err(ImportedMirCallableProjectionError::CallableMismatch(kind));
-        }
-        self.project_checked_callable(production, kind, definition, implementation, signature)
     }
 
     /// Projects the required core-internal initialization cycle service. Its
@@ -189,7 +159,6 @@ impl WireEncode for ImportedMirFoundation {
 pub enum ImportedMirCallableProjectionError {
     FoundationNotCore(ConeIdentity),
     MissingCoreBridge,
-    MissingCallable(CoreImportedCallableKind),
     CallableMismatch(CoreImportedCallableKind),
     MissingStrongSignature(PersistentFunctionId),
     StrongSignatureMismatch(PersistentFunctionId),

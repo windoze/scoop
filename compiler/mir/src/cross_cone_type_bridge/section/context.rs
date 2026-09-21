@@ -53,22 +53,14 @@ impl<'a> MirTypeBridgeLocalAuthorityV1<'a> {
         meter: &mut BudgetMeter,
     ) -> Result<Vec<StrongCallableDefinitionOwner>, MirTypeBridgeSectionError<E>> {
         let core_count = match self.production().core_bridge() {
-            crate::CoreMirBridgeBranchV1::Core(core) => {
-                core.callable_targets().len().checked_add(1)
-            }
-            crate::CoreMirBridgeBranchV1::NotCore => Some(0),
-        }
-        .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
+            crate::CoreMirBridgeBranchV1::Core(_) => 1_usize,
+            crate::CoreMirBridgeBranchV1::NotCore => 0,
+        };
         let count = core_count
             .checked_add(self.ordinary().exports().len())
             .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
         let mut targets = reserve(count, meter)?;
         if let crate::CoreMirBridgeBranchV1::Core(core) = self.production().core_bridge() {
-            targets.extend(
-                core.callable_targets()
-                    .iter()
-                    .map(|entry| StrongCallableDefinitionOwner::Function(entry.definition())),
-            );
             targets.push(StrongCallableDefinitionOwner::Function(
                 core.initialization_cycle_thrower().definition(),
             ));

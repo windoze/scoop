@@ -104,11 +104,6 @@ impl std::error::Error for StrongProfileLirProductionError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongProfileCoreLirRelationError {
     BranchMismatch,
-    Coverage { expected: usize, actual: usize },
-    InvalidStrongOwner { index: usize },
-    CallableMismatch { index: usize },
-    MissingExactSignature { index: usize },
-    ExactSignatureMismatch { index: usize },
     InvalidInitializationCycleOwner,
     InitializationCycleMismatch,
     MissingInitializationCycleSignature,
@@ -130,10 +125,6 @@ impl std::error::Error for StrongProfileCoreLirRelationError {}
 pub enum StrongProfileRelationError {
     OutputMismatch,
     CoreBranchMismatch,
-    CoreCallableCoverage { expected: usize, actual: usize },
-    InvalidCoreCallableCandidateDefinition { index: usize },
-    CoreCallableMismatch { index: usize },
-    CoreCallableSignatureMismatch { index: usize },
     CoreShapeRootCoverage { expected: usize, actual: usize },
     CoreShapeRootMismatch { index: usize },
     InvalidInitializationCycleDefinition,

@@ -132,51 +132,6 @@ fn validate_core_lir_relation(
             _ => Err(StrongProfileCoreLirRelationError::BranchMismatch),
         };
     };
-    if mir.callable_targets().len() != lir.callables().len() {
-        return Err(StrongProfileCoreLirRelationError::Coverage {
-            expected: mir.callable_targets().len(),
-            actual: lir.callables().len(),
-        });
-    }
-    for (index, (mir, lir)) in mir
-        .callable_targets()
-        .iter()
-        .zip(lir.callables())
-        .enumerate()
-    {
-        let implementation = mir.implementation();
-        let expected_target = match implementation {
-            scoop_identity::CallableOwner::Function(id) => {
-                scoop_identity::StrongCallableDefinitionOwner::Function(id)
-            }
-            scoop_identity::CallableOwner::Constructor(id) => {
-                scoop_identity::StrongCallableDefinitionOwner::Constructor(id)
-            }
-            scoop_identity::CallableOwner::Accessor(id) => {
-                scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(id)
-            }
-            scoop_identity::CallableOwner::Generated(id) => {
-                scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(id)
-            }
-            scoop_identity::CallableOwner::GenericTemplate(_)
-            | scoop_identity::CallableOwner::Application(_) => {
-                return Err(StrongProfileCoreLirRelationError::InvalidStrongOwner { index });
-            }
-        };
-        if lir.binding() != mir.binding() || lir.target() != expected_target {
-            return Err(StrongProfileCoreLirRelationError::CallableMismatch { index });
-        }
-        let Some(exact) = strong
-            .bridges()
-            .iter()
-            .find(|bridge| bridge.implementation() == implementation)
-        else {
-            return Err(StrongProfileCoreLirRelationError::MissingExactSignature { index });
-        };
-        if lir.abi_signature().signature() != exact.signature() {
-            return Err(StrongProfileCoreLirRelationError::ExactSignatureMismatch { index });
-        }
-    }
     let mir_cycle = mir.initialization_cycle_thrower();
     let cycle_implementation = mir_cycle.implementation();
     let cycle_target = match cycle_implementation {
@@ -231,52 +186,6 @@ pub(super) fn validate_core_relation(
             _ => Err(StrongProfileRelationError::CoreBranchMismatch),
         };
     };
-
-    let mut expected = Vec::new();
-    for (index, target) in hir.callable_targets().targets().iter().enumerate() {
-        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = target.capability() else {
-            continue;
-        };
-        let CoreCallableDefinitionV1::Function(definition) = target.definition() else {
-            return Err(
-                StrongProfileRelationError::InvalidCoreCallableCandidateDefinition { index },
-            );
-        };
-        let implementation = scoop_identity::CallableOwner::Function(definition);
-        let Some(strong) = strong
-            .bridges()
-            .iter()
-            .find(|strong| strong.implementation() == implementation)
-        else {
-            continue;
-        };
-        if strong.signature() != signature {
-            return Err(StrongProfileRelationError::CoreCallableSignatureMismatch { index });
-        }
-        expected.push((target, implementation));
-    }
-
-    if expected.len() != mir.callable_targets().len() {
-        return Err(StrongProfileRelationError::CoreCallableCoverage {
-            expected: expected.len(),
-            actual: mir.callable_targets().len(),
-        });
-    }
-    for (index, ((hir, implementation), mir)) in
-        expected.iter().zip(mir.callable_targets()).enumerate()
-    {
-        let CoreCallableDefinitionV1::Function(definition) = hir.definition() else {
-            return Err(
-                StrongProfileRelationError::InvalidCoreCallableCandidateDefinition { index },
-            );
-        };
-        if hir.binding() != mir.binding()
-            || definition != mir.definition()
-            || mir.implementation() != *implementation
-        {
-            return Err(StrongProfileRelationError::CoreCallableMismatch { index });
-        }
-    }
 
     let mut expected_shape_roots = hir
         .type_targets()

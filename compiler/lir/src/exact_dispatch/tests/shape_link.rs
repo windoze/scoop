@@ -91,7 +91,7 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
         CoreExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap();
-    let core = CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::try_new(Vec::new(), thrower).unwrap());
+    let core = CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(thrower));
     assert!(matches!(
         ShapeLinkProviderV1::reject_legacy_subject(
             &empty,

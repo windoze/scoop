@@ -150,7 +150,12 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     else {
         panic!("the trusted bootstrap MIR production has a core bridge")
     };
-    assert!(minimal_core_bridge.callable_targets().is_empty());
+    assert_eq!(
+        minimal_core_bridge
+            .initialization_cycle_thrower()
+            .definition(),
+        cycle_definition
+    );
 
     let mut partial_foundation = scoop_mir::CanonicalMirFoundation::empty();
     partial_foundation
@@ -168,9 +173,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     else {
         panic!("the trusted bootstrap MIR production has a core bridge")
     };
-    assert_eq!(partial_core_bridge.callable_targets().len(), 1);
+    assert_eq!(partial_core_bridge, minimal_core_bridge);
 
-    let mut mismatched_signatures = signatures.clone();
+    let mut mismatched_signatures = vec![cycle_signature.clone()];
     let expected = mismatched_signatures[0].signature();
     let wrong_effect = match expected.effect() {
         scoop_identity::Effect::Ordinary => scoop_identity::Effect::Suspend,
@@ -185,7 +190,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             expected.result(),
         ),
     );
-    mismatched_signatures.push(cycle_signature.clone());
     let mut mismatched_foundation = scoop_mir::CanonicalMirFoundation::empty();
     mismatched_foundation
         .set_callable_signatures(mismatched_signatures)
@@ -198,7 +202,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             output.production_section(),
             &mismatched_foundation,
         ),
-        Err(scoop_mir_lower::MirProductionLoweringError::CoreCallableSignatureMismatch { .. })
+        Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
     ));
 
     let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
@@ -227,30 +231,8 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     let scoop_mir::CoreMirBridgeBranchV1::Core(core_bridge) = mir_production.core_bridge() else {
         panic!("the trusted bootstrap MIR production has a core bridge")
     };
-    assert_eq!(
-        core_bridge.callable_targets().len(),
-        interface
-            .callable_targets()
-            .targets()
-            .iter()
-            .filter(|target| matches!(
-                target.capability(),
-                scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
-            ))
-            .count()
-    );
+    assert_eq!(core_bridge, minimal_core_bridge);
 
-    let candidate_count = interface
-        .callable_targets()
-        .targets()
-        .iter()
-        .filter(|target| {
-            matches!(
-                target.capability(),
-                scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(_)
-            )
-        })
-        .count();
     let expected_shape_roots = interface
         .type_targets()
         .targets()
@@ -324,8 +306,10 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     else {
         panic!("the real trusted bootstrap MIR product has a core bridge")
     };
-    assert!(candidate_count > 0);
-    assert!(real_core_bridge.callable_targets().is_empty());
+    assert_eq!(
+        real_core_bridge.initialization_cycle_thrower().definition(),
+        cycle_definition
+    );
     assert!(expected_shape_roots > 0);
     assert_eq!(
         real_core_bridge.shape_support_roots().len(),

@@ -164,7 +164,7 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
 
     let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
     let mir = scoop_mir::CoreMirBridgeBranchV1::Core(
-        scoop_mir::CoreMirBridgeV1::try_new(Vec::new(), Vec::new(), test_cycle_thrower()).unwrap(),
+        scoop_mir::CoreMirBridgeV1::try_new(Vec::new(), test_cycle_thrower()).unwrap(),
     );
     let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
     assert_eq!(

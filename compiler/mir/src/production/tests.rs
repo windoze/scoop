@@ -4,9 +4,9 @@ use scoop_identity::{
     DeclarationScope, DefinitionOwnerChain, Effect, ExactCallableSignature,
     ExactOrdinaryNoArgUnitSignature, ExactTypeKey, ExecutableSourceEntryIdentity, ExportBindingKey,
     GeneratedCallableKey, LexicalCallableParent, LexicalCallableRole, PackagePath,
-    PendingIdentityValidation, PersistentExactTypeId, PersistentExportBindingId,
-    PersistentFunctionId, SourceDeclarationKey, SourceDeclarationSite, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment, ValidatedIdentityGraph,
+    PendingIdentityValidation, PersistentExactTypeId, PersistentFunctionId, SourceDeclarationKey,
+    SourceDeclarationSite, StructuralDefinitionPath, StructuralDefinitionSiteRole,
+    StructuralPathSegment, ValidatedIdentityGraph,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
@@ -18,7 +18,7 @@ fn bridge_section_has_a_fixed_wire_vector_and_validates_against_mir() {
     let fixture = fixture();
     assert_eq!(
         hex(&encode(&fixture.section).unwrap()),
-        "a301a2000201a30181a301582020cf0fbdf4e2b62ff6700a8791871842761fde1527a35980126af1567becc47602582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df103a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df10281a2015820ea1de3597e0f30acca2c62c6d871e693648ef7e1097cc8b0082d316acd7e76390258201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc03a201582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a100010382a201a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dca201a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
+        "a301a2000201a20281a2015820ea1de3597e0f30acca2c62c6d871e693648ef7e1097cc8b0082d316acd7e76390258201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc03a201582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a100010382a201a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dca201a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
     );
 
     let (mut identities, foundation) = validate_foundations(&fixture);
@@ -51,6 +51,17 @@ fn bridge_reader_rejects_non_closed_products_and_sums() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn reader_rejects_the_removed_core_callable_table() {
+    let mut bytes = encode(&fixture().section).unwrap();
+    assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x02, 0x01, 0xa2]);
+    bytes.splice(6..7, [0xa3, 0x01, 0x80]);
+    assert!(
+        decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(&bytes, DecodeLimits::default(),)
+            .is_err()
+    );
 }
 
 #[test]
@@ -228,8 +239,7 @@ fn builder_closes_core_entry_and_implementation_branches() {
         Err(MirProductionBuildError::CoreMustBeLibrary)
     ));
     assert!(matches!(
-        CoreMirCallableBridgeV1::new(
-            fixture.binding.id(),
+        CoreMirInitializationCycleThrowerV1::new(
             fixture.function.id(),
             CallableOwner::Function(other_function_id()),
         ),
@@ -277,7 +287,6 @@ fn core_shape_roots_require_one_exact_source_nominal_identity() {
     ));
     assert_eq!(
         CoreMirBridgeV1::try_new(
-            Vec::new(),
             vec![root, root],
             CoreMirInitializationCycleThrowerV1::new(
                 other_function_id(),
@@ -429,7 +438,6 @@ struct Fixture {
     section: CoreBootstrapBridgeSectionV1,
     function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
     other_function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    binding: CborIdentityRecord<PersistentExportBindingId, ExportBindingKey>,
     exact_unit: PersistentExactTypeId,
 }
 
@@ -485,14 +493,6 @@ fn fixture() -> Fixture {
         &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
     );
     let core_bridge = CoreMirBridgeV1::try_new(
-        vec![
-            CoreMirCallableBridgeV1::new(
-                binding.id(),
-                function.id(),
-                CallableOwner::Function(function.id()),
-            )
-            .unwrap(),
-        ],
         vec![CoreMirShapeSupportRootV1::new(unit_type, exact_unit).unwrap()],
         CoreMirInitializationCycleThrowerV1::new(
             other_function.id(),
@@ -515,7 +515,6 @@ fn fixture() -> Fixture {
         section,
         function,
         other_function,
-        binding,
         exact_unit,
     }
 }

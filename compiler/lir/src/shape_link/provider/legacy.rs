@@ -33,13 +33,8 @@ impl ShapeLinkProviderV1<'_> {
                 return Err(ShapeLinkError::LegacyPartition(subject));
             }
             if let Some(core) = core.core() {
-                meter.charge_work(core.callables().len() as u64 + 1, &path)?;
-                if core
-                    .callables()
-                    .iter()
-                    .any(|record| record.target() == target)
-                    || core.initialization_cycle_thrower().target() == target
-                {
+                meter.charge_work(1, &path)?;
+                if core.initialization_cycle_thrower().target() == target {
                     return Err(ShapeLinkError::LegacyPartition(subject));
                 }
             }
