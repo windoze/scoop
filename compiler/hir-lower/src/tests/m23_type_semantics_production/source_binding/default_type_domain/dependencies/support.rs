@@ -1,0 +1,144 @@
+use super::*;
+use crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture;
+use scoop_identity::{
+    ConeCoordinate, ConeIdentity, NormalizedSourcePath, PendingIdentityValidation, SourceIdentity,
+};
+
+pub(super) struct Artifact {
+    pub coordinate: ConeCoordinate,
+    pub source: hir::TypeFoundationSourceAuthorityV1,
+    pub foundation: hir::OdrFreeHirFoundation,
+    pub table: Table,
+    pub required: BTreeSet<Subject>,
+    pub ty: Type,
+}
+pub(super) fn artifacts(core: &TrustedCoreFixture) -> ([Artifact; 3], ValidatedIdentityGraph) {
+    let mut artifacts =
+        ["type-current", "type-first", "type-second"].map(|name| artifact(core, name));
+    let decode = |value: &hir::CanonicalHirFoundation| -> hir::DecodedHirFoundation {
+        decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
+    };
+    let core_decoded = decode(core.source_foundation.as_canonical());
+    let decoded = artifacts
+        .each_ref()
+        .map(|a| decode(a.foundation.as_canonical()));
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    core_decoded.register_identities(&mut pending).unwrap();
+    core_decoded.resolve_identities(&mut pending).unwrap();
+    let core_graph = pending.finish().unwrap();
+    let mut combined = PendingIdentityValidation::new();
+    combined
+        .register_external_graph_authorities(&core_graph)
+        .unwrap();
+    for (artifact, decoded) in artifacts.iter_mut().zip(decoded) {
+        let mut pending = PendingIdentityValidation::new();
+        pending
+            .register_authority(artifact.coordinate.identity().unwrap())
+            .unwrap();
+        pending.register_authority(ConeIdentity::CORE).unwrap();
+        decoded.register_identities(&mut pending).unwrap();
+        pending
+            .register_external_graph_authorities(&core_graph)
+            .unwrap();
+        decoded.resolve_identities(&mut pending).unwrap();
+        let mut identities = pending.finish().unwrap();
+        artifact.foundation = hir::OdrFreeHirFoundation::from_validated(
+            decoded
+                .validate_with_dependency_sources(
+                    &artifact.coordinate,
+                    &mut identities,
+                    &mut meter(),
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        combined
+            .register_external_graph_authorities(&identities)
+            .unwrap();
+    }
+    let mut identities = combined.finish().unwrap();
+    for artifact in &mut artifacts {
+        let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
+            decode_canonical(&encode(&artifact.source).unwrap(), DecodeLimits::default()).unwrap();
+        artifact.source = decoded.resolve(&mut identities, &mut meter()).unwrap();
+        let decoded: hir::DecodedCanonicalDefaultSourceAccessDeclarationsV1 =
+            decode_canonical(&encode(&artifact.table).unwrap(), DecodeLimits::default()).unwrap();
+        artifact.table = decoded.resolve(&mut identities, &mut meter()).unwrap();
+    }
+    (artifacts, identities)
+}
+fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
+    let coordinate = ConeCoordinate::new("test", name, "0.0.0").unwrap();
+    let identity = SourceIdentity::new(
+        coordinate.identity().unwrap(),
+        NormalizedSourcePath::new("src/provider.scoop").unwrap(),
+    )
+    .unwrap();
+    let text = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-type-source-defaults/type-domain-provider.scoop"
+    ));
+    let parsed = ast::CurrentConeParsedSources::try_new(
+        ast::AllParsedSources::try_new(ast::NonEmptyVec::new(
+            ast::IdentifiedParsedSource::new(identity.clone(), scoop_parser::parse(text).unwrap()),
+            vec![],
+        ))
+        .unwrap(),
+        ast::NonEmptyVec::new(
+            ast::CurrentSourceText::new(identity.clone(), text.to_owned()),
+            vec![],
+        ),
+        ast::NonEmptyVec::new(
+            ast::CurrentSourceDiagnosticContext::new(
+                identity,
+                std::path::PathBuf::from("src/provider.scoop"),
+            ),
+            vec![],
+        ),
+    )
+    .unwrap();
+    let inputs = core
+        .foundation
+        .import_core_inputs(&core.interface, &[])
+        .unwrap();
+    let input = OrdinaryCoreOnlySources::try_new(&parsed, inputs).unwrap();
+    let output =
+        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let export = output.output().export.module();
+    let pick = export
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "pick")
+        .unwrap()
+        .0;
+    let template = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+        &output,
+        hir::ExportParameterOwner::Function(pick),
+        1,
+        &mut meter(),
+    )
+    .unwrap();
+    let ty = template.result().clone();
+    let Type::Nominal(id) = ty else {
+        panic!("private source nominal")
+    };
+    let required = BTreeSet::from([Subject::Type(id)]);
+    let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+    let source = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(&output, &mut meter())
+        .unwrap()
+        .source_transcript(&mut meter())
+        .unwrap();
+    let foundation = hir::OdrFreeHirFoundation::try_new(
+        hir::CanonicalHirFoundation::from_type_semantics_output(&output).unwrap(),
+    )
+    .unwrap();
+    Artifact {
+        coordinate,
+        source,
+        foundation,
+        table,
+        required,
+        ty,
+    }
+}
