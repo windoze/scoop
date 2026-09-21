@@ -1,0 +1,10 @@
+private struct Item()
+private struct Box<T>(val value: T)
+
+private fun nominal(value: Item = Item()): Item = value
+private fun applied(value: Box<Item> = Box(Item())): Box<Item> = value
+private fun tuple(first: Item, value: (Item, Item) = (first, first)): (Item, Item) = value
+private fun function(first: (Item) -> Item, value: (Item) -> Item = first): (Item) -> Item = value
+private fun suspended(first: suspend (Item) -> Item, value: suspend (Item) -> Item = first): suspend (Item) -> Item = value
+private fun <T> binder(first: T, value: T = first): T = value
+private fun builtin(first: Any, value: Any = first): Any = value

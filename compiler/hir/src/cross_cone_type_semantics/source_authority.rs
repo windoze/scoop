@@ -72,3 +72,6 @@ pub use default_access_binding::*;
 
 mod default_target_subject;
 pub use default_target_subject::*;
+
+mod default_type_access;
+pub use default_type_access::*;

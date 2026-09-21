@@ -1,0 +1,18 @@
+nominal
+  $ Nominal Item
+applied
+  $ Application Box 1
+  $.2[0] Nominal Item
+tuple
+  $.1[0] Nominal Item
+  $.1[1] Nominal Item
+function
+  $.2[0] Nominal Item
+  $.3 Nominal Item
+suspended
+  $.2[0] Nominal Item
+  $.3 Nominal Item
+binder
+  $ Binder 0:0
+builtin
+  $ Nominal Any
