@@ -8,6 +8,10 @@ pub enum NominalSourceBindingError {
     Inventory(&'static str),
     MissingSource(SourceNominalId),
     MissingField(PersistentFieldId),
+    FieldOwner {
+        owner: SourceNominalId,
+        field: PersistentFieldId,
+    },
     MissingVariant(PersistentEnumVariantId),
     MissingVariantField(PersistentEnumVariantFieldId),
     MissingObject(PersistentObjectValueId),
@@ -39,6 +43,10 @@ impl fmt::Display for NominalSourceBindingError {
             Self::Foundation(error) => error.fmt(f),
             Self::Inventory(table) => write!(f, "nominal source inventory mismatch: {table}"),
             Self::MissingSource(owner) => write!(f, "missing nominal source {owner:?}"),
+            Self::FieldOwner { owner, field } => write!(
+                f,
+                "field {field} is not declared by source struct {owner:?}"
+            ),
             Self::MissingField(id) => write!(f, "missing artifact-owned struct field {id}"),
             Self::MissingVariant(id) => write!(f, "missing artifact-owned enum variant {id}"),
             Self::MissingVariantField(id) => {

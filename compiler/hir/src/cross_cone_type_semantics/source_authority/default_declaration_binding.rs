@@ -4,15 +4,17 @@ use scoop_identity::{CallableTemplateOrigin, ConeIdentity, SignatureTypeKey};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 mod contracts;
+mod data_flow;
 mod envelope;
 mod errors;
 mod sources;
 pub use errors::*;
 type Error = DefaultSourceDeclarationBindingError;
 
-/// Declaration and location proof only. Override/default uniqueness, complete
-/// inherited substitution, body operations and access still require replay.
-/// Every local and body type is checked in the original provider scope.
+/// Source declaration, location, type and local data-flow contracts. Override
+/// uniqueness, complete inherited substitution, body operations and access still require replay.
+/// Every local and body type is checked in the original provider scope,
+/// followed by complete local data-flow and binding-schedule validation.
 #[derive(Debug)]
 pub struct BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     origins: BoundNominalDefaultOriginsV1<'d, 'p, 's, 'a, 'f>,
@@ -56,13 +58,15 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                 meter,
                 &path,
             )?;
-            let contract =
-                contracts::validate(self, provider, template, meter, &path).map_err(|error| {
-                    Error::Record {
-                        key: template.key(),
-                        error: Box::new(error),
-                    }
-                })?;
+            let contract = (|| {
+                let contract = contracts::validate(self, provider, template, meter, &path)?;
+                data_flow::validate(self, dependencies, template, meter, &path)?;
+                Ok(contract)
+            })()
+            .map_err(|error| Error::Record {
+                key: template.key(),
+                error: Box::new(error),
+            })?;
             declarations.push(contract);
         }
         Ok(BoundNominalDefaultDeclarationsV1 {

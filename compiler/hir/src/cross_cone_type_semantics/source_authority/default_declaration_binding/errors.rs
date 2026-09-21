@@ -35,6 +35,8 @@ pub enum DefaultSourceDeclarationBindingError {
     ParameterType {
         index: usize,
     },
+    BindingFieldOwner(scoop_identity::PersistentFieldId),
+    DataFlow(Box<ExportDefaultLocalDataFlowValidationError<Self>>),
     LocalScope(TemplateLocalScopeValidationError),
     LocalType {
         index: usize,
@@ -118,6 +120,11 @@ impl std::fmt::Display for Error {
                 f,
                 "default source parameter {index} differs after provider substitution"
             ),
+            Self::BindingFieldOwner(field) => write!(
+                f,
+                "default binding field {field:?} differs from its source struct owner"
+            ),
+            Self::DataFlow(error) => error.fmt(f),
             Self::LocalScope(error) => error.fmt(f),
             Self::LocalType { index, error } => {
                 write!(f, "default source local {index} type: {error}")

@@ -14,6 +14,7 @@ use crate::*;
 
 mod contracts;
 mod errors;
+mod field_index;
 mod inventory;
 mod keys;
 mod replay;

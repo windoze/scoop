@@ -1,0 +1,15 @@
+public struct FlowPair<T>(val first: T, val second: T)
+public struct FlowOther(val first: Int, val second: Int)
+public class FlowHost {
+    internal fun scoped(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value
+    protected fun loop(seed: FlowPair<Int>, value: Int = if (true) {
+        val { second: right, first: left } = seed
+        var total = 0
+        while (true) { total = left; break }
+        if (false) { right } else { total }
+    } else { 0 }): Int = value
+    internal fun <T> generic(seed: FlowPair<T>, value: T = if (true) {
+        val { second: next, .. } = seed
+        next
+    } else { seed.first }): T = value
+}
