@@ -1,0 +1,20 @@
+public fun binderConstant(): Int = 1
+public class BinderHost<Outer, Unused> {
+    internal fun <A, B> lambda(value: () -> Int = { 1 }): () -> Int = value
+    internal fun <A, B> anonymous(value: () -> Int = fun(): Int { return 1 }): () -> Int = value
+    internal fun <A, B> reference(value: () -> Int = ::binderConstant): () -> Int = value
+    internal fun <A, B> local(value: Int = if (true) {
+        fun <C> pick(unused: C): Int { return 1 }
+        pick<Int>(1)
+    } else { 2 }): Int = value
+    public class Plain {
+        internal fun <A> callback(value: () -> Int = { 1 }): () -> Int = value
+    }
+    public class Generic<Inner> {
+        internal fun <A> callback(value: () -> Int = { 1 }): () -> Int = value
+    }
+}
+public class BinderConstructor<Unused>(val callback: () -> Int = { 1 })
+public enum BinderVariant<Unused> {
+    Value(val callback: () -> Int = { 1 })
+}

@@ -8,6 +8,7 @@ mod corruption;
 mod data_flow;
 mod dependency_binders;
 mod envelope;
+mod nested_binders;
 mod nested_identities;
 mod nested_index;
 mod nested_parents;

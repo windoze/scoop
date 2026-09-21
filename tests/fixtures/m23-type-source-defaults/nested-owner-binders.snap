@@ -1,0 +1,6 @@
+BinderHost.lambda: Lambda, owner binders 4, captures 0
+BinderHost.anonymous: AnonymousFunction, owner binders 4, captures 0
+BinderHost.reference: CallableReference, owner binders 4, captures 0
+BinderHost.local: LocalFunction, owner binders 4, captures 0
+BinderHost.Plain.callback: Lambda, owner binders 1, captures 0
+BinderHost.Generic.callback: Lambda, owner binders 2, captures 0

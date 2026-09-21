@@ -56,6 +56,14 @@ impl CanonicalHirFoundation {
         &self.properties
     }
 
+    pub(crate) fn type_source_extension_property_records(&self) -> &[ExtensionPropertyRecord] {
+        &self.extension_properties
+    }
+
+    pub(crate) fn type_source_initialization_records(&self) -> &[InitializationUnitRecord] {
+        &self.initialization_units
+    }
+
     pub(crate) fn type_source_dispatch_records(&self) -> &[DispatchSlotRecord] {
         &self.dispatch_slots
     }

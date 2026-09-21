@@ -1,0 +1,11 @@
+public fun <A, B, Unused> binderDependency(value: () -> Int = { 1 }): () -> Int = value
+public fun <A, B> binderLocalDependency(value: () -> Int = if (true) {
+    fun <C> nested(value: () -> Int = { 1 }): () -> Int { return value }
+    nested<Int>()
+} else { val fallback: () -> Int = { 2 }; fallback }): () -> Int = value
+public fun <A, B, Unused> binderAnonymousDependency(value: () -> Int = fun(): Int { return 1 }): () -> Int = value
+public class BinderCombinationHost<Host> {
+    internal fun <Own> expanded(value: () -> Int = binderDependency<Int, (Int, Int), Own>()): () -> Int = value
+    internal fun <Own> local(value: () -> Int = binderLocalDependency<Int, Own>()): () -> Int = value
+    internal fun <Own> anonymous(value: () -> Int = binderAnonymousDependency<Int, (Int, Int), Own>()): () -> Int = value
+}

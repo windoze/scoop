@@ -159,4 +159,6 @@ pub enum DefaultSourceNestedIdentityFailureV1 {
     DefinitionSource,
     LexicalParent,
     DefinitionContext,
+    OwnerBinderArity { expected: u32, actual: u32 },
+    BodyBinderArity { expected: u32, actual: u32 },
 }

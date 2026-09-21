@@ -8,6 +8,7 @@ use scoop_identity::{
     LexicalCallableRole, PersistentId, SourceDeclarationKey, StructuralDefinitionPath,
 };
 
+mod binders;
 mod parent;
 
 pub(super) fn validate<'p, 's, 'a, 'f>(
@@ -102,6 +103,7 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
             return Err(failure(identity, Failure::DefinitionPath));
         }
         parent::validate(foundation, parent, identity, origin, meter, path)?;
+        binders::validate(foundation, parent, descriptor, meter, path)?;
     }
     Ok(())
 }
