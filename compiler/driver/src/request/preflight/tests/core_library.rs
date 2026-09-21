@@ -137,8 +137,12 @@ fn assert_core_views_share_the_dependency_closure(
     .unwrap();
     let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
     let validated = loaded.validate_inner(Some(&mut meter)).unwrap();
-    let ValidatedCurrentConeInput::SingleFile { trusted_core, .. } = validated.current() else {
-        panic!("single-file input")
+    assert!(matches!(
+        validated.current(),
+        ValidatedCurrentConeInput::SingleFile { .. }
+    ));
+    let ValidatedCompilerProtocols::Imported(trusted_core) = validated.protocols() else {
+        panic!("single-file input imports its protocols from the shared dependency closure")
     };
     let closure = &validated.dependencies().closure;
     let member = closure
@@ -201,7 +205,7 @@ fn assert_explicit_core_version_is_checked(
     .err()
     .expect("the explicit core version must match the supplied artifact");
     assert!(
-        matches!(error, CoreOnlyRequestValidationError::ExplicitDependencies(source)
+        matches!(error, SingleConeDependencyValidationError::ExplicitDependencies(source)
         if matches!(source.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
             if declared.iter().any(|coordinate| coordinate.version() == "0.2.0")
                 && actual == &[scoop_identity::ConeCoordinate::reserved_core()]))
@@ -231,7 +235,7 @@ fn assert_non_core_artifact_is_rejected(
     .load_preflight(DecodeLimits::default())
     .unwrap();
     assert!(matches!(loaded.validate(),
-        Err(CoreOnlyRequestValidationError::ExplicitDependencies(source))
+        Err(SingleConeDependencyValidationError::ExplicitDependencies(source))
             if matches!(source.as_ref(), ExplicitDependencyValidationError::UnsupportedArtifactShape { .. })));
     assert!(!root.join("src").exists());
 }

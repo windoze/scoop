@@ -1,16 +1,14 @@
 use super::*;
 use std::borrow::Cow;
 
-#[derive(Clone, Copy)]
-pub(super) enum CurrentProtocols<'stage, 'artifact> {
-    Declared,
-    Imported(&'stage ValidatedTrustedCoreArtifact<'artifact>),
-}
-
-impl<'stage> CurrentProtocols<'stage, '_> {
-    pub fn hir_input(self) -> Result<scoop_hir_lower::CoreProtocolInput, CurrentConeHirStageError> {
+impl ValidatedCompilerProtocols<'_> {
+    pub(super) fn hir_input(
+        &self,
+    ) -> Result<scoop_hir_lower::CoreProtocolInput, CurrentConeHirStageError> {
         match self {
-            Self::Declared => Ok(scoop_hir_lower::CoreProtocolInput::CurrentDeclarations),
+            Self::CurrentDeclarations => {
+                Ok(scoop_hir_lower::CoreProtocolInput::CurrentDeclarations)
+            }
             Self::Imported(core) => core
                 .import_core_inputs()
                 .map(Into::into)
@@ -18,23 +16,25 @@ impl<'stage> CurrentProtocols<'stage, '_> {
         }
     }
 
-    pub fn defined_symbols(self) -> Cow<'stage, scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1> {
+    pub(super) fn defined_symbols(
+        &self,
+    ) -> Cow<'_, scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1> {
         match self {
-            Self::Declared => {
+            Self::CurrentDeclarations => {
                 Cow::Owned(scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap())
             }
             Self::Imported(core) => Cow::Borrowed(core.defined_symbols()),
         }
     }
 
-    pub fn lower_machine(
-        self,
+    pub(super) fn lower_machine(
+        &self,
         hir: current_hir::CurrentConeHirArtifacts,
-        request: &ValidatedCoreOnlyBuildRequest<'_>,
+        request: &ValidatedSingleConeBuildRequest<'_>,
         dump: &mut Option<EmittedStageDump>,
     ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
         match self {
-            Self::Declared => lower_machine(
+            Self::CurrentDeclarations => lower_machine(
                 hir,
                 request,
                 scoop_mir::CurrentMirProtocolDeclarations,
@@ -87,7 +87,7 @@ impl LirProtocols<'_> {
 
 fn lower_machine<'protocol, P: scoop_mir::MirProtocolSelection>(
     hir: current_hir::CurrentConeHirArtifacts,
-    request: &ValidatedCoreOnlyBuildRequest<'_>,
+    request: &ValidatedSingleConeBuildRequest<'_>,
     protocols: P,
     project_lir: impl FnOnce(&P) -> Result<LirProtocols<'protocol>, CurrentConeLirStageError>,
     dump: &mut Option<EmittedStageDump>,

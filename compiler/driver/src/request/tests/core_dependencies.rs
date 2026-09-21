@@ -32,7 +32,7 @@ fn core_request_retains_direct_and_support_inputs_for_common_preflight() {
         .unwrap();
     assert!(matches!(
         loaded.validate(),
-        Err(preflight::CoreOnlyRequestValidationError::ExplicitDependencies(error))
+        Err(preflight::SingleConeDependencyValidationError::ExplicitDependencies(error))
             if matches!(error.as_ref(), preflight::ExplicitDependencyValidationError::Summary { input, .. }
                 if input.role() == preflight::ExplicitDependencyRole::Direct && input.path() == direct)
     ));

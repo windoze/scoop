@@ -133,7 +133,7 @@ fn production_error_code(error: &scoopc::SingleConeProductionError) -> &'static 
             GRAPH_RESOURCE_ERROR_CODE
         }
         scoopc::SingleConeProductionError::Validation(
-            scoopc::CoreOnlyRequestValidationError::ExplicitDependencies(source),
+            scoopc::SingleConeDependencyValidationError::ExplicitDependencies(source),
         ) if matches!(
             source.as_ref(),
             scoopc::ExplicitDependencyValidationError::Resource(_)

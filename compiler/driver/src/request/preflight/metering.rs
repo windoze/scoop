@@ -92,78 +92,24 @@ impl SingleConeBuildRequest {
 }
 
 impl LoadedSingleConeBuildRequest {
-    pub(super) fn validate_inner(
-        &self,
-        meter: Option<&mut SlibClosureDecodeMeterV1>,
-    ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        let (manifest, current_identity) = match &self.current {
-            LoadedCurrentConeInput::Manifest { manifest } => {
-                (Some(manifest.as_ref()), manifest.identity())
-            }
-            LoadedCurrentConeInput::SingleFile { .. } => (None, ConeIdentity::SINGLE_FILE),
-        };
-        let dependencies = self
-            .dependencies
-            .validate_inner(manifest, current_identity, &self.target, meter)
-            .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-        let current = match &self.current {
-            LoadedCurrentConeInput::Manifest { manifest }
-                if current_identity == ConeIdentity::CORE =>
-            {
-                ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest }
-            }
-            input => {
-                let trusted_core = Box::new(
-                    ValidatedTrustedCoreArtifact::from_closure(&dependencies.closure).map_err(
-                        |source| {
-                            CoreOnlyRequestValidationError::ExplicitDependencies(Box::new(
-                                ExplicitDependencyValidationError::CoreInterface(source),
-                            ))
-                        },
-                    )?,
-                );
-                match input {
-                    LoadedCurrentConeInput::Manifest { manifest } => {
-                        ValidatedCurrentConeInput::Manifest {
-                            manifest,
-                            trusted_core,
-                        }
-                    }
-                    LoadedCurrentConeInput::SingleFile { source } => {
-                        ValidatedCurrentConeInput::SingleFile {
-                            source,
-                            trusted_core,
-                        }
-                    }
-                }
-            }
-        };
-        Ok(ValidatedCoreOnlyBuildRequest {
-            request: self,
-            current,
-            dependencies,
-        })
-    }
-
     fn validate_metered(
         &self,
         meter: &mut SlibClosureDecodeMeterV1,
-    ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
+    ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {
         self.validate_inner(Some(meter))
     }
 }
 
-impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
+impl<'input> ValidatedSingleConeBuildRequest<'input> {
     fn parse_current_sources_metered<'request>(
         &'request self,
         meter: &mut SlibClosureDecodeMeterV1,
     ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
         let sources = match &self.current {
-            ValidatedCurrentConeInput::Manifest { manifest, .. }
-            | ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
+            ValidatedCurrentConeInput::Manifest { manifest } => {
                 parse_manifest_current_metered(manifest, meter)?
             }
-            ValidatedCurrentConeInput::SingleFile { source, .. } => {
+            ValidatedCurrentConeInput::SingleFile { source } => {
                 parse_single_file_current_metered(source, meter)?
             }
         };

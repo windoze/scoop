@@ -4,7 +4,6 @@ use super::*;
 mod errors;
 mod protocols;
 pub use errors::{CurrentConeProductionError, CurrentConeProductionFailure};
-use protocols::CurrentProtocols;
 
 impl ParsedSingleConeBuildRequest<'_, '_> {
     pub fn build_and_publish(
@@ -12,24 +11,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         temporary_parent: &Path,
         limits: DecodeLimits,
     ) -> Result<SingleConeProductionSuccess, CurrentConeProductionError> {
-        let (cone, protocols) = match self.request.current() {
-            ValidatedCurrentConeInput::Manifest {
-                manifest,
-                trusted_core,
-            } => (
-                manifest_record(manifest),
-                CurrentProtocols::Imported(trusted_core),
-            ),
-            ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
-                (manifest_record(manifest), CurrentProtocols::Declared)
-            }
-            ValidatedCurrentConeInput::SingleFile { trusted_core, .. } => (
-                scoop_slib::ConeRecord::new(
-                    ConeCoordinate::reserved_single_file(),
-                    scoop_slib::ConeKind::Executable,
-                    scoop_slib::ConeSourceForm::SingleFile,
-                ),
-                CurrentProtocols::Imported(trusted_core),
+        let protocols = self.request.protocols();
+        let cone = match self.request.current() {
+            ValidatedCurrentConeInput::Manifest { manifest } => manifest_record(manifest),
+            ValidatedCurrentConeInput::SingleFile { .. } => scoop_slib::ConeRecord::new(
+                ConeCoordinate::reserved_single_file(),
+                scoop_slib::ConeKind::Executable,
+                scoop_slib::ConeSourceForm::SingleFile,
             ),
         };
         let cone = cone.map_err(|e| {
@@ -98,7 +86,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
     fn lower_hir(
         &self,
         requested: scoop_identity::RequestedConeKind,
-        protocols: CurrentProtocols<'_, '_>,
+        protocols: &ValidatedCompilerProtocols<'_>,
     ) -> Result<current_hir::CurrentConeHirArtifacts, CurrentConeHirStageError> {
         let world = self
             .request

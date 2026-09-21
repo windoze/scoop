@@ -34,6 +34,7 @@ mod machine;
 mod metering;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod production;
+mod validated;
 #[cfg(test)]
 use bootstrap::*;
 use dependencies::LoadedExplicitDependencyInputs;
@@ -42,6 +43,10 @@ pub use dependencies::{
     ExplicitDependencyRole, ExplicitDependencyValidationError,
 };
 pub use production::{CurrentConeProductionError, CurrentConeProductionFailure};
+pub use validated::{
+    SingleConeDependencyValidationError, ValidatedCompilerProtocols, ValidatedCurrentConeInput,
+    ValidatedSingleConeBuildRequest,
+};
 
 /// Proof that the manifest, explicit artifacts, and their recursive closure
 /// were validated before current-source discovery begins.
@@ -137,7 +142,7 @@ fn capture_stage_dump(
 pub enum SingleConeProductionError {
     TemporaryWorkspace(std::io::Error),
     Preflight(SingleConePreflightError),
-    Validation(CoreOnlyRequestValidationError),
+    Validation(SingleConeDependencyValidationError),
     Sources(CurrentConeSourceStageError),
     Production(Box<CurrentConeProductionError>),
 }
@@ -186,108 +191,13 @@ fn load_current_input(
     }
 }
 
-impl LoadedSingleConeBuildRequest {
-    /// Constructs the trusted-core proof before exposing any current source
-    /// loading or parser entry.
-    pub fn validate(
-        &self,
-    ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        self.validate_inner(None)
-    }
-}
-
-#[derive(Debug)]
-pub enum CoreOnlyRequestValidationError {
-    ExplicitDependencies(Box<ExplicitDependencyValidationError>),
-}
-
-impl fmt::Display for CoreOnlyRequestValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ExplicitDependencies(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreOnlyRequestValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ExplicitDependencies(source) => Some(source.as_ref()),
-        }
-    }
-}
-
-pub enum ValidatedCurrentConeInput<'input> {
-    Manifest {
-        manifest: &'input LoadedConeManifest,
-        trusted_core: Box<ValidatedTrustedCoreArtifact<'input>>,
-    },
-    SingleFile {
-        source: &'input SingleFileLocator,
-        trusted_core: Box<ValidatedTrustedCoreArtifact<'input>>,
-    },
-    TrustedCoreBootstrap {
-        manifest: &'input LoadedConeManifest,
-    },
-}
-
-pub struct ValidatedCoreOnlyBuildRequest<'input> {
-    request: &'input LoadedSingleConeBuildRequest,
-    current: ValidatedCurrentConeInput<'input>,
-    dependencies: ValidatedExplicitDependencyInputSet<'input>,
-}
-
-impl<'input> ValidatedCoreOnlyBuildRequest<'input> {
-    pub const fn current(&self) -> &ValidatedCurrentConeInput<'input> {
-        &self.current
-    }
-
-    pub const fn dependencies(&self) -> &ValidatedExplicitDependencyInputSet<'input> {
-        &self.dependencies
-    }
-
-    pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
-        &self.request.target
-    }
-
-    pub const fn output(&self) -> &SlibOutputDestination {
-        &self.request.output
-    }
-
-    pub const fn diagnostics(&self) -> DiagnosticOutputPolicy {
-        self.request.diagnostics
-    }
-
-    pub const fn emit(&self) -> StageDumpPolicy {
-        self.request.emit
-    }
-
-    pub fn parse_current_sources<'request>(
-        &'request self,
-    ) -> Result<ParsedSingleConeBuildRequest<'request, 'input>, CurrentConeSourceStageError> {
-        let sources = match &self.current {
-            ValidatedCurrentConeInput::Manifest { manifest, .. }
-            | ValidatedCurrentConeInput::TrustedCoreBootstrap { manifest } => {
-                parse_manifest_current(manifest)?
-            }
-            ValidatedCurrentConeInput::SingleFile { source, .. } => {
-                parse_single_file_current(source)?
-            }
-        };
-        Ok(ParsedSingleConeBuildRequest {
-            request: self,
-            sources,
-        })
-    }
-}
-
 pub struct ParsedSingleConeBuildRequest<'request, 'artifact> {
-    request: &'request ValidatedCoreOnlyBuildRequest<'artifact>,
+    request: &'request ValidatedSingleConeBuildRequest<'artifact>,
     sources: CurrentConeParsedSources,
 }
 
 impl<'request, 'artifact> ParsedSingleConeBuildRequest<'request, 'artifact> {
-    pub const fn request(&self) -> &'request ValidatedCoreOnlyBuildRequest<'artifact> {
+    pub const fn request(&self) -> &'request ValidatedSingleConeBuildRequest<'artifact> {
         self.request
     }
     pub const fn sources(&self) -> &CurrentConeParsedSources {

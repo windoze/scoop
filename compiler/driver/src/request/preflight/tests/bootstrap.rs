@@ -400,6 +400,14 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     .unwrap();
     let loaded = request.load_preflight(DecodeLimits::default()).unwrap();
     let validated = loaded.validate().unwrap();
+    assert!(
+        matches!(validated.current(), ValidatedCurrentConeInput::Manifest { manifest }
+        if manifest.identity() == ConeIdentity::CORE)
+    );
+    assert!(matches!(
+        validated.protocols(),
+        ValidatedCompilerProtocols::CurrentDeclarations
+    ));
     let parsed = validated.parse_current_sources().unwrap();
 
     let published = parsed
@@ -461,6 +469,14 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         .load_preflight(DecodeLimits::default())
         .unwrap();
     let ordinary_validated = ordinary_loaded.validate().unwrap();
+    assert!(matches!(
+        ordinary_validated.current(),
+        ValidatedCurrentConeInput::SingleFile { .. }
+    ));
+    assert!(matches!(
+        ordinary_validated.protocols(),
+        ValidatedCompilerProtocols::Imported(_)
+    ));
     let ordinary_parsed = ordinary_validated.parse_current_sources().unwrap();
 
     let ordinary_published = ordinary_parsed

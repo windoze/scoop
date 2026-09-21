@@ -377,7 +377,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(matches!(
         error,
         SingleConeProductionError::Validation(
-            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            SingleConeDependencyValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
             ExplicitDependencyValidationError::Summary { .. }
@@ -404,7 +404,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(matches!(
         error,
         SingleConeProductionError::Validation(
-            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            SingleConeDependencyValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
             ExplicitDependencyValidationError::ManifestDirectSet { .. }
@@ -431,7 +431,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(matches!(
         error,
         SingleConeProductionError::Validation(
-            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            SingleConeDependencyValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
             ExplicitDependencyValidationError::DuplicateIdentity {
@@ -457,7 +457,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(matches!(
         error,
         SingleConeProductionError::Validation(
-            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            SingleConeDependencyValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
             ExplicitDependencyValidationError::SupportClosure { .. }
@@ -481,7 +481,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         matches!(
             &error,
             SingleConeProductionError::Validation(
-                CoreOnlyRequestValidationError::ExplicitDependencies(source)
+                SingleConeDependencyValidationError::ExplicitDependencies(source)
             ) if matches!(
                 source.as_ref(),
                 ExplicitDependencyValidationError::DuplicateIdentity { identity, .. } if *identity == ConeIdentity::CORE
@@ -528,7 +528,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     assert!(matches!(
         error,
         SingleConeProductionError::Validation(
-            CoreOnlyRequestValidationError::ExplicitDependencies(source)
+            SingleConeDependencyValidationError::ExplicitDependencies(source)
         ) if matches!(
             source.as_ref(),
             ExplicitDependencyValidationError::UnsupportedArtifactShape {
