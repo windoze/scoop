@@ -10,6 +10,7 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{decode_canonical, encode};
 mod budgets;
 mod coverage;
+mod origins;
 mod varargs;
 mod wire;
 const SOURCE: &str = include_str!(concat!(

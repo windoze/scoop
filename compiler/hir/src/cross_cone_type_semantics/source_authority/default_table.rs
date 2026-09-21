@@ -4,6 +4,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 mod coverage;
 mod errors;
 mod indexed;
+mod origins;
 mod wire;
 pub use coverage::*;
 pub use errors::*;

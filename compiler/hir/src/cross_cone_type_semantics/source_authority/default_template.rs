@@ -10,11 +10,13 @@ use crate::{
 mod decode;
 mod errors;
 mod indexed;
+mod origins;
 mod resources;
 mod validation;
 pub use decode::*;
 pub use errors::*;
 pub use indexed::*;
+pub use origins::*;
 
 /// Independent source body and occurrences. Decoding grants no default authority.
 #[derive(Clone, Debug, Eq, PartialEq)]

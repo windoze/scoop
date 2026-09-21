@@ -1,0 +1,18 @@
+public struct OriginValue(val field: Int)
+public enum OriginChoice { Item(val value: Int = 2) }
+public object OriginMarker {}
+public val originSeed: Int = 7
+public fun originFirst(): Int = 1
+public open class OriginHost protected constructor(seed: Int = 3) {
+    private fun local(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value
+    protected fun callback(seed: String, value: () -> String = { seed }): () -> String = value
+    private fun combined(value: (Int, Int, OriginMarker, Int) = (originFirst(), originSeed, OriginMarker, OriginValue(4).field)): (Int, Int, OriginMarker, Int) = value
+    internal fun <T> generic(seed: T, value: T = seed): T = value
+    protected open fun inherited(seed: Int, value: Int = seed): Int = value
+}
+public class OriginChild: OriginHost() {
+    protected final override fun inherited(seed: Int, value: Int): Int = value
+}
+public open class OriginGeneric<T>(protected val seed: T) {
+    protected fun choose(value: T = seed): T = value
+}

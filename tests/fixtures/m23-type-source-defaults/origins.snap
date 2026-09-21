@@ -1,0 +1,9 @@
+OriginChild.inherited: body:Expression=1, local=2, root=1, type=3
+OriginChoice.variant0: body:Expression=1, root=1, type=1
+OriginGeneric.choose: body:Expression=2, field=1, local=1, root=1, type=3
+OriginHost.callback: body:CaptureFirstUse=1, body:Expression=1, callable=1, local=2, root=1, type=5
+OriginHost.combined: body:Expression=9, body:Statement=2, callable=1, constructor=1, field=1, global=1, local=1, root=1, singleton=1, type=14
+OriginHost.constructor: body:Expression=1, root=1, type=1
+OriginHost.generic: body:Expression=1, local=2, root=1, type=1
+OriginHost.inherited: body:Expression=1, local=2, root=1, type=3
+OriginHost.local: body:Expression=5, body:Statement=4, local=3, root=1, type=9
