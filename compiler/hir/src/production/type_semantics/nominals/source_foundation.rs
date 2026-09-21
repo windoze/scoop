@@ -1,7 +1,13 @@
 use super::*;
 use scoop_wire::BudgetMeter;
 
+mod core;
 mod sources;
+
+enum FactProvider<'a> {
+    Imported(&'a SelectedImportedCoreSet<'a>),
+    CoreBootstrap,
+}
 
 pub(super) struct Projection<'a> {
     pub concrete: Vec<ConcreteNominal<'a>>,
@@ -26,11 +32,23 @@ pub(super) fn project<'a>(
     output: &'a OrdinaryHirOutput<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<Projection<'a>, Error> {
-    let export = output.output().export.module();
-    let local = output.output().local.module();
+    project_pair(
+        output.output(),
+        FactProvider::Imported(output.imported_core()),
+        meter,
+    )
+}
+
+fn project_pair<'a>(
+    output: &'a Output,
+    provider: FactProvider<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<Projection<'a>, Error> {
+    let export = output.export.module();
+    let local = output.local.module();
     let public = CanonicalNominalInterfacesV1::from_export_hir(export)
         .map_err(|error| Error::PublicInterface(error.to_string()))?;
-    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export, meter)?;
+    let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.export, meter)?;
     let sources = sources::project(export, &required, meter)?;
     let mut roots = Vec::new();
     meter
@@ -43,37 +61,44 @@ pub(super) fn project<'a>(
     roots.extend_from_slice(required.values());
     // Every param-free declaration in the source closure needs representation
     // support; generic templates remain source-only. Exact pairs are never made up.
-    let concrete = source_inventory::from_required(output, &required, meter)?;
+    let concrete = source_inventory::from_pair(output, &required, meter)?;
     let root_exacts = concrete
         .iter()
         .map(|nominal| nominal.exact)
         .collect::<BTreeSet<_>>();
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
-    let (local_exact_facts, dependency_facts, fact_shapes) = facts::source(
-        output.imported_core(),
-        export,
-        local,
-        &root_exacts,
-        &fact_requirements,
-    )?;
+    let core = matches!(provider, FactProvider::CoreBootstrap);
     let mut edges = Vec::with_capacity(concrete.len());
     for nominal in &concrete {
-        let edge = inheritance::project_edges(export, nominal)?;
+        let edge = if core {
+            inheritance::project_core_source_edges(export, nominal)?
+        } else {
+            inheritance::project_edges(export, nominal)?
+        };
         if let DirectClassBaseV1::ClassBase { exact } = edge.direct_base()
             && !root_exacts.contains(&exact)
+            && !core
         {
             return Err(Error::MissingLocalSupport(exact));
         }
         if let Some(exact) = edge
             .direct_interfaces()
             .iter()
-            .find(|exact| !root_exacts.contains(exact))
+            .find(|exact| !root_exacts.contains(exact) && !core)
         {
             return Err(Error::MissingLocalSupport(*exact));
         }
         edges.push(edge);
     }
     edges.sort_unstable_by_key(NominalInheritanceEdgesV1::owner);
+    let (local_exact_facts, dependency_facts, fact_shapes) = match provider {
+        FactProvider::Imported(imported) => {
+            facts::source(imported, export, local, &root_exacts, &fact_requirements)?
+        }
+        FactProvider::CoreBootstrap => {
+            facts::core_source(export, local, &root_exacts, &fact_requirements)?
+        }
+    };
     let representations =
         authority_projection::representation_evidence(export, local, &concrete, &sources, &public)?;
     let representation_owners =

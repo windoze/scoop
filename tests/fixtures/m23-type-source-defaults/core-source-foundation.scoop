@@ -1,0 +1,12 @@
+public struct CoreSourceZero()
+public interface CoreSourceFace<T> {
+    public fun value(): T
+}
+public open class CoreSourceBox<T>(val item: T): CoreSourceFace<T> {
+    public override fun value(): T = item
+}
+public class CoreSourceEntry: CoreSourceFace<CoreSourceZero> {
+    public override fun value(): CoreSourceZero = CoreSourceZero()
+    internal fun pick(seed: Boolean, value: Boolean = seed): Boolean = value
+}
+public struct CoreSourcePair(val first: CoreSourceZero, val second: (CoreSourceZero, Unit))

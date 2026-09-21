@@ -4,6 +4,7 @@ use scoop_identity::{ConeCoordinate, ValidatedIdentityGraph};
 use scoop_wire::{decode_canonical, encode};
 
 mod constructors;
+mod core_foundation;
 mod declaration_domain;
 mod default_access;
 mod default_origins;

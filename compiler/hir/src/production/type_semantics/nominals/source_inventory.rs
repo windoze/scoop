@@ -123,8 +123,16 @@ pub(super) fn from_required<'a>(
     required: &CanonicalSourceNominalIdsV1,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<ConcreteNominal<'a>>, Error> {
-    let export = output.output().export.module();
-    let local = output.output().local.module();
+    from_pair(output.output(), required, meter)
+}
+
+pub(super) fn from_pair<'a>(
+    output: &'a Output,
+    required: &CanonicalSourceNominalIdsV1,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<ConcreteNominal<'a>>, Error> {
+    let export = output.export.module();
+    let local = output.local.module();
     let mut nominals = Vec::new();
     let mut found = 0;
     for local_id in authority_projection::all_nominals(export) {

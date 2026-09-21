@@ -169,6 +169,7 @@ pub enum TypeSemanticsNominalKind {
 
 #[derive(Debug)]
 pub enum CrossConeTypeSemanticsProductionError {
+    InvalidCoreSourcePair(String),
     SourceInventory(crate::SourceInventoryError),
     PublicInterface(String),
     MissingNominalIdentity {
@@ -218,6 +219,9 @@ pub enum CrossConeTypeSemanticsProductionError {
 impl fmt::Display for CrossConeTypeSemanticsProductionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidCoreSourcePair(reason) => {
+                write!(f, "invalid core source HIR pair: {reason}")
+            }
             Self::SourceInventory(error) => error.fmt(f),
             Self::PublicInterface(reason) => {
                 write!(f, "cannot project the public interface: {reason}")

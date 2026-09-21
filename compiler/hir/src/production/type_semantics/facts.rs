@@ -5,6 +5,15 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId};
 use super::CrossConeTypeSemanticsProductionError as Error;
 use crate::*;
 
+mod ownership;
+mod shapes;
+
+#[derive(Clone, Copy)]
+enum FactProvider<'a> {
+    Imported(&'a SelectedImportedCoreSet<'a>),
+    CoreBootstrap,
+}
+
 type FactSourceProjection = (
     CanonicalPersistentIdsV1<PersistentExactTypeId>,
     Vec<TypeSectionDependencyFactV1>,
@@ -18,7 +27,13 @@ pub(super) fn candidate(
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<CanonicalExactTypeFactsV1, Error> {
-    let candidate = project(imported_core, export, local, root_exacts, required_exacts)?;
+    let candidate = project(
+        FactProvider::Imported(imported_core),
+        export,
+        local,
+        root_exacts,
+        required_exacts,
+    )?;
     CanonicalExactTypeFactsV1::try_new(candidate.local_facts.into_values().collect()).map_err(
         |error| Error::InvalidTable {
             table: "exact-facts",
@@ -34,7 +49,32 @@ pub(super) fn source(
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactSourceProjection, Error> {
-    let authority = project(imported_core, export, local, root_exacts, required_exacts)?;
+    let authority = project(
+        FactProvider::Imported(imported_core),
+        export,
+        local,
+        root_exacts,
+        required_exacts,
+    )?;
+    source_projection(authority)
+}
+
+pub(super) fn core_source(
+    export: &ExportHir,
+    local: &LocalConcreteHir,
+    root_exacts: &BTreeSet<PersistentExactTypeId>,
+    required_exacts: &BTreeSet<PersistentExactTypeId>,
+) -> Result<FactSourceProjection, Error> {
+    source_projection(project(
+        FactProvider::CoreBootstrap,
+        export,
+        local,
+        root_exacts,
+        required_exacts,
+    )?)
+}
+
+fn source_projection(authority: FactProjector<'_>) -> Result<FactSourceProjection, Error> {
     let local_exact_facts =
         CanonicalPersistentIdsV1::try_new(authority.local_facts.keys().copied().collect())
             .map_err(|error| Error::InvalidTable {
@@ -49,14 +89,14 @@ pub(super) fn source(
 }
 
 fn project<'a>(
-    imported_core: &'a SelectedImportedCoreSet<'_>,
+    provider: FactProvider<'a>,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactProjector<'a>, Error> {
     let mut projector = FactProjector {
-        imported_core,
+        provider,
         export,
         local,
         root_exacts,
@@ -75,7 +115,7 @@ fn project<'a>(
 }
 
 struct FactProjector<'a> {
-    imported_core: &'a SelectedImportedCoreSet<'a>,
+    provider: FactProvider<'a>,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
@@ -99,8 +139,11 @@ impl FactProjector<'_> {
             .exact_type_identities
             .type_for_identity(exact)
             .ok_or(Error::MissingConcreteType(exact))?;
-        if !force_local && self.is_core_leaf(ty) {
-            if !self.imported_core.contains_hir_identity(exact) {
+        if let FactProvider::Imported(imported_core) = self.provider
+            && !force_local
+            && self.is_core_leaf(ty)
+        {
+            if !imported_core.contains_hir_identity(exact) {
                 return Err(Error::MissingLocalSupport(exact));
             }
             self.dependency_facts.insert(
@@ -112,7 +155,7 @@ impl FactProjector<'_> {
             );
             return Ok(());
         }
-        if self.is_generic_application(ty) {
+        if matches!(self.provider, FactProvider::Imported(_)) && self.is_generic_application(ty) {
             return Err(Error::GenericOdrRequired(exact));
         }
         if !force_local && !self.is_locally_owned(ty)? {
@@ -167,154 +210,6 @@ impl FactProjector<'_> {
         self.shapes.insert(exact, shape);
         self.local_facts.insert(exact, fact);
         Ok(())
-    }
-
-    fn shape(&self, ty: concrete::TypeId) -> Result<ExactTypeFactShapeV1, Error> {
-        use concrete::TypeKind;
-        let shape = match &self.local.types[ty].kind {
-            TypeKind::Unit => ExactTypeFactShapeV1::Unit,
-            TypeKind::Integer(_) | TypeKind::Boolean => ExactTypeFactShapeV1::Scalar,
-            TypeKind::String
-            | TypeKind::Any
-            | TypeKind::Class(_)
-            | TypeKind::Interface(_)
-            | TypeKind::Function(_) => ExactTypeFactShapeV1::Reference,
-            TypeKind::Ptr(_) | TypeKind::FunPtr(_) => ExactTypeFactShapeV1::Pointer,
-            TypeKind::Tuple(elements) => ExactTypeFactShapeV1::Tuple {
-                elements: exacts(self.local, elements)?,
-            },
-            TypeKind::Struct(id) => {
-                let structure = &self.local.structs[*id];
-                if !structure.type_arguments.is_empty() {
-                    return Err(Error::GenericOdrRequired(self.exact(ty)?));
-                }
-                match &structure.representation {
-                    concrete::StructRepresentation::Declared { attributes, fields } => {
-                        let fields = exacts(
-                            self.local,
-                            &fields.iter().map(|field| field.ty).collect::<Vec<_>>(),
-                        )?;
-                        if attributes.c_layout.is_some() {
-                            ExactTypeFactShapeV1::CLayoutStruct { fields }
-                        } else {
-                            ExactTypeFactShapeV1::OrdinaryStruct { fields }
-                        }
-                    }
-                    concrete::StructRepresentation::Intrinsic { application, .. } => {
-                        match application {
-                            concrete::IntrinsicTypeRepresentation::Integer(_)
-                            | concrete::IntrinsicTypeRepresentation::Boolean => {
-                                ExactTypeFactShapeV1::Scalar
-                            }
-                            concrete::IntrinsicTypeRepresentation::Ptr { .. }
-                            | concrete::IntrinsicTypeRepresentation::FunPtr { .. } => {
-                                ExactTypeFactShapeV1::Pointer
-                            }
-                            concrete::IntrinsicTypeRepresentation::String
-                            | concrete::IntrinsicTypeRepresentation::Array { .. }
-                            | concrete::IntrinsicTypeRepresentation::MutableArray { .. } => {
-                                ExactTypeFactShapeV1::Reference
-                            }
-                        }
-                    }
-                }
-            }
-            TypeKind::Enum(id) => {
-                let enumeration = &self.local.enums[*id];
-                if !enumeration.type_arguments.is_empty() {
-                    return Err(Error::GenericOdrRequired(self.exact(ty)?));
-                }
-                let exact = self.exact(ty)?;
-                let owner = enumeration
-                    .origin
-                    .source()
-                    .and_then(HirSourceNominalIdentity::concrete_id)
-                    .ok_or(Error::MissingExactIdentity)?;
-                let source_enum = self
-                    .export
-                    .enums
-                    .iter()
-                    .find_map(|(id, _)| {
-                        (self.export.nominal_identities[id].concrete_type_id() == Some(owner))
-                            .then_some(id)
-                    })
-                    .ok_or(Error::MissingConcreteType(exact))?;
-                let mut variants = Vec::with_capacity(enumeration.variants.len());
-                for (index, variant) in enumeration.variants.iter().enumerate() {
-                    let index = u32::try_from(index).map_err(|_| Error::InvalidFact {
-                        exact,
-                        reason: "enum variant count exceeds typed identity index".into(),
-                    })?;
-                    let reference = EnumVariantRef::checked(&self.export.enums, source_enum, index)
-                        .ok_or_else(|| Error::InvalidFact {
-                            exact,
-                            reason: format!("missing enum variant identity at index {index}"),
-                        })?;
-                    let variant_id = self.export.enum_member_identities[reference].id();
-                    variants.push(ExactEnumVariantFactsV1 {
-                        variant: variant_id,
-                        fields: exacts(
-                            self.local,
-                            &variant
-                                .fields
-                                .iter()
-                                .map(|field| field.ty)
-                                .collect::<Vec<_>>(),
-                        )?,
-                        gc: if variant.gc_free {
-                            ExactTypeGcV1::GcFree
-                        } else {
-                            ExactTypeGcV1::ContainsManagedReferences
-                        },
-                    });
-                }
-                ExactTypeFactShapeV1::Enum { variants }
-            }
-        };
-        Ok(shape)
-    }
-
-    fn is_core_leaf(&self, ty: concrete::TypeId) -> bool {
-        matches!(
-            self.local.types[ty].kind,
-            concrete::TypeKind::Unit
-                | concrete::TypeKind::Integer(_)
-                | concrete::TypeKind::Boolean
-                | concrete::TypeKind::String
-                | concrete::TypeKind::Any
-        )
-    }
-
-    fn is_generic_application(&self, ty: concrete::TypeId) -> bool {
-        match self.local.types[ty].kind {
-            concrete::TypeKind::Struct(id) => !self.local.structs[id].type_arguments.is_empty(),
-            concrete::TypeKind::Enum(id) => !self.local.enums[id].type_arguments.is_empty(),
-            concrete::TypeKind::Class(id) => !self.local.classes[id].type_arguments.is_empty(),
-            concrete::TypeKind::Interface(id) => {
-                !self.local.interfaces[id].type_arguments.is_empty()
-            }
-            concrete::TypeKind::Unit
-            | concrete::TypeKind::Integer(_)
-            | concrete::TypeKind::Boolean
-            | concrete::TypeKind::String
-            | concrete::TypeKind::Any
-            | concrete::TypeKind::Tuple(_)
-            | concrete::TypeKind::Function(_)
-            | concrete::TypeKind::Ptr(_)
-            | concrete::TypeKind::FunPtr(_) => false,
-        }
-    }
-
-    fn is_locally_owned(&self, ty: concrete::TypeId) -> Result<bool, Error> {
-        let exact = self.exact(ty)?;
-        Ok(self.root_exacts.contains(&exact)
-            || matches!(
-                self.local.types[ty].kind,
-                concrete::TypeKind::Tuple(_)
-                    | concrete::TypeKind::Function(_)
-                    | concrete::TypeKind::Ptr(_)
-                    | concrete::TypeKind::FunPtr(_)
-            ))
     }
 
     fn exact(&self, ty: concrete::TypeId) -> Result<PersistentExactTypeId, Error> {
