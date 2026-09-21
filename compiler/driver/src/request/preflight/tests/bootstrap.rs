@@ -512,10 +512,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
             source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
-                .unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),
         DiagnosticOutputPolicy::Human,

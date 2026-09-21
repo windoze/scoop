@@ -53,17 +53,8 @@ fn artifact_input_accepts_a_regular_file_outside_the_default_location() {
     std::fs::write(&other, b"rebuilt core").unwrap();
 
     let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
-    let input = TrustedCoreArtifactInput::new(slot.artifact(), target()).unwrap();
+    let input = TrustedCoreArtifactInput::new(slot.artifact()).unwrap();
     assert_eq!(input.path(), configured);
-    assert_eq!(
-        input.expected_coordinate(),
-        &ConeCoordinate::reserved_core()
-    );
-    assert_eq!(input.target(), target());
-    let input = TrustedCoreArtifactInput::new(&other, target()).unwrap();
+    let input = TrustedCoreArtifactInput::new(&other).unwrap();
     assert_eq!(input.path(), other);
-    assert_eq!(
-        input.expected_coordinate(),
-        &ConeCoordinate::reserved_core()
-    );
 }

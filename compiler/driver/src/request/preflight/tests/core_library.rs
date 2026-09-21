@@ -24,6 +24,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     std::fs::write(&consumer_source, CONSUMER).unwrap();
     let consumer_artifact = workspace.path().join("consumer.slib");
     let first_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
+    assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),
         &[first_dependency]
@@ -89,9 +90,7 @@ fn assert_explicit_core_version_is_checked(
             root: ManifestRootLocator::cone_directory(&root),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core, target.lir_target_selection()).unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(workspace.join("wrong-version.slib")).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -112,6 +111,27 @@ fn assert_explicit_core_version_is_checked(
     assert!(!root.join("src").exists());
 }
 
+fn assert_non_core_artifact_is_rejected(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    artifact: &Path,
+) {
+    use scoop_slib::{
+        CrossConeArtifactClosureValidationError, CrossConeClosureGraphError,
+        CrossConeSemanticClosureValidationError,
+    };
+    let loaded = TrustedCoreArtifactInput::new(artifact)
+        .unwrap()
+        .load(DecodeLimits::default())
+        .unwrap();
+    assert!(matches!(loaded.validate(target),
+        Err(crate::TrustedCoreArtifactValidationError::Closure(source))
+            if matches!(source.as_ref(), CrossConeArtifactClosureValidationError::Semantic(source)
+                if matches!(source.as_ref(), CrossConeSemanticClosureValidationError::Graph(source)
+                    if matches!(source.as_ref(), CrossConeClosureGraphError::CurrentArtifactIdentityMismatch { expected, actual }
+                        if *expected == scoop_identity::ConeIdentity::CORE
+                            && *actual == scoop_identity::ConeIdentity::SINGLE_FILE)))));
+}
+
 fn build_consumer(
     target: &scoop_toolchain::ResolvedTargetProfile,
     source: &Path,
@@ -123,9 +143,7 @@ fn build_consumer(
             source: SingleFileLocator::from_path(source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core, target.lir_target_selection()).unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,

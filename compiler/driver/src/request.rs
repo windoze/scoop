@@ -396,7 +396,7 @@ pub fn normalize_direct_build_request(
         let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
             .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
         TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
+            TrustedCoreArtifactInput::new(core_slot.artifact())
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?,
         )
     };
@@ -451,7 +451,7 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = TrustedCoreArtifactInput::new(&artifact, target.lir_target_selection())
+            let input = TrustedCoreArtifactInput::new(&artifact)
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
             (
                 CurrentConeInput::Manifest { root },
@@ -464,7 +464,7 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = TrustedCoreArtifactInput::new(&artifact, target.lir_target_selection())
+            let input = TrustedCoreArtifactInput::new(&artifact)
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
             (
                 CurrentConeInput::SingleFile { source },

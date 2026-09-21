@@ -9,9 +9,8 @@ use scoop_hir::{
     SelectedImportedCoreSet, SelectedImportedCoreTarget,
 };
 use scoop_identity::{
-    ConeCoordinate, ConeIdentity, CoreBuiltinNominal, CoreImportedCallableKind, Effect,
-    ExactCallableSignature, ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
-    SemanticIdentitySession,
+    ConeIdentity, CoreBuiltinNominal, CoreImportedCallableKind, Effect, ExactCallableSignature,
+    ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId, SemanticIdentitySession,
 };
 use scoop_lir::{
     ImportedLirCallableProjectionError, ImportedLirSelectionError,
@@ -23,12 +22,10 @@ use scoop_mir::{
     SelectedImportedMirCallable, SelectedImportedMirSet,
 };
 use scoop_slib::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, CompositeIdentityAbiFingerprint, ConeKind,
-    ConeSourceForm, CrossConeArtifactClosureValidationError, CrossConeSemanticsStrongProfile,
-    DecodedSlibEnvelope, GraphValidationError, PublishableCrossConeArtifact,
-    SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1, SlibReadError, ValidatedCompileArtifact,
-    ValidatedCompletedCrossConeArtifactClosure, ValidatedGraphArtifact,
-    validate_completed_cross_cone_artifact_closure,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeArtifactClosureValidationError,
+    CrossConeSemanticsStrongProfile, PublishableCrossConeArtifact, SlibClosureDecodeMeterV1,
+    SlibClosureResourceErrorV1, ValidatedCompileArtifact,
+    ValidatedCompletedCrossConeArtifactClosure, validate_completed_cross_cone_artifact_closure,
 };
 use scoop_toolchain::ResolvedTargetProfile;
 use scoop_wire::{DecodeLimits, sha256};
@@ -217,21 +214,6 @@ impl LoadedTrustedCoreArtifact {
         target_selection: ValidatedLirTargetSelection,
         c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
     ) -> Result<ValidatedTrustedCoreArtifact<'input>, TrustedCoreArtifactValidationError> {
-        if self.input.target != target_selection {
-            return Err(TrustedCoreArtifactValidationError::authority(
-                TrustedCoreArtifactAuthorityError::TargetSelection {
-                    expected: self.input.target,
-                    actual: target_selection,
-                },
-            ));
-        }
-
-        let authority_graph = DecodedSlibEnvelope::open(&self.bytes, self.limits, target_selection)
-            .map_err(|source| TrustedCoreArtifactValidationError::Envelope(Box::new(source)))?
-            .validate_graph()
-            .map_err(|source| TrustedCoreArtifactValidationError::Graph(Box::new(source)))?;
-        validate_graph_authority(&authority_graph, &self.input)?;
-
         let mut semantic_session = SemanticIdentitySession::new();
         let closure = validate_completed_cross_cone_artifact_closure(
             ConeIdentity::CORE,
@@ -268,97 +250,9 @@ impl LoadedTrustedCoreArtifact {
 
         Ok(ValidatedTrustedCoreArtifact {
             closure,
-            authority: TrustedCoreArtifactAuthority::from_input(&self.input),
             core_interface,
             _semantic_session: semantic_session,
         })
-    }
-}
-
-fn validate_graph_authority(
-    artifact: &ValidatedGraphArtifact<'_>,
-    input: &TrustedCoreArtifactInput,
-) -> Result<(), TrustedCoreArtifactValidationError> {
-    if artifact.coordinate() != &input.expected_coordinate {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::Coordinate {
-                expected: input.expected_coordinate.clone(),
-                actual: artifact.coordinate().clone(),
-            },
-        ));
-    }
-    if artifact.identity() != ConeIdentity::CORE {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::Identity {
-                actual: artifact.identity(),
-            },
-        ));
-    }
-    if artifact.kind() != ConeKind::Library {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::Kind {
-                actual: artifact.kind(),
-            },
-        ));
-    }
-    if artifact.source_form() != ConeSourceForm::Manifest {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::SourceForm {
-                actual: artifact.source_form(),
-            },
-        ));
-    }
-    if !artifact.direct_dependencies().is_empty() {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::Dependencies {
-                actual: artifact.direct_dependencies().len(),
-            },
-        ));
-    }
-    let actual_abi = artifact.compatibility().composite_identity_abi();
-    if actual_abi != input.toolchain_compatibility {
-        return Err(TrustedCoreArtifactValidationError::authority(
-            TrustedCoreArtifactAuthorityError::ToolchainCompatibility {
-                expected: input.toolchain_compatibility,
-                actual: actual_abi,
-            },
-        ));
-    }
-    Ok(())
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TrustedCoreArtifactAuthority {
-    path: PathBuf,
-    coordinate: ConeCoordinate,
-    target: ValidatedLirTargetSelection,
-    toolchain_compatibility: CompositeIdentityAbiFingerprint,
-}
-
-impl TrustedCoreArtifactAuthority {
-    fn from_input(input: &TrustedCoreArtifactInput) -> Self {
-        Self {
-            path: input.path.clone(),
-            coordinate: input.expected_coordinate.clone(),
-            target: input.target,
-            toolchain_compatibility: input.toolchain_compatibility,
-        }
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    pub const fn coordinate(&self) -> &ConeCoordinate {
-        &self.coordinate
-    }
-
-    pub const fn target(&self) -> ValidatedLirTargetSelection {
-        self.target
-    }
-
-    pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
-        self.toolchain_compatibility
     }
 }
 
@@ -370,7 +264,6 @@ struct ValidatedCoreInterface {
 
 pub struct ValidatedTrustedCoreArtifact<'input> {
     closure: ValidatedCompletedCrossConeArtifactClosure<'input>,
-    authority: TrustedCoreArtifactAuthority,
     core_interface: ValidatedCoreInterface,
     // Retained as the owner of the session-local identity world. It is not a
     // lookup surface and deliberately has no projection getter.
@@ -380,10 +273,6 @@ pub struct ValidatedTrustedCoreArtifact<'input> {
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
     fn compile(&self) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
         self.closure.current_compile()
-    }
-
-    pub const fn authority(&self) -> &TrustedCoreArtifactAuthority {
-        &self.authority
     }
 
     pub fn dependency_record(&self) -> scoop_slib::DependencyRecord {
@@ -409,101 +298,16 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum TrustedCoreArtifactAuthorityError {
-    Coordinate {
-        expected: ConeCoordinate,
-        actual: ConeCoordinate,
-    },
-    Identity {
-        actual: ConeIdentity,
-    },
-    Kind {
-        actual: ConeKind,
-    },
-    SourceForm {
-        actual: ConeSourceForm,
-    },
-    Dependencies {
-        actual: usize,
-    },
-    TargetSelection {
-        expected: ValidatedLirTargetSelection,
-        actual: ValidatedLirTargetSelection,
-    },
-    ToolchainCompatibility {
-        expected: CompositeIdentityAbiFingerprint,
-        actual: CompositeIdentityAbiFingerprint,
-    },
-}
-
-impl fmt::Display for TrustedCoreArtifactAuthorityError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Coordinate { expected, actual } => write!(
-                formatter,
-                "trusted core coordinate mismatch: expected {expected}, found {actual}"
-            ),
-            Self::Identity { actual } => write!(
-                formatter,
-                "trusted core identity mismatch: expected {}, found {actual}",
-                ConeIdentity::CORE
-            ),
-            Self::Kind { actual } => write!(
-                formatter,
-                "trusted core must be a library, found {actual:?}"
-            ),
-            Self::SourceForm { actual } => write!(
-                formatter,
-                "trusted core must use Manifest source form, found {actual:?}"
-            ),
-            Self::Dependencies { actual } => write!(
-                formatter,
-                "trusted core must have no direct dependencies, found {actual}"
-            ),
-            Self::TargetSelection { expected, actual } => write!(
-                formatter,
-                "trusted core target mismatch: expected {expected:?}, requested {actual:?}"
-            ),
-            Self::ToolchainCompatibility { expected, actual } => write!(
-                formatter,
-                "trusted core identity ABI mismatch: expected {expected}, found {actual}"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreArtifactAuthorityError {}
-
 #[derive(Debug)]
 pub enum TrustedCoreArtifactValidationError {
-    Authority(Box<TrustedCoreArtifactAuthorityError>),
-    Envelope(Box<SlibReadError>),
-    Graph(Box<GraphValidationError>),
     Closure(Box<CrossConeArtifactClosureValidationError>),
     MissingCoreInterface,
     MissingCoreMirBridge,
 }
 
-impl TrustedCoreArtifactValidationError {
-    fn authority(source: TrustedCoreArtifactAuthorityError) -> Self {
-        Self::Authority(Box::new(source))
-    }
-}
-
 impl fmt::Display for TrustedCoreArtifactValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Authority(error) => error.fmt(formatter),
-            Self::Envelope(error) => {
-                write!(
-                    formatter,
-                    "trusted core envelope validation failed: {error}"
-                )
-            }
-            Self::Graph(error) => {
-                write!(formatter, "trusted core graph validation failed: {error}")
-            }
             Self::Closure(error) => {
                 write!(formatter, "trusted core closure validation failed: {error}")
             }
@@ -520,9 +324,6 @@ impl fmt::Display for TrustedCoreArtifactValidationError {
 impl std::error::Error for TrustedCoreArtifactValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Authority(error) => Some(error),
-            Self::Envelope(error) => Some(error.as_ref()),
-            Self::Graph(error) => Some(error.as_ref()),
             Self::Closure(error) => Some(error.as_ref()),
             Self::MissingCoreInterface | Self::MissingCoreMirBridge => None,
         }
@@ -539,7 +340,8 @@ mod tests {
     };
     use scoop_mir::CanonicalMirFoundation;
     use scoop_slib::{
-        ConeRecord, IdentityFoundationArtifact, IdentityFoundationArtifactInput, ProducerRecord,
+        ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
+        IdentityFoundationArtifactInput, ProducerRecord,
     };
 
     use super::*;
@@ -578,7 +380,7 @@ mod tests {
     }
 
     #[test]
-    fn validation_rejects_a_non_core_artifact_before_profile_decoding() {
+    fn validation_rejects_a_foundation_artifact_through_the_common_profile_decoder() {
         let coordinate = ConeCoordinate::new("test", "ordinary", "0.0.0").unwrap();
         let bytes = foundation_artifact(
             ConeRecord::new(
@@ -597,15 +399,13 @@ mod tests {
 
         assert!(matches!(
             loaded.validate_against(selection(), &c_bridge_profile()),
-            Err(TrustedCoreArtifactValidationError::Authority(error))
-                if matches!(error.as_ref(),
-                    TrustedCoreArtifactAuthorityError::Coordinate { actual, .. }
-                        if actual == &coordinate)
+            Err(TrustedCoreArtifactValidationError::Closure(error))
+                if matches!(error.as_ref(), CrossConeArtifactClosureValidationError::CompileSections { .. })
         ));
     }
 
     #[test]
-    fn validation_requires_the_cross_cone_strong_profile_after_core_authority() {
+    fn validation_requires_the_common_strong_profile_for_core() {
         let bytes = foundation_artifact(
             ConeRecord::new(
                 ConeCoordinate::reserved_core(),

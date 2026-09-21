@@ -662,34 +662,18 @@ implementation的typed bridge；没有strong body的extern或intrinsic不会被�
 由普通Cone合成的本地占位声明。所有依赖core协议的HIR节点都必须在lowering时保存分支精化后的typed target；
 不能在MIR阶段再按名称恢复。`NotCore`分支编码为显式tag，不用缺section表示。
 
-### 7.4 consumer core proof
+### 7.4 core artifact消费
 
-普通request从trusted artifact slot读取core bytes，并从同一个`DecodedSlibEnvelope`独立构造：
+普通request从指定的artifact路径读取不可变bytes，使用所有Cone共用的completed artifact closure入口验证。
+当前`ValidatedTrustedCoreArtifact`仍持有完整closure、`SemanticIdentitySession`与从同一Compile view投影的
+`ValidatedCoreInterface`，但不再持有`TrustedCoreArtifactAuthority`，也不在通用验证前重读envelope/graph。
+artifact输入只保存路径；target取自当前请求，coordinate/identity、dependency set、schema与ABI检查由通用
+artifact decoder和closure validator负责，不另存预期coordinate、target或composite ABI副本。
 
-```text
-ValidatedTrustedCoreArtifact {
-    compile: ValidatedCompileArtifact<SingleConeStrongProfile>,
-    link: ValidatedLinkArtifact<SingleConeStrongProfile>,
-    authority: TrustedCoreArtifactAuthority,
-    core_interface: ValidatedCoreInterface,
-}
-```
-
-构造器验证reserved coordinate、Manifest、Library、empty dependency、profile、target/ABI、`Core` section、prelude/well-known完整性、unique image及String capability relation。`authority`证明实际locator来自trusted slot；artifact内容相同但经`--direct-slib`传入仍不能构造该类型。
-
-具体入口分为两个不能跳过的状态：`TrustedCoreArtifactInput::load`对trusted slot对应的同一已打开regular
-file读取不可变bytes，并在分配/读取时执行artifact input byte budget；`LoadedTrustedCoreArtifact::validate`
-再使用请求的完整`ResolvedTargetProfile`。校验为同一bytes分别创建独立Link与Compile
-budget/envelope/Graph状态，先逐一核对slot authority中的coordinate、identity、kind、source form、空dependency、
-target selection与composite identity ABI，再运行完整strong Link/Compile入口。core bootstrap的expected external
-bridge与external core-owner输入只能由`empty_core_bootstrap()`构造，不能由任意producer参数伪造。
-
-成功值保留两份最终proof、私有`SemanticIdentitySession`、`TrustedCoreArtifactAuthority`、从已验证HIR `Core`
-分支与同一Compile proof的MIR bridge合取出的非可选`ValidatedCoreInterface`以及双视图publication summary；
-`ValidatedCoreInterface`把每个HIR callable candidate精化为“有strong implementation”或
-“implementation unavailable”，不能只复制HIR capability。defined symbol owner surface只能从其
-Link identity closure导出。普通artifact locator、Graph-only、foundation profile、`NotCore`分支或任一条view
-失败都不能得到该类型，也不存在兼容旧reader的降级入口。
+`TrustedCoreArtifactInput::load`对实际打开的regular file读取不可变bytes，并执行artifact input byte budget；
+`LoadedTrustedCoreArtifact::validate`调用通用Compile/Link closure验证。当前专用interface仍从已验证HIR
+section与MIR bridge提取，定义symbol集合和publication直接使用closure结果；这些剩余专用投影由core普通library
+工作项继续合并。任一metadata、identity、ABI或closure错误均返回共有校验原因。
 
 ### 7.5 M23-3 resolver边界
 

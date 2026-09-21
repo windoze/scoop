@@ -239,10 +239,7 @@ fn production_entry_uses_the_shared_closure_profile_for_current_sources() {
             source: SingleFileLocator::from_path(&source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
-                .unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -623,10 +620,7 @@ fn build_ordinary(
     SingleConeBuildRequest::new(
         current,
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
-                .unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -666,10 +660,7 @@ fn build_manifest_request(
                 .unwrap(),
         )
         .unwrap(),
-        TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
-                .unwrap(),
-        ),
+        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,

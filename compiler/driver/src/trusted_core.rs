@@ -1,11 +1,8 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use scoop_identity::ConeCoordinate;
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::{CompositeIdentityAbiFingerprint, IdentityAbiDescriptor};
 use scoop_toolchain::TrustedCoreSlotLayoutV1;
-use scoop_wire::HashError;
 
 mod artifact;
 pub use artifact::*;
@@ -13,23 +10,12 @@ pub use artifact::*;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TrustedCoreArtifactInput {
     path: PathBuf,
-    expected_coordinate: ConeCoordinate,
-    target: ValidatedLirTargetSelection,
-    toolchain_compatibility: CompositeIdentityAbiFingerprint,
 }
 
 impl TrustedCoreArtifactInput {
-    pub fn new(
-        path: &Path,
-        target: ValidatedLirTargetSelection,
-    ) -> Result<Self, TrustedCoreArtifactInputError> {
+    pub fn new(path: &Path) -> Result<Self, TrustedCoreArtifactInputError> {
         Ok(Self {
             path: canonical_regular_file(path)?,
-            expected_coordinate: ConeCoordinate::reserved_core(),
-            target,
-            toolchain_compatibility: IdentityAbiDescriptor::current()
-                .and_then(IdentityAbiDescriptor::fingerprint)
-                .map_err(TrustedCoreArtifactInputError::ToolchainCompatibility)?,
         })
     }
 
@@ -37,28 +23,9 @@ impl TrustedCoreArtifactInput {
         &self.path
     }
 
-    pub const fn expected_coordinate(&self) -> &ConeCoordinate {
-        &self.expected_coordinate
-    }
-
-    pub const fn target(&self) -> ValidatedLirTargetSelection {
-        self.target
-    }
-
-    pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
-        self.toolchain_compatibility
-    }
-
     #[cfg(test)]
     pub(crate) fn for_test(path: PathBuf) -> Self {
-        Self {
-            path,
-            expected_coordinate: ConeCoordinate::reserved_core(),
-            target: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            toolchain_compatibility: IdentityAbiDescriptor::current()
-                .and_then(IdentityAbiDescriptor::fingerprint)
-                .unwrap(),
-        }
+        Self { path }
     }
 }
 
@@ -140,7 +107,6 @@ pub enum TrustedCoreArtifactInputError {
         source: std::io::Error,
     },
     NotRegularFile(PathBuf),
-    ToolchainCompatibility(HashError),
 }
 
 impl fmt::Display for TrustedCoreArtifactInputError {
@@ -158,7 +124,6 @@ impl fmt::Display for TrustedCoreArtifactInputError {
                 "trusted core artifact {} is not a regular file",
                 path.display()
             ),
-            Self::ToolchainCompatibility(error) => error.fmt(formatter),
         }
     }
 }
@@ -168,7 +133,6 @@ impl std::error::Error for TrustedCoreArtifactInputError {
         match self {
             Self::Io { source, .. } => Some(source),
             Self::NotRegularFile(_) => None,
-            Self::ToolchainCompatibility(error) => Some(error),
         }
     }
 }
