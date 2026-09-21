@@ -8,6 +8,7 @@ mod corruption;
 mod data_flow;
 mod envelope;
 mod nested_identities;
+mod nested_index;
 mod providers;
 mod resources;
 const SOURCE: &str = include_str!(concat!(

@@ -10,7 +10,9 @@ use crate::{
 mod decode;
 mod errors;
 mod indexed;
+mod nested;
 mod origins;
+pub use nested::*;
 mod resources;
 mod validation;
 pub use decode::*;

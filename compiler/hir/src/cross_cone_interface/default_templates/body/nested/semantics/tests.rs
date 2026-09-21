@@ -173,6 +173,7 @@ fn walks_the_whole_body_and_closes_local_callable_uses() {
     let mut authority = AuthoritySet::new(identities);
 
     validate_body(&template, &mut authority).unwrap();
+    occurrences::assert_source_index_order(&template, &authority);
 
     assert_eq!(authority.observed, expected);
     assert_eq!(
@@ -260,6 +261,7 @@ fn traverses_a_callable_reference_receiver() {
     ]);
 
     validate_body(&template, &mut authority).unwrap();
+    occurrences::assert_source_index_order(&template, &authority);
 
     assert!(authority.observed.iter().any(|(identity, query)| {
         *identity == DefaultNestedCallableIdentityV1::Lambda(lambda_body)

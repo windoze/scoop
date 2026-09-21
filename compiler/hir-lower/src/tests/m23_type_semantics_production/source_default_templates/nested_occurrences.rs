@@ -29,6 +29,37 @@ fn expanded_source_references_preserve_distinct_abis_for_one_invoke_identity() {
             assert_eq!(left.owner_type_parameter_count(), 1);
             assert_eq!(right.owner_type_parameter_count(), 1);
             assert_ne!(left.function_type(), right.function_type());
+            let path = scoop_wire::WirePath::root();
+            let index = restored
+                .index_nested_callables(&mut meter(), &path)
+                .unwrap();
+            assert_eq!(index.template(), restored.key());
+            assert_eq!(index.occurrences().len(), 2);
+            for (ordinal, reference) in [left, right].into_iter().enumerate() {
+                let site = hir::DefaultNestedCallableSiteV1::Body {
+                    ordinal: ordinal as u64,
+                };
+                let occurrence = index
+                    .lookup(
+                        site,
+                        hir::DefaultNestedCallableIdentityV1::CallableReference(reference.invoke()),
+                        &mut meter(),
+                        &path,
+                    )
+                    .unwrap();
+                let descriptor = occurrence.descriptor();
+                assert_eq!(occurrence.site(), site);
+                assert!(std::ptr::eq(
+                    descriptor.function_type(),
+                    reference.function_type()
+                ));
+                assert_eq!(descriptor.captures(), reference.captures());
+                assert_eq!(descriptor.owner_type_parameter_count(), 1);
+                assert!(matches!(
+                    descriptor.body_arguments(),
+                    hir::DefaultNestedCallableBodyArgumentsV1::Absent
+                ));
+            }
         },
     );
 }

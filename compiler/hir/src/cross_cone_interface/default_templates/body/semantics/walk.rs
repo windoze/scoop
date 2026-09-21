@@ -25,9 +25,7 @@ mod expression;
 mod nested;
 mod nodes;
 use nodes::{BodyNode, WorkItem};
-mod identity;
 mod origin;
-pub(super) use identity::visit_nested_identities;
 mod semantics;
 use semantics::SemanticValidation;
 mod statement;
@@ -110,18 +108,6 @@ pub(super) trait BodyWalkMode {
     type Error;
 
     fn resource(error: WireError) -> Self::Error;
-
-    /// Envelope and origin modes do not consume nested declaration identities.
-    fn visit_nested_identity(
-        &mut self,
-        _: crate::DefaultNestedCallableIdentityV1,
-        _: &scoop_identity::StructuralDefinitionPath,
-        _: &ExportDefinitionSourceV1,
-        _: &mut BudgetMeter,
-        _: &WirePath,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
 
     fn validate_type(
         &mut self,
@@ -277,15 +263,6 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
-        if let Some((identity, definition_path, origin)) = identity::descriptor(node) {
-            self.mode.visit_nested_identity(
-                identity,
-                definition_path,
-                origin,
-                self.meter,
-                self.path,
-            )?;
-        }
         match node {
             BodyNode::Body(body) => self.process_body(body, depth, pending),
             BodyNode::Statement(statement) => self.process_statement(statement, depth, pending),

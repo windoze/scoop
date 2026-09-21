@@ -11,97 +11,93 @@ use scoop_identity::{
 pub(super) fn validate<'p, 's, 'a, 'f>(
     current: &BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>,
     dependencies: &[&BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>],
-    template: &DefaultSourceTemplateV1,
+    nested: &DefaultSourceNestedCallablesV1<'_>,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), Error> {
-    template.body().visit_nested_callable_identities_metered(
-        &mut |identity,
-              definition_path: &StructuralDefinitionPath,
-              origin: &ExportDefinitionSourceV1,
-              meter: &mut BudgetMeter,
-              path: &WirePath| {
-            let source = sources::provider(
-                current,
-                dependencies,
-                origin.origin().source().cone(),
-                meter,
-                path,
-            )?;
-            let foundation = source.members().nominals.foundation;
-            let canonical = foundation.foundation.as_canonical();
-            let key_path = match identity {
-                Identity::LocalFunction(declaration) => {
-                    let key = match declaration {
-                        CallableTemplateOrigin::Function(id) => key(
-                            foundation,
-                            canonical.type_source_function_records(),
-                            id,
-                            identity,
-                            meter,
-                            path,
-                        )?,
-                        CallableTemplateOrigin::GenericFunction(id) => key(
-                            foundation,
-                            canonical.type_source_generic_function_records(),
-                            id,
-                            identity,
-                            meter,
-                            path,
-                        )?,
-                        _ => return Err(failure(identity, Failure::Kind)),
-                    };
-                    local_path(key, identity, origin, meter, path)?
-                }
-                Identity::Lambda(id)
-                | Identity::AnonymousFunction(id)
-                | Identity::CallableReference(id) => {
-                    let key = key(
+    for occurrence in nested.occurrences() {
+        let descriptor = occurrence.descriptor();
+        let identity = descriptor.identity();
+        let definition_path = descriptor.definition_path();
+        let origin = occurrence.definition_origin();
+        let source = sources::provider(
+            current,
+            dependencies,
+            origin.origin().source().cone(),
+            meter,
+            path,
+        )?;
+        let foundation = source.members().nominals.foundation;
+        let canonical = foundation.foundation.as_canonical();
+        let key_path = match identity {
+            Identity::LocalFunction(declaration) => {
+                let key = match declaration {
+                    CallableTemplateOrigin::Function(id) => key(
                         foundation,
-                        canonical.type_source_generated_callable_records(),
+                        canonical.type_source_function_records(),
                         id,
                         identity,
                         meter,
                         path,
-                    )?;
-                    match (identity, key) {
-                        (
-                            Identity::Lambda(_),
-                            GeneratedCallableKey::Lexical {
-                                role: LexicalCallableRole::LambdaBody,
-                                path,
-                                ..
-                            },
-                        )
-                        | (
-                            Identity::AnonymousFunction(_),
-                            GeneratedCallableKey::Lexical {
-                                role: LexicalCallableRole::AnonymousFunctionBody,
-                                path,
-                                ..
-                            },
-                        )
-                        | (
-                            Identity::CallableReference(_),
-                            GeneratedCallableKey::CallableReferenceInvoke { path, .. },
-                        ) => path,
-                        _ => return Err(failure(identity, Failure::Kind)),
-                    }
-                }
-            };
-            meter.charge_work(
-                (key_path.segments().len() as u64)
-                    .saturating_add(definition_path.segments().len() as u64),
-                path,
-            )?;
-            if key_path != definition_path {
-                return Err(failure(identity, Failure::DefinitionPath));
+                    )?,
+                    CallableTemplateOrigin::GenericFunction(id) => key(
+                        foundation,
+                        canonical.type_source_generic_function_records(),
+                        id,
+                        identity,
+                        meter,
+                        path,
+                    )?,
+                    _ => return Err(failure(identity, Failure::Kind)),
+                };
+                local_path(key, identity, origin, meter, path)?
             }
-            Ok(())
-        },
-        meter,
-        path,
-    )
+            Identity::Lambda(id)
+            | Identity::AnonymousFunction(id)
+            | Identity::CallableReference(id) => {
+                let key = key(
+                    foundation,
+                    canonical.type_source_generated_callable_records(),
+                    id,
+                    identity,
+                    meter,
+                    path,
+                )?;
+                match (identity, key) {
+                    (
+                        Identity::Lambda(_),
+                        GeneratedCallableKey::Lexical {
+                            role: LexicalCallableRole::LambdaBody,
+                            path,
+                            ..
+                        },
+                    )
+                    | (
+                        Identity::AnonymousFunction(_),
+                        GeneratedCallableKey::Lexical {
+                            role: LexicalCallableRole::AnonymousFunctionBody,
+                            path,
+                            ..
+                        },
+                    )
+                    | (
+                        Identity::CallableReference(_),
+                        GeneratedCallableKey::CallableReferenceInvoke { path, .. },
+                    ) => path,
+                    _ => return Err(failure(identity, Failure::Kind)),
+                }
+            }
+        };
+        meter.charge_work(
+            (key_path.segments().len() as u64)
+                .saturating_add(definition_path.segments().len() as u64),
+            path,
+        )?;
+        if key_path != definition_path {
+            return Err(failure(identity, Failure::DefinitionPath));
+        }
+    }
+    Ok(())
 }
 
 fn local_path<'k>(

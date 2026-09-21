@@ -1,0 +1,7 @@
+public fun String.indexCopy(): String = this
+public class NestedIndexHost {
+    internal fun bound(seed: String, value: () -> String = (if (true) {
+        val callback: () -> String = { seed }
+        callback()
+    } else { seed })::indexCopy): () -> String = value
+}

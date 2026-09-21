@@ -4,7 +4,7 @@ use scoop_identity::{Effect, StructuralDefinitionSiteRole};
 pub(super) fn validate<'d>(
     owner_sources: &'d BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
     provider_sources: &'d BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
-    template: &DefaultSourceTemplateV1,
+    template: &'d DefaultSourceTemplateV1,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<DefaultSourceDeclaredContractV1<'d>, Error> {
@@ -104,7 +104,9 @@ pub(super) fn validate<'d>(
         return Err(Error::SuspendPermission);
     }
     super::envelope::validate(template, provider_binders, &mut shapes, meter, path)?;
+    let nested_callables = template.index_nested_callables(meter, path)?;
     Ok(DefaultSourceDeclaredContractV1 {
+        nested_callables,
         key,
         definition_root: root,
         owner,

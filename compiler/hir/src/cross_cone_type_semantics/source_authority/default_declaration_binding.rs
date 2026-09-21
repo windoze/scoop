@@ -23,6 +23,7 @@ pub struct BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
 }
 #[derive(Debug)]
 pub struct DefaultSourceDeclaredContractV1<'s> {
+    nested_callables: DefaultSourceNestedCallablesV1<'s>,
     key: ProtectedDefaultTemplateKeyV1,
     definition_root: PersistentLexicalRootV1,
     owner: &'s NominalSourceCallablePayloadV1,
@@ -61,7 +62,13 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             )?;
             let contract = (|| {
                 let contract = contracts::validate(self, provider, template, meter, &path)?;
-                nested_identities::validate(self, dependencies, template, meter, &path)?;
+                nested_identities::validate(
+                    self,
+                    dependencies,
+                    &contract.nested_callables,
+                    meter,
+                    &path,
+                )?;
                 data_flow::validate(self, dependencies, template, meter, &path)?;
                 Ok(contract)
             })()
@@ -100,6 +107,11 @@ impl<'d, 'p, 's, 'a, 'f> BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     }
 }
 impl<'s> DefaultSourceDeclaredContractV1<'s> {
+    /// Artifact-bound identities and borrowed source descriptors; ABI and provenance
+    /// validation remain separate obligations.
+    pub const fn nested_callables(&self) -> &DefaultSourceNestedCallablesV1<'s> {
+        &self.nested_callables
+    }
     pub const fn key(&self) -> ProtectedDefaultTemplateKeyV1 {
         self.key
     }
