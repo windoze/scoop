@@ -289,9 +289,7 @@ impl ClassifyBuildFailure for ResolveBuildGraphError {
                 BuildFailurePhase::GraphVersionKind,
                 BuildDiagnosticCode::GRAPH_MULTIPLE_VERSIONS,
             ),
-            Self::MissingTrustedCore
-            | Self::MissingDirectCore { .. }
-            | Self::TrustedCoreHasDependencies => classified(
+            Self::MissingTrustedCore | Self::MissingDirectCore { .. } => classified(
                 BuildFailurePhase::GraphVersionKind,
                 BuildDiagnosticCode::GRAPH_MISSING_CORE,
             ),

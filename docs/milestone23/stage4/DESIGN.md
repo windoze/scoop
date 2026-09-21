@@ -445,7 +445,7 @@ summary只允许：
 
 discovery不用递归调用栈追locator。它维护按expected coordinate排序的bounded worklist：
 
-1. 插入root source projection和trusted core projection；
+1. 插入root source projection；根不是core时再加载默认core源码manifest，同样作为普通source projection插入；
 2. 取最小pending claim，解析其manifest或summary并立即按ConeIdentity intern；
 3. claim与已有node冲突时记录4.6错误，不覆盖已有值；
 4. 对source manifest的每条dependency生成带原span和locator kind的claim；
@@ -483,8 +483,8 @@ ResolvedGraphNode =
 
 ### 5.2 core注入与single-file
 
-- trusted sysroot先解析出reserved `scoop:scoop.core:0.1.0` source slot和artifact slot；用户manifest/ordinary locator不能声明或占用该identity；
-- core node没有direct dependency，不注入self edge；
+- core与其他library都是普通Manifest source节点，允许用户manifest作为core构建根；根是core时不读取sysroot，其他根从sysroot默认位置发现core source manifest。artifact由普通缓存/构建取得，不在发现阶段强制访问固定artifact slot；
+- 不给core自身注入core dependency；core若出现显式依赖或自环，使用普通依赖图与cycle规则检查，不额外建立core来源证明；
 - 每个非core node恰有一条direct core edge。source manifest不写该edge，resolver注入；prebuilt summary必须已经包含与其编译时core fingerprint对应的dependency record，resolver把该record绑定到trusted core node；
 - prebuilt缺core、重复core或把core放成transitive-only都拒绝；
 - single-file graph不运行manifest dependency discovery，结构上精确包含core和synthetic root两个node、一条root→core edge；
@@ -1087,7 +1087,7 @@ fail-fast位置因此只由canonical order决定。未来允许并行ready set�
 - path basename/argument index不承担semantic角色，child仍按artifact自报identity重建闭包；
 - root/dependency artifacts来自同一target/profile和本次completed map，不能混入另一个build session的临时文件。
 
-对ordinary manifest snapshot，`current`指向private snapshot root；single-file指向private source copy；core bootstrap不携带普通current path。
+所有manifest snapshot（包括core）的`current`均指向private snapshot root；single-file指向private source copy。
 
 ### 9.4 output plan
 
@@ -1494,7 +1494,7 @@ M23-4只有同时满足以下条件才完成：
 - purpose-specific closure无擦除/cast，library或executable root成功时同时保留Compile与Link closure；
 - cache key由normalized semantic/source/dependency/compiler/ABI/profile/实际消费toolchain字段唯一计算，locator/path/mtime/diagnostic不污染；single-file包含core code fingerprint；
 - cache exact-key corruption稳定失败，entry以per-key lock和atomic directory rename发布，竞争不同结果报告nondeterminism且不覆盖；
-- trusted core只由sysroot authority和slot bootstrap产生，ordinary cache不能提升core authority；core source变化、slot损坏和bootstrap失败均原子处理；
+- core可从普通manifest根独立构建，且不需要默认sysroot存在；其source变化、cache命中与失败原子性复用所有source Cone的实现；
 - 每个source miss恰好启动一次配套`scoopc` child；不用`PATH`挑版本，不解析human stderr，不传AST/IR，不让childfollow locator；
 - child失败不启动dependent，成功response不替代parent artifact验证，partial output永不进入cache/completed set；
 - M23-4真实成功子集只包括core bootstrap/core-only manifest/single-file；普通dependency仍由M23-3能力门结束，没有名称语义偷跑；

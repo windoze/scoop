@@ -160,7 +160,6 @@ pub(crate) struct ResolvedGraphParts {
 pub enum ResolvedNodeRepresentation {
     ManifestSource,
     PrebuiltArtifact,
-    TrustedCore,
     SingleFile,
 }
 
@@ -329,12 +328,10 @@ fn validate_nodes(
 
     match root_node {
         GraphNode::ManifestSource(_) | GraphNode::SingleFile(_) => Ok(node_kind(root_node)),
-        GraphNode::Prebuilt(_) | GraphNode::TrustedCore(_) => {
-            Err(ResolveBuildGraphError::InvalidRootRepresentation {
-                identity: root,
-                representation: resolved_representation(root_node),
-            })
-        }
+        GraphNode::Prebuilt(_) => Err(ResolveBuildGraphError::InvalidRootRepresentation {
+            identity: root,
+            representation: resolved_representation(root_node),
+        }),
     }
 }
 
@@ -343,21 +340,8 @@ fn validate_reserved_node(
     node: &GraphNode,
 ) -> Result<(), ResolveBuildGraphError> {
     let coordinate = node.coordinate();
-    let is_core_coordinate = coordinate == &ConeCoordinate::reserved_core();
     let is_single_coordinate = coordinate == &ConeCoordinate::reserved_single_file();
     match node {
-        GraphNode::TrustedCore(manifest) => {
-            if identity != ConeIdentity::CORE
-                || !is_core_coordinate
-                || manifest.parsed().semantic().requested_kind() != RequestedConeKind::Library
-            {
-                return Err(ResolveBuildGraphError::InvalidReservedNode {
-                    identity,
-                    coordinate: Box::new(coordinate.clone()),
-                    representation: resolved_representation(node),
-                });
-            }
-        }
         GraphNode::SingleFile(_) => {
             if identity != ConeIdentity::SINGLE_FILE || !is_single_coordinate {
                 return Err(ResolveBuildGraphError::InvalidReservedNode {
@@ -368,11 +352,7 @@ fn validate_reserved_node(
             }
         }
         GraphNode::ManifestSource(_) => {
-            if identity == ConeIdentity::CORE
-                || identity == ConeIdentity::SINGLE_FILE
-                || is_core_coordinate
-                || is_single_coordinate
-            {
+            if identity == ConeIdentity::SINGLE_FILE || is_single_coordinate {
                 return Err(ResolveBuildGraphError::InvalidReservedNode {
                     identity,
                     coordinate: Box::new(coordinate.clone()),
@@ -382,9 +362,7 @@ fn validate_reserved_node(
         }
         GraphNode::Prebuilt(prebuilt) => {
             let cone = prebuilt.first_candidate().summary().cone();
-            if identity == ConeIdentity::CORE
-                || identity == ConeIdentity::SINGLE_FILE
-                || is_core_coordinate
+            if identity == ConeIdentity::SINGLE_FILE
                 || is_single_coordinate
                 || cone.kind() != ConeKind::Library
                 || cone.source_form() != ConeSourceForm::Manifest
@@ -507,14 +485,6 @@ fn validate_edges(
         }
     }
 
-    if outgoing_counts
-        .get(&ConeIdentity::CORE)
-        .copied()
-        .unwrap_or_default()
-        != 0
-    {
-        return Err(ResolveBuildGraphError::TrustedCoreHasDependencies);
-    }
     for (identity, node) in nodes {
         if *identity == ConeIdentity::CORE {
             continue;
@@ -556,7 +526,6 @@ fn validate_edge_representation(
                     .iter()
                     .all(|origin| matches!(origin, EdgeOrigin::ArtifactDependencyRecord { .. }))
         }
-        GraphNode::TrustedCore(_) => false,
         GraphNode::SingleFile(_) => {
             to_core
                 && edge.expected_semantic().is_none()
@@ -902,9 +871,7 @@ fn source_dependency_projections(
 
 fn node_kind(node: &GraphNode) -> RequestedConeKind {
     match node {
-        GraphNode::ManifestSource(manifest) | GraphNode::TrustedCore(manifest) => {
-            manifest.parsed().semantic().requested_kind()
-        }
+        GraphNode::ManifestSource(manifest) => manifest.parsed().semantic().requested_kind(),
         GraphNode::Prebuilt(prebuilt) => match prebuilt.first_candidate().summary().cone().kind() {
             ConeKind::Library => RequestedConeKind::Library,
             ConeKind::Executable => RequestedConeKind::Executable,
@@ -917,7 +884,6 @@ fn resolved_representation(node: &GraphNode) -> ResolvedNodeRepresentation {
     match node {
         GraphNode::ManifestSource(_) => ResolvedNodeRepresentation::ManifestSource,
         GraphNode::Prebuilt(_) => ResolvedNodeRepresentation::PrebuiltArtifact,
-        GraphNode::TrustedCore(_) => ResolvedNodeRepresentation::TrustedCore,
         GraphNode::SingleFile(_) => ResolvedNodeRepresentation::SingleFile,
     }
 }

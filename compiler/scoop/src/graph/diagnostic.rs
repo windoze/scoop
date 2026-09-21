@@ -161,7 +161,6 @@ pub enum ResolveBuildGraphError {
         dependent: ConeIdentity,
         dependency: ConeIdentity,
     },
-    TrustedCoreHasDependencies,
     MissingDirectCore {
         coordinate: ConeCoordinate,
     },
@@ -262,9 +261,6 @@ impl fmt::Display for ResolveBuildGraphError {
                 formatter,
                 "dependency edge {dependent} -> {dependency} has an invalid origin or expectation"
             ),
-            Self::TrustedCoreHasDependencies => {
-                formatter.write_str("trusted core must not have dependencies")
-            }
             Self::MissingDirectCore { coordinate } => {
                 write!(
                     formatter,

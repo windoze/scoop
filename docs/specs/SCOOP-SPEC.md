@@ -1378,6 +1378,7 @@ kind = "library" # 或 "executable"
 - M23固定三层工具边界：umbrella binary `scoop`负责root-input分流、locator、resolved DAG、cache与调度；`scoopc`每次只编译一个当前Cone并产生该Cone的`.slib`；program-link是只消费已验证artifact的独立stage。`scoop build`和`scoop run`共用这条完整pipeline；`run`只在build/program-link成功后执行binary，不是另一种编译或解释模式。三层不能用共享的未持久AST/IR或隐式进程状态绕过`.slib`边界；
 - M23只接受最终链接前已经完整解析的静态Cone图。依赖边必须无环；同一resolved graph中同一`group:name`只能出现一个version，同一`ConeIdentity`只能对应一组一致的semantic fingerprints。cycle、多个version、同identity不同artifact或dependency coordinate不匹配都是构建错误；
 - `executable`不能成为另一个Cone的dependency。一次程序构建恰有一个executable root，其余节点都是library；library单独构建时不需要executable root；
+- core可从任意普通manifest目录作为`scoop`构建根；当前根已经定义core时不读取默认sysroot、不加载另一份core，也不注入self edge。graph、源码快照、缓存和产物返回均使用普通Manifest library节点。
 - `scoop`为除core自身外的每个Cone注入12.6的core direct dependency；core artifact使用普通依赖输入与一致性检查，sysroot仅提供默认locator。除该边外不存在隐式dependency；
 - single-file resolved graph恰好由trusted core与唯一synthetic executable root组成，不运行manifest locator发现；其源码对非core Cone的import按普通不可达诊断。这不禁止`@Extern`产生的逻辑native library requirement；该requirement只能由`scoop`/program-link经显式library search root解析，不是Cone dependency，也不能用无typed来源的raw object/archive输入替代；
 - dependency path、manifest枚举与输入顺序不影响结果。canonical topological order使用dependency-first的Kahn顺序，并在每个ready set按`(group UTF-8 bytes, name UTF-8 bytes, canonical version)`取最小者；

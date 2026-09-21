@@ -76,7 +76,7 @@ impl Preparer {
 
         for (identity, node) in self.parts.nodes {
             let prepared = match node {
-                GraphNode::ManifestSource(manifest) | GraphNode::TrustedCore(manifest) => {
+                GraphNode::ManifestSource(manifest) => {
                     let snapshot = capture_manifest_source(
                         *manifest,
                         &mut self.parts.meter,

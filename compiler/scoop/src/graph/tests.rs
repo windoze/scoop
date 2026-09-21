@@ -640,3 +640,32 @@ fn unreachable_nodes_are_rejected_in_coordinate_order() {
     };
     assert_eq!(coordinates, [coordinate("a", "1.0.0")]);
 }
+
+#[test]
+fn core_manifest_is_an_ordinary_build_root_without_a_default_sysroot() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    write_core(&source);
+    let root = temp.path().join("edited-core");
+    std::fs::rename(source.join("lib/scoop.core"), &root).unwrap();
+    let missing_sysroot = temp.path().join("missing-sysroot");
+    let discovered = request(&root, &missing_sysroot)
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap();
+    assert_eq!(discovered.root_identity(), ConeIdentity::CORE);
+    assert_eq!(discovered.node_count(), 1);
+    assert_eq!(discovered.edge_count(), 0);
+    assert_eq!(
+        discovered.node_representation(ConeIdentity::CORE),
+        Some(crate::DiscoveredNodeRepresentation::ManifestSource)
+    );
+    let resolved = discovered.resolve().unwrap();
+    assert_eq!(resolved.dependency_first(), &[ConeIdentity::CORE]);
+    assert_eq!(
+        resolved.node_representation(ConeIdentity::CORE),
+        Some(ResolvedNodeRepresentation::ManifestSource)
+    );
+    assert!(!missing_sysroot.exists());
+}
