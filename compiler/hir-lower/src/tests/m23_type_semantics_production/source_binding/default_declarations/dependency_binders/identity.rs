@@ -17,7 +17,9 @@ fn expanded_local_descriptors_must_agree_on_the_immutable_declaration() {
             let function = descriptor.function;
             match change {
                 0 => descriptor.declaration_function_type = descriptor.function_type,
-                1 => descriptor.owner_type_param_count += 1,
+                1 => descriptor
+                    .owner_type_arguments
+                    .push(descriptor.captures[0].ty),
                 2 => descriptor.origin.span.start += 1,
                 3 => descriptor.captures[0].binding = hir::BindingId::from_raw(u32::MAX),
                 _ => unreachable!(),

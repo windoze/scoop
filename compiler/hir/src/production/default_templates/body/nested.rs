@@ -64,7 +64,7 @@ impl BodyProjection<'_, '_, '_, '_> {
             function.definition_path.clone(),
             self.function_type(function.function_type)?,
             self.captures(&function.captures)?,
-            owner_parameter_count(function.owner_type_param_count)?,
+            owner_parameter_count(function.owner_type_arguments.len())?,
         )
         .map_err(super::super::DefaultBodyProjectionError::LocalFunction)
     }

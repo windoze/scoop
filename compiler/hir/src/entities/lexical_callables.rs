@@ -65,9 +65,9 @@ pub struct LocalFunction {
     /// Signature at this occurrence, after any default expansion.
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
-    /// Type parameters inherited from enclosing generic callables form the
-    /// prefix of the lifted function's combined type-parameter namespace.
-    pub owner_type_param_count: usize,
+    /// Complete inherited arguments at this occurrence, including unused binders.
+    /// Their length is the owner prefix of the lifted declaration's parameters.
+    pub owner_type_arguments: Vec<TypeId>,
     pub origin: DefinitionOrigin,
     pub span: Span,
 }

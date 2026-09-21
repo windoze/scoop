@@ -78,7 +78,7 @@ impl<'a> CallableIdentityBuilder<'a> {
                 LexicalSite {
                     root: declaration.definition_root,
                     path: declaration.definition_path.clone(),
-                    owner_type_parameter_count: declaration.owner_type_param_count,
+                    owner_type_parameter_count: declaration.owner_type_arguments.len(),
                 },
             );
         }

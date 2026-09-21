@@ -109,6 +109,10 @@ impl Lowerer {
         if !type_params.is_empty() {
             self.register_generic(function, type_params.clone());
         }
+        let owner_type_arguments = outer_type_params
+            .iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter.id)))
+            .collect();
         let local = self.local_functions.alloc(hir::LocalFunction {
             definition_root: self.current_definition_root(),
             definition_path: definition_path.clone(),
@@ -116,7 +120,7 @@ impl Lowerer {
             declaration_function_type: function_type,
             function_type,
             captures: Vec::new(),
-            owner_type_param_count,
+            owner_type_arguments,
             origin: self.definition_origin(decl.span),
             span: decl.span,
         });

@@ -1,0 +1,11 @@
+public fun <X, Y> ownerBridge(seed: X, value: X = ownerLocal<Y, X>(seed)): X = value
+
+public class OwnerCombinationHost {
+    internal fun <A, B> swapped(first: A, second: B,
+        value: A = ownerLocal<B, A>(first)): A = value
+
+    internal fun <T> repeated(seed: T,
+        value: (T, T) = (ownerLocal<String, T>(seed), ownerLocal<Int, T>(seed))): (T, T) = value
+
+    internal fun <T> layered(seed: T, value: T = ownerBridge<T, String>(seed)): T = value
+}

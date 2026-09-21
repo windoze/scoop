@@ -10,7 +10,7 @@ impl Lowerer {
         let own_parameters = self.functions[function.function]
             .type_params()
             .into_iter()
-            .skip(function.owner_type_param_count)
+            .skip(function.owner_type_arguments.len())
             .map(|parameter| parameter.id)
             .collect::<Vec<_>>();
         let mut bindings = context.bindings.clone();
@@ -25,6 +25,11 @@ impl Lowerer {
             unreachable!("local function signature substitution preserves its kind")
         };
         function.function_type = function_type;
+        function.owner_type_arguments = function
+            .owner_type_arguments
+            .into_iter()
+            .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
+            .collect();
         function.captures = function
             .captures
             .iter()

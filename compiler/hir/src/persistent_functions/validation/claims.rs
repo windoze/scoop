@@ -85,7 +85,7 @@ pub(super) fn claim_local_functions(
                 root: declaration.definition_root,
                 path: declaration.definition_path.clone(),
                 declaration_function_type: declaration.declaration_function_type,
-                owner_type_parameter_count: declaration.owner_type_param_count,
+                owner_type_parameter_count: declaration.owner_type_arguments.len(),
                 origin: declaration.origin,
                 capture_bindings: declaration
                     .captures
