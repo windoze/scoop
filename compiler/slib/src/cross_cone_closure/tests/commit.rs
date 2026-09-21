@@ -67,7 +67,7 @@ fn semantic_commit_accepts_the_valid_empty_core_closure() {
     let world = committed.imported_semantic_world().unwrap();
     assert_eq!(world.current(), ConeIdentity::CORE);
     assert_eq!(world.provider_count(), 0);
-    assert!(world.trusted_core().is_none());
+    assert!(world.direct_provider(ConeIdentity::CORE).is_none());
 
     let hir_selection = ImportedDependencySelectionPlan::empty(ConeIdentity::CORE).finish();
     let mir_selection = committed
@@ -140,10 +140,10 @@ fn semantic_commit_preserves_direct_and_support_capability_boundaries() {
             .records()
             .is_empty()
     );
-    assert!(matches!(
-        committed.imported_semantic_world(),
-        Err(scoop_hir::ImportedSemanticWorldBuildError::MissingTrustedCore)
-    ));
+    let world = committed.imported_semantic_world().unwrap();
+    assert_eq!(world.provider_count(), 2);
+    assert!(world.direct_provider(direct_identity).is_some());
+    assert!(world.support_provider(support_identity).is_some());
 }
 
 #[test]

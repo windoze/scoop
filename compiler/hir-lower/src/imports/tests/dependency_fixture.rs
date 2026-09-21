@@ -145,28 +145,30 @@ impl DependencyWorldFixture {
     pub(super) fn world(&self, current: ConeIdentity) -> hir::ImportedSemanticWorld<'_> {
         hir::ImportedSemanticWorld::from_validated_closure(
             current,
-            Some(hir::TrustedCoreImportedProviderInput::from_validated(
+            std::iter::once(hir::DirectImportedProviderInput::from_validated(
                 certificate(self.core.coordinate(), 31),
                 &self.core_foundation,
                 self.core.interface(),
                 &self.aliases,
-            )),
-            self.direct
-                .iter()
-                .zip(&self.direct_foundations)
-                .enumerate()
-                .map(|(index, (provider, foundation))| {
-                    hir::DirectImportedProviderInput::from_validated(
-                        certificate(
-                            provider.coordinate(),
-                            37 + u8::try_from(index).expect("dependency fixture count fits u8"),
-                        ),
-                        foundation,
-                        provider.interface(),
-                        &self.aliases,
-                    )
-                })
-                .collect(),
+            ))
+            .chain(
+                self.direct
+                    .iter()
+                    .zip(&self.direct_foundations)
+                    .enumerate()
+                    .map(|(index, (provider, foundation))| {
+                        hir::DirectImportedProviderInput::from_validated(
+                            certificate(
+                                provider.coordinate(),
+                                37 + u8::try_from(index).expect("dependency fixture count fits u8"),
+                            ),
+                            foundation,
+                            provider.interface(),
+                            &self.aliases,
+                        )
+                    }),
+            )
+            .collect(),
             Vec::new(),
         )
         .unwrap()

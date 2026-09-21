@@ -26,18 +26,20 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("selection-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 41),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&provider.coordinate, 42),
-            &provider_foundation,
-            &provider.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 41),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&provider.coordinate, 42),
+                &provider_foundation,
+                &provider.interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();
@@ -115,18 +117,20 @@ fn selection_rejects_semantic_only_and_foreign_projection_candidates() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("semantic-only-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 43),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&provider.coordinate, 44),
-            &provider_foundation,
-            &provider.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 43),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&provider.coordinate, 44),
+                &provider_foundation,
+                &provider.interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();
@@ -177,13 +181,13 @@ fn cloned_plans_keep_candidate_ids_stable_across_different_probe_orders() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("stable-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 45),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
         vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 45),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
             DirectImportedProviderInput::from_validated(
                 certificate(&second_provider.coordinate, 47),
                 &second_foundation,

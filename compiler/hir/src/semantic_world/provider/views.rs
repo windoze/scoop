@@ -245,19 +245,3 @@ impl<'world, 'input> SupportProviderView<'world, 'input> {
         }
     }
 }
-
-/// Direct core view carrying the additional trusted-core role proof.
-#[derive(Clone, Copy)]
-pub struct TrustedCoreProviderView<'world, 'input> {
-    pub(in crate::semantic_world) direct: DirectProviderView<'world, 'input>,
-}
-
-impl<'world, 'input> TrustedCoreProviderView<'world, 'input> {
-    pub const fn direct(self) -> DirectProviderView<'world, 'input> {
-        self.direct
-    }
-
-    pub const fn certificate(self) -> &'world ImportedProviderCertificate {
-        self.direct.certificate()
-    }
-}

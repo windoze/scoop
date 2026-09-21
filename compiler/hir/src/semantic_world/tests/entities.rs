@@ -15,13 +15,12 @@ fn support_exact_lookup_covers_object_values_and_enum_variants() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("value-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
+        vec![DirectImportedProviderInput::from_validated(
             certificate(&core.coordinate, 9),
             &core_foundation,
             &core.interface,
             &aliases,
-        )),
-        Vec::new(),
+        )],
         vec![SupportImportedProviderInput::from_validated(
             certificate(&support.coordinate, 10),
             &support_foundation,

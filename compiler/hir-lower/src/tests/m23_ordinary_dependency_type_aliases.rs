@@ -90,18 +90,20 @@ fn lower_alias_fixture(
     let ordinary = parsed_ordinary(consumer);
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
-        Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
-            certificate(&ConeCoordinate::reserved_core(), 41),
-            &core.foundation,
-            &core_semantic_interface,
-            &core_aliases,
-        )),
-        vec![scoop_hir::DirectImportedProviderInput::from_validated(
-            certificate(&provider, 61),
-            &provider_foundation,
-            &interface,
-            &provider_aliases,
-        )],
+        vec![
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&ConeCoordinate::reserved_core(), 41),
+                &core.foundation,
+                &core_semantic_interface,
+                &core_aliases,
+            ),
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&provider, 61),
+                &provider_foundation,
+                &interface,
+                &provider_aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();

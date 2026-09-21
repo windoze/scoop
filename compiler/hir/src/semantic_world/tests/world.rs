@@ -6,35 +6,52 @@ use super::fixture::{
 };
 
 #[test]
-fn core_world_is_the_only_world_without_a_trusted_core_provider() {
-    let world = ImportedSemanticWorld::from_validated_closure(
-        ConeIdentity::CORE,
-        None,
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
+fn empty_semantic_world_uses_the_same_contract_for_every_current_cone() {
+    let ordinary = coordinate("current").identity().unwrap();
+    for current in [ConeIdentity::CORE, ordinary] {
+        let world =
+            ImportedSemanticWorld::from_validated_closure(current, Vec::new(), Vec::new()).unwrap();
+        assert_eq!(world.current(), current);
+        assert_eq!(world.provider_count(), 0);
+        assert_eq!(world.direct_provider_count(), 0);
+        assert_eq!(world.support_provider_count(), 0);
+        assert!(world.direct_provider(ConeIdentity::CORE).is_none());
+        assert_eq!(world.direct_packages().package_count(), 0);
+    }
+}
 
-    assert_eq!(world.current(), ConeIdentity::CORE);
-    assert_eq!(world.provider_count(), 0);
-    assert_eq!(world.direct_provider_count(), 0);
-    assert_eq!(world.support_provider_count(), 0);
-    assert!(world.trusted_core().is_none());
-    assert_eq!(world.direct_packages().package_count(), 0);
-
-    let current = ConeCoordinate::new("test", "current", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-    assert!(matches!(
-        ImportedSemanticWorld::from_validated_closure(current, None, Vec::new(), Vec::new(),),
-        Err(ImportedSemanticWorldBuildError::MissingTrustedCore)
-    ));
+#[test]
+fn every_provider_uses_the_same_current_cone_exclusion() {
+    for coordinate in [ConeCoordinate::reserved_core(), coordinate("current")] {
+        let fixture = ProviderFixture::empty(coordinate);
+        let mut session = SemanticIdentitySession::new();
+        let foundation = import_foundation(&mut session, &fixture, 1);
+        let aliases = empty_alias_expansions();
+        let current = fixture.identity();
+        let result = ImportedSemanticWorld::from_validated_closure(
+            current,
+            vec![DirectImportedProviderInput::from_validated(
+                certificate(&fixture.coordinate, 1),
+                &foundation,
+                &fixture.interface,
+                &aliases,
+            )],
+            Vec::new(),
+        );
+        assert!(
+            matches!(result, Err(ImportedSemanticWorldBuildError::CurrentUsedAsProvider(id)) if id == current)
+        );
+    }
 }
 
 #[test]
 fn world_separates_direct_enumeration_from_support_exact_lookup() {
-    let core = ProviderFixture::empty(ConeCoordinate::reserved_core());
+    let core = ProviderFixture::with_nominals(
+        ConeCoordinate::reserved_core(),
+        package(&["core", "extensions"]),
+        "CoreType",
+        None,
+    );
     let direct = ProviderFixture::with_nominals(
         coordinate("direct"),
         package(&["demo", "api"]),
@@ -56,18 +73,20 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
 
     let world = ImportedSemanticWorld::from_validated_closure(
         current,
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 1),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&direct.coordinate, 2),
-            &direct_foundation,
-            &direct.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 1),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&direct.coordinate, 2),
+                &direct_foundation,
+                &direct.interface,
+                &aliases,
+            ),
+        ],
         vec![SupportImportedProviderInput::from_validated(
             certificate(&support.coordinate, 3),
             &support_foundation,
@@ -81,7 +100,11 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
     assert_eq!(world.direct_provider_count(), 2);
     assert_eq!(world.support_provider_count(), 1);
     assert_eq!(
-        world.trusted_core().unwrap().certificate().identity(),
+        world
+            .direct_provider(ConeIdentity::CORE)
+            .unwrap()
+            .certificate()
+            .identity(),
         ConeIdentity::CORE
     );
 
@@ -99,5 +122,17 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
 
     assert!(world.direct_packages().contains(&package(&["demo", "api"])));
     assert!(!world.direct_packages().contains(&package(&["hidden"])));
-    assert_eq!(world.direct_packages().package_count(), 1);
+    assert_eq!(world.direct_packages().package_count(), 2);
+    let core_package = world
+        .direct_package(&package(&["core", "extensions"]))
+        .unwrap();
+    let binding = core_package
+        .binding_group(scoop_identity::BindingNamespace::Type, "CoreType")
+        .unwrap();
+    assert_eq!(binding.len(), 1);
+    assert!(
+        matches!(core.outer, Some(crate::SourceNominalId::Concrete(id))
+        if binding.bindings().next().unwrap().target().persistent()
+            == scoop_identity::BindableEntity::Type(id))
+    );
 }

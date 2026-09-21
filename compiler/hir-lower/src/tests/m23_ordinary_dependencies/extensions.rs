@@ -433,7 +433,7 @@ fn inspect_extensions<R>(
     let aliases = empty_alias_expansions();
     let core_interface = empty_interface();
     let ordinary = parsed_ordinary(consumer);
-    let direct = prepared
+    let direct: Vec<_> = prepared
         .iter()
         .map(|(coordinate, fingerprint, foundation, interface)| {
             scoop_hir::DirectImportedProviderInput::from_validated(
@@ -446,13 +446,14 @@ fn inspect_extensions<R>(
         .collect();
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
-        Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
+        std::iter::once(scoop_hir::DirectImportedProviderInput::from_validated(
             certificate(&scoop_identity::ConeCoordinate::reserved_core(), 41),
             &core.foundation,
             &core_interface,
             &aliases,
-        )),
-        direct,
+        ))
+        .chain(direct)
+        .collect(),
         Vec::new(),
     )
     .unwrap();

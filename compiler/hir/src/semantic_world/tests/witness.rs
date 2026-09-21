@@ -21,18 +21,20 @@ fn declared_direct_binding_produces_one_public_lookup_witness() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("declared-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 31),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&direct.coordinate, 32),
-            &direct_foundation,
-            &direct.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 31),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&direct.coordinate, 32),
+                &direct_foundation,
+                &direct.interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();
@@ -95,13 +97,13 @@ fn diamond_reexports_fold_target_and_preserve_canonical_routes() {
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         coordinate("diamond-current").identity().unwrap(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 33),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
         vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 33),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
             DirectImportedProviderInput::from_validated(
                 certificate(&second.coordinate, 36),
                 &second_foundation,
@@ -141,6 +143,20 @@ fn diamond_reexports_fold_target_and_preserve_canonical_routes() {
     );
     assert_eq!(sources[0].provider_identity(), first.identity());
     assert_eq!(sources[1].provider_identity(), second.identity());
+    let excluded = world.direct_provider(first.identity()).unwrap().id();
+    let filtered = world
+        .direct_package(&package(&["public"]))
+        .unwrap()
+        .snapshot_filtered(|provider| provider != excluded);
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].targets().len(), 1);
+    let retained = &filtered[0].targets()[0];
+    assert_eq!(retained.target(), target.target());
+    assert_eq!(retained.source_count(), 1);
+    assert_eq!(
+        retained.sources().next().unwrap().provider_identity(),
+        second.identity()
+    );
     for source in sources {
         let route = source.witness().route();
         assert_eq!(route.immediate_provider(), source.provider_identity());

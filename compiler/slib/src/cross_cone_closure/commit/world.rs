@@ -1,9 +1,8 @@
 use scoop_hir::{
     DirectImportedProviderInput, ImportedProviderCertificate, ImportedSemanticWorld,
     ImportedSemanticWorldBuildError, SupportImportedProviderInput,
-    TrustedCoreImportedProviderInput,
 };
-use scoop_identity::{ConeIdentity, SemanticOriginFingerprint};
+use scoop_identity::SemanticOriginFingerprint;
 
 use super::ValidatedCrossConeSemanticClosure;
 use crate::{CrossConeSemanticsStrongProfile, ValidatedCompileArtifact};
@@ -16,7 +15,6 @@ impl ValidatedCrossConeSemanticClosure<'_> {
     pub fn imported_semantic_world(
         &self,
     ) -> Result<ImportedSemanticWorld<'_>, ImportedSemanticWorldBuildError> {
-        let mut trusted_core = None;
         let mut direct = Vec::with_capacity(self.direct.len());
         let mut support = Vec::with_capacity(
             self.dependency_first
@@ -34,21 +32,12 @@ impl ValidatedCrossConeSemanticClosure<'_> {
             let interface = production.hir_interface();
             let aliases = production.type_alias_expansions();
             if self.direct.binary_search(&artifact.identity()).is_ok() {
-                if artifact.identity() == ConeIdentity::CORE {
-                    trusted_core = Some(TrustedCoreImportedProviderInput::from_validated(
-                        certificate,
-                        foundation,
-                        interface,
-                        aliases,
-                    ));
-                } else {
-                    direct.push(DirectImportedProviderInput::from_validated(
-                        certificate,
-                        foundation,
-                        interface,
-                        aliases,
-                    ));
-                }
+                direct.push(DirectImportedProviderInput::from_validated(
+                    certificate,
+                    foundation,
+                    interface,
+                    aliases,
+                ));
             } else {
                 support.push(SupportImportedProviderInput::from_validated(
                     certificate,
@@ -59,7 +48,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
             }
         }
 
-        ImportedSemanticWorld::from_validated_closure(self.current, trusted_core, direct, support)
+        ImportedSemanticWorld::from_validated_closure(self.current, direct, support)
     }
 }
 

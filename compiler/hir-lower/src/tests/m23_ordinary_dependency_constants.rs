@@ -60,18 +60,20 @@ impl DependencyConstantFixture {
         let ordinary = parsed_ordinary(consumer);
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
             ordinary.cone(),
-            Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
-                certificate(&ConeCoordinate::reserved_core(), 41),
-                &self.core.foundation,
-                &self.core_interface,
-                &self.aliases,
-            )),
-            vec![scoop_hir::DirectImportedProviderInput::from_validated(
-                certificate(&self.coordinate, 56),
-                &self.foundation,
-                &self.interface,
-                &self.aliases,
-            )],
+            vec![
+                scoop_hir::DirectImportedProviderInput::from_validated(
+                    certificate(&ConeCoordinate::reserved_core(), 41),
+                    &self.core.foundation,
+                    &self.core_interface,
+                    &self.aliases,
+                ),
+                scoop_hir::DirectImportedProviderInput::from_validated(
+                    certificate(&self.coordinate, 56),
+                    &self.foundation,
+                    &self.interface,
+                    &self.aliases,
+                ),
+            ],
             Vec::new(),
         )
         .unwrap();

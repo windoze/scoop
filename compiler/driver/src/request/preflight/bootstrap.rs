@@ -113,7 +113,6 @@ impl TrustedCoreBootstrapHirOutput {
         };
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
             hir.export.cone,
-            None,
             Vec::new(),
             Vec::new(),
         )

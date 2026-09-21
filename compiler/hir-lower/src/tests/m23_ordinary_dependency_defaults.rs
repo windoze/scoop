@@ -28,18 +28,20 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
     let ordinary = parsed_ordinary(consumer);
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
-        Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
-            certificate(&ConeCoordinate::reserved_core(), 41),
-            &core.foundation,
-            &core_semantic_interface,
-            &aliases,
-        )),
-        vec![scoop_hir::DirectImportedProviderInput::from_validated(
-            certificate(&provider, 54),
-            &provider_foundation,
-            &interface,
-            &aliases,
-        )],
+        vec![
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&ConeCoordinate::reserved_core(), 41),
+                &core.foundation,
+                &core_semantic_interface,
+                &aliases,
+            ),
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&provider, 54),
+                &provider_foundation,
+                &interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();
@@ -136,18 +138,20 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     let ordinary = parsed_ordinary(consumer);
     let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
         ordinary.cone(),
-        Some(scoop_hir::TrustedCoreImportedProviderInput::from_validated(
-            certificate(&ConeCoordinate::reserved_core(), 41),
-            &core.foundation,
-            &core_semantic_interface,
-            &aliases,
-        )),
-        vec![scoop_hir::DirectImportedProviderInput::from_validated(
-            certificate(&provider, 55),
-            &provider_foundation,
-            &interface,
-            &aliases,
-        )],
+        vec![
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&ConeCoordinate::reserved_core(), 41),
+                &core.foundation,
+                &core_semantic_interface,
+                &aliases,
+            ),
+            scoop_hir::DirectImportedProviderInput::from_validated(
+                certificate(&provider, 55),
+                &provider_foundation,
+                &interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();

@@ -474,6 +474,8 @@ core源码节点与其他library节点共用immutable source snapshot、普通Ma
 `scoop run`必须先完整执行与`scoop build`相同的graph、cache、single-Cone child、artifact双view、runtime-build与program-link流程，成功后才启动已验证binary；不得增加interpreter/JIT或跳过`.slib`的路径。`--`之后的参数原样形成program argv且不进入build key；child继承调用者cwd、environment与stdin/stdout/stderr。tool diagnostic/warning只写stderr，启动成功后透传program exit status或signal，启动失败使用独立tool error状态。
 
 core的普通声明接口使用与其他Cone相同的Export HIR投影：nominal、callable、property、alias、source interface、default、const与definition-source表不得按core身份清空。param-free callable的通用MIR/LIR export bridge由相同资格规则产生，reader按同一关系验证；只有前端intrinsic正规化和desugar协议引用保留对应typed角色。
+HIR semantic world只区分direct与support provider，core使用同一输入、typed实体索引及package/static名称索引，不另设trusted provider、core入口校验或缺省core依赖断言。依赖存在性与闭包由普通图验证负责。core prelude的较低查找优先级在lowerer名称查找层保留；收集当前包的直接依赖贡献时排除该隐式prelude provider，显式namespace查询仍使用共有完整索引。
+
 
 core由`scoop`调度配套`scoopc`独立编译为普通library `.slib`，不隐式依赖自身；用户可直接构建修改后的core源码。普通编译不合并core AST。基础库的类型、函数、prelude和desugar引用使用同一份普通声明metadata与依赖导入路径；intrinsic在前端正规化，MIR/LIR按既有typed IR计算表示、调用与ABI。移除仅用于重复证明core来源的专用接口表、授权对象、绑定及调用桥。
 

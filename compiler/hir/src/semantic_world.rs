@@ -41,7 +41,6 @@ pub struct ImportedSemanticWorld<'input> {
     positions: BTreeMap<ConeIdentity, usize>,
     direct: Vec<WorldConeId>,
     support: Vec<WorldConeId>,
-    trusted_core: Option<WorldConeId>,
     entities: ImportedEntityIndex,
     direct_packages: DirectPackageIndex,
 }
@@ -53,18 +52,15 @@ impl<'input> ImportedSemanticWorld<'input> {
     #[doc(hidden)]
     pub fn from_validated_closure(
         current: ConeIdentity,
-        trusted_core: Option<TrustedCoreImportedProviderInput<'input>>,
         direct: Vec<DirectImportedProviderInput<'input>>,
         support: Vec<SupportImportedProviderInput<'input>>,
     ) -> Result<Self, ImportedSemanticWorldBuildError> {
-        validate_core_role(current, trusted_core.as_ref(), &direct, &support)?;
         let brand = next_world_brand()?;
-        let seeds = ProviderSeed::canonicalize(current, trusted_core, direct, support)?;
+        let seeds = ProviderSeed::canonicalize(current, direct, support)?;
         let mut providers = Vec::with_capacity(seeds.len());
         let mut positions = BTreeMap::new();
         let mut direct_ids = Vec::new();
         let mut support_ids = Vec::new();
-        let mut trusted_core_id = None;
 
         for (index, seed) in seeds.into_iter().enumerate() {
             let index = u32::try_from(index)
@@ -73,10 +69,6 @@ impl<'input> ImportedSemanticWorld<'input> {
             let identity = seed.certificate().identity();
             positions.insert(identity, index as usize);
             match seed.role() {
-                provider::ProviderSeedRole::TrustedCore => {
-                    direct_ids.push(id);
-                    trusted_core_id = Some(id);
-                }
                 provider::ProviderSeedRole::Direct => direct_ids.push(id),
                 provider::ProviderSeedRole::Support => support_ids.push(id),
             }
@@ -98,7 +90,6 @@ impl<'input> ImportedSemanticWorld<'input> {
             positions,
             direct: direct_ids,
             support: support_ids,
-            trusted_core: trusted_core_id,
             entities,
             direct_packages,
         })
@@ -118,14 +109,6 @@ impl<'input> ImportedSemanticWorld<'input> {
 
     pub fn support_provider_count(&self) -> usize {
         self.support.len()
-    }
-
-    pub fn trusted_core(&self) -> Option<TrustedCoreProviderView<'_, 'input>> {
-        self.trusted_core.map(|id| TrustedCoreProviderView {
-            direct: DirectProviderView {
-                provider: &self.providers[id.index()],
-            },
-        })
     }
 
     pub fn direct_provider(
@@ -242,24 +225,6 @@ impl<'input> ImportedSemanticWorld<'input> {
             .then(|| self.providers.get(id.index()))
             .flatten()
     }
-}
-
-fn validate_core_role(
-    current: ConeIdentity,
-    trusted_core: Option<&TrustedCoreImportedProviderInput<'_>>,
-    direct: &[DirectImportedProviderInput<'_>],
-    support: &[SupportImportedProviderInput<'_>],
-) -> Result<(), ImportedSemanticWorldBuildError> {
-    if current == ConeIdentity::CORE {
-        if trusted_core.is_some() || !direct.is_empty() || !support.is_empty() {
-            return Err(ImportedSemanticWorldBuildError::CoreCurrentHasProviders);
-        }
-        return Ok(());
-    }
-    if trusted_core.is_none() {
-        return Err(ImportedSemanticWorldBuildError::MissingTrustedCore);
-    }
-    Ok(())
 }
 
 fn next_world_brand() -> Result<u64, ImportedSemanticWorldBuildError> {

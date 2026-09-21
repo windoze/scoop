@@ -77,7 +77,6 @@ macro_rules! provider_input {
     };
 }
 
-provider_input!(TrustedCoreImportedProviderInput);
 provider_input!(DirectImportedProviderInput);
 provider_input!(SupportImportedProviderInput);
 
@@ -113,14 +112,12 @@ impl fmt::Debug for WorldConeId {
 }
 
 pub(super) enum ProviderSeed<'input> {
-    TrustedCore(TrustedCoreImportedProviderInput<'input>),
     Direct(DirectImportedProviderInput<'input>),
     Support(SupportImportedProviderInput<'input>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ProviderSeedRole {
-    TrustedCore,
     Direct,
     Support,
 }
@@ -128,15 +125,10 @@ pub(super) enum ProviderSeedRole {
 impl<'input> ProviderSeed<'input> {
     pub(super) fn canonicalize(
         current: ConeIdentity,
-        trusted_core: Option<TrustedCoreImportedProviderInput<'input>>,
         direct: Vec<DirectImportedProviderInput<'input>>,
         support: Vec<SupportImportedProviderInput<'input>>,
     ) -> Result<Vec<Self>, ImportedSemanticWorldBuildError> {
-        let mut seeds =
-            Vec::with_capacity(usize::from(trusted_core.is_some()) + direct.len() + support.len());
-        if let Some(core) = trusted_core {
-            seeds.push(Self::TrustedCore(core));
-        }
+        let mut seeds = Vec::with_capacity(direct.len() + support.len());
         seeds.extend(direct.into_iter().map(Self::Direct));
         seeds.extend(support.into_iter().map(Self::Support));
         for seed in &seeds {
@@ -156,7 +148,6 @@ impl<'input> ProviderSeed<'input> {
 
     pub(super) const fn role(&self) -> ProviderSeedRole {
         match self {
-            Self::TrustedCore(_) => ProviderSeedRole::TrustedCore,
             Self::Direct(_) => ProviderSeedRole::Direct,
             Self::Support(_) => ProviderSeedRole::Support,
         }
@@ -164,7 +155,6 @@ impl<'input> ProviderSeed<'input> {
 
     pub(super) const fn certificate(&self) -> &ImportedProviderCertificate {
         match self {
-            Self::TrustedCore(input) => &input.certificate,
             Self::Direct(input) => &input.certificate,
             Self::Support(input) => &input.certificate,
         }
@@ -172,7 +162,6 @@ impl<'input> ProviderSeed<'input> {
 
     const fn foundation(&self) -> &'input ImportedHirFoundation {
         match self {
-            Self::TrustedCore(input) => input.foundation,
             Self::Direct(input) => input.foundation,
             Self::Support(input) => input.foundation,
         }
@@ -180,21 +169,6 @@ impl<'input> ProviderSeed<'input> {
 
     fn validate(&self, current: ConeIdentity) -> Result<(), ImportedSemanticWorldBuildError> {
         let identity = self.certificate().identity();
-        match self.role() {
-            ProviderSeedRole::TrustedCore if identity != ConeIdentity::CORE => {
-                return Err(ImportedSemanticWorldBuildError::TrustedProviderIsNotCore(
-                    identity,
-                ));
-            }
-            ProviderSeedRole::Direct | ProviderSeedRole::Support
-                if identity == ConeIdentity::CORE =>
-            {
-                return Err(ImportedSemanticWorldBuildError::CoreUsedAsOrdinaryProvider);
-            }
-            ProviderSeedRole::TrustedCore
-            | ProviderSeedRole::Direct
-            | ProviderSeedRole::Support => {}
-        }
         if identity == current {
             return Err(ImportedSemanticWorldBuildError::CurrentUsedAsProvider(
                 current,
@@ -238,12 +212,6 @@ impl<'input> ImportedProvider<'input> {
     pub(super) fn new(id: WorldConeId, seed: ProviderSeed<'input>) -> Self {
         let role = seed.role();
         let (certificate, foundation, interface, alias_expansions) = match seed {
-            ProviderSeed::TrustedCore(input) => (
-                input.certificate,
-                input.foundation,
-                input.interface,
-                input.alias_expansions,
-            ),
             ProviderSeed::Direct(input) => (
                 input.certificate,
                 input.foundation,
@@ -280,13 +248,6 @@ impl<'input> ImportedProvider<'input> {
         &mut self,
         entities: &ImportedEntityIndex,
     ) -> Result<(), ImportedSemanticWorldBuildError> {
-        // Core lookup is provided exclusively by `ImportedCoreInputs`. Its
-        // general cross-Cone section intentionally repeats only the direct
-        // binding inventory and omits ordinary declaration interfaces, so it
-        // must not be indexed as an ordinary dependency namespace.
-        if self.role == ProviderSeedRole::TrustedCore {
-            return Ok(());
-        }
         let provider = self.identity();
         let mut bindings = Vec::with_capacity(self.interface.public_bindings().records().len());
         let mut positions = BTreeMap::new();
@@ -381,10 +342,7 @@ impl<'input> ImportedProvider<'input> {
     }
 
     pub(super) const fn is_direct(&self) -> bool {
-        matches!(
-            self.role,
-            ProviderSeedRole::TrustedCore | ProviderSeedRole::Direct
-        )
+        matches!(self.role, ProviderSeedRole::Direct)
     }
 
     pub(super) const fn is_support(&self) -> bool {

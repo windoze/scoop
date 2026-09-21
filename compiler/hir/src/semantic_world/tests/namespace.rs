@@ -22,18 +22,20 @@ fn package_lookup_uses_static_edges_and_excludes_nested_bindings_from_package_sc
     let current = coordinate("static-current").identity().unwrap();
     let world = ImportedSemanticWorld::from_validated_closure(
         current,
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 4),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&direct.coordinate, 5),
-            &direct_foundation,
-            &direct.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 4),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&direct.coordinate, 5),
+                &direct_foundation,
+                &direct.interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();
@@ -110,13 +112,13 @@ fn longest_package_prefix_never_falls_back_to_a_shorter_static_path() {
     let current = coordinate("prefix-current").identity().unwrap();
     let world = ImportedSemanticWorld::from_validated_closure(
         current,
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 6),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
         vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 6),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
             DirectImportedProviderInput::from_validated(
                 certificate(&shadow.coordinate, 8),
                 &shadow_foundation,

@@ -32,6 +32,18 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let consumer_artifact = workspace.path().join("consumer.slib");
     let first_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
     assert_core_views_share_the_dependency_closure(&target, &consumer_source, &artifact);
+    let shadow_source = workspace.path().join("shadow.scoop");
+    std::fs::write(
+        &shadow_source,
+        include_str!("../../../../../../tests/fixtures/core-library/prelude-priority.scoop"),
+    )
+    .unwrap();
+    build_consumer(
+        &target,
+        &shadow_source,
+        &workspace.path().join("shadow.slib"),
+        &artifact,
+    );
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),
@@ -117,6 +129,22 @@ fn assert_core_views_share_the_dependency_closure(
         .share_artifact(scoop_identity::ConeIdentity::CORE)
         .unwrap();
     metadata::assert_ordinary_interfaces(member.compile().production());
+    let world = closure.semantic().imported_semantic_world().unwrap();
+    let core = world
+        .direct_provider(scoop_identity::ConeIdentity::CORE)
+        .unwrap();
+    for name in [
+        "UserCoreValue",
+        "UserCoreAlias",
+        "USER_CORE_DEFAULT",
+        "userCoreOffset",
+    ] {
+        assert!(
+            core.public_bindings()
+                .iter()
+                .any(|binding| binding.key().name().as_str() == name)
+        );
+    }
     assert!(std::ptr::eq(trusted_core.compile(), member.compile()));
     assert!(std::ptr::eq(
         trusted_core.defined_symbols(),

@@ -37,18 +37,20 @@ fn production_authority_resolves_current_and_imported_targets_by_typed_identity(
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         current_fixture.identity(),
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 1),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&direct.coordinate, 2),
-            &direct_foundation,
-            &direct.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 1),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&direct.coordinate, 2),
+                &direct_foundation,
+                &direct.interface,
+                &aliases,
+            ),
+        ],
         vec![SupportImportedProviderInput::from_validated(
             certificate(&support.coordinate, 3),
             &support_foundation,
@@ -97,18 +99,20 @@ fn production_authority_exposes_exact_binding_surfaces_without_support_enumerati
     let aliases = empty_alias_expansions();
     let world = ImportedSemanticWorld::from_validated_closure(
         current,
-        Some(TrustedCoreImportedProviderInput::from_validated(
-            certificate(&core.coordinate, 1),
-            &core_foundation,
-            &core.interface,
-            &aliases,
-        )),
-        vec![DirectImportedProviderInput::from_validated(
-            certificate(&direct.coordinate, 2),
-            &direct_foundation,
-            &direct.interface,
-            &aliases,
-        )],
+        vec![
+            DirectImportedProviderInput::from_validated(
+                certificate(&core.coordinate, 1),
+                &core_foundation,
+                &core.interface,
+                &aliases,
+            ),
+            DirectImportedProviderInput::from_validated(
+                certificate(&direct.coordinate, 2),
+                &direct_foundation,
+                &direct.interface,
+                &aliases,
+            ),
+        ],
         Vec::new(),
     )
     .unwrap();

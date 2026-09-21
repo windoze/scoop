@@ -1,0 +1,5 @@
+fun userCoreOffset(value: Int): Int = value
+
+fun main() {
+    val value = userCoreOffset(42)
+}

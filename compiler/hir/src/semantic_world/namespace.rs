@@ -178,6 +178,18 @@ impl<'world, 'input> DirectPackageView<'world, 'input> {
     pub fn snapshot(&self) -> Vec<DirectNamedPublicBindingGroup> {
         named_groups(self.bindings())
     }
+
+    /// Filters providers before folding targets, so a lookup layer retains
+    /// exactly its own routes when another layer provides the same entity.
+    pub fn snapshot_filtered(
+        &self,
+        include: impl Fn(WorldConeId) -> bool,
+    ) -> Vec<DirectNamedPublicBindingGroup> {
+        named_groups(
+            self.bindings()
+                .filter(|binding| include(binding.provider())),
+        )
+    }
 }
 
 /// Public nested namespace of one exact imported nominal owner.

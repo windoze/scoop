@@ -235,8 +235,13 @@ impl CurrentUnitImports {
         let Some(package) = world.and_then(|world| world.direct_package(&path)) else {
             return BTreeMap::new();
         };
+        let prelude = world
+            .and_then(|world| world.direct_provider(scoop_identity::ConeIdentity::CORE))
+            .map(|provider| provider.id());
         let mut snapshot = BTreeMap::<String, Vec<_>>::new();
-        for group in package.snapshot() {
+        // The implicit prelude is a later lookup layer, even when its ordinary
+        // provider contributes to the same package as the current source.
+        for group in package.snapshot_filtered(|provider| Some(provider) != prelude) {
             snapshot
                 .entry(group.name().as_str().to_owned())
                 .or_default()

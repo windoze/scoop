@@ -21,10 +21,6 @@ pub enum ImportedSemanticEntityId {
 
 #[derive(Debug)]
 pub enum ImportedSemanticWorldBuildError {
-    CoreCurrentHasProviders,
-    MissingTrustedCore,
-    TrustedProviderIsNotCore(ConeIdentity),
-    CoreUsedAsOrdinaryProvider,
     CurrentUsedAsProvider(ConeIdentity),
     CoordinateIdentityUnavailable(ConeIdentity),
     CoordinateIdentityMismatch {
@@ -83,21 +79,6 @@ pub enum ImportedSemanticWorldBuildError {
 impl fmt::Display for ImportedSemanticWorldBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CoreCurrentHasProviders => {
-                formatter.write_str("the trusted core current Cone cannot import providers")
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("a non-core semantic world requires a trusted core provider")
-            }
-            Self::TrustedProviderIsNotCore(identity) => {
-                write!(
-                    formatter,
-                    "trusted core provider has non-core identity {identity}"
-                )
-            }
-            Self::CoreUsedAsOrdinaryProvider => {
-                formatter.write_str("the core Cone must use the trusted-core provider input")
-            }
             Self::CurrentUsedAsProvider(identity) => {
                 write!(
                     formatter,
