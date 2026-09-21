@@ -6,6 +6,7 @@ use super::super::wire;
 
 mod callables;
 mod constructors;
+mod default_access_declarations;
 mod dependencies;
 mod edges;
 mod inheritance;
@@ -23,6 +24,7 @@ mod roots;
 mod slot_selections;
 pub use callables::*;
 pub use constructors::*;
+pub use default_access_declarations::*;
 pub use dependencies::*;
 pub use edges::*;
 pub use inheritance::*;
@@ -89,6 +91,7 @@ fn reference(error: impl fmt::Display) -> SourceInventoryError {
 
 #[derive(Debug)]
 pub enum SourceInventoryError {
+    InvalidDefaultAccessSubject(scoop_identity::DefinitionOriginSubject),
     Resource(WireError),
     Reference(String),
     NonCanonicalOrder {
@@ -115,6 +118,9 @@ impl From<WireError> for SourceInventoryError {
 impl fmt::Display for SourceInventoryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidDefaultAccessSubject(subject) => {
+                write!(f, "invalid default access declaration subject: {subject:?}")
+            }
             Self::Resource(error) => error.fmt(f),
             Self::Reference(error) => write!(f, "invalid source inventory reference: {error}"),
             Self::NonCanonicalOrder { table, index } => {

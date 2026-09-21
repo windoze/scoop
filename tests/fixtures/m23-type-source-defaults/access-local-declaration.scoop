@@ -1,0 +1,4 @@
+private fun outer(): Int {
+    fun local(): Int = 1
+    return local()
+}

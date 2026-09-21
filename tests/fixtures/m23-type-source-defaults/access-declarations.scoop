@@ -1,0 +1,19 @@
+private fun privateTarget(): Int = 1
+internal fun <T> genericTarget(value: T): T = value
+private var state: Int = 2
+internal var global: Int
+    get() = state
+    private set(next) { state = next }
+private const val fixed: Int = 3
+internal val Int.extra: Int
+    get() = this
+internal open class Scope<T> {
+    protected class Hidden {
+        private fun leaf(value: Int = privateTarget()): Int = value
+        private var backing: Int = 5
+        internal var stored: Int
+            get() = backing
+            private set(next) { backing = next }
+    }
+}
+private struct Value(val number: Int)

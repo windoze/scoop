@@ -120,7 +120,9 @@ pub(super) fn definition_sources(export: &ExportHir) -> BTreeSet<ExportDefinitio
         .collect()
 }
 
-pub(super) fn all_nominals(export: &ExportHir) -> impl Iterator<Item = NominalLocalId> + '_ {
+pub(in crate::production::type_semantics) fn all_nominals(
+    export: &ExportHir,
+) -> impl Iterator<Item = NominalLocalId> + '_ {
     export
         .structs
         .iter()

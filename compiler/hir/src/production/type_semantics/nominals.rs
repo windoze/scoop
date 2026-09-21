@@ -9,6 +9,7 @@ use super::{CrossConeTypeSemanticsProductionError as Error, *};
 use crate::*;
 
 mod authority_projection;
+pub(super) use authority_projection::all_nominals;
 mod representation;
 mod source_foundation;
 mod source_inventory;
@@ -318,7 +319,7 @@ fn raw<T>(id: la_arena::Idx<T>) -> u32 {
     id.into_raw().into_u32()
 }
 
-fn source_id(source: &HirSourceNominalIdentity) -> SourceNominalId {
+pub(super) fn source_id(source: &HirSourceNominalIdentity) -> SourceNominalId {
     match source {
         HirSourceNominalIdentity::Concrete(record) => SourceNominalId::Concrete(record.id()),
         HirSourceNominalIdentity::Generic(record) => SourceNominalId::GenericTemplate(record.id()),
