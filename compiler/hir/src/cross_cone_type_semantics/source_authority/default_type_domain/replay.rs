@@ -11,7 +11,7 @@ impl DefaultSourceTypeDomainsV1<'_, '_, '_, '_> {
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
         meter.charge_work(1, path)?;
         match demand {
-            Demand::Nominal(id) if self.core.builtins.contains(&id) => {
+            Demand::Nominal(id) if id == self.core.unit().persistent() || id == self.any => {
                 Ok(DefaultSourceAccessDomainV1::universal())
             }
             Demand::Nominal(id) => {
@@ -24,13 +24,13 @@ impl DefaultSourceTypeDomainsV1<'_, '_, '_, '_> {
                 path,
             ),
             Demand::RawPointer { .. } => self.nominal_domain(
-                SourceNominalId::GenericTemplate(self.core.ptr),
+                SourceNominalId::GenericTemplate(self.core.ptr().persistent()),
                 1,
                 meter,
                 path,
             ),
             Demand::NativeFunctionPointer { .. } => self.nominal_domain(
-                SourceNominalId::GenericTemplate(self.core.fun_ptr),
+                SourceNominalId::GenericTemplate(self.core.fun_ptr().persistent()),
                 1,
                 meter,
                 path,

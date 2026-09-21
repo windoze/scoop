@@ -1,9 +1,7 @@
 //! Source slot replay using one artifact's dispatch and imported core roles.
 
 use crate::*;
-use scoop_identity::{
-    ConeIdentity, ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
-};
+use scoop_identity::{ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey};
 use scoop_wire::{BudgetMeter, WirePath};
 
 mod errors;
@@ -30,15 +28,6 @@ impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
         meter.charge_nodes(1, &path)?;
         meter.charge_work(2, &path)?;
         let nominal = core.unit().persistent();
-        let key = self
-            .foundation
-            .identities
-            .canonical_key::<PersistentTypeId, SourceDeclarationKey>(nominal)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        NominalRepresentationSupportV1::charge_source_key_resources(&key, meter, &path)?;
-        if key.origin() != ConeIdentity::CORE {
-            return Err(Error::CoreUnit);
-        }
         let expected = ExactTypeKey::Nominal(nominal);
         meter.charge_sha256(
             scoop_wire::encoded_length(&expected)
@@ -47,14 +36,6 @@ impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
         )?;
         let unit = PersistentExactTypeId::from_key(&expected)
             .map_err(|error| Error::Identity(error.to_string()))?;
-        let actual = self
-            .foundation
-            .identities
-            .canonical_key::<PersistentExactTypeId, ExactTypeKey>(unit)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        if actual.as_ref() != &expected || self.foundation.exact_type_key(unit)? != &expected {
-            return Err(Error::CoreUnit);
-        }
         let entries = self.foundation.source().entries();
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(
             entries.local_inheritance_edges.records().iter(),

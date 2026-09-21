@@ -57,14 +57,9 @@ fn core_source_foundation_supplies_real_dependency_domains_to_default_binding() 
             .unwrap();
         let types = imported.protocols().fundamental_types();
         let dependencies = [&core_access];
-        let domains = hir::DefaultSourceTypeDomainsV1::new(
-            &local_access,
-            &dependencies,
-            &core.foundation,
-            types,
-            &mut meter(),
-        )
-        .unwrap();
+        let domains =
+            hir::DefaultSourceTypeDomainsV1::new(&local_access, &dependencies, types, &mut meter())
+                .unwrap();
         sources.with_bound(&foundation, types, |members, constructors| {
             let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
             let bound = parameters.bind_default_declarations(&templates, &[], &mut meter()).unwrap();

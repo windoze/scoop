@@ -26,14 +26,7 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
     let core_types = inputs.protocols().fundamental_types();
     let mut dependencies = [&declarations[1], &declarations[2]];
     dependencies.sort_by_key(|d| d.provider());
-    let domains = Domains::new(
-        &declarations[0],
-        &dependencies,
-        &core.foundation,
-        core_types,
-        &mut meter(),
-    )
-    .unwrap();
+    let domains = Domains::new(&declarations[0], &dependencies, core_types, &mut meter()).unwrap();
     for (artifact, declaration) in artifacts.iter().zip(&declarations) {
         let actual = domains
             .type_source_domain(&artifact.ty, &scope("nominal"), &mut meter())
@@ -57,14 +50,7 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
         .unwrap();
     assert_eq!(actual.persistent().constraints().len(), 6);
     assert!(actual.generic_subclasses().values().is_empty());
-    let missing = Domains::new(
-        &declarations[0],
-        &[],
-        &core.foundation,
-        core_types,
-        &mut meter(),
-    )
-    .unwrap();
+    let missing = Domains::new(&declarations[0], &[], core_types, &mut meter()).unwrap();
     assert!(
         matches!(missing.type_source_domain(&ty, &scope("tuple"), &mut meter()), Err(Error::MissingProvider(provider)) if provider == declarations[1].provider())
     );
@@ -74,13 +60,7 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
         vec![dependencies[1], dependencies[0]],
     ] {
         assert!(matches!(
-            Domains::new(
-                &declarations[0],
-                &wrong,
-                &core.foundation,
-                core_types,
-                &mut meter()
-            ),
+            Domains::new(&declarations[0], &wrong, core_types, &mut meter()),
             Err(Error::DependencyOrder(_))
         ));
     }
@@ -93,13 +73,7 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
         .bind_default_access_declarations(&artifacts[1].table, &artifacts[1].required, &mut meter())
         .unwrap();
     assert!(matches!(
-        Domains::new(
-            &declarations[0],
-            &[&other],
-            &core.foundation,
-            core_types,
-            &mut meter()
-        ),
+        Domains::new(&declarations[0], &[&other], core_types, &mut meter()),
         Err(Error::IdentityGraph(_))
     ));
 }

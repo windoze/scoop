@@ -10,7 +10,6 @@ pub enum NominalParameterBindingError {
     NominalSourcesMismatch,
     Inventory,
     Identity(String),
-    CoreArray,
     MissingProtocol(CallableTemplateOrigin),
     Declaration(CallableTemplateOrigin),
     Position {
@@ -61,7 +60,6 @@ impl fmt::Display for NominalParameterBindingError {
             Self::Inventory => {
                 f.write_str("parameter sources disagree with the bound nominal inventory")
             }
-            Self::CoreArray => f.write_str("parameter Array role disagrees with trusted core"),
             Self::MissingProtocol(owner) => {
                 write!(f, "missing source parameter protocol {owner:?}")
             }

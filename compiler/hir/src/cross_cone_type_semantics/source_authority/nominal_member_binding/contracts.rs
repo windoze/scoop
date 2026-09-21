@@ -36,9 +36,7 @@ pub(super) fn prepare(
                     )?;
                 }
             }
-            NominalSupportPropertyPayloadV1::Const { value } => {
-                let ty = bound.canonical_const_value_type(value.value().kind())?;
-                core::validate(bound, ty, meter)?;
+            NominalSupportPropertyPayloadV1::Const { .. } => {
                 let bytes =
                     scoop_wire::encoded_length(key).map_err(|e| Error::Identity(e.to_string()))?;
                 meter.check_semantic_leaf(bytes, &path)?;

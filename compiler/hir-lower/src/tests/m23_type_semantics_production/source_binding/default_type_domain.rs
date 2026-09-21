@@ -158,7 +158,6 @@ fn default_type_source_domains_replay_actual_sealed_type_witnesses() {
         let domains = Domains::new(
             &declarations,
             &[],
-            &core.foundation,
             inputs.protocols().fundamental_types(),
             &mut meter(),
         )

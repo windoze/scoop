@@ -4,7 +4,6 @@ use super::*;
 pub enum DefaultSourceTypeDomainError {
     Resource(WireError),
     Identity(String),
-    Foundation(Box<TypeFoundationBindingError>),
     Access(Box<DefaultSourceAccessBindingError>),
     Domain(Box<DefaultSourceDomainReplayError<DefaultSourceAccessBindingError>>),
     DependencyOrder(ConeIdentity),
@@ -16,7 +15,6 @@ pub enum DefaultSourceTypeDomainError {
         expected: u32,
         actual: usize,
     },
-    CoreRole(&'static str),
     Binder(SignatureBinderScopeError),
     Encoding(scoop_wire::cbor::EncodeError),
     PersistentDomain(PersistentAccessDomainError),
@@ -24,12 +22,6 @@ pub enum DefaultSourceTypeDomainError {
     DomainBuild(DefaultSourceAccessBuildError),
 }
 impl Error {
-    pub(super) fn foundation(error: TypeFoundationBindingError) -> Self {
-        match error {
-            TypeFoundationBindingError::Resource(error) => Self::Resource(error),
-            other => Self::Foundation(Box::new(other)),
-        }
-    }
     pub(super) fn access(error: DefaultSourceAccessBindingError) -> Self {
         match error {
             DefaultSourceAccessBindingError::Resource(error) => Self::Resource(error),
@@ -56,7 +48,6 @@ impl std::fmt::Display for Error {
         match self {
             Self::Resource(e) => e.fmt(f),
             Self::Identity(e) => e.fmt(f),
-            Self::Foundation(e) => e.fmt(f),
             Self::Access(e) => e.fmt(f),
             Self::Domain(e) => e.fmt(f),
             Self::Binder(e) => e.fmt(f),
@@ -83,10 +74,6 @@ impl std::fmt::Display for Error {
             } => write!(
                 f,
                 "default type source {owner:?} requires {expected} arguments, got {actual}"
-            ),
-            Self::CoreRole(role) => write!(
-                f,
-                "default type source core role {role} lacks its canonical artifact key"
             ),
         }
     }

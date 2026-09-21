@@ -1,9 +1,6 @@
 //! Complete parameter protocols bound to one nominal source transaction.
 use crate::*;
-use scoop_identity::{
-    CallableTemplateOrigin, ConeIdentity, PersistentGenericTypeId, SourceDeclarationKey,
-    SourceDeclarationKind,
-};
+use scoop_identity::{CallableTemplateOrigin, ConeIdentity, PersistentGenericTypeId};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 mod candidates;
@@ -37,20 +34,6 @@ impl<'s, 'a, 'f> BoundNominalMemberSourcesV1<'s, 'a, 'f> {
         }
         inventory::validate(self, constructors, protocols, meter)?;
         let array = self.core.array().persistent();
-        meter.charge_work(1, &path)?;
-        let key = self
-            .nominals
-            .foundation
-            .identities
-            .canonical_key::<PersistentGenericTypeId, SourceDeclarationKey>(array)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        NominalRepresentationSupportV1::charge_source_key_resources(&key, meter, &path)?;
-        if key.origin() != ConeIdentity::CORE
-            || key.declaration_kind() != SourceDeclarationKind::Class
-            || key.duplicate_signature().type_parameter_count() != 1
-        {
-            return Err(Error::CoreArray);
-        }
         for protocol in protocols.records() {
             contracts::validate(self, constructors, protocol, array, meter)?;
         }

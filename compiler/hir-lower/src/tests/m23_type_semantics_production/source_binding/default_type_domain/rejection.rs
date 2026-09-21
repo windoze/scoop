@@ -14,7 +14,6 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
         let domains = Domains::new(
             &declarations,
             &[],
-            &core.foundation,
             inputs.protocols().fundamental_types(),
             &mut meter(),
         )
@@ -80,7 +79,6 @@ fn default_type_domains_require_declaration_sources_even_for_known_type_identiti
         let domains = Domains::new(
             &declarations,
             &[],
-            &core.foundation,
             inputs.protocols().fundamental_types(),
             &mut meter(),
         )
@@ -119,51 +117,6 @@ fn default_type_domains_require_declaration_sources_even_for_known_type_identiti
             assert!(matches!(
                 domains.type_source_domain(&ty, &scope("builtin"), &mut meter()),
                 Err(Error::MissingProvider(scoop_identity::ConeIdentity::CORE))
-            ));
-        }
-    });
-}
-
-#[test]
-fn default_type_domain_core_roles_must_be_published_by_the_actual_core_artifact() {
-    with_local(|core, fixture, table, required, _| {
-        let foundation = fixture.bind().unwrap();
-        let declarations = foundation
-            .bind_default_access_declarations(table, required, &mut meter())
-            .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
-        for generic in [false, true] {
-            let mut canonical = core.source_foundation.as_canonical().clone();
-            if generic {
-                canonical.set_generic_types(vec![]).unwrap();
-            } else {
-                canonical.set_types(vec![]).unwrap();
-            }
-            let mut session = scoop_identity::SemanticIdentitySession::new();
-            let (hir_ids, _, _) = session
-                .import(
-                    scoop_identity::ConeIdentity::CORE,
-                    scoop_identity::SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
-                    &fixture.identities,
-                )
-                .unwrap()
-                .into_parts();
-            let incomplete = hir::ImportedHirFoundation::from_odr_free(
-                hir::OdrFreeHirFoundation::try_new(canonical).unwrap(),
-                hir_ids,
-            );
-            assert!(matches!(
-                Domains::new(
-                    &declarations,
-                    &[],
-                    &incomplete,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter()
-                ),
-                Err(Error::CoreRole("artifact key"))
             ));
         }
     });

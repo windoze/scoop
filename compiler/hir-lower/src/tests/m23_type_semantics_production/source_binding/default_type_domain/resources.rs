@@ -12,14 +12,7 @@ fn default_type_domains_replay_with_one_shared_resource_budget() {
             .import_core_inputs(&core.interface, &[])
             .unwrap();
         let core_types = inputs.protocols().fundamental_types();
-        let domains = Domains::new(
-            &declarations,
-            &[],
-            &core.foundation,
-            core_types,
-            &mut meter(),
-        )
-        .unwrap();
+        let domains = Domains::new(&declarations, &[], core_types, &mut meter()).unwrap();
         for (name, template) in templates {
             let scope = scope(name);
             let mut measured = meter();
@@ -99,15 +92,7 @@ fn default_type_domains_replay_with_one_shared_resource_budget() {
                 ..DecodeLimits::default()
             },
             DecodeLimits {
-                semantic_table_entries: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
                 logical_heap_bytes: 0,
-                ..DecodeLimits::default()
-            },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
                 ..DecodeLimits::default()
             },
         ] {
@@ -116,7 +101,6 @@ fn default_type_domains_replay_with_one_shared_resource_budget() {
                     Domains::new(
                         &declarations,
                         &[],
-                        &core.foundation,
                         core_types,
                         &mut BudgetMeter::new(limits)
                     ),

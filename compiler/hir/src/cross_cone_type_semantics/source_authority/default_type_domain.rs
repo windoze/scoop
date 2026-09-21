@@ -1,5 +1,4 @@
 //! Type visibility replay from explicit, artifact-bound declaration providers.
-use super::binding_keys;
 use crate::*;
 use scoop_identity::{
     ConeIdentity, DefinitionOriginSubject as Subject, PersistentGenericTypeId, PersistentTypeId,
@@ -7,7 +6,6 @@ use scoop_identity::{
 };
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 mod binding;
-mod core;
 pub use binding::*;
 mod errors;
 mod merge;
@@ -23,25 +21,30 @@ type Declarations<'s, 'a, 'f> = BoundDefaultSourceAccessDeclarationsV1<'s, 'a, '
 pub struct DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
     current: &'b Declarations<'s, 'a, 'f>,
     dependencies: &'b [&'b Declarations<'s, 'a, 'f>],
-    core: core::Roles,
+    core: &'b ImportedCoreFundamentalTypeProtocol,
+    any: PersistentTypeId,
 }
 impl<'b, 's, 'a, 'f> DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
     pub fn new(
         current: &'b Declarations<'s, 'a, 'f>,
         dependencies: &'b [&'b Declarations<'s, 'a, 'f>],
-        core_foundation: &ImportedHirFoundation,
-        core: &ImportedCoreFundamentalTypeProtocol,
+        core: &'b ImportedCoreFundamentalTypeProtocol,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let path = WirePath::root();
         meter.check_semantic_depth(1, &path)?;
         meter.charge_nodes(1, &path)?;
         providers::validate(current, dependencies, meter)?;
-        let core = core::Roles::bind(core_foundation, core, current.foundation.identities, meter)?;
+        meter.charge_owned_bytes(128, &path)?;
+        meter.charge_sha256(256, &path)?;
+        let any = scoop_identity::CoreBuiltinNominal::Any
+            .identity_record()
+            .id();
         Ok(Self {
             current,
             dependencies,
             core,
+            any,
         })
     }
 

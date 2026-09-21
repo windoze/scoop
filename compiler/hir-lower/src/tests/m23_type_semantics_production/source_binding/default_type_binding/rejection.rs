@@ -126,7 +126,7 @@ fn default_type_binding_rejects_another_bound_foundation_and_missing_access_sour
             let access = other
                 .bind_default_access_declarations(&inputs.access, &inputs.required, &mut meter())
                 .unwrap();
-            let domains = Domains::new(&access, &[], inputs.core, inputs.core_types, &mut meter()).unwrap();
+            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
             let error = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap_err();
             assert!(matches!(error, Error::Foundation { expected, actual } if expected == actual));
 
@@ -134,7 +134,7 @@ fn default_type_binding_rejects_another_bound_foundation_and_missing_access_sour
             let access = foundation
                 .bind_default_access_declarations(&empty, &BTreeSet::new(), &mut meter())
                 .unwrap();
-            let domains = Domains::new(&access, &[], inputs.core, inputs.core_types, &mut meter()).unwrap();
+            let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
             let error = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap_err();
             assert!(matches!(error, Error::Target { error, .. } if matches!(*error, hir::DefaultSourceTypeDomainError::Access(_))));
         });

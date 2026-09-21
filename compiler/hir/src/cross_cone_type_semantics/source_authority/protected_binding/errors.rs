@@ -10,7 +10,6 @@ pub enum InheritanceProtectedCallableBindingError {
     Semantic(Box<ProtectedCallableSemanticError<Self>>),
     Identity(String),
     Inventory,
-    CoreUnit,
     MissingKey(CallableTemplateOrigin),
     MissingSource(CallableTemplateOrigin),
     MissingProperty(PersistentPropertyId),
@@ -54,7 +53,6 @@ impl fmt::Display for InheritanceProtectedCallableBindingError {
             Self::Inventory => {
                 f.write_str("protected callable sources differ from the required inventory")
             }
-            Self::CoreUnit => f.write_str("protected callable Unit role is not from trusted core"),
             Self::MissingKey(id) => write!(
                 f,
                 "protected callable {id:?} is absent from the owning foundation"

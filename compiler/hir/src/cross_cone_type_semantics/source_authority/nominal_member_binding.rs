@@ -9,7 +9,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod access;
 mod contracts;
-mod core;
 mod errors;
 mod inventory;
 mod keys;
@@ -60,7 +59,6 @@ impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
             proofs: BTreeMap::new(),
             core,
         };
-        core::validate(&bound, core.unit().persistent(), meter)?;
         contracts::prepare(&mut bound, meter)?;
         let entries = self.foundation.source().entries();
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(

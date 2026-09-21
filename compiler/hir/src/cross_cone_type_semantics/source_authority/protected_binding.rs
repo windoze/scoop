@@ -47,20 +47,6 @@ impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
         inventory::validate(self, callables, meter)?;
         let keys = keys::bind(self, callables, meter)?;
         let unit = core.unit().persistent();
-        meter.charge_work(1, &WirePath::root())?;
-        let unit_key = self
-            .foundation
-            .identities
-            .canonical_key::<PersistentTypeId, SourceDeclarationKey>(unit)
-            .map_err(|error| Error::Identity(error.to_string()))?;
-        NominalRepresentationSupportV1::charge_source_key_resources(
-            &unit_key,
-            meter,
-            &WirePath::root(),
-        )?;
-        if unit_key.origin() != ConeIdentity::CORE {
-            return Err(Error::CoreUnit);
-        }
         let mut bound = BoundInheritanceProtectedCallableSourcesV1 {
             foundation: self.foundation,
             inventory: self.inventory,

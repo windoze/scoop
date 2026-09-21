@@ -79,10 +79,6 @@ fn slot_role_binding_and_replay_share_resource_limits() {
                 semantic_recursion: 0,
                 ..DecodeLimits::default()
             },
-            DecodeLimits {
-                semantic_leaf_bytes: 0,
-                ..DecodeLimits::default()
-            },
         ] {
             assert!(matches!(
                 dispatch.bind_slot_sources(

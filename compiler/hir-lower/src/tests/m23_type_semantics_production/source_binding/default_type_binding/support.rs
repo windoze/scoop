@@ -8,7 +8,6 @@ pub(super) struct Inputs<'a> {
     pub output: &'a hir::OrdinaryHirOutput<'a>,
     pub fixture: &'a Fixture,
     pub sources: &'a Sources,
-    pub core: &'a hir::ImportedHirFoundation,
     pub core_types: &'a hir::ImportedCoreFundamentalTypeProtocol,
     pub templates: hir::CanonicalDefaultSourceTemplatesV1,
     pub access: Access,
@@ -85,7 +84,6 @@ pub(super) fn with_inputs(source: &str, run: impl FnOnce(&Inputs<'_>)) {
             output,
             fixture: &fixture,
             sources: &sources,
-            core: &core.foundation,
             core_types: inputs.protocols().fundamental_types(),
             templates,
             access,
@@ -106,7 +104,7 @@ impl Inputs<'_> {
         let access = foundation
             .bind_default_access_declarations(&self.access, &self.required, &mut meter())
             .unwrap();
-        let domains = Domains::new(&access, &[], self.core, self.core_types, &mut meter()).unwrap();
+        let domains = Domains::new(&access, &[], self.core_types, &mut meter()).unwrap();
         self.sources
             .with_bound(&foundation, self.core_types, |members, constructors| {
                 let parameters = members

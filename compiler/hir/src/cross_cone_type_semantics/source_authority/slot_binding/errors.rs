@@ -8,7 +8,6 @@ pub enum InheritanceSlotSourceBindingError {
     Dispatch(Box<InheritanceDispatchBindingError>),
     Graph(Box<InheritanceGraphError<TypeFoundationBindingError>>),
     Identity(String),
-    CoreUnit,
 }
 impl InheritanceSlotSourceBindingError {
     pub(super) fn from_graph(error: InheritanceGraphError<TypeFoundationBindingError>) -> Self {
@@ -47,7 +46,6 @@ impl fmt::Display for InheritanceSlotSourceBindingError {
             Self::Dispatch(error) => error.fmt(f),
             Self::Graph(error) => error.fmt(f),
             Self::Identity(error) => error.fmt(f),
-            Self::CoreUnit => f.write_str("slot Unit role differs from the bound trusted core"),
         }
     }
 }
