@@ -28,6 +28,18 @@ impl ExportDefaultBodyV1 {
         walk::validate(self, provider, authority, meter, path)
     }
 
+    /// Validates the complete provider type envelope without reinterpreting
+    /// origins. Used only after artifact-bound source-origin validation.
+    pub(crate) fn validate_provider_types_semantics<A: NominalInterfaceShapeAuthority<E>, E>(
+        &self,
+        provider: DefaultTemplateProviderShapeV1,
+        authority: &mut A,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+        walk::validate_types(self, provider, authority, meter, path)
+    }
+
     /// Visits every inline definition source using the same complete,
     /// resource-bounded traversal as provider-envelope validation.
     pub(crate) fn visit_definition_sources(

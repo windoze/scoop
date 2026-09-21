@@ -5,6 +5,7 @@ use hir::{DefaultSourceDeclarationBindingError as Error, DefaultSourceTemplateV1
 use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKey};
 
 mod corruption;
+mod envelope;
 mod providers;
 mod resources;
 const SOURCE: &str = include_str!(concat!(
@@ -41,6 +42,7 @@ fn default_declarations_join_real_artifact_sources_for_every_parameter_owner() {
     for source in [
         "public class Empty {}",
         SOURCE,
+        envelope::SOURCE,
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../tests/fixtures/m23-type-source-defaults/origin-binding.scoop"

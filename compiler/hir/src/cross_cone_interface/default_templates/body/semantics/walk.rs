@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use scoop_identity::SignatureTypeKey;
 use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 
@@ -20,12 +18,16 @@ use crate::{
     DefaultTemplateProviderShapeV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
     DefaultWhenGuardV1, DefaultWhenV1, ExportDefaultBodyV1,
     ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
-    MeteredSignatureTypeSemanticError, NominalInterfaceShapeAuthority,
+    NominalInterfaceShapeAuthority,
 };
 
 mod expression;
 mod nested;
+mod nodes;
+use nodes::{BodyNode, WorkItem};
 mod origin;
+mod semantics;
+use semantics::SemanticValidation;
 mod statement;
 
 pub(super) fn validate<A, E>(
@@ -42,7 +44,36 @@ where
         mode: SemanticValidation::<A, E> {
             scope: provider.signature_scope(),
             authority,
-            error: PhantomData,
+            origin: |authority, source, site| {
+                source.validate_semantics(authority).map_err(|error| {
+                    DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
+                        site,
+                        definition_origin: Box::new(source.clone()),
+                        error: Box::new(error),
+                    }
+                })
+            },
+        },
+        meter,
+        path,
+    }
+    .run(body)
+}
+
+/// Reuses the full typed walk after the caller has bound every origin occurrence.
+pub(super) fn validate_types<A: NominalInterfaceShapeAuthority<E>, E>(
+    body: &ExportDefaultBodyV1,
+    provider: DefaultTemplateProviderShapeV1,
+    authority: &mut A,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>> {
+    Validator {
+        mode: SemanticValidation {
+            scope: provider.signature_scope(),
+            authority,
+            // This pass consumes types only; origin binding is a separate input proof.
+            origin: |_, _, _| Ok(()),
         },
         meter,
         path,
@@ -102,85 +133,6 @@ pub(super) trait BodyWalkMode {
         _meter: &mut BudgetMeter,
         _path: &WirePath,
     ) -> Result<(), Self::Error>;
-}
-
-struct SemanticValidation<'a, A, E> {
-    scope: crate::SignatureBinderScopeV1,
-    authority: &'a mut A,
-    error: PhantomData<fn() -> E>,
-}
-
-impl<A, E> BodyWalkMode for SemanticValidation<'_, A, E>
-where
-    A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
-{
-    type Error = DefaultBodyProviderEnvelopeSemanticValidationError<E>;
-
-    fn resource(error: WireError) -> Self::Error {
-        DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error)
-    }
-
-    fn validate_type(
-        &mut self,
-        signature: &SignatureTypeKey,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &ExportDefinitionSourceV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), Self::Error> {
-        match self.scope.validate_signature_semantics_metered(
-            signature,
-            self.authority,
-            meter,
-            path,
-        ) {
-            Ok(()) => Ok(()),
-            Err(MeteredSignatureTypeSemanticError::Semantic(error)) => {
-                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Type {
-                    site,
-                    definition_origin: Box::new(definition_origin.clone()),
-                    error: Box::new(error),
-                })
-            }
-            Err(MeteredSignatureTypeSemanticError::Resource(error)) => {
-                Err(DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error))
-            }
-        }
-    }
-
-    fn validate_binder(
-        &mut self,
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &ExportDefinitionSourceV1,
-    ) -> Result<(), Self::Error> {
-        self.scope
-            .validate(&SignatureTypeKey::Binder { depth, index })
-            .map_err(
-                |error| DefaultBodyProviderEnvelopeSemanticValidationError::Binder {
-                    site,
-                    definition_origin: Box::new(definition_origin.clone()),
-                    error,
-                },
-            )
-    }
-
-    fn visit_origin(
-        &mut self,
-        source: &ExportDefinitionSourceV1,
-        site: DefaultBodyOriginSiteV1,
-        _meter: &mut BudgetMeter,
-        _path: &WirePath,
-    ) -> Result<(), Self::Error> {
-        source.validate_semantics(self.authority).map_err(|error| {
-            DefaultBodyProviderEnvelopeSemanticValidationError::Origin {
-                site,
-                definition_origin: Box::new(source.clone()),
-                error: Box::new(error),
-            }
-        })
-    }
 }
 
 pub(super) struct Validator<'a, M> {
@@ -489,155 +441,6 @@ where
         }
         Ok(())
     }
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum WorkItem<'a> {
-    Body {
-        node: BodyNode<'a>,
-        depth: u64,
-    },
-    Type {
-        signature: &'a SignatureTypeKey,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum BodyNode<'a> {
-    Body(&'a ExportDefaultBodyV1),
-    Statement(&'a DefaultStatementV1),
-    Expression(&'a DefaultExpressionV1),
-    Pattern {
-        pattern: &'a DefaultPatternV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    AssignTarget {
-        target: &'a DefaultAssignTargetV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    When {
-        value: &'a DefaultWhenV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    WhenArm(&'a DefaultWhenArmV1),
-    WhenGuard {
-        guard: &'a DefaultWhenGuardV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    WhenFallback {
-        fallback: &'a DefaultWhenFallbackV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    Try {
-        value: &'a DefaultTryV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    Catch(&'a DefaultCatchV1),
-    For {
-        plan: &'a DefaultForIterationPlanV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingPlan {
-        plan: &'a DefaultBindingPlanV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingAction(&'a DefaultBindingActionV1),
-    BindingShape {
-        shape: &'a DefaultBindingShapeV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingTemporary {
-        temporary: &'a DefaultBindingTemporaryV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingLeaf {
-        leaf: &'a DefaultBindingLeafV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BindingProjection {
-        projection: &'a DefaultBindingProjectionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    IteratorConformance(&'a DefaultIteratorConformanceV1),
-    IteratorNext(&'a DefaultIteratorNextV1),
-    AppliedOption {
-        option: &'a DefaultAppliedOptionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    LocalFunction {
-        function: &'a DefaultLocalFunctionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    Lambda {
-        lambda: &'a DefaultLambdaV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    AnonymousFunction {
-        function: &'a DefaultAnonymousFunctionV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    CallableReference {
-        reference: &'a DefaultCallableReferenceV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    Capture(&'a DefaultCaptureV1),
-    CallableRef {
-        callable: &'a DefaultCallableRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BoundCallableRef {
-        callable: &'a DefaultBoundCallableRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    BoundCallableSource {
-        source: &'a DefaultBoundCallableSourceV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    MethodCallee {
-        callee: &'a DefaultMethodCalleeV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    ConstructorRef {
-        constructor: &'a DefaultConstructorRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    EnumVariantRef {
-        variant: &'a DefaultEnumVariantRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    EnumVariantFieldRef {
-        field: &'a DefaultEnumVariantFieldRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    FieldRef {
-        field: &'a DefaultFieldRefV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    LiteralEquality {
-        equality: &'a DefaultLiteralEqualityV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    ArrayAssembly {
-        assembly: &'a DefaultArrayAssemblyV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    IntegerOperation {
-        operation: &'a DefaultIntegerOperationV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    IntegerArguments(&'a DefaultIntegerArgumentsV1),
-    Binder {
-        depth: u32,
-        index: u32,
-        site: DefaultBodyProviderTypeSiteV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
-    Origin {
-        source: &'a ExportDefinitionSourceV1,
-        site: DefaultBodyOriginSiteV1,
-    },
 }
 
 fn integer_out_of_range(path: &WirePath) -> WireError {

@@ -103,6 +103,7 @@ pub(super) fn validate<'d>(
     {
         return Err(Error::SuspendPermission);
     }
+    super::envelope::validate(template, provider_binders, &mut shapes, meter, path)?;
     Ok(DefaultSourceDeclaredContractV1 {
         key,
         definition_root: root,

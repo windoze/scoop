@@ -1,0 +1,5 @@
+public class TypeEnvelopeHost {
+    internal fun scoped(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value
+    protected fun capture(seed: String, value: () -> String = { seed }): () -> String = value
+    internal fun <T> genericCapture(seed: T, value: () -> T = { seed }): () -> T = value
+}

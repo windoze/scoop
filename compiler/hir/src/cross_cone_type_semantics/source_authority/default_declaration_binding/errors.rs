@@ -35,6 +35,14 @@ pub enum DefaultSourceDeclarationBindingError {
     ParameterType {
         index: usize,
     },
+    LocalScope(TemplateLocalScopeValidationError),
+    LocalType {
+        index: usize,
+        error: Box<MeteredSignatureTypeSemanticError<NominalSourceBindingError>>,
+    },
+    BodyEnvelope(
+        Box<DefaultBodyProviderEnvelopeSemanticValidationError<NominalSourceBindingError>>,
+    ),
     ResultType,
     SuspendPermission,
 }
@@ -110,6 +118,11 @@ impl std::fmt::Display for Error {
                 f,
                 "default source parameter {index} differs after provider substitution"
             ),
+            Self::LocalScope(error) => error.fmt(f),
+            Self::LocalType { index, error } => {
+                write!(f, "default source local {index} type: {error}")
+            }
+            Self::BodyEnvelope(error) => error.fmt(f),
             Self::ResultType => {
                 f.write_str("default source result differs from its original provider parameter")
             }
