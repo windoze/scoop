@@ -1,8 +1,8 @@
 //! Mechanical callable ABI projection from a sealed MIR/LIR lowering pair.
 
 use scoop_identity::{
-    CallableBodyKey, CoreBuiltinNominal, ExactCallableSignature, ExactTypeKey,
-    PersistentCallableBodyId, PersistentExactTypeId, StrongCallableDefinitionOwner,
+    CoreBuiltinNominal, ExactCallableSignature, ExactTypeKey, PersistentExactTypeId,
+    StrongCallableDefinitionOwner,
 };
 use scoop_lir as lir;
 use scoop_mir as mir;
@@ -23,34 +23,25 @@ pub fn lower_exact_callable_abi_export(
     if input.module().cone != output.foundation().producer() {
         return Err(ExactCallableAbiLoweringError::Provider);
     }
-    let bridges = input.production().strong_callable_bridges().bridges();
-    meter.charge_work(bridges.len() as u64, &path)?;
-    let bridge = bridges
-        .iter()
-        .find(|bridge| bridge.implementation() == target.callable_owner())
-        .ok_or(ExactCallableAbiLoweringError::MissingMirSignature)?;
-    if bridge.signature() != signature.exact() {
-        return Err(ExactCallableAbiLoweringError::MirSignature);
-    }
-    let roots = input.materialization().callable_roots();
-    meter.charge_work(roots.len() as u64, &path)?;
-    let root = roots
-        .iter()
-        .find(|root| root.implementation() == target.callable_owner())
-        .ok_or(ExactCallableAbiLoweringError::MissingMirBody)?;
-    let function = &input.module().functions[root.function()];
+    meter.charge_work(
+        input.production().strong_callable_bridges().bridges().len() as u64,
+        &path,
+    )?;
+    meter.charge_work(input.materialization().callable_roots().len() as u64, &path)?;
+    meter.charge_work(output.module().functions.len() as u64, &path)?;
+    let materialized = crate::callable_abi::LocalCallableMaterialization::resolve(
+        input,
+        &output.module().functions,
+        target,
+        signature.exact(),
+    )
+    .map_err(ExactCallableAbiLoweringError::Materialization)?;
+    let function = materialized.mir;
+    let physical = materialized.lir;
     validate_source_signature(input.module(), function, signature.exact(), meter)?;
     if function.gc_effect != signature.gc_effect() {
         return Err(ExactCallableAbiLoweringError::GcEffect);
     }
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
-    meter.charge_work(output.module().functions.len() as u64, &path)?;
-    let physical = output
-        .module()
-        .functions
-        .iter()
-        .find(|function| function.callable_body.id() == body)
-        .ok_or(ExactCallableAbiLoweringError::MissingLirBody)?;
     validate_physical_types(function, &physical.signature, meter)?;
     let protocol = match signature.gc_effect() {
         mir::GcEffect::Managed => lir::ExactCallableProtocolV1::OrdinaryManaged,
@@ -190,11 +181,9 @@ fn exact_type(
 #[derive(Debug)]
 pub enum ExactCallableAbiLoweringError {
     Provider,
+    Materialization(crate::CallableAbiProjectionError),
     CountOverflow,
-    MissingMirSignature,
     MirSignature,
-    MissingMirBody,
-    MissingLirBody,
     MissingExactType,
     PhysicalType,
     Definition,
@@ -222,4 +211,15 @@ impl std::fmt::Display for ExactCallableAbiLoweringError {
         write!(formatter, "exact callable ABI projection failed: {self:?}")
     }
 }
-impl std::error::Error for ExactCallableAbiLoweringError {}
+impl std::error::Error for ExactCallableAbiLoweringError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Materialization(source) => Some(source),
+            Self::Abi(source) => Some(source),
+            Self::Physical(source) => Some(source),
+            Self::Hash(source) => Some(source),
+            Self::Resource(source) => Some(source),
+            _ => None,
+        }
+    }
+}

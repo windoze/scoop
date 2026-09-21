@@ -3,8 +3,8 @@
 use std::fmt;
 
 use crate::{
-    CallableAbiBuildError, CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
-    ConeIdentity, DecodedCallableAbiRecordV1, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
+    CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError, ConeIdentity,
+    DecodedCallableAbiRecordV1, OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1,
 };
 use scoop_identity::ValidatedIdentityGraph;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
@@ -205,7 +205,6 @@ impl WireDecode for DecodedCoreLirBridgeBranchV1 {
 
 #[derive(Debug)]
 pub enum CoreLirBridgeBuildError {
-    Callable(CallableAbiBuildError),
     Definition(CallableAbiValidationError),
     ProducerBranchMismatch,
 }
@@ -219,7 +218,6 @@ impl fmt::Display for CoreLirBridgeBuildError {
 impl std::error::Error for CoreLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Callable(error) => Some(error),
             Self::Definition(error) => Some(error),
             Self::ProducerBranchMismatch => None,
         }

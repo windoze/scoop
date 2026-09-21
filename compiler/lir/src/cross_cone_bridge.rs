@@ -45,7 +45,9 @@ impl ParamFreeLirCallableExportV1 {
         )
     }
 
-    pub(crate) fn from_abi(
+    /// Attaches a declared callable to its complete, already constructed ABI.
+    /// The declaration must identify exactly this implementation.
+    pub fn from_abi(
         declaration: DependencyCallableDeclarationId,
         callable: CallableAbiRecordV1,
     ) -> Result<Self, ParamFreeLirCallableBuildError> {

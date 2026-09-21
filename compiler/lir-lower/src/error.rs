@@ -58,11 +58,8 @@ pub enum StrongLirLoweringError {
     RuntimeStringDescriptorOwnership {
         producer: scoop_identity::ConeIdentity,
     },
-    MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableReceiver(scoop_identity::CallableOwner),
-    UnsupportedCoreCallableOwner(scoop_identity::CallableOwner),
-    CoreLirBridge(lir::CoreLirBridgeBuildError),
+    InvalidInitializationCallable(scoop_identity::CallableOwner),
+    CallableAbi(crate::CallableAbiProjectionError),
     Output(lir::SingleConeStrongLirOutputError),
 }
 
@@ -72,7 +69,7 @@ impl fmt::Display for StrongLirLoweringError {
             Self::Capability(source) => source.fmt(formatter),
             Self::StorageReplay(source) => source.fmt(formatter),
             Self::ExternalCallable(source) => source.fmt(formatter),
-            Self::CoreLirBridge(source) => source.fmt(formatter),
+            Self::CallableAbi(source) => source.fmt(formatter),
             Self::RuntimeStringExactMismatch { mir, lir } => write!(
                 formatter,
                 "runtime String exact type mismatch: MIR requires {mir}, LIR provides {lir}"
@@ -131,23 +128,9 @@ impl fmt::Display for StrongLirLoweringError {
                 formatter,
                 "Cone {producer} has an invalid local/external runtime String TypeDescriptor branch"
             ),
-            Self::MissingCoreCallableMaterialization(owner) => {
-                write!(
-                    formatter,
-                    "core callable {owner:?} has no strong materialization"
-                )
-            }
-            Self::UnsupportedCoreCallableEffect(owner) => write!(
+            Self::InvalidInitializationCallable(owner) => write!(
                 formatter,
-                "core callable {owner:?} has an unsupported suspend ABI"
-            ),
-            Self::UnsupportedCoreCallableReceiver(owner) => write!(
-                formatter,
-                "core callable {owner:?} has an unsupported receiver ABI"
-            ),
-            Self::UnsupportedCoreCallableOwner(owner) => write!(
-                formatter,
-                "core callable {owner:?} has no strong definition owner"
+                "initialization service {owner:?} must be an ordinary function without a receiver"
             ),
             Self::Output(source) => source.fmt(formatter),
         }
@@ -160,9 +143,9 @@ impl std::error::Error for StrongLirLoweringError {
             Self::Capability(source) => Some(source),
             Self::StorageReplay(source) => Some(source),
             Self::ExternalCallable(source) => Some(source),
-            Self::CoreLirBridge(source) => Some(source),
+            Self::CallableAbi(source) => Some(source),
             Self::Output(source) => Some(source),
-            Self::MissingCoreCallableMaterialization(_)
+            Self::InvalidInitializationCallable(_)
             | Self::RuntimeStringExactMismatch { .. }
             | Self::ForeignExternalLirSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }
@@ -172,10 +155,7 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::MissingExternalArgumentType { .. }
             | Self::MissingExternalResultType { .. }
             | Self::MissingRuntimeStringDescriptor { .. }
-            | Self::RuntimeStringDescriptorOwnership { .. }
-            | Self::UnsupportedCoreCallableEffect(_)
-            | Self::UnsupportedCoreCallableReceiver(_)
-            | Self::UnsupportedCoreCallableOwner(_) => None,
+            | Self::RuntimeStringDescriptorOwnership { .. } => None,
         }
     }
 }

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use scoop_identity::{DependencyCallableDeclarationId, StrongCallableDefinitionOwner};
+use scoop_identity::DependencyCallableDeclarationId;
 use scoop_lir as lir;
 use scoop_mir as mir;
 
@@ -107,103 +107,23 @@ fn lower_export(
 ) -> Result<lir::ParamFreeLirCallableExportV1, CrossConeLirBridgeLoweringError> {
     let declaration = export.declaration();
     let implementation = export.implementation();
-    let callable_owner = implementation.callable_owner();
-    let strong = input
-        .production()
-        .strong_callable_bridges()
-        .bridges()
-        .iter()
-        .find(|bridge| bridge.implementation() == callable_owner)
-        .ok_or(CrossConeLirBridgeLoweringError::MissingMirSignature { declaration })?;
-    if strong.signature() != export.signature() {
-        return Err(CrossConeLirBridgeLoweringError::MirSignatureMismatch { declaration });
-    }
-    let root = input
-        .materialization()
-        .callable_roots()
-        .iter()
-        .find(|root| root.implementation() == callable_owner)
-        .ok_or(CrossConeLirBridgeLoweringError::MissingMirMaterialization { declaration })?;
-    let mir_function = &input.module().functions[root.function()];
-    let body = callable_body_identity(implementation)
-        .map_err(
-            |source| CrossConeLirBridgeLoweringError::CallableBodyIdentity {
-                declaration,
-                source: Box::new(source),
-            },
-        )?
-        .id();
-    let lir_function = output
-        .module()
-        .functions
-        .iter()
-        .find(|function| function.callable_body.id() == body)
-        .ok_or(CrossConeLirBridgeLoweringError::MissingLirBody { declaration })?;
-    let gc_effect_matches = matches!(
-        (mir_function.gc_effect, lir_function.gc_effect),
-        (mir::GcEffect::Managed, lir::GcEffect::Managed)
-            | (mir::GcEffect::NoGc, lir::GcEffect::NoGc)
-    );
-    if !gc_effect_matches {
-        return Err(CrossConeLirBridgeLoweringError::GcEffectMismatch { declaration });
-    }
-    if lir_function.signature.calling_convention() != lir::CallingConvention::Cdecl {
-        return Err(CrossConeLirBridgeLoweringError::CallingConventionMismatch { declaration });
-    }
-    if mir_function.params.len() != lir_function.signature.arguments().len() {
-        return Err(CrossConeLirBridgeLoweringError::ArgumentCountMismatch {
-            declaration,
-            mir: mir_function.params.len(),
-            lir: lir_function.signature.arguments().len(),
-        });
-    }
-
-    let abi_signature = crate::native_abi::canonical_scoop_signature(
-        input.module(),
-        &output.module().enums,
-        export.signature().clone(),
-        &mir_function
-            .params
-            .iter()
-            .map(|parameter| parameter.ty.clone())
-            .collect::<Vec<_>>(),
-        &mir_function.return_ty,
-        mir_function.gc_effect,
-        &lir_function.signature,
-    );
-    let root_plan = match lir_function.gc_effect {
-        lir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
-        lir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
-    };
-    lir::ParamFreeLirCallableExportV1::new(
-        input.module().cone,
-        declaration,
+    let callable = crate::callable_abi::LocalCallableMaterialization::resolve(
+        input,
+        &output.module().functions,
         implementation,
-        abi_signature,
-        lir_function.signature.calling_convention(),
-        root_plan,
+        export.signature(),
     )
-    .map_err(|source| CrossConeLirBridgeLoweringError::Export {
+    .and_then(|body| body.abi_record(&output.module().enums))
+    .map_err(|source| CrossConeLirBridgeLoweringError::CallableAbi {
         declaration,
-        source: Box::new(source),
+        source,
+    })?;
+    lir::ParamFreeLirCallableExportV1::from_abi(declaration, callable).map_err(|source| {
+        CrossConeLirBridgeLoweringError::Export {
+            declaration,
+            source: Box::new(source),
+        }
     })
-}
-
-fn callable_body_identity(
-    owner: StrongCallableDefinitionOwner,
-) -> Result<lir::CallableBodyIdentity, lir::CallableBodyIdentityBuildError> {
-    match owner {
-        StrongCallableDefinitionOwner::Function(id) => lir::CallableBodyIdentity::for_function(id),
-        StrongCallableDefinitionOwner::Constructor(id) => {
-            lir::CallableBodyIdentity::for_constructor(id)
-        }
-        StrongCallableDefinitionOwner::PropertyAccessor(id) => {
-            lir::CallableBodyIdentity::for_property_accessor(id)
-        }
-        StrongCallableDefinitionOwner::GeneratedCallable(id) => {
-            lir::CallableBodyIdentity::for_generated_callable(id)
-        }
-    }
 }
 
 fn lower_selected(
@@ -259,12 +179,7 @@ fn lower_selected(
                 actual.target(),
                 actual.canonical_signature().clone(),
                 actual.calling_convention(),
-                match actual.root_plan() {
-                    lir::ExternalCallableRootPlan::ManagedStatepoint => {
-                        lir::ExternalCallableRootPlan::ManagedStatepoint
-                    }
-                    lir::ExternalCallableRootPlan::NoGc => lir::ExternalCallableRootPlan::NoGc,
-                },
+                actual.root_plan(),
             )
             .map_err(|source| CrossConeLirBridgeLoweringError::Selected {
                 index,
@@ -295,32 +210,9 @@ pub enum CrossConeLirBridgeLoweringError {
     MirSelectionMismatch {
         index: usize,
     },
-    MissingMirSignature {
+    CallableAbi {
         declaration: DependencyCallableDeclarationId,
-    },
-    MirSignatureMismatch {
-        declaration: DependencyCallableDeclarationId,
-    },
-    MissingMirMaterialization {
-        declaration: DependencyCallableDeclarationId,
-    },
-    CallableBodyIdentity {
-        declaration: DependencyCallableDeclarationId,
-        source: Box<lir::CallableBodyIdentityBuildError>,
-    },
-    MissingLirBody {
-        declaration: DependencyCallableDeclarationId,
-    },
-    GcEffectMismatch {
-        declaration: DependencyCallableDeclarationId,
-    },
-    CallingConventionMismatch {
-        declaration: DependencyCallableDeclarationId,
-    },
-    ArgumentCountMismatch {
-        declaration: DependencyCallableDeclarationId,
-        mir: usize,
-        lir: usize,
+        source: crate::CallableAbiProjectionError,
     },
     Export {
         declaration: DependencyCallableDeclarationId,
@@ -349,7 +241,7 @@ impl fmt::Display for CrossConeLirBridgeLoweringError {
 impl std::error::Error for CrossConeLirBridgeLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::CallableBodyIdentity { source, .. } => Some(source.as_ref()),
+            Self::CallableAbi { source, .. } => Some(source),
             Self::Export { source, .. } | Self::Selected { source, .. } => Some(source.as_ref()),
             Self::Bridge(source) => Some(source.as_ref()),
             Self::MirArtifactMismatch { .. }
@@ -357,13 +249,6 @@ impl std::error::Error for CrossConeLirBridgeLoweringError {
             | Self::Allocation { .. }
             | Self::MirSelectionCountMismatch { .. }
             | Self::MirSelectionMismatch { .. }
-            | Self::MissingMirSignature { .. }
-            | Self::MirSignatureMismatch { .. }
-            | Self::MissingMirMaterialization { .. }
-            | Self::MissingLirBody { .. }
-            | Self::GcEffectMismatch { .. }
-            | Self::CallingConventionMismatch { .. }
-            | Self::ArgumentCountMismatch { .. }
             | Self::LirSelectionCountMismatch { .. }
             | Self::LirSelectionMismatch { .. } => None,
         }

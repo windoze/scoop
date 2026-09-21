@@ -4,6 +4,7 @@ mod support;
 
 use support::*;
 
+mod callable_abi;
 mod dependency_external;
 mod exact_callable_abi;
 mod exact_layouts;

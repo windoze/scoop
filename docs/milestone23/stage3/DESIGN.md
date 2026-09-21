@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI继续重放自己的layout/physical证明，但不再重复查找MIR/LIR函数；其resource meter在共有查找前按相同表长度计量，不免除预算。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。
+
 2026-09-22 当前LIR清理约定：初始化发布、外部调用与普通依赖共用CallableAbiRecordV1及ExternalCallableRootPlan；普通调用桥wire为declaration与完整ABI record组成的两字段product，旧七字段格式拒绝。provider显式输入共有identity/definition推导，初始化外层角色仍明确保存。
 
 2026-09-22 当前清理约定：MIR production 删除独立 CoreMirBridge 与字段1；所有 strong callable 记录使用必需 CallableRole，初始化声明与实现只保存在共有记录中。HIR 协议、MIR foundation 与 LIR 投影按同一 typed 实现和签名核对，旧记录格式拒绝并重建；详见实现规范的当前约定。

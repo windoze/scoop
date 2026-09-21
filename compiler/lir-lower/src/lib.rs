@@ -143,6 +143,9 @@ mod capability;
 use capability::validate_strong_materialization;
 pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequirement};
 
+mod callable_abi;
+pub use callable_abi::CallableAbiProjectionError;
+
 mod cross_cone_bridge;
 pub use cross_cone_bridge::{CrossConeLirBridgeLoweringError, lower_cross_cone_bridge_section};
 
@@ -396,8 +399,7 @@ pub fn lower(
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
         .collect::<StorageResult<Vec<_>>>()?;
 
-    let core_lir_bridge =
-        lower_core_lir_bridge(input, module, &functions, &enums, &local_function_map)?;
+    let core_lir_bridge = callable_abi::lower_initialization_abi(input, &functions, &enums)?;
 
     let layouts = layouts(
         &context,
@@ -448,99 +450,6 @@ pub fn lower(
         core_lir_bridge,
     )
     .map_err(StrongLirLoweringError::Output)
-}
-
-fn lower_core_lir_bridge(
-    input: &mir::SingleConeStrongMirInput,
-    module: &mir::Module,
-    functions: &[lir::Function],
-    enums: &lir::EnumDefs,
-    local_function_map: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
-) -> Result<lir::CoreLirBridgeBranchV1, StrongLirLoweringError> {
-    let Some(cycle) = input
-        .production()
-        .strong_callable_bridges()
-        .initialization_cycle()
-    else {
-        return Ok(lir::CoreLirBridgeBranchV1::NotCore);
-    };
-    let cycle_implementation = cycle.implementation();
-    let cycle_root = input
-        .materialization()
-        .callable_roots()
-        .iter()
-        .find(|root| root.implementation() == cycle_implementation)
-        .ok_or(StrongLirLoweringError::MissingCoreCallableMaterialization(
-            cycle_implementation,
-        ))?;
-    let cycle_exact = cycle.signature();
-    if cycle_exact.effect() != scoop_identity::Effect::Ordinary {
-        return Err(StrongLirLoweringError::UnsupportedCoreCallableEffect(
-            cycle_implementation,
-        ));
-    }
-    if cycle_exact.receiver().is_present() {
-        return Err(StrongLirLoweringError::UnsupportedCoreCallableReceiver(
-            cycle_implementation,
-        ));
-    }
-    let cycle_function = &module.functions[cycle_root.function()];
-    let cycle_lowered = &functions[local_function_map[&cycle_root.function()]
-        .declaration()
-        .into_u32() as usize];
-    let cycle_owner = strong_callable_owner(cycle_implementation).ok_or(
-        StrongLirLoweringError::UnsupportedCoreCallableOwner(cycle_implementation),
-    )?;
-    let cycle_abi_signature = native_abi::canonical_scoop_signature(
-        module,
-        enums,
-        cycle_exact.clone(),
-        &cycle_function
-            .params
-            .iter()
-            .map(|parameter| parameter.ty.clone())
-            .collect::<Vec<_>>(),
-        &cycle_function.return_ty,
-        cycle_function.gc_effect,
-        &cycle_lowered.signature,
-    );
-    let cycle_root_plan = match cycle_function.gc_effect {
-        mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
-        mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
-    };
-    let cycle = lir::CallableAbiRecordV1::new(
-        module.cone,
-        cycle_owner,
-        cycle_abi_signature,
-        cycle_lowered.signature.calling_convention(),
-        cycle_root_plan,
-    )
-    .map_err(lir::CoreLirBridgeBuildError::Callable)
-    .map_err(StrongLirLoweringError::CoreLirBridge)?;
-    Ok(lir::CoreLirBridgeBranchV1::Core(lir::CoreLirBridgeV1::new(
-        cycle,
-    )))
-}
-
-fn strong_callable_owner(
-    owner: scoop_identity::CallableOwner,
-) -> Option<scoop_identity::StrongCallableDefinitionOwner> {
-    Some(match owner {
-        scoop_identity::CallableOwner::Function(id) => {
-            scoop_identity::StrongCallableDefinitionOwner::Function(id)
-        }
-        scoop_identity::CallableOwner::Constructor(id) => {
-            scoop_identity::StrongCallableDefinitionOwner::Constructor(id)
-        }
-        scoop_identity::CallableOwner::Accessor(id) => {
-            scoop_identity::StrongCallableDefinitionOwner::PropertyAccessor(id)
-        }
-        scoop_identity::CallableOwner::Generated(id) => {
-            scoop_identity::StrongCallableDefinitionOwner::GeneratedCallable(id)
-        }
-        scoop_identity::CallableOwner::GenericTemplate(_)
-        | scoop_identity::CallableOwner::Application(_) => return None,
-    })
 }
 
 fn materialized_exact_types(

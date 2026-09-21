@@ -7,7 +7,7 @@ use scoop_identity::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::{CallingConvention, ExternalCallableRootPlan};
+use crate::{CallableAbiBuildError, CallingConvention, ExternalCallableRootPlan};
 use scoop_identity::StrongCallableDefinitionOwner;
 
 #[test]

@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::StrongCallableDefinitionOwner;
 use scoop_wire::{BudgetMeter, DecodeLimits};
 
-fn fixture() -> (
+pub(super) fn fixture() -> (
     mir::SingleConeStrongMirInput,
     lir::SingleConeStrongLirOutput,
     StrongCallableDefinitionOwner,
@@ -63,7 +63,7 @@ fn fixture() -> (
     (input, output, target, signature)
 }
 
-fn unit_layout(output: &lir::SingleConeStrongLirOutput) -> lir::ExactLayoutExportV1 {
+pub(super) fn unit_layout(output: &lir::SingleConeStrongLirOutput) -> lir::ExactLayoutExportV1 {
     let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(
         CoreBuiltinNominal::Unit.identity_record().id(),
     ))
@@ -164,6 +164,6 @@ fn callable_abi_producer_rejects_signature_and_effect_before_export() {
             },
             &mut BudgetMeter::new(DecodeLimits::default())
         ),
-        Err(ExactCallableAbiLoweringError::MirSignature)
+        Err(ExactCallableAbiLoweringError::Materialization(CallableAbiProjectionError::MirSignature(actual))) if actual == target
     ));
 }
