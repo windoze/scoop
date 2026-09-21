@@ -10,6 +10,8 @@ pub struct Function {
     pub is_suspend: bool,
     pub modifiers: CallableModifiers,
     pub params: Vec<Param>,
+    /// Hidden parameters of a named local body, independent of its use sites.
+    pub capture_parameters: Vec<LocalCaptureParameter>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
     pub kind: FunctionKind,
@@ -18,6 +20,12 @@ pub struct Function {
     /// an extension receiver or a nominal member receiver.
     pub receiver: FunctionReceiver,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalCaptureParameter {
+    pub binding: BindingId,
+    pub local: LocalId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

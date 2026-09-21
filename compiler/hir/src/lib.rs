@@ -159,6 +159,9 @@ pub use foundation::*;
 mod semantic_world;
 pub use semantic_world::*;
 
+mod default_local_values;
+pub use default_local_values::*;
+
 mod source_interfaces;
 pub use source_interfaces::*;
 

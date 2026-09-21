@@ -1,10 +1,13 @@
 use super::*;
 
+mod captures;
+
 pub(super) struct PendingFunction {
     pub(super) name: String,
     pub(super) is_suspend: bool,
     pub(super) modifiers: export::CallableModifiers,
     pub(super) params: Vec<concrete::Param>,
+    pub(super) capture_parameters: Vec<concrete::LocalCaptureParameter>,
     pub(super) return_ty: concrete::TypeId,
     pub(super) attributes: export::FunctionAttributes,
     pub(super) kind: concrete::FunctionKind,
@@ -23,6 +26,7 @@ impl PendingFunction {
             is_suspend: self.is_suspend,
             modifiers: self.modifiers,
             params: self.params,
+            capture_parameters: self.capture_parameters,
             return_ty: self.return_ty,
             attributes: self.attributes,
             kind: self.kind,
@@ -154,11 +158,13 @@ impl Concretizer<'_> {
             }
             None => concrete::FunctionReceiver::None,
         };
+        let capture_parameters = self.local_capture_parameters(source_id, &params);
         PendingFunction {
             name: source.name,
             is_suspend: source.is_suspend,
             modifiers: source.modifiers,
             params,
+            capture_parameters,
             return_ty,
             attributes: source.attributes,
             kind,

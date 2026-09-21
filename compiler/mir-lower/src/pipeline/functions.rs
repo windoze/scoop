@@ -13,19 +13,11 @@ impl Lowerer {
         let hir::FunctionKind::User(body) = &function.kind else {
             unreachable!("only user functions have MIR bodies")
         };
-        let current_local_capture_params = module
-            .local_functions
+        let current_local_capture_params = function
+            .capture_parameters
             .iter()
-            .find(|(_, local)| local.function == hir_id)
-            .map(|(_, local)| {
-                local
-                    .captures
-                    .iter()
-                    .zip(function.params.iter())
-                    .map(|(capture, param)| (capture.binding, param.local))
-                    .collect()
-            })
-            .unwrap_or_default();
+            .map(|capture| (capture.binding, capture.local))
+            .collect();
         let current_closure = self.closure_by_function.get(&hir_id).copied();
         BodyLowerer {
             module,

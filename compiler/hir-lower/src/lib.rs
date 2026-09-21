@@ -737,6 +737,7 @@ pub(crate) struct Lowerer {
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
     pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
+    pub(crate) default_local_value_scopes: Arena<hir::DefaultLocalValueScope>,
     pub(crate) export_default_sources: Arena<hir::ExportDefaultSource>,
     pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
     pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,

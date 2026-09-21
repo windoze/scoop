@@ -347,6 +347,7 @@ impl Concretizer<'_> {
                         is_infix: false,
                     },
                     params,
+                    capture_parameters: Vec::new(),
                     return_ty: self.lower_type(source_function.return_ty, substitution),
                     attributes: application.attributes,
                     kind: concrete::FunctionKind::User(body),

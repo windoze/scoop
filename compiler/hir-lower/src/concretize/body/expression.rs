@@ -444,11 +444,8 @@ impl Concretizer<'_> {
                 let (callee, function_arguments) =
                     self.lower_callable_with_arguments(*callee, substitution);
                 concrete::ExprKind::LocalFunctionCall {
-                    local_function: self.ensure_local_function(
-                        *local_function,
-                        &function_arguments,
-                        locals,
-                    ),
+                    local_function: self
+                        .ensure_local_function(*local_function, &function_arguments),
                     callee,
                     captures: captures
                         .iter()

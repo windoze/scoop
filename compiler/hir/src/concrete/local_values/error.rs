@@ -7,11 +7,10 @@ use super::{CaptureOwnerLocation, LocalValueLocation};
 #[derive(Debug)]
 pub enum LocalValueIdentityError {
     LocalFunctionRequiresBody {
-        local_function: u32,
         function: u32,
     },
     MissingCaptureParameter {
-        local_function: u32,
+        function: u32,
         capture: u32,
     },
     DuplicateCaptureParameter {
@@ -23,7 +22,7 @@ pub enum LocalValueIdentityError {
         second: LocalValueLocation,
     },
     MissingCapturedValue {
-        local_function: u32,
+        function: u32,
         capture: u32,
         binding: u32,
     },
@@ -71,19 +70,13 @@ pub enum LocalValueIdentityError {
 impl fmt::Display for LocalValueIdentityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::LocalFunctionRequiresBody {
-                local_function,
-                function,
-            } => write!(
+            Self::LocalFunctionRequiresBody { function } => write!(
                 formatter,
-                "local function {local_function} targets non-body function {function}"
+                "capture parameters target non-body function {function}"
             ),
-            Self::MissingCaptureParameter {
-                local_function,
-                capture,
-            } => write!(
+            Self::MissingCaptureParameter { function, capture } => write!(
                 formatter,
-                "local function {local_function} capture {capture} has no ABI parameter"
+                "local function {function} capture {capture} has no ABI parameter"
             ),
             Self::DuplicateCaptureParameter { function, local } => write!(
                 formatter,
@@ -94,12 +87,12 @@ impl fmt::Display for LocalValueIdentityError {
                 "local values {first:?} and {second:?} have the same owner and selector"
             ),
             Self::MissingCapturedValue {
-                local_function,
+                function,
                 capture,
                 binding,
             } => write!(
                 formatter,
-                "local function {local_function} capture {capture} references missing binding {binding}"
+                "local function {function} capture {capture} references missing binding {binding}"
             ),
             Self::MissingClosureCapture {
                 owner,

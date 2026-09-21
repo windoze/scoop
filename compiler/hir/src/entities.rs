@@ -108,6 +108,7 @@ pub struct Module {
     /// the fully materialized runtime argument list.
     pub source_parameter_interfaces: Vec<ExportParameterInterface>,
     pub export_default_exprs: Arena<ExportDefaultExpr>,
+    pub default_local_value_scopes: Arena<DefaultLocalValueScope>,
     /// Declaration-view-specific relations from a default template's type
     /// parameters to the type parameters exposed by that source interface.
     pub export_default_sources: Arena<ExportDefaultSource>,

@@ -162,7 +162,7 @@ pub struct CallTarget {
     pub callee: Callee,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CallKind {
     Direct,
     /// vtable slot (load `td` from the receiver, load `vtable[slot]`).

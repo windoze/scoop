@@ -10,6 +10,7 @@ use scoop_identity::{
 use super::*;
 
 mod constructors;
+mod defaults;
 mod lexical;
 
 #[derive(Clone, Eq, PartialEq)]
@@ -39,6 +40,7 @@ impl Concretizer<'_> {
 }
 
 pub(super) struct BuiltCallableIdentities {
+    pub(super) default_local_values: Vec<concrete::DefaultLocalValueScope>,
     pub(super) callable_applications: concrete::CallableApplicationIdentities,
     pub(super) callback_applications: concrete::CallbackApplicationIdentities,
     pub(super) function_materializations: Vec<CallableMaterialization>,
@@ -140,6 +142,7 @@ impl<'a> CallableIdentityBuilder<'a> {
         for index in 0..self.concretizer.foreign_callback_slots.len() {
             self.resolve_foreign_callback(index);
         }
+        let default_local_values = self.materialize_default_local_values();
         let function_materializations = std::mem::take(&mut self.materializations)
             .into_iter()
             .enumerate()
@@ -181,6 +184,7 @@ impl<'a> CallableIdentityBuilder<'a> {
         let foreign_callback_applications =
             complete_callback_applications(&mut self.foreign_callback_applications);
         BuiltCallableIdentities {
+            default_local_values,
             callable_applications,
             callback_applications,
             function_materializations,

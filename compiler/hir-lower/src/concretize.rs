@@ -524,8 +524,27 @@ impl<'a> Concretizer<'a> {
             });
             assert_eq!(source_id.into_raw(), value.into_raw());
         }
+        let lexical_functions = self
+            .source
+            .local_functions
+            .iter()
+            .map(|(_, local)| local.function)
+            .chain(
+                self.source
+                    .lambdas
+                    .iter()
+                    .map(|(_, lambda)| lambda.function),
+            )
+            .chain(
+                self.source
+                    .anonymous_functions
+                    .iter()
+                    .map(|(_, anonymous)| anonymous.function),
+            )
+            .collect::<std::collections::HashSet<_>>();
         for (id, function) in self.source.functions.iter() {
-            if function.method.is_none()
+            if !lexical_functions.contains(&id)
+                && function.method.is_none()
                 && function.type_param_count() == 0
                 && self.is_emittable_source_function(id)
             {
@@ -534,7 +553,8 @@ impl<'a> Concretizer<'a> {
         }
         for (_, request) in self.source.instantiations.iter() {
             let function = self.source.generic_functions[request.generic].function;
-            if !self.is_emittable_source_function(function)
+            if lexical_functions.contains(&function)
+                || !self.is_emittable_source_function(function)
                 || request
                     .type_args
                     .iter()
@@ -687,7 +707,7 @@ impl<'a> Concretizer<'a> {
                 functions: &functions,
                 lambdas: &self.lambdas,
                 anonymous_functions: &self.anonymous_functions,
-                local_functions: &self.local_functions,
+                default_local_values: &identities.default_local_values,
                 callable_references: &callable_references,
                 class_constructors: &class_constructors,
                 struct_constructors: &struct_constructors,

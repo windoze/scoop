@@ -70,7 +70,6 @@ pub struct LocalFunction {
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
-    pub captures: Vec<Capture>,
     pub span: Span,
 }
 

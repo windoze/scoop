@@ -10,8 +10,13 @@ use super::{
     AnonymousFunction, AnonymousFunctionId, BindingId, CallableApplicationIdentities,
     CallableReference, CallableReferenceId, CallableReferenceTarget, Capture, ClassConstructor,
     ClassConstructorId, ClassConstructorKind, Function, FunctionId, FunctionKind, Lambda, LambdaId,
-    LocalFunction, LocalId, StructConstructor, StructConstructorId, StructConstructorKind,
+    LocalId, StructConstructor, StructConstructorId, StructConstructorKind,
 };
+
+mod captures;
+mod defaults;
+mod references;
+pub use defaults::{DefaultLocalValueDefinition, DefaultLocalValueScope};
 
 mod error;
 pub use error::LocalValueIdentityError;
@@ -28,7 +33,7 @@ pub struct LocalValueIdentityInputs<'a> {
     pub functions: &'a Arena<Function>,
     pub lambdas: &'a Arena<Lambda>,
     pub anonymous_functions: &'a Arena<AnonymousFunction>,
-    pub local_functions: &'a Arena<LocalFunction>,
+    pub default_local_values: &'a [DefaultLocalValueScope],
     pub callable_references: &'a Arena<CallableReference>,
     pub class_constructors: &'a Arena<ClassConstructor>,
     pub struct_constructors: &'a Arena<StructConstructor>,
@@ -239,6 +244,7 @@ pub enum LocalValueLocation {
     StructArgumentLocal { constructor: u32, local: u32 },
     StructBodyLocal { constructor: u32, local: u32 },
     CallableReferenceReceiver { reference: u32 },
+    DefaultLocal { scope: u32, local: u32 },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -249,7 +255,7 @@ struct BindingKey {
 
 #[derive(Clone, Copy)]
 struct CaptureAlias {
-    local_function: u32,
+    function: u32,
     capture: u32,
     binding: BindingId,
 }
@@ -308,12 +314,13 @@ impl<'a> LocalValueIdentityBuilder<'a> {
         let class_constructors = self.collect_class_constructors()?;
         let struct_constructors = self.collect_struct_constructors()?;
         let callable_references = self.collect_callable_references()?;
+        self.collect_default_local_values()?;
 
         for ((function, local), alias) in &self.capture_aliases {
             let context = self.inputs.functions[*function].materialization.context();
             let Some(identity) = self.find_captured_value(context, alias.binding) else {
                 return Err(LocalValueIdentityError::MissingCapturedValue {
-                    local_function: alias.local_function,
+                    function: alias.function,
                     capture: alias.capture,
                     binding: alias.binding.into_raw(),
                 });
@@ -396,50 +403,6 @@ impl<'a> LocalValueIdentityBuilder<'a> {
             class_constructors,
             struct_constructors,
         })
-    }
-
-    fn collect_capture_aliases(&mut self) -> Result<(), LocalValueIdentityError> {
-        for (local_function_id, local_function) in self.inputs.local_functions.iter() {
-            let function = &self.inputs.functions[local_function.function];
-            let FunctionKind::User(body) = &function.kind else {
-                return Err(LocalValueIdentityError::LocalFunctionRequiresBody {
-                    local_function: raw_arena_index(local_function_id),
-                    function: raw_arena_index(local_function.function),
-                });
-            };
-            for (capture_index, capture) in local_function.captures.iter().enumerate() {
-                let Some(parameter) = function.params.get(capture_index) else {
-                    return Err(LocalValueIdentityError::MissingCaptureParameter {
-                        local_function: raw_arena_index(local_function_id),
-                        capture: capture_index as u32,
-                    });
-                };
-                if arena_index(parameter.local) >= body.locals.len() {
-                    return Err(LocalValueIdentityError::MissingCaptureParameter {
-                        local_function: raw_arena_index(local_function_id),
-                        capture: capture_index as u32,
-                    });
-                }
-                if self
-                    .capture_aliases
-                    .insert(
-                        (local_function.function, parameter.local),
-                        CaptureAlias {
-                            local_function: raw_arena_index(local_function_id),
-                            capture: capture_index as u32,
-                            binding: capture.binding,
-                        },
-                    )
-                    .is_some()
-                {
-                    return Err(LocalValueIdentityError::DuplicateCaptureParameter {
-                        function: raw_arena_index(local_function.function),
-                        local: raw_arena_index(parameter.local),
-                    });
-                }
-            }
-        }
-        Ok(())
     }
 
     fn collect_class_constructors(
@@ -579,36 +542,6 @@ impl<'a> LocalValueIdentityBuilder<'a> {
                 }
             };
             output.push(StructConstructorLocalValues { parameters, kind });
-        }
-        Ok(output)
-    }
-
-    fn collect_callable_references(
-        &mut self,
-    ) -> Result<Vec<CallableReferenceLocalValue>, LocalValueIdentityError> {
-        let mut output = Vec::with_capacity(self.inputs.callable_references.len());
-        for (reference_id, reference) in self.inputs.callable_references.iter() {
-            let value = match &reference.target {
-                CallableReferenceTarget::Named(_) | CallableReferenceTarget::Local { .. } => {
-                    CallableReferenceLocalValue::Unbound
-                }
-                CallableReferenceTarget::BoundMember { .. }
-                | CallableReferenceTarget::BoundExtension { .. } => {
-                    let location = LocalValueLocation::CallableReferenceReceiver {
-                        reference: raw_arena_index(reference_id),
-                    };
-                    let identity = self.record_source(
-                        *reference.identity.materialization(),
-                        LocalValueSelector::BoundReceiver {
-                            path: reference.identity.definition_path().clone(),
-                        },
-                        reference.origin,
-                        location,
-                    )?;
-                    CallableReferenceLocalValue::Bound(identity)
-                }
-            };
-            output.push(value);
         }
         Ok(output)
     }

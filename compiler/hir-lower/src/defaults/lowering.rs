@@ -201,6 +201,19 @@ impl Lowerer {
         debug_assert!(self.loop_targets.is_empty());
         self.loop_targets = outer_loop_targets;
         value.map(|value| {
+            self.default_local_value_scopes
+                .alloc(hir::DefaultLocalValueScope {
+                    definition_root: context.definition_root,
+                    definition_path: definition_path.clone(),
+                    values: locals
+                        .iter()
+                        .map(|(_, local)| hir::DefaultLocalValueDefinition {
+                            binding: local.binding,
+                            selector: local.selector.clone(),
+                            definition: local.definition,
+                        })
+                        .collect(),
+                });
             (
                 hir::ExportDefaultExpr {
                     definition_root: context.definition_root,

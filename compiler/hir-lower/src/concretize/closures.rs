@@ -104,7 +104,6 @@ impl Concretizer<'_> {
         &mut self,
         source_id: export::LocalFunctionId,
         substitution: &[concrete::TypeId],
-        locals: &[concrete::LocalId],
     ) -> concrete::LocalFunctionId {
         let key = (source_id, substitution.to_vec());
         if let Some(&id) = self.local_by_key.get(&key) {
@@ -115,11 +114,6 @@ impl Concretizer<'_> {
             definition_path: source.definition_path,
             function: self.request_function(source.function, substitution.to_vec()),
             function_type: self.lower_function_type(source.function_type, substitution),
-            captures: source
-                .captures
-                .iter()
-                .map(|capture| self.lower_capture(capture, substitution, locals))
-                .collect(),
             span: source.span,
         };
         let id = self.local_functions.alloc(value);
@@ -148,7 +142,7 @@ impl Concretizer<'_> {
             } => {
                 let (callee, arguments) = self.lower_callable_with_arguments(callee, substitution);
                 concrete::CallableReferenceTarget::Local {
-                    local_function: self.ensure_local_function(local_function, &arguments, locals),
+                    local_function: self.ensure_local_function(local_function, &arguments),
                     callee,
                 }
             }
