@@ -17,7 +17,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
         }
         let dependencies =
             scoop_mir::SelectedDependencyMirSet::empty(output.output().local.module().cone);
-        let mir = scoop_mir_lower::lower_ordinary(output, imported, dependencies).unwrap();
+        let mir = scoop_mir_lower::lower_current_cone(output, imported, dependencies).unwrap();
         run(output, mir.module())
     })
 }

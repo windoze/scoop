@@ -39,8 +39,8 @@ pub use source_exact_types::*;
 mod strong_input;
 pub use strong_input::*;
 
-mod ordinary_output;
-pub use ordinary_output::*;
+mod dependency_output;
+pub use dependency_output::*;
 
 mod imported_dependency;
 pub use imported_dependency::*;

@@ -10,10 +10,10 @@ use crate::{
     BasicBlock, Body, Call, CallEffect, CallKind, CallTarget, CallableSignatureRecord,
     CallableSignatureSubject, Callee, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
     CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, CoreShapeSupportSourceInput,
-    CoroutinePendingContext, EntryMirBridgeBranchV1, Function, GcEffect, MirMeta, MirOutput,
-    Module, OdrFreeMirFoundation, OrdinaryMirOutput, OrdinaryMirOutputError,
-    SingleConeStrongMirInput, SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1,
-    StrongCallableBridgeV1, Terminator, Type,
+    CoroutinePendingContext, DependencyMirOutput, DependencyMirOutputError, EntryMirBridgeBranchV1,
+    Function, GcEffect, MirMeta, MirOutput, Module, OdrFreeMirFoundation, SingleConeStrongMirInput,
+    SourceSpan, Statement, StatementKind, StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1,
+    Terminator, Type,
 };
 
 #[test]
@@ -149,15 +149,15 @@ fn selected_callable_derives_the_only_strong_implementation() {
         .unwrap();
     assert_eq!(foreign_id, first);
     assert!(matches!(
-        OrdinaryMirOutput::try_new(
+        DependencyMirOutput::try_new(
             ordinary_module(callable_use),
             foreign_selections,
             crate::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE),
         ),
-        Err(OrdinaryMirOutputError::ForeignImportedCallable { index: 0 })
+        Err(DependencyMirOutputError::ForeignImportedCallable { index: 0 })
     ));
 
-    let ordinary = OrdinaryMirOutput::try_new(
+    let ordinary = DependencyMirOutput::try_new(
         ordinary_module(callable_use),
         selections,
         crate::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE),

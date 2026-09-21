@@ -93,7 +93,7 @@ impl std::error::Error for CoreBootstrapLirStageError {
 #[derive(Debug)]
 pub enum CoreBootstrapMirStageError {
     MissingCoreShapeSupportPlan,
-    Lowering(scoop_mir_lower::DefinedCoreMirLoweringError),
+    Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),

@@ -217,7 +217,7 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
             .semantic()
             .project_dependency_callables_to_mir(self.hir.imported_dependencies())
             .map_err(OrdinaryConeMirStageError::DependencyProjection)?;
-        let mir = scoop_mir_lower::lower_ordinary(&self.hir, selected, dependency_selection)
+        let mir = scoop_mir_lower::lower_current_cone(&self.hir, selected, dependency_selection)
             .map_err(OrdinaryConeMirStageError::Lowering)?;
         let (module, selected, selected_dependencies) = mir.into_parts();
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&module)

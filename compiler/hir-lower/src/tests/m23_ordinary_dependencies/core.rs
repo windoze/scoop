@@ -1,8 +1,10 @@
 use super::*;
+
+mod mir;
 use scoop_identity::{ConeIdentity, CoreBuiltinNominal, RequestedConeKind};
 
 #[test]
-fn core_declarations_retain_shared_dependency_selections_and_routes() {
+fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
     let mut core = trusted_core();
     let provider = DependencyFunctionFixture::new(
         "core-helper",
@@ -48,7 +50,8 @@ fn core_declarations_retain_shared_dependency_selections_and_routes() {
     assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
     let dump = scoop_hir::dump(&output.output().export);
     assert_eq!(dump.matches("ImportedDependencyCall #0").count(), 3);
-    assert_core_hir_snapshot(&dump);
+    assert_core_snapshot("hir", &dump);
+    mir::check(&output, core.empty_core_mir_selection());
     let selected = output.imported_dependencies().callables().next().unwrap();
     assert_eq!(
         selected.interface().declaration(),
@@ -176,7 +179,7 @@ fn core_missing_import_reports_the_shared_source_diagnostic() {
     );
 }
 
-fn assert_core_hir_snapshot(dump: &str) {
+fn assert_core_snapshot(stage: &str, dump: &str) {
     let mut selected = String::new();
     let mut keep = false;
     for line in dump.lines() {
@@ -188,8 +191,9 @@ fn assert_core_hir_snapshot(dump: &str) {
             selected.push('\n');
         }
     }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/core-library/dependency-calls.hir.snap");
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+        "../../tests/fixtures/core-library/dependency-calls.{stage}.snap"
+    ));
     if std::env::var_os("SCOOP_UPDATE_CORE_DEPENDENCY_SNAPSHOTS").is_some() {
         std::fs::write(&path, &selected).unwrap();
     }

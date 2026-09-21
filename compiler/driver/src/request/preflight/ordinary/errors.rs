@@ -100,7 +100,7 @@ impl std::error::Error for OrdinaryConeLirStageError {
 pub enum OrdinaryConeMirStageError {
     Projection(crate::TrustedCoreCallableSetProjectionError),
     DependencyProjection(scoop_slib::CrossConeMirSelectionProjectionError),
-    Lowering(scoop_mir_lower::ImportedCoreMirLoweringError),
+    Lowering(scoop_mir_lower::CurrentConeMirLoweringError),
     Foundation(scoop_mir::OdrFreeMirFoundationProjectionError),
     ProductionSection(scoop_mir_lower::MirProductionLoweringError),
     CrossConeBridge(scoop_mir_lower::CrossConeMirBridgeLoweringError),

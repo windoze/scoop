@@ -217,8 +217,15 @@ impl TrustedCoreBootstrapHirOutput {
                 .map(|root| root.declaration().clone())
                 .collect(),
         );
-        let mir = scoop_mir_lower::lower(&self.hir.output().local)
-            .map_err(CoreBootstrapMirStageError::Lowering)?;
+        let dependency_selection =
+            scoop_mir::SelectedDependencyMirSet::empty(self.hir.output().export.cone);
+        let mir = scoop_mir_lower::lower_current_cone(
+            &self.hir,
+            scoop_mir::CurrentMirProtocolDeclarations,
+            dependency_selection,
+        )
+        .map_err(CoreBootstrapMirStageError::Lowering)?;
+        let (mir, _, dependency_selection) = mir.into_parts();
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
             .map_err(CoreBootstrapMirStageError::Foundation)?;
         let production_section = scoop_mir_lower::lower_production_section(
@@ -228,7 +235,6 @@ impl TrustedCoreBootstrapHirOutput {
             &foundation,
         )
         .map_err(CoreBootstrapMirStageError::ProductionSection)?;
-        let dependency_selection = scoop_mir::SelectedDependencyMirSet::empty(mir.cone);
         let cross_cone_bridge = scoop_mir_lower::lower_cross_cone_bridge_section(
             mir.cone,
             &self.cross_cone_section,

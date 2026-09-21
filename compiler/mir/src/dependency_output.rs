@@ -1,69 +1,55 @@
-//! Ordinary MIR paired with the exact trusted-core selection that it uses.
+//! Current-Cone MIR paired with its exact protocol and dependency selections.
 
 use std::collections::HashSet;
 use std::fmt;
+
+mod protocols;
+pub use protocols::{CurrentMirProtocolDeclarations, MirProtocolSelection};
 
 use crate::{
     Callee, ImportedCoreCallableUseId, ImportedDependencyMirCallableId, MirValidationError, Module,
     SelectedDependencyMirSet, SelectedImportedMirSet, StatementKind,
 };
 
-/// Closed ordinary MIR product whose imported-core references are branded by
+/// Closed MIR product whose imported protocol references are branded by
 /// and resolved through one exact selected set.
 ///
 /// Owning the sidecar prevents later stages from pairing an already-lowered
 /// MIR graph with an equal-looking selection projected from another artifact.
-pub struct OrdinaryMirOutput<'a> {
+pub struct DependencyMirOutput<P: MirProtocolSelection> {
     module: Module,
-    imported_core: SelectedImportedMirSet<'a>,
+    protocols: P,
     imported_dependencies: SelectedDependencyMirSet,
 }
 
-impl<'a> OrdinaryMirOutput<'a> {
+impl<P: MirProtocolSelection> DependencyMirOutput<P> {
     pub fn try_new(
         module: Module,
-        imported_core: SelectedImportedMirSet<'a>,
+        protocols: P,
         imported_dependencies: SelectedDependencyMirSet,
-    ) -> Result<Self, OrdinaryMirOutputError> {
-        if module.cone == scoop_identity::ConeIdentity::CORE {
-            return Err(OrdinaryMirOutputError::CurrentConeIsCore);
-        }
+    ) -> Result<Self, DependencyMirOutputError> {
         module
             .validate()
-            .map_err(OrdinaryMirOutputError::InvalidModule)?;
+            .map_err(DependencyMirOutputError::InvalidModule)?;
         if imported_dependencies.consumer() != module.cone {
-            return Err(OrdinaryMirOutputError::ImportedDependencyConsumerMismatch {
-                module: module.cone,
-                selected: imported_dependencies.consumer(),
-            });
+            return Err(
+                DependencyMirOutputError::ImportedDependencyConsumerMismatch {
+                    module: module.cone,
+                    selected: imported_dependencies.consumer(),
+                },
+            );
         }
-        if module.meta.imported_core_callables.len() != imported_core.len() {
-            return Err(OrdinaryMirOutputError::SelectionCountMismatch {
-                module: module.meta.imported_core_callables.len(),
-                selected: imported_core.len(),
-            });
-        }
-
-        let mut resolved = HashSet::with_capacity(module.meta.imported_core_callables.len());
-        for (id, callable) in module.meta.imported_core_callables.iter() {
-            let Some(selected) = imported_core.resolve_callable(callable.reference()) else {
-                return Err(OrdinaryMirOutputError::ForeignImportedCallable {
-                    index: id.into_raw().into_u32(),
-                });
-            };
-            if !resolved.insert(selected.kind()) {
-                return Err(OrdinaryMirOutputError::DuplicateImportedCallable {
-                    index: id.into_raw().into_u32(),
-                });
+        match protocols.as_strong_input() {
+            crate::StrongImportedCoreInput::Unused => {
+                if !module.meta.imported_core_callables.is_empty() {
+                    return Err(DependencyMirOutputError::SelectionCountMismatch {
+                        module: module.meta.imported_core_callables.len(),
+                        selected: 0,
+                    });
+                }
             }
-        }
-
-        let referenced = referenced_imported_callables(&module);
-        for (id, _) in module.meta.imported_core_callables.iter() {
-            if !referenced.contains(&id) {
-                return Err(OrdinaryMirOutputError::UnreferencedImportedCallable {
-                    index: id.into_raw().into_u32(),
-                });
+            crate::StrongImportedCoreInput::Selected(selected) => {
+                validate_imported_protocols(&module, selected)?;
             }
         }
 
@@ -71,7 +57,7 @@ impl<'a> OrdinaryMirOutput<'a> {
 
         Ok(Self {
             module,
-            imported_core,
+            protocols,
             imported_dependencies,
         })
     }
@@ -80,26 +66,63 @@ impl<'a> OrdinaryMirOutput<'a> {
         &self.module
     }
 
-    pub const fn imported_core(&self) -> &SelectedImportedMirSet<'a> {
-        &self.imported_core
+    pub const fn protocols(&self) -> &P {
+        &self.protocols
     }
 
     pub const fn imported_dependencies(&self) -> &SelectedDependencyMirSet {
         &self.imported_dependencies
     }
 
-    pub fn into_parts(self) -> (Module, SelectedImportedMirSet<'a>, SelectedDependencyMirSet) {
-        (self.module, self.imported_core, self.imported_dependencies)
+    pub fn into_parts(self) -> (Module, P, SelectedDependencyMirSet) {
+        (self.module, self.protocols, self.imported_dependencies)
     }
+}
+
+fn validate_imported_protocols(
+    module: &Module,
+    imported_core: &SelectedImportedMirSet<'_>,
+) -> Result<(), DependencyMirOutputError> {
+    if module.meta.imported_core_callables.len() != imported_core.len() {
+        return Err(DependencyMirOutputError::SelectionCountMismatch {
+            module: module.meta.imported_core_callables.len(),
+            selected: imported_core.len(),
+        });
+    }
+
+    let mut resolved = HashSet::with_capacity(module.meta.imported_core_callables.len());
+    for (id, callable) in module.meta.imported_core_callables.iter() {
+        let Some(selected) = imported_core.resolve_callable(callable.reference()) else {
+            return Err(DependencyMirOutputError::ForeignImportedCallable {
+                index: id.into_raw().into_u32(),
+            });
+        };
+        if !resolved.insert(selected.kind()) {
+            return Err(DependencyMirOutputError::DuplicateImportedCallable {
+                index: id.into_raw().into_u32(),
+            });
+        }
+    }
+
+    let referenced = referenced_imported_callables(module);
+    for (id, _) in module.meta.imported_core_callables.iter() {
+        if !referenced.contains(&id) {
+            return Err(DependencyMirOutputError::UnreferencedImportedCallable {
+                index: id.into_raw().into_u32(),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_imported_dependencies(
     module: &Module,
     selected: &SelectedDependencyMirSet,
-) -> Result<(), OrdinaryMirOutputError> {
+) -> Result<(), DependencyMirOutputError> {
     if module.meta.imported_dependency_callables.len() != selected.len() {
         return Err(
-            OrdinaryMirOutputError::ImportedDependencySelectionCountMismatch {
+            DependencyMirOutputError::ImportedDependencySelectionCountMismatch {
                 module: module.meta.imported_dependency_callables.len(),
                 selected: selected.len(),
             },
@@ -108,13 +131,15 @@ fn validate_imported_dependencies(
     let mut declarations = HashSet::with_capacity(selected.len());
     for (id, callable) in module.meta.imported_dependency_callables.iter() {
         let Some(selected) = selected.resolve_callable(callable.reference()) else {
-            return Err(OrdinaryMirOutputError::ForeignImportedDependencyCallable {
-                index: id.into_raw().into_u32(),
-            });
+            return Err(
+                DependencyMirOutputError::ForeignImportedDependencyCallable {
+                    index: id.into_raw().into_u32(),
+                },
+            );
         };
         if !declarations.insert((selected.provider(), selected.declaration())) {
             return Err(
-                OrdinaryMirOutputError::DuplicateImportedDependencyCallable {
+                DependencyMirOutputError::DuplicateImportedDependencyCallable {
                     index: id.into_raw().into_u32(),
                 },
             );
@@ -125,7 +150,7 @@ fn validate_imported_dependencies(
     for (id, _) in module.meta.imported_dependency_callables.iter() {
         if !referenced.contains(&id) {
             return Err(
-                OrdinaryMirOutputError::UnreferencedImportedDependencyCallable {
+                DependencyMirOutputError::UnreferencedImportedDependencyCallable {
                     index: id.into_raw().into_u32(),
                 },
             );
@@ -175,8 +200,7 @@ fn referenced_dependency_callables(module: &Module) -> HashSet<ImportedDependenc
 }
 
 #[derive(Debug)]
-pub enum OrdinaryMirOutputError {
-    CurrentConeIsCore,
+pub enum DependencyMirOutputError {
     InvalidModule(MirValidationError),
     ImportedDependencyConsumerMismatch {
         module: scoop_identity::ConeIdentity,
@@ -210,18 +234,17 @@ pub enum OrdinaryMirOutputError {
     },
 }
 
-impl fmt::Display for OrdinaryMirOutputError {
+impl fmt::Display for DependencyMirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot seal ordinary MIR output: {self:?}")
+        write!(formatter, "cannot seal current-Cone MIR output: {self:?}")
     }
 }
 
-impl std::error::Error for OrdinaryMirOutputError {
+impl std::error::Error for DependencyMirOutputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidModule(error) => Some(error),
-            Self::CurrentConeIsCore
-            | Self::ImportedDependencyConsumerMismatch { .. }
+            Self::ImportedDependencyConsumerMismatch { .. }
             | Self::SelectionCountMismatch { .. }
             | Self::ForeignImportedCallable { .. }
             | Self::DuplicateImportedCallable { .. }

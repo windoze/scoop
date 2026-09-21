@@ -275,10 +275,10 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
             .collect(),
     )
     .unwrap();
-    let mir = scoop_mir_lower::lower_ordinary(&hir, selected_core, selected_dependencies)
+    let mir = scoop_mir_lower::lower_current_cone(&hir, selected_core, selected_dependencies)
         .expect("ordinary MIR retains the shared dependency selection");
 
-    assert_eq!(mir.imported_core().len(), 0);
+    assert_eq!(mir.protocols().len(), 0);
     assert_eq!(mir.module().meta.imported_dependency_callables.len(), 1);
     let calls =
         mir.module()
