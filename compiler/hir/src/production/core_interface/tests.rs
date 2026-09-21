@@ -14,76 +14,10 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 use crate::{
     CoreInterfaceImportError, CorePreludeImportError, CoreTypeTargetV1, DecodedHirFoundation,
-    ImportedCorePreludeTarget, ImportedHirFoundation,
+    ImportedHirFoundation,
 };
 
-#[test]
-fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
-    let fixture = fixture();
-    let bytes = encode(&fixture.interface).unwrap();
-    assert_eq!(bytes.len(), 35_059);
-    assert_eq!(
-        scoop_wire::sha256(&bytes).to_string(),
-        "0fed4e66ba96403197222f420cdc88c5bf63d72abdff2af20599e7ceded48686"
-    );
-
-    assert_eq!(
-        decode_interface(&fixture.interface).validate_against(&fixture.foundation, &fixture.direct),
-        Ok(fixture.interface)
-    );
-}
-
-#[test]
-fn interface_and_section_readers_require_closed_products_and_sums() {
-    for bytes in [vec![0xa5], vec![0xa7], vec![0xa6, 0x07, 0x00]] {
-        assert!(
-            decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
-        );
-    }
-
-    for bytes in [
-        vec![0xa0],
-        vec![0xa1, 0x00, 0x03],
-        vec![0xa2, 0x00, 0x01, 0x01, 0x00],
-    ] {
-        assert!(
-            decode_canonical::<DecodedCoreHirInterfaceBranchV1>(&bytes, DecodeLimits::default())
-                .is_err()
-        );
-    }
-
-    for bytes in [
-        vec![0xa2],
-        vec![0xa4],
-        vec![
-            0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x04, 0x80,
-        ],
-    ] {
-        assert!(
-            decode_canonical::<DecodedCoreBootstrapInterfaceSectionV1>(
-                &bytes,
-                DecodeLimits::default(),
-            )
-            .is_err()
-        );
-    }
-}
-
-#[test]
-fn core_branch_and_non_core_section_have_fixed_wire_vectors() {
-    assert_eq!(
-        hex(&encode(&CoreHirInterfaceBranchV1::NotCore).unwrap()),
-        "a10001"
-    );
-
-    let section = non_core_section();
-    assert_eq!(hex(&encode(&section).unwrap()), "a301a1000102a100010380");
-    assert_eq!(
-        decode_section(&section)
-            .validate_against(ConeIdentity::SINGLE_FILE, &CanonicalHirFoundation::empty(),),
-        Ok(section)
-    );
-}
+mod wire;
 
 #[test]
 fn section_selects_exactly_one_branch_from_the_artifact_identity() {
@@ -160,11 +94,13 @@ fn interface_relations_require_one_shared_complete_surface() {
         .clone();
     incomplete.type_targets = CoreTypeTargetSurfaceV1::try_new(vec![string_target]).unwrap();
     assert_eq!(
-        validate_relations(&incomplete, &fixture.direct),
-        Err(CoreHirInterfaceRelationError::ConstituentCoverage {
-            expected: 2,
-            actual: 1,
-        })
+        decode_interface(&incomplete).validate_against(&fixture.foundation, &fixture.direct),
+        Err(CoreHirInterfaceValidationError::TypeTargets(
+            CoreTypeTargetSurfaceValidationError::Coverage {
+                expected: 2,
+                actual: 1
+            }
+        ))
     );
 
     let mut wrong_string_target = fixture.interface;
@@ -337,12 +273,10 @@ fn imported_core_inputs_atomically_expose_prelude_and_compiler_protocols() {
         .unwrap()
         .binding();
     assert_eq!(string[0].identity().persistent(), string_binding);
-    assert!(matches!(
-        string[0].target(),
-        ImportedCorePreludeTarget::Type(target)
-            if target.capability()
-                == CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact)
-    ));
+    assert_eq!(
+        string[0].target().capability(),
+        CoreHirTypeCapabilityV1::ParamFreeStrong(fixture.string_exact),
+    );
     assert_eq!(prelude.string_exact().persistent(), fixture.string_exact);
     assert_eq!(
         prelude.option_some().persistent(),
@@ -589,9 +523,7 @@ fn fixture() -> Fixture {
             source_type: string_id,
             exact_type: string_exact_record.id(),
         },
-        callable_targets: CoreCallableTargetSurfaceV1::try_new(Vec::new()).unwrap(),
         type_targets,
-        value_targets: CoreValueTargetSurfaceV1::try_new(Vec::new()).unwrap(),
         compiler_protocols,
     };
     let section = CoreBootstrapInterfaceSectionV1 {

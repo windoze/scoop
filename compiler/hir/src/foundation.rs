@@ -35,8 +35,8 @@ mod strong_profile;
 pub use counts::HirFoundationCounts;
 mod type_source_keys;
 pub use imported::{
-    CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeBinding, ImportedCorePreludeTarget,
-    ImportedHirFoundation, ImportedHirId, ImportedHirSet,
+    CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeBinding, ImportedHirFoundation,
+    ImportedHirId, ImportedHirSet,
 };
 pub use imported_protocols::{
     CoreInterfaceImportError, CoreNativeBoundaryImportError, CoreProtocolIdentityKind,
@@ -234,13 +234,6 @@ impl CanonicalHirFoundation {
         self.exact_types.iter().find_map(|record| {
             (record.id().as_array() == bytes).then(|| (record.id(), record.key()))
         })
-    }
-
-    pub(crate) fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey> {
-        self.exact_types
-            .iter()
-            .find(|record| record.id() == id)
-            .map(CborIdentityRecord::key)
     }
 
     pub(crate) fn generic_type_by_bytes(

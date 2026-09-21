@@ -384,15 +384,10 @@ impl Lowerer {
             .prelude()
             .bindings()
             .iter()
-            .filter_map(|binding| {
-                let hir::ImportedCorePreludeTarget::Type(target) = binding.target() else {
-                    return None;
-                };
-                Some(ImportedCoreTypeBinding {
-                    binding: binding.identity().persistent(),
-                    name: binding.key().name().as_str().to_owned(),
-                    definition: target.definition(),
-                })
+            .map(|binding| ImportedCoreTypeBinding {
+                binding: binding.identity().persistent(),
+                name: binding.key().name().as_str().to_owned(),
+                definition: binding.target().definition(),
             })
             .collect();
         self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {

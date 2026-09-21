@@ -25,12 +25,8 @@ mod core_protocol_surface;
 #[cfg(test)]
 pub(crate) use core_protocol_surface::test_support as core_protocol_test_support;
 pub use core_protocol_surface::*;
-mod core_targets;
-pub use core_targets::*;
 mod core_types;
 pub use core_types::*;
-mod core_values;
-pub use core_values::*;
 mod core_well_known;
 pub use core_well_known::*;
 mod const_values;

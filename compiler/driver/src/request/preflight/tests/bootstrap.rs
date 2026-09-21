@@ -78,30 +78,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     else {
         panic!("the trusted bootstrap output has a core interface")
     };
-    let signatures = interface
-        .callable_targets()
-        .targets()
-        .iter()
-        .filter_map(|target| {
-            let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
-                target.capability()
-            else {
-                return None;
-            };
-            let scoop_hir::CoreCallableDefinitionV1::Function(definition) = target.definition()
-            else {
-                panic!("a param-free core callable candidate has a source function definition")
-            };
-            Some(scoop_mir::CallableSignatureRecord::new(
-                scoop_mir::CallableSignatureSubject::Strong(
-                    scoop_identity::CallableOwner::Function(definition),
-                ),
-                signature.clone(),
-            ))
-        })
-        .collect::<Vec<_>>();
-    assert!(!signatures.is_empty());
-
     let cycle = interface
         .compiler_protocols()
         .initialization_cycle_thrower();
@@ -157,24 +133,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         cycle_definition
     );
 
-    let mut partial_foundation = scoop_mir::CanonicalMirFoundation::empty();
-    partial_foundation
-        .set_callable_signatures(vec![cycle_signature.clone(), signatures[0].clone()])
-        .unwrap();
-    let partial_foundation = scoop_mir::OdrFreeMirFoundation::try_new(partial_foundation).unwrap();
-    let partial_production = scoop_mir_lower::lower_production_section(
-        scoop_identity::ConeIdentity::CORE,
-        output.production_section(),
-        &partial_foundation,
-    )
-    .unwrap();
-    let scoop_mir::CoreMirBridgeBranchV1::Core(partial_core_bridge) =
-        partial_production.core_bridge()
-    else {
-        panic!("the trusted bootstrap MIR production has a core bridge")
-    };
-    assert_eq!(partial_core_bridge, minimal_core_bridge);
-
     let mut mismatched_signatures = vec![cycle_signature.clone()];
     let expected = mismatched_signatures[0].signature();
     let wrong_effect = match expected.effect() {
@@ -205,16 +163,11 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
     ));
 
-    let mut mir_foundation = scoop_mir::CanonicalMirFoundation::empty();
-    let mut signatures = signatures;
-    signatures.push(cycle_signature);
-    mir_foundation.set_callable_signatures(signatures).unwrap();
-    let mir_foundation = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
     assert!(matches!(
         scoop_mir_lower::lower_production_section(
             scoop_identity::ConeIdentity::SINGLE_FILE,
             output.production_section(),
-            &mir_foundation,
+            &minimal_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::Production(
             scoop_mir::MirProductionBuildError::UnexpectedCoreBridge(
@@ -222,17 +175,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             )
         ))
     ));
-    let mir_production = scoop_mir_lower::lower_production_section(
-        scoop_identity::ConeIdentity::CORE,
-        output.production_section(),
-        &mir_foundation,
-    )
-    .unwrap();
-    let scoop_mir::CoreMirBridgeBranchV1::Core(core_bridge) = mir_production.core_bridge() else {
-        panic!("the trusted bootstrap MIR production has a core bridge")
-    };
-    assert_eq!(core_bridge, minimal_core_bridge);
-
     let expected_shape_roots = interface
         .type_targets()
         .targets()

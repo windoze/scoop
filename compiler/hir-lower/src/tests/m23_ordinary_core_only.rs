@@ -67,9 +67,7 @@ fn public_alias_retains_the_exact_imported_core_type_binding() {
         .candidates(BindingNamespace::Type, "Int")
         .next()
         .expect("the trusted-core prelude exports Int");
-    let scoop_hir::ImportedCorePreludeTarget::Type(int_target) = int_binding.target() else {
-        panic!("the Int prelude binding targets a type")
-    };
+    let int_target = int_binding.target();
     let scoop_hir::CoreTypeDefinitionV1::Type(int_declaration) = int_target.definition() else {
         panic!("the Int prelude binding targets a concrete nominal")
     };

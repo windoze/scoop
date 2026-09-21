@@ -125,34 +125,22 @@ fn trusted_core_from_source(
     let input = CoreBootstrapSources::try_new(&parsed).unwrap();
     let output = lower_core_bootstrap(&input).unwrap();
     let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
-    let strong_targets = strong_callable
-        .map(|name| {
-            let function = output
-                .export
-                .top_level
-                .iter()
-                .copied()
-                .find(|function| output.export.functions[*function].name == name)
-                .unwrap();
-            let scoop_hir::HirFunctionIdentity::Source(
-                scoop_hir::HirSourceFunctionIdentity::Plain(identity),
-            ) = &output.export.function_identities[function]
-            else {
-                panic!("test strong callable has a plain source identity")
-            };
-            interface
-                .callable_targets()
-                .targets()
-                .iter()
-                .find(|target| {
-                    target.definition()
-                        == scoop_hir::CoreCallableDefinitionV1::Function(identity.id())
-                })
-                .unwrap()
-                .clone()
-        })
-        .into_iter()
-        .collect::<Vec<_>>();
+    let strong_definition = strong_callable.map(|name| {
+        let function = output
+            .export
+            .top_level
+            .iter()
+            .copied()
+            .find(|function| output.export.functions[*function].name == name)
+            .unwrap();
+        let scoop_hir::HirFunctionIdentity::Source(scoop_hir::HirSourceFunctionIdentity::Plain(
+            identity,
+        )) = &output.export.function_identities[function]
+        else {
+            panic!("test strong callable has a plain source identity")
+        };
+        identity.id()
+    });
     let mut canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,
@@ -182,20 +170,18 @@ fn trusted_core_from_source(
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
     let foundation =
         scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
-    let strong_mir = strong_targets
-        .iter()
-        .map(|target| {
-            let scoop_hir::CoreCallableDefinitionV1::Function(definition) = target.definition()
-            else {
-                panic!("test strong target is a function")
-            };
-            let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
-                target.capability()
-            else {
-                panic!("test strong target is param-free")
-            };
-            (target.binding(), definition, signature.clone())
+    let classifier =
+        scoop_hir::CoreClosedExactLeafClassifierV1::try_from_core_interface(&interface).unwrap();
+    let strong_mir = strong_definition
+        .map(|definition| {
+            let record = general_interface
+                .callable_interfaces()
+                .get(scoop_identity::CallableTemplateOrigin::Function(definition))
+                .unwrap();
+            let callable = classifier.classify_callable(record).unwrap().unwrap();
+            (definition, callable.signature().clone())
         })
+        .into_iter()
         .collect::<Vec<_>>();
     let scoop_hir::CoreProtocolCallableDefinitionV1::Function(cycle_definition) = interface
         .compiler_protocols()
@@ -215,7 +201,7 @@ fn trusted_core_from_source(
         .set_callable_signatures(
             strong_mir
                 .iter()
-                .map(|(_, definition, signature)| {
+                .map(|(definition, signature)| {
                     scoop_mir::CallableSignatureRecord::new(
                         scoop_mir::CallableSignatureSubject::Strong(
                             scoop_identity::CallableOwner::Function(*definition),
@@ -253,7 +239,7 @@ fn trusted_core_from_source(
         scoop_mir::StrongCallableBridgeSurfaceV1::try_new(
             strong_mir
                 .iter()
-                .map(|(_, definition, signature)| {
+                .map(|(definition, signature)| {
                     scoop_mir::StrongCallableBridgeV1::new(
                         scoop_identity::CallableOwner::Function(*definition),
                         signature.clone(),

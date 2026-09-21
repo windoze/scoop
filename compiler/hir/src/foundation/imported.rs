@@ -11,7 +11,7 @@ use scoop_wire::WireEncode;
 use super::{
     CanonicalHirFoundation, HirFoundationCounts, OdrFreeHirFoundation, ValidatedHirFoundation,
 };
-use crate::{CoreCallableTargetV1, CoreHirInterfaceV1, CoreTypeTargetV1, CoreValueTargetV1};
+use crate::{CoreHirInterfaceV1, CoreTypeTargetV1};
 
 /// Session-local HIR identity. Its type is distinct from current HIR ids and
 /// from imported MIR/LIR ids.
@@ -121,9 +121,8 @@ impl ImportedHirFoundation {
         self.canonical.source_field_count(owner)
     }
 
-    /// Restricts one already imported core foundation to the M23-3 prelude
-    /// capability. The resulting value has no API for ordinary package,
-    /// exact-import, star-import, or re-export enumeration.
+    /// Projects the type bindings and compiler protocols needed during
+    /// ordinary HIR lowering. Function and value lookup uses the dependency world.
     pub(super) fn import_core_prelude<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
@@ -132,19 +131,9 @@ impl ImportedHirFoundation {
             return Err(CorePreludeImportError::FoundationNotCore(self.origin()));
         }
 
-        let mut bindings = Vec::with_capacity(
-            interface
-                .prelude_snapshot()
-                .ordinary_bindings()
-                .bindings()
-                .len(),
-        );
-        for &binding in interface
-            .prelude_snapshot()
-            .ordinary_bindings()
-            .bindings()
-            .iter()
-        {
+        let mut bindings = Vec::with_capacity(interface.type_targets().targets().len());
+        for target in interface.type_targets().targets() {
+            let binding = target.binding();
             let key = self
                 .canonical
                 .export_binding_key(binding)
@@ -158,7 +147,6 @@ impl ImportedHirFoundation {
             let identity = self
                 .identity(binding)
                 .ok_or(CorePreludeImportError::MissingBindingIdentity(binding))?;
-            let target = core_prelude_target(interface, binding)?;
             bindings.push(ImportedCorePreludeBinding {
                 identity,
                 key,
@@ -207,15 +195,12 @@ impl WireEncode for ImportedHirFoundation {
     }
 }
 
-/// Marker for the only cross-Cone HIR capability admitted by M23-3.
+/// Marker for the core type and protocol bindings used during HIR lowering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CorePreludeOnly {}
 
-/// A capability-restricted projection of an imported HIR foundation.
-///
-/// The generic marker prevents this value from being confused with future
-/// ordinary dependency views. Fields are private so only the checked
-/// projection above can bind an interface to its imported identity session.
+/// Imported type bindings with the Option and String identities needed by
+/// HIR lowering. Function and value lookup uses the shared dependency world.
 pub struct ImportedHirSet<'a, Capability> {
     foundation: &'a ImportedHirFoundation,
     interface: &'a CoreHirInterfaceV1,
@@ -275,7 +260,7 @@ impl<'a> ImportedHirSet<'a, CorePreludeOnly> {
 pub struct ImportedCorePreludeBinding<'a> {
     identity: ImportedHirId<PersistentExportBindingId>,
     key: &'a ExportBindingKey,
-    target: ImportedCorePreludeTarget<'a>,
+    target: &'a CoreTypeTargetV1,
 }
 
 impl<'a> ImportedCorePreludeBinding<'a> {
@@ -287,43 +272,8 @@ impl<'a> ImportedCorePreludeBinding<'a> {
         self.key
     }
 
-    pub const fn target(&self) -> ImportedCorePreludeTarget<'a> {
+    pub const fn target(&self) -> &'a CoreTypeTargetV1 {
         self.target
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ImportedCorePreludeTarget<'a> {
-    Callable(&'a CoreCallableTargetV1),
-    Type(&'a CoreTypeTargetV1),
-    Value(&'a CoreValueTargetV1),
-}
-
-fn core_prelude_target(
-    interface: &CoreHirInterfaceV1,
-    binding: PersistentExportBindingId,
-) -> Result<ImportedCorePreludeTarget<'_>, CorePreludeImportError> {
-    let callable = interface
-        .callable_targets()
-        .targets()
-        .iter()
-        .find(|target| target.binding() == binding);
-    let ty = interface
-        .type_targets()
-        .targets()
-        .iter()
-        .find(|target| target.binding() == binding);
-    let value = interface
-        .value_targets()
-        .targets()
-        .iter()
-        .find(|target| target.binding() == binding);
-    match (callable, ty, value) {
-        (Some(target), None, None) => Ok(ImportedCorePreludeTarget::Callable(target)),
-        (None, Some(target), None) => Ok(ImportedCorePreludeTarget::Type(target)),
-        (None, None, Some(target)) => Ok(ImportedCorePreludeTarget::Value(target)),
-        (None, None, None) => Err(CorePreludeImportError::MissingConstituent(binding)),
-        _ => Err(CorePreludeImportError::DuplicateConstituent(binding)),
     }
 }
 
@@ -336,8 +286,6 @@ pub enum CorePreludeImportError {
         exporter: ConeIdentity,
     },
     MissingBindingIdentity(PersistentExportBindingId),
-    MissingConstituent(PersistentExportBindingId),
-    DuplicateConstituent(PersistentExportBindingId),
     MissingOptionSome,
     MissingOptionSomePayload,
     MissingOptionNone,

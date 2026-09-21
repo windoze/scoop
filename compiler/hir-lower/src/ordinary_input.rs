@@ -4,8 +4,8 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_identity::ConeIdentity;
 
-/// Parsed current-Cone sources paired with the trusted core authority and a
-/// validated ordinary dependency semantic world.
+/// Parsed current-Cone sources paired with core type/protocol bindings and
+/// the shared dependency semantic world.
 ///
 /// The semantic world is kept beside the source/core input so production
 /// lowering cannot accidentally resolve dependency imports against a world

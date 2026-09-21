@@ -79,9 +79,7 @@ fn core_type_witnesses(
         .candidates(BindingNamespace::Type, name)
         .next()
         .unwrap_or_else(|| panic!("the trusted core fixture exports {name}"));
-    let scoop_hir::ImportedCorePreludeTarget::Type(target) = binding.target() else {
-        panic!("the {name} prelude binding must target a type")
-    };
+    let target = binding.target();
     let scoop_hir::CoreTypeDefinitionV1::Type(declaration) = target.definition() else {
         panic!("the {name} prelude binding must target a concrete nominal")
     };
