@@ -7,7 +7,8 @@ core 是可由用户修改、扩展和重建的普通 library Cone。源码层�
 ## 实施与完成标准
 
 - [x] 删除driver的源码/输出slot授权对象与路径限制，core可从普通manifest入口构建，产物可位于指定输出位置。集成测试在普通目录新增core函数、修改函数实现、重建后由用户代码消费，并核对依赖fingerprint更新。
-- [ ] 合并core与普通Cone的缓存键、receipt和artifact加载；用户修改源码按通用fingerprint失效与重建。
+- [x] 合并core与普通Cone的缓存键、receipt、源码快照、执行调度和产物完成验证；删除sysroot锁、slot receipt、专用source key及专用completed origin。用户修改源码按通用fingerprint失效与重建。
+- [ ] 继续合并默认core发现、manifest限制与driver artifact加载的专用路径。
 - [ ] 基础类型、普通callable/type/value及desugar通过普通声明metadata解析；intrinsic前端正规化后不携带来源授权。
 - [ ] 合并MIR/LIR专用调用桥、String TD与shape-support重复分支，以及slib专用requirement closure。
 - [ ] 删除M23-6 core source foundation专用入口及仅为防伪设计的授权链。已删除fundamental/Array/Unit/Any/Ptr/FunPtr消费者的重复core归属绑定和默认类型域的第二份core artifact参数。

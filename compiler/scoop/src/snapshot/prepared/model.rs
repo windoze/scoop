@@ -14,13 +14,9 @@ use scoop_slib::{
 use scoop_wire::Digest256;
 
 use super::super::staging::PreparedStaging;
-use super::CoreSlotLock;
 use crate::ResolvedPairedScoopc;
 use crate::artifact::{ArtifactClosurePlan, PlannedArtifactEdge, PlannedArtifactNode};
-use crate::artifact::{
-    CompletedNode, PrebuiltCompletionError, TrustedCoreCompletionError,
-    complete_prebuilt_candidates, complete_trusted_core_candidate,
-};
+use crate::artifact::{CompletedNode, PrebuiltCompletionError, complete_prebuilt_candidates};
 use crate::discovery::BuildContext;
 use crate::graph::{ResolvedDependencyEdge, ResolvedDependencyProjection};
 
@@ -29,7 +25,6 @@ mod cache_key;
 mod child_request;
 
 pub use cache_key::CompileCacheKeyError;
-pub(super) use cache_key::trusted_core_source_key;
 pub use child_request::ChildRequestPlanError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -176,26 +171,9 @@ impl NonEmptyPreparedArtifactCandidates {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TrustedCorePreparation {
-    Bootstrap(CoreBootstrapReason),
-    ReuseVerifiedSlot,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreBootstrapReason {
-    Missing,
-    WrongFileType,
-    Unreadable,
-    Corrupt,
-    Incompatible,
-    ReceiptUnavailable,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PreparedNodeRepresentation {
     ManifestSource,
     PrebuiltArtifact,
-    TrustedCore,
     SingleFile,
 }
 
@@ -203,7 +181,6 @@ pub enum PreparedNodeRepresentation {
 pub(super) enum PreparedGraphNode {
     ManifestSource(Box<PreparedManifestSourceNode>),
     PrebuiltArtifact(Box<PreparedPrebuiltArtifactNode>),
-    TrustedCore(Box<PreparedTrustedCoreNode>),
     SingleFile(Box<PreparedSingleFileNode>),
 }
 
@@ -222,17 +199,6 @@ pub(super) struct PreparedPrebuiltArtifactNode {
 }
 
 #[derive(Debug)]
-pub(super) struct PreparedTrustedCoreNode {
-    pub(super) snapshot: ManifestSourceSnapshot,
-    pub(super) source_key: crate::CoreSourceSnapshotKeyV1,
-    pub(super) preparation: TrustedCorePreparation,
-    pub(super) existing: Option<PreparedArtifactCandidate>,
-    pub(super) receipt: Option<crate::TrustedCoreSlotReceiptV1>,
-    pub(super) artifact_slot: PathBuf,
-    pub(super) receipt_slot: PathBuf,
-}
-
-#[derive(Debug)]
 pub(super) struct PreparedSingleFileNode {
     pub(super) snapshot: SingleFileSourceSnapshot,
     pub(super) input_path: PathBuf,
@@ -244,7 +210,6 @@ impl PreparedGraphNode {
         match self {
             Self::ManifestSource(_) => PreparedNodeRepresentation::ManifestSource,
             Self::PrebuiltArtifact(_) => PreparedNodeRepresentation::PrebuiltArtifact,
-            Self::TrustedCore(_) => PreparedNodeRepresentation::TrustedCore,
             Self::SingleFile(_) => PreparedNodeRepresentation::SingleFile,
         }
     }
@@ -262,7 +227,6 @@ pub struct PreparedBuildGraph {
     pub(super) context: BuildContext,
     pub(super) meter: SlibClosureDecodeMeterV1,
     pub(super) staging: PreparedStaging,
-    pub(super) core_lock: CoreSlotLock,
     pub(super) compiler: ResolvedPairedScoopc,
 }
 
@@ -318,7 +282,6 @@ impl PreparedBuildGraph {
     pub fn source_snapshot(&self, identity: ConeIdentity) -> Option<&ManifestSourceSnapshot> {
         match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => Some(&node.snapshot),
-            Some(PreparedGraphNode::TrustedCore(node)) => Some(&node.snapshot),
             _ => None,
         }
     }
@@ -326,7 +289,6 @@ impl PreparedBuildGraph {
     pub fn planned_output_path(&self, identity: ConeIdentity) -> Option<&Path> {
         match self.nodes.get(&identity) {
             Some(PreparedGraphNode::ManifestSource(node)) => Some(&node.output_path),
-            Some(PreparedGraphNode::TrustedCore(node)) => Some(&node.artifact_slot),
             Some(PreparedGraphNode::SingleFile(node)) => Some(&node.output_path),
             Some(PreparedGraphNode::PrebuiltArtifact(_)) | None => None,
         }
@@ -369,48 +331,6 @@ impl PreparedBuildGraph {
         }
     }
 
-    pub fn trusted_core_preparation(&self) -> TrustedCorePreparation {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => node.preparation,
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        }
-    }
-
-    pub fn trusted_core_artifact_slot(&self) -> &Path {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => &node.artifact_slot,
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        }
-    }
-
-    pub fn trusted_core_receipt_slot(&self) -> &Path {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => &node.receipt_slot,
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        }
-    }
-
-    pub fn trusted_core_source_key(&self) -> crate::CoreSourceSnapshotKeyV1 {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => node.source_key,
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        }
-    }
-
-    pub fn trusted_core_receipt(&self) -> Option<&crate::TrustedCoreSlotReceiptV1> {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => node.receipt.as_ref(),
-            _ => None,
-        }
-    }
-
-    pub fn existing_trusted_core_candidate(&self) -> Option<&PreparedArtifactCandidate> {
-        match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => node.existing.as_ref(),
-            _ => None,
-        }
-    }
-
     pub const fn compiler(&self) -> &ResolvedPairedScoopc {
         &self.compiler
     }
@@ -421,10 +341,6 @@ impl PreparedBuildGraph {
 
     pub fn output_root(&self) -> &Path {
         self.staging.output_root()
-    }
-
-    pub fn core_lock_path(&self) -> &Path {
-        &self.core_lock.path
     }
 
     pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
@@ -454,12 +370,6 @@ impl PreparedBuildGraph {
                         ConeKind::Library,
                         ConeSourceForm::Manifest,
                         Some(node.artifact_fingerprint),
-                    ),
-                    PreparedGraphNode::TrustedCore(node) => PlannedArtifactNode::new(
-                        node.snapshot.coordinate.clone(),
-                        ConeKind::Library,
-                        ConeSourceForm::Manifest,
-                        None,
                     ),
                     PreparedGraphNode::SingleFile(_) => PlannedArtifactNode::new(
                         ConeCoordinate::reserved_single_file(),
@@ -513,54 +423,6 @@ impl PreparedBuildGraph {
             &c_bridge_profile,
             &mut self.meter,
         )
-    }
-
-    /// Reopens the receipt-bound immutable core slot snapshot through both
-    /// strong artifact views before granting completed-node authority.
-    pub(crate) fn complete_trusted_core_node(
-        &mut self,
-    ) -> Result<CompletedNode, TrustedCoreCompletionError> {
-        let (candidate, receipt, source_key) = match self.nodes.get(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => {
-                if !matches!(node.preparation, TrustedCorePreparation::ReuseVerifiedSlot) {
-                    return Err(TrustedCoreCompletionError::BootstrapRequired);
-                }
-                let candidate = node
-                    .existing
-                    .clone()
-                    .ok_or(TrustedCoreCompletionError::MissingPreparedCandidate)?;
-                let receipt = node
-                    .receipt
-                    .clone()
-                    .ok_or(TrustedCoreCompletionError::MissingPreparedReceipt)?;
-                (candidate, receipt, node.source_key)
-            }
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        };
-        let plan = self.artifact_closure_plan();
-        let limits = self.context.limits.artifact_decode();
-        let c_bridge_profile = self.context.target.c_bridge_toolchain().profile().clone();
-        complete_trusted_core_candidate(
-            &plan,
-            candidate,
-            receipt,
-            source_key,
-            self.compiler.fingerprint(),
-            limits,
-            self.target_selection,
-            &c_bridge_profile,
-            &mut self.meter,
-        )
-    }
-
-    pub(crate) fn require_trusted_core_bootstrap(&mut self, reason: CoreBootstrapReason) {
-        match self.nodes.get_mut(&ConeIdentity::CORE) {
-            Some(PreparedGraphNode::TrustedCore(node)) => {
-                node.preparation = TrustedCorePreparation::Bootstrap(reason);
-                node.receipt = None;
-            }
-            _ => unreachable!("resolved graph structurally contains trusted core"),
-        }
     }
 }
 

@@ -40,7 +40,11 @@ fn input(source_text: &str, compiler_executable: &str) -> ConeCompileCacheInputV
             ConeSourceForm::Manifest,
         )
         .unwrap(),
-        CurrentConeSemanticProjectionV1::TrustedCoreBootstrap,
+        CurrentConeSemanticProjectionV1::Manifest {
+            coordinate: ConeCoordinate::reserved_core(),
+            requested_kind: RequestedConeKind::Library,
+            dependencies: Vec::new(),
+        },
         vec![SourceCacheInputV1::new(
             source,
             SourceContentDigest::from_utf8(source_text),
@@ -196,7 +200,7 @@ fn compile_cache_key_has_a_fixed_canonical_vector() {
 
     assert_eq!(
         input.key().unwrap().to_string(),
-        "a5507b70c8dac30a10e2cc990ac87ca4c6705d4e46f7eb9d7d28a1be7c397cf7"
+        "cd082e9b4d109e64a36595c1074b814f6da6198af05f2d8d2b4907551c82c84b"
     );
     assert_eq!(encode(&input).unwrap().first(), Some(&0xac));
 }

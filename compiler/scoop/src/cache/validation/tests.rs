@@ -165,6 +165,13 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
         summary.semantic_fingerprints().lir(),
     )
     .unwrap();
+    let other_dependency = DependencyRecord::new(
+        ConeCoordinate::new("test", "dependency", "1.0.0").unwrap(),
+        summary.semantic_fingerprints().hir(),
+        summary.semantic_fingerprints().mir(),
+        summary.semantic_fingerprints().lir(),
+    )
+    .unwrap();
     let key = ConeCompileCacheKeyV1::from_digest(sha256(b"key"));
     let compiler = compiler(b"compiler");
     let cone = cone(ConeCoordinate::reserved_core());
@@ -174,12 +181,46 @@ fn receipt_binding_rejects_dependency_and_key_drift() {
         artifact.artifact_fingerprint(),
         cone.clone(),
         ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        vec![dependency],
+        vec![dependency.clone(), other_dependency.clone()],
         compiler,
         profile.clone(),
         Vec::new(),
     )
     .unwrap();
+
+    let actual_dependencies = [other_dependency.clone(), dependency.clone()];
+    assert_ne!(
+        receipt.direct_dependencies(),
+        actual_dependencies.as_slice()
+    );
+    assert!(
+        validate_receipt_binding(
+            &receipt,
+            &binding(
+                key,
+                artifact.artifact_fingerprint(),
+                cone.clone(),
+                &actual_dependencies,
+                compiler,
+                &profile
+            ),
+        )
+        .is_ok()
+    );
+    assert_eq!(
+        validate_receipt_binding(
+            &receipt,
+            &binding(
+                key,
+                artifact.artifact_fingerprint(),
+                cone.clone(),
+                &[other_dependency.clone(), other_dependency],
+                compiler,
+                &profile
+            ),
+        ),
+        Err(CacheReceiptBindingError::DirectDependencies)
+    );
 
     assert_eq!(
         validate_receipt_binding(

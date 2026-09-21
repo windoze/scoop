@@ -8,10 +8,9 @@ use scoop_protocol::{RequestCorrelationId, StructuredDiagnosticV1};
 use scoop_slib::{CompileArtifactPurpose, ConeKind, LinkArtifactPurpose};
 
 use crate::{
-    CompileCacheKeyError, ConeCompileCacheKeyV1, CoreBootstrapExecutionError, CoreBootstrapReason,
-    OrdinarySourceExecutionError, PrebuiltCompletionError, PreparedBuildGraph,
-    PreparedNodeRepresentation, ProductionSingleConeCompilerRunner, SingleConeCompilerRunner,
-    TrustedCoreCompletionError, TrustedCorePreparation, ValidatedArtifactClosure,
+    CompileCacheKeyError, ConeCompileCacheKeyV1, OrdinarySourceExecutionError,
+    PrebuiltCompletionError, PreparedBuildGraph, PreparedNodeRepresentation,
+    ProductionSingleConeCompilerRunner, SingleConeCompilerRunner, ValidatedArtifactClosure,
 };
 use crate::{CompletedNode, CompletedNodeOrigin};
 
@@ -188,64 +187,10 @@ impl PreparedBuildGraph {
                             BuildGraphExecutionError::CacheKey(identity, Box::new(source))
                         })?,
                 ),
-                PreparedNodeRepresentation::PrebuiltArtifact
-                | PreparedNodeRepresentation::TrustedCore => None,
+                PreparedNodeRepresentation::PrebuiltArtifact => None,
             };
             let request_id = request_id(position)?;
             let node = match representation {
-                PreparedNodeRepresentation::TrustedCore => {
-                    let mut invoked_child = false;
-                    let completed_core = match self.trusted_core_preparation() {
-                        TrustedCorePreparation::Bootstrap(_) => {
-                            invoked_child = true;
-                            self.execute_trusted_core_bootstrap(runner, request_id)
-                                .map_err(|source| {
-                                    BuildGraphExecutionError::CoreBootstrap(Box::new(source))
-                                })?
-                        }
-                        TrustedCorePreparation::ReuseVerifiedSlot => {
-                            match self.complete_trusted_core_node() {
-                                Ok(node) => node,
-                                Err(
-                                    TrustedCoreCompletionError::Artifact(_)
-                                    | TrustedCoreCompletionError::Plan(_),
-                                ) => {
-                                    self.require_trusted_core_bootstrap(
-                                        CoreBootstrapReason::Corrupt,
-                                    );
-                                    invoked_child = true;
-                                    self.execute_trusted_core_bootstrap(runner, request_id)
-                                        .map_err(|source| {
-                                            BuildGraphExecutionError::CoreBootstrap(Box::new(
-                                                source,
-                                            ))
-                                        })?
-                                }
-                                Err(TrustedCoreCompletionError::ReceiptBinding(_)) => {
-                                    self.require_trusted_core_bootstrap(
-                                        CoreBootstrapReason::ReceiptUnavailable,
-                                    );
-                                    invoked_child = true;
-                                    self.execute_trusted_core_bootstrap(runner, request_id)
-                                        .map_err(|source| {
-                                            BuildGraphExecutionError::CoreBootstrap(Box::new(
-                                                source,
-                                            ))
-                                        })?
-                                }
-                                Err(source) => {
-                                    return Err(BuildGraphExecutionError::CoreCompletion(
-                                        Box::new(source),
-                                    ));
-                                }
-                            }
-                        }
-                    };
-                    if invoked_child {
-                        child_invocations.push(identity);
-                    }
-                    completed_core
-                }
                 PreparedNodeRepresentation::PrebuiltArtifact => self
                     .complete_prebuilt_node(identity, &completed_refs)
                     .map_err(|source| {
@@ -299,8 +244,6 @@ pub enum BuildGraphExecutionError {
     MissingPreparedNode(ConeIdentity),
     RequestIdOverflow,
     CacheKey(ConeIdentity, Box<CompileCacheKeyError>),
-    CoreCompletion(Box<TrustedCoreCompletionError>),
-    CoreBootstrap(Box<CoreBootstrapExecutionError>),
     Prebuilt(ConeIdentity, Box<PrebuiltCompletionError>),
     Ordinary(ConeIdentity, Box<OrdinarySourceExecutionError>),
 }
@@ -323,8 +266,6 @@ impl fmt::Display for BuildGraphExecutionError {
                     "cannot derive cache key for {identity}: {source}"
                 )
             }
-            Self::CoreCompletion(source) => source.fmt(formatter),
-            Self::CoreBootstrap(source) => source.fmt(formatter),
             Self::Prebuilt(identity, source) => {
                 write!(
                     formatter,
@@ -342,8 +283,6 @@ impl std::error::Error for BuildGraphExecutionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CacheKey(_, source) => Some(source.as_ref()),
-            Self::CoreCompletion(source) => Some(source.as_ref()),
-            Self::CoreBootstrap(source) => Some(source.as_ref()),
             Self::Prebuilt(_, source) => Some(source.as_ref()),
             Self::Ordinary(_, source) => Some(source.as_ref()),
             Self::MissingPreparedNode(_) | Self::RequestIdOverflow => None,

@@ -2,7 +2,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use scoop_hir::CanonicalHirFoundation;
-use scoop_identity::{ArtifactCapabilityProfileId, ConeCoordinate, ConeIdentity};
+use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::{CanonicalLirFoundation, ValidatedLirTargetSelection};
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_mir::CanonicalMirFoundation;
@@ -18,16 +18,17 @@ use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, IdentityFoundationArtifact,
     IdentityFoundationArtifactInput, ProducerRecord, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::{DecodeLimits, encode};
+use scoop_wire::DecodeLimits;
 
 use super::*;
 use crate::{
     ArtifactCacheRoot, BuildGraphExecutionError, BuildGraphRequest, BuildLimitsProfileV1,
-    BuildRootInput, ChildIoPlan, ChildTransportError, DiagnosticsPolicy, PairedScoopcLocator,
-    ResolvedPairedScoopc, SingleConeCompilerRunner, TrustedCoreCompletionError,
-    TrustedCoreSlotReceiptBodyV1, TrustedCoreSlotReceiptV1, TrustedSysrootRoot,
+    BuildRootInput, ChildIoPlan, ChildTransportError, CompileCacheStoreV1, CompiledCompletionError,
+    DiagnosticsPolicy, PairedScoopcLocator, ResolvedPairedScoopc, SingleConeCompilerRunner,
+    TrustedSysrootRoot,
 };
 
+mod core;
 mod process;
 
 struct FailureRunner;
@@ -82,22 +83,6 @@ impl SingleConeCompilerRunner for InvalidArtifactSuccessRunner {
             foundation_core_artifact(),
         )
         .unwrap();
-        Ok(test_success(request.request_id()))
-    }
-}
-
-struct SourceChangingSuccessRunner {
-    source: std::path::PathBuf,
-}
-
-impl SingleConeCompilerRunner for SourceChangingSuccessRunner {
-    fn invoke(
-        &mut self,
-        _tool: &ResolvedPairedScoopc,
-        request: &ScoopcRequestEnvelopeV1,
-        _io: &ChildIoPlan,
-    ) -> Result<ScoopcResponseEnvelopeV1, ChildTransportError> {
-        std::fs::write(&self.source, "class Any\nclass Unit\n").unwrap();
         Ok(test_success(request.request_id()))
     }
 }
@@ -295,8 +280,8 @@ fn prepare_materializes_only_immutable_private_source_inputs() {
     assert_eq!(prepared.node_count(), 2);
     assert_eq!(prepared.edge_count(), 1);
     assert_eq!(
-        prepared.trusted_core_preparation(),
-        TrustedCorePreparation::Bootstrap(CoreBootstrapReason::Missing)
+        prepared.node_representation(ConeIdentity::CORE),
+        Some(PreparedNodeRepresentation::ManifestSource)
     );
     assert_eq!(prepared.decode_usage().source_files, 2);
     let private_root = prepared.source_input_path(root_identity).unwrap();
@@ -408,305 +393,6 @@ fn prepare_rejects_artifact_changed_after_discovery() {
 }
 
 #[test]
-fn prepared_graph_retains_the_core_lock_exclusively() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-
-    let prepared = prepare(&root, workspace).unwrap();
-    let other = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(prepared.core_lock_path())
-        .unwrap();
-
-    assert!(matches!(
-        fs4::FileExt::try_lock(&other),
-        Err(fs4::TryLockError::WouldBlock)
-    ));
-}
-
-#[test]
-fn valid_but_unreceipted_core_slot_is_snapshotted_but_not_reused() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-    std::fs::create_dir_all(layout.artifact_root()).unwrap();
-    let artifact = foundation_core_artifact();
-    std::fs::write(layout.artifact(), &artifact).unwrap();
-
-    let mut prepared = prepare(&root, workspace).unwrap();
-
-    assert_eq!(
-        prepared.trusted_core_preparation(),
-        TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable)
-    );
-    let existing = prepared.existing_trusted_core_candidate().unwrap();
-    assert_eq!(existing.snapshot().as_bytes(), artifact);
-    assert!(
-        existing
-            .materialized_path()
-            .starts_with(prepared.staging_root())
-    );
-    assert!(matches!(
-        prepared.complete_trusted_core_node(),
-        Err(TrustedCoreCompletionError::BootstrapRequired)
-    ));
-}
-
-#[test]
-fn core_receipt_binding_requires_the_actual_artifact_to_use_the_strong_profile() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-    std::fs::create_dir_all(layout.artifact_root()).unwrap();
-    std::fs::write(layout.artifact(), foundation_core_artifact()).unwrap();
-
-    let prepared = prepare(&root, workspace).unwrap();
-    let source_key = prepared.trusted_core_source_key();
-    let compiler = prepared.compiler().fingerprint();
-    let artifact = prepared
-        .existing_trusted_core_candidate()
-        .unwrap()
-        .summary()
-        .artifact_fingerprint();
-    let receipt = TrustedCoreSlotReceiptV1::new(
-        TrustedCoreSlotReceiptBodyV1::new(
-            source_key,
-            artifact,
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            compiler,
-            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
-            Vec::new(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    assert!(core_receipt_matches(
-        &receipt,
-        source_key,
-        compiler,
-        artifact,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
-    ));
-    assert!(!core_receipt_matches(
-        &receipt,
-        source_key,
-        compiler,
-        artifact,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-        &ArtifactCapabilityProfileId::identity_foundation(),
-    ));
-    drop(prepared);
-    std::fs::write(layout.receipt(), encode(&receipt).unwrap()).unwrap();
-
-    let prepared = prepare(&root, workspace).unwrap();
-    assert_eq!(
-        prepared.trusted_core_preparation(),
-        TrustedCorePreparation::Bootstrap(CoreBootstrapReason::ReceiptUnavailable)
-    );
-    assert!(prepared.trusted_core_receipt().is_none());
-}
-
-#[test]
-fn prepared_receipt_cannot_bypass_the_core_dual_view_gate() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-    std::fs::create_dir_all(layout.artifact_root()).unwrap();
-    std::fs::write(layout.artifact(), foundation_core_artifact()).unwrap();
-
-    let mut prepared = prepare(&root, workspace).unwrap();
-    let source_key = prepared.trusted_core_source_key();
-    let compiler = prepared.compiler().fingerprint();
-    let artifact = prepared
-        .existing_trusted_core_candidate()
-        .unwrap()
-        .summary()
-        .artifact_fingerprint();
-    let receipt = TrustedCoreSlotReceiptV1::new(
-        TrustedCoreSlotReceiptBodyV1::new(
-            source_key,
-            artifact,
-            ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            compiler,
-            ArtifactCapabilityProfileId::cross_cone_semantics_strong(),
-            Vec::new(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    match prepared.nodes.get_mut(&ConeIdentity::CORE).unwrap() {
-        PreparedGraphNode::TrustedCore(node) => {
-            node.preparation = TrustedCorePreparation::ReuseVerifiedSlot;
-            node.receipt = Some(receipt);
-        }
-        _ => unreachable!(),
-    }
-
-    assert!(matches!(
-        prepared.complete_trusted_core_node(),
-        Err(TrustedCoreCompletionError::Artifact(_))
-    ));
-}
-
-#[test]
-fn core_bootstrap_child_failure_never_writes_a_receipt() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-
-    let mut prepared = prepare(&root, workspace).unwrap();
-    assert!(matches!(
-        prepared.execute_trusted_core_bootstrap(
-            &mut FailureRunner,
-            RequestCorrelationId::from_array([31; 16]),
-        ),
-        Err(CoreBootstrapExecutionError::ChildFailure(diagnostics))
-            if diagnostics.len() == 1
-    ));
-    assert!(!layout.receipt().exists());
-}
-
-#[test]
-fn serial_scheduler_stops_before_dependent_after_core_failure() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let prepared = prepare(&root, workspace).unwrap();
-    let mut runner = RecordingFailureRunner::default();
-
-    assert!(matches!(
-        prepared.execute_with_runner(&mut runner),
-        Err(BuildGraphExecutionError::CoreBootstrap(source))
-            if matches!(source.as_ref(), CoreBootstrapExecutionError::ChildFailure(_))
-    ));
-    assert_eq!(
-        runner.current,
-        vec![CurrentConeRequestV1::TrustedCoreBootstrap]
-    );
-}
-
-#[test]
-fn core_bootstrap_source_change_precedes_output_authority() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-    let mut runner = SourceChangingSuccessRunner {
-        source: sysroot.join("lib/scoop.core/src/core.scoop"),
-    };
-
-    let mut prepared = prepare(&root, workspace).unwrap();
-    assert!(matches!(
-        prepared.execute_trusted_core_bootstrap(
-            &mut runner,
-            RequestCorrelationId::from_array([32; 16]),
-        ),
-        Err(CoreBootstrapExecutionError::SourceChanged { .. })
-    ));
-    assert!(!layout.receipt().exists());
-}
-
-#[test]
-fn core_bootstrap_invalid_output_never_writes_a_receipt() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
-        &sysroot,
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-    );
-
-    let mut prepared = prepare(&root, workspace).unwrap();
-    assert!(matches!(
-        prepared.execute_trusted_core_bootstrap(
-            &mut InvalidArtifactSuccessRunner,
-            RequestCorrelationId::from_array([33; 16]),
-        ),
-        Err(CoreBootstrapExecutionError::Completion(
-            TrustedCoreCompletionError::Artifact(_)
-        ))
-    ));
-    assert!(!layout.receipt().exists());
-}
-
-#[test]
-fn core_source_key_changes_with_the_locked_source_snapshot() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-
-    let prepared = prepare(&root, workspace).unwrap();
-    let initial = prepared.trusted_core_source_key();
-    drop(prepared);
-    std::fs::write(
-        sysroot.join("lib/scoop.core/src/core.scoop"),
-        "class Any\nclass Unit\n",
-    )
-    .unwrap();
-
-    let prepared = prepare(&root, workspace).unwrap();
-    assert_ne!(prepared.trusted_core_source_key(), initial);
-}
-
-#[test]
 fn single_file_root_is_materialized_with_its_fixed_semantic_name() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
@@ -777,46 +463,6 @@ fn compile_cache_key_excludes_locator_and_manifest_presentation() {
     let changed_key = changed.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     assert_eq!(first_key, second_key);
     assert_ne!(first_key, changed_key);
-}
-
-#[test]
-fn trusted_core_child_plan_is_the_closed_bootstrap_request() {
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    write_core(&sysroot);
-    write_manifest(&root, "root", "");
-    write_fake_compiler(&workspace.join("bin/scoopc"));
-    let prepared = prepare(&root, workspace).unwrap();
-    let request_id = RequestCorrelationId::from_array([4; 16]);
-
-    let plan = prepared
-        .child_invocation_plan(ConeIdentity::CORE, request_id, &[])
-        .unwrap();
-
-    assert_eq!(plan.identity(), ConeIdentity::CORE);
-    assert_eq!(plan.output_path(), prepared.trusted_core_artifact_slot());
-    assert_eq!(plan.request().request_id(), request_id);
-    assert!(matches!(
-        plan.request().build().current(),
-        CurrentConeRequestV1::TrustedCoreBootstrap
-    ));
-    assert!(plan.request().build().direct_slibs().is_empty());
-    assert!(plan.request().build().support_slibs().is_empty());
-    assert!(matches!(
-        plan.request().build().trusted_core(),
-        TrustedCoreRequestV1::Bootstrap
-    ));
-    assert_eq!(
-        plan.request().build().diagnostics(),
-        DiagnosticOutputPolicyV1::Structured
-    );
-    assert_eq!(plan.request().build().emit(), StageDumpPolicyV1::None);
-    assert_eq!(
-        plan.request().build().target().canonical_triple(),
-        "aarch64-apple-darwin"
-    );
 }
 
 #[test]

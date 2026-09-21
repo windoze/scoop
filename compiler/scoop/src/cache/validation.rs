@@ -100,9 +100,6 @@ pub(crate) fn validate_cache_entry(
             return Err(CacheCompletionError::DuplicateCompletedNode(node.cone()));
         }
     }
-    if !artifacts.contains_key(&ConeIdentity::CORE) {
-        return Err(CacheCompletionError::MissingTrustedCore);
-    }
     let artifact_snapshot = Arc::new(ArtifactSnapshot::from_shared(
         entry.artifact().shared_bytes(),
     ));
@@ -208,7 +205,11 @@ fn validate_receipt_binding(
     if receipt.target_selection().selection() != actual.target {
         return Err(CacheReceiptBindingError::Target);
     }
-    if receipt.direct_dependencies() != actual.direct_dependencies {
+    let mut actual_dependencies = actual.direct_dependencies.iter().collect::<Vec<_>>();
+    actual_dependencies.sort_by(|left, right| {
+        crate::discovery::compare_coordinates(left.coordinate(), right.coordinate())
+    });
+    if !receipt.direct_dependencies().iter().eq(actual_dependencies) {
         return Err(CacheReceiptBindingError::DirectDependencies);
     }
     if receipt.compiler() != actual.compiler {
@@ -258,7 +259,6 @@ pub enum CacheCompletionError {
     },
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
-    MissingTrustedCore,
     Artifact(Box<CrossConeArtifactValidationError>),
     Plan(Box<ArtifactClosureValidationError>),
     ConeRecord(ConeRecordError),
@@ -296,9 +296,6 @@ impl fmt::Display for CacheCompletionError {
             }
             Self::DuplicateCompletedNode(identity) => {
                 write!(formatter, "completed input repeats Cone {identity}")
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("cache validation requires completed trusted core")
             }
             Self::Artifact(source) => {
                 write!(

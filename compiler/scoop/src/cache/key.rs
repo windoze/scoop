@@ -10,7 +10,6 @@ use scoop_slib::{
     ArtifactCapabilityProfile, CodeFingerprint, ConeRecord, HirFingerprint, IdentityAbiDescriptor,
     LirFingerprint, MirFingerprint,
 };
-use scoop_toolchain::TrustedCoreBootstrapProfileIdV1;
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use crate::PairedCompilerFingerprintV1;
@@ -171,7 +170,6 @@ pub enum CurrentConeSemanticProjectionV1 {
         dependencies: Vec<ConeCoordinate>,
     },
     SingleFile,
-    TrustedCoreBootstrap,
 }
 
 impl WireEncode for CurrentConeSemanticProjectionV1 {
@@ -200,15 +198,6 @@ impl WireEncode for CurrentConeSemanticProjectionV1 {
                 ConeCoordinate::reserved_single_file().encode(encoder)?;
                 encoder.field(2)?;
                 scoop_identity::NormalizedSourcePath::single_file().encode(encoder)
-            }
-            Self::TrustedCoreBootstrap => {
-                encoder.map(3)?;
-                encoder.field(0)?;
-                encoder.unsigned(3)?;
-                encoder.field(1)?;
-                ConeCoordinate::reserved_core().encode(encoder)?;
-                encoder.field(2)?;
-                TrustedCoreBootstrapProfileIdV1::CURRENT.encode(encoder)
             }
         }
     }

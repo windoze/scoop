@@ -9,14 +9,12 @@ use scoop_slib::{
 use scoop_wire::HashError;
 
 use super::{PreparedBuildGraph, PreparedGraphNode};
-use crate::ResolvedPairedScoopc;
 use crate::artifact::{ArtifactClosureValidationError, CompletedNode};
 use crate::cache::{
     CompileDependencyInputV1, ConeCompileCacheInputV1, ConeCompileCacheKeyV1,
-    CoreSourceSnapshotKeyV1, CurrentConeSemanticProjectionV1, OptionalCoreCodeFingerprintV1,
-    SourceCacheInputV1, strong_profile_id,
+    CurrentConeSemanticProjectionV1, OptionalCoreCodeFingerprintV1, SourceCacheInputV1,
+    strong_profile_id,
 };
-use crate::discovery::BuildContext;
 use crate::discovery::compare_coordinates;
 
 impl PreparedBuildGraph {
@@ -151,19 +149,6 @@ impl PreparedBuildGraph {
             Some(PreparedGraphNode::ManifestSource(node)) => {
                 manifest_cache_inputs(&node.snapshot, node.snapshot.requested_kind)
             }
-            Some(PreparedGraphNode::TrustedCore(node)) => {
-                let cone = ConeRecord::new(
-                    node.snapshot.coordinate.clone(),
-                    ConeKind::Library,
-                    ConeSourceForm::Manifest,
-                )
-                .map_err(CompileCacheKeyError::ConeRecord)?;
-                Ok((
-                    cone,
-                    CurrentConeSemanticProjectionV1::TrustedCoreBootstrap,
-                    source_inputs(node.snapshot.sources()),
-                ))
-            }
             Some(PreparedGraphNode::SingleFile(node)) => {
                 let cone = ConeRecord::new(
                     ConeCoordinate::reserved_single_file(),
@@ -186,42 +171,6 @@ impl PreparedBuildGraph {
             None => Err(CompileCacheKeyError::UnknownNode(identity)),
         }
     }
-}
-
-pub(in crate::snapshot::prepared) fn trusted_core_source_key(
-    snapshot: &super::ManifestSourceSnapshot,
-    compiler: &ResolvedPairedScoopc,
-    context: &BuildContext,
-    target_selection: scoop_lir::ValidatedLirTargetSelection,
-) -> Result<CoreSourceSnapshotKeyV1, CompileCacheKeyError> {
-    let cone = ConeRecord::new(
-        snapshot.coordinate.clone(),
-        ConeKind::Library,
-        ConeSourceForm::Manifest,
-    )
-    .map_err(CompileCacheKeyError::ConeRecord)?;
-    let compatibility = IdentityAbiDescriptor::current().map_err(CompileCacheKeyError::Hash)?;
-    let input = ConeCompileCacheInputV1::new(
-        cone,
-        CurrentConeSemanticProjectionV1::TrustedCoreBootstrap,
-        source_inputs(snapshot.sources()),
-        Vec::new(),
-        compiler.fingerprint(),
-        compatibility,
-        strong_profile_id(),
-        compiler.protocol(),
-        target_selection
-            .target()
-            .fingerprint()
-            .map_err(CompileCacheKeyError::Hash)?,
-        target_selection
-            .backend()
-            .fingerprint()
-            .map_err(CompileCacheKeyError::Hash)?,
-        context.target.c_bridge_toolchain().profile().fingerprint(),
-    );
-    let compile_key = input.key().map_err(CompileCacheKeyError::Hash)?;
-    CoreSourceSnapshotKeyV1::derive(compile_key).map_err(CompileCacheKeyError::Hash)
 }
 
 fn manifest_cache_inputs(

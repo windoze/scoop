@@ -472,6 +472,13 @@ pub fn normalize_protocol_build_request(
                 TrustedCoreInput::Artifact(input),
             )
         }
+        (Some((true, path)), TrustedCoreRequestV1::Bootstrap) => (
+            CurrentConeInput::Manifest {
+                root: ManifestRootLocator::from_path(path)
+                    .map_err(BuildRequestNormalizationError::ManifestRoot)?,
+            },
+            TrustedCoreInput::BootstrapSelf,
+        ),
         (None, TrustedCoreRequestV1::Bootstrap) => {
             let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
                 .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;

@@ -77,27 +77,50 @@ fn real_single_file_request(
     .unwrap()
 }
 
-fn assert_manual_scoopc_matches(
+fn assert_direct_protocol_matches(
     executed: &crate::ExecutedBuildGraph,
     identity: ConeIdentity,
     compiler: &Path,
-    sysroot: &Path,
     input: &Path,
     output: &Path,
 ) {
-    let result = std::process::Command::new(compiler)
-        .arg("build")
-        .arg(input)
-        .arg("--out-slib")
-        .arg(output)
-        .env_clear()
-        .env("SCOOP_SYSROOT", sysroot)
-        .output()
+    use scoop_protocol::{HostPathCarrier, ScoopcBuildRequestV1};
+    let path = |path: &Path| HostPathCarrier::from_path(path).unwrap();
+    let current = if input.is_dir() {
+        CurrentConeRequestV1::ManifestRoot { root: path(input) }
+    } else {
+        CurrentConeRequestV1::SingleFile {
+            source: path(input),
+        }
+    };
+    let core = executed.completed(ConeIdentity::CORE).unwrap();
+    let request = ScoopcRequestEnvelopeV1::new(
+        RequestCorrelationId::from_array([92; 16]),
+        ScoopcBuildRequestV1::new(
+            current,
+            Vec::new(),
+            Vec::new(),
+            TrustedCoreRequestV1::ArtifactSlot {
+                artifact: path(core.materialized_child_path().as_path()),
+            },
+            TargetSelectionRequestV1::new("aarch64-apple-darwin".into()).unwrap(),
+            path(output),
+            DiagnosticOutputPolicyV1::Structured,
+            StageDumpPolicyV1::None,
+        )
+        .unwrap(),
+    );
+    let tool = ResolvedPairedScoopc::resolve(&PairedScoopcLocator::new(compiler).unwrap()).unwrap();
+    let result = ProductionSingleConeCompilerRunner
+        .invoke(
+            &tool,
+            &request,
+            &ChildIoPlan::new(output.parent().unwrap().join("unused-sysroot")),
+        )
         .unwrap();
     assert!(
-        result.status.success(),
-        "manual scoopc failed: {}",
-        String::from_utf8_lossy(&result.stderr)
+        matches!(result, ScoopcResponseEnvelopeV1::Success { .. }),
+        "{result:?}"
     );
     assert_eq!(
         executed
@@ -111,7 +134,7 @@ fn assert_manual_scoopc_matches(
 }
 
 #[test]
-fn real_process_bootstrap_then_reuses_core_and_source_cache() {
+fn real_process_compiles_then_reuses_core_and_source_cache() {
     let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
         return;
     };
@@ -147,17 +170,16 @@ fn real_process_bootstrap_then_reuses_core_and_source_cache() {
     );
     assert_eq!(
         first.completed(ConeIdentity::CORE).unwrap().origin(),
-        CompletedNodeOrigin::TrustedCore
+        CompletedNodeOrigin::Compiled
     );
     assert_eq!(
         first.completed(root_identity).unwrap().origin(),
         CompletedNodeOrigin::Compiled
     );
-    assert_manual_scoopc_matches(
+    assert_direct_protocol_matches(
         &first,
         root_identity,
         &compiler,
-        &sysroot,
         &root,
         &workspace.join("manual-library.slib"),
     );
@@ -180,7 +202,7 @@ fn real_process_bootstrap_then_reuses_core_and_source_cache() {
     assert!(second.observations().child_invocations().is_empty());
     assert_eq!(
         second.completed(ConeIdentity::CORE).unwrap().origin(),
-        CompletedNodeOrigin::TrustedCore
+        CompletedNodeOrigin::CacheHit
     );
     assert_eq!(
         second.completed(root_identity).unwrap().origin(),
@@ -221,11 +243,10 @@ fn real_process_builds_and_reuses_manifest_executable() {
         first.observations().child_invocations(),
         &[ConeIdentity::CORE, root_identity]
     );
-    assert_manual_scoopc_matches(
+    assert_direct_protocol_matches(
         &first,
         root_identity,
         &compiler,
-        &sysroot,
         &root,
         &workspace.join("manual-executable.slib"),
     );
@@ -282,11 +303,10 @@ fn real_process_builds_and_reuses_single_file() {
         first.observations().child_invocations(),
         &[ConeIdentity::CORE, ConeIdentity::SINGLE_FILE]
     );
-    assert_manual_scoopc_matches(
+    assert_direct_protocol_matches(
         &first,
         ConeIdentity::SINGLE_FILE,
         &compiler,
-        &sysroot,
         &source,
         &workspace.join("manual-single-file.slib"),
     );
@@ -365,10 +385,7 @@ fn real_process_builds_and_reuses_a_source_dependency() {
         .execute_with_runner(&mut first_runner)
         .unwrap();
     assert_eq!(first_runner.current.len(), 3);
-    assert_eq!(
-        first_runner.current[0],
-        CurrentConeRequestV1::TrustedCoreBootstrap
-    );
+    assert_manifest_current_identity(&first_runner.current[0], ConeIdentity::CORE);
     assert_manifest_current_identity(&first_runner.current[1], dependency_identity);
     assert_manifest_current_identity(&first_runner.current[2], root_identity);
     assert_eq!(
@@ -467,10 +484,7 @@ fn real_process_diamond_invokes_shared_core_once_in_canonical_order() {
         .execute_with_runner(&mut first_runner)
         .unwrap();
     assert_eq!(first_runner.current.len(), 4);
-    assert_eq!(
-        first_runner.current[0],
-        CurrentConeRequestV1::TrustedCoreBootstrap
-    );
+    assert_manifest_current_identity(&first_runner.current[0], ConeIdentity::CORE);
     assert_manifest_current_identity(&first_runner.current[1], alpha_identity);
     assert_manifest_current_identity(&first_runner.current[2], beta_identity);
     assert_manifest_current_identity(&first_runner.current[3], root_identity);
@@ -508,3 +522,5 @@ fn assert_manifest_current_identity(current: &CurrentConeRequestV1, identity: Co
         std::ffi::OsStr::new(&expected)
     );
 }
+
+mod core_cache;

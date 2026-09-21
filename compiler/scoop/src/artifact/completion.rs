@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use scoop_identity::ConeIdentity;
-use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
+use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_protocol::StructuredDiagnosticV1;
 use scoop_slib::{
     ArtifactFingerprint, CompileArtifactPurpose, DependencyRecord, LinkArtifactPurpose,
@@ -16,17 +16,13 @@ use super::{
     ArtifactClosurePlan, ArtifactClosureValidationError, CrossConeArtifactValidationError,
     ValidatedArtifactClosure, ValidatedCrossConeArtifactHandle, ValidatedDualArtifactClosure,
 };
-use crate::{
-    CacheCompletionError, CoreSourceSnapshotKeyV1, PairedCompilerFingerprintV1,
-    PreparedArtifactCandidate, TrustedCoreSlotReceiptV1,
-};
+use crate::{CacheCompletionError, PreparedArtifactCandidate};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompletedNodeOrigin {
     Prebuilt,
     CacheHit,
     Compiled,
-    TrustedCore,
 }
 
 /// A transport path under the current build's private staging area. The path
@@ -113,24 +109,6 @@ impl CompletedNode {
         }
     }
 
-    fn from_trusted_core(
-        artifact: Arc<ValidatedCrossConeArtifactHandle>,
-        closures: ValidatedDualArtifactClosure,
-        materialized_child_path: PathBuf,
-        warnings: Vec<StructuredDiagnosticV1>,
-    ) -> Self {
-        let (compile_closure, link_closure) = closures.into_parts();
-        Self {
-            cone: ConeIdentity::CORE,
-            origin: CompletedNodeOrigin::TrustedCore,
-            artifact,
-            compile_closure,
-            link_closure,
-            materialized_child_path: PrivateArtifactPath::new(materialized_child_path),
-            warnings,
-        }
-    }
-
     fn from_compiled(
         cone: ConeIdentity,
         artifact: Arc<ValidatedCrossConeArtifactHandle>,
@@ -155,7 +133,6 @@ impl CompletedNode {
 pub enum CompiledCompletionError {
     CurrentNodeAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
-    MissingTrustedCore,
     Artifact(Box<CrossConeArtifactValidationError>),
     Plan(Box<ArtifactClosureValidationError>),
     Warnings(Box<CacheCompletionError>),
@@ -169,9 +146,6 @@ impl fmt::Display for CompiledCompletionError {
             }
             Self::DuplicateCompletedNode(identity) => {
                 write!(formatter, "completed input repeats Cone {identity}")
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("compiled artifact validation requires completed trusted core")
             }
             Self::Artifact(source) => {
                 write!(
@@ -198,9 +172,7 @@ impl std::error::Error for CompiledCompletionError {
             Self::Artifact(source) => source.as_ref(),
             Self::Plan(source) => source.as_ref(),
             Self::Warnings(source) => source.as_ref(),
-            Self::CurrentNodeAlreadyCompleted(_)
-            | Self::DuplicateCompletedNode(_)
-            | Self::MissingTrustedCore => return None,
+            Self::CurrentNodeAlreadyCompleted(_) | Self::DuplicateCompletedNode(_) => return None,
         })
     }
 }
@@ -231,9 +203,6 @@ pub(crate) fn complete_compiled_candidate(
             return Err(CompiledCompletionError::DuplicateCompletedNode(node.cone));
         }
     }
-    if !artifacts.contains_key(&ConeIdentity::CORE) {
-        return Err(CompiledCompletionError::MissingTrustedCore);
-    }
     let artifact = plan
         .validate_completed_artifact(
             identity,
@@ -257,160 +226,6 @@ pub(crate) fn complete_compiled_candidate(
         materialized_path,
         warnings,
     ))
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TrustedCoreReceiptBindingField {
-    SourceSnapshotKey,
-    ArtifactFingerprint,
-    Target,
-    Compiler,
-    ArtifactProfile,
-    Warnings,
-}
-
-impl fmt::Display for TrustedCoreReceiptBindingField {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::SourceSnapshotKey => "source snapshot key",
-            Self::ArtifactFingerprint => "artifact fingerprint",
-            Self::Target => "target selection",
-            Self::Compiler => "paired compiler",
-            Self::ArtifactProfile => "artifact profile",
-            Self::Warnings => "structured warning origins",
-        })
-    }
-}
-
-#[derive(Debug)]
-pub enum TrustedCoreCompletionError {
-    BootstrapRequired,
-    MissingPreparedCandidate,
-    MissingPreparedReceipt,
-    Artifact(Box<CrossConeArtifactValidationError>),
-    Plan(Box<ArtifactClosureValidationError>),
-    ReceiptBinding(TrustedCoreReceiptBindingField),
-}
-
-impl fmt::Display for TrustedCoreCompletionError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::BootstrapRequired => {
-                formatter.write_str("trusted core slot is not prepared for reuse")
-            }
-            Self::MissingPreparedCandidate => {
-                formatter.write_str("reusable trusted core has no immutable artifact candidate")
-            }
-            Self::MissingPreparedReceipt => {
-                formatter.write_str("reusable trusted core has no validated slot receipt")
-            }
-            Self::Artifact(source) => {
-                write!(
-                    formatter,
-                    "trusted core failed dual-view validation: {source}"
-                )
-            }
-            Self::Plan(source) => {
-                write!(
-                    formatter,
-                    "trusted core does not match the resolved graph: {source}"
-                )
-            }
-            Self::ReceiptBinding(field) => {
-                write!(formatter, "trusted core receipt has stale {field}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreCompletionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Artifact(source) => Some(source),
-            Self::Plan(source) => Some(source),
-            _ => None,
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn complete_trusted_core_candidate(
-    plan: &ArtifactClosurePlan,
-    candidate: PreparedArtifactCandidate,
-    receipt: TrustedCoreSlotReceiptV1,
-    source_key: CoreSourceSnapshotKeyV1,
-    compiler: PairedCompilerFingerprintV1,
-    limits: DecodeLimits,
-    target: ValidatedLirTargetSelection,
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-    meter: &mut SlibClosureDecodeMeterV1,
-) -> Result<CompletedNode, TrustedCoreCompletionError> {
-    let artifact = plan
-        .validate_completed_artifact(
-            ConeIdentity::CORE,
-            Arc::clone(candidate.snapshot()),
-            &BTreeMap::new(),
-            limits,
-            c_bridge_profile,
-            meter,
-        )
-        .map_err(|source| TrustedCoreCompletionError::Artifact(Box::new(source)))?;
-    let artifacts = BTreeMap::from([(ConeIdentity::CORE, Arc::clone(&artifact))]);
-    let closures = plan
-        .validate(ConeIdentity::CORE, &artifacts)
-        .map_err(|source| TrustedCoreCompletionError::Plan(Box::new(source)))?;
-    validate_trusted_core_receipt(&receipt, source_key, compiler, artifact.as_ref(), target)?;
-    Ok(CompletedNode::from_trusted_core(
-        artifact,
-        closures,
-        candidate.materialized_path().to_path_buf(),
-        receipt.body().structured_warnings().to_vec(),
-    ))
-}
-
-fn validate_trusted_core_receipt(
-    receipt: &TrustedCoreSlotReceiptV1,
-    source_key: CoreSourceSnapshotKeyV1,
-    compiler: PairedCompilerFingerprintV1,
-    artifact: &ValidatedCrossConeArtifactHandle,
-    target: ValidatedLirTargetSelection,
-) -> Result<(), TrustedCoreCompletionError> {
-    let body = receipt.body();
-    let publication = artifact.publication();
-    if body.source_snapshot_key() != source_key {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::SourceSnapshotKey,
-        ));
-    }
-    if !body
-        .artifact_fingerprint()
-        .matches(publication.artifact_fingerprint())
-    {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::ArtifactFingerprint,
-        ));
-    }
-    if body.target_selection().selection() != target || publication.target_selection() != target {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::Target,
-        ));
-    }
-    if body.compiler() != compiler {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::Compiler,
-        ));
-    }
-    if body.artifact_profile() != publication.profile() {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::ArtifactProfile,
-        ));
-    }
-    if crate::validate_warning_origins(body.structured_warnings(), &[ConeIdentity::CORE]).is_err() {
-        return Err(TrustedCoreCompletionError::ReceiptBinding(
-            TrustedCoreReceiptBindingField::Warnings,
-        ));
-    }
-    Ok(())
 }
 
 #[derive(Debug)]

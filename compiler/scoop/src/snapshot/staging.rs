@@ -196,16 +196,6 @@ impl PreparedStaging {
         Ok(path)
     }
 
-    pub(super) fn materialize_verified_core_artifact(
-        &self,
-        bytes: &[u8],
-        digest: Digest256,
-    ) -> Result<PathBuf, StagingError> {
-        let path = self.output_root.join("trusted-core.verified.slib");
-        write_verified_file(&path, bytes, digest)?;
-        Ok(path)
-    }
-
     pub(super) fn seal_inputs(&mut self) -> Result<(), StagingError> {
         seal_tree(&self.input_root)?;
         self.sealed = true;

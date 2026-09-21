@@ -46,10 +46,6 @@ impl fmt::Display for CacheReceiptFingerprintV1 {
 pub struct CacheArtifactFingerprintClaimV1([u8; 32]);
 
 impl CacheArtifactFingerprintClaimV1 {
-    pub(crate) const fn from_array(bytes: [u8; 32]) -> Self {
-        Self(bytes)
-    }
-
     pub const fn as_array(&self) -> &[u8; 32] {
         &self.0
     }

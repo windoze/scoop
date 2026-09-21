@@ -7,9 +7,8 @@ use scoop_protocol::StructuredDiagnosticV1;
 use crate::{
     BuildGraphDiscoveryError, BuildGraphExecutionError, BuildGraphRequestError,
     CacheCompletionError, CacheIoOperation, ChildTransportError, CompileCacheStoreError,
-    CoreBootstrapExecutionError, DependencyLocatorError, LoadBuildRootError,
-    OrdinarySourceExecutionError, PrebuiltCompletionError, PrepareBuildGraphError,
-    ResolveBuildGraphError,
+    DependencyLocatorError, LoadBuildRootError, OrdinarySourceExecutionError,
+    PrebuiltCompletionError, PrepareBuildGraphError, ResolveBuildGraphError,
 };
 
 /// Canonical order in which build orchestration failures are reported.
@@ -25,7 +24,6 @@ pub enum BuildFailurePhase {
     GraphCycleOrder,
     SourceSnapshot,
     PrebuiltArtifact,
-    CoreSlot,
     Cache,
     ChildTransport,
     ChildDiagnostic,
@@ -46,7 +44,6 @@ impl BuildFailurePhase {
             Self::GraphCycleOrder => "GraphCycleOrder",
             Self::SourceSnapshot => "SourceSnapshot",
             Self::PrebuiltArtifact => "PrebuiltArtifact",
-            Self::CoreSlot => "CoreSlot",
             Self::Cache => "Cache",
             Self::ChildTransport => "ChildTransport",
             Self::ChildDiagnostic => "ChildDiagnostic",
@@ -97,8 +94,6 @@ impl BuildDiagnosticCode {
     pub const CACHE_PUBLISH: Self = Self("SCOOP_CACHE_PUBLISH");
 
     pub const CORE_SLOT_CORRUPT: Self = Self("SCOOP_CORE_SLOT_CORRUPT");
-    pub const CORE_SOURCE_CHANGED: Self = Self("SCOOP_CORE_SOURCE_CHANGED");
-    pub const CORE_BOOTSTRAP_FAILED: Self = Self("SCOOP_CORE_BOOTSTRAP_FAILED");
 
     pub const CHILD_TOOL_MISMATCH: Self = Self("SCOOP_CHILD_TOOL_MISMATCH");
     pub const CHILD_TRANSPORT: Self = Self("SCOOP_CHILD_TRANSPORT");
@@ -338,19 +333,6 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
             ),
-            Self::CoreSourceKey(_)
-            | Self::CoreLockIo { .. }
-            | Self::InvalidCoreLockFileType(_)
-            | Self::CoreLockPathChanged(_) => classified(
-                BuildFailurePhase::CoreSlot,
-                BuildDiagnosticCode::CORE_SLOT_CORRUPT,
-            ),
-            Self::MissingTrustedCore
-            | Self::InvalidTrustedCoreRepresentation
-            | Self::DuplicateTrustedCore => classified(
-                BuildFailurePhase::GraphVersionKind,
-                BuildDiagnosticCode::GRAPH_MISSING_CORE,
-            ),
             Self::ArtifactSummaryChanged(_) | Self::PrebuiltProjectionChanged(_) => classified(
                 BuildFailurePhase::PrebuiltArtifact,
                 BuildDiagnosticCode::PREBUILT_CHANGED,
@@ -383,11 +365,6 @@ impl ClassifyBuildFailure for BuildGraphExecutionError {
                 phase_only(BuildFailurePhase::ChildTransport)
             }
             Self::CacheKey(_, _) => phase_only(BuildFailurePhase::Cache),
-            Self::CoreCompletion(_) => classified(
-                BuildFailurePhase::CoreSlot,
-                BuildDiagnosticCode::CORE_SLOT_CORRUPT,
-            ),
-            Self::CoreBootstrap(source) => source.classification(),
             Self::Prebuilt(_, source) => source.classification(),
             Self::Ordinary(_, source) => source.classification(),
         }
@@ -398,61 +375,11 @@ impl BuildGraphExecutionError {
     /// Returns child-provided diagnostics without replacing their original codes.
     pub fn child_diagnostics(&self) -> Option<&[StructuredDiagnosticV1]> {
         match self {
-            Self::CoreBootstrap(source) => match source.as_ref() {
-                CoreBootstrapExecutionError::ChildFailure(diagnostics) => Some(diagnostics),
-                _ => None,
-            },
             Self::Ordinary(_, source) => match source.as_ref() {
                 OrdinarySourceExecutionError::ChildFailure(diagnostics) => Some(diagnostics),
                 _ => None,
             },
             _ => None,
-        }
-    }
-}
-
-impl ClassifyBuildFailure for CoreBootstrapExecutionError {
-    fn classification(&self) -> BuildFailureClassification {
-        match self {
-            Self::ChildProtocol(_) => classified(
-                BuildFailurePhase::ChildTransport,
-                BuildDiagnosticCode::CHILD_PROTOCOL,
-            ),
-            Self::ChildTransport(source) => source.classification(),
-            Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
-            Self::SourceSnapshot(source) => source.classification(),
-            Self::SourceChanged { .. } => classified(
-                BuildFailurePhase::CoreSlot,
-                BuildDiagnosticCode::CORE_SOURCE_CHANGED,
-            ),
-            Self::OutputSnapshot(_) | Self::OutputLengthOverflow => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_MISSING,
-            ),
-            Self::ChildResult(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_RESPONSE_MISMATCH,
-            ),
-            Self::OutputSummary(_)
-            | Self::Staging(_)
-            | Self::ReceiptValidation(_)
-            | Self::ReceiptHash(_)
-            | Self::Completion(_) => classified(
-                BuildFailurePhase::ChildOutput,
-                BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
-            ),
-            Self::PublishReceipt(_) => classified(
-                BuildFailurePhase::CachePublish,
-                BuildDiagnosticCode::CACHE_PUBLISH,
-            ),
-            Self::SlotAlreadyReusable
-            | Self::RequestPlan(_)
-            | Self::Resource(_)
-            | Self::ReloadSourceManifest(_)
-            | Self::SourceKey(_) => classified(
-                BuildFailurePhase::CoreSlot,
-                BuildDiagnosticCode::CORE_BOOTSTRAP_FAILED,
-            ),
         }
     }
 }

@@ -686,7 +686,10 @@ fn validate_build_shape(
                 Err(ProtocolValidationError::SingleFileHasDependencies)
             }
         }
-        (CurrentConeRequestV1::TrustedCoreBootstrap, TrustedCoreRequestV1::Bootstrap) => {
+        (
+            CurrentConeRequestV1::TrustedCoreBootstrap | CurrentConeRequestV1::ManifestRoot { .. },
+            TrustedCoreRequestV1::Bootstrap,
+        ) => {
             if direct_slibs.is_empty() && support_slibs.is_empty() {
                 Ok(())
             } else {
@@ -750,6 +753,34 @@ mod tests {
 
     fn target() -> TargetSelectionRequestV1 {
         TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap()
+    }
+
+    #[test]
+    fn core_manifest_request_round_trips_without_a_default_source_slot() {
+        let request = ScoopcRequestEnvelopeV1::new(
+            RequestCorrelationId::from_array([72; 16]),
+            ScoopcBuildRequestV1::new(
+                CurrentConeRequestV1::ManifestRoot {
+                    root: path("edited-library"),
+                },
+                Vec::new(),
+                Vec::new(),
+                TrustedCoreRequestV1::Bootstrap,
+                target(),
+                path("custom-output/core.slib"),
+                DiagnosticOutputPolicyV1::Structured,
+                StageDumpPolicyV1::None,
+            )
+            .unwrap(),
+        );
+        let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(
+            &encode(&request).unwrap(),
+            DecodeLimits::M23_DEFAULT,
+        )
+        .unwrap()
+        .validate()
+        .unwrap();
+        assert_eq!(decoded, request);
     }
 
     #[test]

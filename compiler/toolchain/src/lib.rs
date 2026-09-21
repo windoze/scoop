@@ -17,7 +17,7 @@ pub use closure_limits::{ResolvedSlibClosureLimitsV1, SlibClosureLimitProfileIdV
 pub use registry::{
     ResolvedTargetProfile, ValidatedFinalLinkProfile, ValidatedRuntimeBuildProfile,
 };
-pub use trusted_core::{TrustedCoreBootstrapProfileIdV1, TrustedCoreSlotLayoutV1};
+pub use trusted_core::TrustedCoreSlotLayoutV1;
 
 #[derive(Debug)]
 pub struct ToolchainError(pub String);

@@ -26,7 +26,7 @@ M23-4 第一次建立多 Cone 的**构建图**，但不建立多 Cone 的**语�
 4. 整张图先验证 reserved identity、coordinate、kind、single version、无环、唯一 root、core 注入和 target/schema/ABI summary，再按 canonical dependency-first Kahn order 调度。manifest 枚举顺序、locator 参数顺序、hash seed与未来并发完成顺序不影响图、child 顺序或诊断顺序；
 5. prebuilt、cache hit和新 child 输出都必须从不可变 byte snapshot 分别重建完整 Compile 与 Link view。只有两种 view 都成功且依赖记录与当前图逐项相等，节点才进入 completed set；Graph-only、summary-only或 response 中声称的 fingerprint都不能提升节点状态；
 6. source node使用由semantic manifest、排序后的source content digest、实际direct dependency三层Merkle fingerprint、compiler/schema/ABI和当前single-Cone会消费的target/toolchain projection计算的内容寻址cache key。locator、绝对路径、mtime、inode、诊断展示路径和child request id不进入key；
-7. source输入在任何普通child启动前完成全图discovery与immutable snapshot。普通Cone child读取私有snapshot，而不重新遍历可能变化的用户目录；trusted core因authority固定到sysroot source slot，采用同一把slot lock及前后source snapshot相等检查；
+7. source输入在任何child启动前完成全图discovery与immutable snapshot。所有Cone（包括core）的child读取私有snapshot，不重新遍历原始源码目录；
 8. 每个source cache miss恰好启动一次独立child。child只收到已经completed的direct/support artifact路径、独立trusted core slot和私有output path；父进程不调用`scoopc` lib，不传AST/IR，不让child解析locator或递归构建；
 9. M23-4串行执行canonical order。child失败立即停止，不启动任何dependent，也不进入program-link；已成功、已双视图验证并原子发布的content-addressed cache entry可以保留；
 10. library root成功结果是已验证root `.slib`及Compile/Link两份closure authority；executable root也只返回同类root artifact和closure。本阶段不构建runtime、program descriptor、native provider或binary，不执行程序，也不宣称正式`scoop build/run/link` CLI已经完成；
@@ -644,19 +644,9 @@ manifest中的relative dependency locator在snapshot位置可能不再指向原h
 
 single-file snapshot只物化一个private `main.scoop` regular file，并以`CurrentConeRequestV1::SingleFile`调用；basename只需满足`.scoop` operand规则，semantic logical path仍由single-file loader固定为`main.scoop`。
 
-### 6.3 trusted core source变化
+### 6.3 core源码快照
 
-trusted core bootstrap的intrinsic authority绑定configured sysroot source/artifact slot，不能把普通private copy伪装成trusted source。core采用专用流程：
-
-1. 取得同一toolchain/sysroot的exclusive core-slot advisory lock；
-2. 在lock内发现并hash core manifest/source，形成`CoreSourceSnapshotKey`；
-3. 验证现有core artifact及slot receipt是否与该key、target/toolchain匹配；
-4. miss时以`CurrentConeRequestV1::TrustedCoreBootstrap`启动配套child，child从trusted slot读取source并原子发布artifact slot；
-5. child结束后重新发现/hash core source；前后key不同则视为`TrustedCoreSourceChanged`，新artifact不进入completed set或普通cache，也不写fresh slot receipt；slot中可能已有child原子发布但未获freshness证明的完整artifact，下一次build必须把它视为miss而重新bootstrap；
-6. 对slot最终bytes运行父进程双视图验证并原子更新receipt；
-7. 释放lock后，ordinary child只接收该exact slot path。
-
-sysroot预期是受信任、安装期间只读的输入，但实现仍不能用这一预期删除前后检查。不同target的core artifact slot必须按target profile隔离，不能让一个固定文件被不同target轮流覆盖。
+core与其他manifest Cone使用同一source discovery、immutable snapshot和私有输入目录。编译子进程通过普通ManifestRoot请求读取快照，输出写入本次build的staging；core不依赖自身。用户可随时编辑原始core目录，本次构建使用已捕获内容，下次构建按新内容计算普通cache key。不再持有sysroot专用锁或在child结束后重复发现core源码。
 
 ### 6.4 artifact snapshot
 
@@ -873,7 +863,7 @@ ConeCompileCacheKeyV1 =
 
 - manifest分支编码coordinate、requested kind及按dependency coordinate排序的exact semantic dependency集合；不编码locator、TOML whitespace/comment/span；
 - single-file分支编码固定reserved coordinate、Executable、唯一`main.scoop`和core-only标记；
-- core bootstrap分支编码reserved core coordinate、Library、无dependency和trusted bootstrap profile。
+- core使用普通manifest分支，编码其实际coordinate、Library及manifest dependency语义；不再编码bootstrap profile。
 
 上述逻辑字段的Wire CBOR精确冻结为：
 
@@ -922,18 +912,8 @@ CurrentConeSemanticProjectionV1 =
         1: reserved_single_file_coordinate,
         2: normalized_path("main.scoop"),
     }
-  | TrustedCoreBootstrap map(3) {
-        0: 3,
-        1: reserved_core_coordinate,
-        2: trusted_bootstrap_profile_id,
-    }
 
 RequestedConeKindV1 = Library unsigned(1) | Executable unsigned(2)
-
-TrustedCoreBootstrapProfileIdV1 = map(2) {
-    1: magic (= "scoop-trusted-core-bootstrap"),
-    2: schema (= 1),
-}
 
 PairedCompilerFingerprintV1 = map(3) {
     1: scoopc_executable_sha256,
@@ -1032,7 +1012,7 @@ receipt使用canonical Wire CBOR、bounded decode，并从不含fingerprint字�
 3. bounded读取receipt并要求key逐byte相等；
 4. snapshot `artifact.slib`；
 5. 完整双视图验证；
-6. 比较receipt、artifact、resolved node、target、profile和当前dependency records；
+6. 比较receipt、artifact、resolved node、target、profile和当前dependency records；receipt的dependency列表按coordinate排序，artifact的列表遵守slib自己的顺序，两者先按同一coordinate顺序比较完整record，不能把表示顺序差异误报为内容不一致；
 7. 构造两份purpose closure；
 8. 成功才返回cache hit并重放warnings。
 
@@ -1042,7 +1022,7 @@ exact key位置存在但receipt/artifact损坏、缺文件、wrong type、symlin
 
 ### 8.5 lock与atomic publish
 
-锁使用由toolchain platform adapter提供的advisory file lock，生命周期绑定打开的file descriptor；不使用只写PID、需要猜stale状态的裸lock file。锁对象只覆盖一个完整cache key，core slot另有独立锁；加锁路径本身用create-new/目录权限约束，不能跟随cache内symlink。
+锁使用由toolchain platform adapter提供的advisory file lock，生命周期绑定打开的file descriptor；不使用只写PID、需要猜stale状态的裸lock file。锁对象只覆盖一个完整cache key，core同样使用per-key锁；加锁路径本身用create-new/目录权限约束，不能跟随cache内symlink。
 
 miss后：
 
@@ -1058,45 +1038,11 @@ miss后：
 
 artifact与receipt不能用两个独立rename“近似原子”发布。M23-4不使用`rm -rf`清理未知cache root，也不在失败时截断现有entry。
 
-### 8.6 trusted core slot不是普通cache entry
+### 8.6 core复用普通compile cache
 
-trusted core artifact必须位于configured sysroot slot，普通cache path不能授予`IntrinsicAuthority::Core`。core使用相邻、由toolchain拥有的versioned slot receipt记录`CoreSourceSnapshotKey`、target/toolchain、artifact fingerprint和warnings；reuse仍完整双视图验证。
+core使用与所有Cone相同的Manifest语义投影、`ConeCompileCacheKeyV1`、`CacheReceiptV1`、per-key lock、原子目录发布和artifact解码路径。删除额外CoreSourceSnapshotKey、bootstrap profile、slot receipt和core-slot锁。cache命中时completed origin为CacheHit，重新编译时为Compiled；后续Cone从这个completed node取得artifact路径，不检查core专属origin或固定sysroot slot。
 
-slot布局和receipt wire固定为：
-
-```text
-<target-qualified-core-artifact-root>/
-    scoop.core.slib
-    scoop.core.receipt.cbor
-    scoop.core.lock
-
-CoreSourceSnapshotKeyV1 =
-    DomainSeparatedCborHash("scoop-core-source-snapshot-v1",
-                            ConeCompileCacheKeyV1)
-
-TrustedCoreSlotReceiptV1 = map(2) {
-    1: body,
-    2: fingerprint,
-}
-
-TrustedCoreSlotReceiptBodyV1 = map(7) {
-    1: schema (= 1),
-    2: source_snapshot_key,
-    3: artifact_fingerprint,
-    4: target_selection,
-    5: compiler_fingerprint,
-    6: artifact_profile,
-    7: structured_warnings,
-}
-
-TrustedCoreSlotReceiptFingerprintV1 =
-    DomainSeparatedCborHash("scoop-trusted-core-slot-receipt-v1",
-                            TrustedCoreSlotReceiptBodyV1)
-```
-
-`target_selection`、`compiler_fingerprint`、`artifact_profile`和warning canonical规则与8.2～8.3节普通compile cache中的同名typed record完全相同，但slot receipt是独立closed product，不能编码或解码为`CacheReceiptV1`。`CoreSourceSnapshotKeyV1`从core bootstrap分支的完整`ConeCompileCacheKeyV1`再经独立domain派生，因此绑定source bytes、bootstrap profile、paired compiler、protocol、schema/ABI及实际消费的target/toolchain projection；它不是裸source digest。receipt只在exclusive core-slot lock内、父进程完成child后source key复核及artifact双视图验证之后，以同目录temporary file + flush/sync + atomic replace更新；先出现的新artifact配旧receipt只能是miss，不能短暂成为fresh authority。读取时receipt和artifact都用no-follow、bounded snapshot；missing、wrong type、symlink、decode/fingerprint/binding不符均使slot miss，随后由trusted bootstrap authority重建，而不是查询普通compile cache。
-
-M23-4不从普通compile cache把任意同coordinateartifact直接复制成trusted core。若未来要复用core cache，必须先有由bootstrap authority签发并验证的attestation协议；当前miss直接调用trusted bootstrap child。这样本地cache被篡改不会提升为core authority。
+源码、普通manifest语义、依赖fingerprint、compiler或target变化按已有cache key失效；core重建的artifact变化按同一依赖规则传播。旧core slot receipt不迁移、不作为缓存输入，首次新构建产生普通cache entry。旧slot可保留为显式prebuilt输入；没有额外授权或attestation协议。
 
 ## 9. scheduler
 
@@ -1343,7 +1289,6 @@ Request
   -> GraphCycleOrder
   -> SourceSnapshot
   -> PrebuiltArtifact
-  -> CoreSlot
   -> Cache
   -> ChildTransport
   -> ChildDiagnostic
@@ -1363,7 +1308,7 @@ graph phase尽量收集互不依赖的多个错误后一次排序返回；execut
 - graph：`SCOOP_GRAPH_RESERVED_IDENTITY`、`SCOOP_GRAPH_MULTIPLE_VERSIONS`、`SCOOP_GRAPH_EXECUTABLE_DEPENDENCY`、`SCOOP_GRAPH_SINGLE_FILE_DEPENDENCY`、`SCOOP_GRAPH_MISSING_CORE`、`SCOOP_GRAPH_CYCLE`、`SCOOP_GRAPH_UNREACHABLE_NODE`、`SCOOP_GRAPH_RESOURCE_LIMIT`；
 - prebuilt：`SCOOP_PREBUILT_SUMMARY_MISMATCH`、`SCOOP_PREBUILT_VIEW_INVALID`、`SCOOP_PREBUILT_STALE_DEPENDENCY`、`SCOOP_PREBUILT_CHANGED`；
 - cache：`SCOOP_CACHE_IO`、`SCOOP_CACHE_ENTRY_CORRUPT`、`SCOOP_CACHE_LOCK`、`SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION`、`SCOOP_CACHE_PUBLISH`；
-- core：`SCOOP_CORE_SLOT_CORRUPT`、`SCOOP_CORE_SOURCE_CHANGED`、`SCOOP_CORE_BOOTSTRAP_FAILED`；
+- 默认core位置加载失败沿用`SCOOP_CORE_SLOT_CORRUPT`；core源码编译、缓存及产物失败使用普通Cone对应phase与code，不另设bootstrap/source-change错误族；
 - child：`SCOOP_CHILD_TOOL_MISMATCH`、`SCOOP_CHILD_TRANSPORT`、`SCOOP_CHILD_PROTOCOL`、`SCOOP_CHILD_EXIT`、`SCOOP_CHILD_OUTPUT_MISSING`、`SCOOP_CHILD_OUTPUT_PLAN_MISMATCH`、`SCOOP_CHILD_RESPONSE_MISMATCH`。
 
 底层`scoopc`/slib structured code保留原值；orchestrator通过typed nesting增加Cone/phase context，不把所有错误压成一个字符串code。
@@ -1372,7 +1317,7 @@ graph phase尽量收集互不依赖的多个错误后一次排序返回；execut
 
 - graph失败：无child、无cache write、无core slot write；
 - source/artifact snapshot或summary复核失败：同上；private snapshot由guard清理；
-- core child在发布前失败：旧成功slot由M23-3 atomic publication保护，不被partial覆盖；child已原子发布后才发现source key变化时，slot artifact保持完整但不获得fresh receipt，当前build失败且后续build必须重建；
+- core child遵守与其他源码Cone相同的失败原子性；原始core目录变化不影响已经捕获的本次源码快照，下次构建按新快照重新计算cache key；
 - cache lookup失败：不启动child覆盖corrupt exact-key entry；
 - child failure/transport failure：无node receipt、无Completed commit；child private output不是cache；
 - output验证失败：无cache publish、无Completed commit；
@@ -1430,7 +1375,7 @@ manifest whitespace/comment改变不会改变normalized semantic cache字段；s
 - private snapshot没有复制locator target、旁文件、native source或symlink；
 - normalized path escape、duplicate与create-new collision；
 - child input只引用private artifact snapshot，不引用用户/cache可替换path；
-- trusted core前后source key变化使bootstrap结果不进入completed/cache。
+- 修改core原始源码不改变正在编译的快照；下一次build按普通key重建。
 
 ### 13.4 dual view与closure
 
@@ -1466,7 +1411,7 @@ M23-4没有自由`semantic option`字段，因此不构造一个虚假的option 
 - child失败、output invalid、receipt encode失败、rename失败均无partial visible entry；
 - warning在fresh build与cache hit一致重放；
 - full 32-byte key目录、防缩写collision；
-- core cache内容不能被提升到trusted slot。
+- core与用户Cone同样验证cache hit并重放warnings，不使用专用slot。
 
 ### 13.7 child protocol
 

@@ -24,11 +24,9 @@ pub use authority::{
 };
 pub use completion::{
     CompiledCompletionError, CompletedNode, CompletedNodeOrigin, PrebuiltCompletionError,
-    PrivateArtifactPath, TrustedCoreCompletionError, TrustedCoreReceiptBindingField,
+    PrivateArtifactPath,
 };
-pub(crate) use completion::{
-    complete_compiled_candidate, complete_prebuilt_candidates, complete_trusted_core_candidate,
-};
+pub(crate) use completion::{complete_compiled_candidate, complete_prebuilt_candidates};
 pub use error::{ArtifactClosureValidationError, ArtifactPlanField};
 
 #[derive(Clone, Debug)]

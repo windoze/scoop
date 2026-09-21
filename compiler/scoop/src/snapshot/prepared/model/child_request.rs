@@ -10,7 +10,7 @@ use scoop_protocol::{
 };
 
 use super::{PreparedBuildGraph, PreparedGraphNode};
-use crate::{ChildIoPlan, CompletedNode, CompletedNodeOrigin};
+use crate::{ChildIoPlan, CompletedNode};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ChildInvocationPlanV1 {
@@ -43,7 +43,7 @@ impl ChildInvocationPlanV1 {
 impl PreparedBuildGraph {
     /// Constructs the only machine request shape accepted for one prepared
     /// source node. Every artifact path comes from an already completed node
-    /// or the locked trusted-core slot.
+    /// in the dependency graph.
     pub(crate) fn child_invocation_plan(
         &self,
         identity: ConeIdentity,
@@ -56,31 +56,21 @@ impl PreparedBuildGraph {
                 .map_err(ChildRequestPlanError::Protocol)?;
         let (current, direct, support, trusted_core, output_path) = match self.nodes.get(&identity)
         {
-            Some(PreparedGraphNode::TrustedCore(node)) => {
-                if !completed.is_empty() {
-                    return Err(ChildRequestPlanError::CoreHasCompletedInputs);
-                }
-                (
-                    CurrentConeRequestV1::TrustedCoreBootstrap,
-                    Vec::new(),
-                    Vec::new(),
-                    TrustedCoreRequestV1::Bootstrap,
-                    node.artifact_slot.clone(),
-                )
-            }
             Some(PreparedGraphNode::ManifestSource(node)) => {
-                let projection = self.source_projection(identity)?;
-                let (direct, support) = dependency_paths(identity, projection, &completed)?;
-                require_trusted_core(&completed)?;
+                let (direct, support, core) = if identity == ConeIdentity::CORE {
+                    (Vec::new(), Vec::new(), TrustedCoreRequestV1::Bootstrap)
+                } else {
+                    let projection = self.source_projection(identity)?;
+                    let (direct, support) = dependency_paths(identity, projection, &completed)?;
+                    (direct, support, completed_core_input(&completed)?)
+                };
                 (
                     CurrentConeRequestV1::ManifestRoot {
                         root: path_carrier(&node.input_root)?,
                     },
                     direct,
                     support,
-                    TrustedCoreRequestV1::ArtifactSlot {
-                        artifact: path_carrier(self.trusted_core_artifact_slot())?,
-                    },
+                    core,
                     node.output_path.clone(),
                 )
             }
@@ -89,16 +79,14 @@ impl PreparedBuildGraph {
                 if !projection.direct().is_empty() || !projection.support().is_empty() {
                     return Err(ChildRequestPlanError::SingleFileDependencyProjection);
                 }
-                require_trusted_core(&completed)?;
+                let core = completed_core_input(&completed)?;
                 (
                     CurrentConeRequestV1::SingleFile {
                         source: path_carrier(&node.input_path)?,
                     },
                     Vec::new(),
                     Vec::new(),
-                    TrustedCoreRequestV1::ArtifactSlot {
-                        artifact: path_carrier(self.trusted_core_artifact_slot())?,
-                    },
+                    core,
                     node.output_path.clone(),
                 )
             }
@@ -153,16 +141,15 @@ fn completed_map<'a>(
     Ok(by_identity)
 }
 
-fn require_trusted_core(
+fn completed_core_input(
     completed: &BTreeMap<ConeIdentity, &CompletedNode>,
-) -> Result<(), ChildRequestPlanError> {
+) -> Result<TrustedCoreRequestV1, ChildRequestPlanError> {
     let core = completed
         .get(&ConeIdentity::CORE)
         .ok_or(ChildRequestPlanError::MissingTrustedCore)?;
-    if core.origin() != CompletedNodeOrigin::TrustedCore {
-        return Err(ChildRequestPlanError::UntrustedCoreOrigin(core.origin()));
-    }
-    Ok(())
+    Ok(TrustedCoreRequestV1::ArtifactSlot {
+        artifact: path_carrier(core.materialized_child_path().as_path())?,
+    })
 }
 
 fn dependency_paths(
@@ -211,9 +198,7 @@ pub enum ChildRequestPlanError {
     MissingSourceProjection(ConeIdentity),
     CurrentAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
-    CoreHasCompletedInputs,
     MissingTrustedCore,
-    UntrustedCoreOrigin(CompletedNodeOrigin),
     SingleFileDependencyProjection,
     MissingDependency {
         current: ConeIdentity,
@@ -249,16 +234,9 @@ impl fmt::Display for ChildRequestPlanError {
             Self::DuplicateCompletedNode(identity) => {
                 write!(formatter, "completed input repeats Cone {identity}")
             }
-            Self::CoreHasCompletedInputs => {
-                formatter.write_str("trusted-core bootstrap cannot consume completed artifacts")
-            }
             Self::MissingTrustedCore => {
                 formatter.write_str("ordinary compiler child requires completed trusted core")
             }
-            Self::UntrustedCoreOrigin(origin) => write!(
-                formatter,
-                "ordinary compiler child requires trusted-core authority, found {origin:?}"
-            ),
             Self::SingleFileDependencyProjection => formatter
                 .write_str("single-file child dependency projection must be exactly core-only"),
             Self::MissingDependency {

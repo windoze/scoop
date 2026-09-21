@@ -8,40 +8,10 @@ use scoop_slib::{PrebuiltManifestSummaryError, SlibClosureResourceErrorV1};
 use super::super::staging::StagingError;
 use crate::{PairedCompilerError, SnapshotFileError};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreLockOperation {
-    CreateDirectory,
-    Inspect,
-    Open,
-    Lock,
-}
-
-impl fmt::Display for CoreLockOperation {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::CreateDirectory => "create trusted core artifact directory",
-            Self::Inspect => "inspect trusted core lock",
-            Self::Open => "open trusted core lock",
-            Self::Lock => "lock trusted core slot",
-        })
-    }
-}
-
 #[derive(Debug)]
 pub enum PrepareBuildGraphError {
     PairedCompiler(PairedCompilerError),
-    CoreSourceKey(Box<super::CompileCacheKeyError>),
     Staging(StagingError),
-    CoreLockIo {
-        operation: CoreLockOperation,
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    InvalidCoreLockFileType(PathBuf),
-    CoreLockPathChanged(PathBuf),
-    MissingTrustedCore,
-    InvalidTrustedCoreRepresentation,
-    DuplicateTrustedCore,
     ManifestSnapshot(SnapshotFileError),
     ManifestChanged(PathBuf),
     SourceDiscovery(SourceDiscoveryError),
@@ -65,34 +35,7 @@ impl fmt::Display for PrepareBuildGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PairedCompiler(error) => error.fmt(formatter),
-            Self::CoreSourceKey(error) => {
-                write!(formatter, "cannot derive trusted-core source key: {error}")
-            }
             Self::Staging(error) => error.fmt(formatter),
-            Self::CoreLockIo {
-                operation,
-                path,
-                source,
-            } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
-            Self::InvalidCoreLockFileType(path) => write!(
-                formatter,
-                "trusted core lock {} is not a regular file",
-                path.display()
-            ),
-            Self::CoreLockPathChanged(path) => write!(
-                formatter,
-                "trusted core lock {} changed while it was acquired",
-                path.display()
-            ),
-            Self::MissingTrustedCore => {
-                formatter.write_str("resolved graph lost the trusted core node")
-            }
-            Self::InvalidTrustedCoreRepresentation => {
-                formatter.write_str("resolved trusted core node has an invalid representation")
-            }
-            Self::DuplicateTrustedCore => {
-                formatter.write_str("resolved graph contains duplicate trusted core nodes")
-            }
             Self::ManifestSnapshot(error) => {
                 write!(formatter, "cannot snapshot source manifest: {error}")
             }
@@ -143,9 +86,7 @@ impl std::error::Error for PrepareBuildGraphError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::PairedCompiler(error) => Some(error),
-            Self::CoreSourceKey(error) => Some(error.as_ref()),
             Self::Staging(error) => Some(error),
-            Self::CoreLockIo { source, .. } => Some(source),
             Self::ManifestSnapshot(error) => Some(error),
             Self::SourceDiscovery(error) => Some(error),
             Self::SingleFile(error) => Some(error),
