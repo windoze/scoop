@@ -212,12 +212,7 @@ pub(super) fn call_symbol(module: &lir::Module, destination: lir::CallDestinatio
         lir::CallDestination::Local(id) => module.functions[id.into_u32() as usize]
             .symbol()
             .to_string(),
-        lir::CallDestination::CoreExternal(id) => module.meta.core_external_callables[id]
-            .expected_symbol()
-            .symbol()
-            .to_string(),
-        lir::CallDestination::DependencyExternal(id) => module.meta.dependency_external_callables
-            [id]
+        lir::CallDestination::External(id) => module.meta.external_callables[id]
             .expected_symbol()
             .symbol()
             .to_string(),

@@ -388,20 +388,10 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
      -> Result<(), CodegenError> {
         let id = match entry.callable {
             CallableRef::Local(id) => id,
-            CallableRef::CoreExternal(id) => {
-                if arena_index(id) >= module.meta.core_external_callables.len() {
+            CallableRef::External(id) => {
+                if arena_index(id) >= module.meta.external_callables.len() {
                     return Err(CodegenError(format!(
-                        "type descriptor `{}` has invalid core dispatch callable id {}",
-                        descriptor.diagnostic_name,
-                        arena_index(id)
-                    )));
-                }
-                return Ok(());
-            }
-            CallableRef::DependencyExternal(id) => {
-                if arena_index(id) >= module.meta.dependency_external_callables.len() {
-                    return Err(CodegenError(format!(
-                        "type descriptor `{}` has invalid dependency dispatch callable id {}",
+                        "type descriptor `{}` has invalid external dispatch callable id {}",
                         descriptor.diagnostic_name,
                         arena_index(id)
                     )));

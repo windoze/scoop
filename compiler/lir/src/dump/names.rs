@@ -81,9 +81,8 @@ pub(super) fn callable_ref_name(reference: CallableRef) -> String {
     match reference {
         CallableRef::Local(id) => format!("local-fn{}", id.into_u32()),
         CallableRef::Runtime(function) => format!("runtime@{}", function.symbol()),
-        CallableRef::CoreExternal(id) => format!("core-external-fn{}", id.into_raw()),
-        CallableRef::DependencyExternal(id) => {
-            format!("dependency-external-fn{}", id.into_raw())
+        CallableRef::External(id) => {
+            format!("external-fn{}", id.into_raw())
         }
     }
 }
@@ -91,11 +90,8 @@ pub(super) fn callable_ref_name(reference: CallableRef) -> String {
 pub(super) fn call_destination_name(function: &Function, destination: CallDestination) -> String {
     match destination {
         CallDestination::Local(id) => format!("local-fn{}", id.into_u32()),
-        CallDestination::CoreExternal(id) => {
-            format!("core-external-fn{}", id.into_raw())
-        }
-        CallDestination::DependencyExternal(id) => {
-            format!("dependency-external-fn{}", id.into_raw())
+        CallDestination::External(id) => {
+            format!("external-fn{}", id.into_raw())
         }
         CallDestination::Runtime(runtime) => format!("runtime @{}", runtime.symbol()),
         CallDestination::Extern(id) => format!("extern{}", id.into_raw()),

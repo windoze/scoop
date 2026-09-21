@@ -1,4 +1,4 @@
-//! Typed external definitions selected from dependency layout authorities.
+//! Typed external Scoop callables shared by compiler protocols and dependency selections.
 
 use std::fmt;
 
@@ -10,77 +10,62 @@ use scoop_identity::{
 use scoop_wire::HashError;
 
 use crate::{
-    CallingConvention, DependencyExternalCallableRootPlanV1, GcEffect, ScoopAbiSignature,
-    SelectedDependencyLirCallableV1,
+    CallingConvention, GcEffect, ScoopAbiSignature, SelectedDependencyLirCallableV1,
     external_callable_abi::{CanonicalScoopAbiMismatch, validate_canonical_scoop_abi},
 };
 
-/// One dependency definition declared by the consumer's LLVM module. The
+/// One external definition declared by the consumer's LLVM module. The
 /// selected semantic bridge owns all link-facing facts; the target-specific
 /// signature is admitted only after exact ABI replay.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DependencyExternalCallable {
-    origin: DependencyExternalCallableOrigin,
+pub struct ExternalCallable {
+    origin: ExternalCallableOrigin,
     provider: ConeIdentity,
     target: StrongCallableDefinitionOwner,
     body: PersistentCallableBodyId,
     canonical_signature: CanonicalScoopAbiFunctionSignature,
     signature: ScoopAbiSignature,
     calling_convention: CallingConvention,
-    root_plan: DependencyExternalCallableRootPlanV1,
+    root_plan: crate::ExternalCallableRootPlan,
     expected_symbol: PersistentSymbolRequest,
     required_definition: ObjectDefinitionPlanId,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DependencyExternalCallableOrigin {
+pub enum ExternalCallableOrigin {
     Legacy(DependencyCallableDeclarationId),
     LayoutV1,
+    InitializationCycle,
 }
 
-impl DependencyExternalCallable {
+impl ExternalCallable {
     pub(crate) fn new(
         selected: SelectedDependencyLirCallableV1,
         signature: ScoopAbiSignature,
-    ) -> Result<Self, DependencyExternalBuildError> {
+    ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
-        validate_canonical_scoop_abi(bridge.abi_signature(), &signature).map_err(|error| {
-            match error {
-                CanonicalScoopAbiMismatch::ArgumentCount { expected, actual } => {
-                    DependencyExternalBuildError::AbiArgumentCount { expected, actual }
-                }
-                CanonicalScoopAbiMismatch::Argument { index } => {
-                    DependencyExternalBuildError::AbiArgumentMismatch { index }
-                }
-                CanonicalScoopAbiMismatch::Result => {
-                    DependencyExternalBuildError::AbiResultMismatch
-                }
-            }
-        })?;
+        validate_signature(
+            bridge.abi_signature(),
+            &signature,
+            ExternalCallableRootPlan::from_dependency(bridge.root_plan()),
+        )?;
         if signature.calling_convention() != bridge.calling_convention() {
-            return Err(DependencyExternalBuildError::CallingConventionMismatch {
+            return Err(ExternalCallableBuildError::CallingConventionMismatch {
                 expected: bridge.calling_convention(),
                 actual: signature.calling_convention(),
             });
         }
-        let expected_effect = match bridge.abi_signature().gc_effect() {
-            CanonicalGcEffect::Managed => GcEffect::Managed,
-            CanonicalGcEffect::NoGc => GcEffect::NoGc,
-        };
-        if root_plan_gc_effect(bridge.root_plan()) != expected_effect {
-            return Err(DependencyExternalBuildError::RootProtocolMismatch);
-        }
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(bridge.target()))
-            .map_err(DependencyExternalBuildError::Identity)?;
+            .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
-            origin: DependencyExternalCallableOrigin::Legacy(bridge.declaration()),
+            origin: ExternalCallableOrigin::Legacy(bridge.declaration()),
             provider: selected.provider(),
             target: bridge.target(),
             body,
             canonical_signature: bridge.abi_signature().clone(),
             signature,
             calling_convention: bridge.calling_convention(),
-            root_plan: bridge.root_plan(),
+            root_plan: crate::ExternalCallableRootPlan::from_dependency(bridge.root_plan()),
             expected_symbol: bridge.expected_symbol(),
             required_definition: bridge.required_definition(),
         })
@@ -113,7 +98,7 @@ impl DependencyExternalCallable {
             ));
         }
         Ok(Self {
-            origin: DependencyExternalCallableOrigin::LayoutV1,
+            origin: ExternalCallableOrigin::LayoutV1,
             provider,
             target: record.target(),
             body: record.definition().semantic_id(),
@@ -122,15 +107,19 @@ impl DependencyExternalCallable {
             calling_convention: record.calling_convention(),
             root_plan: match record.call_protocol() {
                 crate::ExactCallableProtocolV1::OrdinaryManaged => {
-                    DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                    crate::ExternalCallableRootPlan::ManagedStatepoint
                 }
                 crate::ExactCallableProtocolV1::OrdinaryNoGc => {
-                    DependencyExternalCallableRootPlanV1::NoGc
+                    crate::ExternalCallableRootPlan::NoGc
                 }
             },
             expected_symbol,
             required_definition,
         })
+    }
+
+    pub const fn origin(&self) -> ExternalCallableOrigin {
+        self.origin
     }
 
     pub const fn provider(&self) -> ConeIdentity {
@@ -139,8 +128,8 @@ impl DependencyExternalCallable {
 
     pub const fn legacy_declaration(&self) -> Option<DependencyCallableDeclarationId> {
         match self.origin {
-            DependencyExternalCallableOrigin::Legacy(declaration) => Some(declaration),
-            DependencyExternalCallableOrigin::LayoutV1 => None,
+            ExternalCallableOrigin::Legacy(declaration) => Some(declaration),
+            ExternalCallableOrigin::LayoutV1 | ExternalCallableOrigin::InitializationCycle => None,
         }
     }
 
@@ -164,12 +153,12 @@ impl DependencyExternalCallable {
         self.calling_convention
     }
 
-    pub const fn root_plan(&self) -> DependencyExternalCallableRootPlanV1 {
+    pub const fn root_plan(&self) -> crate::ExternalCallableRootPlan {
         self.root_plan
     }
 
     pub const fn gc_effect(&self) -> GcEffect {
-        root_plan_gc_effect(self.root_plan())
+        self.root_plan().gc_effect()
     }
 
     pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
@@ -181,6 +170,30 @@ impl DependencyExternalCallable {
     }
 }
 
+fn validate_signature(
+    canonical: &CanonicalScoopAbiFunctionSignature,
+    physical: &ScoopAbiSignature,
+    root_plan: ExternalCallableRootPlan,
+) -> Result<(), ExternalCallableBuildError> {
+    validate_canonical_scoop_abi(canonical, physical).map_err(|error| match error {
+        CanonicalScoopAbiMismatch::ArgumentCount { expected, actual } => {
+            ExternalCallableBuildError::AbiArgumentCount { expected, actual }
+        }
+        CanonicalScoopAbiMismatch::Argument { index } => {
+            ExternalCallableBuildError::AbiArgumentMismatch { index }
+        }
+        CanonicalScoopAbiMismatch::Result => ExternalCallableBuildError::AbiResultMismatch,
+    })?;
+    let expected = match canonical.gc_effect() {
+        CanonicalGcEffect::Managed => GcEffect::Managed,
+        CanonicalGcEffect::NoGc => GcEffect::NoGc,
+    };
+    if root_plan.gc_effect() != expected {
+        return Err(ExternalCallableBuildError::RootProtocolMismatch);
+    }
+    Ok(())
+}
+
 fn protocol_effect(protocol: crate::ExactCallableProtocolV1) -> GcEffect {
     match protocol {
         crate::ExactCallableProtocolV1::OrdinaryManaged => GcEffect::Managed,
@@ -188,15 +201,8 @@ fn protocol_effect(protocol: crate::ExactCallableProtocolV1) -> GcEffect {
     }
 }
 
-const fn root_plan_gc_effect(root_plan: DependencyExternalCallableRootPlanV1) -> GcEffect {
-    match root_plan {
-        DependencyExternalCallableRootPlanV1::ManagedStatepoint => GcEffect::Managed,
-        DependencyExternalCallableRootPlanV1::NoGc => GcEffect::NoGc,
-    }
-}
-
 #[derive(Debug)]
-pub enum DependencyExternalBuildError {
+pub enum ExternalCallableBuildError {
     AbiArgumentCount {
         expected: usize,
         actual: usize,
@@ -211,42 +217,42 @@ pub enum DependencyExternalBuildError {
     },
     RootProtocolMismatch,
     Identity(HashError),
+    ProtocolContract(crate::CoreExternalBuildError),
 }
 
-impl fmt::Display for DependencyExternalBuildError {
+impl fmt::Display for ExternalCallableBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AbiArgumentCount { expected, actual } => write!(
                 formatter,
-                "dependency external signature requires {expected} logical ABI arguments, found {actual}"
+                "external signature requires {expected} logical ABI arguments, found {actual}"
             ),
             Self::AbiArgumentMismatch { index } => write!(
                 formatter,
-                "dependency external canonical and physical ABI disagree at argument {index}"
+                "external canonical and physical ABI disagree at argument {index}"
             ),
-            Self::AbiResultMismatch => formatter
-                .write_str("dependency external canonical and physical result ABI disagree"),
+            Self::AbiResultMismatch => {
+                formatter.write_str("external canonical and physical result ABI disagree")
+            }
             Self::CallingConventionMismatch { expected, actual } => write!(
                 formatter,
-                "dependency external calling convention {actual:?} disagrees with {expected:?}"
+                "external calling convention {actual:?} disagrees with {expected:?}"
             ),
-            Self::RootProtocolMismatch => formatter.write_str(
-                "dependency external caller root protocol disagrees with its canonical GC effect",
-            ),
+            Self::RootProtocolMismatch => formatter
+                .write_str("external caller root protocol disagrees with its canonical GC effect"),
+            Self::ProtocolContract(source) => source.fmt(formatter),
             Self::Identity(source) => {
-                write!(
-                    formatter,
-                    "cannot derive dependency external identity: {source}"
-                )
+                write!(formatter, "cannot derive external identity: {source}")
             }
         }
     }
 }
 
-impl std::error::Error for DependencyExternalBuildError {
+impl std::error::Error for ExternalCallableBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Identity(source) => Some(source),
+            Self::ProtocolContract(source) => Some(source),
             Self::AbiArgumentCount { .. }
             | Self::AbiArgumentMismatch { .. }
             | Self::AbiResultMismatch
@@ -255,6 +261,10 @@ impl std::error::Error for DependencyExternalBuildError {
         }
     }
 }
+
+mod protocol;
+mod roots;
+pub use roots::ExternalCallableRootPlan;
 
 #[cfg(test)]
 mod tests;

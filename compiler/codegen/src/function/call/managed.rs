@@ -236,8 +236,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         let apply_scoop_abi_attributes = match destination {
             scoop_lir::CallDestination::Local(_)
-            | scoop_lir::CallDestination::CoreExternal(_)
-            | scoop_lir::CallDestination::DependencyExternal(_)
+            | scoop_lir::CallDestination::External(_)
             | scoop_lir::CallDestination::Dispatch { .. } => true,
             scoop_lir::CallDestination::Extern(id) => matches!(
                 self.extern_functions[id].kind,

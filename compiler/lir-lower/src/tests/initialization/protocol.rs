@@ -61,7 +61,7 @@ fn core_lowering_publishes_initialization_protocol_abi() {
     assert_eq!(callable.abi_signature().signature(), &exact);
     assert_eq!(
         callable.root_plan(),
-        lir::CoreExternalCallableRootPlan::ManagedStatepoint
+        lir::ExternalCallableRootPlan::ManagedStatepoint
     );
     assert_eq!(
         callable.expected_symbol(),
@@ -308,7 +308,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     )
     .unwrap();
     let module = output.module();
-    assert_eq!(module.meta.core_external_callables.len(), 1);
+    assert_eq!(module.meta.external_callables.len(), 1);
     assert_eq!(module.meta.external_type_descriptors.len(), 1);
     let string_descriptor = &module
         .meta
@@ -334,7 +334,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
             layout.identity.layout_record().key().exact_type() != string_exact
         })
     );
-    let external = &module.meta.core_external_callables.iter().next().unwrap().1;
+    let external = &module.meta.external_callables.iter().next().unwrap().1;
     assert_eq!(external.signature().logical_argument_count(), 1);
     assert_eq!(
         external.target(),
@@ -342,7 +342,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     );
     assert_eq!(
         external.root_plan(),
-        lir::CoreExternalCallableRootPlan::ManagedStatepoint
+        lir::ExternalCallableRootPlan::ManagedStatepoint
     );
     let call = module.functions[0].blocks[module.functions[0].entry]
         .instructions
@@ -354,7 +354,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         .expect("ordinary caller emits the imported core call");
     assert!(matches!(
         call.destination(&module.functions[0].call_targets),
-        lir::CallDestination::CoreExternal(_)
+        lir::CallDestination::External(_)
     ));
     let production = output
         .build_production_section(

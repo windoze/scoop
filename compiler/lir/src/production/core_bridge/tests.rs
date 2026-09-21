@@ -53,10 +53,10 @@ fn reader_rejects_the_removed_core_callable_table() {
 
 #[test]
 fn initialization_protocol_bridge_binds_the_root_plan() {
-    let bridge = callable(CoreExternalCallableRootPlan::NoGc).unwrap();
-    assert_eq!(bridge.root_plan(), CoreExternalCallableRootPlan::NoGc);
+    let bridge = callable(ExternalCallableRootPlan::NoGc).unwrap();
+    assert_eq!(bridge.root_plan(), ExternalCallableRootPlan::NoGc);
     assert!(matches!(
-        callable(CoreExternalCallableRootPlan::ManagedStatepoint),
+        callable(ExternalCallableRootPlan::ManagedStatepoint),
         Err(CoreLirBridgeBuildError::Contract(
             CoreExternalBuildError::RootProtocolMismatch
         ))
@@ -88,7 +88,7 @@ fn branch_must_match_the_producer_kind() {
 }
 
 fn callable(
-    root_plan: CoreExternalCallableRootPlan,
+    root_plan: ExternalCallableRootPlan,
 ) -> Result<CoreLirInitializationCycleThrowerV1, CoreLirBridgeBuildError> {
     let declaration = declaration();
     let function = PersistentFunctionId::from_source_declaration(&declaration).unwrap();

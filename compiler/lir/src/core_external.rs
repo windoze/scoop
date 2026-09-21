@@ -4,146 +4,12 @@ use std::fmt;
 
 pub use scoop_identity::ConeIdentity;
 use scoop_identity::{
-    CallableBodyKey, CanonicalScoopAbiFunctionSignature, GcEffect as CanonicalGcEffect,
-    LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    PersistentCallableBodyId, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, StrongCallableDefinitionOwner, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    CallableBodyKey, LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ObjectDefinitionPlanKey, PersistentCallableBodyId, PersistentExactTypeId,
+    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
-use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError, WireErrorKind};
-
-use crate::{CallingConvention, GcEffect, ScoopAbiSignature};
-
-use crate::external_callable_abi::{CanonicalScoopAbiMismatch, validate_canonical_scoop_abi};
-
-/// The caller-side root protocol inseparably paired with a core callable's
-/// GC effect. A managed call must be emitted as a statepoint; a no-GC call has
-/// no caller-root publication step.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreExternalCallableRootPlan {
-    ManagedStatepoint,
-    NoGc,
-}
-
-impl CoreExternalCallableRootPlan {
-    pub const fn gc_effect(self) -> GcEffect {
-        match self {
-            Self::ManagedStatepoint => GcEffect::Managed,
-            Self::NoGc => GcEffect::NoGc,
-        }
-    }
-}
-
-impl WireEncode for CoreExternalCallableRootPlan {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::ManagedStatepoint => 1,
-            Self::NoGc => 2,
-        })
-    }
-}
-
-impl WireDecode for CoreExternalCallableRootPlan {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            1 => Ok(Self::ManagedStatepoint),
-            2 => Ok(Self::NoGc),
-            tag => Err(WireError::new(
-                WireErrorKind::UnknownTag { tag },
-                decoder.path().clone(),
-                Some(decoder.position()),
-            )),
-        }
-    }
-}
-
-/// A callable definition imported exclusively from the trusted core Cone.
-/// Link spelling is derived from the persistent request and is never stored
-/// as an independent string.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreExternalCallable {
-    target: StrongCallableDefinitionOwner,
-    body: PersistentCallableBodyId,
-    canonical_signature: CanonicalScoopAbiFunctionSignature,
-    signature: ScoopAbiSignature,
-    root_plan: CoreExternalCallableRootPlan,
-    expected_symbol: PersistentSymbolRequest,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl CoreExternalCallable {
-    pub(crate) fn new(
-        target: StrongCallableDefinitionOwner,
-        canonical_signature: CanonicalScoopAbiFunctionSignature,
-        signature: ScoopAbiSignature,
-        root_plan: CoreExternalCallableRootPlan,
-    ) -> Result<Self, CoreExternalBuildError> {
-        validate_canonical_scoop_abi(&canonical_signature, &signature).map_err(
-            |error| match error {
-                CanonicalScoopAbiMismatch::ArgumentCount { expected, actual } => {
-                    CoreExternalBuildError::AbiArgumentCount { expected, actual }
-                }
-                CanonicalScoopAbiMismatch::Argument { index } => {
-                    CoreExternalBuildError::AbiArgumentMismatch { index }
-                }
-                CanonicalScoopAbiMismatch::Result => CoreExternalBuildError::AbiResultMismatch,
-            },
-        )?;
-        let expected_effect = match canonical_signature.gc_effect() {
-            CanonicalGcEffect::Managed => GcEffect::Managed,
-            CanonicalGcEffect::NoGc => GcEffect::NoGc,
-        };
-        if root_plan.gc_effect() != expected_effect {
-            return Err(CoreExternalBuildError::RootProtocolMismatch);
-        }
-        let (body, expected_symbol, required_definition) = core_callable_link_contract(target)?;
-        Ok(Self {
-            target,
-            body,
-            canonical_signature,
-            signature,
-            root_plan,
-            expected_symbol,
-            required_definition,
-        })
-    }
-
-    pub const fn target(&self) -> StrongCallableDefinitionOwner {
-        self.target
-    }
-
-    pub const fn body(&self) -> PersistentCallableBodyId {
-        self.body
-    }
-
-    pub const fn canonical_signature(&self) -> &CanonicalScoopAbiFunctionSignature {
-        &self.canonical_signature
-    }
-
-    pub const fn signature(&self) -> &ScoopAbiSignature {
-        &self.signature
-    }
-
-    pub const fn calling_convention(&self) -> CallingConvention {
-        self.signature.calling_convention()
-    }
-
-    pub const fn root_plan(&self) -> CoreExternalCallableRootPlan {
-        self.root_plan
-    }
-
-    pub const fn gc_effect(&self) -> GcEffect {
-        self.root_plan.gc_effect()
-    }
-
-    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
-    }
-}
+use scoop_wire::HashError;
 
 fn required_definition(
     entity: StrongDefinitionEntity,
@@ -197,9 +63,6 @@ pub(crate) fn core_type_descriptor_link_contract(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreExternalBuildError {
-    AbiArgumentCount { expected: usize, actual: usize },
-    AbiArgumentMismatch { index: usize },
-    AbiResultMismatch,
     RootProtocolMismatch,
     Identity(HashError),
     Symbol(PersistentSymbolError),
@@ -209,17 +72,6 @@ pub enum CoreExternalBuildError {
 impl fmt::Display for CoreExternalBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AbiArgumentCount { expected, actual } => write!(
-                formatter,
-                "core external source signature requires {expected} logical ABI arguments, found {actual}"
-            ),
-            Self::AbiArgumentMismatch { index } => write!(
-                formatter,
-                "core external canonical and physical ABI disagree at argument {index}"
-            ),
-            Self::AbiResultMismatch => {
-                formatter.write_str("core external canonical and physical result ABI disagree")
-            }
             Self::RootProtocolMismatch => formatter.write_str(
                 "core external caller root protocol disagrees with its canonical GC effect",
             ),
@@ -237,10 +89,7 @@ impl fmt::Display for CoreExternalBuildError {
 impl std::error::Error for CoreExternalBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::AbiArgumentCount { .. }
-            | Self::AbiArgumentMismatch { .. }
-            | Self::AbiResultMismatch
-            | Self::RootProtocolMismatch => None,
+            Self::RootProtocolMismatch => None,
             Self::Identity(error) => Some(error),
             Self::Symbol(error) => Some(error),
             Self::Definition(error) => Some(error),
@@ -259,7 +108,9 @@ mod tests {
     };
 
     use super::*;
-    use crate::{AbiReturn, CallingConvention};
+    use crate::{
+        AbiReturn, CallingConvention, ExternalCallableRootPlan, GcEffect, ScoopAbiSignature,
+    };
 
     #[test]
     fn callable_binds_target_symbol_definition_and_root_protocol() {
@@ -281,11 +132,11 @@ mod tests {
             IdentityGcEffect::Managed,
         )
         .unwrap();
-        let callable = CoreExternalCallable::new(
+        let callable = crate::ExternalCallable::initialization_cycle(
             target,
             canonical_signature,
             ScoopAbiSignature::new(Vec::new(), AbiReturn::UnitVoid, CallingConvention::Cdecl),
-            CoreExternalCallableRootPlan::ManagedStatepoint,
+            ExternalCallableRootPlan::ManagedStatepoint,
         )
         .unwrap();
 

@@ -736,7 +736,7 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   相容的`ImportedCoreLirCallableId`。该LIR set还必须从同一artifact的String capability及
   `shape_support_plan`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
   definition plan和唯一symbol request，String authority同时保留exact type、definition plan和唯一symbol request；
-  普通Cone lowering据此只产生`TypeDescriptorRef::CoreExternal`及external definition requirement，不能本地复制String
+  普通Cone lowering据此只产生共有`TypeDescriptorRef::External`及external definition requirement，不能本地复制String
   layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
   well-known String `LayoutId`；String物理格式由封闭intrinsic representation和target ABI决定；
 - `mir-lower`只返回拥有上述MIR selected set的`OrdinaryMirOutput<'core>`；构造时验证每个arena entry的品牌、
@@ -747,9 +747,10 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
 - `lir-lower`对应接收`StrongImportedCoreLirInput::{Unused, Selected}`。存在上述MIR root时必须给出同artifact投影的
   LIR selected set，并逐项核对binding、strong owner和exact signature；随后用本模块exact type relation及target
   profile生成物理`ScoopAbiSignature`，再由selected LIR项独占的materialize入口与canonical ABI、calling convention、
-  effect/root-plan做一致性检查。成功项按MIR use-id建立到`CoreExternalCallableId`的全映射；direct call只产生
-  effect-refined的`ManagedCallDestination::CoreExternal`或`NoGcCallDestination::CoreExternal`，不存在symbol-only、
-  普通extern或本地callable回退。`CoreExternalCallable`的裸构造器不是跨crate API；
+  effect/root-plan做一致性检查。成功项按MIR use-id建立到共有`ExternalCallableId`的全映射；direct call只产生
+  effect-refined的`ManagedCallDestination::external`或`NoGcCallDestination::external`，不存在symbol-only、
+  普通extern或本地callable回退。`ExternalCallable`的裸构造器不是跨crate API。初始化角色只用于旧metadata投影，
+  provider为core的普通callable不进入该分区；MIR展开ensure时也通过typed String引用登记隐式消息的source exact identity；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 
@@ -1177,7 +1178,7 @@ count、object大小/内容反推出LIR语义。
 `external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
 M23-6清理后的LIR内存模型中，所有外部TypeDescriptor使用同一个`ExternalTypeDescriptor`实体、typed id与arena，必需携带实际provider、exact type、symbol request和definition plan；`TypeDescriptorRef`只区分Local/External。foundation投影与通用layout/ABI selection物化使用同一实体，codegen统一发射external声明，并拒绝当前Cone provider、重复exact及与local描述符重叠。旧协议wire的String分区只从`WellKnownTypeDescriptors.string`的明确引用投影，并验证core provider和strong definition契约；arena中其他core描述符不进入该分区，由M23-6通用layout selection证明。
 
-初始化循环协议的callable暂保留`CoreExternalCallable`，以`StrongCallableDefinitionOwner`为target，由它唯一导出`PersistentCallableBodyId`、`ConeStrong` symbol request及core `CallableBody` definition plan；物理`ScoopAbiSignature`携带calling convention，`ManagedStatepoint | NoGc`封闭sum把GC effect与caller root protocol原子绑定。codegen只能从typed request计算最终拼写，并且必须用bridge携带的`ScoopAbiSignature`预声明callable，不得在dispatch table发射时猜测函数类型。core中不得导入自己的callable；外部target/body必须分别唯一，且不得与当前Cone的local callable body重合。
+初始化循环服务与普通依赖统一使用`ExternalCallable`、一个typed id和arena；每项保存实际provider、`StrongCallableDefinitionOwner`、`PersistentCallableBodyId`、canonical/physical ABI、`ExternalCallableRootPlan`、symbol及definition plan。旧协议wire仅投影明确的InitializationCycle角色，M23-5选择只投影其普通声明角色，通用layout选择保留自身重放；不得从provider为core反推协议角色。MIR的两类use id在lowering中映射至该共有arena，call destination及dispatch只携带统一External引用。codegen共用声明、ABI/GC校验与调用发射，不再有core/ordinary执行分支；当前provider、重复body及与local body重叠均按共有规则拒绝。此合并不使internal服务成为public声明，不放宽旧metadata分区的definition及selection覆盖检查。
 
 callable bridge表示本Cone中已经materialize的调用，因此必须至少命中一个真实object relocation，缺失时以
 `UnusedExternalCallableBridge`拒绝。type-descriptor bridge同时承担compile/LIR metadata authority；尤其

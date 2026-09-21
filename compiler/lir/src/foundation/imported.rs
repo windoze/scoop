@@ -39,7 +39,7 @@ struct CheckedImportedCoreCallable {
     signature: ExactCallableSignature,
     abi_signature: scoop_identity::CanonicalScoopAbiFunctionSignature,
     calling_convention: crate::CallingConvention,
-    root_plan: crate::CoreExternalCallableRootPlan,
+    root_plan: crate::ExternalCallableRootPlan,
 }
 
 impl ImportedLirFoundation {
@@ -244,7 +244,7 @@ pub struct SelectedImportedLirCallable<'a> {
     signature: ExactCallableSignature,
     abi_signature: scoop_identity::CanonicalScoopAbiFunctionSignature,
     calling_convention: crate::CallingConvention,
-    root_plan: crate::CoreExternalCallableRootPlan,
+    root_plan: crate::ExternalCallableRootPlan,
     body: ImportedLirId<PersistentCallableBodyId>,
     expected_symbol: PersistentSymbolRequest,
     required_definition: ImportedLirId<ObjectDefinitionPlanId>,
@@ -420,7 +420,7 @@ impl SelectedImportedLirCallable<'_> {
         self.calling_convention
     }
 
-    pub const fn root_plan(&self) -> crate::CoreExternalCallableRootPlan {
+    pub const fn root_plan(&self) -> crate::ExternalCallableRootPlan {
         self.root_plan
     }
 
@@ -438,8 +438,8 @@ impl SelectedImportedLirCallable<'_> {
     pub fn materialize(
         &self,
         signature: crate::ScoopAbiSignature,
-    ) -> Result<crate::CoreExternalCallable, crate::CoreExternalBuildError> {
-        crate::CoreExternalCallable::new(
+    ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
+        crate::ExternalCallable::initialization_cycle(
             self.target,
             self.abi_signature.clone(),
             signature,

@@ -119,44 +119,10 @@ impl<'a> FunctionLowerer<'a> {
                 self.finish_indirect(destination, args, &call_signature)?
             }
             mir::Callee::CoreExternal(source) => {
-                assert!(matches!(call.target.kind, mir::CallKind::Direct));
-                let id = self.core_external_callable_map[&source];
-                let callable = &self.core_external_callables[id];
-                assert_eq!(
-                    call.args.len(),
-                    callable.signature().logical_argument_count(),
-                    "imported core call arity"
-                );
-                let args = call
-                    .args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument))
-                    .collect::<StorageResult<Vec<_>>>()?;
-                self.emit_non_native_call_with_signature(
-                    LoweredCallDestination::core_external(id, callable.gc_effect()),
-                    callable.signature(),
-                    args,
-                )?
+                self.lower_external_call(call, self.core_external_callable_map[&source])?
             }
             mir::Callee::DependencyStrong(source) => {
-                assert!(matches!(call.target.kind, mir::CallKind::Direct));
-                let id = self.dependency_external_callable_map[&source];
-                let callable = &self.dependency_external_callables[id];
-                assert_eq!(
-                    call.args.len(),
-                    callable.signature().logical_argument_count(),
-                    "ordinary dependency call arity"
-                );
-                let args = call
-                    .args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument))
-                    .collect::<StorageResult<Vec<_>>>()?;
-                self.emit_non_native_call_with_signature(
-                    LoweredCallDestination::dependency_external(id, callable.gc_effect()),
-                    callable.signature(),
-                    args,
-                )?
+                self.lower_external_call(call, self.dependency_external_callable_map[&source])?
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
@@ -393,6 +359,30 @@ impl<'a> FunctionLowerer<'a> {
             }
         };
         Ok(Some(value))
+    }
+
+    fn lower_external_call(
+        &mut self,
+        call: &mir::Call,
+        id: lir::ExternalCallableId,
+    ) -> StorageResult<lir::Value> {
+        assert!(matches!(call.target.kind, mir::CallKind::Direct));
+        let callable = &self.external_callables[id];
+        assert_eq!(
+            call.args.len(),
+            callable.signature().logical_argument_count(),
+            "external call arity"
+        );
+        let args = call
+            .args
+            .iter()
+            .map(|argument| self.lower_expr(argument))
+            .collect::<StorageResult<Vec<_>>>()?;
+        self.emit_non_native_call_with_signature(
+            LoweredCallDestination::external(id, callable.gc_effect()),
+            callable.signature(),
+            args,
+        )
     }
 
     /// Load a value of `ty` at a fixed byte offset from a raw pointer.

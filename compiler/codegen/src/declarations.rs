@@ -36,51 +36,21 @@ pub(crate) fn declare_function<'ctx>(
     Ok(())
 }
 
-/// Declare one trusted-core callable from its typed LIR bridge. The symbol,
-/// signature and caller protocol have already been bound by lir-lower; this
-/// stage only translates that declaration to LLVM.
-pub(crate) fn declare_core_external_callable<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    structs: &StructDefs,
-    enums: &EnumDefs,
-    managed_address_space: ManagedAddressSpace,
-    callable: &scoop_lir::CoreExternalCallable,
-) -> Result<(), CodegenError> {
-    let symbol = callable.expected_symbol().symbol();
-    if llvm.get_function(symbol.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "core external callable `{symbol}` collides with an existing declaration"
-        )));
-    }
-    let declaration = abi::declare_or_get(
-        context,
-        llvm,
-        structs,
-        enums,
-        managed_address_space,
-        symbol.as_str(),
-        callable.signature(),
-    )?;
-    declaration.set_linkage(inkwell::module::Linkage::External);
-    Ok(())
-}
-
-/// Declare one ordinary dependency callable from its selected semantic
+/// Declare one external Scoop callable from its selected semantic
 /// bridge. It remains an external declaration; no local body or runtime
 /// registration is emitted for it.
-pub(crate) fn declare_dependency_external_callable<'ctx>(
+pub(crate) fn declare_external_callable<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     structs: &StructDefs,
     enums: &EnumDefs,
     managed_address_space: ManagedAddressSpace,
-    callable: &scoop_lir::DependencyExternalCallable,
+    callable: &scoop_lir::ExternalCallable,
 ) -> Result<(), CodegenError> {
     let symbol = callable.expected_symbol().symbol();
     if llvm.get_function(symbol.as_str()).is_some() {
         return Err(CodegenError(format!(
-            "dependency external callable `{symbol}` collides with an existing declaration"
+            "external callable `{symbol}` collides with an existing declaration"
         )));
     }
     let declaration = abi::declare_or_get(

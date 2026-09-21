@@ -2,6 +2,7 @@ use super::*;
 use crate::{HostArtifactLocator, normalize_direct_build_request};
 
 mod aliases;
+mod calls;
 mod metadata;
 
 const EXTENSION: &str =
@@ -63,6 +64,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
         &artifact,
     );
     aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);
+    calls::assert_initialization_and_dependency_calls(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),

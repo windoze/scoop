@@ -4,6 +4,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::meter;
 use crate::*;
 
+mod callables;
 mod descriptors;
 mod fixture;
 mod initialization_fixture;
@@ -113,13 +114,13 @@ fn exercise_dependency_production(provider: Provider) {
         )
         .unwrap();
     let descriptor_id = consumer.meta.external_type_descriptors.alloc(descriptor);
-    let callable_id = consumer.meta.dependency_external_callables.alloc(callable);
+    let callable_id = consumer.meta.external_callables.alloc(callable);
     let local = consumer.meta.type_descriptors.iter_mut().next().unwrap().1;
     local.parent = Some(TypeDescriptorRef::External(descriptor_id));
     local.vtable = VtableRecord::new(
         &local.identity,
         vec![DispatchEntry {
-            callable: CallableRef::DependencyExternal(callable_id),
+            callable: CallableRef::External(callable_id),
         }],
     )
     .unwrap();

@@ -117,7 +117,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
             target,
             abi_signature,
             crate::CallingConvention::Cdecl,
-            crate::CoreExternalCallableRootPlan::NoGc,
+            crate::ExternalCallableRootPlan::NoGc,
         )
         .unwrap(),
     );

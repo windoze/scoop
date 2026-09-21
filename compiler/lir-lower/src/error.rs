@@ -36,7 +36,7 @@ pub enum StrongLirLoweringError {
         index: usize,
         exact: scoop_identity::PersistentExactTypeId,
     },
-    ImportedCoreCallable(lir::CoreExternalBuildError),
+    ImportedCoreCallable(lir::ExternalCallableBuildError),
     ImportedCoreTypeDescriptor(lir::ExternalTypeDescriptorBuildError),
     ImportedCoreRuntimeStringMismatch {
         mir: scoop_identity::PersistentExactTypeId,
@@ -77,7 +77,7 @@ pub enum StrongLirLoweringError {
         index: usize,
         exact: scoop_identity::PersistentExactTypeId,
     },
-    ImportedDependencyCallable(lir::DependencyExternalBuildError),
+    ImportedDependencyCallable(lir::ExternalCallableBuildError),
     MissingRuntimeStringDescriptor {
         producer: scoop_identity::ConeIdentity,
     },

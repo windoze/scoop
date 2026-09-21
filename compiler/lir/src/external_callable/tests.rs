@@ -69,7 +69,7 @@ fn materialization_rejects_physical_abi_drift() {
             AbiReturn::UnitVoid,
             CallingConvention::Cdecl,
         )),
-        Err(DependencyExternalBuildError::AbiArgumentCount {
+        Err(ExternalCallableBuildError::AbiArgumentCount {
             expected: 0,
             actual: 1
         })

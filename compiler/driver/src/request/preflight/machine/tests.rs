@@ -79,10 +79,19 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
         target,
     )
     .unwrap();
-    assert_eq!(lir.module().meta.dependency_external_callables.len(), 1);
+    assert_eq!(lir.module().meta.external_callables.len(), 1);
     assert_eq!(public.selected().len(), 1);
-    assert!(lir.module().meta.core_external_callables.is_empty());
+    assert!(
+        lir.module()
+            .meta
+            .external_callables
+            .iter()
+            .all(|(_, callable)| matches!(
+                callable.origin(),
+                scoop_lir::ExternalCallableOrigin::Legacy(_)
+            ))
+    );
     let dump = scoop_lir::dump(lir.module());
-    assert_eq!(dump.matches("dependency-external-fn0").count(), 3);
+    assert_eq!(dump.matches("external-fn0").count(), 3);
     sources::snapshot("lir", &dump);
 }

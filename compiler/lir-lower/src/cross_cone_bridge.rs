@@ -214,26 +214,23 @@ fn lower_selected(
 ) -> Result<Vec<lir::SelectedDependencyLirCallableV1>, CrossConeLirBridgeLoweringError> {
     let mut external = Vec::new();
     external
-        .try_reserve_exact(output.module().meta.dependency_external_callables.len())
+        .try_reserve_exact(output.module().meta.external_callables.len())
         .map_err(|_| CrossConeLirBridgeLoweringError::Allocation {
-            requested_slots: output.module().meta.dependency_external_callables.len(),
+            requested_slots: output.module().meta.external_callables.len(),
         })?;
     external.extend(
         output
             .module()
             .meta
-            .dependency_external_callables
+            .external_callables
             .iter()
-            .map(|(_, callable)| callable),
+            .filter_map(|(_, callable)| {
+                callable
+                    .legacy_declaration()
+                    .map(|declaration| (callable, declaration))
+            }),
     );
-    external.sort_unstable_by_key(|callable| {
-        (
-            callable.provider(),
-            callable
-                .legacy_declaration()
-                .expect("legacy bridge materialization retains its declaration"),
-        )
-    });
+    external.sort_unstable_by_key(|(callable, declaration)| (callable.provider(), *declaration));
 
     if external.len() != bridge.selected().len() {
         return Err(CrossConeLirBridgeLoweringError::LirSelectionCountMismatch {
@@ -247,7 +244,9 @@ fn lower_selected(
             requested_slots: external.len(),
         }
     })?;
-    for (index, (expected, actual)) in bridge.selected().iter().zip(external).enumerate() {
+    for (index, (expected, (actual, declaration))) in
+        bridge.selected().iter().zip(external).enumerate()
+    {
         if expected.provider() != actual.provider()
             || Some(expected.declaration()) != actual.legacy_declaration()
             || expected.implementation() != actual.target()
@@ -258,13 +257,18 @@ fn lower_selected(
         selected.push(
             lir::SelectedDependencyLirCallableV1::new(
                 actual.provider(),
-                actual
-                    .legacy_declaration()
-                    .expect("legacy bridge materialization retains its declaration"),
+                declaration,
                 actual.target(),
                 actual.canonical_signature().clone(),
                 actual.calling_convention(),
-                actual.root_plan(),
+                match actual.root_plan() {
+                    lir::ExternalCallableRootPlan::ManagedStatepoint => {
+                        lir::DependencyExternalCallableRootPlanV1::ManagedStatepoint
+                    }
+                    lir::ExternalCallableRootPlan::NoGc => {
+                        lir::DependencyExternalCallableRootPlanV1::NoGc
+                    }
+                },
             )
             .map_err(|source| CrossConeLirBridgeLoweringError::Selected {
                 index,

@@ -1319,15 +1319,15 @@ fn validate_destination(
                 &format!("typed local call to @{}", declaration.symbol()),
             )
         }
-        scoop_lir::CallDestination::CoreExternal(id) => {
+        scoop_lir::CallDestination::External(id) => {
             let index = arena_index(id);
-            if index >= module.meta.core_external_callables.len() {
+            if index >= module.meta.external_callables.len() {
                 return Err(call_error(
                     function,
-                    format!("references invalid core external callable {index}"),
+                    format!("references invalid external callable {index}"),
                 ));
             }
-            let declaration = &module.meta.core_external_callables[id];
+            let declaration = &module.meta.external_callables[id];
             let expected_protocol = match declaration.gc_effect() {
                 scoop_lir::GcEffect::Managed => CallProtocol::Managed,
                 scoop_lir::GcEffect::NoGc => CallProtocol::NoGc,
@@ -1336,7 +1336,7 @@ fn validate_destination(
                 return Err(call_error(
                     function,
                     format!(
-                        "{} protocol does not match core external `{}`'s {:?} effect",
+                        "{} protocol does not match external `{}`'s {:?} effect",
                         protocol.name(),
                         declaration.expected_symbol().symbol(),
                         declaration.gc_effect()
@@ -1348,41 +1348,7 @@ fn validate_destination(
                 call,
                 declaration.signature(),
                 &format!(
-                    "typed core external call to `{}`",
-                    declaration.expected_symbol().symbol()
-                ),
-            )
-        }
-        scoop_lir::CallDestination::DependencyExternal(id) => {
-            let index = arena_index(id);
-            if index >= module.meta.dependency_external_callables.len() {
-                return Err(call_error(
-                    function,
-                    format!("references invalid dependency external callable {index}"),
-                ));
-            }
-            let declaration = &module.meta.dependency_external_callables[id];
-            let expected_protocol = match declaration.gc_effect() {
-                scoop_lir::GcEffect::Managed => CallProtocol::Managed,
-                scoop_lir::GcEffect::NoGc => CallProtocol::NoGc,
-            };
-            if protocol != expected_protocol {
-                return Err(call_error(
-                    function,
-                    format!(
-                        "{} protocol does not match dependency external `{}`'s {:?} effect",
-                        protocol.name(),
-                        declaration.expected_symbol().symbol(),
-                        declaration.gc_effect()
-                    ),
-                ));
-            }
-            require_scoop_signature(
-                function,
-                call,
-                declaration.signature(),
-                &format!(
-                    "typed dependency external call to `{}`",
+                    "typed external call to `{}`",
                     declaration.expected_symbol().symbol()
                 ),
             )
@@ -1832,8 +1798,7 @@ mod tests {
                 layouts: Arena::new(),
                 type_descriptors: Arena::new(),
                 external_type_descriptors: Arena::new(),
-                core_external_callables: Arena::new(),
-                dependency_external_callables: Arena::new(),
+                external_callables: Arena::new(),
             },
         }
     }

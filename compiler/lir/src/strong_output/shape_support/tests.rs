@@ -327,8 +327,7 @@ fn fixture_module(producer: ConeIdentity) -> Module {
             layouts,
             type_descriptors,
             external_type_descriptors: Arena::new(),
-            core_external_callables: Arena::new(),
-            dependency_external_callables: Arena::new(),
+            external_callables: Arena::new(),
         },
     }
 }

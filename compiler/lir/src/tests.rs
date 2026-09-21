@@ -328,28 +328,15 @@ fn local_function_registry_produces_effect_refined_identities() {
 }
 
 #[test]
-fn core_external_destinations_are_effect_refined() {
-    let callable = super::CoreExternalCallableId::from_raw(0_u32.into());
+fn external_destinations_are_effect_refined() {
+    let callable = super::ExternalCallableId::from_raw(0_u32.into());
     assert!(matches!(
-        ManagedCallDestination::core_external(callable).view(),
-        CallDestination::CoreExternal(id) if id == callable
+        ManagedCallDestination::external(callable).view(),
+        CallDestination::External(id) if id == callable
     ));
     assert!(matches!(
-        super::NoGcCallDestination::core_external(callable).view(),
-        CallDestination::CoreExternal(id) if id == callable
-    ));
-}
-
-#[test]
-fn dependency_external_destinations_are_effect_refined() {
-    let callable = super::DependencyExternalCallableId::from_raw(0_u32.into());
-    assert!(matches!(
-        ManagedCallDestination::dependency_external(callable).view(),
-        CallDestination::DependencyExternal(id) if id == callable
-    ));
-    assert!(matches!(
-        super::NoGcCallDestination::dependency_external(callable).view(),
-        CallDestination::DependencyExternal(id) if id == callable
+        super::NoGcCallDestination::external(callable).view(),
+        CallDestination::External(id) if id == callable
     ));
 }
 

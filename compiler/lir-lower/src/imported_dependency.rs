@@ -24,17 +24,15 @@ pub(super) fn lower_imported_dependency_callables(
     imported: StrongImportedDependencyLirInput<'_>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    callables: &mut Arena<lir::ExternalCallable>,
 ) -> Result<
-    (
-        Arena<lir::DependencyExternalCallable>,
-        HashMap<mir::ImportedDependencyMirCallableId, lir::DependencyExternalCallableId>,
-    ),
+    HashMap<mir::ImportedDependencyMirCallableId, lir::ExternalCallableId>,
     StrongLirLoweringError,
 > {
     let roots = input.materialization().imported_dependency_callable_roots();
     let selected = match imported {
         StrongImportedDependencyLirInput::Unused if roots.is_empty() => {
-            return Ok((Arena::new(), HashMap::new()));
+            return Ok(HashMap::new());
         }
         StrongImportedDependencyLirInput::Unused => {
             return Err(StrongLirLoweringError::MissingImportedDependencyLirAuthority);
@@ -57,7 +55,6 @@ pub(super) fn lower_imported_dependency_callables(
     }
 
     let module = input.module();
-    let mut callables = Arena::new();
     let mut mapping = HashMap::with_capacity(roots.len());
     for (index, root) in roots.iter().enumerate() {
         let id = selected
@@ -143,5 +140,5 @@ pub(super) fn lower_imported_dependency_callables(
         let lir_id = callables.alloc(callable);
         mapping.insert(root.callable(), lir_id);
     }
-    Ok((callables, mapping))
+    Ok(mapping)
 }

@@ -205,37 +205,32 @@ fn slots(
                     )?;
                     StrongTypeDispatchCallableRefV2::Local(function.callable_body.id())
                 }
-                CallableRef::CoreExternal(id) => {
-                    let index = id.into_raw().into_u32();
-                    if index as usize >= module.meta.core_external_callables.len() {
-                        return Err(
-                            StrongTypeDescriptorSemanticPlanBuildError::MissingCoreExternalCallable {
-                                exact_type,
-                                index,
-                            },
-                        );
-                    }
-                    let callable = &module.meta.core_external_callables[id];
-                    StrongTypeDispatchCallableRefV2::CoreExternal(callable.body())
-                }
                 CallableRef::Runtime(function) => {
                     StrongTypeDispatchCallableRefV2::Runtime(function)
                 }
-                CallableRef::DependencyExternal(id) => {
+                CallableRef::External(id) => {
                     let index = id.into_raw().into_u32();
-                    if index as usize >= module.meta.dependency_external_callables.len() {
+                    if index as usize >= module.meta.external_callables.len() {
                         return Err(
-                            StrongTypeDescriptorSemanticPlanBuildError::MissingDependencyCallable {
+                            StrongTypeDescriptorSemanticPlanBuildError::MissingExternalCallable {
                                 exact_type,
                                 index,
                             },
                         );
                     }
-                    let callable = &module.meta.dependency_external_callables[id];
-                    validate_callable_selection(selected, callable, module, meter)?;
-                    StrongTypeDispatchCallableRefV2::DependencyExternal {
-                        provider: callable.provider(),
-                        body: callable.body(),
+                    let callable = &module.meta.external_callables[id];
+                    match callable.origin() {
+                        crate::ExternalCallableOrigin::InitializationCycle => {
+                            StrongTypeDispatchCallableRefV2::CoreExternal(callable.body())
+                        }
+                        crate::ExternalCallableOrigin::Legacy(_)
+                        | crate::ExternalCallableOrigin::LayoutV1 => {
+                            validate_callable_selection(selected, callable, module, meter)?;
+                            StrongTypeDispatchCallableRefV2::DependencyExternal {
+                                provider: callable.provider(),
+                                body: callable.body(),
+                            }
+                        }
                     }
                 }
             })
@@ -264,7 +259,7 @@ fn validate_descriptor_selection(
 
 fn validate_callable_selection(
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    callable: &crate::DependencyExternalCallable,
+    callable: &crate::ExternalCallable,
     module: &Module,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {

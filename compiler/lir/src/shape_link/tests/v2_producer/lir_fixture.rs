@@ -32,7 +32,7 @@ pub(super) fn provider_protocol(
             StrongCallableDefinitionOwner::Function(protocol),
             signature,
             crate::CallingConvention::Cdecl,
-            CoreExternalCallableRootPlan::ManagedStatepoint,
+            ExternalCallableRootPlan::ManagedStatepoint,
         )
         .unwrap(),
     ))
@@ -150,8 +150,7 @@ pub(super) fn module(
             layouts,
             type_descriptors,
             external_type_descriptors: Arena::new(),
-            core_external_callables: Arena::new(),
-            dependency_external_callables: Arena::new(),
+            external_callables: Arena::new(),
         },
     }
 }

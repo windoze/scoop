@@ -61,7 +61,7 @@ fn reader_does_not_repair_a_changed_protocol() {
     let DecodedStrongExternalLirBridgeV1::Callable(callable) = &mut decoded.bridges[0] else {
         panic!("fixture keeps callable first")
     };
-    callable.root_plan = CoreExternalCallableRootPlan::NoGc;
+    callable.root_plan = ExternalCallableRootPlan::NoGc;
 
     assert!(matches!(
         decoded.validate_against(&surface),
@@ -89,7 +89,7 @@ fn surface() -> Result<StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridge
         )
         .unwrap(),
         CallingConvention::Cdecl,
-        CoreExternalCallableRootPlan::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .map_err(StrongExternalLirBridgeBuildError::Contract)?;
     let descriptor =

@@ -233,8 +233,7 @@ impl<Destination> Default for ProtocolCallTargets<Destination> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallDestination {
     Local(LocalFunctionId),
-    CoreExternal(CoreExternalCallableId),
-    DependencyExternal(DependencyExternalCallableId),
+    External(ExternalCallableId),
     Runtime(RuntimeFunction),
     Extern(ExternFunctionId),
     Dispatch { table: Value, slot: DispatchSlotId },
@@ -309,8 +308,7 @@ impl LocalFunctionIdentities {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManagedCallDestination {
     Local(ManagedLocalFunctionRef),
-    CoreExternal(CoreExternalCallableId),
-    DependencyExternal(DependencyExternalCallableId),
+    External(ExternalCallableId),
     Runtime(ManagedRuntimeFunction),
     Dispatch {
         table: Value,
@@ -323,12 +321,8 @@ impl ManagedCallDestination {
         Self::Local(function)
     }
 
-    pub fn core_external(function: CoreExternalCallableId) -> Self {
-        Self::CoreExternal(function)
-    }
-
-    pub fn dependency_external(function: DependencyExternalCallableId) -> Self {
-        Self::DependencyExternal(function)
+    pub fn external(function: ExternalCallableId) -> Self {
+        Self::External(function)
     }
 
     pub fn runtime(function: ManagedRuntimeFunction) -> Self {
@@ -342,8 +336,7 @@ impl ManagedCallDestination {
     pub fn view(self) -> CallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
-            Self::CoreExternal(function) => CallDestination::CoreExternal(function),
-            Self::DependencyExternal(function) => CallDestination::DependencyExternal(function),
+            Self::External(function) => CallDestination::External(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::Managed(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,
@@ -357,8 +350,7 @@ impl ManagedCallDestination {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoGcCallDestination {
     Local(NoGcLocalFunctionRef),
-    CoreExternal(CoreExternalCallableId),
-    DependencyExternal(DependencyExternalCallableId),
+    External(ExternalCallableId),
     Runtime(NoGcRuntimeFunction),
     Dispatch {
         table: Value,
@@ -371,12 +363,8 @@ impl NoGcCallDestination {
         Self::Local(function)
     }
 
-    pub fn core_external(function: CoreExternalCallableId) -> Self {
-        Self::CoreExternal(function)
-    }
-
-    pub fn dependency_external(function: DependencyExternalCallableId) -> Self {
-        Self::DependencyExternal(function)
+    pub fn external(function: ExternalCallableId) -> Self {
+        Self::External(function)
     }
 
     pub fn runtime(function: NoGcRuntimeFunction) -> Self {
@@ -390,8 +378,7 @@ impl NoGcCallDestination {
     pub fn view(self) -> CallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
-            Self::CoreExternal(function) => CallDestination::CoreExternal(function),
-            Self::DependencyExternal(function) => CallDestination::DependencyExternal(function),
+            Self::External(function) => CallDestination::External(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::NoGc(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,

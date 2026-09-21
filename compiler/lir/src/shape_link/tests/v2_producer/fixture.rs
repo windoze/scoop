@@ -306,9 +306,8 @@ pub(super) fn consumer_layout_section<'a>(
                         _: &mut BudgetMeter|
      -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
         Ok(match callable {
-            CallableRef::DependencyExternal(id)
-                if output.module().meta.dependency_external_callables[id].body()
-                    == provider.callable_body =>
+            CallableRef::External(id)
+                if output.module().meta.external_callables[id].body() == provider.callable_body =>
             {
                 Some(expected)
             }

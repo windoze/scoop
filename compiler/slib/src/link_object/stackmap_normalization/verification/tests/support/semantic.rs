@@ -1137,8 +1137,7 @@ fn metadata(corruption: Corruption) -> LirMeta {
         layouts,
         type_descriptors,
         external_type_descriptors,
-        core_external_callables: Arena::new(),
-        dependency_external_callables: Arena::new(),
+        external_callables: Arena::new(),
     }
 }
 

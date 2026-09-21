@@ -14,7 +14,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use crate::{
-    CallingConvention, ConeIdentity, CoreExternalBuildError, CoreExternalCallableRootPlan,
+    CallingConvention, ConeIdentity, CoreExternalBuildError, ExternalCallableRootPlan,
     OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1, core_callable_link_contract,
 };
 
@@ -26,7 +26,7 @@ pub struct CoreLirInitializationCycleThrowerV1 {
     abi_signature: CanonicalScoopAbiFunctionSignature,
     expected_symbol: PersistentSymbolRequest,
     calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
+    root_plan: ExternalCallableRootPlan,
     required_definition: ObjectDefinitionPlanId,
 }
 
@@ -35,7 +35,7 @@ impl CoreLirInitializationCycleThrowerV1 {
         target: StrongCallableDefinitionOwner,
         abi_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
-        root_plan: CoreExternalCallableRootPlan,
+        root_plan: ExternalCallableRootPlan,
     ) -> Result<Self, CoreLirBridgeBuildError> {
         let expected_effect = match abi_signature.gc_effect() {
             CanonicalGcEffect::Managed => crate::GcEffect::Managed,
@@ -74,7 +74,7 @@ impl CoreLirInitializationCycleThrowerV1 {
         self.calling_convention
     }
 
-    pub const fn root_plan(&self) -> CoreExternalCallableRootPlan {
+    pub const fn root_plan(&self) -> ExternalCallableRootPlan {
         self.root_plan
     }
 
@@ -166,7 +166,7 @@ pub(crate) fn core_lir_cycle_thrower_for_test() -> CoreLirInitializationCycleThr
         StrongCallableDefinitionOwner::Function(definition),
         abi,
         CallingConvention::Cdecl,
-        CoreExternalCallableRootPlan::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap()
 }
@@ -279,7 +279,7 @@ struct DecodedCoreLirInitializationCycleThrowerV1 {
     abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
     expected_symbol: DecodedPersistentSymbolRequest,
     calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
+    root_plan: ExternalCallableRootPlan,
     required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
 }
 
@@ -309,7 +309,7 @@ impl WireDecode for DecodedCoreLirInitializationCycleThrowerV1 {
             abi_signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             expected_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
             calling_convention: decoder.field(4, CallingConvention::decode)?,
-            root_plan: decoder.field(5, CoreExternalCallableRootPlan::decode)?,
+            root_plan: decoder.field(5, ExternalCallableRootPlan::decode)?,
             required_definition: decoder.field(6, DecodedPersistentId::decode)?,
         })
     }

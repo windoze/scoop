@@ -69,8 +69,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 ExternFunctionKind::C { .. }
             ),
             scoop_lir::CallDestination::Local(_)
-            | scoop_lir::CallDestination::CoreExternal(_)
-            | scoop_lir::CallDestination::DependencyExternal(_)
+            | scoop_lir::CallDestination::External(_)
             | scoop_lir::CallDestination::Runtime(_)
             | scoop_lir::CallDestination::Dispatch { .. } => false,
         };
@@ -125,8 +124,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )));
                 }
             }
-            scoop_lir::CallDestination::CoreExternal(id) => {
-                let declaration = &self.core_external_callables[id];
+            scoop_lir::CallDestination::External(id) => {
+                let declaration = &self.external_callables[id];
                 if signature != declaration.signature()
                     || matches!(
                         result,
@@ -137,7 +136,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     )
                 {
                     return Err(CodegenError(format!(
-                        "typed core external call @{} ABI does not match `{}`",
+                        "typed external call @{} ABI does not match `{}`",
                         self.function.symbol(),
                         declaration.expected_symbol().symbol()
                     )));
@@ -149,51 +148,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
                     CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
                         return Err(CodegenError(format!(
-                            "typed core external call @{} cannot use a native transition protocol",
+                            "typed external call @{} cannot use a native transition protocol",
                             self.function.symbol()
                         )));
                     }
                 };
                 if declaration.gc_effect() != expected_effect {
                     return Err(CodegenError(format!(
-                        "typed core external call @{} protocol does not match the GC effect of `{}`",
-                        self.function.symbol(),
-                        declaration.expected_symbol().symbol()
-                    )));
-                }
-            }
-            scoop_lir::CallDestination::DependencyExternal(id) => {
-                let declaration = &self.dependency_external_callables[id];
-                if signature != declaration.signature()
-                    || matches!(
-                        result,
-                        TypedCallResult::Indirect {
-                            convention: scoop_lir::IndirectResultConvention::CStoragePointer,
-                            ..
-                        }
-                    )
-                {
-                    return Err(CodegenError(format!(
-                        "typed dependency external call @{} ABI does not match `{}`",
-                        self.function.symbol(),
-                        declaration.expected_symbol().symbol()
-                    )));
-                }
-                let expected_effect = match protocol {
-                    CallProtocol::Managed { .. } | CallProtocol::ManagedInvoke { .. } => {
-                        scoop_lir::GcEffect::Managed
-                    }
-                    CallProtocol::NoGc => scoop_lir::GcEffect::NoGc,
-                    CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. } => {
-                        return Err(CodegenError(format!(
-                            "typed dependency external call @{} cannot use a native transition protocol",
-                            self.function.symbol()
-                        )));
-                    }
-                };
-                if declaration.gc_effect() != expected_effect {
-                    return Err(CodegenError(format!(
-                        "typed dependency external call @{} protocol does not match the GC effect of `{}`",
+                        "typed external call @{} protocol does not match the GC effect of `{}`",
                         self.function.symbol(),
                         declaration.expected_symbol().symbol()
                     )));

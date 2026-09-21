@@ -6,8 +6,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CallingConvention, CoreExternalCallableRootPlan, LirTargetProfile,
-    StrongExternalCallableBridgeV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    CallingConvention, ExternalCallableRootPlan, LirTargetProfile, StrongExternalCallableBridgeV1,
+    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongExternalTypeDescriptorBridgeV1,
 };
 
@@ -248,7 +248,7 @@ fn core_callable_bridge(name: &str) -> StrongExternalLirBridgeV1 {
             )
             .unwrap(),
             CallingConvention::Cdecl,
-            CoreExternalCallableRootPlan::ManagedStatepoint,
+            ExternalCallableRootPlan::ManagedStatepoint,
         )
         .unwrap(),
     )

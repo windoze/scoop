@@ -11,7 +11,7 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
 use crate::{
-    CallingConvention, CoreExternalBuildError, CoreExternalCallable, CoreExternalCallableRootPlan,
+    CallingConvention, CoreExternalBuildError, ExternalCallable, ExternalCallableRootPlan,
     ExternalTypeDescriptor, Module, core_callable_link_contract,
     core_type_descriptor_link_contract,
 };
@@ -22,7 +22,7 @@ pub struct StrongExternalCallableBridgeV1 {
     abi_signature: CanonicalScoopAbiFunctionSignature,
     expected_symbol: PersistentSymbolRequest,
     calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
+    root_plan: ExternalCallableRootPlan,
     required_definition: ObjectDefinitionPlanId,
 }
 
@@ -31,7 +31,7 @@ impl StrongExternalCallableBridgeV1 {
         target: StrongCallableDefinitionOwner,
         abi_signature: CanonicalScoopAbiFunctionSignature,
         calling_convention: CallingConvention,
-        root_plan: CoreExternalCallableRootPlan,
+        root_plan: ExternalCallableRootPlan,
     ) -> Result<Self, CoreExternalBuildError> {
         let (_, expected_symbol, required_definition) = core_callable_link_contract(target)?;
         Ok(Self {
@@ -44,7 +44,7 @@ impl StrongExternalCallableBridgeV1 {
         })
     }
 
-    fn from_lir(value: &CoreExternalCallable) -> Result<Self, CoreExternalBuildError> {
+    fn from_lir(value: &ExternalCallable) -> Result<Self, CoreExternalBuildError> {
         Self::new(
             value.target(),
             value.canonical_signature().clone(),
@@ -69,7 +69,7 @@ impl StrongExternalCallableBridgeV1 {
         self.calling_convention
     }
 
-    pub const fn root_plan(&self) -> CoreExternalCallableRootPlan {
+    pub const fn root_plan(&self) -> ExternalCallableRootPlan {
         self.root_plan
     }
 
@@ -211,8 +211,11 @@ impl StrongExternalLirBridgeSurfaceV1 {
     }
 
     pub fn from_module(module: &Module) -> Result<Self, StrongExternalLirBridgeBuildError> {
-        let mut bridges = Vec::with_capacity(module.meta.core_external_callables.len() + 1);
-        for (_, callable) in module.meta.core_external_callables.iter() {
+        let mut bridges = Vec::with_capacity(module.meta.external_callables.len() + 1);
+        for (_, callable) in module.meta.external_callables.iter() {
+            if callable.origin() != crate::ExternalCallableOrigin::InitializationCycle {
+                continue;
+            }
             bridges.push(StrongExternalLirBridgeV1::Callable(
                 StrongExternalCallableBridgeV1::from_lir(callable)
                     .map_err(StrongExternalLirBridgeBuildError::Contract)?,
@@ -268,7 +271,7 @@ struct DecodedStrongExternalCallableBridgeV1 {
     abi_signature: DecodedCanonicalScoopAbiFunctionSignature,
     expected_symbol: DecodedPersistentSymbolRequest,
     calling_convention: CallingConvention,
-    root_plan: CoreExternalCallableRootPlan,
+    root_plan: ExternalCallableRootPlan,
     required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
 }
 
@@ -298,7 +301,7 @@ impl WireDecode for DecodedStrongExternalCallableBridgeV1 {
             abi_signature: decoder.field(2, DecodedCanonicalScoopAbiFunctionSignature::decode)?,
             expected_symbol: decoder.field(3, DecodedPersistentSymbolRequest::decode)?,
             calling_convention: decoder.field(4, CallingConvention::decode)?,
-            root_plan: decoder.field(5, CoreExternalCallableRootPlan::decode)?,
+            root_plan: decoder.field(5, ExternalCallableRootPlan::decode)?,
             required_definition: decoder.field(6, DecodedPersistentId::decode)?,
         })
     }

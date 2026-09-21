@@ -19,16 +19,10 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
         )
         .unwrap();
         let module = output.module();
-        assert!(module.meta.core_external_callables.is_empty());
-        assert_eq!(module.meta.dependency_external_callables.len(), 1);
+        assert_eq!(module.meta.external_callables.len(), 1);
         assert_eq!(module.functions.len(), 1);
 
-        let (_, external) = module
-            .meta
-            .dependency_external_callables
-            .iter()
-            .next()
-            .unwrap();
+        let (_, external) = module.meta.external_callables.iter().next().unwrap();
         assert_eq!(external.target(), expected_target);
         assert_eq!(
             external.gc_effect(),
@@ -54,7 +48,7 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
             .expect("dependency call remains one typed LIR call");
         assert!(matches!(
             call.destination(&module.functions[0].call_targets),
-            lir::CallDestination::DependencyExternal(_)
+            lir::CallDestination::External(_)
         ));
     }
 }
@@ -98,7 +92,7 @@ fn dependency_strong_lowering_classifies_an_extension_receiver_as_the_first_argu
     let (_, external) = output
         .module()
         .meta
-        .dependency_external_callables
+        .external_callables
         .iter()
         .next()
         .unwrap();

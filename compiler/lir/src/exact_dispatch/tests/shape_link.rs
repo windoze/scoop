@@ -87,7 +87,7 @@ fn shape_link_legacy_query_rejects_explicit_old_callable_but_allows_new_dispatch
         fixture.target,
         fixture.abi.canonical_signature().clone(),
         fixture.abi.calling_convention(),
-        CoreExternalCallableRootPlan::ManagedStatepoint,
+        ExternalCallableRootPlan::ManagedStatepoint,
     )
     .unwrap();
     let core = CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(thrower));

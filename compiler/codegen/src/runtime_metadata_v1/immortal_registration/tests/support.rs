@@ -176,8 +176,7 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
             layouts,
             type_descriptors: Arena::new(),
             external_type_descriptors,
-            core_external_callables: Arena::new(),
-            dependency_external_callables: Arena::new(),
+            external_callables: Arena::new(),
         },
     }
 }

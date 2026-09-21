@@ -15,21 +15,60 @@ fn core_dependency_calls_share_managed_and_no_gc_emission() {
     assert_dependency_calls(scoop_identity::ConeIdentity::CORE);
 }
 
+#[test]
+fn external_callables_reject_shared_bodies_and_local_ownership() {
+    let mut module = values_module();
+    let callable = dependency_external(ConeIdentity::CORE, "shared", scoop_lir::GcEffect::Managed);
+    module.meta.external_callables.alloc(callable.clone());
+    module.meta.external_callables.alloc(callable.clone());
+    assert_eq!(
+        validation::validate_module(&module).unwrap_err().0,
+        format!("duplicate external callable body {}", callable.body())
+    );
+
+    module.meta.external_callables.clear();
+    module.meta.external_callables.alloc(callable.clone());
+    let scoop_identity::StrongCallableDefinitionOwner::Function(function) = callable.target()
+    else {
+        panic!("the fixture imports a source function")
+    };
+    module.functions[0].callable_body =
+        scoop_lir::CallableBodyIdentity::for_function(function).unwrap();
+    assert_eq!(
+        validation::validate_module(&module).unwrap_err().0,
+        format!(
+            "external callable body {} is also defined locally",
+            callable.body()
+        )
+    );
+
+    module.meta.external_callables.clear();
+    let local = dependency_external(module.cone, "localProvider", scoop_lir::GcEffect::NoGc);
+    module.meta.external_callables.alloc(local.clone());
+    assert_eq!(
+        validation::validate_module(&module).unwrap_err().0,
+        format!(
+            "external callable {:?} names the current Cone as provider",
+            local.target()
+        )
+    );
+}
+
 fn assert_dependency_calls(provider: scoop_identity::ConeIdentity) {
     let mut module = values_module();
     let managed = dependency_external(provider, "managedDependency", scoop_lir::GcEffect::Managed);
     let managed_symbol = managed.expected_symbol().symbol().to_string();
-    let managed = module.meta.dependency_external_callables.alloc(managed);
+    let managed = module.meta.external_callables.alloc(managed);
     let no_gc = dependency_external(provider, "noGcDependency", scoop_lir::GcEffect::NoGc);
     let no_gc_symbol = no_gc.expected_symbol().symbol().to_string();
-    let no_gc = module.meta.dependency_external_callables.alloc(no_gc);
+    let no_gc = module.meta.external_callables.alloc(no_gc);
 
     let function = &mut module.functions[0];
     let managed_call = void_site(
         &mut function.call_targets,
         TestCallProtocol::Managed {
             safepoint: 900,
-            destination: scoop_lir::ManagedCallDestination::dependency_external(managed),
+            destination: scoop_lir::ManagedCallDestination::external(managed),
         },
         Vec::new(),
         Vec::new(),
@@ -37,7 +76,7 @@ fn assert_dependency_calls(provider: scoop_identity::ConeIdentity) {
     let no_gc_call = void_site(
         &mut function.call_targets,
         TestCallProtocol::NoGc {
-            destination: scoop_lir::NoGcCallDestination::dependency_external(no_gc),
+            destination: scoop_lir::NoGcCallDestination::external(no_gc),
         },
         Vec::new(),
         Vec::new(),
@@ -78,7 +117,7 @@ fn dependency_external(
     provider: scoop_identity::ConeIdentity,
     name: &str,
     effect: scoop_lir::GcEffect,
-) -> scoop_lir::DependencyExternalCallable {
+) -> scoop_lir::ExternalCallable {
     let site = scoop_identity::SourceDeclarationSite::new(
         provider,
         scoop_identity::PackagePath::root(),

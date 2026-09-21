@@ -127,8 +127,7 @@ fn emit_type_descriptor<'ctx>(
         llvm,
         descriptor.vtable.slots(),
         &module.functions,
-        &module.meta.core_external_callables,
-        &module.meta.dependency_external_callables,
+        &module.meta.external_callables,
     )?;
     let vtable = emit_dispatch_definition_v1(
         context,
@@ -151,8 +150,7 @@ fn emit_type_descriptor<'ctx>(
                 llvm,
                 record.slots(),
                 &module.functions,
-                &module.meta.core_external_callables,
-                &module.meta.dependency_external_callables,
+                &module.meta.external_callables,
             )?;
             let slots = emit_dispatch_definition_v1(
                 context,
@@ -269,8 +267,7 @@ fn dispatch_values<'ctx>(
     llvm: &LlvmModule<'ctx>,
     slots: &[DispatchEntry],
     functions: &[Function],
-    core_external_callables: &Arena<scoop_lir::CoreExternalCallable>,
-    dependency_external_callables: &Arena<scoop_lir::DependencyExternalCallable>,
+    external_callables: &Arena<scoop_lir::ExternalCallable>,
 ) -> Result<Vec<PointerValue<'ctx>>, CodegenError> {
     let mut values = Vec::with_capacity(slots.len());
     for entry in slots {
@@ -278,8 +275,7 @@ fn dispatch_values<'ctx>(
             llvm,
             entry.callable,
             functions,
-            core_external_callables,
-            dependency_external_callables,
+            external_callables,
         )?);
     }
     Ok(values)
@@ -292,8 +288,7 @@ fn slot_fn_ptr<'ctx>(
     llvm: &LlvmModule<'ctx>,
     callable: CallableRef,
     functions: &[Function],
-    core_external_callables: &Arena<scoop_lir::CoreExternalCallable>,
-    dependency_external_callables: &Arena<scoop_lir::DependencyExternalCallable>,
+    external_callables: &Arena<scoop_lir::ExternalCallable>,
 ) -> Result<PointerValue<'ctx>, CodegenError> {
     let symbol = match callable {
         CallableRef::Local(id) => functions
@@ -301,19 +296,8 @@ fn slot_fn_ptr<'ctx>(
             .ok_or_else(|| CodegenError(format!("invalid local callable id {id:?}")))?
             .symbol(),
         CallableRef::Runtime(function) => function.symbol(),
-        CallableRef::CoreExternal(id) => {
-            let symbol = core_external_callables[id].expected_symbol().symbol();
-            return llvm
-                .get_function(symbol.as_str())
-                .map(|function| function.as_global_value().as_pointer_value())
-                .ok_or_else(|| {
-                    CodegenError(format!(
-                        "typed dispatch callable {callable:?} (`@{symbol}`) is not declared"
-                    ))
-                });
-        }
-        CallableRef::DependencyExternal(id) => {
-            let symbol = dependency_external_callables[id].expected_symbol().symbol();
+        CallableRef::External(id) => {
+            let symbol = external_callables[id].expected_symbol().symbol();
             return llvm
                 .get_function(symbol.as_str())
                 .map(|function| function.as_global_value().as_pointer_value())

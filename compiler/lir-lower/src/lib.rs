@@ -224,16 +224,16 @@ pub fn lower_with_dependencies(
     let structs = lower_structs(&context, module, &enums)?;
     let (external_type_descriptors, imported_runtime_string) =
         lower_imported_core_runtime_string(input, imported_core)?;
-    let (core_external_callables, core_external_callable_map) =
+    let (mut external_callables, core_external_callable_map) =
         lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
-    let (dependency_external_callables, dependency_external_callable_map) =
-        lower_imported_dependency_callables(
-            &context,
-            input,
-            imported_dependencies,
-            &structs,
-            &enums,
-        )?;
+    let dependency_external_callable_map = lower_imported_dependency_callables(
+        &context,
+        input,
+        imported_dependencies,
+        &structs,
+        &enums,
+        &mut external_callables,
+    )?;
     let native_abi = native_abi::lower(
         &context,
         module,
@@ -393,9 +393,8 @@ pub fn lower_with_dependencies(
                 &type_descriptor_refs,
                 &local_function_map,
                 &function_signatures,
-                &core_external_callables,
+                &external_callables,
                 &core_external_callable_map,
-                &dependency_external_callables,
                 &dependency_external_callable_map,
                 &extern_functions,
                 &extern_function_refs,
@@ -466,8 +465,7 @@ pub fn lower_with_dependencies(
             layouts,
             type_descriptors,
             external_type_descriptors,
-            core_external_callables,
-            dependency_external_callables,
+            external_callables,
         },
     };
     lir::SingleConeStrongLirOutput::try_new(
@@ -540,8 +538,8 @@ fn lower_core_lir_bridge(
         &cycle_lowered.signature,
     );
     let cycle_root_plan = match cycle_function.gc_effect {
-        mir::GcEffect::Managed => lir::CoreExternalCallableRootPlan::ManagedStatepoint,
-        mir::GcEffect::NoGc => lir::CoreExternalCallableRootPlan::NoGc,
+        mir::GcEffect::Managed => lir::ExternalCallableRootPlan::ManagedStatepoint,
+        mir::GcEffect::NoGc => lir::ExternalCallableRootPlan::NoGc,
     };
     let cycle = lir::CoreLirInitializationCycleThrowerV1::new(
         cycle_owner,

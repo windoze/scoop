@@ -3,9 +3,25 @@ use super::*;
 impl Lowerer {
     pub(super) fn lower_initialization_ensure(
         &mut self,
+        module: &hir::Module,
         unit: mir::InitializationUnitId,
         span: Span,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
+        // The implicit cycle message crosses the same type boundary as a
+        // source expression, even when no source body mentions String.
+        let message_ty = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            module.string,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
         let declaration = &self.initialization_units[unit];
         let initializer = declaration.initializer;
         let cycle_thrower = declaration.cycle_thrower;
@@ -33,7 +49,7 @@ impl Lowerer {
         });
         let message = locals.alloc(mir::Local {
             name: "$init.message".to_string(),
-            ty: mir::Type::String,
+            ty: message_ty.clone(),
             mutable: false,
         });
 
@@ -132,7 +148,7 @@ impl Lowerer {
                     init: runtime_call(
                         mir::RuntimeFn::InitializationCycleMessage,
                         vec![unit_address(unit)],
-                        mir::Type::String,
+                        message_ty.clone(),
                     ),
                 },
                 span,
@@ -140,7 +156,7 @@ impl Lowerer {
             statement(
                 smir::StatementKind::Expr(initialization_cycle_call(
                     cycle_thrower,
-                    smir::Expr::local(message, mir::Type::String),
+                    smir::Expr::local(message, message_ty),
                 )),
                 span,
             ),

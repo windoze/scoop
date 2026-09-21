@@ -179,8 +179,8 @@ impl SelectedDependencyLirCallableV1 {
     pub fn materialize(
         &self,
         signature: crate::ScoopAbiSignature,
-    ) -> Result<crate::DependencyExternalCallable, crate::DependencyExternalBuildError> {
-        crate::DependencyExternalCallable::new(self.clone(), signature)
+    ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
+        crate::ExternalCallable::new(self.clone(), signature)
     }
 
     fn sort_key(&self) -> (ConeIdentity, DependencyCallableDeclarationId) {

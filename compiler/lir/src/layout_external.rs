@@ -5,7 +5,7 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId, StrongCallableDefiniti
 use scoop_wire::{BudgetMeter, WirePath};
 
 use crate::{
-    DependencyExternalCallable, EnumDefs, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
+    EnumDefs, ExternalCallable, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
     LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1, ScoopAbiSignature,
     SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
@@ -31,7 +31,7 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
         meter: &mut BudgetMeter,
-    ) -> Result<DependencyExternalCallable, LayoutExternalMaterializationError> {
+    ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
         materialize_dispatch_callable(self, provider, target, signature, enums, meter)
     }
 }
@@ -53,7 +53,7 @@ impl StrongProductionDependencySelectionV2<'_> {
         signature: ScoopAbiSignature,
         enums: &EnumDefs,
         meter: &mut BudgetMeter,
-    ) -> Result<DependencyExternalCallable, LayoutExternalMaterializationError> {
+    ) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
         materialize_dispatch_callable(self, provider, target, signature, enums, meter)
     }
 }
@@ -179,7 +179,7 @@ fn materialize_dispatch_callable<'a>(
     signature: ScoopAbiSignature,
     enums: &EnumDefs,
     meter: &mut BudgetMeter,
-) -> Result<DependencyExternalCallable, LayoutExternalMaterializationError> {
+) -> Result<ExternalCallable, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
     meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
     let LayoutAbiSemanticRecordV1::Callable(record) = selected
@@ -210,7 +210,7 @@ fn materialize_dispatch_callable<'a>(
     {
         return Err(LayoutExternalMaterializationError::CallableContract(target));
     }
-    DependencyExternalCallable::from_layout_v1(
+    ExternalCallable::from_layout_v1(
         provider,
         record,
         import.expected_symbol(),

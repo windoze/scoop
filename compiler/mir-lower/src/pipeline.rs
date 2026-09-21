@@ -156,7 +156,7 @@ impl Lowerer {
 
         for (hir_id, mir_id) in user_functions {
             let (params, return_ty, body) = if let Some(&unit) = ensure_units.get(&mir_id) {
-                self.lower_initialization_ensure(unit, module.functions[hir_id].span)
+                self.lower_initialization_ensure(module, unit, module.functions[hir_id].span)
             } else {
                 let string_owner = initialization_string_owners
                     .get(&hir_id)

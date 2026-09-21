@@ -16,7 +16,7 @@ Module
     local %4 renamed: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 dependency-external-fn0()
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
     store t0 -> local0
     t1 = aggregate (local0, true) : {i32, i1}
     store t1 -> local1

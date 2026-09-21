@@ -6,7 +6,7 @@ use scoop_identity::{
 };
 
 use crate::{
-    ArrayType, CallableRef, CoreExternalCallable, DispatchEntry, ExternalTypeDescriptor, Function,
+    ArrayType, CallableRef, DispatchEntry, ExternalCallable, ExternalTypeDescriptor, Function,
     ItableRecord, Layout, LayoutKind, LirTargetProfile, Module, TypeDescriptor,
     TypeDescriptorInlineScanV1, TypeDescriptorRef,
 };
@@ -24,7 +24,7 @@ struct DescriptorSemanticInputs<'a> {
     layouts: &'a la_arena::Arena<Layout>,
     arrays: &'a la_arena::Arena<ArrayType>,
     functions: &'a [Function],
-    external_callables: &'a la_arena::Arena<CoreExternalCallable>,
+    external_callables: &'a la_arena::Arena<ExternalCallable>,
 }
 
 impl StrongTypeDescriptorSemanticPlanSetV1 {
@@ -43,7 +43,7 @@ impl StrongTypeDescriptorSemanticPlanSetV1 {
                 layouts: &module.meta.layouts,
                 arrays: &module.meta.arrays,
                 functions: &module.functions,
-                external_callables: &module.meta.core_external_callables,
+                external_callables: &module.meta.external_callables,
             },
         )
     }
@@ -266,7 +266,7 @@ fn resolve_slots(
     exact_type: PersistentExactTypeId,
     slots: &[DispatchEntry],
     functions: &[Function],
-    external_callables: &la_arena::Arena<CoreExternalCallable>,
+    external_callables: &la_arena::Arena<ExternalCallable>,
 ) -> Result<Vec<StrongTypeDispatchCallableRefV1>, StrongTypeDescriptorSemanticPlanBuildError> {
     slots
         .iter()
@@ -280,29 +280,32 @@ fn resolve_slots(
                         index: id.into_u32(),
                     },
                 ),
-            CallableRef::CoreExternal(id) => {
+            CallableRef::External(id) => {
                 let index = id.into_raw().into_u32();
                 if index as usize >= external_callables.len() {
                     return Err(
-                        StrongTypeDescriptorSemanticPlanBuildError::MissingCoreExternalCallable {
+                        StrongTypeDescriptorSemanticPlanBuildError::MissingExternalCallable {
+                            exact_type,
+                            index,
+                        },
+                    );
+                }
+                let callable = &external_callables[id];
+                if callable.origin() != crate::ExternalCallableOrigin::InitializationCycle {
+                    return Err(
+                        StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 {
                             exact_type,
                             index,
                         },
                     );
                 }
                 Ok(StrongTypeDispatchCallableRefV1::CoreExternal(
-                    external_callables[id].body(),
+                    callable.body(),
                 ))
             }
             CallableRef::Runtime(function) => {
                 Ok(StrongTypeDispatchCallableRefV1::Runtime(function))
             }
-            CallableRef::DependencyExternal(id) => Err(
-                StrongTypeDescriptorSemanticPlanBuildError::DependencyCallableInV1 {
-                    exact_type,
-                    index: id.into_raw().into_u32(),
-                },
-            ),
         })
         .collect()
 }
@@ -351,15 +354,11 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
         exact_type: PersistentExactTypeId,
         index: u32,
     },
-    MissingCoreExternalCallable {
+    MissingExternalCallable {
         exact_type: PersistentExactTypeId,
         index: u32,
     },
     DependencyCallableInV1 {
-        exact_type: PersistentExactTypeId,
-        index: u32,
-    },
-    MissingDependencyCallable {
         exact_type: PersistentExactTypeId,
         index: u32,
     },

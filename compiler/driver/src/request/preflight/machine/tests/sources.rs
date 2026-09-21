@@ -71,7 +71,7 @@ pub(super) fn snapshot(stage: &str, dump: &str) {
         .filter(|section| {
             section.contains("userCore")
                 || section.contains("LocalTools")
-                || section.contains("dependency-external-fn")
+                || section.contains("external-fn")
         })
         .collect::<String>();
     assert!(
