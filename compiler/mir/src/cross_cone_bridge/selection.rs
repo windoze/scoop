@@ -96,12 +96,6 @@ impl SelectedDependencyMirSet {
                 },
             );
         }
-        if selected
-            .iter()
-            .any(|callable| callable.provider() == ConeIdentity::CORE)
-        {
-            return Err(SelectedDependencyMirSetBuildError::SelectedTrustedCore);
-        }
         if let Some(pair) = selected.windows(2).find(|pair| {
             (pair[0].provider(), pair[0].declaration())
                 == (pair[1].provider(), pair[1].declaration())
@@ -203,7 +197,6 @@ pub enum SelectedDependencyMirSetBuildError {
     SelectedCurrentProvider {
         provider: ConeIdentity,
     },
-    SelectedTrustedCore,
     DuplicateCallable {
         provider: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
@@ -221,8 +214,6 @@ impl fmt::Display for SelectedDependencyMirSetBuildError {
                 formatter,
                 "dependency MIR selection names current Cone {provider} as an ordinary provider"
             ),
-            Self::SelectedTrustedCore => formatter
-                .write_str("dependency MIR selection names trusted core as an ordinary provider"),
             Self::DuplicateCallable {
                 provider,
                 declaration,

@@ -50,12 +50,6 @@ impl SelectedDependencyLirSet {
                 },
             );
         }
-        if selected
-            .iter()
-            .any(|callable| callable.provider() == ConeIdentity::CORE)
-        {
-            return Err(SelectedDependencyLirSetBuildError::SelectedTrustedCore);
-        }
         if let Some(pair) = selected.windows(2).find(|pair| {
             (pair[0].provider(), pair[0].bridge().declaration())
                 == (pair[1].provider(), pair[1].bridge().declaration())
@@ -124,7 +118,6 @@ pub enum SelectedDependencyLirSetBuildError {
     SelectedCurrentProvider {
         provider: ConeIdentity,
     },
-    SelectedTrustedCore,
     DuplicateCallable {
         provider: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
@@ -142,8 +135,6 @@ impl fmt::Display for SelectedDependencyLirSetBuildError {
                 formatter,
                 "dependency LIR selection names current Cone {provider} as an ordinary provider"
             ),
-            Self::SelectedTrustedCore => formatter
-                .write_str("dependency LIR selection names trusted core as an ordinary provider"),
             Self::DuplicateCallable {
                 provider,
                 declaration,

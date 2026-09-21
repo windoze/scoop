@@ -199,7 +199,7 @@ fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
 #[test]
 fn producer_side_lir_selection_is_canonical_and_closed() {
     let first = Fixture::new("firstSelection");
-    let second = Fixture::new("secondSelection");
+    let second = Fixture::for_producer(ConeIdentity::CORE, "secondSelection");
     let consumer = ConeCoordinate::new("test", "lir-selection-consumer", "1.0.0")
         .unwrap()
         .identity()
@@ -235,23 +235,9 @@ fn producer_side_lir_selection_is_canonical_and_closed() {
         Err(SelectedDependencyLirSetBuildError::DuplicateCallable { .. })
     ));
 
-    for (provider, expected) in [
-        (
-            consumer,
-            SelectedDependencyLirSetBuildError::SelectedCurrentProvider { provider: consumer },
-        ),
-        (
-            ConeIdentity::CORE,
-            SelectedDependencyLirSetBuildError::SelectedTrustedCore,
-        ),
-    ] {
-        assert_eq!(
-            SelectedDependencyLirSet::try_from_callables(
-                consumer,
-                vec![selected(&first, provider)],
-            )
+    assert_eq!(
+        SelectedDependencyLirSet::try_from_callables(consumer, vec![selected(&first, consumer)])
             .err(),
-            Some(expected)
-        );
-    }
+        Some(SelectedDependencyLirSetBuildError::SelectedCurrentProvider { provider: consumer }),
+    );
 }

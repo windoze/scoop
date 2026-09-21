@@ -8,7 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::*;
-use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
+use crate::{OrdinarySources, lower_ordinary};
 use hir::NominalInheritanceSemanticAuthority as _;
 
 mod source_binding;
@@ -214,10 +214,11 @@ fn lower_public_declarations(declarations: Vec<Decl>) -> hir::OrdinaryHirOutput<
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
+    let world = core.world(ordinary.cone());
     let input = Box::leak(Box::new(
-        OrdinaryCoreOnlySources::try_new(ordinary, core_inputs).unwrap(),
+        OrdinarySources::try_new(ordinary, core_inputs, &world).unwrap(),
     ));
-    lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, input).unwrap()
+    lower_ordinary(scoop_identity::RequestedConeKind::Library, input).unwrap()
 }
 
 #[test]

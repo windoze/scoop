@@ -65,9 +65,6 @@ pub(super) fn validate_section_relations(
                 provider: selected.provider,
             });
         }
-        if selected.provider == ConeIdentity::CORE {
-            return Err(CrossConeMirBridgeRelationError::SelectedTrustedCore { index });
-        }
     }
     Ok(())
 }

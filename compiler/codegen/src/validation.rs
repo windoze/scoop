@@ -133,14 +133,6 @@ fn validate_dependency_external_metadata(module: &Module) -> Result<(), CodegenE
     let mut declarations = HashSet::new();
     let mut bodies = HashSet::new();
     for (_, callable) in module.meta.dependency_external_callables.iter() {
-        if callable.provider() == scoop_lir::ConeIdentity::CORE
-            && callable.legacy_declaration().is_some()
-        {
-            return Err(CodegenError(
-                "ordinary dependency external callable cannot use trusted-core authority"
-                    .to_string(),
-            ));
-        }
         if callable.provider() == module.cone {
             return Err(CodegenError(format!(
                 "dependency external callable {:?} names the current Cone as provider",

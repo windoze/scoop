@@ -179,9 +179,6 @@ pub enum CrossConeLirBridgeRelationError {
         index: usize,
         provider: ConeIdentity,
     },
-    SelectedTrustedCore {
-        index: usize,
-    },
     SelectedContractMismatch {
         index: usize,
         provider: ConeIdentity,

@@ -2,17 +2,9 @@
 
 use scoop_ast::Span;
 use scoop_hir as hir;
-use scoop_identity::{
-    BindingNamespace, ConeIdentity, NominalDeclarationOwner, PersistentTypeId, SignatureTypeKey,
-};
+use scoop_identity::{ConeIdentity, NominalDeclarationOwner, PersistentTypeId, SignatureTypeKey};
 
 use crate::{CoreLoweringAuthority, Lowerer};
-
-#[derive(Clone)]
-pub(crate) struct ImportedCoreCallableCandidate {
-    pub(crate) reference: hir::ImportedCorePreludeRef,
-    pub(crate) target: hir::CoreCallableTargetV1,
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ImportedSignatureTypeError {
@@ -21,97 +13,6 @@ pub(crate) enum ImportedSignatureTypeError {
 }
 
 impl Lowerer {
-    pub(crate) fn imported_core_callable_candidates(
-        &self,
-        name: &str,
-    ) -> Vec<ImportedCoreCallableCandidate> {
-        let CoreLoweringAuthority::Imported(authority) = &self.core else {
-            return Vec::new();
-        };
-        authority
-            .callable_candidates
-            .iter()
-            .filter(|candidate| {
-                candidate.namespace == BindingNamespace::Value && candidate.name == name
-            })
-            .map(|candidate| ImportedCoreCallableCandidate {
-                reference: candidate.reference,
-                target: candidate.target.clone(),
-            })
-            .collect()
-    }
-
-    pub(crate) fn imported_core_callable_candidate(
-        &self,
-        reference: hir::ImportedCorePreludeRef,
-    ) -> ImportedCoreCallableCandidate {
-        let CoreLoweringAuthority::Imported(authority) = &self.core else {
-            panic!("defined-core lowering cannot inspect an imported core callable")
-        };
-        let candidate = authority
-            .callable_candidates
-            .iter()
-            .find(|candidate| candidate.reference == reference)
-            .expect("an imported callable lookup returns a reference from its candidate set");
-        ImportedCoreCallableCandidate {
-            reference,
-            target: candidate.target.clone(),
-        }
-    }
-
-    pub(crate) fn imported_core_callable_by_declaration(
-        &self,
-        declaration: hir::DefaultCallableDeclarationV1,
-    ) -> Option<hir::ImportedCorePreludeRef> {
-        let hir::DefaultCallableDeclarationV1::Function(declaration) = declaration else {
-            return None;
-        };
-        let CoreLoweringAuthority::Imported(authority) = &self.core else {
-            return None;
-        };
-        authority.callable_candidates.iter().find_map(|candidate| {
-            matches!(
-                candidate.target.definition(),
-                hir::CoreCallableDefinitionV1::Function(id) if id == declaration
-            )
-            .then_some(candidate.reference)
-        })
-    }
-
-    pub(crate) fn select_imported_core_callable(
-        &mut self,
-        reference: hir::ImportedCorePreludeRef,
-        span: Span,
-    ) -> Option<hir::ImportedCoreCallableUseId> {
-        let selected = {
-            let CoreLoweringAuthority::Imported(authority) = &mut self.core else {
-                panic!("defined-core lowering cannot select an imported core callable")
-            };
-            authority.selection.select(reference)
-        };
-        let selected = match selected {
-            Ok(hir::SelectedImportedCoreId::Callable(reference)) => reference,
-            Ok(hir::SelectedImportedCoreId::Type(_) | hir::SelectedImportedCoreId::Value(_)) => {
-                panic!("a callable prelude candidate selects a callable reference")
-            }
-            Err(error) => {
-                self.error(span, error.to_string());
-                return None;
-            }
-        };
-        if let Some((id, _)) = self
-            .imported_core_callables
-            .iter()
-            .find(|(_, use_)| use_.reference() == selected)
-        {
-            return Some(id);
-        }
-        Some(
-            self.imported_core_callables
-                .alloc(hir::ImportedCoreCallableUse::new(selected)),
-        )
-    }
-
     /// Retains the exact trusted-core prelude route used by a type name while
     /// resolving one or more source type aliases. The route is attached to
     /// every active alias so a cached inner alias still contributes its
@@ -271,19 +172,4 @@ impl Lowerer {
             }
         }
     }
-}
-
-pub(crate) fn imported_signature_subtype(
-    left: &SignatureTypeKey,
-    right: &SignatureTypeKey,
-) -> bool {
-    left == right
-        || matches!(
-            right,
-            SignatureTypeKey::Nominal(identity)
-                if *identity
-                    == scoop_identity::CoreBuiltinNominal::Any
-                        .identity_record()
-                        .id()
-        )
 }

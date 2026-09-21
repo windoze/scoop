@@ -124,7 +124,6 @@ impl Lowerer {
                     ) => properties.push((ExtensionPropertyTarget::Dependency(binding), origin)),
                     (
                         NamedCallTarget::Function(_)
-                        | NamedCallTarget::ImportedCoreCallable(_)
                         | NamedCallTarget::ImportedDependency(_)
                         | NamedCallTarget::Type(_),
                         _,

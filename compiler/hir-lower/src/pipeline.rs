@@ -383,22 +383,6 @@ impl Lowerer {
     }
 
     pub(super) fn with_imported_core(mut self, core: &hir::ImportedCoreInputs<'_>) -> Self {
-        let callable_candidates = core
-            .prelude()
-            .bindings()
-            .iter()
-            .filter_map(|binding| {
-                let hir::ImportedCorePreludeTarget::Callable(target) = binding.target() else {
-                    return None;
-                };
-                Some(ImportedCoreLoweringCandidate {
-                    reference: binding.reference(),
-                    namespace: binding.key().namespace(),
-                    name: binding.key().name().as_str().to_owned(),
-                    target: target.clone(),
-                })
-            })
-            .collect();
         let type_bindings = core
             .prelude()
             .bindings()
@@ -417,7 +401,6 @@ impl Lowerer {
         self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
             protocols: core.protocols().clone(),
             selection: core.prelude().selection_plan(),
-            callable_candidates,
             type_bindings,
         }));
         self

@@ -15,7 +15,6 @@ use crate::imports::lookup::values::ValueTarget;
 use crate::namespace::TopLevelTypeTarget;
 use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 
-mod imported_core;
 pub(crate) mod imported_dependency;
 mod nominals;
 

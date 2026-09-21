@@ -78,9 +78,6 @@ impl ImportedSemanticWorld<'_> {
         let mut constants = BTreeMap::new();
         let mut type_aliases = BTreeMap::new();
         for provider in &self.providers {
-            if provider.identity() == ConeIdentity::CORE {
-                continue;
-            }
             let definition_sources = Arc::new(imported_definition_sources(provider)?);
             for callable in provider.interface().callable_interfaces().records() {
                 let declaration = callable.declaration();
@@ -231,7 +228,6 @@ impl ImportedSemanticWorld<'_> {
             .direct
             .iter()
             .map(|provider| &self.providers[provider.index()])
-            .filter(|provider| provider.identity() != ConeIdentity::CORE)
         {
             for binding in provider.public_bindings() {
                 let declarations = direct_binding_callable_declarations(provider, binding.target());

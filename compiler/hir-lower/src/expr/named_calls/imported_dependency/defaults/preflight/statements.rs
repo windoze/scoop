@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
-use super::super::plan::{ImportedDefaultPlanError, PreparedImportedDefaultCallable};
+use super::super::plan::ImportedDefaultPlanError;
 use crate::Lowerer;
 use crate::imported_capabilities::ImportedCapabilityRequirement;
 
@@ -15,7 +15,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         statements: &[hir::DefaultStatementV1],
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
         loop_depth: usize,
     ) -> Result<(), ImportedDefaultPlanError> {
         for statement in statements {
@@ -33,7 +36,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         statement: &hir::DefaultStatementV1,
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
         loop_depth: usize,
     ) -> Result<(), ImportedDefaultPlanError> {
         use hir::DefaultStatementKindV1 as Kind;
@@ -174,7 +180,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         value: &hir::DefaultWhenV1,
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
         loop_depth: usize,
     ) -> Result<(), ImportedDefaultPlanError> {
         self.preflight_imported_default_expression(

@@ -44,6 +44,18 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
         &workspace.path().join("shadow.slib"),
         &artifact,
     );
+    let call_source = workspace.path().join("calls.scoop");
+    std::fs::write(
+        &call_source,
+        include_str!("../../../../../../tests/fixtures/core-library/call-consumer.scoop"),
+    )
+    .unwrap();
+    build_consumer(
+        &target,
+        &call_source,
+        &workspace.path().join("calls.slib"),
+        &artifact,
+    );
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),

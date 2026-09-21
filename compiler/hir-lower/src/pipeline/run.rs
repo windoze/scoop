@@ -15,9 +15,9 @@ impl Lowerer {
     pub(crate) fn run_imported(
         self,
         files: &[ast::SourceFile],
-        world: Option<&hir::ImportedSemanticWorld<'_>>,
+        world: &hir::ImportedSemanticWorld<'_>,
     ) -> Result<(hir::Module, Vec<Diagnostic>, ImportedLoweringCompletion), Vec<Diagnostic>> {
-        let (module, warnings, completion) = self.run(files, world)?;
+        let (module, warnings, completion) = self.run(files, Some(world))?;
         let LoweringCompletion::Imported(completion) = completion else {
             panic!("ordinary HIR entry cannot complete with defined core authority")
         };

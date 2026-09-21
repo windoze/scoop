@@ -175,6 +175,32 @@ impl Lowerer {
             objects,
         } = declarations;
         let mut surface = CurrentUnitImports::default();
+        if let Some(world) = world
+            && let Some(core) = world.direct_provider(scoop_identity::ConeIdentity::CORE)
+            && let Some(package) = world.direct_package(&scoop_identity::PackagePath::root())
+        {
+            for group in package.snapshot_filtered(|provider| provider == core.id()) {
+                let targets = group
+                    .targets()
+                    .iter()
+                    .filter(|binding| {
+                        matches!(
+                            binding.target(),
+                            hir::ImportedTarget::Function(_)
+                                | hir::ImportedTarget::GenericFunction(_)
+                                | hir::ImportedTarget::Property(_)
+                                | hir::ImportedTarget::ExtensionProperty(_)
+                        )
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if !targets.is_empty() {
+                    surface
+                        .prelude_dependencies
+                        .insert(group.name().as_str().to_owned(), targets);
+                }
+            }
+        }
         for (package, name, target, file) in self.top_level_namespaces.current_type_bindings() {
             let namespace = ResolvedNamespace::Package(package);
             match target {

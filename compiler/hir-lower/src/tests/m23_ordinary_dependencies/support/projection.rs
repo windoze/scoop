@@ -8,7 +8,7 @@ use scoop_identity::{
 use super::super::super::m23_ordinary_core_only::support::{
     TrustedCoreFixture, parsed_ordinary_at,
 };
-use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
+use crate::{OrdinarySources, lower_ordinary};
 
 pub(crate) fn project_dependency(
     core: &TrustedCoreFixture,
@@ -53,8 +53,9 @@ fn project_dependency_with_core_roles(
         .iter()
         .flat_map(|name| core_type_witnesses(&core_inputs, name, include_default_role))
         .collect::<Vec<_>>();
-    let input = OrdinaryCoreOnlySources::try_new(&parsed, core_inputs).unwrap();
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
+    let world = core.world(parsed.cone());
+    let input = OrdinarySources::try_new(&parsed, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
     let current_nominals = current_nominal_targets(output.output().export.module());
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();

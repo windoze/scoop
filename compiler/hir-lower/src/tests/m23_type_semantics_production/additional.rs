@@ -13,9 +13,9 @@ fn producer_rejects_unprojected_dispatch_instead_of_emitting_partial_tables() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
     assert!(matches!(
@@ -38,9 +38,9 @@ fn producer_keeps_final_direct_methods_in_the_m23_5_partition() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
 
@@ -69,9 +69,9 @@ fn producer_rejects_generic_materialization_without_odr_authority() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
     assert!(matches!(
@@ -100,9 +100,9 @@ fn producer_rejects_generic_class_backing_field_without_odr_authority() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
     assert!(matches!(
@@ -140,9 +140,9 @@ fn producer_rejects_generic_constructor_parameter_without_odr_authority() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
     assert!(matches!(
@@ -161,9 +161,9 @@ fn generic_source_only_root_has_independent_definition_origin_authority() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
 
@@ -199,9 +199,9 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
     let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
     let export = output.output().export.module();

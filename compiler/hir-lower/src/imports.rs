@@ -119,12 +119,19 @@ pub(crate) struct CurrentUnitImports {
     source_variants: Vec<SourceVariant>,
     enum_variant_sources: HashMap<(hir::EnumId, u32), SourceVariantId>,
     resolved_variants: HashMap<SourceVariantId, hir::EnumVariantRef>,
+    prelude_dependencies: BTreeMap<String, Vec<hir::DirectImportedTargetBinding>>,
     pub(crate) files: Vec<FrozenFileImports>,
     pub(crate) reexports: Vec<FrozenReexportBinding>,
     diagnostic_suppressions: ImportDiagnosticSuppressions,
 }
 
 impl CurrentUnitImports {
+    pub(crate) fn prelude_value_bindings(&self, name: &str) -> &[hir::DirectImportedTargetBinding] {
+        self.prelude_dependencies
+            .get(name)
+            .map_or(&[], Vec::as_slice)
+    }
+
     pub(crate) fn global_property_source(&self, declaration_index: usize) -> PropertyImportSource {
         self.global_property_sources[declaration_index]
     }

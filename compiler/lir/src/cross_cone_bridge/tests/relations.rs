@@ -58,7 +58,7 @@ fn root_plan_must_equal_the_canonical_abi_gc_effect() {
 }
 
 #[test]
-fn selected_callable_cannot_name_current_or_trusted_core() {
+fn selected_callable_accepts_core_but_rejects_current_provider() {
     let fixture = Fixture::new("selected");
     let selected_current = SelectedDependencyLirCallableV1::new(
         fixture.producer,
@@ -84,6 +84,7 @@ fn selected_callable_cannot_name_current_or_trusted_core() {
         .unwrap()
         .identity()
         .unwrap();
+    let fixture = Fixture::for_producer(ConeIdentity::CORE, "selectedCore");
     let selected_core = SelectedDependencyLirCallableV1::new(
         ConeIdentity::CORE,
         fixture.declaration,
@@ -93,16 +94,13 @@ fn selected_callable_cannot_name_current_or_trusted_core() {
         DependencyExternalCallableRootPlanV1::NoGc,
     )
     .unwrap();
-    assert!(matches!(
-        CrossConeLirBridgeSectionV1::try_new(
-            &empty_foundation(consumer),
-            Vec::new(),
-            vec![selected_core],
-        ),
-        Err(CrossConeLirBridgeBuildError::Relation(
-            CrossConeLirBridgeRelationError::SelectedTrustedCore { .. }
-        ))
-    ));
+    let bridge = CrossConeLirBridgeSectionV1::try_new(
+        &empty_foundation(consumer),
+        Vec::new(),
+        vec![selected_core.clone()],
+    )
+    .unwrap();
+    assert_eq!(bridge.selected(), &[selected_core]);
 }
 
 #[test]

@@ -2,11 +2,25 @@ use super::*;
 
 #[test]
 fn ordinary_dependency_calls_emit_only_typed_external_uses() {
+    assert_dependency_calls(
+        scoop_identity::ConeCoordinate::new("tests", "dependency", "1.0.0")
+            .unwrap()
+            .identity()
+            .unwrap(),
+    );
+}
+
+#[test]
+fn core_dependency_calls_share_managed_and_no_gc_emission() {
+    assert_dependency_calls(scoop_identity::ConeIdentity::CORE);
+}
+
+fn assert_dependency_calls(provider: scoop_identity::ConeIdentity) {
     let mut module = values_module();
-    let managed = dependency_external("managedDependency", scoop_lir::GcEffect::Managed);
+    let managed = dependency_external(provider, "managedDependency", scoop_lir::GcEffect::Managed);
     let managed_symbol = managed.expected_symbol().symbol().to_string();
     let managed = module.meta.dependency_external_callables.alloc(managed);
-    let no_gc = dependency_external("noGcDependency", scoop_lir::GcEffect::NoGc);
+    let no_gc = dependency_external(provider, "noGcDependency", scoop_lir::GcEffect::NoGc);
     let no_gc_symbol = no_gc.expected_symbol().symbol().to_string();
     let no_gc = module.meta.dependency_external_callables.alloc(no_gc);
 
@@ -61,13 +75,10 @@ fn ordinary_dependency_calls_emit_only_typed_external_uses() {
 }
 
 fn dependency_external(
+    provider: scoop_identity::ConeIdentity,
     name: &str,
     effect: scoop_lir::GcEffect,
 ) -> scoop_lir::DependencyExternalCallable {
-    let provider = scoop_identity::ConeCoordinate::new("tests", "dependency", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
     let site = scoop_identity::SourceDeclarationSite::new(
         provider,
         scoop_identity::PackagePath::root(),

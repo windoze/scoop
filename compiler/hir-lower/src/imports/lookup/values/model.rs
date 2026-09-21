@@ -61,7 +61,6 @@ impl Eq for ValueOrigin {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NonValueTarget {
     Function(hir::FunctionId),
-    ImportedCoreCallable(hir::ImportedCorePreludeRef),
     ImportedDependency(hir::ImportedTarget),
     Type(TopLevelTypeTarget),
     ExtensionProperty(hir::PropertyId),

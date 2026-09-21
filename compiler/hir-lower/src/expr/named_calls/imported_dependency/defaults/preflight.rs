@@ -3,9 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use scoop_hir as hir;
 use scoop_identity::{LocalValueSelector, SignatureTypeKey};
 
-use super::plan::{
-    ImportedDefaultPlanError, PreparedImportedDefault, PreparedImportedDefaultCallable,
-};
+use super::plan::{ImportedDefaultPlanError, PreparedImportedDefault};
 use crate::Lowerer;
 use crate::imported_capabilities::{ImportedCapabilityRequirement, callable_requirement};
 use crate::imported_core::ImportedSignatureTypeError;
@@ -59,7 +57,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expression: &hir::DefaultExpressionV1,
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
         self.imported_default_core_type(expression.result_type())?;
         use hir::DefaultExpressionKindV1 as Kind;
@@ -192,7 +193,10 @@ impl Lowerer {
         template: &hir::ExportDefaultTemplateV1,
         expressions: &[hir::DefaultExpressionV1],
         locals: &BTreeSet<LocalValueSelector>,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
         for expression in expressions {
             self.preflight_imported_default_expression(
@@ -206,7 +210,10 @@ impl Lowerer {
         &self,
         template: &hir::ExportDefaultTemplateV1,
         callee: &hir::DefaultCallableRefV1,
-        callables: &mut BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
+        callables: &mut BTreeMap<
+            hir::DefaultCallableRefV1,
+            hir::ImportedDependencyCallableCandidate,
+        >,
     ) -> Result<(), ImportedDefaultPlanError> {
         if callables.contains_key(callee) {
             return Ok(());
@@ -240,13 +247,6 @@ impl Lowerer {
             ));
         }
 
-        if let Some(reference) = self.imported_core_callable_by_declaration(callee.declaration()) {
-            callables.insert(
-                callee.clone(),
-                PreparedImportedDefaultCallable::Core(reference),
-            );
-            return Ok(());
-        }
         let candidate = self
             .dependencies
             .as_ref()
@@ -262,10 +262,7 @@ impl Lowerer {
                 operation: "dependency default call",
             });
         }
-        callables.insert(
-            callee.clone(),
-            PreparedImportedDefaultCallable::Dependency(Box::new(candidate)),
-        );
+        callables.insert(callee.clone(), candidate);
         Ok(())
     }
 

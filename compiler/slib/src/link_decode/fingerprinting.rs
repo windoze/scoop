@@ -594,7 +594,10 @@ impl<'input> FinalizedStrongLinkObjectSections<'input> {
         let code_projection = crate::verify_single_cone_production_code_projection_v1(
             manifest.cone(),
             manifest.direct_dependencies(),
-            foundations.hir.as_canonical().counts().sources,
+            foundations
+                .hir
+                .as_canonical()
+                .source_count_for_cone(manifest.cone().identity()),
             production.lir().clone(),
             link_objects,
         )

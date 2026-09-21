@@ -13,9 +13,6 @@ impl Lowerer {
             ValueOrigin::CoreNonValue(NonValueTarget::Function(id)) => {
                 (self.function_files[id], self.functions[*id].span)
             }
-            ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(_)) => {
-                (self.current_file, ast::Span::new(0, 0))
-            }
             ValueOrigin::CoreNonValue(NonValueTarget::ImportedDependency(_)) => {
                 unreachable!("core blockers cannot carry ordinary dependency targets")
             }
@@ -184,7 +181,6 @@ impl Lowerer {
     fn non_value_message(name: &ast::Ident, target: NonValueTarget) -> String {
         match target {
             NonValueTarget::Function(_)
-            | NonValueTarget::ImportedCoreCallable(_)
             | NonValueTarget::ImportedDependency(
                 hir::ImportedTarget::Function(_) | hir::ImportedTarget::GenericFunction(_),
             ) => format!(

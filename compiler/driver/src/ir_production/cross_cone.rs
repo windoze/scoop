@@ -125,7 +125,9 @@ impl CrossConeStrongIrProductionV1 {
                     production.fingerprint_code(
                         &cone,
                         &direct_dependencies,
-                        hir_foundation.as_canonical().counts().sources,
+                        hir_foundation
+                            .as_canonical()
+                            .source_count_for_cone(cone.identity()),
                     )
                 })
                 .map_err(CrossConeStrongIrArtifactProductionError::Objects)?;

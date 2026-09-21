@@ -36,7 +36,11 @@ pub(super) fn assert_ordinary_interfaces(
     .unwrap();
     assert!(interface.constants().get(constant).is_some());
 
-    for function_name in ["userCoreOffset", "userCoreWithDefault"] {
+    for function_name in [
+        "userCoreOffset",
+        "userCoreWithDefault",
+        "userCoreDefaultChain",
+    ] {
         let function =
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
                 site(),
@@ -54,7 +58,7 @@ pub(super) fn assert_ordinary_interfaces(
         let exported = DependencyCallableDeclarationId::Function(function);
         assert!(production.mir_cross_cone().export(exported).is_some());
         assert!(production.lir_cross_cone().export(exported).is_some());
-        if function_name == "userCoreWithDefault" {
+        if function_name != "userCoreOffset" {
             assert!(
                 interface
                     .default_templates()

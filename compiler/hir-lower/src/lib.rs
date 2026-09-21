@@ -181,7 +181,7 @@ pub(crate) struct ProviderSource<'a> {
 }
 
 /// Test-only defined-world input. Production callers must use
-/// `CoreBootstrapSources`, `OrdinaryCoreOnlySources`, or `OrdinarySources`.
+/// `CoreBootstrapSources` or `OrdinarySources`.
 #[cfg(test)]
 pub(crate) struct DefinedTestSources<'a> {
     core: Vec<ProviderSource<'a>>,
@@ -246,16 +246,7 @@ enum CoreLoweringAuthority {
 struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
     selection: hir::ImportedCoreSelectionPlan,
-    callable_candidates: Vec<ImportedCoreLoweringCandidate>,
     type_bindings: Vec<ImportedCoreTypeBinding>,
-}
-
-#[derive(Clone)]
-struct ImportedCoreLoweringCandidate {
-    reference: hir::ImportedCorePreludeRef,
-    namespace: scoop_identity::BindingNamespace,
-    name: String,
-    target: hir::CoreCallableTargetV1,
 }
 
 #[derive(Clone, Debug)]
@@ -417,26 +408,6 @@ pub fn lower_core_bootstrap(
     finish_output(export, hir::ConeOutputKind::Library, warnings)
 }
 
-/// Lowers one ordinary Cone against the imported protocol and prelude
-/// authority of its exact trusted-core artifact.
-pub fn lower_ordinary_core_only<'core>(
-    requested: scoop_identity::RequestedConeKind,
-    input: &OrdinaryCoreOnlySources<'core>,
-) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
-    lower_ordinary_input(requested, input, None)
-}
-
-/// Lowers one ordinary Cone against its trusted core and validated ordinary
-/// dependency semantic world. Dependency import/re-export resolution is
-/// enabled here; executable dependency uses remain subject to the HIR
-/// selection and capability gates.
-pub fn lower_ordinary<'input>(
-    requested: scoop_identity::RequestedConeKind,
-    input: &OrdinarySources<'input, '_>,
-) -> Result<hir::OrdinaryHirOutput<'input>, Vec<Diagnostic>> {
-    lower_ordinary_input(requested, input.core_only(), Some(input.semantic_world()))
-}
-
 /// Projects the M23-6 type-semantics payload from a sealed ordinary HIR
 /// result and its M23-5 public interface. The returned production object also
 /// carries the independently derived source/fact/inheritance inventories that
@@ -449,34 +420,30 @@ pub fn produce_cross_cone_type_semantics(
     hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public, meter)
 }
 
-fn lower_ordinary_input<'core>(
+/// Lowers current sources against one validated dependency semantic world.
+pub fn lower_ordinary<'core>(
     requested: scoop_identity::RequestedConeKind,
-    input: &OrdinaryCoreOnlySources<'core>,
-    world: Option<&hir::ImportedSemanticWorld<'_>>,
+    input: &OrdinarySources<'core, '_>,
 ) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
     let (files, sources) = materialize_ordinary_sources(input.sources());
-    let dependency_selection = match world {
-        Some(world) => {
-            let classifier = input
-                .core()
-                .core_closed_exact_leaf_classifier()
-                .map_err(|error| {
-                    vec![Diagnostic::at(
-                        Span { start: 0, end: 0 },
-                        format!("failed to classify trusted core ABI leaves: {error}"),
-                    )]
-                })?;
-            world
-                .dependency_selection_plan(&classifier)
-                .map_err(|error| {
-                    vec![Diagnostic::at(
-                        Span { start: 0, end: 0 },
-                        format!("failed to prepare dependency selection: {error}"),
-                    )]
-                })?
-        }
-        None => hir::ImportedDependencySelectionPlan::empty(input.current_cone()),
-    };
+    let world = input.semantic_world();
+    let classifier = input
+        .core()
+        .core_closed_exact_leaf_classifier()
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to classify core ABI leaves: {error}"),
+            )]
+        })?;
+    let dependency_selection = world
+        .dependency_selection_plan(&classifier)
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to prepare dependency selection: {error}"),
+            )]
+        })?;
     let (module, warnings, completion) = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_core(input.core())

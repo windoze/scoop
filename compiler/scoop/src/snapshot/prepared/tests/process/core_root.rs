@@ -20,6 +20,11 @@ fn real_process_builds_and_caches_an_edited_core_root_without_a_sysroot() {
         )),
     )
     .unwrap();
+    std::fs::write(
+        root.join("src/metadata.scoop"),
+        include_str!("../../../../../../../tests/fixtures/core-library/metadata.scoop"),
+    )
+    .unwrap();
     let missing_sysroot = workspace.join("missing-sysroot");
     let build = || {
         real_manifest_request(&root, workspace, &missing_sysroot, &compiler)
@@ -82,7 +87,7 @@ fn assert_artifact_only_cli_consumer(
         &source,
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/core-library/consumer.scoop"
+            "/../../tests/fixtures/core-library/call-consumer.scoop"
         )),
     )
     .unwrap();

@@ -102,9 +102,9 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&parsed, inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(parsed.cone());
+    let input = OrdinarySources::try_new(&parsed, inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let export = output.output().export.module();
     let pick = export
         .functions

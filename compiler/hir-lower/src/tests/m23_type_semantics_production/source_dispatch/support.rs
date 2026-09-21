@@ -5,7 +5,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     run: impl FnOnce(&hir::OrdinaryHirOutput<'_>, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
-        let mut imported = core.project_selected_callables_to_mir(output.imported_core());
+        let mut imported = core.empty_core_mir_selection();
         if !output
             .output()
             .local
@@ -81,9 +81,9 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output =
-        lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     run(&output, &core)
 }
 

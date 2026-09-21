@@ -474,6 +474,7 @@ core源码节点与其他library节点共用immutable source snapshot、普通Ma
 `scoop run`必须先完整执行与`scoop build`相同的graph、cache、single-Cone child、artifact双view、runtime-build与program-link流程，成功后才启动已验证binary；不得增加interpreter/JIT或跳过`.slib`的路径。`--`之后的参数原样形成program argv且不进入build key；child继承调用者cwd、environment与stdin/stdout/stderr。tool diagnostic/warning只写stderr，启动成功后透传program exit status或signal，启动失败使用独立tool error状态。
 
 core的普通声明接口使用与其他Cone相同的Export HIR投影：nominal、callable、property、alias、source interface、default、const与definition-source表不得按core身份清空。param-free callable的通用MIR/LIR export bridge由相同资格规则产生，reader按同一关系验证；只有前端intrinsic正规化和desugar协议引用保留对应typed角色。
+普通core函数与property的prelude候选从同一provider公共绑定取得，复用普通依赖的重载、命名实参、默认参数/const读取与HIR选择；默认参数正文调用core函数同样通过普通typed callable绑定。MIR/LIR consumer selection与codegen不得因provider是core而拒绝，也不得重新生成专用core调用桥。ordinary HIR统一入口携带dependency semantic world，删除绕过该世界的core-only入口。导入默认参数保留provider的源码诊断记录；single-file产物的单源码约束只统计当前Cone的source identity，不把保留的外部定义源码算作当前输入。producer与reader使用相同计数规则。
 HIR semantic world只区分direct与support provider，core使用同一输入、typed实体索引及package/static名称索引，不另设trusted provider、core入口校验或缺省core依赖断言。依赖存在性与闭包由普通图验证负责。core prelude的较低查找优先级在lowerer名称查找层保留；收集当前包的直接依赖贡献时排除该隐式prelude provider，显式namespace查询仍使用共有完整索引。
 
 

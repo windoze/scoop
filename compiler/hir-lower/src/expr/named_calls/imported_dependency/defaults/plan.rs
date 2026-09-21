@@ -16,13 +16,8 @@ pub(in super::super) struct ImportedDefaultPlan {
 #[derive(Clone)]
 pub(in super::super) struct PreparedImportedDefault {
     pub(super) template: hir::ExportDefaultTemplateV1,
-    pub(super) callables: BTreeMap<hir::DefaultCallableRefV1, PreparedImportedDefaultCallable>,
-}
-
-#[derive(Clone)]
-pub(in super::super) enum PreparedImportedDefaultCallable {
-    Core(hir::ImportedCorePreludeRef),
-    Dependency(Box<hir::ImportedDependencyCallableCandidate>),
+    pub(super) callables:
+        BTreeMap<hir::DefaultCallableRefV1, hir::ImportedDependencyCallableCandidate>,
 }
 
 impl ImportedDefaultPlan {

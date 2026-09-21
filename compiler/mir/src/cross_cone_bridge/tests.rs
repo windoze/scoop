@@ -96,32 +96,40 @@ fn core_exports_use_the_common_strong_implementation_contract() {
 }
 
 #[test]
-fn bridge_rejects_core_or_current_selections() {
+fn bridge_rejects_current_selections() {
     let fixture = fixture();
-    for (provider, expected) in [
-        (
+    assert_eq!(
+        CrossConeMirBridgeSectionV1::try_new(
             fixture.artifact,
+            &fixture.foundation,
+            Vec::new(),
+            vec![fixture.selected_from(fixture.artifact)],
+        ),
+        Err(CrossConeMirBridgeBuildError::Relation(
             CrossConeMirBridgeRelationError::SelectedCurrentProvider {
                 index: 0,
                 provider: fixture.artifact,
             },
-        ),
-        (
-            ConeIdentity::CORE,
-            CrossConeMirBridgeRelationError::SelectedTrustedCore { index: 0 },
-        ),
-    ] {
-        let selected = fixture.selected_from(provider);
-        assert_eq!(
-            CrossConeMirBridgeSectionV1::try_new(
-                fixture.artifact,
-                &fixture.foundation,
-                Vec::new(),
-                vec![selected],
-            ),
-            Err(CrossConeMirBridgeBuildError::Relation(expected))
-        );
-    }
+        )),
+    );
+}
+
+#[test]
+fn core_provider_uses_common_callable_selection() {
+    let fixture = fixture_with_provider(cone("consumer"), ConeIdentity::CORE);
+    let selected = fixture.selected_from(fixture.provider);
+    let bridge = CrossConeMirBridgeSectionV1::try_new(
+        fixture.artifact,
+        &fixture.foundation,
+        Vec::new(),
+        vec![selected.clone()],
+    )
+    .unwrap();
+    assert_eq!(bridge.selected(), std::slice::from_ref(&selected));
+    let selection =
+        SelectedDependencyMirSet::try_from_callables(fixture.artifact, vec![selected.clone()])
+            .unwrap();
+    assert_eq!(selection.callables(), &[selected]);
 }
 
 #[test]
@@ -242,27 +250,18 @@ fn producer_side_selection_is_canonical_and_closed() {
         Err(SelectedDependencyMirSetBuildError::DuplicateCallable { .. })
     ));
 
-    for (provider, expected) in [
-        (
+    assert_eq!(
+        SelectedDependencyMirSet::try_from_callables(
             fixture.artifact,
+            vec![fixture.selected_from(fixture.artifact)],
+        )
+        .err(),
+        Some(
             SelectedDependencyMirSetBuildError::SelectedCurrentProvider {
                 provider: fixture.artifact,
-            },
+            }
         ),
-        (
-            ConeIdentity::CORE,
-            SelectedDependencyMirSetBuildError::SelectedTrustedCore,
-        ),
-    ] {
-        assert_eq!(
-            SelectedDependencyMirSet::try_from_callables(
-                fixture.artifact,
-                vec![fixture.selected_from(provider)],
-            )
-            .err(),
-            Some(expected)
-        );
-    }
+    );
 }
 
 fn decode(section: &CrossConeMirBridgeSectionV1) -> DecodedCrossConeMirBridgeSectionV1 {
@@ -352,7 +351,10 @@ fn fixture() -> Fixture {
 }
 
 fn fixture_for(artifact: ConeIdentity) -> Fixture {
-    let provider = cone("provider");
+    fixture_with_provider(artifact, cone("provider"))
+}
+
+fn fixture_with_provider(artifact: ConeIdentity, provider: ConeIdentity) -> Fixture {
     let local_function = CborIdentityRecord::from_key(source_function(artifact, "local")).unwrap();
     let foreign_function =
         CborIdentityRecord::from_key(source_function(provider, "foreign")).unwrap();

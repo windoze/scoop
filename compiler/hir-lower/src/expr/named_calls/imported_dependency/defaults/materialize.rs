@@ -5,7 +5,7 @@ use scoop_ast::Span;
 use scoop_hir as hir;
 use scoop_identity::LocalValueSelector;
 
-use super::plan::{PreparedImportedDefault, PreparedImportedDefaultCallable};
+use super::plan::PreparedImportedDefault;
 use crate::Lowerer;
 use crate::expr::imported_origins::ImportedDefinitionOriginError;
 
@@ -122,7 +122,7 @@ impl Lowerer {
             }
             Kind::Call { callee, arguments } => {
                 let args = self.materialize_imported_default_expressions(arguments, context)?;
-                self.imported_default_call_kind(callee, args, span, context)?
+                self.imported_default_call_kind(callee, args, context)?
             }
             Kind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
                 kind: (*kind).into(),
@@ -150,13 +150,13 @@ impl Lowerer {
                         self.materialize_imported_default_expression(rhs, context)?,
                     ],
                 };
-                self.imported_default_call_kind(callee, args, span, context)?
+                self.imported_default_call_kind(callee, args, context)?
             }
             Kind::IntegerConversion {
                 target, operand, ..
             } => {
                 let args = vec![self.materialize_imported_default_expression(operand, context)?];
-                self.imported_default_call_kind(target, args, span, context)?
+                self.imported_default_call_kind(target, args, context)?
             }
             Kind::Binary { operator, lhs, rhs } => hir::ExprKind::Binary {
                 op: (*operator).into(),
@@ -243,29 +243,18 @@ impl Lowerer {
         &mut self,
         callee: &hir::DefaultCallableRefV1,
         args: Vec<hir::Expr>,
-        span: Span,
         context: &ImportedDefaultContext<'_>,
     ) -> Result<hir::ExprKind, ImportedDefaultMaterializationError> {
-        let target =
+        let candidate =
             context.prepared.callables.get(callee).ok_or_else(|| {
                 ImportedDefaultMaterializationError::MissingCallable(callee.clone())
             })?;
-        match target {
-            PreparedImportedDefaultCallable::Core(reference) => {
-                let callee = self
-                    .select_imported_core_callable(*reference, span)
-                    .ok_or(ImportedDefaultMaterializationError::CoreSelection)?;
-                Ok(hir::ExprKind::ImportedCoreCall { callee, args })
-            }
-            PreparedImportedDefaultCallable::Dependency(candidate) => {
-                let callee = self
-                    .select_imported_dependency_callable_use(candidate.as_ref().clone())
-                    .map_err(|error| {
-                        ImportedDefaultMaterializationError::DependencySelection(error.to_string())
-                    })?;
-                Ok(hir::ExprKind::ImportedDependencyCall { callee, args })
-            }
-        }
+        let callee = self
+            .select_imported_dependency_callable_use(candidate.clone())
+            .map_err(|error| {
+                ImportedDefaultMaterializationError::DependencySelection(error.to_string())
+            })?;
+        Ok(hir::ExprKind::ImportedDependencyCall { callee, args })
     }
 
     fn imported_default_definition_origin(
@@ -292,7 +281,6 @@ pub(in super::super) enum ImportedDefaultMaterializationError {
     ExpectedMaterializedLocal(LocalValueSelector),
     InvalidControlFlow(&'static str),
     MissingCallable(hir::DefaultCallableRefV1),
-    CoreSelection,
     DependencySelection(String),
     DefinitionOrigin(ImportedDefinitionOriginError),
     Plan(String),
@@ -338,9 +326,6 @@ impl fmt::Display for ImportedDefaultMaterializationError {
                     formatter,
                     "dependency default call {callee:?} was not preflighted"
                 )
-            }
-            Self::CoreSelection => {
-                formatter.write_str("dependency default core callable selection failed")
             }
             Self::DependencySelection(error) => {
                 write!(

@@ -86,7 +86,6 @@ impl Lowerer {
                     }
                 }
                 NamedCallTarget::Function(_)
-                | NamedCallTarget::ImportedCoreCallable(_)
                 | NamedCallTarget::ImportedDependency(_)
                 | NamedCallTarget::Value(_) => ExpressionQualifierCandidate::Value(
                     ExpressionQualifierValueOrigin::Core(target),

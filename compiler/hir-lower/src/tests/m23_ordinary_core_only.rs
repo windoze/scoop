@@ -4,7 +4,7 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::{call, file, fun, fun_expr, int_lit, sp, stmt, ty_named, var};
-use crate::{OrdinaryCoreOnlySources, lower_ordinary_core_only};
+use crate::{OrdinarySources, lower_ordinary};
 
 mod constants;
 pub(crate) mod support;
@@ -31,9 +31,10 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
         .expect("ordinary library lowering uses imported core authority");
 
     assert_eq!(output.output().export.source_files.len(), 1);
@@ -82,9 +83,10 @@ fn public_alias_retains_the_exact_imported_core_type_binding() {
         panic!("the Int prelude binding targets a concrete nominal")
     };
     let expected_binding = int_binding.identity().persistent();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
         .expect("a public alias may expose a trusted-core nominal");
 
     let [witness] = output.binding_witness_uses() else {
@@ -121,9 +123,10 @@ fn ordinary_executable_selects_current_main_under_imported_core_authority() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("ordinary executable lowering uses imported core authority");
 
     assert!(matches!(
@@ -154,18 +157,22 @@ fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
         .foundation
         .import_core_inputs(&core.interface, &core.strong_callables)
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("a param-free strong core callable is available to ordinary HIR");
 
-    assert_eq!(output.imported_core().callable_count(), 1);
-    assert!(output.imported_dependencies().is_empty());
-    assert_eq!(output.output().export.imported_core_callables.len(), 1);
-    assert_eq!(output.output().local.imported_core_callables.len(), 1);
+    assert_eq!(output.imported_core().callable_count(), 0);
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+    assert_eq!(
+        output.output().export.imported_dependency_callables.len(),
+        1
+    );
+    assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
     assert_eq!(
         scoop_hir::dump(&output.output().export)
-            .matches("ImportedCoreCall #0")
+            .matches("ImportedDependencyCall #0")
             .count(),
         2
     );
@@ -197,8 +204,9 @@ fn imported_core_default_requires_the_selected_set_to_project() {
         .foundation
         .import_core_inputs(&core.interface, &core.strong_callables)
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Library, &input)
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the ordinary default selects the strong core callable");
 
     assert!(matches!(
@@ -210,7 +218,7 @@ fn imported_core_default_requires_the_selected_set_to_project() {
                 source.as_ref(),
                 scoop_hir::DefaultTemplateEnvelopeProjectionError::Body(
                     scoop_hir::DefaultBodyProjectionError::Entity(
-                        scoop_hir::DefaultEntityProjectionError::ImportedCoreUnavailable(_)
+                        scoop_hir::DefaultEntityProjectionError::ImportedDependencyUnavailable(_)
                     )
                 )
             )
@@ -259,18 +267,38 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
         .foundation
         .import_core_inputs(&core.interface, &core.strong_callables)
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
-    let hir = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let hir = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("ordinary HIR selects the trusted-core callable");
-    let selected_mir = core.project_selected_callables_to_mir(hir.imported_core());
+    let selected_core = core.empty_core_mir_selection();
+    let selected_dependencies = scoop_mir::SelectedDependencyMirSet::try_from_callables(
+        ordinary.cone(),
+        hir.imported_dependencies()
+            .callables()
+            .map(|selected| {
+                let declaration = selected.capability().declaration();
+                let scoop_identity::DependencyCallableDeclarationId::Function(function) =
+                    declaration
+                else {
+                    panic!("the fixture exports a source function")
+                };
+                scoop_mir::SelectedDependencyMirCallableV1::try_new(
+                    ConeIdentity::CORE,
+                    declaration,
+                    scoop_identity::StrongCallableDefinitionOwner::Function(function),
+                    selected.capability().signature().clone(),
+                )
+                .unwrap()
+            })
+            .collect(),
+    )
+    .unwrap();
+    let mir = scoop_mir_lower::lower_ordinary(&hir, selected_core, selected_dependencies)
+        .expect("ordinary MIR retains the shared dependency selection");
 
-    let selected_dependencies =
-        scoop_mir::SelectedDependencyMirSet::empty(hir.output().local.module().cone);
-    let mir = scoop_mir_lower::lower_ordinary(&hir, selected_mir, selected_dependencies)
-        .expect("ordinary MIR retains the exact trusted-core selection");
-
-    assert_eq!(mir.imported_core().len(), 1);
-    assert_eq!(mir.module().meta.imported_core_callables.len(), 1);
+    assert_eq!(mir.imported_core().len(), 0);
+    assert_eq!(mir.module().meta.imported_dependency_callables.len(), 1);
     let calls =
         mir.module()
             .functions
@@ -285,7 +313,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
                     scoop_mir::CallEffect::Unit(call)
                     | scoop_mir::CallEffect::Value { call, .. } => call,
                 };
-                matches!(call.target.callee, scoop_mir::Callee::CoreExternal(_)).then_some(call)
+                matches!(call.target.callee, scoop_mir::Callee::DependencyStrong(_)).then_some(call)
             })
             .collect::<Vec<_>>();
     assert_eq!(calls.len(), 2);
@@ -297,7 +325,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
 }
 
 #[test]
-fn ordinary_call_rejects_a_core_candidate_without_strong_implementation() {
+fn ordinary_core_call_uses_general_interface_without_legacy_strong_allowlist() {
     let core = trusted_core_with_answer();
     let ordinary = parsed_ordinary(file(vec![fun(
         "main",
@@ -307,25 +335,17 @@ fn ordinary_call_rejects_a_core_candidate_without_strong_implementation() {
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let diagnostics =
-        match lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input) {
-            Ok(_) => {
-                panic!("a raw HIR candidate cannot stand in for a strong implementation proof")
-            }
-            Err(diagnostics) => diagnostics,
-        };
-
-    assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic
-            .message
-            .contains("SCOOPC_CAPABILITY_CORE_IMPLEMENTATION_UNAVAILABLE")
-    }));
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
+        .expect("ordinary HIR selection uses the shared callable interface");
+    assert_eq!(output.imported_dependencies().callable_count(), 1);
+    assert_eq!(output.imported_core().callable_count(), 0);
 }
 
 #[test]
-fn ordinary_call_rejects_a_generic_core_candidate_with_the_stable_capability_code() {
+fn ordinary_core_call_uses_shared_generic_argument_diagnostics() {
     let core = trusted_core();
     let ordinary = parsed_ordinary(file(vec![fun(
         "main",
@@ -335,18 +355,18 @@ fn ordinary_call_rejects_a_generic_core_candidate_with_the_stable_capability_cod
         .foundation
         .import_core_inputs(&core.interface, &[])
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let diagnostics =
-        match lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input) {
-            Ok(_) => panic!("generic core prelude candidates are unavailable in M23-3"),
-            Err(diagnostics) => diagnostics,
-        };
+    let diagnostics = match lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input) {
+        Ok(_) => panic!("the shared call resolver requires explicit generic arguments"),
+        Err(diagnostics) => diagnostics,
+    };
 
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic
             .message
-            .contains("SCOOPC_CAPABILITY_CORE_GENERIC_UNAVAILABLE")
+            .contains("dependency function `print` expects 1 type argument(s), found 0")
     }));
 }
 
@@ -361,9 +381,10 @@ fn current_function_shadows_an_imported_core_prelude_callable() {
         .foundation
         .import_core_inputs(&core.interface, &core.strong_callables)
         .unwrap();
-    let input = OrdinaryCoreOnlySources::try_new(&ordinary, core_inputs).unwrap();
+    let world = core.world(ordinary.cone());
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary_core_only(scoop_identity::RequestedConeKind::Executable, &input)
+    let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("the current package layer wins before core prelude lookup");
 
     assert_eq!(output.imported_core().callable_count(), 0);

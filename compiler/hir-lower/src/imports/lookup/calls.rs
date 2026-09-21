@@ -14,7 +14,6 @@ pub(crate) use extensions::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NamedCallTarget {
     Function(hir::FunctionId),
-    ImportedCoreCallable(hir::ImportedCorePreludeRef),
     ImportedDependency(hir::ImportedTarget),
     Type(TopLevelTypeTarget),
     Value(ValueTarget),
@@ -158,11 +157,6 @@ impl Lowerer {
                 .copied()
                 .map(|target| NamedCallTarget::Value(ValueTarget::Variant(target))),
         );
-        targets.extend(
-            self.imported_core_callable_candidates(name)
-                .into_iter()
-                .map(|candidate| NamedCallTarget::ImportedCoreCallable(candidate.reference)),
-        );
         (targets, suppressed_callables)
     }
 
@@ -173,7 +167,6 @@ impl Lowerer {
             }
             NamedCallOrigin::Core(target) => match *target {
                 NamedCallTarget::Function(id) => self.function_is_accessible(id, None),
-                NamedCallTarget::ImportedCoreCallable(_) => true,
                 NamedCallTarget::ImportedDependency(_) => {
                     unreachable!("core bindings cannot carry ordinary dependency targets")
                 }
@@ -205,6 +198,16 @@ impl Lowerer {
                         target,
                         origin: NamedCallOrigin::Core(target),
                     })
+                    .chain(
+                        self.imports
+                            .prelude_value_bindings(name)
+                            .iter()
+                            .cloned()
+                            .map(|binding| NamedCallBinding {
+                                target: NamedCallTarget::ImportedDependency(binding.target()),
+                                origin: NamedCallOrigin::Dependency(binding),
+                            }),
+                    )
                     .collect(),
             }
         };

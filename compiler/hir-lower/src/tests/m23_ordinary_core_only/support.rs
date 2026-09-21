@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+mod world;
+
 use scoop_ast::{
     AllParsedSources, CurrentConeParsedSources, CurrentSourceDiagnosticContext, CurrentSourceText,
     IdentifiedParsedSource, NonEmptyVec,
@@ -18,6 +20,8 @@ use crate::{CoreBootstrapSources, lower_core_bootstrap};
 pub(crate) struct TrustedCoreFixture {
     pub(crate) foundation: scoop_hir::ImportedHirFoundation,
     pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
+    general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
+    aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
     pub(crate) interface: scoop_hir::CoreHirInterfaceV1,
     mir_foundation: scoop_mir::ImportedMirFoundation,
     mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
@@ -26,37 +30,8 @@ pub(crate) struct TrustedCoreFixture {
 }
 
 impl TrustedCoreFixture {
-    pub(crate) fn project_selected_callables_to_mir<'a>(
-        &'a self,
-        selected: &scoop_hir::SelectedImportedCoreSet<'_>,
-    ) -> scoop_mir::SelectedImportedMirSet<'a> {
-        let mut projected =
-            scoop_mir::SelectedImportedMirSet::new(&self.mir_foundation, &self.mir_production);
-        for selected in selected.callable_selections() {
-            let scoop_hir::ImportedCorePreludeTarget::Callable(target) = selected.target() else {
-                panic!("test selection contains only callables")
-            };
-            let scoop_hir::CoreCallableDefinitionV1::Function(definition) = target.definition()
-            else {
-                panic!("test core callable has a source function definition")
-            };
-            let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
-                target.capability()
-            else {
-                panic!("test core callable has a param-free exact signature")
-            };
-            let callable = self
-                .mir_foundation
-                .project_core_callable(
-                    &self.mir_production,
-                    selected.binding().persistent(),
-                    definition,
-                    signature.clone(),
-                )
-                .unwrap();
-            projected.insert(callable).unwrap();
-        }
-        projected
+    pub(crate) fn empty_core_mir_selection(&self) -> scoop_mir::SelectedImportedMirSet<'_> {
+        scoop_mir::SelectedImportedMirSet::new(&self.mir_foundation, &self.mir_production)
     }
 
     pub(crate) fn project_initialization_cycle_to_mir<'a>(
@@ -183,12 +158,16 @@ fn trusted_core_from_source(
         .iter()
         .map(|target| target.binding())
         .collect::<Vec<_>>();
-    let canonical = scoop_hir::CanonicalHirFoundation::from_modules(
+    let mut canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
         &output.local,
         &output.native_boundary_types,
     )
     .unwrap();
+    let general_interface = world::project_interface(&output, &mut canonical);
+    let aliases = crate::tests::m23_ordinary_dependencies::support::alias_expansions(
+        general_interface.type_aliases(),
+    );
     let decoded: scoop_hir::DecodedHirFoundation =
         decode_canonical(&encode(&canonical).unwrap(), DecodeLimits::default()).unwrap();
     let mut pending = PendingIdentityValidation::new();
@@ -306,6 +285,8 @@ fn trusted_core_from_source(
     )
     .unwrap();
     TrustedCoreFixture {
+        general_interface,
+        aliases,
         foundation,
         source_foundation,
         interface,

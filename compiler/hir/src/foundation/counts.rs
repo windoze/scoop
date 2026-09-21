@@ -37,6 +37,15 @@ pub struct HirFoundationCounts {
 }
 
 impl CanonicalHirFoundation {
+    /// Counts input sources owned by one Cone, excluding retained foreign
+    /// definition records used by imported default bodies and diagnostics.
+    pub fn source_count_for_cone(&self, cone: scoop_identity::ConeIdentity) -> usize {
+        self.sources
+            .iter()
+            .filter(|source| source.identity().cone() == cone)
+            .count()
+    }
+
     pub fn counts(&self) -> HirFoundationCounts {
         HirFoundationCounts {
             sources: self.sources.len(),

@@ -55,6 +55,29 @@ fn source_records_are_sorted_by_semantic_source_identity() {
 }
 
 #[test]
+fn current_source_count_excludes_retained_foreign_definitions() {
+    let current = SourceIdentity::new(
+        ConeIdentity::SINGLE_FILE,
+        NormalizedSourcePath::new("main.scoop").unwrap(),
+    )
+    .unwrap();
+    let mut foundation = CanonicalHirFoundation::empty();
+    foundation
+        .set_sources(vec![
+            SourceRecord::from_utf8(current, "", []).unwrap(),
+            source_record("src/default.scoop"),
+            source_record("src/helper.scoop"),
+        ])
+        .unwrap();
+    assert_eq!(foundation.counts().sources, 3);
+    assert_eq!(
+        foundation.source_count_for_cone(ConeIdentity::SINGLE_FILE),
+        1
+    );
+    assert_eq!(foundation.source_count_for_cone(ConeIdentity::CORE), 2);
+}
+
+#[test]
 fn duplicate_identity_and_definition_subject_are_rejected() {
     let exact = nominal_exact("Payload");
     let generated =

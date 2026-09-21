@@ -67,9 +67,6 @@ impl Lowerer {
                 super::super::calls::NamedCallTarget::Function(id) => {
                     ValueOrigin::CoreNonValue(NonValueTarget::Function(id))
                 }
-                super::super::calls::NamedCallTarget::ImportedCoreCallable(reference) => {
-                    ValueOrigin::CoreNonValue(NonValueTarget::ImportedCoreCallable(reference))
-                }
                 super::super::calls::NamedCallTarget::ImportedDependency(_) => {
                     unreachable!("core bindings cannot carry ordinary dependency targets")
                 }
@@ -129,6 +126,13 @@ impl Lowerer {
                 .copied()
                 .map(|target| ValueOrigin::Core(ValueTarget::Variant(target))),
         );
+        result.extend(
+            self.imports
+                .prelude_value_bindings(name)
+                .iter()
+                .cloned()
+                .map(ValueOrigin::Dependency),
+        );
         result
     }
 
@@ -142,7 +146,6 @@ impl Lowerer {
         if let ValueOrigin::CoreNonValue(target) = origin {
             return match *target {
                 NonValueTarget::Function(id) => self.function_is_accessible(id, None),
-                NonValueTarget::ImportedCoreCallable(_) => true,
                 NonValueTarget::ImportedDependency(_) => {
                     unreachable!("core blockers cannot carry ordinary dependency targets")
                 }

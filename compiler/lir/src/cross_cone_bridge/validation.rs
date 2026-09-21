@@ -74,9 +74,7 @@ pub(super) fn validate_section_relations(
                 provider: selected.provider,
             });
         }
-        if selected.provider == ConeIdentity::CORE {
-            return Err(CrossConeLirBridgeRelationError::SelectedTrustedCore { index });
-        }
+
         let (_, symbol, definition) =
             derive_link_contract(selected.provider, selected.bridge.target)
                 .map_err(CrossConeLirBridgeRelationError::Contract)?;

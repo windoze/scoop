@@ -120,9 +120,6 @@ pub enum CrossConeMirBridgeRelationError {
         index: usize,
         provider: ConeIdentity,
     },
-    SelectedTrustedCore {
-        index: usize,
-    },
 }
 
 impl fmt::Display for CrossConeMirBridgeRelationError {
@@ -145,10 +142,6 @@ impl fmt::Display for CrossConeMirBridgeRelationError {
             Self::SelectedCurrentProvider { index, provider } => write!(
                 formatter,
                 "MIR dependency selection {index} names current Cone {provider} as its provider"
-            ),
-            Self::SelectedTrustedCore { index } => write!(
-                formatter,
-                "MIR dependency selection {index} must use the dedicated trusted-core bridge"
             ),
         }
     }
