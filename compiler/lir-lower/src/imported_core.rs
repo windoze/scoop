@@ -89,7 +89,7 @@ pub(super) fn lower_imported_core_callables(
 ) -> Result<
     (
         Arena<lir::ExternalCallable>,
-        HashMap<mir::ImportedCoreCallableUseId, lir::ExternalCallableId>,
+        HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
     ),
     StrongLirLoweringError,
 > {

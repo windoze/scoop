@@ -8,11 +8,10 @@ use scoop_identity::{
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
-    CoreMirBridgeBranchV1, EntryMirBridgeBranchV1, ExternFunctionId, FunctionId,
-    GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId, ImportedCoreCallableUseId,
-    ImportedDependencyMirCallableId, InitializationUnitId, MirOutput, Module, ObjectId,
-    OdrFreeMirFoundation, SelectedDependencyMirSet, SelectedImportedMirSet, SourceExactTypeOwner,
-    StringConstId, Type,
+    CoreMirBridgeBranchV1, EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId,
+    FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
+    InitializationUnitId, MirOutput, Module, ObjectId, OdrFreeMirFoundation,
+    SelectedDependencyMirSet, SelectedImportedMirSet, SourceExactTypeOwner, StringConstId, Type,
 };
 
 mod errors;
@@ -23,11 +22,11 @@ pub(crate) use initialization::initialization_test_input;
 pub use initialization::{
     StrongInitializationUnitError, StrongInitializationUnitMaterializationRoot,
 };
+mod external;
 mod imported_core;
-mod shape_support;
-use imported_core::validate_imported_core_callables;
 mod imported_dependency;
-use imported_dependency::validate_imported_dependency_callables;
+mod shape_support;
+pub(crate) use external::validate_external_callables;
 
 /// One local function selected as a mandatory strong materialization root.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -82,14 +81,14 @@ pub struct StrongGeneratedNominalShapeRoot {
 /// resolved through the exact selected set that minted it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongImportedCoreCallableRoot {
-    callable: ImportedCoreCallableUseId,
+    callable: ExternalCallableUseId,
     kind: scoop_identity::CoreImportedCallableKind,
     implementation: StrongCallableDefinitionOwner,
     signature: ExactCallableSignature,
 }
 
 impl StrongImportedCoreCallableRoot {
-    pub const fn callable(&self) -> ImportedCoreCallableUseId {
+    pub const fn callable(&self) -> ExternalCallableUseId {
         self.callable
     }
 
@@ -110,7 +109,7 @@ impl StrongImportedCoreCallableRoot {
 /// has been resolved and its caller-side GC protocol has been retained.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongImportedDependencyCallableRoot {
-    callable: ImportedDependencyMirCallableId,
+    callable: ExternalCallableUseId,
     provider: ConeIdentity,
     declaration: DependencyCallableDeclarationId,
     implementation: StrongCallableDefinitionOwner,
@@ -119,7 +118,7 @@ pub struct StrongImportedDependencyCallableRoot {
 }
 
 impl StrongImportedDependencyCallableRoot {
-    pub const fn callable(&self) -> ImportedDependencyMirCallableId {
+    pub const fn callable(&self) -> ExternalCallableUseId {
         self.callable
     }
 
@@ -311,10 +310,8 @@ impl SingleConeStrongMirInput {
         }
 
         validate_core_branch(module.cone, production.core_bridge())?;
-        let imported_core_callable_roots =
-            validate_imported_core_callables(&module, imported_core)?;
-        let imported_dependency_callable_roots =
-            validate_imported_dependency_callables(&module, imported_dependencies)?;
+        let (imported_core_callable_roots, imported_dependency_callable_roots) =
+            validate_external_callables(&module, imported_core, imported_dependencies)?;
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, &expected_bridges)?;
         validate_output(&module, &production, &callable_roots)?;

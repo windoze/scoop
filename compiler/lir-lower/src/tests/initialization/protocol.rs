@@ -163,7 +163,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     );
     let mut ordinary_module = ordinary_builder.finish(caller);
     ordinary_module.output = mir::MirOutput::Library;
-    let imported_use = ordinary_module.meta.imported_core_callables.alloc(
+    let imported_use = ordinary_module.meta.external_callables.alloc(
         selected_mir
             .callable_use(mir_selection)
             .expect("selected MIR callable mints one use"),
@@ -174,7 +174,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         .push(call_stmt(mir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Direct,
-                callee: mir::Callee::CoreExternal(imported_use),
+                callee: mir::Callee::External(imported_use),
             },
             args: vec![local_expr(caller_argument, mir::Type::String)],
             pending: mir::CoroutinePendingContext::Root,

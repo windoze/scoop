@@ -224,15 +224,16 @@ pub fn lower_with_dependencies(
     let structs = lower_structs(&context, module, &enums)?;
     let (external_type_descriptors, imported_runtime_string) =
         lower_imported_core_runtime_string(input, imported_core)?;
-    let (mut external_callables, core_external_callable_map) =
+    let (mut external_callables, mut external_callable_map) =
         lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
-    let dependency_external_callable_map = lower_imported_dependency_callables(
+    lower_imported_dependency_callables(
         &context,
         input,
         imported_dependencies,
         &structs,
         &enums,
         &mut external_callables,
+        &mut external_callable_map,
     )?;
     let native_abi = native_abi::lower(
         &context,
@@ -394,8 +395,7 @@ pub fn lower_with_dependencies(
                 &local_function_map,
                 &function_signatures,
                 &external_callables,
-                &core_external_callable_map,
-                &dependency_external_callable_map,
+                &external_callable_map,
                 &extern_functions,
                 &extern_function_refs,
             )

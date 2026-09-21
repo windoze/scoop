@@ -1,5 +1,4 @@
-//! Validation shared by the disjoint trusted-core and ordinary-dependency
-//! callable arenas.
+//! Validation for direct calls through the shared external-use arena.
 
 use crate::{Call, CallKind, Callee, MirValidationErrorKind, Module};
 
@@ -8,26 +7,13 @@ pub(super) fn validate_imported_call(
     call: &Call,
 ) -> Result<(), MirValidationErrorKind> {
     match call.target.callee {
-        Callee::CoreExternal(callable) => {
+        Callee::External(callable) => {
             if !matches!(call.target.kind, CallKind::Direct) {
-                return Err(MirValidationErrorKind::ImportedCoreCallableRequiresDirect);
+                return Err(MirValidationErrorKind::ExternalCallableRequiresDirect);
             }
             let index = callable.into_raw().into_u32() as usize;
-            if index >= module.meta.imported_core_callables.len() {
-                return Err(
-                    MirValidationErrorKind::InvalidImportedCoreCallableReference { callable },
-                );
-            }
-        }
-        Callee::DependencyStrong(callable) => {
-            if !matches!(call.target.kind, CallKind::Direct) {
-                return Err(MirValidationErrorKind::ImportedDependencyCallableRequiresDirect);
-            }
-            let index = callable.into_raw().into_u32() as usize;
-            if index >= module.meta.imported_dependency_callables.len() {
-                return Err(
-                    MirValidationErrorKind::InvalidImportedDependencyCallableReference { callable },
-                );
+            if index >= module.meta.external_callables.len() {
+                return Err(MirValidationErrorKind::InvalidExternalCallableReference { callable });
             }
         }
         Callee::User(_)

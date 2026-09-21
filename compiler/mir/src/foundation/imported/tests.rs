@@ -16,6 +16,8 @@ use crate::{
     Type,
 };
 
+mod external;
+
 #[test]
 fn selected_imported_mir_worlds_have_distinct_process_local_brands() {
     assert_ne!(
@@ -150,7 +152,9 @@ fn selected_callable_derives_the_only_strong_implementation() {
             foreign_selections,
             crate::SelectedDependencyMirSet::empty(ConeIdentity::SINGLE_FILE),
         ),
-        Err(DependencyMirOutputError::ForeignImportedCallable { index: 0 })
+        Err(DependencyMirOutputError::ExternalCallables(
+            crate::SingleConeStrongMirInputError::ForeignImportedCoreCallable { index: 0 }
+        ))
     ));
 
     let ordinary = DependencyMirOutput::try_new(
@@ -161,8 +165,12 @@ fn selected_callable_derives_the_only_strong_implementation() {
     .expect("the ordinary MIR graph and selected sidecar share one brand");
     let (module, selections, dependency_selections) = ordinary.into_parts();
     assert!(dependency_selections.is_empty());
-    let retained = module.meta.imported_core_callables.iter().next().unwrap().1;
-    assert!(selections.resolve_callable(retained.reference()).is_some());
+    let retained = module.meta.external_callables.iter().next().unwrap().1;
+    let crate::ExternalCallableSelection::InitializationCycle(reference) = retained.selection()
+    else {
+        panic!("the fixture retains the initialization protocol selection")
+    };
+    assert!(selections.resolve_callable(reference).is_some());
 
     let strong_foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
     let ordinary_production = CoreBootstrapBridgeSectionV1::try_new(
@@ -212,9 +220,9 @@ fn selected_callable_derives_the_only_strong_implementation() {
     );
 }
 
-fn ordinary_module(callable: crate::ImportedCoreCallableUse) -> Module {
-    let mut imported_core_callables = Arena::new();
-    let callable = imported_core_callables.alloc(callable);
+fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
+    let mut external_callables = Arena::new();
+    let callable = external_callables.alloc(callable);
     let mut blocks = Arena::new();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
@@ -222,7 +230,7 @@ fn ordinary_module(callable: crate::ImportedCoreCallableUse) -> Module {
             kind: StatementKind::Call(CallEffect::Unit(Call {
                 target: CallTarget {
                     kind: CallKind::Direct,
-                    callee: Callee::CoreExternal(callable),
+                    callee: Callee::External(callable),
                 },
                 args: Vec::new(),
                 pending: CoroutinePendingContext::Root,
@@ -272,7 +280,7 @@ fn ordinary_module(callable: crate::ImportedCoreCallableUse) -> Module {
         option_core: Vec::new(),
         output: MirOutput::Library,
         meta: MirMeta {
-            imported_core_callables,
+            external_callables,
             ..MirMeta::default()
         },
     }

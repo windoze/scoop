@@ -9,7 +9,7 @@
   class LocalTools vtable=0 itables=0
   fun userCoreDependency @fn71() -> Unit
     bb0 entry
-      call dependency-strong0 direct
+      call external0 direct
       return
   fun userCoreCombined @fn72(flag: Boolean) -> Unit
     bb0 entry
@@ -31,10 +31,10 @@
         Type Boolean
         Local $logic.1
     bb4 if.then.4
-      call dependency-strong0 direct
+      call external0 direct
       goto bb6
     bb5 if.else.5
-      call dependency-strong0 direct
+      call external0 direct
       goto bb6
     bb6 if.merge.6
       return

@@ -135,9 +135,9 @@ impl<'a> SelectedImportedMirSet<'a> {
     pub fn callable_use(
         &self,
         id: ImportedCoreMirCallableId,
-    ) -> Option<crate::ImportedCoreCallableUse> {
+    ) -> Option<crate::ExternalCallableUse> {
         self.callable_ref(id)
-            .map(crate::ImportedCoreCallableUse::new)
+            .map(crate::ExternalCallableUse::initialization_cycle)
     }
 
     pub fn resolve_callable(

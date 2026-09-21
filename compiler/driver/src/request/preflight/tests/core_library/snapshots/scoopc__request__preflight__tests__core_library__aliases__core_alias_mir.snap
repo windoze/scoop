@@ -10,7 +10,7 @@ Module
         Local value
   fun main @fn1() -> Unit
     bb0 entry
-      call initial: Int = dependency-strong0 direct
+      call initial: Int = external0 direct
       val combined: (Int, Boolean)
         Type (Int, Boolean)
         TupleLiteral

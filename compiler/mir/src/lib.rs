@@ -42,8 +42,8 @@ pub use strong_input::*;
 mod dependency_output;
 pub use dependency_output::*;
 
-mod imported_dependency;
-pub use imported_dependency::*;
+mod external_callable;
+pub use external_callable::*;
 
 mod generated_exact_types;
 pub use generated_exact_types::*;

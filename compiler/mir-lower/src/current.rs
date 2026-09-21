@@ -15,7 +15,7 @@ pub fn lower_current_cone<P: mir::MirProtocolSelection>(
             actual: imported_dependencies.consumer(),
         });
     }
-    let (authority, core_callables, cycle_authority) =
+    let (authority, mut callables, cycle_authority) =
         match (&hir.core_protocols, protocols.as_strong_input()) {
             (
                 hir::ConcreteCoreProtocols::Defined(defined),
@@ -34,14 +34,13 @@ pub fn lower_current_cone<P: mir::MirProtocolSelection>(
             }
             _ => return Err(CurrentConeMirLoweringError::ProtocolOriginMismatch),
         };
-    let (dependency_callables, dependency_mapping) =
-        lower_dependency_callables(output, &imported_dependencies)?;
+    let dependency_mapping =
+        lower_dependency_callables(output, &imported_dependencies, &mut callables)?;
     let module = lower_with_core_authority(
         &output.output().local,
         authority,
         cycle_authority,
-        core_callables,
-        dependency_callables,
+        callables,
         dependency_mapping,
     );
     mir::DependencyMirOutput::try_new(module, protocols, imported_dependencies)
@@ -49,7 +48,7 @@ pub fn lower_current_cone<P: mir::MirProtocolSelection>(
 }
 
 type CoreCallableLowering = (
-    Arena<mir::ImportedCoreCallableUse>,
+    Arena<mir::ExternalCallableUse>,
     InitializationCycleLoweringAuthority,
 );
 
@@ -72,7 +71,7 @@ fn lower_core_callables<'core>(
 fn lower_initialization_cycle_authority(
     hir: &hir::Module,
     imported: &mir::SelectedImportedMirSet<'_>,
-    callables: &mut Arena<mir::ImportedCoreCallableUse>,
+    callables: &mut Arena<mir::ExternalCallableUse>,
 ) -> Result<InitializationCycleLoweringAuthority, CurrentConeMirLoweringError> {
     if hir.initialization_units.is_empty() {
         return Ok(InitializationCycleLoweringAuthority::ImportedUnused);
@@ -108,18 +107,16 @@ fn lower_initialization_cycle_authority(
     })
 }
 
-type DependencyCallableLowering = (
-    Arena<mir::ImportedDependencyMirCallableUse>,
-    HashMap<hir::ImportedDependencyCallableUseId, mir::ImportedDependencyMirCallableId>,
-);
-
 fn lower_dependency_callables(
     output: &scoop_hir::DependencyHirOutput,
     imported: &mir::SelectedDependencyMirSet,
-) -> Result<DependencyCallableLowering, CurrentConeMirLoweringError> {
+    callables: &mut Arena<mir::ExternalCallableUse>,
+) -> Result<
+    HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
+    CurrentConeMirLoweringError,
+> {
     let hir = output.output().local.module();
     let selected_hir = output.imported_dependencies();
-    let mut callables = Arena::new();
     let mut mapping = HashMap::new();
     for (source_id, source) in hir.imported_dependency_callables.iter() {
         let selected = selected_hir.resolve_callable(source.reference()).ok_or(
@@ -159,13 +156,13 @@ fn lower_dependency_callables(
         );
         mapping.insert(source_id, target);
     }
-    if callables.len() != imported.len() {
+    if mapping.len() != imported.len() {
         return Err(CurrentConeMirLoweringError::UnusedDependencyMirCallable {
             selected: imported.len(),
-            used: callables.len(),
+            used: mapping.len(),
         });
     }
-    Ok((callables, mapping))
+    Ok(mapping)
 }
 
 #[derive(Debug)]

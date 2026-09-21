@@ -519,7 +519,7 @@ pub enum InitializationSchedule {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationCycleThrower {
     Local(FunctionId),
-    CoreExternal(ImportedCoreCallableUseId),
+    External(ExternalCallableUseId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -633,15 +633,9 @@ pub enum MirAnnotationValue {
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
-    /// Imported core call targets selected for this ordinary MIR graph. Call
-    /// sites name this arena; each entry retains the brand of the exact MIR
-    /// selection set that proved it.
-    pub imported_core_callables: Arena<ImportedCoreCallableUse>,
-    /// Ordinary dependency call targets selected for this MIR graph. Entries
-    /// are disjoint from local Strong functions, native externs, and trusted
-    /// core callables, and retain both their request-local bridge brand and GC
-    /// protocol.
-    pub imported_dependency_callables: Arena<ImportedDependencyMirCallableUse>,
+    /// External calls share one typed arena regardless of provider or the
+    /// selection path that resolved their implementation.
+    pub external_callables: Arena<ExternalCallableUse>,
     /// Complete identity relation for every LocalConcrete HIR type transposed
     /// into this MIR module. These records remain HIR-owned and are not
     /// re-emitted as MIR-first identity-foundation entries.
@@ -702,21 +696,6 @@ pub struct MirMeta {
     pub boxed_types: Vec<BoxedType>,
     /// Exact generated callable materialization for every boxed itable slot.
     pub boxing_adjusts: Vec<BoxingAdjust>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ImportedCoreCallableUse {
-    reference: ImportedCoreMirCallableRef,
-}
-
-impl ImportedCoreCallableUse {
-    pub(crate) fn new(reference: ImportedCoreMirCallableRef) -> Self {
-        Self { reference }
-    }
-
-    pub const fn reference(self) -> ImportedCoreMirCallableRef {
-        self.reference
-    }
 }
 
 impl MirMeta {

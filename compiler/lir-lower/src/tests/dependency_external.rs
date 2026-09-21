@@ -296,7 +296,7 @@ fn dependency_input(
     .unwrap();
     let selected_mir = mir::SelectedDependencyMirSet::try_from_bridge(&mir_bridge).unwrap();
     let selected_id = selected_mir.callable_for(provider, declaration).unwrap();
-    let imported = module.meta.imported_dependency_callables.alloc(
+    let imported = module.meta.external_callables.alloc(
         selected_mir
             .callable_use(selected_id, mir_effect)
             .expect("selected MIR dependency mints one effect-refined use"),
@@ -307,7 +307,7 @@ fn dependency_input(
         .push(call_stmt(mir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Direct,
-                callee: mir::Callee::DependencyStrong(imported),
+                callee: mir::Callee::External(imported),
             },
             args: if has_receiver {
                 vec![mir::Expr::unit()]

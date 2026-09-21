@@ -39,9 +39,15 @@ fn selected_dependency_set_preserves_canonical_bridge_order_and_typed_lookup() {
     let no_gc = selected
         .callable_use(first_id, crate::GcEffect::NoGc)
         .unwrap();
-    assert_eq!(managed.reference(), reference);
+    assert_eq!(
+        managed.selection(),
+        crate::ExternalCallableSelection::Dependency(reference)
+    );
     assert_eq!(managed.gc_effect(), crate::GcEffect::Managed);
-    assert_eq!(no_gc.reference(), reference);
+    assert_eq!(
+        no_gc.selection(),
+        crate::ExternalCallableSelection::Dependency(reference)
+    );
     assert_eq!(no_gc.gc_effect(), crate::GcEffect::NoGc);
 }
 

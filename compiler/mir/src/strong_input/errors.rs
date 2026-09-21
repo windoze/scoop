@@ -25,8 +25,11 @@ pub enum SingleConeStrongMirInputError {
     UnsupportedImportedCoreCallableShape {
         index: u32,
     },
-    UnreferencedImportedCoreCallable {
+    UnreferencedExternalCallable {
         index: u32,
+    },
+    DuplicateExternalImplementation {
+        implementation: scoop_identity::StrongCallableDefinitionOwner,
     },
     MissingImportedDependencyAuthority,
     ForeignImportedDependencySelection {
@@ -41,9 +44,6 @@ pub enum SingleConeStrongMirInputError {
         index: u32,
     },
     DuplicateImportedDependencyCallable {
-        index: u32,
-    },
-    UnreferencedImportedDependencyCallable {
         index: u32,
     },
     Initialization(super::StrongInitializationUnitError),
@@ -111,13 +111,13 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::ForeignImportedCoreCallable { .. }
             | Self::DuplicateImportedCoreCallable { .. }
             | Self::UnsupportedImportedCoreCallableShape { .. }
-            | Self::UnreferencedImportedCoreCallable { .. }
+            | Self::UnreferencedExternalCallable { .. }
+            | Self::DuplicateExternalImplementation { .. }
             | Self::MissingImportedDependencyAuthority
             | Self::ForeignImportedDependencySelection { .. }
             | Self::ImportedDependencyCallableCountMismatch { .. }
             | Self::ForeignImportedDependencyCallable { .. }
             | Self::DuplicateImportedDependencyCallable { .. }
-            | Self::UnreferencedImportedDependencyCallable { .. }
             | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
             | Self::CoreBranchMismatch

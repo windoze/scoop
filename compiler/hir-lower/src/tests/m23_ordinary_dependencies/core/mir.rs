@@ -25,12 +25,15 @@ pub(super) fn check(output: &DependencyHirOutput, imported: SelectedImportedMirS
     let mir = lower_current_cone(output, CurrentMirProtocolDeclarations, selected(output))
         .expect("local protocols and dependency calls share MIR lowering");
     assert_eq!(mir.imported_dependencies().len(), 1);
-    assert_eq!(mir.module().meta.imported_dependency_callables.len(), 1);
-    assert!(mir.module().meta.imported_core_callables.is_empty());
-    for (_, callable) in mir.module().meta.imported_dependency_callables.iter() {
+    assert_eq!(mir.module().meta.external_callables.len(), 1);
+    for (_, callable) in mir.module().meta.external_callables.iter() {
+        let scoop_mir::ExternalCallableSelection::Dependency(reference) = callable.selection()
+        else {
+            panic!("ordinary dependencies retain their selection role")
+        };
         let declaration = mir
             .imported_dependencies()
-            .resolve_callable(callable.reference())
+            .resolve_callable(reference)
             .expect("the output owns the selection that minted each callable use");
         assert_eq!(
             declaration.declaration(),

@@ -114,7 +114,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 object:UserCache
-      call core-external0 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable
@@ -135,7 +135,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = dependency-strong1 direct
+      call $call.1: Int = external2 direct
         Type Int
         Local $dependency.parameter.value
       assign $result.0
@@ -147,7 +147,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.2: Int = dependency-strong0 direct
+      call $call.2: Int = external1 direct
         Type Int
         Local $dependency.parameter.value
       assign $result.0
@@ -178,7 +178,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = dependency-strong1 direct
+      call $call.1: Int = external2 direct
         Type Int
         Local $dependency.parameter.value
       global_assign eager
@@ -277,7 +277,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init1 top-level:eager
-      call core-external0 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable
@@ -294,7 +294,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         IntegerLiteral Int value=7 bits=0x00000007
-      call $call.1: Int = dependency-strong0 direct
+      call $call.1: Int = external1 direct
         Type Int
         Local $dependency.parameter.value
       field_set 0

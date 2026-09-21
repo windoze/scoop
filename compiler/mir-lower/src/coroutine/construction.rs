@@ -432,7 +432,7 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         mir::Callee::Extern(extern_id) => {
             return lowerer.extern_functions[extern_id].return_type.clone();
         }
-        mir::Callee::CoreExternal(_) | mir::Callee::DependencyStrong(_) => {
+        mir::Callee::External(_) => {
             unreachable!("imported parameter-free callables cannot suspend")
         }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {

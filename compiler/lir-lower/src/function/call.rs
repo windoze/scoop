@@ -118,11 +118,8 @@ impl<'a> FunctionLowerer<'a> {
                 )?;
                 self.finish_indirect(destination, args, &call_signature)?
             }
-            mir::Callee::CoreExternal(source) => {
-                self.lower_external_call(call, self.core_external_callable_map[&source])?
-            }
-            mir::Callee::DependencyStrong(source) => {
-                self.lower_external_call(call, self.dependency_external_callable_map[&source])?
+            mir::Callee::External(source) => {
+                self.lower_external_call(call, self.external_callable_map[&source])?
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
@@ -162,8 +159,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => {
                         unreachable!("handled above")
                     }
-                    mir::Callee::CoreExternal(_) => unreachable!("handled above"),
-                    mir::Callee::DependencyStrong(_) => unreachable!("handled above"),
+                    mir::Callee::External(_) => unreachable!("handled above"),
                     mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];

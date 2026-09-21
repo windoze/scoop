@@ -276,7 +276,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
         .expect("ordinary MIR retains the shared dependency selection");
 
     assert_eq!(mir.protocols().len(), 0);
-    assert_eq!(mir.module().meta.imported_dependency_callables.len(), 1);
+    assert_eq!(mir.module().meta.external_callables.len(), 1);
     let calls =
         mir.module()
             .functions
@@ -291,7 +291,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
                     scoop_mir::CallEffect::Unit(call)
                     | scoop_mir::CallEffect::Value { call, .. } => call,
                 };
-                matches!(call.target.callee, scoop_mir::Callee::DependencyStrong(_)).then_some(call)
+                matches!(call.target.callee, scoop_mir::Callee::External(_)).then_some(call)
             })
             .collect::<Vec<_>>();
     assert_eq!(calls.len(), 2);

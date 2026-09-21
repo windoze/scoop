@@ -92,14 +92,10 @@ pub enum MirValidationErrorKind {
         reason: &'static str,
     },
     NonRootCoroutinePendingContext,
-    InvalidImportedCoreCallableReference {
-        callable: ImportedCoreCallableUseId,
+    InvalidExternalCallableReference {
+        callable: ExternalCallableUseId,
     },
-    ImportedCoreCallableRequiresDirect,
-    InvalidImportedDependencyCallableReference {
-        callable: ImportedDependencyMirCallableId,
-    },
-    ImportedDependencyCallableRequiresDirect,
+    ExternalCallableRequiresDirect,
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
@@ -488,23 +484,13 @@ impl std::fmt::Display for MirValidationError {
             MirValidationErrorKind::NonRootCoroutinePendingContext => formatter.write_str(
                 "transient coroutine pending context remains after state-machine conversion",
             ),
-            MirValidationErrorKind::InvalidImportedCoreCallableReference { callable } => write!(
+            MirValidationErrorKind::InvalidExternalCallableReference { callable } => write!(
                 formatter,
-                "core-external call references unknown imported callable {}",
-                callable.into_raw().into_u32()
+                "external callable {} is missing from this MIR module",
+                callable.into_raw()
             ),
-            MirValidationErrorKind::ImportedCoreCallableRequiresDirect => {
-                formatter.write_str("core-external callable requires a direct call target")
-            }
-            MirValidationErrorKind::InvalidImportedDependencyCallableReference { callable } => {
-                write!(
-                    formatter,
-                    "ordinary dependency call references unknown imported callable {}",
-                    callable.into_raw().into_u32()
-                )
-            }
-            MirValidationErrorKind::ImportedDependencyCallableRequiresDirect => {
-                formatter.write_str("ordinary dependency callable requires a direct call target")
+            MirValidationErrorKind::ExternalCallableRequiresDirect => {
+                formatter.write_str("external callable requires direct dispatch")
             }
             MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
             | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }

@@ -164,7 +164,6 @@ pub fn lower(
         CoreMirLoweringAuthority::Defined(core_protocols.clone()),
         InitializationCycleLoweringAuthority::Local,
         Arena::new(),
-        Arena::new(),
         HashMap::new(),
     ))
 }
@@ -173,12 +172,10 @@ fn lower_with_core_authority(
     output: &scoop_hir::LocalConcreteHirOutput,
     core_protocols: CoreMirLoweringAuthority,
     initialization_cycle: InitializationCycleLoweringAuthority,
-    imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
-
-    imported_dependency_callables: Arena<mir::ImportedDependencyMirCallableUse>,
+    external_callables: Arena<mir::ExternalCallableUse>,
     imported_dependency_callable_map: HashMap<
         hir::ImportedDependencyCallableUseId,
-        mir::ImportedDependencyMirCallableId,
+        mir::ExternalCallableUseId,
     >,
 ) -> mir::Module {
     let module = output.module();
@@ -255,8 +252,7 @@ fn lower_with_core_authority(
         function_bridge_targets: Vec::new(),
         finalized_function_bridges: HashSet::new(),
         boxing_adjusts: Vec::new(),
-        imported_core_callables,
-        imported_dependency_callables,
+        external_callables,
         imported_dependency_callable_map,
     }
     .run(module, shape_support)
@@ -292,7 +288,7 @@ enum InitializationCycleLoweringAuthority {
     ImportedUnused,
     Imported {
         definition: hir::PersistentFunctionId,
-        callable: mir::ImportedCoreCallableUseId,
+        callable: mir::ExternalCallableUseId,
     },
 }
 
@@ -391,11 +387,9 @@ struct Lowerer {
     /// Persistent identity and exact physical itable location of every box
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
-    imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
-
-    imported_dependency_callables: Arena<mir::ImportedDependencyMirCallableUse>,
+    external_callables: Arena<mir::ExternalCallableUse>,
     imported_dependency_callable_map:
-        HashMap<hir::ImportedDependencyCallableUseId, mir::ImportedDependencyMirCallableId>,
+        HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
 }
 
 #[derive(Clone, Copy)]

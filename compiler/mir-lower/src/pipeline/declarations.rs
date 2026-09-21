@@ -47,7 +47,7 @@ impl Lowerer {
                         )
                     };
                     assert_eq!(source_definition.persistent(), definition);
-                    mir::InitializationCycleThrower::CoreExternal(callable)
+                    mir::InitializationCycleThrower::External(callable)
                 }
                 _ => unreachable!(
                     "initialization units and their cycle-thrower authority are branch-aligned"

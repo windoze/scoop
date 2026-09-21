@@ -34,6 +34,12 @@ pub(super) fn assert_initialization_and_dependency_calls(
                 StageDumpPolicy::Stage(kind),
             );
             let dump = output.emitted_dump().unwrap();
+            if kind == StageDumpKind::Mir {
+                assert!(dump.text().contains("external0"));
+                assert!(dump.text().contains("external1"));
+                assert!(!dump.text().contains("core-external"));
+                assert!(!dump.text().contains("dependency-strong"));
+            }
             if kind == StageDumpKind::Lir {
                 assert!(
                     dump.text().contains("external-fn0"),

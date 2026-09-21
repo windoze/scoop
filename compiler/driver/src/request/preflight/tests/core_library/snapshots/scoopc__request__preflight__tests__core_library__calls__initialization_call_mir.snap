@@ -18,7 +18,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call $call.1: Int = dependency-strong0 direct
+      call $call.1: Int = external1 direct
         Type Int
         Local $dependency.parameter.value
       global_assign initialized
@@ -117,7 +117,7 @@ Module
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
         InitializationUnitAddress init0 top-level:initialized
-      call core-external0 direct
+      call external0 direct
         Type String
         Local $init.message
       unreachable

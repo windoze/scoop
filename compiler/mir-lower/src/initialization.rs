@@ -251,9 +251,7 @@ fn initialization_cycle_call(
 ) -> smir::Expr {
     let callee = match target {
         mir::InitializationCycleThrower::Local(function) => mir::Callee::User(function),
-        mir::InitializationCycleThrower::CoreExternal(callable) => {
-            mir::Callee::CoreExternal(callable)
-        }
+        mir::InitializationCycleThrower::External(callable) => mir::Callee::External(callable),
     };
     smir::Expr::new(
         mir::Type::Unit,

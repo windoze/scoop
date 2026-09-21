@@ -9,7 +9,7 @@ use super::{CrossConeMirBridgeSectionV1, SelectedDependencyMirCallableV1};
 /// Request-local index into one validated ordinary-dependency selection.
 ///
 /// This id names a selected bridge record, not a MIR arena entry. The MIR
-/// call target uses the separate `ImportedDependencyMirCallableId` domain.
+/// call target uses the separate `ExternalCallableUseId` domain.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SelectedDependencyMirCallableId(u32);
 
@@ -154,9 +154,9 @@ impl SelectedDependencyMirSet {
         &self,
         id: SelectedDependencyMirCallableId,
         gc_effect: crate::GcEffect,
-    ) -> Option<crate::ImportedDependencyMirCallableUse> {
+    ) -> Option<crate::ExternalCallableUse> {
         self.callable_ref(id)
-            .map(|reference| crate::ImportedDependencyMirCallableUse::new(reference, gc_effect))
+            .map(|reference| crate::ExternalCallableUse::dependency(reference, gc_effect))
     }
 
     pub fn resolve_callable(
