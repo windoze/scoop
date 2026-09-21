@@ -1587,7 +1587,7 @@ HIR/MIR/LIR semantic fingerprint都是Merkle值：除本层canonical semantic pr
 第11章的核心库是reserved library Cone **`scoop:scoop.core:0.1.0`**，以独立`.slib`提供，sysroot只提供默认查找位置；`scoop.core`同时是其源码当前使用的package和Cone `name`，这只是明确约定，不是package与Cone identity之间的语言推导规则。
 
 - 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认sysroot源码位置。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
-- core自身不隐式依赖自身。用户可以在普通源码目录声明core coordinate、修改或扩展其源码，并重新构建library；`@Intrinsic`的识别与类型检查在前端完成，desugar引用解析后的普通声明，不要求sysroot来源授权；
+- core自身不隐式依赖自身。core manifest中的显式dependency使用普通语法、locator和图校验，不在manifest parser或单Cone请求归一化阶段因当前Cone为core而拒绝。非core Cone仍具有到core的direct edge，因此core到普通源码库的依赖若形成回边，必须由12.3的共有cycle诊断拒绝，并保留显式声明位置与注入边来源；这一规则不允许绕过无环要求。用户可以在普通源码目录声明core coordinate、修改或扩展其源码，并重新构建library；`@Intrinsic`的识别与类型检查在前端完成，desugar引用解析后的普通声明，不要求sysroot来源授权；
 - `scoop.core.*`与`scoop.core.Option.*`默认可见性来自core `.slib`中的typed prelude binding，不通过把core源码拼入用户AST、扫描package name或对`Some`/`None`写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 

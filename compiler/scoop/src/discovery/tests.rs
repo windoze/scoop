@@ -367,3 +367,5 @@ fn default_core_uses_the_common_dependency_coordinate_check() {
 }
 
 mod core_locators;
+
+mod core_dependencies;
