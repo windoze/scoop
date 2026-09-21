@@ -6,6 +6,7 @@ use hir::{
 };
 use scoop_identity::DefinitionOriginSubject as Subject;
 mod applied_fields;
+mod callables;
 mod constructors;
 mod dependency_order;
 mod expected;

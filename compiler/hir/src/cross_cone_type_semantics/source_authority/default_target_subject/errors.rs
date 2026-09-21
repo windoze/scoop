@@ -10,6 +10,12 @@ pub enum DefaultSourceTargetSubjectError {
     Role(Target),
     MissingGenerated(PersistentTypeId),
     MissingAdapter(PersistentGeneratedCallableId),
+    MissingCallable(PersistentGeneratedCallableId),
+    CallableRole(DefaultCallableDeclarationV1),
+    CallableOrigin(CallableTemplateOrigin),
+    NestedRole(DefaultNestedCallableIdentityV1),
+    DeclarationScope(Subject),
+    GlobalScope(PersistentPropertyId),
     AdapterRole(PersistentGeneratedCallableId),
     ConstructorOwner(PersistentConstructorId),
     AppliedOwner(SourceNominalId),
@@ -59,6 +65,24 @@ impl std::fmt::Display for Error {
             ),
             Self::MissingGenerated(id) => write!(f, "artifact has no generated field owner {id}"),
             Self::MissingAdapter(id) => write!(f, "artifact has no constructor adapter key {id}"),
+            Self::MissingCallable(id) => write!(f, "artifact has no generated callable key {id}"),
+            Self::CallableRole(id) => {
+                write!(f, "default callable has incompatible identity role {id:?}")
+            }
+            Self::CallableOrigin(id) => {
+                write!(f, "default function target is not a function {id:?}")
+            }
+            Self::NestedRole(id) => write!(
+                f,
+                "default nested target differs from actual identity role {id:?}"
+            ),
+            Self::DeclarationScope(id) => write!(
+                f,
+                "default access declaration has incompatible lexical scope {id:?}"
+            ),
+            Self::GlobalScope(id) => {
+                write!(f, "default global target is not a top-level property {id}")
+            }
             Self::AdapterRole(id) => write!(
                 f,
                 "generated callable {id} is not a zero-argument constructor adapter"

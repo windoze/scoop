@@ -1,0 +1,33 @@
+private fun plain(): Int = 1
+private fun <T> keep(value: T): T = value
+private var seed: Int = 2
+internal class Cell(private var backing: Int) {
+    public var number: Int
+        get() = backing
+        set(next) { backing = next }
+}
+private var Int.extra: Int
+    get() = this
+    set(next) { seed = next }
+private fun direct(value: Int = plain()): Int = value
+private fun <T> generic(source: T, value: T = keep<T>(source)): T = value
+private fun global(value: Int = seed): Int = value
+private fun getter(source: Cell, value: Int = source.number): Int = value
+private fun setter(source: Cell, value: Int = if (true) {
+    source.number = 3
+    source.number
+} else { 4 }): Int = value
+private fun extension(source: Int, value: Int = source.extra): Int = value
+private fun extensionSetter(source: Int, value: Int = if (true) {
+    source.extra = 4
+    source.extra
+} else { 5 }): Int = value
+private fun lambda(value: () -> Int = { 1 }): () -> Int = value
+private fun anonymous(value: () -> Int = fun(): Int { return 1 }): () -> Int = value
+private fun reference(value: () -> Int = ::plain): () -> Int = value
+private fun local(value: Int = if (true) {
+    fun leaf(): Int { return 1 }
+    leaf()
+} else { 2 }): Int = value
+private struct Value()
+private fun equality(left: Value, right: Value, value: Boolean = left == right): Boolean = value

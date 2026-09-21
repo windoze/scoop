@@ -1,0 +1,19 @@
+internal open class Base {
+    internal fun read(): Int = 1
+}
+internal interface Reader {
+    fun read(): Int
+}
+private fun <T: Base> classBound(source: T, value: Int = source.read()): Int = value
+private fun <T: Reader> interfaceBound(source: T, value: Int = source.read()): Int = value
+private fun <T> localGeneric(source: T, value: T = if (true) {
+    fun <U> leaf(value: U): U { return value }
+    leaf<T>(source)
+} else { source }): T = value
+internal open class Envelope<T> {
+    protected class Scope {
+        private fun target(): Int = 1
+        private fun direct(value: Int = target()): Int = value
+        private fun reference(value: () -> Int = this::target): () -> Int = value
+    }
+}

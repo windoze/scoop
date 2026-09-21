@@ -47,6 +47,21 @@ impl<'f> Query<'_, 'f, '_> {
                     Error::MissingDeclaration(Subject::Constructor(id))
                 })?
             }
+            Subject::Function(id) => {
+                self.key(canonical.type_source_function_records(), id, || {
+                    Error::MissingDeclaration(Subject::Function(id))
+                })?
+            }
+            Subject::GenericFunction(id) => {
+                self.key(canonical.type_source_generic_function_records(), id, || {
+                    Error::MissingDeclaration(Subject::GenericFunction(id))
+                })?
+            }
+            Subject::ExtensionProperty(id) => self.key(
+                canonical.type_source_extension_property_records(),
+                id,
+                || Error::MissingDeclaration(Subject::ExtensionProperty(id)),
+            )?,
             other => return Err(Error::DeclarationRole(other)),
         };
         NominalRepresentationSupportV1::charge_source_key_resources(key, self.meter, &self.path)?;

@@ -1,0 +1,7 @@
+classBound: Function [Cone]; generic 0
+interfaceBound: Function [Cone]; generic 0
+localGeneric: LocalFunction
+localGeneric: LocalFunction
+localGeneric: LocalFunction
+Envelope.Scope.direct: Function [Cone, LexicalOwner]; generic 1
+Envelope.Scope.reference: CallableReference
