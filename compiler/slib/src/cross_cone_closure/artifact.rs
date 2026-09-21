@@ -18,7 +18,9 @@ use crate::{
 
 mod definition;
 mod errors;
+mod member;
 pub use errors::*;
+pub use member::SharedCrossConeArtifact;
 
 use definition::validate_terminal_definitions;
 

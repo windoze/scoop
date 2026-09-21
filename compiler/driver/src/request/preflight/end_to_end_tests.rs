@@ -1,4 +1,3 @@
-use crate::TrustedCoreArtifactInput;
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -239,7 +238,7 @@ fn production_entry_uses_the_shared_closure_profile_for_current_sources() {
             source: SingleFileLocator::from_path(&source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -484,7 +483,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
                 CoreOnlyRequestValidationError::ExplicitDependencies(source)
             ) if matches!(
                 source.as_ref(),
-                ExplicitDependencyValidationError::ReservedCoreArtifact { .. }
+                ExplicitDependencyValidationError::DuplicateIdentity { identity, .. } if *identity == ConeIdentity::CORE
             )
         ),
         "{error:?}"
@@ -620,7 +619,7 @@ fn build_ordinary(
     SingleConeBuildRequest::new(
         current,
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -660,7 +659,7 @@ fn build_manifest_request(
                 .unwrap(),
         )
         .unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,

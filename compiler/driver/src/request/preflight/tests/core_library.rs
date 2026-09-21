@@ -1,5 +1,5 @@
 use super::*;
-use crate::{TrustedCoreArtifactInput, normalize_direct_build_request};
+use crate::{HostArtifactLocator, normalize_direct_build_request};
 
 const EXTENSION: &str =
     include_str!("../../../../../../tests/fixtures/core-library/extension.scoop");
@@ -24,6 +24,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     std::fs::write(&consumer_source, CONSUMER).unwrap();
     let consumer_artifact = workspace.path().join("consumer.slib");
     let first_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
+    assert_core_views_share_the_dependency_closure(&target, &consumer_source, &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),
@@ -77,6 +78,51 @@ fn build_core(source: &Path, artifact: &Path) -> SingleConeProductionSuccess {
     .unwrap()
 }
 
+fn assert_core_views_share_the_dependency_closure(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    source: &Path,
+    core: &Path,
+) {
+    let loaded = SingleConeBuildRequest::new(
+        CurrentConeInput::SingleFile {
+            source: SingleFileLocator::from_path(source).unwrap(),
+        },
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
+        target.clone(),
+        SlibOutputDestination::new(source.with_extension("shared-views.slib")).unwrap(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap()
+    .load_preflight(DecodeLimits::default())
+    .unwrap();
+    let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+    let validated = loaded.validate_inner(Some(&mut meter)).unwrap();
+    let ValidatedCurrentConeInput::SingleFile { trusted_core, .. } = validated.current() else {
+        panic!("single-file input")
+    };
+    let ValidatedDependencyInputState::Ordinary { closure, .. } = &validated.dependencies().state
+    else {
+        panic!("ordinary dependencies")
+    };
+    let member = closure
+        .share_artifact(scoop_identity::ConeIdentity::CORE)
+        .unwrap();
+    assert!(std::ptr::eq(trusted_core.compile(), member.compile()));
+    assert!(std::ptr::eq(
+        trusted_core.defined_symbols(),
+        member.link().defined_symbols()
+    ));
+    assert_eq!(closure.artifact_count(), 1);
+    assert!(!validated.dependencies().is_empty());
+    assert!(
+        closure
+            .share_artifact(scoop_identity::ConeIdentity::SINGLE_FILE)
+            .is_none()
+    );
+}
+
 fn assert_explicit_core_version_is_checked(
     target: &scoop_toolchain::ResolvedTargetProfile,
     workspace: &Path,
@@ -90,7 +136,7 @@ fn assert_explicit_core_version_is_checked(
             root: ManifestRootLocator::cone_directory(&root),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(workspace.join("wrong-version.slib")).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -115,21 +161,27 @@ fn assert_non_core_artifact_is_rejected(
     target: &scoop_toolchain::ResolvedTargetProfile,
     artifact: &Path,
 ) {
-    use scoop_slib::{
-        CrossConeArtifactClosureValidationError, CrossConeClosureGraphError,
-        CrossConeSemanticClosureValidationError,
-    };
-    let loaded = TrustedCoreArtifactInput::new(artifact)
-        .unwrap()
-        .load(DecodeLimits::default())
-        .unwrap();
-    assert!(matches!(loaded.validate(target),
-        Err(crate::TrustedCoreArtifactValidationError::Closure(source))
-            if matches!(source.as_ref(), CrossConeArtifactClosureValidationError::Semantic(source)
-                if matches!(source.as_ref(), CrossConeSemanticClosureValidationError::Graph(source)
-                    if matches!(source.as_ref(), CrossConeClosureGraphError::CurrentArtifactIdentityMismatch { expected, actual }
-                        if *expected == scoop_identity::ConeIdentity::CORE
-                            && *actual == scoop_identity::ConeIdentity::SINGLE_FILE)))));
+    let root = artifact.parent().unwrap().join("non-core-input");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(root.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"test\"\nname = \"non-core-input\"\nversion = \"1.0.0\"\nkind = \"library\"\n").unwrap();
+    let loaded = SingleConeBuildRequest::new(
+        CurrentConeInput::Manifest {
+            root: ManifestRootLocator::cone_directory(&root),
+        },
+        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(artifact).unwrap()),
+        target.clone(),
+        SlibOutputDestination::new(root.join("consumer.slib")).unwrap(),
+        DiagnosticOutputPolicy::Human,
+        StageDumpPolicy::None,
+    )
+    .unwrap()
+    .load_preflight(DecodeLimits::default())
+    .unwrap();
+    assert!(matches!(loaded.validate(),
+        Err(CoreOnlyRequestValidationError::ExplicitDependencies(source))
+            if matches!(source.as_ref(), ExplicitDependencyValidationError::UnsupportedArtifactShape { .. })));
+    assert!(!root.join("src").exists());
 }
 
 fn build_consumer(
@@ -143,7 +195,7 @@ fn build_consumer(
             source: SingleFileLocator::from_path(source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,

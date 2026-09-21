@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_manifest::LoadedConeManifest;
@@ -22,52 +23,16 @@ use super::{
 use crate::{ValidatedExplicitDependencyInputSet, ValidatedTrustedCoreArtifact};
 
 impl LoadedExplicitDependencyInputs {
-    pub(crate) fn validate<'input>(
+    pub(crate) fn validate_inner<'input>(
         &'input self,
         manifest: Option<&LoadedConeManifest>,
         current_identity: ConeIdentity,
-        trusted_core: &ValidatedTrustedCoreArtifact<'input>,
-        trusted_core_bytes: &'input [u8],
-        target: &ResolvedTargetProfile,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
-        self.validate_inner(
-            manifest,
-            current_identity,
-            trusted_core,
-            trusted_core_bytes,
-            target,
-            None,
-        )
-    }
-
-    pub(crate) fn validate_metered<'input>(
-        &'input self,
-        manifest: Option<&LoadedConeManifest>,
-        current_identity: ConeIdentity,
-        trusted_core: &ValidatedTrustedCoreArtifact<'input>,
-        trusted_core_bytes: &'input [u8],
-        target: &ResolvedTargetProfile,
-        meter: &mut SlibClosureDecodeMeterV1,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
-        self.validate_inner(
-            manifest,
-            current_identity,
-            trusted_core,
-            trusted_core_bytes,
-            target,
-            Some(meter),
-        )
-    }
-
-    fn validate_inner<'input>(
-        &'input self,
-        manifest: Option<&LoadedConeManifest>,
-        current_identity: ConeIdentity,
-        trusted_core: &ValidatedTrustedCoreArtifact<'input>,
-        trusted_core_bytes: &'input [u8],
         target: &ResolvedTargetProfile,
         mut meter: Option<&mut SlibClosureDecodeMeterV1>,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
+    ) -> DependencyValidationResult<(
+        ValidatedExplicitDependencyInputSet<'input>,
+        Box<ValidatedTrustedCoreArtifact<'input>>,
+    )> {
         charge_graph_nodes(meter.as_deref_mut(), self.artifacts.len())?;
 
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
@@ -112,12 +77,6 @@ impl LoadedExplicitDependencyInputs {
             }
 
             let identity = summary.cone().identity();
-            if identity == ConeIdentity::CORE {
-                return Err(ExplicitDependencyValidationError::ReservedCoreArtifact {
-                    input: loaded.input.clone(),
-                }
-                .into());
-            }
             if identity == current_identity {
                 return Err(ExplicitDependencyValidationError::CurrentConeArtifact {
                     input: loaded.input.clone(),
@@ -167,8 +126,8 @@ impl LoadedExplicitDependencyInputs {
             );
         }
 
-        validate_manifest_direct_set(manifest, trusted_core, &nodes)?;
-        validate_dependency_records(current_identity, trusted_core, &nodes)?;
+        validate_manifest_direct_set(manifest, &nodes)?;
+        validate_dependency_records(current_identity, &nodes)?;
         let dependency_depth = validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;
         let dependency_order = dependency_first_order(&nodes)?;
@@ -176,22 +135,15 @@ impl LoadedExplicitDependencyInputs {
             charge_graph_edges_and_depth(meter, manifest, &nodes, dependency_depth)?;
         }
 
-        let mut direct = vec![ConeIdentity::CORE];
-        direct.extend(
-            nodes
-                .iter()
-                .filter(|(_, node)| node.input.role == ExplicitDependencyRole::Direct)
-                .map(|(identity, _)| *identity),
-        );
-        direct.sort_unstable();
-
-        let mut dependency_first = Vec::with_capacity(dependency_order.len() + 1);
-        dependency_first.push(trusted_core_bytes);
-        dependency_first.extend(
-            dependency_order
-                .iter()
-                .map(|identity| nodes[identity].bytes),
-        );
+        let direct = nodes
+            .iter()
+            .filter(|(_, node)| node.input.role == ExplicitDependencyRole::Direct)
+            .map(|(identity, _)| *identity)
+            .collect::<Vec<_>>();
+        let dependency_first = dependency_order
+            .iter()
+            .map(|identity| nodes[identity].bytes)
+            .collect::<Vec<_>>();
 
         let mut semantic_session = SemanticIdentitySession::new();
         let closure = validate_cross_cone_artifact_closure(
@@ -219,12 +171,17 @@ impl LoadedExplicitDependencyInputs {
                     .dependency_record()
             })
             .collect();
-        Ok(ValidatedExplicitDependencyInputSet::ordinary(
-            closure,
-            dependency_first,
-            direct_dependencies,
-            nodes.len(),
-            semantic_session,
+        let closure = Rc::new(closure);
+        let trusted_core = ValidatedTrustedCoreArtifact::from_closure(&closure)
+            .map_err(|source| Box::new(ExplicitDependencyValidationError::CoreInterface(source)))?;
+        Ok((
+            ValidatedExplicitDependencyInputSet::ordinary(
+                closure,
+                dependency_first,
+                direct_dependencies,
+                semantic_session,
+            ),
+            Box::new(trusted_core),
         ))
     }
 
@@ -279,7 +236,7 @@ fn charge_graph_nodes(
             },
         ))
     })?;
-    let nodes = dependency_nodes.checked_add(2).ok_or_else(|| {
+    let nodes = dependency_nodes.checked_add(1).ok_or_else(|| {
         Box::new(ExplicitDependencyValidationError::Resource(
             SlibClosureResourceErrorV1::Overflow {
                 resource: SlibClosureResourceKindV1::ConeNodes,

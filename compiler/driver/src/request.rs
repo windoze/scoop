@@ -22,10 +22,7 @@ use scoop_protocol::{
 };
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
-use crate::{
-    TrustedCoreArtifactInput, TrustedCoreArtifactInputError, TrustedCoreSlotError,
-    resolve_trusted_core_slot,
-};
+use crate::{TrustedCoreSlotError, resolve_trusted_core_slot};
 
 const MAX_EXPLICIT_ARTIFACTS_PER_ROLE: usize = 4_096;
 
@@ -93,7 +90,7 @@ pub enum CurrentConeInput {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TrustedCoreInput {
-    Artifact(TrustedCoreArtifactInput),
+    Artifact(HostArtifactLocator),
     BootstrapSelf,
 }
 
@@ -285,7 +282,6 @@ pub enum BuildRequestNormalizationError {
     Target(ToolchainError),
     Backend(CodegenError),
     TrustedCoreSlot(TrustedCoreSlotError),
-    TrustedCoreArtifact(TrustedCoreArtifactInputError),
     Request(SingleConeBuildRequestError),
 }
 
@@ -299,7 +295,6 @@ impl fmt::Display for BuildRequestNormalizationError {
             Self::Target(error) => error.fmt(formatter),
             Self::Backend(error) => error.fmt(formatter),
             Self::TrustedCoreSlot(error) => error.fmt(formatter),
-            Self::TrustedCoreArtifact(error) => error.fmt(formatter),
             Self::Request(error) => error.fmt(formatter),
         }
     }
@@ -315,7 +310,6 @@ impl std::error::Error for BuildRequestNormalizationError {
             Self::Target(error) => Some(error),
             Self::Backend(error) => Some(error),
             Self::TrustedCoreSlot(error) => Some(error),
-            Self::TrustedCoreArtifact(error) => Some(error),
             Self::Request(error) => Some(error),
         }
     }
@@ -396,8 +390,8 @@ pub fn normalize_direct_build_request(
         let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
             .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
         TrustedCoreInput::Artifact(
-            TrustedCoreArtifactInput::new(core_slot.artifact())
-                .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?,
+            HostArtifactLocator::new(core_slot.artifact())
+                .map_err(BuildRequestNormalizationError::Request)?,
         )
     };
     SingleConeBuildRequest::new(
@@ -451,8 +445,8 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = TrustedCoreArtifactInput::new(&artifact)
-                .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
+            let input = HostArtifactLocator::new(&artifact)
+                .map_err(BuildRequestNormalizationError::Request)?;
             (
                 CurrentConeInput::Manifest { root },
                 TrustedCoreInput::Artifact(input),
@@ -464,8 +458,8 @@ pub fn normalize_protocol_build_request(
             let artifact = artifact
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            let input = TrustedCoreArtifactInput::new(&artifact)
-                .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?;
+            let input = HostArtifactLocator::new(&artifact)
+                .map_err(BuildRequestNormalizationError::Request)?;
             (
                 CurrentConeInput::SingleFile { source },
                 TrustedCoreInput::Artifact(input),
@@ -726,7 +720,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let trusted_core = TrustedCoreInput::Artifact(TrustedCoreArtifactInput::for_test(core));
+        let trusted_core = TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap());
         let output = SlibOutputDestination::new(&dependency).unwrap();
 
         assert!(matches!(
@@ -752,7 +746,7 @@ mod tests {
             root: ManifestRootLocator::cone_directory(directory.0.clone()),
         };
         let dependencies = ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap();
-        let trusted_core = TrustedCoreInput::Artifact(TrustedCoreArtifactInput::for_test(core));
+        let trusted_core = TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap());
         let output = SlibOutputDestination::new(directory.0.join("output.slib")).unwrap();
 
         validate_output_isolation(&current, &dependencies, &trusted_core, &output).unwrap();

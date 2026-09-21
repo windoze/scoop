@@ -143,7 +143,7 @@ pub(super) fn validate_output_isolation(
     if let TrustedCoreInput::Artifact(core) = trusted_core {
         inputs.push((
             OutputAliasRole::TrustedCoreArtifact,
-            core.path().to_path_buf(),
+            core.as_path().to_path_buf(),
         ));
     }
     inputs.extend(

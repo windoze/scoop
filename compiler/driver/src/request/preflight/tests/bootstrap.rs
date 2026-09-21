@@ -1,5 +1,4 @@
 use super::*;
-use crate::TrustedCoreArtifactInput;
 
 #[test]
 fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
@@ -512,7 +511,7 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
             source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(TrustedCoreArtifactInput::new(core_slot.artifact()).unwrap()),
+        TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),
         DiagnosticOutputPolicy::Human,

@@ -343,7 +343,7 @@ CurrentConeInput =
   | SingleFile { source: SingleFileLocator }
 
 TrustedCoreInput =
-    Artifact(TrustedCoreArtifactInput)
+    Artifact(HostArtifactLocator)
   | BootstrapSelf
 ```
 
@@ -664,16 +664,15 @@ implementation的typed bridge；没有strong body的extern或intrinsic不会被�
 
 ### 7.4 core artifact消费
 
-普通request从指定的artifact路径读取不可变bytes，使用所有Cone共用的completed artifact closure入口验证。
-当前`ValidatedTrustedCoreArtifact`仍持有完整closure、`SemanticIdentitySession`与从同一Compile view投影的
-`ValidatedCoreInterface`，但不再持有`TrustedCoreArtifactAuthority`，也不在通用验证前重读envelope/graph。
-artifact输入只保存路径；target取自当前请求，coordinate/identity、dependency set、schema与ABI检查由通用
-artifact decoder和closure validator负责，不另存预期coordinate、target或composite ABI副本。
+请求入口把协议或默认locator提供的core artifact并入普通direct dependency集合。全部输入使用同一个
+`HostArtifactLocator`、file loader、bounded summary、coordinate与fingerprint检查、依赖排序和resource meter。
+不存在`TrustedCoreArtifactInput`/`LoadedTrustedCoreArtifact`及其独立load/validate入口。
 
-`TrustedCoreArtifactInput::load`对实际打开的regular file读取不可变bytes，并执行artifact input byte budget；
-`LoadedTrustedCoreArtifact::validate`调用通用Compile/Link closure验证。当前专用interface仍从已验证HIR
-section与MIR bridge提取，定义symbol集合和publication直接使用closure结果；这些剩余专用投影由core普通library
-工作项继续合并。任一metadata、identity、ABI或closure错误均返回共有校验原因。
+所有依赖一次性通过共有Compile/Link closure验证并提交到同一个`SemanticIdentitySession`。需要长期引用某个
+artifact时，从共有closure取得带完整Compile、Link和publication访问的成员引用；引用保留所属closure，不能把
+不同closure的索引和视图拼接。当前core HIR/MIR/LIR协议投影只从该成员读取既有typed metadata，不重新解码bytes，
+也不另外构造core closure。core和其他依赖的缺失、重复、kind、source form、ABI与闭包错误使用同一检查和诊断。
+后续专用协议投影合并由core普通library工作项跟踪。
 
 ### 7.5 M23-3 resolver边界
 

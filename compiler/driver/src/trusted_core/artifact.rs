@@ -1,7 +1,5 @@
 use std::fmt;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use scoop_hir::{
     CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
@@ -10,223 +8,43 @@ use scoop_hir::{
 };
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, CoreImportedCallableKind, Effect, ExactCallableSignature,
-    ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId, SemanticIdentitySession,
+    ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
 };
 use scoop_lir::{
     ImportedLirCallableProjectionError, ImportedLirSelectionError,
     ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
-    ValidatedLirTargetSelection,
 };
 use scoop_mir::{
     CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
     SelectedImportedMirCallable, SelectedImportedMirSet,
 };
 use scoop_slib::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeArtifactClosureValidationError,
-    CrossConeSemanticsStrongProfile, PublishableCrossConeArtifact, SlibClosureDecodeMeterV1,
-    SlibClosureResourceErrorV1, ValidatedCompileArtifact,
-    ValidatedCompletedCrossConeArtifactClosure, validate_completed_cross_cone_artifact_closure,
+    CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeSemanticsStrongProfile, SharedCrossConeArtifact,
+    ValidatedCompileArtifact, ValidatedCrossConeArtifactClosure,
 };
-use scoop_toolchain::ResolvedTargetProfile;
-use scoop_wire::{DecodeLimits, sha256};
-
-use super::TrustedCoreArtifactInput;
 
 mod projection;
 pub use projection::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TrustedCoreArtifactLoadOperation {
-    Open,
-    Inspect,
-    Read,
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ValidatedCoreInterface {
+    interface: CoreHirInterfaceV1,
+    strong_callable_bindings: Vec<PersistentExportBindingId>,
 }
 
-impl fmt::Display for TrustedCoreArtifactLoadOperation {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Open => "open",
-            Self::Inspect => "inspect",
-            Self::Read => "read",
-        })
-    }
+pub struct ValidatedTrustedCoreArtifact<'input> {
+    artifact: SharedCrossConeArtifact<'input>,
+    core_interface: ValidatedCoreInterface,
 }
 
-#[derive(Debug)]
-pub enum TrustedCoreArtifactLoadError {
-    Io {
-        operation: TrustedCoreArtifactLoadOperation,
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    NotRegularFile(PathBuf),
-    ArtifactTooLarge {
-        path: PathBuf,
-        actual: u64,
-        limit: u64,
-    },
-    Resource(SlibClosureResourceErrorV1),
-}
-
-impl fmt::Display for TrustedCoreArtifactLoadError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io {
-                operation,
-                path,
-                source,
-            } => write!(
-                formatter,
-                "cannot {operation} trusted core artifact {}: {source}",
-                path.display()
-            ),
-            Self::NotRegularFile(path) => write!(
-                formatter,
-                "trusted core artifact {} is not a regular file",
-                path.display()
-            ),
-            Self::ArtifactTooLarge {
-                path,
-                actual,
-                limit,
-            } => write!(
-                formatter,
-                "trusted core artifact {} has {actual} bytes, exceeding the {limit}-byte input limit",
-                path.display()
-            ),
-            Self::Resource(source) => source.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreArtifactLoadError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io { source, .. } => Some(source),
-            Self::Resource(source) => Some(source),
-            Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct LoadedTrustedCoreArtifact {
-    input: TrustedCoreArtifactInput,
-    bytes: Vec<u8>,
-    limits: DecodeLimits,
-}
-
-impl TrustedCoreArtifactInput {
-    pub fn load(
-        self,
-        limits: DecodeLimits,
-    ) -> Result<LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError> {
-        let path = self.path.clone();
-        let file = File::open(&path).map_err(|source| TrustedCoreArtifactLoadError::Io {
-            operation: TrustedCoreArtifactLoadOperation::Open,
-            path: path.clone(),
-            source,
-        })?;
-        let metadata = file
-            .metadata()
-            .map_err(|source| TrustedCoreArtifactLoadError::Io {
-                operation: TrustedCoreArtifactLoadOperation::Inspect,
-                path: path.clone(),
-                source,
-            })?;
-        if !metadata.is_file() {
-            return Err(TrustedCoreArtifactLoadError::NotRegularFile(path));
-        }
-        require_input_size(&path, metadata.len(), limits.owned_bytes)?;
-
-        let mut bytes = Vec::new();
-        file.take(limits.owned_bytes.saturating_add(1))
-            .read_to_end(&mut bytes)
-            .map_err(|source| TrustedCoreArtifactLoadError::Io {
-                operation: TrustedCoreArtifactLoadOperation::Read,
-                path: path.clone(),
-                source,
-            })?;
-        let actual = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-        require_input_size(&path, actual, limits.owned_bytes)?;
-        Ok(LoadedTrustedCoreArtifact {
-            input: self,
-            bytes,
-            limits,
-        })
-    }
-
-    pub(crate) fn load_metered(
-        self,
-        limits: DecodeLimits,
-        meter: &mut SlibClosureDecodeMeterV1,
-    ) -> Result<LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError> {
-        let loaded = self.load(limits)?;
-        let byte_length = u64::try_from(loaded.bytes.len()).unwrap_or(u64::MAX);
-        meter
-            .observe_raw_artifact_snapshot(sha256(&loaded.bytes), byte_length)
-            .map_err(TrustedCoreArtifactLoadError::Resource)?;
-        Ok(loaded)
-    }
-}
-
-fn require_input_size(
-    path: &Path,
-    actual: u64,
-    limit: u64,
-) -> Result<(), TrustedCoreArtifactLoadError> {
-    if actual > limit {
-        Err(TrustedCoreArtifactLoadError::ArtifactTooLarge {
-            path: path.to_path_buf(),
-            actual,
-            limit,
-        })
-    } else {
-        Ok(())
-    }
-}
-
-impl LoadedTrustedCoreArtifact {
-    pub fn path(&self) -> &Path {
-        self.input.path()
-    }
-
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    pub(crate) const fn limits(&self) -> DecodeLimits {
-        self.limits
-    }
-
-    pub fn validate<'input>(
-        &'input self,
-        target: &ResolvedTargetProfile,
-    ) -> Result<ValidatedTrustedCoreArtifact<'input>, TrustedCoreArtifactValidationError> {
-        self.validate_against(
-            target.lir_target_selection(),
-            target.c_bridge_toolchain().profile(),
-        )
-    }
-
-    fn validate_against<'input>(
-        &'input self,
-        target_selection: ValidatedLirTargetSelection,
-        c_bridge_profile: &scoop_lir::CBridgeToolchainProfileV1,
-    ) -> Result<ValidatedTrustedCoreArtifact<'input>, TrustedCoreArtifactValidationError> {
-        let mut semantic_session = SemanticIdentitySession::new();
-        let closure = validate_completed_cross_cone_artifact_closure(
-            ConeIdentity::CORE,
-            target_selection,
-            Vec::new(),
-            Vec::new(),
-            &self.bytes,
-            self.limits,
-            c_bridge_profile,
-            &mut semantic_session,
-        )
-        .map_err(|source| TrustedCoreArtifactValidationError::Closure(Box::new(source)))?;
-        let compile = closure.current_compile();
+impl<'input> ValidatedTrustedCoreArtifact<'input> {
+    pub(crate) fn from_closure(
+        closure: &Rc<ValidatedCrossConeArtifactClosure<'input>>,
+    ) -> Result<Self, TrustedCoreArtifactValidationError> {
+        let artifact = closure
+            .share_artifact(ConeIdentity::CORE)
+            .ok_or(TrustedCoreArtifactValidationError::MissingCore)?;
+        let compile = artifact.compile();
         let interface = match compile.production().hir_core().core_interface() {
             CoreHirInterfaceBranchV1::Core(interface) => interface.as_ref().clone(),
             CoreHirInterfaceBranchV1::NotCore => {
@@ -243,40 +61,19 @@ impl LoadedTrustedCoreArtifact {
                 return Err(TrustedCoreArtifactValidationError::MissingCoreMirBridge);
             }
         };
-        let core_interface = ValidatedCoreInterface {
-            interface,
-            strong_callable_bindings,
-        };
-
-        Ok(ValidatedTrustedCoreArtifact {
-            closure,
-            core_interface,
-            _semantic_session: semantic_session,
+        Ok(Self {
+            artifact,
+            core_interface: ValidatedCoreInterface {
+                interface,
+                strong_callable_bindings,
+            },
         })
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ValidatedCoreInterface {
-    interface: CoreHirInterfaceV1,
-    strong_callable_bindings: Vec<PersistentExportBindingId>,
-}
-
-pub struct ValidatedTrustedCoreArtifact<'input> {
-    closure: ValidatedCompletedCrossConeArtifactClosure<'input>,
-    core_interface: ValidatedCoreInterface,
-    // Retained as the owner of the session-local identity world. It is not a
-    // lookup surface and deliberately has no projection getter.
-    _semantic_session: SemanticIdentitySession,
-}
-
-impl<'input> ValidatedTrustedCoreArtifact<'input> {
-    fn compile(&self) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
-        self.closure.current_compile()
-    }
-
-    pub fn dependency_record(&self) -> scoop_slib::DependencyRecord {
-        self.compile().dependency_record()
+    pub(crate) fn compile(
+        &self,
+    ) -> &ValidatedCompileArtifact<'input, CrossConeSemanticsStrongProfile> {
+        self.artifact.compile()
     }
 
     /// Atomically projects the only HIR lookup and compiler-protocol
@@ -289,18 +86,14 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         )
     }
 
-    pub fn publication(&self) -> &PublishableCrossConeArtifact {
-        self.closure.current_publication()
-    }
-
     pub fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
-        self.closure.current_link().defined_symbols()
+        self.artifact.link().defined_symbols()
     }
 }
 
 #[derive(Debug)]
 pub enum TrustedCoreArtifactValidationError {
-    Closure(Box<CrossConeArtifactClosureValidationError>),
+    MissingCore,
     MissingCoreInterface,
     MissingCoreMirBridge,
 }
@@ -308,9 +101,7 @@ pub enum TrustedCoreArtifactValidationError {
 impl fmt::Display for TrustedCoreArtifactValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Closure(error) => {
-                write!(formatter, "trusted core closure validation failed: {error}")
-            }
+            Self::MissingCore => formatter.write_str("dependency closure has no core artifact"),
             Self::MissingCoreInterface => {
                 formatter.write_str("trusted core Compile proof has no Core HIR interface")
             }
@@ -321,140 +112,4 @@ impl fmt::Display for TrustedCoreArtifactValidationError {
     }
 }
 
-impl std::error::Error for TrustedCoreArtifactValidationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Closure(error) => Some(error.as_ref()),
-            Self::MissingCoreInterface | Self::MissingCoreMirBridge => None,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use scoop_hir::CanonicalHirFoundation;
-    use scoop_identity::ConeCoordinate;
-    use scoop_lir::{
-        AppleClangCompilerIdentityV1, CBridgeToolchainProfileV1, CanonicalLirFoundation,
-        DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    };
-    use scoop_mir::CanonicalMirFoundation;
-    use scoop_slib::{
-        ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-        IdentityFoundationArtifactInput, ProducerRecord,
-    };
-
-    use super::*;
-
-    #[test]
-    fn loader_binds_the_exact_opened_bytes_and_budget() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("scoop.core.slib");
-        std::fs::write(&path, b"trusted bytes").unwrap();
-        let input = TrustedCoreArtifactInput::for_test(path.clone());
-
-        let loaded = input.load(DecodeLimits::default()).unwrap();
-
-        assert_eq!(loaded.path(), path);
-        assert_eq!(loaded.bytes(), b"trusted bytes");
-    }
-
-    #[test]
-    fn loader_rejects_an_artifact_larger_than_the_owned_input_budget() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("scoop.core.slib");
-        std::fs::write(&path, b"oversized").unwrap();
-        let limits = DecodeLimits {
-            owned_bytes: 4,
-            ..DecodeLimits::default()
-        };
-
-        assert!(matches!(
-            TrustedCoreArtifactInput::for_test(path.clone()).load(limits),
-            Err(TrustedCoreArtifactLoadError::ArtifactTooLarge {
-                path: actual_path,
-                actual: 9,
-                limit: 4,
-            }) if actual_path == path
-        ));
-    }
-
-    #[test]
-    fn validation_rejects_a_foundation_artifact_through_the_common_profile_decoder() {
-        let coordinate = ConeCoordinate::new("test", "ordinary", "0.0.0").unwrap();
-        let bytes = foundation_artifact(
-            ConeRecord::new(
-                coordinate.clone(),
-                ConeKind::Library,
-                ConeSourceForm::Manifest,
-            )
-            .unwrap(),
-        );
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("scoop.core.slib");
-        std::fs::write(&path, bytes).unwrap();
-        let loaded = TrustedCoreArtifactInput::for_test(path)
-            .load(DecodeLimits::default())
-            .unwrap();
-
-        assert!(matches!(
-            loaded.validate_against(selection(), &c_bridge_profile()),
-            Err(TrustedCoreArtifactValidationError::Closure(error))
-                if matches!(error.as_ref(), CrossConeArtifactClosureValidationError::CompileSections { .. })
-        ));
-    }
-
-    #[test]
-    fn validation_requires_the_common_strong_profile_for_core() {
-        let bytes = foundation_artifact(
-            ConeRecord::new(
-                ConeCoordinate::reserved_core(),
-                ConeKind::Library,
-                ConeSourceForm::Manifest,
-            )
-            .unwrap(),
-        );
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("scoop.core.slib");
-        std::fs::write(&path, bytes).unwrap();
-        let loaded = TrustedCoreArtifactInput::for_test(path)
-            .load(DecodeLimits::default())
-            .unwrap();
-
-        assert!(matches!(
-            loaded.validate_against(selection(), &c_bridge_profile()),
-            Err(TrustedCoreArtifactValidationError::Closure(_))
-        ));
-    }
-
-    fn foundation_artifact(cone: ConeRecord) -> Vec<u8> {
-        IdentityFoundationArtifact::write(IdentityFoundationArtifactInput::new(
-            ProducerRecord::new("trusted-core-test").unwrap(),
-            cone,
-            selection(),
-            &CanonicalHirFoundation::empty(),
-            &CanonicalMirFoundation::empty(),
-            &CanonicalLirFoundation::empty(),
-        ))
-        .unwrap()
-        .as_bytes()
-        .to_vec()
-    }
-
-    fn selection() -> ValidatedLirTargetSelection {
-        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
-    }
-
-    fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
-        CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
-            DarwinCBridgeDeploymentContractV1::new(
-                DarwinPackedVersionV1::new(0x000d_0100).unwrap(),
-                DarwinPackedVersionV1::new(0x000e_0200).unwrap(),
-                Vec::new(),
-            )
-            .unwrap(),
-            AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
-        )
-        .unwrap()
-    }
-}
+impl std::error::Error for TrustedCoreArtifactValidationError {}

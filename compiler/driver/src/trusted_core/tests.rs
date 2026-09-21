@@ -42,19 +42,3 @@ fn resolver_returns_default_source_and_artifact_locations() {
     assert_eq!(slot.source_root(), sysroot.0.join("lib/scoop.core"));
     assert!(!slot.source_root().exists());
 }
-
-#[test]
-fn artifact_input_accepts_a_regular_file_outside_the_default_location() {
-    let sysroot = TempDirectory::new();
-    let configured = sysroot.artifact_path();
-    std::fs::create_dir_all(configured.parent().unwrap()).unwrap();
-    std::fs::write(&configured, b"configured core").unwrap();
-    let other = sysroot.0.join("other.slib");
-    std::fs::write(&other, b"rebuilt core").unwrap();
-
-    let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
-    let input = TrustedCoreArtifactInput::new(slot.artifact()).unwrap();
-    assert_eq!(input.path(), configured);
-    let input = TrustedCoreArtifactInput::new(&other).unwrap();
-    assert_eq!(input.path(), other);
-}

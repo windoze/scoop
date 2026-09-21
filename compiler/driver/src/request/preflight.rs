@@ -1,5 +1,6 @@
 use std::fmt;
 use std::path::Path;
+use std::rc::Rc;
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_hir::CoreInterfaceImportError;
@@ -11,7 +12,7 @@ use scoop_manifest::{
     load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
-use scoop_slib::{PrebuiltManifestSummaryError, SlibClosureResourceErrorV1};
+use scoop_slib::SlibClosureResourceErrorV1;
 #[cfg(test)]
 use scoop_slib::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
 use scoop_wire::DecodeLimits;
@@ -21,10 +22,7 @@ use super::{
     DiagnosticOutputPolicy, EmittedStageDump, SingleConeBuildRequest, SingleConeProductionSuccess,
     SlibOutputDestination, StageDumpKind, StageDumpPolicy, TrustedCoreInput,
 };
-use crate::{
-    CrossConeStrongIrProductionV1, LoadedTrustedCoreArtifact, TrustedCoreArtifactLoadError,
-    TrustedCoreArtifactValidationError, ValidatedTrustedCoreArtifact,
-};
+use crate::{CrossConeStrongIrProductionV1, ValidatedTrustedCoreArtifact};
 
 mod bootstrap;
 mod dependencies;
@@ -53,19 +51,20 @@ pub struct ValidatedExplicitDependencyInputSet<'input> {
 enum ValidatedDependencyInputState<'input> {
     BootstrapEmpty,
     Ordinary {
-        closure: Box<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
+        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
         dependency_first: Vec<&'input [u8]>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
-        explicit_count: usize,
         _semantic_session: SemanticIdentitySession,
     },
 }
 
 impl<'input> ValidatedExplicitDependencyInputSet<'input> {
-    pub const fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         match &self.state {
             ValidatedDependencyInputState::BootstrapEmpty => true,
-            ValidatedDependencyInputState::Ordinary { explicit_count, .. } => *explicit_count == 0,
+            ValidatedDependencyInputState::Ordinary { closure, .. } => {
+                closure.artifact_count() == 0
+            }
         }
     }
 
@@ -76,18 +75,16 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
     }
 
     pub(crate) fn ordinary(
-        closure: scoop_slib::ValidatedCrossConeArtifactClosure<'input>,
+        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure<'input>>,
         dependency_first: Vec<&'input [u8]>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
-        explicit_count: usize,
         semantic_session: SemanticIdentitySession,
     ) -> Self {
         Self {
             state: ValidatedDependencyInputState::Ordinary {
-                closure: Box::new(closure),
+                closure,
                 dependency_first,
                 direct_dependencies,
-                explicit_count,
                 _semantic_session: semantic_session,
             },
         }
@@ -133,16 +130,9 @@ pub enum LoadedCurrentConeInput {
 }
 
 #[derive(Debug)]
-pub enum LoadedTrustedCoreInput {
-    Artifact(Box<LoadedTrustedCoreArtifact>),
-    BootstrapSelf,
-}
-
-#[derive(Debug)]
 pub struct LoadedSingleConeBuildRequest {
     current: LoadedCurrentConeInput,
     dependencies: LoadedExplicitDependencyInputs,
-    trusted_core: LoadedTrustedCoreInput,
     target: scoop_toolchain::ResolvedTargetProfile,
     output: SlibOutputDestination,
     diagnostics: DiagnosticOutputPolicy,
@@ -250,23 +240,12 @@ impl LoadedSingleConeBuildRequest {
 
 #[derive(Debug)]
 pub enum CoreOnlyRequestValidationError {
-    InvalidLoadedInputPair,
-    CurrentIdentity(scoop_wire::HashError),
-    Resource(SlibClosureResourceErrorV1),
-    TrustedCoreSummary(Box<PrebuiltManifestSummaryError>),
-    TrustedCore(Box<TrustedCoreArtifactValidationError>),
     ExplicitDependencies(Box<ExplicitDependencyValidationError>),
 }
 
 impl fmt::Display for CoreOnlyRequestValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidLoadedInputPair => formatter
-                .write_str("loaded current Cone and trusted core inputs are not a permitted pair"),
-            Self::CurrentIdentity(source) => source.fmt(formatter),
-            Self::Resource(source) => source.fmt(formatter),
-            Self::TrustedCoreSummary(source) => source.fmt(formatter),
-            Self::TrustedCore(source) => source.fmt(formatter),
             Self::ExplicitDependencies(source) => source.fmt(formatter),
         }
     }
@@ -275,11 +254,6 @@ impl fmt::Display for CoreOnlyRequestValidationError {
 impl std::error::Error for CoreOnlyRequestValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::InvalidLoadedInputPair => None,
-            Self::CurrentIdentity(source) => Some(source),
-            Self::Resource(source) => Some(source),
-            Self::TrustedCoreSummary(source) => Some(source.as_ref()),
-            Self::TrustedCore(source) => Some(source.as_ref()),
             Self::ExplicitDependencies(source) => Some(source.as_ref()),
         }
     }
@@ -537,7 +511,6 @@ impl std::error::Error for CurrentConeSourceStageError {
 pub enum SingleConePreflightError {
     Manifest(Box<ManifestRootError>),
     ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
-    TrustedCoreLoad(Box<TrustedCoreArtifactLoadError>),
 }
 
 impl fmt::Display for SingleConePreflightError {
@@ -545,7 +518,6 @@ impl fmt::Display for SingleConePreflightError {
         match self {
             Self::Manifest(source) => source.fmt(formatter),
             Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
-            Self::TrustedCoreLoad(source) => source.fmt(formatter),
         }
     }
 }
@@ -555,7 +527,6 @@ impl std::error::Error for SingleConePreflightError {
         match self {
             Self::Manifest(source) => Some(source.as_ref()),
             Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
-            Self::TrustedCoreLoad(source) => Some(source.as_ref()),
         }
     }
 }

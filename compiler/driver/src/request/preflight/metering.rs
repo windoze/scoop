@@ -4,12 +4,9 @@ use scoop_manifest::{
     SourceDiscoveryLimits, discover_manifest_sources_with_limits,
     load_single_file_source_with_limit,
 };
-use scoop_slib::{
-    SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1,
-    probe_prebuilt_manifest_summary,
-};
+use scoop_slib::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
 use scoop_toolchain::ResolvedSlibClosureLimitsV1;
-use scoop_wire::{DecodeLimits, sha256};
+use scoop_wire::DecodeLimits;
 
 use super::*;
 
@@ -51,11 +48,11 @@ impl SingleConeBuildRequest {
     pub(super) fn load_preflight_inner(
         self,
         limits: DecodeLimits,
-        mut meter: Option<&mut SlibClosureDecodeMeterV1>,
+        meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
         let Self {
             current,
-            dependencies,
+            mut dependencies,
             trusted_core,
             target,
             output,
@@ -63,7 +60,10 @@ impl SingleConeBuildRequest {
             emit,
         } = self;
         let current = load_current_input(current)?;
-        let dependencies = match meter.as_deref_mut() {
+        if let TrustedCoreInput::Artifact(input) = trusted_core {
+            dependencies.direct.push(input);
+        }
+        let dependencies = match meter {
             Some(meter) => LoadedExplicitDependencyInputs::load_metered(
                 dependencies.direct(),
                 dependencies.support(),
@@ -77,21 +77,9 @@ impl SingleConeBuildRequest {
             ),
         }
         .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
-        let trusted_core = match trusted_core {
-            TrustedCoreInput::Artifact(input) => {
-                let loaded = match meter {
-                    Some(meter) => input.load_metered(limits, meter),
-                    None => input.load(limits),
-                }
-                .map_err(|source| SingleConePreflightError::TrustedCoreLoad(Box::new(source)))?;
-                LoadedTrustedCoreInput::Artifact(Box::new(loaded))
-            }
-            TrustedCoreInput::BootstrapSelf => LoadedTrustedCoreInput::BootstrapSelf,
-        };
         Ok(LoadedSingleConeBuildRequest {
             current,
             dependencies,
-            trusted_core,
             target,
             output,
             diagnostics,
@@ -113,87 +101,10 @@ impl LoadedSingleConeBuildRequest {
         &self,
         mut meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
-        let (current, dependencies) = match (&self.current, &self.trusted_core) {
-            (
-                LoadedCurrentConeInput::Manifest { manifest },
-                LoadedTrustedCoreInput::Artifact(artifact),
-            ) => {
-                let trusted_core = Box::new(validate_trusted_core_input(
-                    artifact,
-                    &self.target,
-                    meter.as_deref_mut(),
-                )?);
-                let current_identity = manifest
-                    .parsed()
-                    .semantic()
-                    .coordinate()
-                    .identity()
-                    .map_err(CoreOnlyRequestValidationError::CurrentIdentity)?;
-                let dependencies = match meter {
-                    Some(meter) => self.dependencies.validate_metered(
-                        Some(manifest),
-                        current_identity,
-                        trusted_core.as_ref(),
-                        artifact.bytes(),
-                        &self.target,
-                        meter,
-                    ),
-                    None => self.dependencies.validate(
-                        Some(manifest),
-                        current_identity,
-                        trusted_core.as_ref(),
-                        artifact.bytes(),
-                        &self.target,
-                    ),
-                }
-                .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::Manifest {
-                        manifest,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
-            }
-            (
-                LoadedCurrentConeInput::SingleFile { source },
-                LoadedTrustedCoreInput::Artifact(artifact),
-            ) => {
-                let trusted_core = Box::new(validate_trusted_core_input(
-                    artifact,
-                    &self.target,
-                    meter.as_deref_mut(),
-                )?);
-                let dependencies = match meter {
-                    Some(meter) => self.dependencies.validate_metered(
-                        None,
-                        ConeIdentity::SINGLE_FILE,
-                        trusted_core.as_ref(),
-                        artifact.bytes(),
-                        &self.target,
-                        meter,
-                    ),
-                    None => self.dependencies.validate(
-                        None,
-                        ConeIdentity::SINGLE_FILE,
-                        trusted_core.as_ref(),
-                        artifact.bytes(),
-                        &self.target,
-                    ),
-                }
-                .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
-                (
-                    ValidatedCurrentConeInput::SingleFile {
-                        source,
-                        trusted_core,
-                    },
-                    dependencies,
-                )
-            }
-            (
-                LoadedCurrentConeInput::Manifest { manifest },
-                LoadedTrustedCoreInput::BootstrapSelf,
-            ) => {
+        let (current, dependencies) = match &self.current {
+            LoadedCurrentConeInput::Manifest { manifest }
+                if manifest.identity() == ConeIdentity::CORE =>
+            {
                 let dependencies = match meter {
                     Some(meter) => self.dependencies.validate_bootstrap_empty_metered(meter),
                     None => self.dependencies.validate_bootstrap_empty(),
@@ -204,7 +115,37 @@ impl LoadedSingleConeBuildRequest {
                     dependencies,
                 )
             }
-            _ => return Err(CoreOnlyRequestValidationError::InvalidLoadedInputPair),
+            LoadedCurrentConeInput::Manifest { manifest } => {
+                let (dependencies, trusted_core) = self
+                    .dependencies
+                    .validate_inner(
+                        Some(manifest),
+                        manifest.identity(),
+                        &self.target,
+                        meter.as_deref_mut(),
+                    )
+                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
+                (
+                    ValidatedCurrentConeInput::Manifest {
+                        manifest,
+                        trusted_core,
+                    },
+                    dependencies,
+                )
+            }
+            LoadedCurrentConeInput::SingleFile { source } => {
+                let (dependencies, trusted_core) = self
+                    .dependencies
+                    .validate_inner(None, ConeIdentity::SINGLE_FILE, &self.target, meter)
+                    .map_err(CoreOnlyRequestValidationError::ExplicitDependencies)?;
+                (
+                    ValidatedCurrentConeInput::SingleFile {
+                        source,
+                        trusted_core,
+                    },
+                    dependencies,
+                )
+            }
         };
         Ok(ValidatedCoreOnlyBuildRequest {
             request: self,
@@ -219,56 +160,6 @@ impl LoadedSingleConeBuildRequest {
     ) -> Result<ValidatedCoreOnlyBuildRequest<'_>, CoreOnlyRequestValidationError> {
         self.validate_inner(Some(meter))
     }
-}
-
-fn validate_trusted_core_input<'input>(
-    artifact: &'input LoadedTrustedCoreArtifact,
-    target: &scoop_toolchain::ResolvedTargetProfile,
-    mut meter: Option<&mut SlibClosureDecodeMeterV1>,
-) -> Result<ValidatedTrustedCoreArtifact<'input>, CoreOnlyRequestValidationError> {
-    let snapshot = sha256(artifact.bytes());
-    if let Some(meter) = meter.as_deref_mut() {
-        let summary = probe_prebuilt_manifest_summary(
-            artifact.bytes(),
-            artifact.limits(),
-            target.lir_target_selection(),
-        )
-        .map_err(|source| CoreOnlyRequestValidationError::TrustedCoreSummary(Box::new(source)))?;
-        meter
-            .observe_artifact_snapshot(&summary, snapshot)
-            .map_err(CoreOnlyRequestValidationError::Resource)?;
-        meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::GraphSummary,
-                summary.artifact_fingerprint(),
-                snapshot,
-                summary.decode_usage(),
-            )
-            .map_err(CoreOnlyRequestValidationError::Resource)?;
-    }
-    let validated = artifact
-        .validate(target)
-        .map_err(|source| CoreOnlyRequestValidationError::TrustedCore(Box::new(source)))?;
-    if let Some(meter) = meter {
-        let publication = validated.publication();
-        meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::Compile,
-                publication.artifact_fingerprint(),
-                snapshot,
-                publication.compile_summary().decode_usage(),
-            )
-            .map_err(CoreOnlyRequestValidationError::Resource)?;
-        meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::Link,
-                publication.artifact_fingerprint(),
-                snapshot,
-                publication.link_summary().decode_usage(),
-            )
-            .map_err(CoreOnlyRequestValidationError::Resource)?;
-    }
-    Ok(validated)
 }
 
 impl<'input> ValidatedCoreOnlyBuildRequest<'input> {

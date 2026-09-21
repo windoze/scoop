@@ -152,9 +152,7 @@ pub enum ExplicitDependencyValidationError {
     BootstrapArtifact {
         input: ExplicitDependencyArtifactInput,
     },
-    ReservedCoreArtifact {
-        input: ExplicitDependencyArtifactInput,
-    },
+    CoreInterface(crate::TrustedCoreArtifactValidationError),
     CurrentConeArtifact {
         input: ExplicitDependencyArtifactInput,
         identity: ConeIdentity,
@@ -231,10 +229,7 @@ impl fmt::Display for ExplicitDependencyValidationError {
                 formatter,
                 "trusted-core bootstrap cannot accept dependency {input}"
             ),
-            Self::ReservedCoreArtifact { input } => write!(
-                formatter,
-                "dependency {input} occupies the reserved trusted-core identity"
-            ),
+            Self::CoreInterface(source) => source.fmt(formatter),
             Self::CurrentConeArtifact { input, identity } => write!(
                 formatter,
                 "dependency {input} has the current Cone identity {identity}"
@@ -331,9 +326,9 @@ impl std::error::Error for ExplicitDependencyValidationError {
             Self::Resource(source) => Some(source),
             Self::Summary { source, .. } => Some(source.as_ref()),
             Self::Closure(source) => Some(source.as_ref()),
+            Self::CoreInterface(source) => Some(source),
             Self::ManifestIdentity { source, .. } => Some(source),
-            Self::ReservedCoreArtifact { .. }
-            | Self::BootstrapArtifact { .. }
+            Self::BootstrapArtifact { .. }
             | Self::CurrentConeArtifact { .. }
             | Self::UnsupportedArtifactShape { .. }
             | Self::DuplicateIdentity { .. }

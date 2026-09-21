@@ -7,28 +7,6 @@ use scoop_toolchain::TrustedCoreSlotLayoutV1;
 mod artifact;
 pub use artifact::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TrustedCoreArtifactInput {
-    path: PathBuf,
-}
-
-impl TrustedCoreArtifactInput {
-    pub fn new(path: &Path) -> Result<Self, TrustedCoreArtifactInputError> {
-        Ok(Self {
-            path: canonical_regular_file(path)?,
-        })
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    #[cfg(test)]
-    pub(crate) fn for_test(path: PathBuf) -> Self {
-        Self { path }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TrustedCoreSlotIoOperation {
     CanonicalizeSysroot,
@@ -100,43 +78,6 @@ impl std::error::Error for TrustedCoreSlotError {
     }
 }
 
-#[derive(Debug)]
-pub enum TrustedCoreArtifactInputError {
-    Io {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    NotRegularFile(PathBuf),
-}
-
-impl fmt::Display for TrustedCoreArtifactInputError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io { path, source } => {
-                write!(
-                    formatter,
-                    "cannot resolve core artifact {}: {source}",
-                    path.display()
-                )
-            }
-            Self::NotRegularFile(path) => write!(
-                formatter,
-                "trusted core artifact {} is not a regular file",
-                path.display()
-            ),
-        }
-    }
-}
-
-impl std::error::Error for TrustedCoreArtifactInputError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Io { source, .. } => Some(source),
-            Self::NotRegularFile(_) => None,
-        }
-    }
-}
-
 pub fn resolve_trusted_core_slot(
     target: ValidatedLirTargetSelection,
 ) -> Result<TrustedCoreSlotLayoutV1, TrustedCoreSlotError> {
@@ -180,23 +121,6 @@ pub(crate) fn resolve_trusted_core_slot_at(
     }
 
     Ok(TrustedCoreSlotLayoutV1::new(&real_sysroot, target))
-}
-
-fn canonical_regular_file(path: &Path) -> Result<PathBuf, TrustedCoreArtifactInputError> {
-    let canonical =
-        std::fs::canonicalize(path).map_err(|source| TrustedCoreArtifactInputError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-    let metadata =
-        std::fs::metadata(&canonical).map_err(|source| TrustedCoreArtifactInputError::Io {
-            path: canonical.clone(),
-            source,
-        })?;
-    if !metadata.is_file() {
-        return Err(TrustedCoreArtifactInputError::NotRegularFile(canonical));
-    }
-    Ok(canonical)
 }
 
 #[cfg(test)]

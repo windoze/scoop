@@ -11,7 +11,6 @@ use super::{
     DependencyValidationResult, ExplicitDependencyArtifactInput, ExplicitDependencyRole,
     ExplicitDependencyValidationError,
 };
-use crate::ValidatedTrustedCoreArtifact;
 
 pub(super) struct ValidatedDependencyNode<'input> {
     pub(super) input: ExplicitDependencyArtifactInput,
@@ -25,7 +24,6 @@ pub(super) fn validate_artifact_shape(
     current_identity: ConeIdentity,
 ) -> DependencyValidationResult<()> {
     let cone = summary.cone();
-    debug_assert_ne!(cone.identity(), ConeIdentity::CORE);
     debug_assert_ne!(cone.identity(), current_identity);
     if cone.kind() != ConeKind::Library || cone.source_form() != ConeSourceForm::Manifest {
         return Err(
@@ -42,7 +40,6 @@ pub(super) fn validate_artifact_shape(
 
 pub(super) fn validate_manifest_direct_set(
     manifest: Option<&LoadedConeManifest>,
-    trusted_core: &ValidatedTrustedCoreArtifact<'_>,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
@@ -68,13 +65,11 @@ pub(super) fn validate_manifest_direct_set(
     declared
         .entry(ConeIdentity::CORE)
         .or_insert_with(ConeCoordinate::reserved_core);
-    let mut actual = nodes
+    let actual = nodes
         .iter()
         .filter(|(_, node)| node.input.role == ExplicitDependencyRole::Direct)
         .map(|(identity, node)| (*identity, node.summary.cone().coordinate().clone()))
         .collect::<BTreeMap<_, _>>();
-    let core = trusted_core.dependency_record();
-    actual.insert(core.identity(), core.coordinate().clone());
     if declared != actual {
         return Err(ExplicitDependencyValidationError::ManifestDirectSet {
             declared: declared.into_values().collect(),
@@ -87,10 +82,8 @@ pub(super) fn validate_manifest_direct_set(
 
 pub(super) fn validate_dependency_records(
     current_identity: ConeIdentity,
-    trusted_core: &ValidatedTrustedCoreArtifact<'_>,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
 ) -> DependencyValidationResult<()> {
-    let core_record = trusted_core.dependency_record();
     for node in nodes.values() {
         let cone = node.summary.cone();
         for dependency in node.summary.direct_dependencies() {
@@ -106,18 +99,6 @@ pub(super) fn validate_dependency_records(
                     dependency: dependency.coordinate().clone(),
                 }
                 .into());
-            }
-            if dependency.identity() == ConeIdentity::CORE {
-                if dependency != &core_record {
-                    return Err(
-                        ExplicitDependencyValidationError::DependencyRecordMismatch {
-                            coordinate: cone.coordinate().clone(),
-                            dependency: dependency.coordinate().clone(),
-                        }
-                        .into(),
-                    );
-                }
-                continue;
             }
             let Some(target) = nodes.get(&dependency.identity()) else {
                 return Err(
@@ -403,7 +384,7 @@ pub(super) fn charge_graph_edges_and_depth(
             },
         ))
     })?;
-    let depth = dependency_depth.checked_add(2).ok_or_else(|| {
+    let depth = dependency_depth.checked_add(1).ok_or_else(|| {
         Box::new(ExplicitDependencyValidationError::Resource(
             SlibClosureResourceErrorV1::Overflow {
                 resource: SlibClosureResourceKindV1::GraphDepth,

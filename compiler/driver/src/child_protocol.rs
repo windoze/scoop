@@ -118,18 +118,6 @@ fn production_error_code(error: &scoopc::SingleConeProductionError) -> &'static 
         {
             GRAPH_RESOURCE_ERROR_CODE
         }
-        scoopc::SingleConeProductionError::Preflight(
-            scoopc::SingleConePreflightError::TrustedCoreLoad(source),
-        ) if matches!(
-            source.as_ref(),
-            scoopc::TrustedCoreArtifactLoadError::Resource(_)
-        ) =>
-        {
-            GRAPH_RESOURCE_ERROR_CODE
-        }
-        scoopc::SingleConeProductionError::Validation(
-            scoopc::CoreOnlyRequestValidationError::Resource(_),
-        ) => GRAPH_RESOURCE_ERROR_CODE,
         scoopc::SingleConeProductionError::Validation(
             scoopc::CoreOnlyRequestValidationError::ExplicitDependencies(source),
         ) if matches!(
