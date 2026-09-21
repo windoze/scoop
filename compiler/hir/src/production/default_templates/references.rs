@@ -74,7 +74,7 @@ pub(super) fn project(
         types.push(ExportDefaultReferenceV1::new(
             projection
                 .entities
-                .type_key(reference.target, projection.binders)?,
+                .reference_type(reference.target, projection.binders)?,
             origin(projection.entities.export(), reference.origin)?,
             witness(
                 projection,

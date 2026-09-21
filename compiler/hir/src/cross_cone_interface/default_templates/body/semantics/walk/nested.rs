@@ -23,11 +23,13 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_captures(pending, depth, function.captures())?;
-        self.push_type(
-            pending,
-            function.function_type(),
-            DefaultBodyProviderTypeSiteV1::NestedCallableFunction,
+        self.meter.charge_edges(1, self.path).map_err(M::resource)?;
+        self.meter.charge_work(1, self.path).map_err(M::resource)?;
+        self.mode.validate_local_function_signature(
+            function,
             definition_origin,
+            self.meter,
+            self.path,
         )
     }
 

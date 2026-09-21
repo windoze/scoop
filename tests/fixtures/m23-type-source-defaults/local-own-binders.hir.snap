@@ -1,0 +1,164 @@
+  class LocalGenericHost()
+  class GenericLocalHost<H>(stored: T0)
+    field1 property10: T0
+    property10 val stored: T0 getter10=storage <stored field1 init=parameter11>
+  fun genericLocalDependency<Unused, T>(seed: T1, value: T1): T1
+    return
+      Local value : T1
+  fun main(): Unit
+    val local0
+      ClassInit LocalGenericHost : LocalGenericHost
+    val local1
+      Local plain : LocalGenericHost
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local4 body=$local.1.keep captures=1
+      val local4
+        Local $parameter.seed : Int
+      val local5
+        Local $argument.0 : Int
+      assign $result.1
+        LocalFunctionCall local4 $local.1.keep<Int, Int> captures=1 : Int
+          Local $parameter.seed : Int
+          Local $parameter.unused : Int
+    else
+      assign $result.1
+        Local $parameter.seed : Int
+    val local7
+      Local $result.1 : Int
+    MethodCall LocalGenericHost.pick : Int
+      Local $receiver : LocalGenericHost
+      Local $parameter.seed : Int
+      Local $parameter.value : Int
+    val local8
+      StringLiteral "stored" : String
+    val local9
+      Local $argument.0 : String
+    val local10
+      ClassInit GenericLocalHost<String> : GenericLocalHost<String>
+        Local $parameter.stored : String
+    val local11
+      Local generic : GenericLocalHost<String>
+    val local12
+      IntegerLiteral 1 : Int
+    val local13
+      StringLiteral "direct" : String
+    val local14
+      Local $argument.0 : Int
+    val local15
+      Local $argument.1 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local5 body=$local.2.combine captures=2
+      val local16
+        Local $parameter.first : Int
+      val local17
+        Local $argument.0 : Int
+      assign $result.2
+        LocalFunctionCall local5 $local.2.combine<String, Int, String, Int> captures=2 : (String, String)
+          Local $receiver : GenericLocalHost<String>
+          Local $parameter.second : String
+          Local $parameter.unused : Int
+    else
+      assign $result.2
+        TupleLiteral : (String, String)
+          FieldAccess class field stored : String
+            Local $receiver : GenericLocalHost<String>
+          Local $parameter.second : String
+    val local19
+      Local $result.2 : (String, String)
+    MethodCall GenericLocalHost.direct : (String, String)
+      Local $receiver : GenericLocalHost<String>
+      Local $parameter.first : Int
+      Local $parameter.second : String
+      Local $parameter.value : (String, String)
+    val local20
+      Local generic : GenericLocalHost<String>
+    val local21
+      IntegerLiteral 2 : Int
+    val local22
+      StringLiteral "expanded" : String
+    val local23
+      Local $argument.0 : Int
+    val local24
+      Local $argument.1 : String
+    val local25
+      Local $parameter.second : String
+    val local26
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local6 body=$local.0.keep captures=1
+      val local27
+        Local $parameter.seed : String
+      val local28
+        Local $parameter.seed : String
+      val local29
+        Local $argument.0 : String
+      val local30
+        Local $argument.1 : String
+      assign $result.0
+        LocalFunctionCall local6 $local.0.keep<Int, String, String, String> captures=1 : String
+          Local $parameter.seed : String
+          Local $parameter.first : String
+          Local $parameter.second : String
+    else
+      assign $result.0
+        Local $parameter.seed : String
+    val local32
+      Local $result.0 : String
+    val local33
+      Call genericLocalDependency<Int, String> : String
+        Local $parameter.seed : String
+        Local $parameter.value : String
+    MethodCall GenericLocalHost.expanded : String
+      Local $receiver : GenericLocalHost<String>
+      Local $parameter.first : Int
+      Local $parameter.second : String
+      Local $parameter.value : String
+    val local34
+      IntegerLiteral 3 : Int
+    val local35
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local7 body=$local.0.keep captures=1
+      val local36
+        Local $parameter.seed : Int
+      val local37
+        Local $parameter.seed : Int
+      val local38
+        Local $argument.0 : Int
+      val local39
+        Local $argument.1 : Int
+      assign $result.0
+        LocalFunctionCall local7 $local.0.keep<String, Int, Int, Int> captures=1 : Int
+          Local $parameter.seed : Int
+          Local $parameter.first : Int
+          Local $parameter.second : Int
+    else
+      assign $result.0
+        Local $parameter.seed : Int
+    val local41
+      Local $result.0 : Int
+    Call genericLocalDependency<String, Int> : Int
+      Local $parameter.seed : Int
+      Local $parameter.value : Int
+  instance $local.0.keep<T0, T1, T1, T1>
+  instance $local.1.keep<T0, T0>
+  instance $local.2.combine<T0, T1, T2, T1>
+  instance $local.0.keep<T1, T2, T2, T2>
+  instance genericLocalDependency<T1, T2>
+  instance $local.1.keep<Int, Int>
+  instance $local.2.combine<String, Int, String, Int>
+  instance $local.0.keep<Int, String, String, String>
+  instance genericLocalDependency<Int, String>
+  instance $local.0.keep<String, Int, Int, Int>
+  instance genericLocalDependency<String, Int>
+  method instance LocalGenericHost.pick<owner=[], method=[Int]>
+  method instance GenericLocalHost.direct<owner=[String], method=[Int, String]>
+  method instance GenericLocalHost.expanded<owner=[String], method=[Int, String]>

@@ -187,7 +187,7 @@ impl ReferenceCollector<'_> {
         let target_domain = self.lowerer.type_access_domain(target);
         let witness = self.witness(target_domain, origin, "a type");
         self.references.types.push(hir::ExportDefaultTypeRef {
-            target,
+            target: hir::ExportDefaultTypeTarget::Type(target),
             witness,
             origin,
         });

@@ -3,7 +3,7 @@ use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 
 use super::{
     DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
+    DefaultBodyProviderTypeSiteV1, DefaultLocalFunctionSignatureAuthority,
 };
 use crate::{
     DefaultAnonymousFunctionV1, DefaultAppliedOptionV1, DefaultArrayAssemblyV1,
@@ -38,7 +38,9 @@ pub(super) fn validate<A, E>(
     path: &WirePath,
 ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
 where
-    A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
+    A: NominalInterfaceShapeAuthority<E>
+        + ExportDefinitionSourceSemanticAuthority<E>
+        + DefaultLocalFunctionSignatureAuthority<E>,
 {
     Validator {
         mode: SemanticValidation::<A, E> {
@@ -61,7 +63,10 @@ where
 }
 
 /// Reuses the full typed walk after the caller has bound every origin occurrence.
-pub(super) fn validate_types<A: NominalInterfaceShapeAuthority<E>, E>(
+pub(super) fn validate_types<
+    A: NominalInterfaceShapeAuthority<E> + DefaultLocalFunctionSignatureAuthority<E>,
+    E,
+>(
     body: &ExportDefaultBodyV1,
     provider: DefaultTemplateProviderShapeV1,
     authority: &mut A,
@@ -113,6 +118,14 @@ pub(super) trait BodyWalkMode {
         &mut self,
         signature: &SignatureTypeKey,
         site: DefaultBodyProviderTypeSiteV1,
+        definition_origin: &ExportDefinitionSourceV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), Self::Error>;
+
+    fn validate_local_function_signature(
+        &mut self,
+        function: &DefaultLocalFunctionV1,
         definition_origin: &ExportDefinitionSourceV1,
         meter: &mut BudgetMeter,
         path: &WirePath,

@@ -261,6 +261,7 @@ fn origin(cone: ConeIdentity, path: &str, point: u64) -> ExportDefinitionSourceV
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AuthorityError {
+    MissingLocalFunction,
     MissingNominal,
 }
 
@@ -313,5 +314,16 @@ impl NominalInterfaceShapeAuthority<AuthorityError> for Authority {
         _: PersistentGenericTypeId,
     ) -> Result<PublicNominalShapeV1, AuthorityError> {
         Err(AuthorityError::MissingNominal)
+    }
+}
+
+impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        _declaration: scoop_identity::CallableTemplateOrigin,
+        _meter: &mut scoop_wire::BudgetMeter,
+        _path: &scoop_wire::WirePath,
+    ) -> Result<u32, AuthorityError> {
+        Err(AuthorityError::MissingLocalFunction)
     }
 }

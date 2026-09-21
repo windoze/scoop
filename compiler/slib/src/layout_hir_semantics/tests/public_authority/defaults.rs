@@ -184,3 +184,16 @@ impl DefaultReferenceSemanticAuthority<TestAuthorityError> for EmptyPublicAuthor
         Err(TestAuthorityError::UnexpectedCall)
     }
 }
+
+impl scoop_hir::DefaultLocalFunctionSignatureAuthority<TestAuthorityError>
+    for EmptyPublicAuthority
+{
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        _declaration: scoop_identity::CallableTemplateOrigin,
+        _meter: &mut scoop_wire::BudgetMeter,
+        _path: &scoop_wire::WirePath,
+    ) -> Result<u32, TestAuthorityError> {
+        Err(TestAuthorityError::UnexpectedCall)
+    }
+}

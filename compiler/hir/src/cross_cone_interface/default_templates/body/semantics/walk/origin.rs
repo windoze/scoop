@@ -27,6 +27,15 @@ where
     ) -> Result<(), Self::Error> {
         Ok(())
     }
+    fn validate_local_function_signature(
+        &mut self,
+        _: &DefaultLocalFunctionV1,
+        _: &ExportDefinitionSourceV1,
+        _: &mut BudgetMeter,
+        _: &WirePath,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
     fn validate_binder(
         &mut self,
         _: u32,

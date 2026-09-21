@@ -7,48 +7,56 @@ use super::{CanonicalBinderListV1, TypeParameterBoundsV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SignatureBinderScopeV1 {
-    frames: SignatureBinderFrames,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum SignatureBinderFrames {
-    Empty,
-    One(NonZeroU32),
-    Two {
-        inner: NonZeroU32,
-        outer: NonZeroU32,
-    },
+    frames: Vec<NonZeroU32>,
 }
 
 impl SignatureBinderScopeV1 {
     pub fn for_declaration(own_arity: u32, nominal_owner_arity: Option<u32>) -> Self {
-        let own = NonZeroU32::new(own_arity);
-        let owner = nominal_owner_arity.and_then(NonZeroU32::new);
-        let frames = match (own, owner) {
-            (None, None) => SignatureBinderFrames::Empty,
-            (Some(arity), None) | (None, Some(arity)) => SignatureBinderFrames::One(arity),
-            (Some(inner), Some(outer)) => SignatureBinderFrames::Two { inner, outer },
-        };
-        Self { frames }
+        Self {
+            frames: [
+                NonZeroU32::new(own_arity),
+                nominal_owner_arity.and_then(NonZeroU32::new),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        }
+    }
+
+    /// Adds a local declaration's nonempty frame without changing provider indices.
+    pub(crate) fn with_inner_frame(
+        &self,
+        own_arity: u32,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Self, scoop_wire::WireError> {
+        let inner = NonZeroU32::new(own_arity);
+        let count = self
+            .frames
+            .len()
+            .saturating_add(usize::from(inner.is_some()));
+        if u32::try_from(count).is_err() {
+            return Err(scoop_wire::WireError::new(
+                scoop_wire::WireErrorKind::IntegerOutOfRange,
+                path.clone(),
+                None,
+            ));
+        }
+        meter.check_semantic_depth(count as u64, path)?;
+        meter.charge_work(count as u64, path)?;
+        let mut frames = Vec::new();
+        meter.try_reserve_collection_slots(&mut frames, count, path)?;
+        frames.extend(inner);
+        frames.extend_from_slice(&self.frames);
+        Ok(Self { frames })
     }
 
     pub fn available_depths(&self) -> u32 {
-        match &self.frames {
-            SignatureBinderFrames::Empty => 0,
-            SignatureBinderFrames::One(_) => 1,
-            SignatureBinderFrames::Two { .. } => 2,
-        }
+        self.frames.len() as u32
     }
 
     pub fn arity_at_depth(&self, depth: u32) -> Option<u32> {
-        match (&self.frames, depth) {
-            (SignatureBinderFrames::One(arity), 0)
-            | (SignatureBinderFrames::Two { inner: arity, .. }, 0)
-            | (SignatureBinderFrames::Two { outer: arity, .. }, 1) => Some(arity.get()),
-            (SignatureBinderFrames::Empty, _)
-            | (SignatureBinderFrames::One(_), _)
-            | (SignatureBinderFrames::Two { .. }, _) => None,
-        }
+        self.frames.get(depth as usize).map(|arity| arity.get())
     }
 
     pub fn validate(&self, signature: &SignatureTypeKey) -> Result<(), SignatureBinderScopeError> {

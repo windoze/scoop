@@ -435,9 +435,16 @@ pub enum ExportDefaultConstructorTarget {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExportDefaultTypeRef {
-    pub target: TypeId,
+    pub target: ExportDefaultTypeTarget,
     pub witness: ExportDefaultAccessWitness,
     pub origin: DefinitionOrigin,
+}
+
+/// Retains the binder scope of a referenced local declaration signature.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportDefaultTypeTarget {
+    Type(TypeId),
+    LocalFunctionSignature(LocalFunctionId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

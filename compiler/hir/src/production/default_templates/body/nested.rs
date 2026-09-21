@@ -62,7 +62,7 @@ impl BodyProjection<'_, '_, '_, '_> {
             self.entities
                 .source_callable_declaration(function.function)?,
             function.definition_path.clone(),
-            self.function_type(function.function_type)?,
+            self.entities.local_function_signature(id, self.binders)?,
             self.captures(&function.captures)?,
             owner_parameter_count(function.owner_type_arguments.len())?,
         )

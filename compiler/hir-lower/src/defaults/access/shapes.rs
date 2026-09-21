@@ -170,7 +170,14 @@ impl ReferenceCollector<'_> {
         let origin = function.origin;
         self.local_declarations.insert(function.function);
         self.capture_shapes(&function.captures);
-        self.function_type_reference(function.function_type, origin);
+        let ty = self.lowerer.function_types[function.function_type].canonical_type;
+        let domain = self.lowerer.type_access_domain(ty);
+        let witness = self.witness(domain, origin, "a type");
+        self.references.types.push(hir::ExportDefaultTypeRef {
+            target: hir::ExportDefaultTypeTarget::LocalFunctionSignature(id),
+            witness,
+            origin,
+        });
         self.record_callable(hir::ExportDefaultCallableTarget::LocalFunction(id), origin);
     }
 

@@ -181,3 +181,14 @@ impl ProtectedDefaultRootSlotSemanticAuthority<&'static str> for Authority<'_> {
         }
     }
 }
+
+impl crate::DefaultLocalFunctionSignatureAuthority<&'static str> for Authority<'_> {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        _declaration: scoop_identity::CallableTemplateOrigin,
+        _meter: &mut scoop_wire::BudgetMeter,
+        _path: &scoop_wire::WirePath,
+    ) -> Result<u32, &'static str> {
+        Err("fixture has no local function")
+    }
+}

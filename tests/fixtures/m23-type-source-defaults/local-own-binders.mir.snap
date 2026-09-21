@@ -1,0 +1,324 @@
+  class LocalGenericHost vtable=0 itables=0
+  class GenericLocalHost<String> vtable=0 itables=0
+  fun main @fn23() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocalGenericHost
+        ClassAlloc LocalGenericHost
+      call @fn43 direct
+        Type LocalGenericHost
+        Local $new.1
+      val plain: LocalGenericHost
+        Type LocalGenericHost
+        Local $new.1
+      val $receiver: LocalGenericHost
+        Type LocalGenericHost
+        Local plain
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        Local $parameter.seed
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      call $call.2: Int = @fn26 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.unused
+      assign $result.1
+        Type Int
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $result.1
+        Type Int
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.1
+      call $call.3: Int = @fn27 direct
+        Type LocalGenericHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.stored: String
+        Type String
+        Local $argument.0
+      assign $new.4
+        Type GenericLocalHost<String>
+        ClassAlloc GenericLocalHost<String>
+      call @fn44 direct
+        Type GenericLocalHost<String>
+        Local $new.4
+        Type String
+        Local $parameter.stored
+      val generic: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local $new.4
+      val $receiver: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local generic
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      val $argument.0: Int
+        Type Int
+        Local $parameter.first
+      val $parameter.unused: Int
+        Type Int
+        Local $argument.0
+      call $call.5: (String, String) = @fn28 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type String
+        Local $parameter.second
+        Type Int
+        Local $parameter.unused
+      assign $result.2
+        Type (String, String)
+        Local $call.5
+      goto bb6
+    bb5 if.else.5
+      assign $result.2
+        Type (String, String)
+        TupleLiteral
+          Type String
+          FieldAccess 0
+            Type GenericLocalHost<String>
+            Local $receiver
+          Type String
+          Local $parameter.second
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: (String, String)
+        Type (String, String)
+        Local $result.2
+      call $call.6: (String, String) = @fn29 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type (String, String)
+        Local $parameter.value
+      val $receiver: GenericLocalHost<String>
+        Type GenericLocalHost<String>
+        Local generic
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb7 if.then.7
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $argument.1: String
+        Type String
+        Local $parameter.seed
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.7: String = @fn30 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      assign $result.0
+        Type String
+        Local $call.7
+      goto bb9
+    bb8 if.else.8
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb9
+    bb9 if.merge.9
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn24 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.8: String = @fn31 direct
+        Type GenericLocalHost<String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb10 bb11
+        Type Boolean
+        BoolLiteral true
+    bb10 if.then.10
+      val $argument.0: Int
+        Type Int
+        Local $parameter.seed
+      val $argument.1: Int
+        Type Int
+        Local $parameter.seed
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.9: Int = @fn32 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      assign $result.0
+        Type Int
+        Local $call.9
+      goto bb12
+    bb11 if.else.11
+      assign $result.0
+        Type Int
+        Local $parameter.seed
+      goto bb12
+    bb12 if.merge.12
+      val $parameter.value: Int
+        Type Int
+        Local $result.0
+      call $call.10: Int = @fn25 direct
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+  fun genericLocalDependency @fn24(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun genericLocalDependency @fn25(seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $local.1.keep @fn26($capture.seed: Int, unused: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun LocalGenericHost.pick @fn27(this: LocalGenericHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $local.2.combine @fn28($capture.this: GenericLocalHost<String>, $capture.second: String, unused: Int) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        TupleLiteral
+          Type String
+          FieldAccess 0
+            Type GenericLocalHost<String>
+            Local $capture.this
+          Type String
+          Local $capture.second
+  fun GenericLocalHost.direct @fn29(this: GenericLocalHost<String>, first: Int, second: String, value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun $local.0.keep @fn30($capture.seed: String, first: String, second: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun GenericLocalHost.expanded @fn31(this: GenericLocalHost<String>, first: Int, second: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.0.keep @fn32($capture.seed: Int, first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun init.LocalGenericHost.$c7 @fn43(this: LocalGenericHost) -> Unit
+    bb0 entry
+      return
+  fun init.GenericLocalHost.$c8 @fn44(this: GenericLocalHost<String>, stored: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type GenericLocalHost<String>
+        Local this
+        Type String
+        Local stored
+      return
+  instance mi0 function=@fn24 <- genericLocalDependency
+  instance mi1 function=@fn25 <- genericLocalDependency
+  instance mi2 function=@fn26 <- $local.1.keep
+  instance mi3 function=@fn27 <- LocalGenericHost.pick
+  instance mi4 function=@fn28 <- $local.2.combine
+  instance mi5 function=@fn29 <- GenericLocalHost.direct
+  instance mi6 function=@fn30 <- $local.0.keep
+  instance mi7 function=@fn31 <- GenericLocalHost.expanded
+  instance mi8 function=@fn32 <- $local.0.keep

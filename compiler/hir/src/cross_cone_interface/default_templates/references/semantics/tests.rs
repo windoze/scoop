@@ -7,6 +7,7 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
 
 use super::*;
+mod local_signatures;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::Fixture;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
@@ -52,7 +53,7 @@ fn validates_all_six_domains_in_canonical_order() {
     );
     assert_eq!(authority.origins, 6);
     assert_eq!(authority.nominals, 3);
-    assert_eq!(meter.usage().decoded_nodes, 9);
+    assert_eq!(meter.usage().decoded_nodes, 12);
 }
 
 #[test]
@@ -492,6 +493,8 @@ fn effects() -> CallableSourceEffectsV1 {
 }
 
 struct Authority {
+    local_keys:
+        std::collections::BTreeMap<CallableTemplateOrigin, scoop_identity::SourceDeclarationKey>,
     nominal: PersistentTypeId,
     cone: ConeIdentity,
     targets: Vec<ExportDefaultReferenceKindV1>,
@@ -503,6 +506,7 @@ struct Authority {
 impl Authority {
     fn new(fixture: &Fixture) -> Self {
         Self {
+            local_keys: Default::default(),
             nominal: fixture.type_id,
             cone: ConeIdentity::CORE,
             targets: Vec::new(),
@@ -608,6 +612,7 @@ impl DefaultReferenceSemanticAuthority<AuthorityError> for Authority {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AuthorityError {
+    MissingLocalFunction,
     Rejected(ExportDefaultReferenceKindV1),
     UnknownNominal,
 }
@@ -619,3 +624,17 @@ impl std::fmt::Display for AuthorityError {
 }
 
 impl std::error::Error for AuthorityError {}
+
+impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        declaration: scoop_identity::CallableTemplateOrigin,
+        _meter: &mut scoop_wire::BudgetMeter,
+        _path: &scoop_wire::WirePath,
+    ) -> Result<u32, AuthorityError> {
+        self.local_keys
+            .get(&declaration)
+            .map(|key| key.duplicate_signature().type_parameter_count())
+            .ok_or(AuthorityError::MissingLocalFunction)
+    }
+}

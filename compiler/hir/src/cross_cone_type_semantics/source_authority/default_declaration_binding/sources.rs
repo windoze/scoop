@@ -73,3 +73,36 @@ impl NominalInterfaceShapeAuthority<NominalSourceBindingError> for Shapes<'_, '_
             .signature_nominal_shape(SourceNominalId::GenericTemplate(id))
     }
 }
+
+impl DefaultLocalFunctionSignatureAuthority<NominalSourceBindingError> for Shapes<'_, '_, '_> {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        declaration: CallableTemplateOrigin,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<u32, NominalSourceBindingError> {
+        use scoop_identity::{
+            PersistentFunctionId, PersistentGenericFunctionId, SourceDeclarationKey,
+        };
+        let identities = self.0.foundation.identities;
+        meter.charge_work(
+            (u64::from(identities.identity_count().max(1).ilog2()) + 1) * 64,
+            path,
+        )?;
+        let key = match declaration {
+            CallableTemplateOrigin::Function(id) => {
+                identities.canonical_key::<PersistentFunctionId, SourceDeclarationKey>(id)
+            }
+            CallableTemplateOrigin::GenericFunction(id) => {
+                identities.canonical_key::<PersistentGenericFunctionId, SourceDeclarationKey>(id)
+            }
+            _ => {
+                return Err(NominalSourceBindingError::Identity(format!(
+                    "local signature target {declaration:?} is not a function"
+                )));
+            }
+        }
+        .map_err(|error| NominalSourceBindingError::Identity(error.to_string()))?;
+        Ok(key.duplicate_signature().type_parameter_count())
+    }
+}

@@ -60,7 +60,7 @@ pub(super) fn project(
             .iter()
             .map(|r| (r.target, r.origin, &r.witness)),
         ExportDefaultReferenceKindV1::Type,
-        |target| entities.type_key(target, binders),
+        |target| entities.reference_type(target, binders),
     )?;
     let globals = sequence(
         entities,

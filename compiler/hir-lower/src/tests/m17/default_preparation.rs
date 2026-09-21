@@ -6,6 +6,7 @@ mod files;
 mod generic_references;
 mod local_calls;
 mod local_captures;
+mod local_own_binders;
 mod local_owner_arguments;
 
 const SOURCE: &str = include_str!(concat!(

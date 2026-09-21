@@ -116,6 +116,10 @@ impl fmt::Display for DefaultEntityProjectionError {
                 formatter,
                 "default body function {function} is not a source declaration"
             ),
+            Self::InvalidLocalFunctionBinders { local_function } => write!(
+                formatter,
+                "default local function {local_function} has an invalid binder layout"
+            ),
             Self::ExpectedOrdinaryProperty { property } => write!(
                 formatter,
                 "default body property {property} is not an ordinary property"

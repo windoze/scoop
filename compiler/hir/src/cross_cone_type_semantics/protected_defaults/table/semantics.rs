@@ -18,6 +18,7 @@ pub use errors::*;
 
 pub trait ProtectedDefaultSemanticAuthority<E>:
     NominalInterfaceShapeAuthority<E>
+    + crate::DefaultLocalFunctionSignatureAuthority<E>
     + ProtectedDefaultRootSemanticAuthority<E>
     + ProtectedDefaultOriginSemanticAuthority<E>
     + ProtectedDefaultReferenceAccessSemanticAuthority<E>
@@ -28,6 +29,7 @@ pub trait ProtectedDefaultSemanticAuthority<E>:
 }
 impl<A, E> ProtectedDefaultSemanticAuthority<E> for A where
     A: NominalInterfaceShapeAuthority<E>
+        + crate::DefaultLocalFunctionSignatureAuthority<E>
         + ProtectedDefaultRootSemanticAuthority<E>
         + ProtectedDefaultOriginSemanticAuthority<E>
         + ProtectedDefaultReferenceAccessSemanticAuthority<E>

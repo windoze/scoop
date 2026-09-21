@@ -1163,3 +1163,14 @@ fn origin() -> ExportDefinitionSourceV1 {
 fn identifier(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }
+
+impl crate::DefaultLocalFunctionSignatureAuthority<AuthorityError> for Authority {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        _declaration: scoop_identity::CallableTemplateOrigin,
+        _meter: &mut scoop_wire::BudgetMeter,
+        _path: &scoop_wire::WirePath,
+    ) -> Result<u32, AuthorityError> {
+        Err(AuthorityError::NestedCallable)
+    }
+}

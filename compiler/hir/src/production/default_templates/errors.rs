@@ -80,6 +80,7 @@ pub enum DefaultEntityProjectionError {
     MissingIdentity { kind: &'static str, index: u32 },
     UnsupportedFunctionIdentity { function: u32 },
     ExpectedSourceDeclaration { function: u32 },
+    InvalidLocalFunctionBinders { local_function: u32 },
     ExpectedOrdinaryProperty { property: u32 },
     Type(HirInterfaceSignatureProjectionError),
     Callable(DefaultCallableRefBuildError),

@@ -122,7 +122,7 @@ pub use references::{
 };
 pub use semantics::{
     DefaultBodyOriginSiteV1, DefaultBodyProviderEnvelopeSemanticValidationError,
-    DefaultBodyProviderTypeSiteV1,
+    DefaultBodyProviderTypeSiteV1, DefaultLocalFunctionSignatureAuthority,
 };
 pub use statements::{
     DecodedDefaultAppliedOptionV1, DecodedDefaultAssignTargetV1, DecodedDefaultBindingActionV1,

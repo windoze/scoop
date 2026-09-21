@@ -11,6 +11,7 @@ mod envelope;
 mod nested_identities;
 mod nested_index;
 mod nested_parents;
+mod own_binders;
 mod owner_arguments;
 mod providers;
 mod resources;

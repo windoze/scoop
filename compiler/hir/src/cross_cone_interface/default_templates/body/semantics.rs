@@ -11,6 +11,19 @@ use crate::{
 
 mod walk;
 
+/// Supplies a local function's own generic arity from its independently validated
+/// Function/GenericFunction canonical declaration key. Descriptor signatures and
+/// captured owner arguments must not be used to infer this fact. This query does
+/// not replace the separate artifact ownership, parent, or nested ABI proofs.
+pub trait DefaultLocalFunctionSignatureAuthority<E> {
+    fn default_local_function_own_binder_arity(
+        &mut self,
+        declaration: scoop_identity::CallableTemplateOrigin,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<u32, E>;
+}
+
 impl ExportDefaultBodyV1 {
     /// Validates every provider-scoped type and inline definition origin in
     /// this body. Operation typing, local data flow, nested callable ABI, and
@@ -23,14 +36,19 @@ impl ExportDefaultBodyV1 {
         path: &WirePath,
     ) -> Result<(), DefaultBodyProviderEnvelopeSemanticValidationError<E>>
     where
-        A: NominalInterfaceShapeAuthority<E> + ExportDefinitionSourceSemanticAuthority<E>,
+        A: NominalInterfaceShapeAuthority<E>
+            + ExportDefinitionSourceSemanticAuthority<E>
+            + DefaultLocalFunctionSignatureAuthority<E>,
     {
         walk::validate(self, provider, authority, meter, path)
     }
 
     /// Validates the complete provider type envelope without reinterpreting
     /// origins. Used only after artifact-bound source-origin validation.
-    pub(crate) fn validate_provider_types_semantics<A: NominalInterfaceShapeAuthority<E>, E>(
+    pub(crate) fn validate_provider_types_semantics<
+        A: NominalInterfaceShapeAuthority<E> + DefaultLocalFunctionSignatureAuthority<E>,
+        E,
+    >(
         &self,
         provider: DefaultTemplateProviderShapeV1,
         authority: &mut A,
@@ -128,6 +146,11 @@ pub enum DefaultBodyProviderTypeSiteV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DefaultBodyProviderEnvelopeSemanticValidationError<E> {
+    LocalFunctionBinders {
+        declaration: scoop_identity::CallableTemplateOrigin,
+        definition_origin: Box<ExportDefinitionSourceV1>,
+        error: E,
+    },
     Type {
         site: DefaultBodyProviderTypeSiteV1,
         definition_origin: Box<ExportDefinitionSourceV1>,
@@ -149,6 +172,12 @@ pub enum DefaultBodyProviderEnvelopeSemanticValidationError<E> {
 impl<E: fmt::Display> fmt::Display for DefaultBodyProviderEnvelopeSemanticValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::LocalFunctionBinders {
+                declaration, error, ..
+            } => write!(
+                formatter,
+                "invalid local function binder authority for {declaration:?}: {error}"
+            ),
             Self::Type { site, error, .. } => {
                 write!(
                     formatter,
