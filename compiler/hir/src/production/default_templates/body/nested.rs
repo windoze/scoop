@@ -69,6 +69,13 @@ impl BodyProjection<'_, '_, '_, '_> {
         .map_err(super::super::DefaultBodyProjectionError::LocalFunction)
     }
 
+    pub(super) fn local_function_origin(
+        &self,
+        id: crate::LocalFunctionId,
+    ) -> Result<crate::ExportDefinitionSourceV1, super::super::DefaultBodyProjectionError> {
+        self.origin(self.local_function_record(id)?.origin)
+    }
+
     pub(super) fn local_function_declaration(
         &self,
         id: crate::LocalFunctionId,

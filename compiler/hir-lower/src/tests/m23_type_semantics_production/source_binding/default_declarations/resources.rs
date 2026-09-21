@@ -2,7 +2,11 @@ use super::*;
 
 #[test]
 fn default_declaration_binding_uses_one_budget_and_rejects_invalid_dependency_routing() {
-    for source in [SOURCE, super::nested_identities::SOURCE] {
+    for source in [
+        SOURCE,
+        super::nested_identities::SOURCE,
+        super::nested_parents::SOURCE,
+    ] {
         with_sources(source, |output, fixture, sources, core| {
             let table = templates(output);
             let foundation = fixture.bind().unwrap();

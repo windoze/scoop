@@ -577,6 +577,7 @@ pub struct LocalFunction {
     /// Type parameters inherited from enclosing generic callables form the
     /// prefix of the lifted function's combined type-parameter namespace.
     pub owner_type_param_count: usize,
+    pub origin: DefinitionOrigin,
     pub span: Span,
 }
 

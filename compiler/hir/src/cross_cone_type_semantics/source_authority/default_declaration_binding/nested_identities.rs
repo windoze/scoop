@@ -8,6 +8,8 @@ use scoop_identity::{
     LexicalCallableRole, PersistentId, SourceDeclarationKey, StructuralDefinitionPath,
 };
 
+mod parent;
+
 pub(super) fn validate<'p, 's, 'a, 'f>(
     current: &BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>,
     dependencies: &[&BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f>],
@@ -29,7 +31,7 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
         )?;
         let foundation = source.members().nominals.foundation;
         let canonical = foundation.foundation.as_canonical();
-        let key_path = match identity {
+        let (key_path, parent) = match identity {
             Identity::LocalFunction(declaration) => {
                 let key = match declaration {
                     CallableTemplateOrigin::Function(id) => key(
@@ -50,7 +52,10 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
                     )?,
                     _ => return Err(failure(identity, Failure::Kind)),
                 };
-                local_path(key, identity, origin, meter, path)?
+                (
+                    local_path(key, identity, origin, meter, path)?,
+                    parent::local(key, identity)?,
+                )
             }
             Identity::Lambda(id)
             | Identity::AnonymousFunction(id)
@@ -69,7 +74,7 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
                         GeneratedCallableKey::Lexical {
                             role: LexicalCallableRole::LambdaBody,
                             path,
-                            ..
+                            parent,
                         },
                     )
                     | (
@@ -77,13 +82,13 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
                         GeneratedCallableKey::Lexical {
                             role: LexicalCallableRole::AnonymousFunctionBody,
                             path,
-                            ..
+                            parent,
                         },
                     )
                     | (
                         Identity::CallableReference(_),
-                        GeneratedCallableKey::CallableReferenceInvoke { path, .. },
-                    ) => path,
+                        GeneratedCallableKey::CallableReferenceInvoke { path, parent },
+                    ) => (path, parent.template()),
                     _ => return Err(failure(identity, Failure::Kind)),
                 }
             }
@@ -96,6 +101,7 @@ pub(super) fn validate<'p, 's, 'a, 'f>(
         if key_path != definition_path {
             return Err(failure(identity, Failure::DefinitionPath));
         }
+        parent::validate(foundation, parent, identity, origin, meter, path)?;
     }
     Ok(())
 }

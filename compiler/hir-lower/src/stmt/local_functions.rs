@@ -116,6 +116,7 @@ impl Lowerer {
             function_type,
             captures: Vec::new(),
             owner_type_param_count,
+            origin: self.definition_origin(decl.span),
             span: decl.span,
         });
         self.local_function_by_function.insert(function, local);

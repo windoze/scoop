@@ -165,12 +165,9 @@ impl ReferenceCollector<'_> {
         );
     }
 
-    pub(super) fn local_function_descriptor(
-        &mut self,
-        id: hir::LocalFunctionId,
-        origin: hir::DefinitionOrigin,
-    ) {
+    pub(super) fn local_function_descriptor(&mut self, id: hir::LocalFunctionId) {
         let function = self.lowerer.local_functions[id].clone();
+        let origin = function.origin;
         self.local_declarations.insert(function.function);
         self.capture_shapes(&function.captures);
         self.function_type_reference(function.function_type, origin);

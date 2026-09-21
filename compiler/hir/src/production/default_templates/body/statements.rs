@@ -19,7 +19,11 @@ impl BodyProjection<'_, '_, '_, '_> {
         let entities = self.entities;
         let _depth = entities.resources.enter::<DefaultStatementV1>()?;
         let kind = self.statement_kind(&statement.kind)?;
-        DefaultStatementV1::try_new(kind, self.span_origin(statement.span)?)
+        let origin = match statement.kind {
+            StatementKind::LocalFunction(function) => self.local_function_origin(function)?,
+            _ => self.span_origin(statement.span)?,
+        };
+        DefaultStatementV1::try_new(kind, origin)
             .map_err(super::super::DefaultBodyProjectionError::Statement)
     }
 

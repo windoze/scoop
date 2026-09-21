@@ -13,7 +13,7 @@ impl ReferenceCollector<'_> {
                 self.expression(value);
             }
             hir::StatementKind::LocalFunction(function) => {
-                self.local_function_descriptor(*function, origin);
+                self.local_function_descriptor(*function);
             }
             hir::StatementKind::Return { value } => {
                 if let Some(value) = value {

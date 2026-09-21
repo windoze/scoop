@@ -154,4 +154,6 @@ pub enum DefaultSourceNestedIdentityFailureV1 {
     Kind,
     DefinitionPath,
     DefinitionSource,
+    LexicalParent,
+    DefinitionContext,
 }
