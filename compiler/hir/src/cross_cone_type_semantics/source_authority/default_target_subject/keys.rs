@@ -41,6 +41,11 @@ impl<'f> Query<'_, 'f, '_> {
                     Error::MissingDeclaration(Subject::Property(id))
                 })?
             }
+            Subject::Constructor(id) => {
+                self.key(canonical.type_source_constructor_records(), id, || {
+                    Error::MissingDeclaration(Subject::Constructor(id))
+                })?
+            }
             other => return Err(Error::DeclarationRole(other)),
         };
         NominalRepresentationSupportV1::charge_source_key_resources(key, self.meter, &self.path)?;

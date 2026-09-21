@@ -5,6 +5,7 @@ use hir::{
     DefaultSourceIndirectTargetV1 as Target, DefaultSourceTargetSubjectError as Error,
 };
 use scoop_identity::DefinitionOriginSubject as Subject;
+mod constructors;
 mod expected;
 mod rejection;
 mod relations;

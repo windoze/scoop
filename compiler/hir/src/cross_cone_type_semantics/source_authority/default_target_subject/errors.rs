@@ -9,6 +9,15 @@ pub enum DefaultSourceTargetSubjectError {
     MissingTarget(Target),
     Role(Target),
     MissingGenerated(PersistentTypeId),
+    MissingAdapter(PersistentGeneratedCallableId),
+    AdapterRole(PersistentGeneratedCallableId),
+    ConstructorOwner(PersistentConstructorId),
+    AppliedOwner(SourceNominalId),
+    AppliedOwnerArity {
+        owner: SourceNominalId,
+        expected: u32,
+        actual: u64,
+    },
     MissingDeclaration(Subject),
     DeclarationRole(Subject),
     ForeignDeclaration(Subject),
@@ -49,6 +58,26 @@ impl std::fmt::Display for Error {
                 "default access target has incompatible identity role {target:?}"
             ),
             Self::MissingGenerated(id) => write!(f, "artifact has no generated field owner {id}"),
+            Self::MissingAdapter(id) => write!(f, "artifact has no constructor adapter key {id}"),
+            Self::AdapterRole(id) => write!(
+                f,
+                "generated callable {id} is not a zero-argument constructor adapter"
+            ),
+            Self::ConstructorOwner(id) => {
+                write!(f, "constructor {id} has no direct source nominal owner")
+            }
+            Self::AppliedOwner(owner) => write!(
+                f,
+                "default constructor owner type differs from source owner {owner:?}"
+            ),
+            Self::AppliedOwnerArity {
+                owner,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "default constructor owner {owner:?} requires {expected} type arguments, got {actual}"
+            ),
             Self::MissingDeclaration(id) => {
                 write!(f, "artifact has no indirect access declaration {id:?}")
             }
