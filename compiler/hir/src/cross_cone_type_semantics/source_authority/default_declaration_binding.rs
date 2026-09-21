@@ -5,6 +5,8 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 mod contracts;
 mod data_flow;
+mod direct_domain;
+pub use direct_domain::DefaultSourceDirectDomainError;
 mod envelope;
 mod errors;
 mod nested_identities;
@@ -25,6 +27,7 @@ pub struct BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
 pub struct DefaultSourceDeclaredContractV1<'s> {
     facts: DeclarationFacts<'s>,
     references: DefaultSourceReferenceClosureV1<'s>,
+    direct_call_domain: DefaultSourceAccessDomainV1,
 }
 #[derive(Debug)]
 struct DeclarationFacts<'s> {
@@ -76,9 +79,12 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                 )?;
                 data_flow::validate(self, dependencies, template, meter, &path)?;
                 let references = template.bind_reference_occurrences(meter, &path)?;
+                let direct_call_domain =
+                    direct_domain::validate(provider, template, &references, meter, &path)?;
                 Ok(DefaultSourceDeclaredContractV1 {
                     facts: contract,
                     references,
+                    direct_call_domain,
                 })
             })()
             .map_err(|error| Error::Record {
@@ -116,6 +122,10 @@ impl<'d, 'p, 's, 'a, 'f> BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     }
 }
 impl<'s> DefaultSourceDeclaredContractV1<'s> {
+    /// Replayed original-provider lookup domain; slot and target coverage remain separate.
+    pub const fn direct_call_domain(&self) -> &DefaultSourceAccessDomainV1 {
+        &self.direct_call_domain
+    }
     /// Exact, ordered source/body occurrences; target access is a separate proof.
     pub const fn references(&self) -> &DefaultSourceReferenceClosureV1<'s> {
         &self.references

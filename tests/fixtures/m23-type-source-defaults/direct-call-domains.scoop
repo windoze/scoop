@@ -1,0 +1,17 @@
+private open class FileDomainBase {
+    protected open fun fileValue(value: Int = 1): Int = value
+}
+public class DirectDomainHost {
+    public fun exposed(value: Int = 1): Int = value
+    internal fun local(value: Int = 1): Int = value
+    private fun hidden(value: Int = 1): Int = value
+    protected fun inherited(value: Int = 1): Int = value
+    protected class Entry {
+        private enum Choice { Value(val number: Int = 1) }
+        private class FileChild : FileDomainBase()
+        internal class Local {
+            internal fun duplicate(value: Int = 1): Int = value
+        }
+    }
+}
+public open class EmptyDirectDomain<T> protected constructor(seed: T, val value: T = seed)

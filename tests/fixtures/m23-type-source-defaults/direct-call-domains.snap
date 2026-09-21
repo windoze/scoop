@@ -1,0 +1,8 @@
+DirectDomainHost.exposed: []; generic 0
+DirectDomainHost.local: [Cone]; generic 0
+DirectDomainHost.hidden: [LexicalOwner]; generic 0
+DirectDomainHost.inherited: [SubclassesOf]; generic 0
+DirectDomainHost.Entry.Local.duplicate: [Cone, SubclassesOf]; generic 0
+FileDomainBase.fileValue: [Cone, File, SubclassesOf]; generic 0
+private enum variant: [LexicalOwner, SubclassesOf]; generic 0
+reference-free constructor: []; generic 1

@@ -7,6 +7,7 @@ use scoop_identity::{CallableTemplateOrigin, LocalValueSelector, SignatureTypeKe
 mod corruption;
 mod data_flow;
 mod dependency_binders;
+mod direct_domain;
 mod envelope;
 mod nested_binders;
 mod nested_identities;
