@@ -40,9 +40,13 @@ impl ValidatedCompilerProtocols<'_> {
             .map_err(CurrentConeMirStageError::DependencyProjection)
             .map_err(CurrentConeProductionFailure::Mir)?;
         match self {
-            Self::CurrentDeclarations => {
-                lower_machine(hir, request, selected, |_| Ok(LirProtocols::Declared), dump)
-            }
+            Self::CurrentDeclarations => lower_machine(
+                hir,
+                request,
+                selected,
+                |_, selected| Ok((scoop_lir_lower::RuntimeStringDescriptor::Local, selected)),
+                dump,
+            ),
             Self::Imported(core) => {
                 let needs_cycle = !hir
                     .hir
@@ -59,9 +63,14 @@ impl ValidatedCompilerProtocols<'_> {
                     hir,
                     request,
                     selected,
-                    |mir| {
-                        core.project_core_callables_to_lir(mir)
-                            .map(LirProtocols::Imported)
+                    |mir, selected| {
+                        core.project_core_callables_to_lir(mir, selected)
+                            .map(|(descriptor, selected)| {
+                                (
+                                    scoop_lir_lower::RuntimeStringDescriptor::External(descriptor),
+                                    selected,
+                                )
+                            })
                             .map_err(CurrentConeLirStageError::Projection)
                     },
                     dump,
@@ -71,29 +80,20 @@ impl ValidatedCompilerProtocols<'_> {
     }
 }
 
-enum LirProtocols<'artifact> {
-    Declared,
-    Imported(scoop_lir::SelectedImportedLirSet<'artifact>),
-}
-
-impl LirProtocols<'_> {
-    fn as_input(&self) -> scoop_lir_lower::StrongImportedCoreLirInput<'_> {
-        match self {
-            Self::Declared => scoop_lir_lower::StrongImportedCoreLirInput::Unused,
-            Self::Imported(selected) => {
-                scoop_lir_lower::StrongImportedCoreLirInput::Selected(selected)
-            }
-        }
-    }
-}
-
-fn lower_machine<'protocol>(
+fn lower_machine(
     hir: current_hir::CurrentConeHirArtifacts,
     request: &ValidatedSingleConeBuildRequest<'_>,
     selected: scoop_mir::SelectedExternalMirSet,
     project_lir: impl FnOnce(
         &scoop_mir::SelectedExternalMirSet,
-    ) -> Result<LirProtocols<'protocol>, CurrentConeLirStageError>,
+        scoop_lir::SelectedExternalLirSet,
+    ) -> Result<
+        (
+            scoop_lir_lower::RuntimeStringDescriptor,
+            scoop_lir::SelectedExternalLirSet,
+        ),
+        CurrentConeLirStageError,
+    >,
     dump: &mut Option<EmittedStageDump>,
 ) -> Result<CrossConeStrongIrProductionV1, CurrentConeProductionFailure> {
     let closure = request.dependencies().semantic();
@@ -106,14 +106,17 @@ fn lower_machine<'protocol>(
             scoop_mir::dump(mir.strong.module())
         });
     }
-    let protocols =
-        project_lir(&mir.selected_callables).map_err(CurrentConeProductionFailure::Lir)?;
-    let (lir, lir_public) = machine::lower_lir(
+    let selected = closure
+        .project_dependency_callables_to_lir(&mir.selected_callables)
+        .map_err(CurrentConeLirStageError::DependencyProjection)
+        .map_err(CurrentConeProductionFailure::Lir)?;
+    let (runtime_string, selected) = project_lir(&mir.selected_callables, selected)
+        .map_err(CurrentConeProductionFailure::Lir)?;
+    let (lir, lir_public) = machine::lower_selected_lir(
         &mir.strong,
         &mir.public,
-        protocols.as_input(),
-        &mir.selected_callables,
-        closure,
+        runtime_string,
+        &selected,
         request.target().lir_target(),
     )
     .map_err(CurrentConeProductionFailure::Lir)?;

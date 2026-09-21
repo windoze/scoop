@@ -185,15 +185,26 @@ fn dependency_lir_selection_retains_consumer_and_canonical_lookup() {
         vec![selected.clone()],
     )
     .unwrap();
-    let selection = SelectedDependencyLirSet::try_from_bridge(&section).unwrap();
+    let selection = SelectedExternalLirSet::try_from_bridge(&section).unwrap();
 
     assert_eq!(section.artifact(), consumer);
     assert_eq!(selection.consumer(), consumer);
-    assert_eq!(selection.callables(), &[selected]);
+    assert_eq!(
+        selection
+            .dependency_callables()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![selected]
+    );
     let id = selection
         .callable_for(fixture.producer, fixture.declaration)
         .unwrap();
-    assert_eq!(selection.callable(id), selection.callables().first());
+    assert_eq!(
+        selection
+            .callable(id)
+            .map(crate::SelectedExternalLirCallable::record),
+        selection.dependency_callables().next()
+    );
 }
 
 #[test]
@@ -222,22 +233,28 @@ fn producer_side_lir_selection_is_canonical_and_closed() {
     expected
         .sort_unstable_by_key(|callable| (callable.provider(), callable.bridge().declaration()));
 
-    let selection = SelectedDependencyLirSet::try_from_callables(
+    let selection = SelectedExternalLirSet::try_from_callables(
         consumer,
         expected.iter().cloned().rev().collect(),
     )
     .unwrap();
-    assert_eq!(selection.callables(), expected);
+    assert_eq!(
+        selection
+            .dependency_callables()
+            .cloned()
+            .collect::<Vec<_>>(),
+        expected
+    );
 
     let duplicate = selected(&first, first.producer);
     assert!(matches!(
-        SelectedDependencyLirSet::try_from_callables(consumer, vec![duplicate.clone(), duplicate],),
-        Err(SelectedDependencyLirSetBuildError::DuplicateCallable { .. })
+        SelectedExternalLirSet::try_from_callables(consumer, vec![duplicate.clone(), duplicate],),
+        Err(SelectedExternalLirSetBuildError::DuplicateCallable { .. })
     ));
 
     assert_eq!(
-        SelectedDependencyLirSet::try_from_callables(consumer, vec![selected(&first, consumer)])
+        SelectedExternalLirSet::try_from_callables(consumer, vec![selected(&first, consumer)])
             .err(),
-        Some(SelectedDependencyLirSetBuildError::SelectedCurrentProvider { provider: consumer }),
+        Some(SelectedExternalLirSetBuildError::SelectedCurrentProvider { provider: consumer }),
     );
 }

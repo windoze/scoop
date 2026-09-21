@@ -16,14 +16,13 @@ fn descriptor_projection_retains_the_actual_provider_and_selected_definition() {
         let selected = foundation
             .project_type_descriptor(&definitions, exact)
             .unwrap();
-        let descriptor = selected.materialize();
-        assert!(selected.belongs_to(&foundation, &definitions));
+        let descriptor = selected;
         assert_eq!(descriptor.provider(), provider);
         assert_eq!(descriptor.target(), exact);
         assert_eq!(descriptor.expected_symbol(), selected.expected_symbol());
         assert_eq!(
             descriptor.required_definition(),
-            selected.required_definition().persistent()
+            selected.required_definition()
         );
         assert_eq!(
             descriptor,

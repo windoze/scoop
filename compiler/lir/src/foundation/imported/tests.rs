@@ -3,9 +3,10 @@ use scoop_identity::{
     DeclarationScope, DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, Effect,
     ExactTypeKey, GcEffect as CanonicalGcEffect, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PackagePath, PendingIdentityValidation, PersistentExactTypeId,
-    PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequestTable, RuntimeIdentityRecord,
-    ScoopAbiReturn, SemanticIdentitySession, SemanticOriginFingerprint, SourceDeclarationKey,
-    SourceDeclarationSite, StrongDefinitionEntity, StrongDefinitionRole,
+    PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, RuntimeIdentityRecord, ScoopAbiReturn, SemanticIdentitySession,
+    SemanticOriginFingerprint, SourceDeclarationKey, SourceDeclarationSite, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -129,42 +130,26 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
         .project_initialization_cycle_thrower(&core_bridge, &definitions, target, signature.clone())
         .unwrap();
 
-    assert!(selected.belongs_to(&foundation, &definitions, &core_bridge));
-    assert!(!selected.belongs_to(&other_foundation, &definitions, &core_bridge));
-    assert_eq!(
-        selected.kind(),
-        CoreImportedCallableKind::InitializationCycleThrower
-    );
-    assert_eq!(selected.target(), target);
-    assert_eq!(selected.signature(), &signature);
-    assert_eq!(selected.body().persistent(), body.id());
-    assert_eq!(selected.expected_symbol(), expected_symbol);
-    assert_eq!(selected.required_definition().persistent(), definition.id());
-
-    let runtime_string = foundation
-        .project_type_descriptor(&definitions, unit)
+    assert_eq!(selected, foreign);
+    assert_eq!(selected.bridge().target(), target);
+    assert_eq!(selected.bridge().abi_signature().signature(), &signature);
+    assert_eq!(selected.bridge().expected_symbol(), expected_symbol);
+    assert_eq!(selected.bridge().required_definition(), definition.id());
+    let selected_set = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
+        .with_initialization_cycle(selected)
         .unwrap();
-    let mut selected_set =
-        SelectedImportedLirSet::try_new(&foundation, &definitions, &core_bridge, runtime_string)
-            .unwrap();
-    let id = selected_set.insert(selected.clone()).unwrap();
-    assert_eq!(selected_set.insert(selected).unwrap(), id);
+    drop(foundation);
+    drop(other_foundation);
+    drop(definitions);
+    let id = selected_set.initialization_cycle().unwrap();
+    let retained = selected_set.callable(id).unwrap();
     assert_eq!(
-        selected_set.callable_for_kind(CoreImportedCallableKind::InitializationCycleThrower),
-        Some(id)
+        retained.role(),
+        crate::ExternalCallableRole::InitializationCycle
     );
-    assert_eq!(
-        selected_set.callable(id).unwrap().kind(),
-        CoreImportedCallableKind::InitializationCycleThrower
-    );
+    assert_eq!(retained.bridge(), foreign.bridge());
     assert_eq!(selected_set.len(), 1);
-    assert_eq!(
-        selected_set.insert(foreign).unwrap_err(),
-        ImportedLirSelectionError::ForeignSelection(
-            CoreImportedCallableKind::InitializationCycleThrower
-        )
-    );
-    assert_eq!(selected_set.len(), 1);
+    assert_eq!(selected_set.dependency_callables().count(), 0);
 }
 
 fn imported_foundation(

@@ -3,6 +3,13 @@ use crate::{
     PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
+/// Semantic role of an external callable across compiler stages.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExternalCallableRole {
+    Dependency,
+    InitializationCycle,
+}
+
 /// Compiler protocol role of a callable imported from the core library.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CoreImportedCallableKind {

@@ -180,7 +180,11 @@ impl SelectedDependencyLirCallableV1 {
         &self,
         signature: crate::ScoopAbiSignature,
     ) -> Result<crate::ExternalCallable, crate::ExternalCallableBuildError> {
-        crate::ExternalCallable::new(self.clone(), signature)
+        crate::ExternalCallable::new(
+            self.clone(),
+            crate::ExternalCallableRole::Dependency,
+            signature,
+        )
     }
 
     fn sort_key(&self) -> (ConeIdentity, DependencyCallableDeclarationId) {

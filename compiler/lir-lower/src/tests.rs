@@ -219,16 +219,17 @@ fn try_lower(
     let input = seal_strong_input(module);
     super::lower(
         &input,
-        test_imported_core_lir_input(&input),
+        test_runtime_string_descriptor(&input),
+        &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
 }
 
-fn test_imported_core_lir_input(
+fn test_runtime_string_descriptor(
     input: &mir::SingleConeStrongMirInput,
-) -> super::StrongImportedCoreLirInput<'static> {
+) -> super::RuntimeStringDescriptor {
     if input.module().cone == ConeIdentity::CORE {
-        super::StrongImportedCoreLirInput::Unused
+        super::RuntimeStringDescriptor::Local
     } else {
         let string = input
             .module()
@@ -238,7 +239,9 @@ fn test_imported_core_lir_input(
             .expect("the MIR fixture supplies the core String exact type")
             .identity_record()
             .id();
-        super::StrongImportedCoreLirInput::TestRuntimeString(string)
+        super::RuntimeStringDescriptor::External(
+            lir::ExternalTypeDescriptor::new(ConeIdentity::CORE, string).unwrap(),
+        )
     }
 }
 
@@ -251,7 +254,8 @@ fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
     let output = super::lower(
         &input,
-        test_imported_core_lir_input(&input),
+        test_runtime_string_descriptor(&input),
+        &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
@@ -600,7 +604,8 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
     let c_struct_exact = exact(&mir::Type::Struct(c_struct));
     let output = super::lower(
         &input,
-        test_imported_core_lir_input(&input),
+        test_runtime_string_descriptor(&input),
+        &lir::SelectedExternalLirSet::empty(input.module().cone),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();

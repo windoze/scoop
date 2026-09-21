@@ -26,6 +26,8 @@ MIR展开初始化ensure时，隐式创建的String消息同样是HIR→MIR类�
 
 MIR的初始化服务与普通依赖调用共用`ExternalCallableUse`、typed id及arena；每项非可选地保存已提交的选择来源与GC effect，调用只使用`Callee::External`，初始化unit也直接引用同一id。选择引用统一指向同一`SelectedExternalMirSet`；每条选择保存完整provider、typed declaration、implementation、signature及明确的普通调用/初始化服务角色，不能凭provider推断。初始化服务经既有typed bridge验证后进入共有集合，不再保留core专用选择实体、借用凭证或第二套引用编号。当前Cone输出与strong sealer使用同一套来源覆盖、实际引用、签名及重复implementation校验，共用外部引用扫描；后续LIR lowering使用一个MIR→LIR映射，不能重新拆回两套调用arena或漏掉任一来源。选择实体的id与实际MIR use id仍属于不同typed domain。当前Cone MIR输出持有一个完整选择集合，strong sealer只接收该集合，统一检查consumer、选择覆盖、引用和implementation；HIR决定协议在本地定义还是导入，不另传泛型协议sidecar。旧metadata选择分区仅按明确角色投影，继续按其现有契约读取，直到完成后续合并。
 
+LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。

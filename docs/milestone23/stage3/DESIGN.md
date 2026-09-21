@@ -2,6 +2,8 @@
 
 M23-6当前约定：MIR初始化服务和普通依赖共用一个完整的`SelectedExternalMirSet`及typed选择引用。初始化角色显式保存，typed bridge与签名检查后进入共有集合，不保留core专用MIR借用凭证或泛型协议sidecar。strong输入使用共有consumer/覆盖/引用校验；旧wire与LIR协议仅在投影边界按角色区分，String与ABI契约保持完整。以`SCOOP-IMPL-SPEC.md`的共有外部调用约定为准。
 
+LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。
+
 版本：1.0（实现完成；2026-09-16）
 
 依赖：M23-2
@@ -734,24 +736,22 @@ borrow，并把生命周期绑定到产生它的同一个parsed request与semant
   原子构造唯一`SelectedExternalMirSet`。每条记录拥有provider、typed declaration、implementation、signature及
   普通调用/初始化服务角色；选择引用使用共有`SelectedExternalMirCallableId`，与实际MIR use id不同。
   MIR集合不借用core foundation或production，不另保留core专用品牌或协议sidecar。
-  旧LIR协议投影只读取明确的初始化角色，经已有canonical ABI、typed body与definition检查后生成
-  `SelectedImportedLirSet<'core>`；普通角色继续走共有依赖LIR投影。该旧LIR set仍从String capability及
-  `shape_support_plan`闭包原子投影非可选的runtime String TypeDescriptor authority；集合项同时保留body、
-  definition plan和唯一symbol request，String authority同时保留exact type、definition plan和唯一symbol request；
+  LIR初始化服务与普通调用投影后进入同一个`SelectedExternalLirSet`，使用与MIR相同的语义角色枚举；每项拥有完整
+  canonical ABI、calling convention、root plan、symbol及definition，不借用provider对象。String capability及
+  `shape_support_plan`仍通过共有foundation投影完整`ExternalTypeDescriptor`；它作为独立的Local/External描述符输入，
+  不再捆绑在core callable选择集合中；
   普通Cone lowering据此只产生共有`TypeDescriptorRef::External`及external definition requirement，不能本地复制String
   layout/scan/TypeDescriptor。core producer则必须产生`TypeDescriptorRef::Local`。LIR meta不保留只能指向本地arena的
   well-known String `LayoutId`；String物理格式由封闭intrinsic representation和target ABI决定；
 - `mir-lower`返回持有完整共有选择的`DependencyMirOutput`；HIR已决定协议在本地定义还是导入。
   输出和strong sealer使用同一个`StrongExternalCallableInput::{Unused, Selected}`校验入口，统一检查consumer、
   完整数量、选择引用、每项至少一个direct call使用及重复implementation；初始化服务必须无receiver且使用Managed effect。
-  `Unused`仅用于没有任何外部callable的图。解析后的自有根仅为旧LIR投影按角色分组，不能按provider归类；
-- `lir-lower`对应接收`StrongImportedCoreLirInput::{Unused, Selected}`。存在上述MIR root时必须给出同artifact投影的
-  LIR selected set，并逐项核对binding、strong owner和exact signature；随后用本模块exact type relation及target
-  profile生成物理`ScoopAbiSignature`，再由selected LIR项独占的materialize入口与canonical ABI、calling convention、
-  effect/root-plan做一致性检查。成功项按MIR use-id建立到共有`ExternalCallableId`的全映射；direct call只产生
-  effect-refined的`ManagedCallDestination::external`或`NoGcCallDestination::external`，不存在symbol-only、
-  普通extern或本地callable回退。`ExternalCallable`的裸构造器不是跨crate API。初始化角色只用于旧metadata投影，
-  provider为core的普通callable不进入该分区；MIR展开ensure时也通过typed String引用登记隐式消息的source exact identity；
+  `Unused`仅用于没有任何外部callable的图。解析后的自有根保存在单一完整表中，旧metadata边界按角色投影，不能按provider归类；
+- `lir-lower`只有一个正式入口，接收完整`SelectedExternalLirSet`和显式String描述符输入。共有路径逐项核对
+  provider、declaration、角色、strong owner、exact signature及GC effect，再查找receiver/参数/结果的exact MIR类型，
+  由同一ABI分类器生成物理签名。成功项按MIR use-id建立到共有`ExternalCallableId`的全映射；角色仅决定旧metadata
+  origin，普通core callable不会被当作初始化服务。不存在symbol-only、普通extern或本地callable回退；
+  String测试也使用正式描述符输入，不保留仅测试可用的authority分支；
 - consumer codegen只发external symbol requirement，不复制core body、TD、storage或helper；
 - package/name只参与lookup与诊断，不作为external symbol或identity fallback。
 

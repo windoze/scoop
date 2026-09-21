@@ -152,39 +152,22 @@ pub use exact_layouts::{ExactLayoutLoweringError, lower_exact_layout_exports};
 mod exact_callable_abi;
 pub use exact_callable_abi::{ExactCallableAbiLoweringError, lower_exact_callable_abi_export};
 
-mod imported_core;
-pub use imported_core::StrongImportedCoreLirInput;
-use imported_core::lower_imported_core_callables;
-use imported_core::lower_imported_core_runtime_string;
-mod imported_dependency;
-pub use imported_dependency::StrongImportedDependencyLirInput;
-use imported_dependency::lower_imported_dependency_callables;
+mod runtime_string;
+pub use runtime_string::RuntimeStringDescriptor;
+use runtime_string::lower_runtime_string;
+mod external_callables;
+use external_callables::lower_external_callables;
 
 mod strong_production_v2;
 pub use strong_production_v2::{
     StrongProductionV2ProjectionError, project_external_initialization_uses_v2,
 };
 
-/// Lower one sealed single-Cone strong MIR product to ODR-free LIR.
+/// Lowers a complete strong MIR product with its external selections and String role.
 pub fn lower(
     input: &mir::SingleConeStrongMirInput,
-    imported_core: StrongImportedCoreLirInput<'_>,
-    target_profile: lir::LirTargetProfile,
-) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
-    lower_with_dependencies(
-        input,
-        imported_core,
-        StrongImportedDependencyLirInput::Unused,
-        target_profile,
-    )
-}
-
-/// Lower one sealed strong MIR product together with the exact selected
-/// ordinary-dependency LIR authority that closes its dependency call roots.
-pub fn lower_with_dependencies(
-    input: &mir::SingleConeStrongMirInput,
-    imported_core: StrongImportedCoreLirInput<'_>,
-    imported_dependencies: StrongImportedDependencyLirInput<'_>,
+    runtime_string: RuntimeStringDescriptor,
+    selected_callables: &lir::SelectedExternalLirSet,
     target_profile: lir::LirTargetProfile,
 ) -> Result<lir::SingleConeStrongLirOutput, StrongLirLoweringError> {
     let module = input.module();
@@ -223,18 +206,9 @@ pub fn lower_with_dependencies(
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums)?;
     let (external_type_descriptors, imported_runtime_string) =
-        lower_imported_core_runtime_string(input, imported_core)?;
-    let (mut external_callables, mut external_callable_map) =
-        lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
-    lower_imported_dependency_callables(
-        &context,
-        input,
-        imported_dependencies,
-        &structs,
-        &enums,
-        &mut external_callables,
-        &mut external_callable_map,
-    )?;
+        lower_runtime_string(input, runtime_string)?;
+    let (external_callables, external_callable_map) =
+        lower_external_callables(&context, input, selected_callables, &structs, &enums)?;
     let native_abi = native_abi::lower(
         &context,
         module,

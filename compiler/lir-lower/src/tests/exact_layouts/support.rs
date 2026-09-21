@@ -57,7 +57,8 @@ impl Fixture {
         let input = seal_strong_input(module);
         let output = crate::lower(
             &input,
-            test_imported_core_lir_input(&input),
+            test_runtime_string_descriptor(&input),
+            &lir::SelectedExternalLirSet::empty(input.module().cone),
             lir::LirTargetProfile::DARWIN_AARCH64,
         )
         .unwrap();

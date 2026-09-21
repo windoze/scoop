@@ -41,6 +41,7 @@ pub enum ExternalCallableOrigin {
 impl ExternalCallable {
     pub(crate) fn new(
         selected: SelectedDependencyLirCallableV1,
+        role: crate::ExternalCallableRole,
         signature: ScoopAbiSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
@@ -58,7 +59,14 @@ impl ExternalCallable {
         let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(bridge.target()))
             .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
-            origin: ExternalCallableOrigin::Legacy(bridge.declaration()),
+            origin: match role {
+                crate::ExternalCallableRole::Dependency => {
+                    ExternalCallableOrigin::Legacy(bridge.declaration())
+                }
+                crate::ExternalCallableRole::InitializationCycle => {
+                    ExternalCallableOrigin::InitializationCycle
+                }
+            },
             provider: selected.provider(),
             target: bridge.target(),
             body,
@@ -217,7 +225,6 @@ pub enum ExternalCallableBuildError {
     },
     RootProtocolMismatch,
     Identity(HashError),
-    ProtocolContract(crate::CoreExternalBuildError),
 }
 
 impl fmt::Display for ExternalCallableBuildError {
@@ -240,7 +247,6 @@ impl fmt::Display for ExternalCallableBuildError {
             ),
             Self::RootProtocolMismatch => formatter
                 .write_str("external caller root protocol disagrees with its canonical GC effect"),
-            Self::ProtocolContract(source) => source.fmt(formatter),
             Self::Identity(source) => {
                 write!(formatter, "cannot derive external identity: {source}")
             }
@@ -252,7 +258,6 @@ impl std::error::Error for ExternalCallableBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Identity(source) => Some(source),
-            Self::ProtocolContract(source) => Some(source),
             Self::AbiArgumentCount { .. }
             | Self::AbiArgumentMismatch { .. }
             | Self::AbiResultMismatch
@@ -262,7 +267,6 @@ impl std::error::Error for ExternalCallableBuildError {
     }
 }
 
-mod protocol;
 mod roots;
 pub use roots::ExternalCallableRootPlan;
 

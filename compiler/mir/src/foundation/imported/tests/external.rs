@@ -43,20 +43,11 @@ fn mixed_core_calls_share_one_arena_and_preserve_selection_and_effect() {
     let output = DependencyMirOutput::try_new(module, dependencies).unwrap();
     let (module, dependencies) = output.into_parts();
     let input = seal(module, &dependencies).unwrap();
-    let roots = input.materialization();
-    assert_eq!(roots.imported_core_callable_roots()[0].callable(), protocol);
-    assert_eq!(
-        roots.imported_dependency_callable_roots()[0].callable(),
-        ordinary
-    );
-    assert_eq!(
-        roots.imported_dependency_callable_roots()[0].provider(),
-        ConeIdentity::CORE
-    );
-    assert_eq!(
-        roots.imported_dependency_callable_roots()[0].gc_effect(),
-        GcEffect::NoGc
-    );
+    let roots = input.materialization().external_callable_roots();
+    assert_eq!(roots[1].callable(), protocol);
+    assert_eq!(roots[0].callable(), ordinary);
+    assert_eq!(roots[0].provider(), ConeIdentity::CORE);
+    assert_eq!(roots[0].gc_effect(), GcEffect::NoGc);
 }
 
 #[test]

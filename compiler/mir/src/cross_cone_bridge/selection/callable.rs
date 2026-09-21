@@ -6,11 +6,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ExternalCallableRole {
-    Dependency,
-    InitializationCycle,
-}
+pub use scoop_identity::ExternalCallableRole;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SelectedExternalMirCallable {

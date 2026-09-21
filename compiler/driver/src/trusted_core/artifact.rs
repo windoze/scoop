@@ -8,10 +8,7 @@ use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
     PersistentExactTypeId,
 };
-use scoop_lir::{
-    ImportedLirCallableProjectionError, ImportedLirSelectionError,
-    ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
-};
+use scoop_lir::{ImportedLirCallableProjectionError, ImportedLirTypeDescriptorProjectionError};
 use scoop_mir::ImportedMirCallableProjectionError;
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeSemanticsStrongProfile, SharedCrossConeArtifact,

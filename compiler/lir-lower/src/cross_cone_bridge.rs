@@ -52,19 +52,17 @@ fn validate_mir_selections(
 ) -> Result<(), CrossConeLirBridgeLoweringError> {
     let mut roots = Vec::new();
     roots
-        .try_reserve_exact(
-            input
-                .materialization()
-                .imported_dependency_callable_roots()
-                .len(),
-        )
+        .try_reserve_exact(input.materialization().external_callable_roots().len())
         .map_err(|_| CrossConeLirBridgeLoweringError::Allocation {
-            requested_slots: input
-                .materialization()
-                .imported_dependency_callable_roots()
-                .len(),
+            requested_slots: input.materialization().external_callable_roots().len(),
         })?;
-    roots.extend(input.materialization().imported_dependency_callable_roots());
+    roots.extend(
+        input
+            .materialization()
+            .external_callable_roots()
+            .iter()
+            .filter(|root| root.role() == scoop_identity::ExternalCallableRole::Dependency),
+    );
     roots.sort_unstable_by_key(|root| (root.provider(), root.declaration()));
 
     if roots.len() != bridge.selected().len() {

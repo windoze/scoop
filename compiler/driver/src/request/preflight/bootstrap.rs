@@ -123,7 +123,7 @@ impl TrustedCoreBootstrapMirOutput {
         self,
         target_profile: scoop_lir::LirTargetProfile,
     ) -> Result<TrustedCoreBootstrapLirOutput, CurrentConeLirStageError> {
-        let selected = scoop_lir::SelectedDependencyLirSet::try_from_callables(
+        let selected = scoop_lir::SelectedExternalLirSet::try_from_callables(
             self.strong.module().cone,
             Vec::new(),
         )
@@ -131,7 +131,7 @@ impl TrustedCoreBootstrapMirOutput {
         let (lir, cross_cone_bridge) = machine::lower_selected_lir(
             &self.strong,
             &self.cross_cone_bridge,
-            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            scoop_lir_lower::RuntimeStringDescriptor::Local,
             &selected,
             target_profile,
         )?;

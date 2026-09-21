@@ -108,9 +108,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::{
-        AbiReturn, CallingConvention, ExternalCallableRootPlan, GcEffect, ScoopAbiSignature,
-    };
+    use crate::{AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
 
     #[test]
     fn callable_binds_target_symbol_definition_and_root_protocol() {
@@ -132,13 +130,27 @@ mod tests {
             IdentityGcEffect::Managed,
         )
         .unwrap();
-        let callable = crate::ExternalCallable::initialization_cycle(
+        let selected = crate::SelectedDependencyLirCallableV1::new(
+            ConeIdentity::CORE,
+            scoop_identity::DependencyCallableDeclarationId::Function(function),
             target,
             canonical_signature,
-            ScoopAbiSignature::new(Vec::new(), AbiReturn::UnitVoid, CallingConvention::Cdecl),
-            ExternalCallableRootPlan::ManagedStatepoint,
+            CallingConvention::Cdecl,
+            crate::DependencyExternalCallableRootPlanV1::ManagedStatepoint,
         )
         .unwrap();
+        let set = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
+            .with_initialization_cycle(selected)
+            .unwrap();
+        let callable = set
+            .callable(set.initialization_cycle().unwrap())
+            .unwrap()
+            .materialize(ScoopAbiSignature::new(
+                Vec::new(),
+                AbiReturn::UnitVoid,
+                CallingConvention::Cdecl,
+            ))
+            .unwrap();
 
         assert_eq!(callable.target(), target);
         assert_eq!(callable.calling_convention(), CallingConvention::Cdecl);

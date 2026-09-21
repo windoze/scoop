@@ -42,28 +42,25 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let mir = input.lower_selected_mir(dependencies).unwrap();
     assert_eq!(mir.selected_callables.len(), 1);
     assert_eq!(
-        mir.strong
-            .materialization()
-            .imported_dependency_callable_roots()
-            .len(),
+        mir.strong.materialization().external_callable_roots().len(),
         1
     );
     sources::snapshot("mir", &scoop_mir::dump(mir.strong.module()));
     let selected = selection::lir(&mir.selected_callables);
     let target = scoop_lir::LirTargetProfile::DARWIN_AARCH64;
     let empty =
-        scoop_lir::SelectedDependencyLirSet::try_from_callables(ConeIdentity::CORE, Vec::new())
+        scoop_lir::SelectedExternalLirSet::try_from_callables(ConeIdentity::CORE, Vec::new())
             .unwrap();
     assert!(matches!(
         lower_selected_lir(
             &mir.strong,
             &mir.public,
-            scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+            scoop_lir_lower::RuntimeStringDescriptor::Local,
             &empty,
             target
         ),
         Err(CurrentConeLirStageError::Lowering(
-            scoop_lir_lower::StrongLirLoweringError::ImportedDependencyLirCountMismatch {
+            scoop_lir_lower::StrongLirLoweringError::ExternalCallableCountMismatch {
                 mir: 1,
                 lir: 0
             }
@@ -72,7 +69,7 @@ fn current_core_and_ordinary_callables_share_the_complete_machine_pipeline() {
     let (lir, public) = lower_selected_lir(
         &mir.strong,
         &mir.public,
-        scoop_lir_lower::StrongImportedCoreLirInput::Unused,
+        scoop_lir_lower::RuntimeStringDescriptor::Local,
         &selected,
         target,
     )

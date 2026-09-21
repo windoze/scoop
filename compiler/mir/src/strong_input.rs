@@ -75,39 +75,12 @@ pub struct StrongGeneratedNominalShapeRoot {
     exact: PersistentExactTypeId,
 }
 
-/// One imported-core callable use after its request-local MIR brand has been
-/// resolved through the exact selected set that minted it.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongImportedCoreCallableRoot {
-    callable: ExternalCallableUseId,
-    kind: scoop_identity::CoreImportedCallableKind,
-    implementation: StrongCallableDefinitionOwner,
-    signature: ExactCallableSignature,
-}
-
-impl StrongImportedCoreCallableRoot {
-    pub const fn callable(&self) -> ExternalCallableUseId {
-        self.callable
-    }
-
-    pub const fn kind(&self) -> scoop_identity::CoreImportedCallableKind {
-        self.kind
-    }
-
-    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
-        self.implementation
-    }
-
-    pub const fn signature(&self) -> &ExactCallableSignature {
-        &self.signature
-    }
-}
-
 /// One ordinary dependency callable after its request-local selected bridge
 /// has been resolved and its caller-side GC protocol has been retained.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongImportedDependencyCallableRoot {
+pub struct StrongExternalCallableRoot {
     callable: ExternalCallableUseId,
+    role: crate::ExternalCallableRole,
     provider: ConeIdentity,
     declaration: DependencyCallableDeclarationId,
     implementation: StrongCallableDefinitionOwner,
@@ -115,7 +88,11 @@ pub struct StrongImportedDependencyCallableRoot {
     gc_effect: crate::GcEffect,
 }
 
-impl StrongImportedDependencyCallableRoot {
+impl StrongExternalCallableRoot {
+    pub const fn role(&self) -> crate::ExternalCallableRole {
+        self.role
+    }
+
     pub const fn callable(&self) -> ExternalCallableUseId {
         self.callable
     }
@@ -161,8 +138,7 @@ impl StrongGeneratedNominalShapeRoot {
 /// have been checked against the exact MIR foundation and production section.
 pub struct SingleConeStrongMaterializationPlan {
     callable_roots: Vec<StrongCallableMaterializationRoot>,
-    imported_core_callable_roots: Vec<StrongImportedCoreCallableRoot>,
-    imported_dependency_callable_roots: Vec<StrongImportedDependencyCallableRoot>,
+    external_callable_roots: Vec<StrongExternalCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
     shape_support_sources: Vec<SourceDeclarationKey>,
@@ -179,12 +155,8 @@ impl SingleConeStrongMaterializationPlan {
         &self.callable_roots
     }
 
-    pub fn imported_core_callable_roots(&self) -> &[StrongImportedCoreCallableRoot] {
-        &self.imported_core_callable_roots
-    }
-
-    pub fn imported_dependency_callable_roots(&self) -> &[StrongImportedDependencyCallableRoot] {
-        &self.imported_dependency_callable_roots
+    pub fn external_callable_roots(&self) -> &[StrongExternalCallableRoot] {
+        &self.external_callable_roots
     }
 
     pub fn source_nominal_shapes(&self) -> &[StrongSourceNominalShapeRoot] {
@@ -276,8 +248,7 @@ impl SingleConeStrongMirInput {
         }
 
         validate_core_branch(module.cone, production.core_bridge())?;
-        let (imported_core_callable_roots, imported_dependency_callable_roots) =
-            validate_external_callables(&module, external_callables)?;
+        let external_callable_roots = validate_external_callables(&module, external_callables)?;
         let callable_roots = callable_roots(&module)?;
         validate_callable_roots(&callable_roots, &expected_bridges)?;
         validate_output(&module, &production, &callable_roots)?;
@@ -323,8 +294,7 @@ impl SingleConeStrongMirInput {
             shape_support::validate(shape_support_sources, &module, &source_nominal_shapes)?;
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
-            imported_core_callable_roots,
-            imported_dependency_callable_roots,
+            external_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
             shape_support_sources,

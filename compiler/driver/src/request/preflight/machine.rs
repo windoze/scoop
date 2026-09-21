@@ -62,31 +62,11 @@ impl CurrentConeMachineHir<'_> {
     }
 }
 
-pub(super) fn lower_lir(
-    strong: &scoop_mir::SingleConeStrongMirInput,
-    public: &scoop_mir::CrossConeMirBridgeSectionV1,
-    protocols: scoop_lir_lower::StrongImportedCoreLirInput<'_>,
-    selected_callables: &scoop_mir::SelectedExternalMirSet,
-    closure: &scoop_slib::ValidatedCrossConeSemanticClosure<'_>,
-    target: scoop_lir::LirTargetProfile,
-) -> Result<
-    (
-        scoop_lir::SingleConeStrongLirOutput,
-        scoop_lir::CrossConeLirBridgeSectionV1,
-    ),
-    CurrentConeLirStageError,
-> {
-    let selected = closure
-        .project_dependency_callables_to_lir(selected_callables)
-        .map_err(CurrentConeLirStageError::DependencyProjection)?;
-    lower_selected_lir(strong, public, protocols, &selected, target)
-}
-
 pub(super) fn lower_selected_lir(
     strong: &scoop_mir::SingleConeStrongMirInput,
     public: &scoop_mir::CrossConeMirBridgeSectionV1,
-    protocols: scoop_lir_lower::StrongImportedCoreLirInput<'_>,
-    selected_callables: &scoop_lir::SelectedDependencyLirSet,
+    runtime_string: scoop_lir_lower::RuntimeStringDescriptor,
+    selected_callables: &scoop_lir::SelectedExternalLirSet,
     target: scoop_lir::LirTargetProfile,
 ) -> Result<
     (
@@ -95,13 +75,8 @@ pub(super) fn lower_selected_lir(
     ),
     CurrentConeLirStageError,
 > {
-    let lir = scoop_lir_lower::lower_with_dependencies(
-        strong,
-        protocols,
-        scoop_lir_lower::StrongImportedDependencyLirInput::Selected(selected_callables),
-        target,
-    )
-    .map_err(CurrentConeLirStageError::Lowering)?;
+    let lir = scoop_lir_lower::lower(strong, runtime_string, selected_callables, target)
+        .map_err(CurrentConeLirStageError::Lowering)?;
     let public = scoop_lir_lower::lower_cross_cone_bridge_section(strong, public, &lir)
         .map_err(CurrentConeLirStageError::CrossConeBridge)?;
     Ok((lir, public))

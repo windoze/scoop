@@ -4,17 +4,22 @@ use super::*;
 fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols() {
     for effect in [mir::GcEffect::Managed, mir::GcEffect::NoGc] {
         let (input, selected_lir, expected_target) = dependency_input(effect, effect, false);
-        let core = test_imported_core_lir_input(&input);
+        let core = test_runtime_string_descriptor(&input);
 
         assert!(matches!(
-            super::super::lower(&input, core, lir::LirTargetProfile::DARWIN_AARCH64,),
-            Err(StrongLirLoweringError::MissingImportedDependencyLirAuthority)
+            super::super::lower(
+                &input,
+                core,
+                &lir::SelectedExternalLirSet::empty(input.module().cone),
+                lir::LirTargetProfile::DARWIN_AARCH64,
+            ),
+            Err(StrongLirLoweringError::ExternalCallableCountMismatch { mir: 1, lir: 0 })
         ));
 
-        let output = super::super::lower_with_dependencies(
+        let output = super::super::lower(
             &input,
             core,
-            super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+            &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         )
         .unwrap();
@@ -57,22 +62,20 @@ fn dependency_strong_lowering_requires_lir_authority_and_preserves_gc_protocols(
 fn dependency_strong_lowering_rejects_gc_effect_drift() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::NoGc, false);
-    let core = test_imported_core_lir_input(&input);
+    let core = test_runtime_string_descriptor(&input);
 
     assert!(matches!(
-        super::super::lower_with_dependencies(
+        super::super::lower(
             &input,
             core,
-            super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+            &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         ),
-        Err(
-            StrongLirLoweringError::ImportedDependencyLirGcEffectMismatch {
-                mir: mir::GcEffect::Managed,
-                lir: scoop_identity::GcEffect::NoGc,
-                ..
-            }
-        )
+        Err(StrongLirLoweringError::ExternalCallableGcEffectMismatch {
+            mir: mir::GcEffect::Managed,
+            lir: scoop_identity::GcEffect::NoGc,
+            ..
+        })
     ));
 }
 
@@ -80,12 +83,12 @@ fn dependency_strong_lowering_rejects_gc_effect_drift() {
 fn dependency_strong_lowering_classifies_an_extension_receiver_as_the_first_argument() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::Managed, true);
-    let core = test_imported_core_lir_input(&input);
+    let core = test_runtime_string_descriptor(&input);
 
-    let output = super::super::lower_with_dependencies(
+    let output = super::super::lower(
         &input,
         core,
-        super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+        &selected_lir,
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
@@ -106,11 +109,11 @@ fn cross_cone_lir_bridge_projects_local_exports_and_dependency_selections() {
     for effect in [mir::GcEffect::Managed, mir::GcEffect::NoGc] {
         let (input, selected_lir, _) = dependency_input(effect, effect, false);
         let mir_bridge = dependency_mir_bridge(&input, true);
-        let core = test_imported_core_lir_input(&input);
-        let output = super::super::lower_with_dependencies(
+        let core = test_runtime_string_descriptor(&input);
+        let output = super::super::lower(
             &input,
             core,
-            super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+            &selected_lir,
             lir::LirTargetProfile::DARWIN_AARCH64,
         )
         .unwrap();
@@ -159,11 +162,11 @@ fn cross_cone_lir_bridge_rejects_a_mir_selection_not_owned_by_the_input() {
     let (input, selected_lir, _) =
         dependency_input(mir::GcEffect::Managed, mir::GcEffect::Managed, false);
     let incomplete_bridge = dependency_mir_bridge(&input, false);
-    let core = test_imported_core_lir_input(&input);
-    let output = super::super::lower_with_dependencies(
+    let core = test_runtime_string_descriptor(&input);
+    let output = super::super::lower(
         &input,
         core,
-        super::super::StrongImportedDependencyLirInput::Selected(&selected_lir),
+        &selected_lir,
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
@@ -210,7 +213,7 @@ fn dependency_mir_bridge(
     let selected = if include_selected {
         input
             .materialization()
-            .imported_dependency_callable_roots()
+            .external_callable_roots()
             .iter()
             .map(|root| {
                 mir::SelectedDependencyMirCallableV1::try_new(
@@ -240,7 +243,7 @@ fn dependency_input(
     has_receiver: bool,
 ) -> (
     mir::SingleConeStrongMirInput,
-    lir::SelectedDependencyLirSet,
+    lir::SelectedExternalLirSet,
     scoop_identity::StrongCallableDefinitionOwner,
 ) {
     let mut builder = Builder::new();
@@ -380,6 +383,6 @@ fn dependency_input(
         vec![selected_record],
     )
     .unwrap();
-    let selected_lir = lir::SelectedDependencyLirSet::try_from_bridge(&lir_bridge).unwrap();
+    let selected_lir = lir::SelectedExternalLirSet::try_from_bridge(&lir_bridge).unwrap();
     (input, selected_lir, target)
 }

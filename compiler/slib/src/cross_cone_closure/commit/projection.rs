@@ -4,7 +4,7 @@ use std::fmt;
 
 use scoop_hir::SelectedImportedDependencySet;
 use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
-use scoop_lir::{SelectedDependencyLirCallableV1, SelectedDependencyLirSet};
+use scoop_lir::{SelectedDependencyLirCallableV1, SelectedExternalLirSet};
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
 
 use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
@@ -82,7 +82,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
     pub fn project_dependency_callables_to_lir(
         &self,
         selected: &SelectedExternalMirSet,
-    ) -> Result<SelectedDependencyLirSet, CrossConeLirSelectionProjectionError> {
+    ) -> Result<SelectedExternalLirSet, CrossConeLirSelectionProjectionError> {
         if selected.consumer() != self.current {
             return Err(CrossConeLirSelectionProjectionError::ConsumerMismatch {
                 closure: self.current,
@@ -131,7 +131,7 @@ impl ValidatedCrossConeSemanticClosure<'_> {
             projected.push(selected);
         }
 
-        SelectedDependencyLirSet::try_from_callables(self.current, projected)
+        SelectedExternalLirSet::try_from_callables(self.current, projected)
             .map_err(CrossConeLirSelectionProjectionError::Selection)
     }
 }
@@ -245,7 +245,7 @@ pub enum CrossConeLirSelectionProjectionError {
         declaration: DependencyCallableDeclarationId,
     },
     Record(scoop_lir::ParamFreeLirCallableBuildError),
-    Selection(scoop_lir::SelectedDependencyLirSetBuildError),
+    Selection(scoop_lir::SelectedExternalLirSetBuildError),
 }
 
 impl fmt::Display for CrossConeLirSelectionProjectionError {

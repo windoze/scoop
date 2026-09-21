@@ -73,7 +73,7 @@ pub use callback::{
     CallbackParameterIndex, CallbackRegistrationKey, DecodedCallbackApplicationKey,
     DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
-pub use core_builtin::{CoreBuiltinNominal, CoreImportedCallableKind};
+pub use core_builtin::{CoreBuiltinNominal, CoreImportedCallableKind, ExternalCallableRole};
 pub use core_native::CoreNativeBoundaryNominal;
 pub use dependency_callable::{
     DecodedDependencyCallableDeclarationId, DependencyCallableDeclarationId,

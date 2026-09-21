@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use super::{
-    SingleConeStrongMirInputError as Error, StrongExternalCallableInput,
-    StrongImportedCoreCallableRoot, StrongImportedDependencyCallableRoot,
+    SingleConeStrongMirInputError as Error, StrongExternalCallableInput, StrongExternalCallableRoot,
 };
 use crate::{ExternalCallableRole, GcEffect, Module};
 
@@ -11,16 +10,10 @@ use crate::{ExternalCallableRole, GcEffect, Module};
 pub(crate) fn validate_external_callables(
     module: &Module,
     input: StrongExternalCallableInput<'_>,
-) -> Result<
-    (
-        Vec<StrongImportedCoreCallableRoot>,
-        Vec<StrongImportedDependencyCallableRoot>,
-    ),
-    Error,
-> {
+) -> Result<Vec<StrongExternalCallableRoot>, Error> {
     let selected = match input {
         StrongExternalCallableInput::Unused if module.meta.external_callables.is_empty() => {
-            return Ok((Vec::new(), Vec::new()));
+            return Ok(Vec::new());
         }
         StrongExternalCallableInput::Unused => return Err(Error::MissingExternalCallableSelection),
         StrongExternalCallableInput::Selected(selected) => selected,
@@ -40,8 +33,7 @@ pub(crate) fn validate_external_callables(
     let referenced = crate::external_callable::referenced_external_callables(module);
     let mut implementations = HashSet::new();
     let mut declarations = HashSet::new();
-    let mut protocols = Vec::new();
-    let mut dependencies = Vec::new();
+    let mut roots = Vec::with_capacity(selected.len());
     for (callable, value) in module.meta.external_callables.iter() {
         let index = callable.into_raw().into_u32();
         let selected = selected
@@ -58,29 +50,20 @@ pub(crate) fn validate_external_callables(
         if !referenced.contains(&callable) {
             return Err(Error::UnreferencedExternalCallable { index });
         }
-        match selected.role() {
-            ExternalCallableRole::InitializationCycle => {
-                if value.gc_effect() != GcEffect::Managed {
-                    return Err(Error::InitializationCycleGcEffect { index });
-                }
-                protocols.push(StrongImportedCoreCallableRoot {
-                    callable,
-                    kind: scoop_identity::CoreImportedCallableKind::InitializationCycleThrower,
-                    implementation: selected.implementation(),
-                    signature: selected.signature().clone(),
-                });
-            }
-            ExternalCallableRole::Dependency => {
-                dependencies.push(StrongImportedDependencyCallableRoot {
-                    callable,
-                    provider: selected.provider(),
-                    declaration: selected.declaration(),
-                    implementation: selected.implementation(),
-                    signature: selected.signature().clone(),
-                    gc_effect: value.gc_effect(),
-                })
-            }
+        if selected.role() == ExternalCallableRole::InitializationCycle
+            && value.gc_effect() != GcEffect::Managed
+        {
+            return Err(Error::InitializationCycleGcEffect { index });
         }
+        roots.push(StrongExternalCallableRoot {
+            callable,
+            role: selected.role(),
+            provider: selected.provider(),
+            declaration: selected.declaration(),
+            implementation: selected.implementation(),
+            signature: selected.signature().clone(),
+            gc_effect: value.gc_effect(),
+        });
     }
-    Ok((protocols, dependencies))
+    Ok(roots)
 }

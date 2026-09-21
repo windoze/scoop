@@ -13,71 +13,45 @@ pub(crate) use storage::StorageResult;
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
     StorageReplay(StorageLoweringError),
-    MissingImportedCoreLirAuthority,
-    CoreCannotImportCore,
-    ImportedCoreLirCountMismatch {
-        mir: usize,
-        lir: usize,
-    },
-    MissingImportedCoreLirCallable {
-        index: usize,
-        kind: scoop_identity::CoreImportedCallableKind,
-    },
-    ImportedCoreLirCallableMismatch {
-        index: usize,
-        kind: scoop_identity::CoreImportedCallableKind,
-    },
-    MissingImportedCoreParameterType {
-        index: usize,
-        parameter: usize,
-        exact: scoop_identity::PersistentExactTypeId,
-    },
-    MissingImportedCoreResultType {
-        index: usize,
-        exact: scoop_identity::PersistentExactTypeId,
-    },
-    ImportedCoreCallable(lir::ExternalCallableBuildError),
-    ImportedCoreTypeDescriptor(lir::ExternalTypeDescriptorBuildError),
-    ImportedCoreRuntimeStringMismatch {
+    RuntimeStringExactMismatch {
         mir: scoop_identity::PersistentExactTypeId,
         lir: scoop_identity::PersistentExactTypeId,
     },
-    MissingImportedDependencyLirAuthority,
-    ForeignImportedDependencyLirSelection {
+    ForeignExternalLirSelection {
         expected: scoop_identity::ConeIdentity,
         actual: scoop_identity::ConeIdentity,
     },
-    ImportedDependencyLirCountMismatch {
+    ExternalCallableCountMismatch {
         mir: usize,
         lir: usize,
     },
-    MissingImportedDependencyLirCallable {
+    MissingExternalCallable {
         index: usize,
         provider: scoop_identity::ConeIdentity,
         declaration: scoop_identity::DependencyCallableDeclarationId,
     },
-    ImportedDependencyLirCallableMismatch {
+    ExternalCallableMismatch {
         index: usize,
         provider: scoop_identity::ConeIdentity,
         declaration: scoop_identity::DependencyCallableDeclarationId,
     },
-    ImportedDependencyLirGcEffectMismatch {
+    ExternalCallableGcEffectMismatch {
         index: usize,
         provider: scoop_identity::ConeIdentity,
         declaration: scoop_identity::DependencyCallableDeclarationId,
         mir: mir::GcEffect,
         lir: scoop_identity::GcEffect,
     },
-    MissingImportedDependencyArgumentType {
+    MissingExternalArgumentType {
         index: usize,
         argument: usize,
         exact: scoop_identity::PersistentExactTypeId,
     },
-    MissingImportedDependencyResultType {
+    MissingExternalResultType {
         index: usize,
         exact: scoop_identity::PersistentExactTypeId,
     },
-    ImportedDependencyCallable(lir::ExternalCallableBuildError),
+    ExternalCallable(lir::ExternalCallableBuildError),
     MissingRuntimeStringDescriptor {
         producer: scoop_identity::ConeIdentity,
     },
@@ -98,71 +72,37 @@ impl fmt::Display for StrongLirLoweringError {
         match self {
             Self::Capability(source) => source.fmt(formatter),
             Self::StorageReplay(source) => source.fmt(formatter),
-            Self::ImportedCoreCallable(source) => source.fmt(formatter),
-            Self::ImportedCoreTypeDescriptor(source) => source.fmt(formatter),
-            Self::ImportedDependencyCallable(source) => source.fmt(formatter),
+            Self::ExternalCallable(source) => source.fmt(formatter),
             Self::CoreLirBridge(source) => source.fmt(formatter),
-            Self::MissingImportedCoreLirAuthority => formatter
-                .write_str("imported-core MIR roots require the exact selected LIR authority"),
-            Self::CoreCannotImportCore => {
-                formatter.write_str("the core bootstrap Cone cannot import core callables")
-            }
-            Self::ImportedCoreLirCountMismatch { mir, lir } => write!(
+            Self::RuntimeStringExactMismatch { mir, lir } => write!(
                 formatter,
-                "imported-core selection count mismatch: MIR has {mir}, LIR authority has {lir}"
+                "runtime String exact type mismatch: MIR requires {mir}, LIR provides {lir}"
             ),
-            Self::MissingImportedCoreLirCallable { index, kind } => write!(
+            Self::ForeignExternalLirSelection { expected, actual } => write!(
                 formatter,
-                "imported-core MIR callable {index} kind {kind:?} has no LIR authority"
+                "external callable LIR selection belongs to consumer {actual}, expected {expected}"
             ),
-            Self::ImportedCoreLirCallableMismatch { index, kind } => write!(
+            Self::ExternalCallableCountMismatch { mir, lir } => write!(
                 formatter,
-                "imported-core MIR callable {index} kind {kind:?} disagrees with its LIR authority"
+                "external callable selection count mismatch: MIR has {mir}, LIR authority has {lir}"
             ),
-            Self::MissingImportedCoreParameterType {
-                index,
-                parameter,
-                exact,
-            } => write!(
-                formatter,
-                "imported-core MIR callable {index} parameter {parameter} exact type {exact} has no MIR type relation"
-            ),
-            Self::MissingImportedCoreResultType { index, exact } => write!(
-                formatter,
-                "imported-core MIR callable {index} result {exact} has no exact MIR type relation"
-            ),
-            Self::ImportedCoreRuntimeStringMismatch { mir, lir } => write!(
-                formatter,
-                "runtime String exact type mismatch: MIR requires {mir}, LIR authority provides {lir}"
-            ),
-            Self::MissingImportedDependencyLirAuthority => formatter.write_str(
-                "ordinary dependency MIR roots require the exact selected LIR authority",
-            ),
-            Self::ForeignImportedDependencyLirSelection { expected, actual } => write!(
-                formatter,
-                "ordinary dependency LIR selection belongs to consumer {actual}, expected {expected}"
-            ),
-            Self::ImportedDependencyLirCountMismatch { mir, lir } => write!(
-                formatter,
-                "ordinary dependency selection count mismatch: MIR has {mir}, LIR authority has {lir}"
-            ),
-            Self::MissingImportedDependencyLirCallable {
+            Self::MissingExternalCallable {
                 index,
                 provider,
                 declaration,
             } => write!(
                 formatter,
-                "ordinary dependency MIR callable {index} ({provider}, {declaration:?}) has no LIR authority"
+                "external callable MIR callable {index} ({provider}, {declaration:?}) has no LIR authority"
             ),
-            Self::ImportedDependencyLirCallableMismatch {
+            Self::ExternalCallableMismatch {
                 index,
                 provider,
                 declaration,
             } => write!(
                 formatter,
-                "ordinary dependency MIR callable {index} ({provider}, {declaration:?}) disagrees with its LIR authority"
+                "external callable MIR callable {index} ({provider}, {declaration:?}) disagrees with its LIR authority"
             ),
-            Self::ImportedDependencyLirGcEffectMismatch {
+            Self::ExternalCallableGcEffectMismatch {
                 index,
                 provider,
                 declaration,
@@ -170,19 +110,19 @@ impl fmt::Display for StrongLirLoweringError {
                 lir,
             } => write!(
                 formatter,
-                "ordinary dependency MIR callable {index} ({provider}, {declaration:?}) has GC effect {mir:?}, but its LIR authority requires {lir:?}"
+                "external callable MIR callable {index} ({provider}, {declaration:?}) has GC effect {mir:?}, but its LIR authority requires {lir:?}"
             ),
-            Self::MissingImportedDependencyArgumentType {
+            Self::MissingExternalArgumentType {
                 index,
                 argument,
                 exact,
             } => write!(
                 formatter,
-                "ordinary dependency MIR callable {index} argument {argument} exact type {exact} has no MIR type relation"
+                "external callable MIR callable {index} argument {argument} exact type {exact} has no MIR type relation"
             ),
-            Self::MissingImportedDependencyResultType { index, exact } => write!(
+            Self::MissingExternalResultType { index, exact } => write!(
                 formatter,
-                "ordinary dependency MIR callable {index} result {exact} has no exact MIR type relation"
+                "external callable MIR callable {index} result {exact} has no exact MIR type relation"
             ),
             Self::MissingRuntimeStringDescriptor { producer } => write!(
                 formatter,
@@ -223,28 +163,18 @@ impl std::error::Error for StrongLirLoweringError {
         match self {
             Self::Capability(source) => Some(source),
             Self::StorageReplay(source) => Some(source),
-            Self::ImportedCoreCallable(source) => Some(source),
-            Self::ImportedCoreTypeDescriptor(source) => Some(source),
-            Self::ImportedDependencyCallable(source) => Some(source),
+            Self::ExternalCallable(source) => Some(source),
             Self::CoreLirBridge(source) => Some(source),
             Self::Output(source) => Some(source),
             Self::MissingCoreCallableMaterialization(_)
-            | Self::MissingImportedCoreLirAuthority
-            | Self::CoreCannotImportCore
-            | Self::ImportedCoreLirCountMismatch { .. }
-            | Self::MissingImportedCoreLirCallable { .. }
-            | Self::ImportedCoreLirCallableMismatch { .. }
-            | Self::MissingImportedCoreParameterType { .. }
-            | Self::MissingImportedCoreResultType { .. }
-            | Self::ImportedCoreRuntimeStringMismatch { .. }
-            | Self::MissingImportedDependencyLirAuthority
-            | Self::ForeignImportedDependencyLirSelection { .. }
-            | Self::ImportedDependencyLirCountMismatch { .. }
-            | Self::MissingImportedDependencyLirCallable { .. }
-            | Self::ImportedDependencyLirCallableMismatch { .. }
-            | Self::ImportedDependencyLirGcEffectMismatch { .. }
-            | Self::MissingImportedDependencyArgumentType { .. }
-            | Self::MissingImportedDependencyResultType { .. }
+            | Self::RuntimeStringExactMismatch { .. }
+            | Self::ForeignExternalLirSelection { .. }
+            | Self::ExternalCallableCountMismatch { .. }
+            | Self::MissingExternalCallable { .. }
+            | Self::ExternalCallableMismatch { .. }
+            | Self::ExternalCallableGcEffectMismatch { .. }
+            | Self::MissingExternalArgumentType { .. }
+            | Self::MissingExternalResultType { .. }
             | Self::MissingRuntimeStringDescriptor { .. }
             | Self::RuntimeStringDescriptorOwnership { .. }
             | Self::MissingCoreCallableSignature(_)

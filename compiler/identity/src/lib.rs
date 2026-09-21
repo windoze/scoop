@@ -48,8 +48,9 @@ pub use entity::{
     DecodedExportBindingKey, DecodedLocalBindingKey, DecodedPropertyAccessorKey,
     DecodedSignatureCallableShape, DecodedStrongCallableDefinitionOwner,
     DependencyCallableDeclarationId, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, ExportBindingKey, LocalBindingKey, LocalBindingRole,
-    MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
+    ExecutableSourceEntryIdentityError, ExportBindingKey, ExternalCallableRole, LocalBindingKey,
+    LocalBindingRole, MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape,
+    StrongCallableDefinitionOwner,
 };
 pub use entity::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,

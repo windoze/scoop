@@ -11,13 +11,16 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
     let ordinary = ordinary_callable(ConeIdentity::CORE);
     let ordinary_id = module.meta.external_callables.alloc(ordinary.clone());
     let protocol = crate::core_lir_cycle_thrower_for_test();
-    let callable = ExternalCallable::initialization_cycle(
-        protocol.target(),
-        protocol.abi_signature().clone(),
-        cycle_signature(),
-        protocol.root_plan(),
+    let selected = selected_protocol(
+        &protocol,
+        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
     )
     .unwrap();
+    let callable = selected
+        .callable(selected.initialization_cycle().unwrap())
+        .unwrap()
+        .materialize(cycle_signature())
+        .unwrap();
     let protocol_body = callable.body();
     let protocol_id = module.meta.external_callables.alloc(callable);
     let other = ConeCoordinate::new("test", "helper", "1.0.0")
@@ -62,26 +65,48 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
 fn compiler_protocol_uses_the_common_abi_and_gc_validation() {
     let protocol = crate::core_lir_cycle_thrower_for_test();
     assert!(matches!(
-        ExternalCallable::initialization_cycle(
-            protocol.target(),
-            protocol.abi_signature().clone(),
-            cycle_signature(),
-            ExternalCallableRootPlan::NoGc,
-        ),
-        Err(ExternalCallableBuildError::RootProtocolMismatch)
+        selected_protocol(&protocol, DependencyExternalCallableRootPlanV1::NoGc),
+        Err(ParamFreeLirCallableBuildError::RootProtocolMismatch { .. })
     ));
+    let selected = selected_protocol(
+        &protocol,
+        DependencyExternalCallableRootPlanV1::ManagedStatepoint,
+    )
+    .unwrap();
     assert!(matches!(
-        ExternalCallable::initialization_cycle(
-            protocol.target(),
-            protocol.abi_signature().clone(),
-            ScoopAbiSignature::new(Vec::new(), AbiReturn::UnitVoid, CallingConvention::Cdecl),
-            protocol.root_plan(),
-        ),
+        selected
+            .callable(selected.initialization_cycle().unwrap())
+            .unwrap()
+            .materialize(ScoopAbiSignature::new(
+                Vec::new(),
+                AbiReturn::UnitVoid,
+                CallingConvention::Cdecl
+            ),),
         Err(ExternalCallableBuildError::AbiArgumentCount {
             expected: 1,
             actual: 0
         })
     ));
+}
+
+fn selected_protocol(
+    protocol: &CoreLirInitializationCycleThrowerV1,
+    root: DependencyExternalCallableRootPlanV1,
+) -> Result<SelectedExternalLirSet, ParamFreeLirCallableBuildError> {
+    let StrongCallableDefinitionOwner::Function(function) = protocol.target() else {
+        panic!("the service fixture is a source function")
+    };
+    let record = SelectedDependencyLirCallableV1::new(
+        ConeIdentity::CORE,
+        DependencyCallableDeclarationId::Function(function),
+        protocol.target(),
+        protocol.abi_signature().clone(),
+        protocol.calling_convention(),
+        root,
+    )?;
+    Ok(SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
+        .with_initialization_cycle(record)
+        .unwrap())
 }
 
 fn set_dispatch(module: &mut Module, callable: ExternalCallableId) {

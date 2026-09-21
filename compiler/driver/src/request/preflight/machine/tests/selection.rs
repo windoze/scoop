@@ -24,8 +24,8 @@ pub(super) fn mir(
 
 pub(super) fn lir(
     selected: &scoop_mir::SelectedExternalMirSet,
-) -> scoop_lir::SelectedDependencyLirSet {
-    scoop_lir::SelectedDependencyLirSet::try_from_callables(
+) -> scoop_lir::SelectedExternalLirSet {
+    scoop_lir::SelectedExternalLirSet::try_from_callables(
         selected.consumer(),
         selected
             .dependency_callables()

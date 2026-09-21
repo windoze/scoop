@@ -47,10 +47,11 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
     }
 
     /// Projects the selected typed service through the provider's canonical LIR ABI.
-    fn project_core_callable_to_lir<'artifact>(
-        &'artifact self,
+    fn project_core_callable_to_lir(
+        &self,
         selected: &scoop_mir::SelectedExternalMirCallable,
-    ) -> Result<SelectedImportedLirCallable<'artifact>, ImportedLirCallableProjectionError> {
+    ) -> Result<scoop_lir::SelectedDependencyLirCallableV1, ImportedLirCallableProjectionError>
+    {
         let bridge = self
             .compile()
             .production()
@@ -73,22 +74,22 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 
     /// Atomically projects a MIR selection set into the exact LIR external
     /// body/definition/symbol authority retained by this artifact.
-    pub fn project_core_callables_to_lir<'artifact>(
-        &'artifact self,
+    pub fn project_core_callables_to_lir(
+        &self,
         selected: &scoop_mir::SelectedExternalMirSet,
-    ) -> Result<SelectedImportedLirSet<'artifact>, TrustedCoreLirSetProjectionError> {
+        mut projected: scoop_lir::SelectedExternalLirSet,
+    ) -> Result<
+        (
+            scoop_lir::ExternalTypeDescriptor,
+            scoop_lir::SelectedExternalLirSet,
+        ),
+        TrustedCoreLirSetProjectionError,
+    > {
         let definitions = self
             .compile()
             .production()
             .lir_strong()
             .canonical_definitions();
-        let core_bridge = self
-            .compile()
-            .production()
-            .lir_strong()
-            .core_lir_bridge()
-            .core()
-            .expect("a validated trusted core artifact has a core LIR bridge");
         let string_exact = self.interface.string_capability().exact_type();
         let shape_support_plan = self
             .compile()
@@ -115,28 +116,20 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .project_type_descriptor(definitions, string_exact)
             .map_err(TrustedCoreLirSetProjectionError::RuntimeString)?;
         if runtime_string.expected_symbol() != string_descriptor.symbol()
-            || runtime_string.required_definition().persistent()
-                != string_descriptor.definition_plan()
+            || runtime_string.required_definition() != string_descriptor.definition_plan()
         {
             return Err(TrustedCoreLirSetProjectionError::RuntimeStringShapeSupportMismatch);
         }
-        let mut projected = SelectedImportedLirSet::try_new(
-            self.compile().lir(),
-            definitions,
-            core_bridge,
-            runtime_string,
-        )
-        .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
         if let Some(id) = selected.initialization_cycle() {
             let selected = selected.callable(id).expect("the selected service exists");
             let callable = self
                 .project_core_callable_to_lir(selected)
                 .map_err(TrustedCoreLirSetProjectionError::Callable)?;
-            projected
-                .insert(callable)
+            projected = projected
+                .with_initialization_cycle(callable)
                 .map_err(TrustedCoreLirSetProjectionError::LirSet)?;
         }
-        Ok(projected)
+        Ok((runtime_string, projected))
     }
 }
 
@@ -177,7 +170,7 @@ pub enum TrustedCoreLirSetProjectionError {
     RuntimeStringShapeSupportMismatch,
     RuntimeString(ImportedLirTypeDescriptorProjectionError),
     Callable(ImportedLirCallableProjectionError),
-    LirSet(ImportedLirSelectionError),
+    LirSet(scoop_lir::SelectedExternalLirSetBuildError),
 }
 
 impl fmt::Display for TrustedCoreLirSetProjectionError {
