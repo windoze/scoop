@@ -5,6 +5,7 @@ use scoop_wire::{decode_canonical, encode};
 
 mod constructors;
 mod declaration_domain;
+mod default_access;
 mod default_origins;
 mod dispatch;
 mod dispatch_binding;

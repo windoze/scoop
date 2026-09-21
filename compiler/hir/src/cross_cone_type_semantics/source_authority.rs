@@ -66,3 +66,6 @@ pub use default_origin_binding::*;
 
 mod default_declaration_binding;
 pub use default_declaration_binding::*;
+
+mod default_access_binding;
+pub use default_access_binding::*;

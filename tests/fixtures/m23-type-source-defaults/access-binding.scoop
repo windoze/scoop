@@ -1,0 +1,16 @@
+public open class AccessRoot {
+    protected class Hidden<T>(private var seed: T) {
+        private fun leaf(value: T = seed): T = value
+        internal var item: T
+            get() = seed
+            private set(next) { seed = next }
+    }
+}
+private class PrivateTarget {
+    private fun hidden(): Int = 1
+}
+internal fun <T> echo(value: T): T = value
+internal val Int.extra: Int
+    get() = this
+private struct Payload(val value: Int)
+private const val fixed: Int = 1

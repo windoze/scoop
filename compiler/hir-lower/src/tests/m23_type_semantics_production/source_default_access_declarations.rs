@@ -22,7 +22,7 @@ const COMBINATIONS: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
+pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
     let constants: BTreeSet<_> = export
         .properties
         .iter()
@@ -55,7 +55,7 @@ fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
     )
     .unwrap()
 }
-fn function(export: &hir::ExportHir, name: &str) -> Subject {
+pub(super) fn function(export: &hir::ExportHir, name: &str) -> Subject {
     let (id, _) = export
         .functions
         .iter()
