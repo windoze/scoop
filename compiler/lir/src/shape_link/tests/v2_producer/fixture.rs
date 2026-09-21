@@ -25,7 +25,10 @@ pub(super) struct Provider {
 
 impl Provider {
     pub(super) fn new() -> Self {
-        let coordinate = ConeCoordinate::reserved_single_file();
+        Self::for_coordinate(ConeCoordinate::reserved_single_file())
+    }
+
+    pub(super) fn for_coordinate(coordinate: ConeCoordinate) -> Self {
         let identity = coordinate.identity().unwrap();
         let source = nominal(identity, "Parent");
         let exact_record = exact(&source);
@@ -41,9 +44,8 @@ impl Provider {
                 .to_owned();
         let mut module = provider_module(identity, exact_record.clone(), callable, diagnostic_name);
         let initialization_unit = attach_eager_initialization(&mut module, "providerValue", exact);
-        let output =
-            SingleConeStrongLirOutput::try_new(module, Vec::new(), CoreLirBridgeBranchV1::NotCore)
-                .unwrap();
+        let protocol = super::lir_fixture::provider_protocol(&mut module, exact);
+        let output = SingleConeStrongLirOutput::try_new(module, Vec::new(), protocol).unwrap();
         let empty =
             StrongProductionDependencySelectionV2::empty(identity, TARGET, &mut meter()).unwrap();
         let section = output

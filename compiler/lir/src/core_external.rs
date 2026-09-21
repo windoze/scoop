@@ -145,38 +145,6 @@ impl CoreExternalCallable {
     }
 }
 
-/// A TypeDescriptor definition imported exclusively from the trusted core
-/// Cone. The persistent exact type is the semantic target.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreExternalTypeDescriptor {
-    target: PersistentExactTypeId,
-    expected_symbol: PersistentSymbolRequest,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl CoreExternalTypeDescriptor {
-    pub fn new(target: PersistentExactTypeId) -> Result<Self, CoreExternalBuildError> {
-        let (expected_symbol, required_definition) = core_type_descriptor_link_contract(target)?;
-        Ok(Self {
-            target,
-            expected_symbol,
-            required_definition,
-        })
-    }
-
-    pub const fn target(&self) -> PersistentExactTypeId {
-        self.target
-    }
-
-    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
-    }
-}
-
 fn required_definition(
     entity: StrongDefinitionEntity,
     role: StrongDefinitionRole,
@@ -213,19 +181,21 @@ pub(crate) fn core_callable_link_contract(
 pub(crate) fn core_type_descriptor_link_contract(
     target: PersistentExactTypeId,
 ) -> Result<(PersistentSymbolRequest, ObjectDefinitionPlanId), CoreExternalBuildError> {
-    let expected_symbol = PersistentSymbolRequest::new(
-        PersistentSymbolKey::TypeDescriptor(target),
-        LinkageClass::ConeStrong,
-    )
-    .map_err(CoreExternalBuildError::Symbol)?;
-    let required_definition = required_definition(
-        StrongDefinitionEntity::exact_type(target),
-        StrongDefinitionRole::TypeDescriptor,
+    use crate::ExternalTypeDescriptorBuildError as Error;
+    let descriptor = crate::ExternalTypeDescriptor::new(ConeIdentity::CORE, target).map_err(
+        |error| match error {
+            Error::Identity(error) => CoreExternalBuildError::Identity(error),
+            Error::Symbol(error) => CoreExternalBuildError::Symbol(error),
+            Error::Definition(error) => CoreExternalBuildError::Definition(error),
+        },
     )?;
-    Ok((expected_symbol, required_definition))
+    Ok((
+        descriptor.expected_symbol(),
+        descriptor.required_definition(),
+    ))
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CoreExternalBuildError {
     AbiArgumentCount { expected: usize, actual: usize },
     AbiArgumentMismatch { index: usize },
@@ -342,35 +312,6 @@ mod tests {
                 .symbol()
                 .as_str()
                 .starts_with("scoop$1$cb$")
-        );
-    }
-
-    #[test]
-    fn type_descriptor_has_no_independent_link_spelling() {
-        let exact = exact_type("String", SourceNominalKind::Class);
-        let descriptor = CoreExternalTypeDescriptor::new(exact).unwrap();
-
-        assert_eq!(descriptor.target(), exact);
-        assert_eq!(
-            descriptor.expected_symbol().key(),
-            PersistentSymbolKey::TypeDescriptor(exact)
-        );
-        let expected = ObjectDefinitionPlanId::from_key(
-            &ObjectDefinitionPlanKey::strong(
-                ConeIdentity::CORE,
-                StrongDefinitionEntity::exact_type(exact),
-                StrongDefinitionRole::TypeDescriptor,
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(descriptor.required_definition(), expected);
-        assert!(
-            descriptor
-                .expected_symbol()
-                .symbol()
-                .as_str()
-                .starts_with("scoop$1$td$")
         );
     }
 

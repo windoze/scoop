@@ -11,8 +11,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
-    CanonicalCAbiMetadata, CanonicalLirFoundation, CoreExternalTypeDescriptor, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, Function, GcEffect, Global, GlobalInit,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global, GlobalInit,
     InitializationSchedule, InitializationUnit, InitializationUnitKind, Layout, LayoutIdentity,
     LayoutKind, LirMeta, LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities,
     LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata, NativeGlobalBridges,
@@ -520,22 +520,22 @@ fn metadata() -> LirMeta {
         interior_mutable: false,
         kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
     });
-    let mut core_external_type_descriptors = Arena::new();
-    let string_descriptor =
-        core_external_type_descriptors.alloc(CoreExternalTypeDescriptor::new(string_type).unwrap());
+    let mut external_type_descriptors = Arena::new();
+    let string_descriptor = external_type_descriptors.alloc(
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, string_type).unwrap(),
+    );
     LirMeta {
         exact_types: Vec::new(),
         target_profile: LirTargetProfile::DARWIN_AARCH64,
         canonical_c_abi: CanonicalCAbiMetadata::default(),
         native_externals: NativeExternalMetadata::default(),
         well_known_type_descriptors: WellKnownTypeDescriptors {
-            string: TypeDescriptorRef::CoreExternal(string_descriptor),
+            string: TypeDescriptorRef::External(string_descriptor),
         },
         arrays: Arena::new(),
         layouts,
         type_descriptors: Arena::new(),
-        core_external_type_descriptors,
-        dependency_external_type_descriptors: Arena::new(),
+        external_type_descriptors,
         core_external_callables: Arena::new(),
         dependency_external_callables: Arena::new(),
     }

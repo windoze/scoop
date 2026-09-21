@@ -185,19 +185,13 @@ fn string_type_registration(
                 module.meta.type_descriptors[id].identity.exact_type(),
             ))
         }
-        TypeDescriptorRef::CoreExternal(id) => {
-            if id.into_raw().into_u32() as usize >= module.meta.core_external_type_descriptors.len()
-            {
-                return Err(
-                    StrongImmortalObjectSemanticPlanBuildError::MissingStringTypeDescriptor,
-                );
-            }
+        TypeDescriptorRef::External(_) => {
+            let descriptor = crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+                .map_err(StrongImmortalObjectSemanticPlanBuildError::ExternalBridge)?
+                .ok_or(StrongImmortalObjectSemanticPlanBuildError::MissingStringTypeDescriptor)?;
             Ok(ImmortalObjectTypeRegistrationRefV1::CoreExternal(
-                module.meta.core_external_type_descriptors[id].target(),
+                descriptor.target(),
             ))
-        }
-        TypeDescriptorRef::DependencyExternal(_) => {
-            Err(StrongImmortalObjectSemanticPlanBuildError::DependencyStringTypeDescriptor)
         }
     }
 }
@@ -242,7 +236,7 @@ fn string_object_size(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectSemanticPlanBuildError {
     MissingStringTypeDescriptor,
-    DependencyStringTypeDescriptor,
+    ExternalBridge(crate::StrongExternalLirBridgeBuildError),
     DuplicateObject(PersistentImmortalObjectId),
     AddressKind {
         object: PersistentImmortalObjectId,

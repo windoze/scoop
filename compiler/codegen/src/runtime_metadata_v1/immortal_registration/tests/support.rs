@@ -10,8 +10,8 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
-    CanonicalCAbiMetadata, CanonicalLirFoundation, CoreExternalTypeDescriptor, DigestInputRefV1,
-    DigestNodeV1, EnumDefs, ExternFunctions, Global, GlobalInit, ImmortalObjectIdentity,
+    CanonicalCAbiMetadata, CanonicalLirFoundation, DigestInputRefV1, DigestNodeV1, EnumDefs,
+    ExternFunctions, ExternalTypeDescriptor, Global, GlobalInit, ImmortalObjectIdentity,
     IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirMeta, LirTargetProfile,
     LocalFunctionIdentities, LocalFunctionRef, MaterializationRoot, Module, NativeExternalMetadata,
     NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan,
@@ -144,9 +144,10 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
         interior_mutable: false,
         kind: LayoutKind::Intrinsic(IntrinsicTypeRepresentation::String),
     });
-    let mut core_external_type_descriptors = Arena::new();
-    let string_descriptor =
-        core_external_type_descriptors.alloc(CoreExternalTypeDescriptor::new(string_type).unwrap());
+    let mut external_type_descriptors = Arena::new();
+    let string_descriptor = external_type_descriptors.alloc(
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, string_type).unwrap(),
+    );
     let mut local_functions = LocalFunctionIdentities::default();
     let entry = LocalFunctionRef::Managed(local_functions.alloc_managed());
     Module {
@@ -169,13 +170,12 @@ fn semantic_module(artifacts: &[ObjectArtifacts], string_type: PersistentExactTy
             canonical_c_abi: CanonicalCAbiMetadata::default(),
             native_externals: NativeExternalMetadata::default(),
             well_known_type_descriptors: WellKnownTypeDescriptors {
-                string: TypeDescriptorRef::CoreExternal(string_descriptor),
+                string: TypeDescriptorRef::External(string_descriptor),
             },
             arrays: Arena::new(),
             layouts,
             type_descriptors: Arena::new(),
-            core_external_type_descriptors,
-            dependency_external_type_descriptors: Arena::new(),
+            external_type_descriptors,
             core_external_callables: Arena::new(),
             dependency_external_callables: Arena::new(),
         },

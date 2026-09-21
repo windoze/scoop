@@ -7,8 +7,7 @@ use crate::shape_definitions::{
 #[derive(Clone, Copy)]
 pub(super) struct TypeDescriptorGlobals<'a, 'ctx> {
     pub(super) local: &'a [GlobalValue<'ctx>],
-    pub(super) core_external: &'a [GlobalValue<'ctx>],
-    pub(super) dependency_external: &'a [GlobalValue<'ctx>],
+    pub(super) external: &'a [GlobalValue<'ctx>],
 }
 
 pub(super) fn type_descriptor_global<'ctx>(
@@ -21,16 +20,11 @@ pub(super) fn type_descriptor_global<'ctx>(
             .get(arena_index(id))
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid local TypeDescriptor id {id:?}"))),
-        TypeDescriptorRef::CoreExternal(id) => globals
-            .core_external
+        TypeDescriptorRef::External(id) => globals
+            .external
             .get(arena_index(id))
             .copied()
-            .ok_or_else(|| CodegenError(format!("invalid core TypeDescriptor id {id:?}"))),
-        TypeDescriptorRef::DependencyExternal(id) => globals
-            .dependency_external
-            .get(arena_index(id))
-            .copied()
-            .ok_or_else(|| CodegenError(format!("invalid dependency TypeDescriptor id {id:?}"))),
+            .ok_or_else(|| CodegenError(format!("invalid external TypeDescriptor id {id:?}"))),
     }
 }
 

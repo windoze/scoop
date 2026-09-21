@@ -181,8 +181,6 @@ fn abi_reference(
 ) -> StrongTypeDispatchCallableRefV2 {
     if provider == current {
         StrongTypeDispatchCallableRefV2::Local(body)
-    } else if provider == ConeIdentity::CORE {
-        StrongTypeDispatchCallableRefV2::CoreExternal(body)
     } else {
         StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body }
     }

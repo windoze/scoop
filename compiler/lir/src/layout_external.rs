@@ -5,10 +5,9 @@ use scoop_identity::{ConeIdentity, PersistentExactTypeId, StrongCallableDefiniti
 use scoop_wire::{BudgetMeter, WirePath};
 
 use crate::{
-    DependencyExternalCallable, DependencyExternalTypeDescriptorV2, EnumDefs,
-    ExternalStrongShapeSubjectV1, LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1,
-    ScoopAbiSignature, SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1,
-    StrongProductionDependencySelectionV2,
+    DependencyExternalCallable, EnumDefs, ExternalStrongShapeSubjectV1, ExternalTypeDescriptor,
+    LayoutAbiSemanticRecordV1, LayoutAbiSemanticTargetV1, ScoopAbiSignature,
+    SelectedDependencyLayoutAbiSetV1, ShapeLinkContractV1, StrongProductionDependencySelectionV2,
 };
 
 impl SelectedDependencyLayoutAbiSetV1<'_> {
@@ -19,7 +18,7 @@ impl SelectedDependencyLayoutAbiSetV1<'_> {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
         meter: &mut BudgetMeter,
-    ) -> Result<DependencyExternalTypeDescriptorV2, LayoutExternalMaterializationError> {
+    ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
         materialize_type_descriptor(self, provider, exact, meter)
     }
 
@@ -43,7 +42,7 @@ impl StrongProductionDependencySelectionV2<'_> {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
         meter: &mut BudgetMeter,
-    ) -> Result<DependencyExternalTypeDescriptorV2, LayoutExternalMaterializationError> {
+    ) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
         materialize_type_descriptor(self, provider, exact, meter)
     }
 
@@ -134,7 +133,7 @@ fn materialize_type_descriptor<'a>(
     provider: ConeIdentity,
     exact: PersistentExactTypeId,
     meter: &mut BudgetMeter,
-) -> Result<DependencyExternalTypeDescriptorV2, LayoutExternalMaterializationError> {
+) -> Result<ExternalTypeDescriptor, LayoutExternalMaterializationError> {
     validate_provider(selected, provider)?;
     meter.charge_work(selected.semantic_count() as u64, &WirePath::root())?;
     let LayoutAbiSemanticRecordV1::Descriptor(record) = selected
@@ -165,7 +164,7 @@ fn materialize_type_descriptor<'a>(
             exact,
         ));
     }
-    Ok(DependencyExternalTypeDescriptorV2::from_layout_v1(
+    Ok(ExternalTypeDescriptor::from_selection(
         provider,
         exact,
         import.expected_symbol(),

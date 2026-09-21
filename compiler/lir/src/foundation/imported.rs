@@ -167,21 +167,16 @@ impl ImportedLirFoundation {
         })
     }
 
-    /// Projects one core-owned TypeDescriptor only after its exact type and
+    /// Projects one provider-owned TypeDescriptor only after its exact type and
     /// canonical strong definition have both been proven by this imported
     /// LIR world. Public-surface capability checks remain the responsibility
     /// of the artifact-level caller that supplies `target`.
-    pub fn project_core_type_descriptor<'a>(
+    pub fn project_type_descriptor<'a>(
         &'a self,
         definitions: &'a crate::StrongObjectSymbolSurfaceV1,
         target: PersistentExactTypeId,
     ) -> Result<SelectedImportedLirTypeDescriptor<'a>, ImportedLirTypeDescriptorProjectionError>
     {
-        if self.origin() != ConeIdentity::CORE {
-            return Err(ImportedLirTypeDescriptorProjectionError::FoundationNotCore(
-                self.origin(),
-            ));
-        }
         if self
             .canonical
             .materialized_exact_types
@@ -192,9 +187,10 @@ impl ImportedLirFoundation {
                 target,
             ));
         }
-        let (expected_symbol, required_definition) =
-            crate::core_type_descriptor_link_contract(target)
-                .map_err(ImportedLirTypeDescriptorProjectionError::Contract)?;
+        let descriptor = crate::ExternalTypeDescriptor::new(self.origin(), target)
+            .map_err(ImportedLirTypeDescriptorProjectionError::Contract)?;
+        let expected_symbol = descriptor.expected_symbol();
+        let required_definition = descriptor.required_definition();
         let required_definition = self.identity(required_definition).ok_or(
             ImportedLirTypeDescriptorProjectionError::MissingDefinition(required_definition),
         )?;
@@ -254,7 +250,7 @@ pub struct SelectedImportedLirCallable<'a> {
     required_definition: ImportedLirId<ObjectDefinitionPlanId>,
 }
 
-/// The runtime String TypeDescriptor authority imported from trusted core.
+/// A TypeDescriptor selected from its provider's imported LIR foundation.
 ///
 /// The retained imported LIR foundation proves the exact-type reference, and
 /// the retained definition plan proves the only legal strong symbol request.
@@ -477,10 +473,13 @@ impl SelectedImportedLirTypeDescriptor<'_> {
         self.required_definition
     }
 
-    pub fn materialize(
-        &self,
-    ) -> Result<crate::CoreExternalTypeDescriptor, crate::CoreExternalBuildError> {
-        crate::CoreExternalTypeDescriptor::new(self.target())
+    pub fn materialize(&self) -> crate::ExternalTypeDescriptor {
+        crate::ExternalTypeDescriptor::from_selection(
+            self.foundation.origin(),
+            self.target(),
+            self.expected_symbol(),
+            self.required_definition().persistent(),
+        )
     }
 
     #[doc(hidden)]
@@ -535,9 +534,8 @@ pub enum ImportedLirCallableProjectionError {
 
 #[derive(Debug)]
 pub enum ImportedLirTypeDescriptorProjectionError {
-    FoundationNotCore(ConeIdentity),
     MissingExactType(PersistentExactTypeId),
-    Contract(crate::CoreExternalBuildError),
+    Contract(crate::ExternalTypeDescriptorBuildError),
     MissingDefinition(ObjectDefinitionPlanId),
     DefinitionMismatch(ObjectDefinitionPlanId),
 }

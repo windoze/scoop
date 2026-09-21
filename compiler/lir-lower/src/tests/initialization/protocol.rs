@@ -282,7 +282,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         .identity_record()
         .id();
     let runtime_string = imported_lir
-        .project_core_type_descriptor(&definitions, string_exact)
+        .project_type_descriptor(&definitions, string_exact)
         .unwrap();
     let mut selected_lir = lir::SelectedImportedLirSet::try_new(
         &imported_lir,
@@ -309,10 +309,10 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     .unwrap();
     let module = output.module();
     assert_eq!(module.meta.core_external_callables.len(), 1);
-    assert_eq!(module.meta.core_external_type_descriptors.len(), 1);
+    assert_eq!(module.meta.external_type_descriptors.len(), 1);
     let string_descriptor = &module
         .meta
-        .core_external_type_descriptors
+        .external_type_descriptors
         .iter()
         .next()
         .unwrap()
@@ -320,7 +320,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     assert_eq!(string_descriptor.target(), string_exact);
     assert!(matches!(
         module.meta.well_known_type_descriptors.string,
-        lir::TypeDescriptorRef::CoreExternal(_)
+        lir::TypeDescriptorRef::External(_)
     ));
     assert!(
         module

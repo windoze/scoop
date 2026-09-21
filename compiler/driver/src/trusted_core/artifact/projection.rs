@@ -129,7 +129,7 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         let runtime_string = self
             .compile()
             .lir()
-            .project_core_type_descriptor(definitions, string_exact)
+            .project_type_descriptor(definitions, string_exact)
             .map_err(TrustedCoreLirSetProjectionError::RuntimeString)?;
         if runtime_string.expected_symbol() != string_descriptor.symbol()
             || runtime_string.required_definition().persistent()

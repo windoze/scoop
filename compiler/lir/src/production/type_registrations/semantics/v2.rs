@@ -34,6 +34,8 @@ impl StrongTypeDescriptorSemanticPlanSetV2 {
                 },
             );
         }
+        crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+            .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         let mut canonical = BTreeMap::new();
         for (_, descriptor) in module.meta.type_descriptors.iter() {
             let plan = build_descriptor_v2(module, descriptor, selected, meter)?;
@@ -160,30 +162,24 @@ fn descriptor_ref(
             let descriptor = &module.meta.type_descriptors[id];
             StrongTypeDescriptorRefV2::Local(descriptor.identity.exact_type())
         }
-        TypeDescriptorRef::CoreExternal(id) => {
+        TypeDescriptorRef::External(id) => {
             let index = id.into_raw().into_u32();
-            if index as usize >= module.meta.core_external_type_descriptors.len() {
+            if index as usize >= module.meta.external_type_descriptors.len() {
                 return Err(
-                    StrongTypeDescriptorSemanticPlanBuildError::MissingCoreExternalDescriptor(
-                        index,
-                    ),
+                    StrongTypeDescriptorSemanticPlanBuildError::MissingExternalDescriptor(index),
                 );
             }
-            let descriptor = &module.meta.core_external_type_descriptors[id];
-            StrongTypeDescriptorRefV2::CoreExternal(descriptor.target())
-        }
-        TypeDescriptorRef::DependencyExternal(id) => {
-            let index = id.into_raw().into_u32();
-            if index as usize >= module.meta.dependency_external_type_descriptors.len() {
-                return Err(
-                    StrongTypeDescriptorSemanticPlanBuildError::MissingDependencyDescriptor(index),
-                );
-            }
-            let descriptor = &module.meta.dependency_external_type_descriptors[id];
-            validate_descriptor_selection(selected, *descriptor, meter)?;
-            StrongTypeDescriptorRefV2::DependencyExternal {
-                provider: descriptor.provider(),
-                exact: descriptor.target(),
+            let descriptor = module.meta.external_type_descriptors[id];
+            if reference == module.meta.well_known_type_descriptors.string {
+                crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+                    .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
+                StrongTypeDescriptorRefV2::CoreExternal(descriptor.target())
+            } else {
+                validate_descriptor_selection(selected, descriptor, meter)?;
+                StrongTypeDescriptorRefV2::DependencyExternal {
+                    provider: descriptor.provider(),
+                    exact: descriptor.target(),
+                }
             }
         }
     })
@@ -249,7 +245,7 @@ fn slots(
 
 fn validate_descriptor_selection(
     selected: &crate::StrongProductionDependencySelectionV2<'_>,
-    descriptor: crate::DependencyExternalTypeDescriptorV2,
+    descriptor: crate::ExternalTypeDescriptor,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongTypeDescriptorSemanticPlanBuildError> {
     let replayed = selected

@@ -6,8 +6,8 @@ use scoop_identity::{
 };
 
 use crate::{
-    ArrayType, CallableRef, CoreExternalCallable, CoreExternalTypeDescriptor, DispatchEntry,
-    Function, ItableRecord, Layout, LayoutKind, LirTargetProfile, Module, TypeDescriptor,
+    ArrayType, CallableRef, CoreExternalCallable, DispatchEntry, ExternalTypeDescriptor, Function,
+    ItableRecord, Layout, LayoutKind, LirTargetProfile, Module, TypeDescriptor,
     TypeDescriptorInlineScanV1, TypeDescriptorRef,
 };
 
@@ -18,8 +18,9 @@ pub use plans::*;
 mod v2;
 
 struct DescriptorSemanticInputs<'a> {
+    runtime_string: TypeDescriptorRef,
     descriptors: &'a la_arena::Arena<TypeDescriptor>,
-    external_descriptors: &'a la_arena::Arena<CoreExternalTypeDescriptor>,
+    external_descriptors: &'a la_arena::Arena<ExternalTypeDescriptor>,
     layouts: &'a la_arena::Arena<Layout>,
     arrays: &'a la_arena::Arena<ArrayType>,
     functions: &'a [Function],
@@ -30,12 +31,15 @@ impl StrongTypeDescriptorSemanticPlanSetV1 {
     pub fn from_module(
         module: &Module,
     ) -> Result<Self, StrongTypeDescriptorSemanticPlanBuildError> {
+        crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+            .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         Self::from_components(
             module.cone,
             module.meta.target_profile,
             DescriptorSemanticInputs {
+                runtime_string: module.meta.well_known_type_descriptors.string,
                 descriptors: &module.meta.type_descriptors,
-                external_descriptors: &module.meta.core_external_type_descriptors,
+                external_descriptors: &module.meta.external_type_descriptors,
                 layouts: &module.meta.layouts,
                 arrays: &module.meta.arrays,
                 functions: &module.functions,
@@ -90,9 +94,7 @@ fn build_descriptor(
 
     let parent = descriptor
         .parent
-        .map(|reference| {
-            resolve_descriptor_ref(reference, inputs.descriptors, inputs.external_descriptors)
-        })
+        .map(|reference| resolve_descriptor_ref(reference, inputs))
         .transpose()?;
     let vtable = StrongTypeVtableSemanticPlanV1 {
         table: descriptor.vtable.identity_record().id(),
@@ -107,14 +109,7 @@ fn build_descriptor(
     let mut interfaces = BTreeSet::new();
     let mut itables = Vec::with_capacity(descriptor.itables.len());
     for itable in &descriptor.itables {
-        let semantic = build_itable(
-            exact_type,
-            itable,
-            inputs.descriptors,
-            inputs.external_descriptors,
-            inputs.functions,
-            inputs.external_callables,
-        )?;
+        let semantic = build_itable(exact_type, itable, inputs)?;
         if !tables.insert(semantic.table) {
             return Err(
                 StrongTypeDescriptorSemanticPlanBuildError::DuplicateDispatchTable {
@@ -206,15 +201,12 @@ fn validate_inline_scan(
 fn build_itable(
     exact_type: PersistentExactTypeId,
     itable: &ItableRecord,
-    descriptors: &la_arena::Arena<TypeDescriptor>,
-    external_descriptors: &la_arena::Arena<CoreExternalTypeDescriptor>,
-    functions: &[Function],
-    external_callables: &la_arena::Arena<CoreExternalCallable>,
+    inputs: &DescriptorSemanticInputs<'_>,
 ) -> Result<StrongTypeItableSemanticPlanV1, StrongTypeDescriptorSemanticPlanBuildError> {
     if !itable.belongs_to_exact_type(exact_type) {
         return Err(StrongTypeDescriptorSemanticPlanBuildError::ItableOwnerMismatch(exact_type));
     }
-    let interface = resolve_descriptor_ref(itable.interface(), descriptors, external_descriptors)?;
+    let interface = resolve_descriptor_ref(itable.interface(), inputs)?;
     if !itable.belongs_to_interface_exact_type(interface.exact_type()) {
         return Err(
             StrongTypeDescriptorSemanticPlanBuildError::ItableInterfaceMismatch {
@@ -226,45 +218,47 @@ fn build_itable(
     Ok(StrongTypeItableSemanticPlanV1 {
         table: itable.identity_record().id(),
         interface,
-        slots: resolve_slots(exact_type, itable.slots(), functions, external_callables)?,
+        slots: resolve_slots(
+            exact_type,
+            itable.slots(),
+            inputs.functions,
+            inputs.external_callables,
+        )?,
     })
 }
 
 fn resolve_descriptor_ref(
     reference: TypeDescriptorRef,
-    descriptors: &la_arena::Arena<TypeDescriptor>,
-    external_descriptors: &la_arena::Arena<CoreExternalTypeDescriptor>,
+    inputs: &DescriptorSemanticInputs<'_>,
 ) -> Result<StrongTypeDescriptorRefV1, StrongTypeDescriptorSemanticPlanBuildError> {
     match reference {
         TypeDescriptorRef::Local(id) => {
             let index = id.into_raw().into_u32();
-            if index as usize >= descriptors.len() {
+            if index as usize >= inputs.descriptors.len() {
                 return Err(
                     StrongTypeDescriptorSemanticPlanBuildError::MissingLocalDescriptor(index),
                 );
             }
             Ok(StrongTypeDescriptorRefV1::Local(
-                descriptors[id].identity.exact_type(),
+                inputs.descriptors[id].identity.exact_type(),
             ))
         }
-        TypeDescriptorRef::CoreExternal(id) => {
+        TypeDescriptorRef::External(id) => {
             let index = id.into_raw().into_u32();
-            if index as usize >= external_descriptors.len() {
+            if index as usize >= inputs.external_descriptors.len() {
                 return Err(
-                    StrongTypeDescriptorSemanticPlanBuildError::MissingCoreExternalDescriptor(
-                        index,
-                    ),
+                    StrongTypeDescriptorSemanticPlanBuildError::MissingExternalDescriptor(index),
+                );
+            }
+            if reference != inputs.runtime_string {
+                return Err(
+                    StrongTypeDescriptorSemanticPlanBuildError::DependencyDescriptorInV1(index),
                 );
             }
             Ok(StrongTypeDescriptorRefV1::CoreExternal(
-                external_descriptors[id].target(),
+                inputs.external_descriptors[id].target(),
             ))
         }
-        TypeDescriptorRef::DependencyExternal(id) => Err(
-            StrongTypeDescriptorSemanticPlanBuildError::DependencyDescriptorInV1(
-                id.into_raw().into_u32(),
-            ),
-        ),
     }
 }
 
@@ -350,9 +344,9 @@ pub enum StrongTypeDescriptorSemanticPlanBuildError {
         interface: PersistentExactTypeId,
     },
     MissingLocalDescriptor(u32),
-    MissingCoreExternalDescriptor(u32),
+    MissingExternalDescriptor(u32),
     DependencyDescriptorInV1(u32),
-    MissingDependencyDescriptor(u32),
+    ExternalBridge(crate::StrongExternalLirBridgeBuildError),
     MissingLocalCallable {
         exact_type: PersistentExactTypeId,
         index: u32,

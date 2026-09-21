@@ -49,6 +49,7 @@ mod constants;
 mod dependency_external;
 mod enums;
 mod exceptions;
+mod external_type_descriptors;
 mod initialization;
 mod moving_gc;
 mod object_partition;

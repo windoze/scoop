@@ -222,7 +222,7 @@ pub fn lower_with_dependencies(
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(&context, module, &enums)?;
-    let (core_external_type_descriptors, imported_runtime_string) =
+    let (external_type_descriptors, imported_runtime_string) =
         lower_imported_core_runtime_string(input, imported_core)?;
     let (core_external_callables, core_external_callable_map) =
         lower_imported_core_callables(&context, input, imported_core, &structs, &enums)?;
@@ -433,7 +433,7 @@ pub fn lower_with_dependencies(
         &enums,
         imported_runtime_string.is_none(),
     )?;
-    let imported_runtime_string_exact = core_external_type_descriptors
+    let imported_runtime_string_exact = external_type_descriptors
         .iter()
         .next()
         .map(|(_, descriptor)| descriptor.target());
@@ -465,8 +465,7 @@ pub fn lower_with_dependencies(
             arrays,
             layouts,
             type_descriptors,
-            core_external_type_descriptors,
-            dependency_external_type_descriptors: Arena::new(),
+            external_type_descriptors,
             core_external_callables,
             dependency_external_callables,
         },

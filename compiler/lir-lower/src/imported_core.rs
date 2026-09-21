@@ -17,7 +17,7 @@ pub(super) fn lower_imported_core_runtime_string(
     imported: StrongImportedCoreLirInput<'_>,
 ) -> Result<
     (
-        Arena<lir::CoreExternalTypeDescriptor>,
+        Arena<lir::ExternalTypeDescriptor>,
         Option<lir::TypeDescriptorRef>,
     ),
     StrongLirLoweringError,
@@ -41,11 +41,8 @@ pub(super) fn lower_imported_core_runtime_string(
                 }
             }
             let mut descriptors = Arena::new();
-            let descriptor = selected
-                .runtime_string()
-                .materialize()
-                .map_err(StrongLirLoweringError::ImportedCoreTypeDescriptor)?;
-            let reference = lir::TypeDescriptorRef::CoreExternal(descriptors.alloc(descriptor));
+            let descriptor = selected.runtime_string().materialize();
+            let reference = lir::TypeDescriptorRef::External(descriptors.alloc(descriptor));
             Ok((descriptors, Some(reference)))
         }
         #[cfg(test)]
@@ -63,9 +60,10 @@ pub(super) fn lower_imported_core_runtime_string(
                 });
             }
             let mut descriptors = Arena::new();
-            let descriptor = lir::CoreExternalTypeDescriptor::new(target)
-                .map_err(StrongLirLoweringError::ImportedCoreTypeDescriptor)?;
-            let reference = lir::TypeDescriptorRef::CoreExternal(descriptors.alloc(descriptor));
+            let descriptor =
+                lir::ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target)
+                    .map_err(StrongLirLoweringError::ImportedCoreTypeDescriptor)?;
+            let reference = lir::TypeDescriptorRef::External(descriptors.alloc(descriptor));
             Ok((descriptors, Some(reference)))
         }
     }

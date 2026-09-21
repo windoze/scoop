@@ -33,7 +33,7 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         .collect::<Vec<_>>();
     let external_type_globals = module
         .meta
-        .core_external_type_descriptors
+        .external_type_descriptors
         .iter()
         .map(|(_, descriptor)| {
             let global = llvm.add_global(
@@ -65,8 +65,7 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         &module,
         TypeDescriptorGlobals {
             local: &type_globals,
-            core_external: &external_type_globals,
-            dependency_external: &[],
+            external: &external_type_globals,
         },
     )
     .expect("emit canonical strong shape definitions");

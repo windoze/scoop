@@ -224,18 +224,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         .collect::<Result<_, CodegenError>>()?;
     let external_type_tds: Vec<GlobalValue> = module
         .meta
-        .core_external_type_descriptors
-        .iter()
-        .map(|(_, descriptor)| {
-            let symbol = descriptor.expected_symbol().symbol();
-            let global = llvm.add_global(td_ty, None, symbol.as_str());
-            global.set_linkage(inkwell::module::Linkage::External);
-            global
-        })
-        .collect();
-    let dependency_external_type_tds: Vec<GlobalValue> = module
-        .meta
-        .dependency_external_type_descriptors
+        .external_type_descriptors
         .iter()
         .map(|(_, descriptor)| {
             let symbol = descriptor.expected_symbol().symbol();
@@ -246,8 +235,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         .collect();
     let type_descriptor_globals = TypeDescriptorGlobals {
         local: &type_tds,
-        core_external: &external_type_tds,
-        dependency_external: &dependency_external_type_tds,
+        external: &external_type_tds,
     };
     let string_td = type_descriptor_global(
         module.meta.well_known_type_descriptors.string,
@@ -513,7 +501,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         array_tds: &array_tds,
         type_tds: &type_tds,
         external_type_tds: &external_type_tds,
-        dependency_external_type_tds: &dependency_external_type_tds,
         target_data: &target_data,
         bounds_message,
         array_size_message,

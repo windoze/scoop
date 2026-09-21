@@ -936,8 +936,7 @@ pub(super) fn string_metadata() -> LirMeta {
         arrays: Arena::new(),
         layouts,
         type_descriptors,
-        core_external_type_descriptors: Arena::new(),
-        dependency_external_type_descriptors: Arena::new(),
+        external_type_descriptors: Arena::new(),
         core_external_callables: Arena::new(),
         dependency_external_callables: Arena::new(),
     }
@@ -1237,7 +1236,7 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         .collect::<Vec<_>>();
     let external_type_globals = module
         .meta
-        .core_external_type_descriptors
+        .external_type_descriptors
         .iter()
         .map(|(_, descriptor)| {
             let global = llvm.add_global(
@@ -1278,8 +1277,7 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         module,
         TypeDescriptorGlobals {
             local: &type_globals,
-            core_external: &external_type_globals,
-            dependency_external: &[],
+            external: &external_type_globals,
         },
     )?;
     llvm.verify()

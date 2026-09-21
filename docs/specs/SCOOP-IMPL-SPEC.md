@@ -18,6 +18,8 @@ core 是可由用户修改、扩展和重建的普通 library Cone。 core源码
 
 M23-6 foundation源码投影对core和其他Cone共用sealed HIR入口；类型归属读取已有typed声明和导入协议，不检查core源码来源、不重算core shape-support计划。源码中的既有泛型exact引用与candidate物化职责分离。
 
+LIR的全部外部TypeDescriptor使用同一个`ExternalTypeDescriptor`实体、typed id和arena，必需保存实际provider、exact type、symbol及definition plan；`TypeDescriptorRef`只区分Local/External。runtime String的声明角色由`WellKnownTypeDescriptors`中的明确引用保存，不另建core描述符实体或codegen发射分支。foundation导入投影按实际provider查找并验证共有strong definition，layout/ABI选择也生成同一种实体；codegen统一拒绝本Cone作为external provider、重复exact type和本地/外部重复定义。既有strong-production/1的String协议metadata只投影该明确角色，并校验其provider和definition契约；strong-production/2中的其他外部描述符（包括core提供的普通形状）继续由共有layout selection重放验证，不能仅凭provider为core进入旧协议分区。通用ExactDispatch对callable ABI的引用同样按实际provider区分Local/DependencyExternal，不因core provider改写成旧协议引用；保留的初始化循环服务不扩大普通dispatch集合。此合并不改变runtime的String表示或现有wire分区的闭包要求。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。

@@ -12,6 +12,8 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 use crate::{OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1};
 
+mod descriptors;
+
 #[test]
 fn selected_callable_keeps_imported_body_and_definition_authority() {
     let declaration = SourceDeclarationKey::function(
@@ -140,7 +142,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     assert_eq!(selected.required_definition().persistent(), definition.id());
 
     let runtime_string = foundation
-        .project_core_type_descriptor(&definitions, unit)
+        .project_type_descriptor(&definitions, unit)
         .unwrap();
     let mut selected_set =
         SelectedImportedLirSet::try_new(&foundation, &definitions, &core_bridge, runtime_string)

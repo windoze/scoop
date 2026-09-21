@@ -228,14 +228,16 @@ fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority(
         scoop_identity::LinkageClass::ConeStrong,
     )
     .unwrap();
-    let external = module.meta.dependency_external_type_descriptors.alloc(
-        crate::DependencyExternalTypeDescriptorV2::from_layout_v1(
-            provider,
-            exact,
-            symbol,
-            definition.id(),
-        ),
-    );
+    let external =
+        module
+            .meta
+            .external_type_descriptors
+            .alloc(crate::ExternalTypeDescriptor::from_selection(
+                provider,
+                exact,
+                symbol,
+                definition.id(),
+            ));
     module
         .meta
         .type_descriptors
@@ -243,7 +245,7 @@ fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority(
         .next()
         .unwrap()
         .1
-        .parent = Some(TypeDescriptorRef::DependencyExternal(external));
+        .parent = Some(TypeDescriptorRef::External(external));
 
     let output = crate::SingleConeStrongLirOutput::try_new(
         module,
@@ -324,8 +326,7 @@ fn fixture_module(producer: ConeIdentity) -> Module {
             arrays: Arena::new(),
             layouts,
             type_descriptors,
-            core_external_type_descriptors: Arena::new(),
-            dependency_external_type_descriptors: Arena::new(),
+            external_type_descriptors: Arena::new(),
             core_external_callables: Arena::new(),
             dependency_external_callables: Arena::new(),
         },

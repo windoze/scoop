@@ -1175,16 +1175,9 @@ production surface；不得要求compiler residual `Module`、调用者补送sem
 count、object大小/内容反推出LIR语义。
 
 `external_bridges`在普通Cone中只允许origin为validated core；core bootstrap中为空。每项包含typed target、expected persistent symbol、calling convention、effect/root-plan和required upstream definition identity。没有“symbol string only”分支。
-LIR内存模型也不保留通用`ExternalCallable`/`ExternalTypeDescriptor`或裸symbol字段：本阶段只暴露
-`CoreExternalCallable`与`CoreExternalTypeDescriptor`。callable以
-`StrongCallableDefinitionOwner`为target，由它唯一导出`PersistentCallableBodyId`、
-`ConeStrong` symbol request及core `CallableBody` definition plan；物理`ScoopAbiSignature`携带
-calling convention，`ManagedStatepoint | NoGc`封闭sum把GC effect与caller root protocol原子绑定。
-type descriptor以`PersistentExactTypeId`为target，并唯一导出`ConeStrong` type-descriptor symbol
-request与core `TypeDescriptor` definition plan。codegen只能从typed request计算最终拼写，并且
-必须用bridge携带的`ScoopAbiSignature`预声明core callable；不得等到dispatch table发射时猜测函数类型。
-core bootstrap携带任一`CoreExternal*`即失败；普通Cone中的target/body/exact type必须分别唯一，
-且不得与当前Cone的local callable body或local type descriptor重合。
+M23-6清理后的LIR内存模型中，所有外部TypeDescriptor使用同一个`ExternalTypeDescriptor`实体、typed id与arena，必需携带实际provider、exact type、symbol request和definition plan；`TypeDescriptorRef`只区分Local/External。foundation投影与通用layout/ABI selection物化使用同一实体，codegen统一发射external声明，并拒绝当前Cone provider、重复exact及与local描述符重叠。旧协议wire的String分区只从`WellKnownTypeDescriptors.string`的明确引用投影，并验证core provider和strong definition契约；arena中其他core描述符不进入该分区，由M23-6通用layout selection证明。
+
+初始化循环协议的callable暂保留`CoreExternalCallable`，以`StrongCallableDefinitionOwner`为target，由它唯一导出`PersistentCallableBodyId`、`ConeStrong` symbol request及core `CallableBody` definition plan；物理`ScoopAbiSignature`携带calling convention，`ManagedStatepoint | NoGc`封闭sum把GC effect与caller root protocol原子绑定。codegen只能从typed request计算最终拼写，并且必须用bridge携带的`ScoopAbiSignature`预声明callable，不得在dispatch table发射时猜测函数类型。core中不得导入自己的callable；外部target/body必须分别唯一，且不得与当前Cone的local callable body重合。
 
 callable bridge表示本Cone中已经materialize的调用，因此必须至少命中一个真实object relocation，缺失时以
 `UnusedExternalCallableBridge`拒绝。type-descriptor bridge同时承担compile/LIR metadata authority；尤其

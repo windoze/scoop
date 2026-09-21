@@ -149,16 +149,16 @@ fn lowers_hello_world() {
 
     // Ordinary Cones import the runtime String descriptor and never duplicate
     // its layout or local TypeDescriptor definition.
-    let lir::TypeDescriptorRef::CoreExternal(string_descriptor) =
+    let lir::TypeDescriptorRef::External(string_descriptor) =
         module.meta.well_known_type_descriptors.string
     else {
         panic!("ordinary String authority must be core-external")
     };
     assert_eq!(
-        module.meta.core_external_type_descriptors[string_descriptor].target(),
+        module.meta.external_type_descriptors[string_descriptor].target(),
         string_exact_type
     );
-    assert_eq!(module.meta.core_external_type_descriptors.len(), 1);
+    assert_eq!(module.meta.external_type_descriptors.len(), 1);
     assert!(layout_values(&module).all(|layout| !matches!(
         layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)

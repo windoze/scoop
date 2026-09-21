@@ -5,6 +5,39 @@ use scoop_wire::BudgetMeter;
 use super::{TARGET, meter};
 use crate::*;
 
+pub(super) fn provider_protocol(
+    module: &mut Module,
+    exact: PersistentExactTypeId,
+) -> CoreLirBridgeBranchV1 {
+    if module.cone != ConeIdentity::CORE {
+        return CoreLirBridgeBranchV1::NotCore;
+    }
+    let protocol = function(module.cone, "initializationCycle");
+    module.functions.push(local_function(protocol));
+    let signature = CanonicalScoopAbiFunctionSignature::new(
+        ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
+        Vec::new(),
+        ScoopAbiReturn::direct(CanonicalScoopStorage::new(
+            exact,
+            8,
+            std::num::NonZeroU64::new(8).unwrap(),
+            scoop_identity::ScoopAbiValueShape::Scalar,
+        ))
+        .unwrap(),
+        scoop_identity::GcEffect::Managed,
+    )
+    .unwrap();
+    CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(
+        CoreLirInitializationCycleThrowerV1::new(
+            StrongCallableDefinitionOwner::Function(protocol),
+            signature,
+            crate::CallingConvention::Cdecl,
+            CoreExternalCallableRootPlan::ManagedStatepoint,
+        )
+        .unwrap(),
+    ))
+}
+
 pub(super) fn provider_module(
     producer: ConeIdentity,
     exact_record: CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
@@ -116,8 +149,7 @@ pub(super) fn module(
             arrays: Arena::new(),
             layouts,
             type_descriptors,
-            core_external_type_descriptors: Arena::new(),
-            dependency_external_type_descriptors: Arena::new(),
+            external_type_descriptors: Arena::new(),
             core_external_callables: Arena::new(),
             dependency_external_callables: Arena::new(),
         },

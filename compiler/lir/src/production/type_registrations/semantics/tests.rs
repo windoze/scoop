@@ -59,6 +59,9 @@ fn projects_complete_descriptor_semantics_in_exact_type_order() {
         ConeIdentity::SINGLE_FILE,
         LirTargetProfile::DARWIN_AARCH64,
         DescriptorSemanticInputs {
+            runtime_string: TypeDescriptorRef::Local(la_arena::Idx::from_raw(
+                la_arena::RawIdx::from_u32(0),
+            )),
             descriptors: &descriptors,
             external_descriptors: &Arena::new(),
             layouts: &Arena::new(),
@@ -134,6 +137,9 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
             DescriptorSemanticInputs {
+                runtime_string: TypeDescriptorRef::Local(la_arena::Idx::from_raw(
+                    la_arena::RawIdx::from_u32(0)
+                )),
                 descriptors: &descriptors,
                 external_descriptors: &Arena::new(),
                 layouts: &Arena::new(),
@@ -163,6 +169,9 @@ fn rejects_duplicate_exact_types_and_foreign_instance_layouts() {
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
             DescriptorSemanticInputs {
+                runtime_string: TypeDescriptorRef::Local(la_arena::Idx::from_raw(
+                    la_arena::RawIdx::from_u32(0)
+                )),
                 descriptors: &descriptors,
                 external_descriptors: &Arena::new(),
                 layouts: &Arena::new(),

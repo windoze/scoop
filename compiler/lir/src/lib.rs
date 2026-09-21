@@ -46,6 +46,9 @@ pub use dependency_external::*;
 
 mod external_callable_abi;
 
+mod external_type_descriptor;
+pub use external_type_descriptor::*;
+
 mod module;
 pub use module::*;
 

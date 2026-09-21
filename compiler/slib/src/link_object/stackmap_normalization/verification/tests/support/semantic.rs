@@ -14,16 +14,16 @@ use scoop_identity::{
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
-    CanonicalLirFoundation, CoreExternalTypeDescriptor,
-    DecodedStrongRegistrationProductionSurfaceV1, DigestInputRefV1, DigestNodeV1, EnumDefs,
-    ExternFunctions, Function, GcEffect, Global, GlobalInit, ImmortalObjectIdentity, Instruction,
-    IntrinsicTypeRepresentation, Layout, LayoutIdentity, LayoutKind, LirConstantImage, LirMeta,
-    LirStaticInitialState, LirTargetProfile, LirType, LocalFunctionIdentities, LocalFunctionRef,
-    ManagedCallDestination, ManagedPollSite, ManagedRuntimeFunction, MaterializationRoot, Module,
-    NativeExternalMetadata, NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan,
-    RuntimeTypeMappingRecord, SafepointIdentities, SafepointIdentity, SafepointMappingRecord,
-    SafepointSiteRef, SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet,
-    StaticStorageIdentity, StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
+    CanonicalLirFoundation, DecodedStrongRegistrationProductionSurfaceV1, DigestInputRefV1,
+    DigestNodeV1, EnumDefs, ExternFunctions, ExternalTypeDescriptor, Function, GcEffect, Global,
+    GlobalInit, ImmortalObjectIdentity, Instruction, IntrinsicTypeRepresentation, Layout,
+    LayoutIdentity, LayoutKind, LirConstantImage, LirMeta, LirStaticInitialState, LirTargetProfile,
+    LirType, LocalFunctionIdentities, LocalFunctionRef, ManagedCallDestination, ManagedPollSite,
+    ManagedRuntimeFunction, MaterializationRoot, Module, NativeExternalMetadata,
+    NativeGlobalBridges, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeTypeMappingRecord,
+    SafepointIdentities, SafepointIdentity, SafepointMappingRecord, SafepointSiteRef,
+    SafepointSiteRole, ScoopAbiSignature, StatepointLiveSet, StaticStorageIdentity,
+    StrongCallableRegistrationPlanSetV1, StrongDigestFinalizationPlanV1,
     StrongExternalLirBridgeSurfaceV1, StrongImmortalObjectRegistrationPlanSetV1,
     StrongInitializationUnitRegistrationPlanSetV1, StrongRegistrationProductionSurfaceV1,
     StrongSafepointRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanSetV1,
@@ -1110,12 +1110,17 @@ fn metadata(corruption: Corruption) -> LirMeta {
         vtable,
         itables: Vec::new(),
     });
-    let mut core_external_type_descriptors = Arena::new();
+    let mut external_type_descriptors = Arena::new();
     let well_known_string =
         if matches!(corruption, Corruption::CoreExternalImmortalTypeRegistration) {
-            TypeDescriptorRef::CoreExternal(
-                core_external_type_descriptors
-                    .alloc(CoreExternalTypeDescriptor::new(exact_type("CoreString")).unwrap()),
+            TypeDescriptorRef::External(
+                external_type_descriptors.alloc(
+                    ExternalTypeDescriptor::new(
+                        scoop_identity::ConeIdentity::CORE,
+                        exact_type("CoreString"),
+                    )
+                    .unwrap(),
+                ),
             )
         } else {
             TypeDescriptorRef::Local(string_descriptor)
@@ -1131,8 +1136,7 @@ fn metadata(corruption: Corruption) -> LirMeta {
         arrays: Arena::new(),
         layouts,
         type_descriptors,
-        core_external_type_descriptors,
-        dependency_external_type_descriptors: Arena::new(),
+        external_type_descriptors,
         core_external_callables: Arena::new(),
         dependency_external_callables: Arena::new(),
     }

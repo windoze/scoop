@@ -4,6 +4,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::meter;
 use crate::*;
 
+mod descriptors;
 mod fixture;
 mod initialization_fixture;
 mod lir_fixture;
@@ -15,7 +16,15 @@ const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 #[test]
 fn pending_selection_drives_dependency_descriptor_dispatch_and_initialization_production() {
-    let provider = Provider::new();
+    exercise_dependency_production(Provider::new());
+}
+
+#[test]
+fn core_shapes_use_the_same_dependency_descriptor_production_and_wire_replay() {
+    exercise_dependency_production(Provider::for_coordinate(ConeCoordinate::reserved_core()));
+}
+
+fn exercise_dependency_production(provider: Provider) {
     let consumer_coordinate = ConeCoordinate::new("test", "consumer", "1.0.0").unwrap();
     let mut consumer = consumer_module(&consumer_coordinate);
     let consumer_exact = consumer.meta.exact_types[0].id();
@@ -103,13 +112,10 @@ fn pending_selection_drives_dependency_descriptor_dispatch_and_initialization_pr
             &mut meter(),
         )
         .unwrap();
-    let descriptor_id = consumer
-        .meta
-        .dependency_external_type_descriptors
-        .alloc(descriptor);
+    let descriptor_id = consumer.meta.external_type_descriptors.alloc(descriptor);
     let callable_id = consumer.meta.dependency_external_callables.alloc(callable);
     let local = consumer.meta.type_descriptors.iter_mut().next().unwrap().1;
-    local.parent = Some(TypeDescriptorRef::DependencyExternal(descriptor_id));
+    local.parent = Some(TypeDescriptorRef::External(descriptor_id));
     local.vtable = VtableRecord::new(
         &local.identity,
         vec![DispatchEntry {

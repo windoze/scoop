@@ -288,7 +288,7 @@ pub(crate) fn type_descriptors(
         })?;
     if matches!(
         (module.cone == lir::ConeIdentity::CORE, string),
-        (true, lir::TypeDescriptorRef::CoreExternal(_)) | (false, lir::TypeDescriptorRef::Local(_))
+        (true, lir::TypeDescriptorRef::External(_)) | (false, lir::TypeDescriptorRef::Local(_))
     ) {
         return Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership {
             producer: module.cone,

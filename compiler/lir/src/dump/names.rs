@@ -73,10 +73,7 @@ fn abi_call_argument_name(argument: AbiCallArgument) -> String {
 pub(super) fn type_descriptor_ref_name(reference: TypeDescriptorRef) -> String {
     match reference {
         TypeDescriptorRef::Local(id) => format!("td{}", id.into_raw()),
-        TypeDescriptorRef::CoreExternal(id) => format!("core-external-td{}", id.into_raw()),
-        TypeDescriptorRef::DependencyExternal(id) => {
-            format!("dependency-external-td{}", id.into_raw())
-        }
+        TypeDescriptorRef::External(id) => format!("external-td{}", id.into_raw()),
     }
 }
 

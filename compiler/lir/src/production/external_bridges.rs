@@ -12,7 +12,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use crate::{
     CallingConvention, CoreExternalBuildError, CoreExternalCallable, CoreExternalCallableRootPlan,
-    CoreExternalTypeDescriptor, Module, core_callable_link_contract,
+    ExternalTypeDescriptor, Module, core_callable_link_contract,
     core_type_descriptor_link_contract,
 };
 
@@ -113,8 +113,31 @@ impl StrongExternalTypeDescriptorBridgeV1 {
         })
     }
 
-    fn from_lir(value: &CoreExternalTypeDescriptor) -> Result<Self, CoreExternalBuildError> {
-        Self::new(value.target())
+    fn from_lir(value: &ExternalTypeDescriptor) -> Result<Self, StrongExternalLirBridgeBuildError> {
+        let bridge =
+            Self::new(value.target()).map_err(StrongExternalLirBridgeBuildError::Contract)?;
+        if value.provider() != scoop_identity::ConeIdentity::CORE
+            || value.expected_symbol() != bridge.expected_symbol()
+            || value.required_definition() != bridge.required_definition()
+        {
+            return Err(StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor);
+        }
+        Ok(bridge)
+    }
+
+    pub(crate) fn runtime_string(
+        module: &Module,
+    ) -> Result<Option<Self>, StrongExternalLirBridgeBuildError> {
+        match module.meta.well_known_type_descriptors.string {
+            crate::TypeDescriptorRef::Local(_) => Ok(None),
+            crate::TypeDescriptorRef::External(id) => {
+                if id.into_raw().into_u32() as usize >= module.meta.external_type_descriptors.len()
+                {
+                    return Err(StrongExternalLirBridgeBuildError::MissingRuntimeStringDescriptor);
+                }
+                Self::from_lir(&module.meta.external_type_descriptors[id]).map(Some)
+            }
+        }
     }
 
     pub const fn target(&self) -> PersistentExactTypeId {
@@ -188,21 +211,15 @@ impl StrongExternalLirBridgeSurfaceV1 {
     }
 
     pub fn from_module(module: &Module) -> Result<Self, StrongExternalLirBridgeBuildError> {
-        let mut bridges = Vec::with_capacity(
-            module.meta.core_external_callables.len()
-                + module.meta.core_external_type_descriptors.len(),
-        );
+        let mut bridges = Vec::with_capacity(module.meta.core_external_callables.len() + 1);
         for (_, callable) in module.meta.core_external_callables.iter() {
             bridges.push(StrongExternalLirBridgeV1::Callable(
                 StrongExternalCallableBridgeV1::from_lir(callable)
                     .map_err(StrongExternalLirBridgeBuildError::Contract)?,
             ));
         }
-        for (_, descriptor) in module.meta.core_external_type_descriptors.iter() {
-            bridges.push(StrongExternalLirBridgeV1::TypeDescriptor(
-                StrongExternalTypeDescriptorBridgeV1::from_lir(descriptor)
-                    .map_err(StrongExternalLirBridgeBuildError::Contract)?,
-            ));
+        if let Some(descriptor) = StrongExternalTypeDescriptorBridgeV1::runtime_string(module)? {
+            bridges.push(StrongExternalLirBridgeV1::TypeDescriptor(descriptor));
         }
         Self::try_new(module.cone, bridges)
     }
@@ -499,10 +516,12 @@ impl WireDecode for DecodedStrongExternalLirBridgeSurfaceV1 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongExternalLirBridgeBuildError {
     Contract(CoreExternalBuildError),
     CoreBootstrapImport,
+    MissingRuntimeStringDescriptor,
+    InvalidRuntimeStringDescriptor,
     DuplicateTarget((u8, [u8; 32])),
 }
 
@@ -519,7 +538,10 @@ impl std::error::Error for StrongExternalLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Contract(error) => Some(error),
-            Self::CoreBootstrapImport | Self::DuplicateTarget(_) => None,
+            Self::CoreBootstrapImport
+            | Self::MissingRuntimeStringDescriptor
+            | Self::InvalidRuntimeStringDescriptor
+            | Self::DuplicateTarget(_) => None,
         }
     }
 }

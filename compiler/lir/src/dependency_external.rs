@@ -5,8 +5,7 @@ use std::fmt;
 use scoop_identity::{
     CallableBodyKey, CanonicalScoopAbiFunctionSignature, ConeIdentity,
     DependencyCallableDeclarationId, GcEffect as CanonicalGcEffect, ObjectDefinitionPlanId,
-    PersistentCallableBodyId, PersistentExactTypeId, PersistentSymbolRequest,
-    StrongCallableDefinitionOwner,
+    PersistentCallableBodyId, PersistentSymbolRequest, StrongCallableDefinitionOwner,
 };
 use scoop_wire::HashError;
 
@@ -186,49 +185,6 @@ fn protocol_effect(protocol: crate::ExactCallableProtocolV1) -> GcEffect {
     match protocol {
         crate::ExactCallableProtocolV1::OrdinaryManaged => GcEffect::Managed,
         crate::ExactCallableProtocolV1::OrdinaryNoGc => GcEffect::NoGc,
-    }
-}
-
-/// One layout-provider TypeDescriptor admitted by a complete layout/ABI
-/// selection. The expected symbol and definition are retained from the
-/// checked physical import; neither is reconstructed from a name.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct DependencyExternalTypeDescriptorV2 {
-    provider: ConeIdentity,
-    target: PersistentExactTypeId,
-    expected_symbol: PersistentSymbolRequest,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl DependencyExternalTypeDescriptorV2 {
-    pub(crate) const fn from_layout_v1(
-        provider: ConeIdentity,
-        target: PersistentExactTypeId,
-        expected_symbol: PersistentSymbolRequest,
-        required_definition: ObjectDefinitionPlanId,
-    ) -> Self {
-        Self {
-            provider,
-            target,
-            expected_symbol,
-            required_definition,
-        }
-    }
-
-    pub const fn provider(self) -> ConeIdentity {
-        self.provider
-    }
-
-    pub const fn target(self) -> PersistentExactTypeId {
-        self.target
-    }
-
-    pub const fn expected_symbol(self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn required_definition(self) -> ObjectDefinitionPlanId {
-        self.required_definition
     }
 }
 
