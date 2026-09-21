@@ -1020,6 +1020,7 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for Authority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, AuthorityError> {
         Err(AuthorityError::NestedCallable)
     }
@@ -1028,6 +1029,7 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for Authority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, AuthorityError> {
         Err(AuthorityError::NestedCallable)

@@ -61,6 +61,7 @@ where
         &mut self,
         body: &ExportDefaultBodyV1,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        self.next_site = super::DefaultNestedCallableSiteV1::Body { ordinal: 0 };
         let mut pending = Vec::new();
         self.meter
             .try_reserve_collection_slots(&mut pending, 1, self.path)

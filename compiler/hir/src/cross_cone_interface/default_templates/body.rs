@@ -81,8 +81,9 @@ pub use nested::{
     DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
     DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1, DefaultNestedCallableLocalUseV1,
     DefaultNestedCallableProvenanceV1, DefaultNestedCallableReferenceResolver,
-    DefaultNestedCallableSemanticAuthority, IndexedDefaultAnonymousFunctionV1,
-    IndexedDefaultCaptureV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
+    DefaultNestedCallableSemanticAuthority, DefaultNestedCallableSiteV1,
+    IndexedDefaultAnonymousFunctionV1, IndexedDefaultCaptureV1, IndexedDefaultLambdaV1,
+    IndexedDefaultLocalFunctionV1,
 };
 pub use operation_typing::{
     DefaultAggregateOperationShapeV1, DefaultAssignmentOperationV1,

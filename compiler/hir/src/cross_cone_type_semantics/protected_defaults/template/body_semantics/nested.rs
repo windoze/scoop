@@ -11,6 +11,7 @@ pub trait ProtectedDefaultNestedCallableSemanticAuthority<E> {
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, E>;
@@ -18,6 +19,7 @@ pub trait ProtectedDefaultNestedCallableSemanticAuthority<E> {
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,
@@ -55,15 +57,22 @@ impl<A: ProtectedDefaultNestedCallableSemanticAuthority<E>, E> DefaultBodyNested
     fn default_nested_callable_identity_shape(
         &mut self,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, E> {
-        self.authority
-            .default_nested_callable_identity_shape(self.template, identity, meter, path)
+        self.authority.default_nested_callable_identity_shape(
+            self.template,
+            identity,
+            site,
+            meter,
+            path,
+        )
     }
     fn default_nested_callable_abi_shape(
         &mut self,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,
@@ -71,6 +80,7 @@ impl<A: ProtectedDefaultNestedCallableSemanticAuthority<E>, E> DefaultBodyNested
         self.authority.default_nested_callable_abi_shape(
             self.template,
             identity,
+            site,
             body_arguments,
             meter,
             path,

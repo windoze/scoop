@@ -119,6 +119,7 @@ impl DefaultNestedCallableSemanticAuthority<TestAuthorityError> for EmptyPublicA
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: scoop_hir::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
@@ -127,6 +128,7 @@ impl DefaultNestedCallableSemanticAuthority<TestAuthorityError> for EmptyPublicA
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: scoop_hir::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)

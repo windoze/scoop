@@ -1,0 +1,7 @@
+public fun <T> occurrenceIdentity(value: T): T = value
+public fun <T> occurrenceReference(seed: T, operation: (T) -> T = ::occurrenceIdentity): (T) -> T = operation
+public class OccurrenceHost {
+    internal fun pair(value: ((Int) -> Int, (String) -> String) = (
+        occurrenceReference(1), occurrenceReference("value")
+    )): ((Int) -> Int, (String) -> String) = value
+}

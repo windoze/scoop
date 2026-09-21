@@ -372,6 +372,7 @@ impl DefaultNestedCallableSemanticAuthority<Infallible> for EmptyAuthority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, Infallible> {
         unreachable!()
     }
@@ -380,6 +381,7 @@ impl DefaultNestedCallableSemanticAuthority<Infallible> for EmptyAuthority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, Infallible> {
         unreachable!()

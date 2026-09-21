@@ -19,6 +19,8 @@ mod tests;
 
 mod authority;
 mod body;
+mod site;
+pub use site::DefaultNestedCallableSiteV1;
 
 /// The kind-preserving persistent identity of one nested callable descriptor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -174,12 +176,14 @@ pub trait DefaultNestedCallableSemanticAuthority<E> {
         &mut self,
         template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, E>;
 
     fn default_nested_callable_abi_shape(
         &mut self,
         template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, E>;
 }
@@ -287,6 +291,7 @@ pub(super) struct Validator<'a, A, E> {
     path: &'a WirePath,
     local_declarations: HashSet<CallableTemplateOrigin>,
     local_uses: Vec<(CallableTemplateOrigin, DefaultNestedCallableLocalUseV1)>,
+    next_site: DefaultNestedCallableSiteV1,
     error: std::marker::PhantomData<fn() -> E>,
 }
 
@@ -307,6 +312,7 @@ where
             path,
             local_declarations: HashSet::new(),
             local_uses: Vec::new(),
+            next_site: DefaultNestedCallableSiteV1::Standalone,
             error: std::marker::PhantomData,
         }
     }
@@ -389,9 +395,13 @@ where
         let kind = identity.kind();
         self.enter_node(depth)?;
         self.charge_work()?;
+        let site = self
+            .next_site
+            .advance(self.path)
+            .map_err(DefaultNestedCallableAbiValidationError::Resource)?;
         let identity_shape = self
             .authority
-            .default_nested_callable_identity_shape(identity, self.meter, self.path)
+            .default_nested_callable_identity_shape(identity, site, self.meter, self.path)
             .map_err(|error| DefaultNestedCallableAbiValidationError::Authority {
                 kind,
                 query: DefaultNestedCallableAuthorityQueryV1::Identity,
@@ -443,7 +453,13 @@ where
         self.charge_work()?;
         let abi = self
             .authority
-            .default_nested_callable_abi_shape(identity, body_arguments, self.meter, self.path)
+            .default_nested_callable_abi_shape(
+                identity,
+                site,
+                body_arguments,
+                self.meter,
+                self.path,
+            )
             .map_err(|error| DefaultNestedCallableAbiValidationError::Authority {
                 kind,
                 query: DefaultNestedCallableAuthorityQueryV1::Abi,

@@ -1322,7 +1322,7 @@ validation work，嵌套control-flow/expression/pattern深度使用同一`WirePa
 identity/path/signature/capture顺序仍由nested-callable ABI pass证明。
 
 nested-callable ABI pass对`LocalFunction` statement、`Lambda`、`AnonymousFunction`和
-`CallableReference` expression的每一次descriptor occurrence独立重放provider ABI。它使用typed identity
+`CallableReference` expression的每一次descriptor occurrence独立重放provider ABI。它使用typed identity与`DefaultNestedCallableSiteV1`
 调用authority；authority必须从已验证的provider HIR/foundation及default-dependency closure返回非wire的
 结构化projection，至少包含exact definition path、当前template provider scope中的function type、hidden
 capture type sequence、owner type-parameter count，以及lambda/anonymous body binder的期望模式与arity。
@@ -1343,6 +1343,8 @@ binder arity。每个explicit argument已由provider-envelope pass证明处于�
 substitution投影function/capture ABI后，validator再比较projection，不能只检查arity。callable-reference target
 的callee/receiver operation由operation-typing pass证明；本pass证明其invoke identity/path及生成wrapper的
 function/capture ABI，避免把同签名但不同generated role或lexical site混为一体。
+
+完整正文的site为`Body { ordinal }`，ordinal从0开始按descriptor的完整前序遍历递增，只计算四类nested descriptor，包含内联receiver中的descriptor；不是expression index或六类reference序号。同一次descriptor的identity与ABI查询必须携带相同site。相同persistent identity可以因同一泛型default的多次展开出现在不同site并具有不同ABI，authority须以template、site及query种类定位独立来源，不能按identity去重或只查询第一个匹配项。独立descriptor验证使用明确的`Standalone` site，不冒充正文ordinal 0；这类验证不声明正文闭包。site只属于非wire语义查询协议，不改变冻结的descriptor字段或persistent identity。全部ordinal推进受同一预算约束，溢出为资源错误。
 
 nested-callable ABI pass与其他body pass一样使用显式work stack完整覆盖control-flow、pattern literal、assign
 target、for/binding plan及callable-reference内联receiver；每个node、edge、authority lookup、capture/argument

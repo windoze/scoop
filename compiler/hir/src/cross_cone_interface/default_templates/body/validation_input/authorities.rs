@@ -54,12 +54,14 @@ pub(crate) trait DefaultBodyNestedAuthority<E> {
     fn default_nested_callable_identity_shape(
         &mut self,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, E>;
     fn default_nested_callable_abi_shape(
         &mut self,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,

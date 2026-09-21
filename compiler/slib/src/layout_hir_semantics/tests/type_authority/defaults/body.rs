@@ -72,6 +72,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<TestAuthorityError> for Emp
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: scoop_hir::DefaultNestedCallableSiteV1,
         _meter: &mut BudgetMeter,
         _path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, TestAuthorityError> {
@@ -82,6 +83,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<TestAuthorityError> for Emp
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: scoop_hir::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         _meter: &mut BudgetMeter,
         _path: &WirePath,

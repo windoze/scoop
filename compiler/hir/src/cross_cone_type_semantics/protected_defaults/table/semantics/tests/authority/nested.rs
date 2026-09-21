@@ -5,6 +5,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for Authority
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, &'static str> {
@@ -26,6 +27,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for Authority
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,

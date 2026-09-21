@@ -16,6 +16,8 @@ use crate::{
 
 use super::super::test_support::{Fixture, binder, source_function};
 
+mod occurrences;
+
 #[test]
 fn walks_the_whole_body_and_closes_local_callable_uses() {
     let fixture = Fixture::new();
@@ -173,6 +175,12 @@ fn walks_the_whole_body_and_closes_local_callable_uses() {
     validate_body(&template, &mut authority).unwrap();
 
     assert_eq!(authority.observed, expected);
+    assert_eq!(
+        authority.sites,
+        (0..4)
+            .flat_map(|ordinal| [DefaultNestedCallableSiteV1::Body { ordinal }; 2])
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -1008,7 +1016,7 @@ fn callable_reference_invoke(
 
 fn validate_body(
     template: &ExportDefaultTemplateV1,
-    authority: &mut AuthoritySet,
+    authority: &mut impl DefaultNestedCallableSemanticAuthority<AuthorityError>,
 ) -> Result<(), DefaultNestedCallableAbiValidationError<AuthorityError>> {
     template.body().validate_nested_callable_abi_semantics(
         template,
@@ -1103,6 +1111,7 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for Authority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, AuthorityError> {
         if self.failure == Some(DefaultNestedCallableAuthorityQueryV1::Identity)
             || identity != self.identity
@@ -1117,6 +1126,7 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for Authority {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, AuthorityError> {
         if self.failure == Some(DefaultNestedCallableAuthorityQueryV1::Abi)
@@ -1141,6 +1151,7 @@ impl fmt::Display for AuthorityError {
 impl std::error::Error for AuthorityError {}
 
 struct AuthoritySet {
+    sites: Vec<DefaultNestedCallableSiteV1>,
     entries: Vec<(
         DefaultNestedCallableIdentityV1,
         DefaultNestedCallableIdentityShapeV1,
@@ -1163,6 +1174,7 @@ impl AuthoritySet {
         Self {
             entries,
             observed: Vec::new(),
+            sites: Vec::new(),
         }
     }
 
@@ -1185,7 +1197,9 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for AuthoritySet {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, AuthorityError> {
+        self.sites.push(site);
         let shape = self
             .entry(identity)
             .map(|(_, shape, _)| shape.clone())
@@ -1199,8 +1213,10 @@ impl DefaultNestedCallableSemanticAuthority<AuthorityError> for AuthoritySet {
         &mut self,
         _template: &ExportDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
     ) -> Result<DefaultNestedCallableAbiShapeV1, AuthorityError> {
+        self.sites.push(site);
         let shape = self
             .entry(identity)
             .map(|(_, _, shape)| shape.clone())

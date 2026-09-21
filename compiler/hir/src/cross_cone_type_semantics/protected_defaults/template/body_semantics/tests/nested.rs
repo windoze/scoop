@@ -6,16 +6,19 @@ struct NestedAuthority<'a> {
     definition_path: StructuralDefinitionPath,
     function_type: SignatureTypeKey,
     captures: Vec<SignatureTypeKey>,
+    sites: Vec<crate::DefaultNestedCallableSiteV1>,
 }
 impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for NestedAuthority<'_> {
     fn default_nested_callable_identity_shape(
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, &'static str> {
         self.observation.check(template, meter, path)?;
+        self.sites.push(site);
         if identity != DefaultNestedCallableIdentityV1::Lambda(self.identity) {
             return Err("unknown nested source identity");
         }
@@ -30,11 +33,13 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for NestedAut
         &mut self,
         template: &ProtectedDefaultTemplateV1,
         identity: DefaultNestedCallableIdentityV1,
+        site: crate::DefaultNestedCallableSiteV1,
         arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultNestedCallableAbiShapeV1, &'static str> {
         self.observation.check(template, meter, path)?;
+        self.sites.push(site);
         if identity != DefaultNestedCallableIdentityV1::Lambda(self.identity)
             || !matches!(arguments, DefaultNestedCallableBodyArgumentsV1::Lexical)
         {
@@ -86,6 +91,7 @@ fn protected_nested_abi_preserves_identity_and_checks_complete_capture_contract(
         let path = WirePath::root();
         let mut authority = NestedAuthority {
             observation: Observation::new(&template, &resources, &path),
+            sites: Vec::new(),
             identity,
             definition_path: nested_path.clone(),
             function_type: if failure == 1 {
@@ -102,6 +108,10 @@ fn protected_nested_abi_preserves_identity_and_checks_complete_capture_contract(
         let result =
             template.validate_nested_callable_abi_semantics(&mut authority, &mut resources, &path);
         assert_eq!(authority.observation.calls, 2);
+        assert_eq!(
+            authority.sites,
+            vec![crate::DefaultNestedCallableSiteV1::Body { ordinal: 0 }; 2]
+        );
         match failure {
             0 => result.unwrap(),
             1 => assert!(matches!(

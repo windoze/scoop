@@ -68,6 +68,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for DefaultAu
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         _meter: &mut BudgetMeter,
         _path: &WirePath,
     ) -> Result<DefaultNestedCallableIdentityShapeV1, &'static str> {
@@ -77,6 +78,7 @@ impl ProtectedDefaultNestedCallableSemanticAuthority<&'static str> for DefaultAu
         &mut self,
         _template: &ProtectedDefaultTemplateV1,
         _identity: DefaultNestedCallableIdentityV1,
+        _site: crate::DefaultNestedCallableSiteV1,
         _body_arguments: DefaultNestedCallableBodyArgumentsV1<'_>,
         _meter: &mut BudgetMeter,
         _path: &WirePath,

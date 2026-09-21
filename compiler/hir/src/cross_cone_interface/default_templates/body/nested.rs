@@ -26,6 +26,7 @@ pub use semantics::{
     DefaultNestedCallableBodyShapeV1, DefaultNestedCallableIdentityShapeV1,
     DefaultNestedCallableIdentityV1, DefaultNestedCallableKindV1, DefaultNestedCallableLocalUseV1,
     DefaultNestedCallableProvenanceV1, DefaultNestedCallableSemanticAuthority,
+    DefaultNestedCallableSiteV1,
 };
 
 #[cfg(test)]
