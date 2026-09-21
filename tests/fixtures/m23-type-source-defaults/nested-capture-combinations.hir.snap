@@ -12,13 +12,13 @@
       Local $argument.1 : T0
     if
       BoolLiteral true : Boolean
-      LocalFunction local0 body=$local.0.copy captures=1
+      LocalFunction local4 body=$local.0.copy captures=1
       val local6
         Local $parameter.ignored : T0
       val local7
         Local $argument.0 : T0
       assign $result.0
-        LocalFunctionCall local0 $local.0.copy<T1, T0, T0> captures=1 : T1
+        LocalFunctionCall local4 $local.0.copy<T1, T0, T0> captures=1 : T1
           Local $parameter.seed : T1
           Local $parameter.unused : T0
     else
@@ -32,12 +32,12 @@
         Local $parameter.ignored : T0
         Local $parameter.value : T1
   fun localDefault(seed: String): String
-    LocalFunction local4 body=$local.4.choose captures=0
+    LocalFunction local5 body=$local.4.choose captures=0
     if
       BoolLiteral true : Boolean
-      LocalFunction local5 body=$local.5.copy captures=1
+      LocalFunction local7 body=$local.5.copy captures=1
       assign $result.3
-        LocalFunctionCall local5 $local.5.copy captures=1 : String
+        LocalFunctionCall local7 $local.5.copy captures=1 : String
           Local seed : String
     else
       assign $result.3
@@ -45,7 +45,7 @@
     val local2
       Local $result.3 : String
     return
-      LocalFunctionCall local4 $local.4.choose captures=0 : String
+      LocalFunctionCall local5 $local.4.choose captures=0 : String
         Local $parameter.value : String
   fun capturedCallback(seed: String, value: () -> String): () -> String
     return
@@ -67,13 +67,13 @@
       Local $argument.1 : Int
     if
       BoolLiteral true : Boolean
-      LocalFunction local0 body=$local.0.copy captures=1
+      LocalFunction local8 body=$local.0.copy captures=1
       val local4
         Local $parameter.ignored : Int
       val local5
         Local $argument.0 : Int
       assign $result.0
-        LocalFunctionCall local0 $local.0.copy<String, Int, Int> captures=1 : String
+        LocalFunctionCall local8 $local.0.copy<String, Int, Int> captures=1 : String
           Local $parameter.seed : String
           Local $parameter.unused : Int
     else
@@ -95,13 +95,13 @@
       Local $argument.1 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local0 body=$local.0.copy captures=1
+      LocalFunction local9 body=$local.0.copy captures=1
       val local12
         Local $parameter.ignored : String
       val local13
         Local $argument.0 : String
       assign $result.0
-        LocalFunctionCall local0 $local.0.copy<Int, String, String> captures=1 : Int
+        LocalFunctionCall local9 $local.0.copy<Int, String, String> captures=1 : Int
           Local $parameter.seed : Int
           Local $parameter.unused : String
     else
@@ -136,9 +136,9 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local1 body=$local.1.copy captures=1
+      LocalFunction local10 body=$local.1.copy captures=1
       val local24
-        LocalFunctionCall local1 $local.1.copy captures=1 : String
+        LocalFunctionCall local10 $local.1.copy captures=1 : String
           Local $parameter.seed : String
       val local25
         Lambda lambda4 invoke=$lambda.0 captures=1 : () -> String
@@ -163,9 +163,9 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local1 body=$local.1.copy captures=1
+      LocalFunction local11 body=$local.1.copy captures=1
       val local31
-        LocalFunctionCall local1 $local.1.copy captures=1 : String
+        LocalFunctionCall local11 $local.1.copy captures=1 : String
           Local $parameter.seed : String
       val local32
         Lambda lambda6 invoke=$lambda.0 captures=1 : () -> String
@@ -190,7 +190,7 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local2 body=$local.2.copy captures=1
+      LocalFunction local12 body=$local.2.copy captures=1
       val local38
         CallableReference reference1 target=$local.2.copy captures=1 : () -> String
       assign $result.2
@@ -213,7 +213,7 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local2 body=$local.2.copy captures=1
+      LocalFunction local13 body=$local.2.copy captures=1
       val local44
         CallableReference reference2 target=$local.2.copy captures=1 : () -> String
       assign $result.2

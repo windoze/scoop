@@ -1,0 +1,8 @@
+public fun <T> localDependency(seed: T, value: T = if (true) {
+    fun copy(): T { return seed }
+    copy()
+} else { seed }): T = value
+
+public class LocalDependencyHost {
+    internal fun <X, Y> apply(left: X, right: Y, value: Y = localDependency(right)): Y = value
+}

@@ -68,7 +68,7 @@ impl Lowerer {
         let definition_path = self
             .definition_paths
             .next(scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration);
-        let local_number = self.local_functions.len();
+        let local_number = self.local_function_by_function.len();
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
@@ -113,6 +113,7 @@ impl Lowerer {
             definition_root: self.current_definition_root(),
             definition_path: definition_path.clone(),
             function,
+            declaration_function_type: function_type,
             function_type,
             captures: Vec::new(),
             owner_type_param_count,

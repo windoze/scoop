@@ -113,7 +113,7 @@ impl Concretizer<'_> {
         let value = concrete::LocalFunction {
             definition_path: source.definition_path,
             function: self.request_function(source.function, substitution.to_vec()),
-            function_type: self.lower_function_type(source.function_type, substitution),
+            function_type: self.lower_function_type(source.declaration_function_type, substitution),
             span: source.span,
         };
         let id = self.local_functions.alloc(value);

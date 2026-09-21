@@ -170,17 +170,13 @@ impl BodyProjection<'_, '_, '_, '_> {
         &self,
         capture: &crate::Capture,
     ) -> Result<DefaultCaptureV1, super::super::DefaultBodyProjectionError> {
-        let selector = self
-            .locals
-            .binding_selector(capture.binding, &self.entities.resources)?;
-        let source_matches = match &capture.source.kind {
-            crate::ExprKind::Local(local) => self.local(*local)? == selector,
-            crate::ExprKind::Capture(binding) => *binding == capture.binding,
-            _ => false,
+        let selector = match &capture.source.kind {
+            crate::ExprKind::Local(local) => self.local(*local)?,
+            crate::ExprKind::Capture(binding) if *binding == capture.binding => self
+                .locals
+                .binding_selector(*binding, &self.entities.resources)?,
+            _ => return Err(super::super::DefaultBodyProjectionError::InvalidCaptureSource),
         };
-        if !source_matches {
-            return Err(super::super::DefaultBodyProjectionError::InvalidCaptureSource);
-        }
         let value_type = self.type_key(capture.ty)?;
         if self.type_key(capture.source.ty)? != value_type {
             return Err(super::super::DefaultBodyProjectionError::InvalidCaptureSource);

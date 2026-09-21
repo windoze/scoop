@@ -11,13 +11,13 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local0 body=$local.0.copy captures=0
+      LocalFunction local2 body=$local.0.copy captures=0
       val local2
         Local $parameter.seed : String
       val local3
         Local $argument.0 : String
       assign $result.0
-        LocalFunctionCall local0 $local.0.copy captures=0 : String
+        LocalFunctionCall local2 $local.0.copy captures=0 : String
           Local $parameter.value : String
     else
       assign $result.0
@@ -33,13 +33,13 @@
       Local $argument.0 : String
     if
       BoolLiteral true : Boolean
-      LocalFunction local1 body=$local.1.copy captures=0
+      LocalFunction local3 body=$local.1.copy captures=0
       val local8
         Local $parameter.seed : String
       val local9
         Local $argument.0 : String
       assign $result.1
-        LocalFunctionCall local1 $local.1.copy<String> captures=0 : String
+        LocalFunctionCall local3 $local.1.copy<String> captures=0 : String
           Local $parameter.value : String
     else
       assign $result.1

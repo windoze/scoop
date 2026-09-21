@@ -60,6 +60,9 @@ pub struct LocalFunction {
     /// Stable lexical declaration path, independent of every arena id.
     pub definition_path: scoop_identity::StructuralDefinitionPath,
     pub function: FunctionId,
+    /// Source signature in the lifted declaration's own binder frame.
+    pub declaration_function_type: FunctionTypeId,
+    /// Signature at this occurrence, after any default expansion.
     pub function_type: FunctionTypeId,
     pub captures: Vec<Capture>,
     /// Type parameters inherited from enclosing generic callables form the

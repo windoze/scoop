@@ -6,6 +6,8 @@ fn default_declaration_binding_uses_one_budget_and_rejects_invalid_dependency_ro
         SOURCE,
         super::nested_identities::SOURCE,
         super::nested_parents::SOURCE,
+        super::dependency_binders::SOURCE,
+        super::dependency_binders::COMBINATIONS,
     ] {
         with_sources(source, |output, fixture, sources, core| {
             let table = templates(output);

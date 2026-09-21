@@ -1,0 +1,339 @@
+  class LocalDependencyHost()
+  class DependencyCombinationHost()
+  fun localDependency<T>(seed: T0, value: T0): T0
+    return
+      Local value : T0
+  fun dependencyLambda<T>(seed: T0, value: () -> T0): () -> T0
+    return
+      Local value : () -> T0
+  fun dependencyAnonymous<T>(seed: T0, value: () -> T0): () -> T0
+    return
+      Local value : () -> T0
+  fun dependencyReference<T>(seed: T0, value: () -> T0): () -> T0
+    return
+      Local value : () -> T0
+  fun main(): Unit
+    val local0
+      ClassInit LocalDependencyHost : LocalDependencyHost
+    val local1
+      Local local : LocalDependencyHost
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      StringLiteral "first" : String
+    val local4
+      Local $argument.0 : Int
+    val local5
+      Local $argument.1 : String
+    val local6
+      Local $parameter.right : String
+    val local7
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local6 body=$local.0.copy captures=1
+      assign $result.0
+        LocalFunctionCall local6 $local.0.copy<String> captures=1 : String
+          Local $parameter.seed : String
+    else
+      assign $result.0
+        Local $parameter.seed : String
+    val local9
+      Local $result.0 : String
+    val local10
+      Call localDependency<String> : String
+        Local $parameter.seed : String
+        Local $parameter.value : String
+    MethodCall LocalDependencyHost.apply : String
+      Local $receiver : LocalDependencyHost
+      Local $parameter.left : Int
+      Local $parameter.right : String
+      Local $parameter.value : String
+    val local11
+      Local local : LocalDependencyHost
+    val local12
+      StringLiteral "ignored" : String
+    val local13
+      IntegerLiteral 2 : Int
+    val local14
+      Local $argument.0 : String
+    val local15
+      Local $argument.1 : Int
+    val local16
+      Local $parameter.right : Int
+    val local17
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local7 body=$local.0.copy captures=1
+      assign $result.0
+        LocalFunctionCall local7 $local.0.copy<Int> captures=1 : Int
+          Local $parameter.seed : Int
+    else
+      assign $result.0
+        Local $parameter.seed : Int
+    val local19
+      Local $result.0 : Int
+    val local20
+      Call localDependency<Int> : Int
+        Local $parameter.seed : Int
+        Local $parameter.value : Int
+    MethodCall LocalDependencyHost.apply : Int
+      Local $receiver : LocalDependencyHost
+      Local $parameter.left : String
+      Local $parameter.right : Int
+      Local $parameter.value : Int
+    val local21
+      ClassInit DependencyCombinationHost : DependencyCombinationHost
+    val local22
+      Local combined : DependencyCombinationHost
+    val local23
+      IntegerLiteral 1 : Int
+    val local24
+      StringLiteral "text" : String
+    val local25
+      Local $argument.0 : Int
+    val local26
+      Local $argument.1 : String
+    val local27
+      Local $parameter.right : String
+    val local28
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local8 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference4 target=$local.1.copy captures=1 : () -> String
+    else
+      val local29
+        Lambda lambda6 invoke=$lambda.1 captures=1 : () -> String
+          capture seed binding29 : String
+      assign $result.1
+        Local fallback : () -> String
+    val local31
+      Local $result.1 : () -> String
+    val local32
+      Call dependencyReference<String> : () -> String
+        Local $parameter.seed : String
+        Local $parameter.value : () -> String
+    val local33
+      Local $parameter.right : String
+    val local34
+      Local $argument.0 : String
+    val local35
+      Lambda lambda7 invoke=$lambda.0 captures=1 : () -> String
+        capture seed binding25 : String
+    val local36
+      Call dependencyLambda<String> : () -> String
+        Local $parameter.seed : String
+        Local $parameter.value : () -> String
+    val local37
+      Local $parameter.right : String
+    val local38
+      Local $argument.0 : String
+    val local39
+      AnonymousFunction anonymous2 invoke=$anonymous.0 captures=1 : () -> String
+        capture seed binding27 : String
+    val local40
+      Call dependencyAnonymous<String> : () -> String
+        Local $parameter.seed : String
+        Local $parameter.value : () -> String
+    MethodCall DependencyCombinationHost.callbacks : String
+      Local $receiver : DependencyCombinationHost
+      Local $parameter.left : Int
+      Local $parameter.right : String
+      Local $parameter.local : () -> String
+      Local $parameter.lambda : () -> String
+      Local $parameter.anonymous : () -> String
+    val local41
+      Local combined : DependencyCombinationHost
+    val local42
+      StringLiteral "ignored" : String
+    val local43
+      IntegerLiteral 2 : Int
+    val local44
+      Local $argument.0 : String
+    val local45
+      Local $argument.1 : Int
+    val local46
+      Local $parameter.right : Int
+    val local47
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local9 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference5 target=$local.1.copy captures=1 : () -> Int
+    else
+      val local48
+        Lambda lambda8 invoke=$lambda.1 captures=1 : () -> Int
+          capture seed binding29 : Int
+      assign $result.1
+        Local fallback : () -> Int
+    val local50
+      Local $result.1 : () -> Int
+    val local51
+      Call dependencyReference<Int> : () -> Int
+        Local $parameter.seed : Int
+        Local $parameter.value : () -> Int
+    val local52
+      Local $parameter.right : Int
+    val local53
+      Local $argument.0 : Int
+    val local54
+      Lambda lambda9 invoke=$lambda.0 captures=1 : () -> Int
+        capture seed binding25 : Int
+    val local55
+      Call dependencyLambda<Int> : () -> Int
+        Local $parameter.seed : Int
+        Local $parameter.value : () -> Int
+    val local56
+      Local $parameter.right : Int
+    val local57
+      Local $argument.0 : Int
+    val local58
+      AnonymousFunction anonymous3 invoke=$anonymous.0 captures=1 : () -> Int
+        capture seed binding27 : Int
+    val local59
+      Call dependencyAnonymous<Int> : () -> Int
+        Local $parameter.seed : Int
+        Local $parameter.value : () -> Int
+    MethodCall DependencyCombinationHost.callbacks : Int
+      Local $receiver : DependencyCombinationHost
+      Local $parameter.left : String
+      Local $parameter.right : Int
+      Local $parameter.local : () -> Int
+      Local $parameter.lambda : () -> Int
+      Local $parameter.anonymous : () -> Int
+    val local60
+      Local combined : DependencyCombinationHost
+    val local61
+      StringLiteral "repeat" : String
+    val local62
+      Local $argument.0 : String
+    val local63
+      Local $parameter.seed : String
+    val local64
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local10 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference6 target=$local.1.copy captures=1 : () -> String
+    else
+      val local65
+        Lambda lambda10 invoke=$lambda.1 captures=1 : () -> String
+          capture seed binding29 : String
+      assign $result.1
+        Local fallback : () -> String
+    val local67
+      Local $result.1 : () -> String
+    val local68
+      Local $parameter.seed : String
+    val local69
+      Local $argument.0 : String
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local11 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference7 target=$local.1.copy captures=1 : () -> String
+    else
+      val local70
+        Lambda lambda11 invoke=$lambda.1 captures=1 : () -> String
+          capture seed binding29 : String
+      assign $result.1
+        Local fallback : () -> String
+    val local72
+      Local $result.1 : () -> String
+    val local73
+      TupleLiteral : (() -> String, () -> String)
+        Call dependencyReference<String> : () -> String
+          Local $parameter.seed : String
+          Local $parameter.value : () -> String
+        Call dependencyReference<String> : () -> String
+          Local $parameter.seed : String
+          Local $parameter.value : () -> String
+    MethodCall DependencyCombinationHost.repeated : (() -> String, () -> String)
+      Local $receiver : DependencyCombinationHost
+      Local $parameter.seed : String
+      Local $parameter.value : (() -> String, () -> String)
+    val local74
+      Local combined : DependencyCombinationHost
+    val local75
+      IntegerLiteral 3 : Int
+    val local76
+      Local $argument.0 : Int
+    val local77
+      Local $parameter.seed : Int
+    val local78
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local12 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference8 target=$local.1.copy captures=1 : () -> Int
+    else
+      val local79
+        Lambda lambda12 invoke=$lambda.1 captures=1 : () -> Int
+          capture seed binding29 : Int
+      assign $result.1
+        Local fallback : () -> Int
+    val local81
+      Local $result.1 : () -> Int
+    val local82
+      Local $parameter.seed : Int
+    val local83
+      Local $argument.0 : Int
+    if
+      BoolLiteral true : Boolean
+      LocalFunction local13 body=$local.1.copy captures=1
+      assign $result.1
+        CallableReference reference9 target=$local.1.copy captures=1 : () -> Int
+    else
+      val local84
+        Lambda lambda13 invoke=$lambda.1 captures=1 : () -> Int
+          capture seed binding29 : Int
+      assign $result.1
+        Local fallback : () -> Int
+    val local86
+      Local $result.1 : () -> Int
+    val local87
+      TupleLiteral : (() -> Int, () -> Int)
+        Call dependencyReference<Int> : () -> Int
+          Local $parameter.seed : Int
+          Local $parameter.value : () -> Int
+        Call dependencyReference<Int> : () -> Int
+          Local $parameter.seed : Int
+          Local $parameter.value : () -> Int
+    MethodCall DependencyCombinationHost.repeated : (() -> Int, () -> Int)
+      Local $receiver : DependencyCombinationHost
+      Local $parameter.seed : Int
+      Local $parameter.value : (() -> Int, () -> Int)
+  instance $local.0.copy<T0>
+  instance $local.1.copy<T0>
+  instance $local.0.copy<T1>
+  instance localDependency<T1>
+  instance $local.1.copy<T1>
+  instance dependencyReference<T1>
+  instance dependencyLambda<T1>
+  instance dependencyAnonymous<T1>
+  instance $local.1.copy<T0>
+  instance dependencyReference<T0>
+  instance $local.0.copy<String>
+  instance localDependency<String>
+  instance $local.0.copy<Int>
+  instance localDependency<Int>
+  instance $local.1.copy<String>
+  instance dependencyReference<String>
+  instance dependencyLambda<String>
+  instance dependencyAnonymous<String>
+  instance $local.1.copy<Int>
+  instance dependencyReference<Int>
+  instance dependencyLambda<Int>
+  instance dependencyAnonymous<Int>
+  method instance LocalDependencyHost.apply<owner=[], method=[Int, String]>
+  method instance LocalDependencyHost.apply<owner=[], method=[String, Int]>
+  method instance DependencyCombinationHost.callbacks<owner=[], method=[Int, String]>
+  method instance DependencyCombinationHost.callbacks<owner=[], method=[String, Int]>
+  method instance DependencyCombinationHost.repeated<owner=[], method=[String]>
+  method instance DependencyCombinationHost.repeated<owner=[], method=[Int]>

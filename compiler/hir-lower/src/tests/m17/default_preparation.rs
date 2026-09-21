@@ -1,5 +1,6 @@
 use super::super::*;
 
+mod dependency_binders;
 mod errors;
 mod files;
 mod generic_references;

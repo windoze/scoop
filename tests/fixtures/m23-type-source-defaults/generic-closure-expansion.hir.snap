@@ -55,7 +55,7 @@
       Local $argument.1 : T0
     if
       BoolLiteral true : Boolean
-      LocalFunction local0 body=$local.0.read captures=1
+      LocalFunction local1 body=$local.0.read captures=1
       assign $result.0
         CallableReference reference7 target=$local.0.read captures=1 : () -> T1
     else
