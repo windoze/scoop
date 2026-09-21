@@ -10,7 +10,7 @@ const CONSUMER: &str = include_str!(concat!(
     "/../../tests/fixtures/core-library/alias-consumer.scoop"
 ));
 
-fn with_aliases<R>(source: &str, run: impl FnOnce(&OrdinarySources<'_, '_>) -> R) -> R {
+fn with_aliases<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
     let mut core_source = crate::tests::complete_core_file();
     core_source
         .declarations
@@ -19,14 +19,14 @@ fn with_aliases<R>(source: &str, run: impl FnOnce(&OrdinarySources<'_, '_>) -> R
     let parsed = support::parsed_ordinary_text(source);
     let world = core.world(parsed.cone());
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&parsed, protocols, &world).unwrap();
+    let input = CurrentConeSources::try_new(&parsed, protocols, &world).unwrap();
     run(&input)
 }
 
 #[test]
 fn imported_core_aliases_use_shared_type_selection_and_separate_value_names() {
     with_aliases(CONSUMER, |input| {
-        let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, input).unwrap();
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();
         assert_eq!(output.imported_dependencies().type_alias_count(), 2);
         assert_eq!(output.imported_dependencies().callable_count(), 1);
         let [alias_witness] = output.binding_witness_uses() else {
@@ -57,7 +57,7 @@ fn current_type_alias_shadows_the_imported_core_type_namespace() {
         "/../../tests/fixtures/core-library/alias-shadow.scoop"
     ));
     with_aliases(source, |input| {
-        let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, input).unwrap();
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();
         assert_eq!(output.imported_dependencies().type_alias_count(), 0);
         let module = output.output().export.module();
         let alias = module.type_aliases.iter().next().unwrap().1;
@@ -72,7 +72,7 @@ fn imported_core_alias_rejects_type_arguments_at_its_source_name() {
         "/../../tests/fixtures/core-library/alias-generic-error.scoop"
     ));
     with_aliases(source, |input| {
-        let errors = lower_ordinary(scoop_identity::RequestedConeKind::Library, input)
+        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
             .err()
             .expect("generic alias use must fail");
         assert_eq!(errors.len(), 1);
@@ -98,7 +98,7 @@ fn imported_builtin_type_rejects_type_arguments_at_its_source_name() {
         "/../../tests/fixtures/core-library/builtin-generic-error.scoop"
     ));
     with_aliases(source, |input| {
-        let errors = lower_ordinary(scoop_identity::RequestedConeKind::Library, input)
+        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
             .err()
             .expect("non-generic nominal use must fail");
         assert_eq!(errors.len(), 1);
@@ -126,8 +126,8 @@ fn builtin_type_names_require_shared_public_bindings() {
         hir::ImportedSemanticWorld::from_validated_closure(parsed.cone(), Vec::new(), Vec::new())
             .unwrap();
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&parsed, protocols, &world).unwrap();
-    let errors = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let input = CurrentConeSources::try_new(&parsed, protocols, &world).unwrap();
+    let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .err()
         .expect("a protocol identity does not publish a source-level name");
     assert_eq!(errors.len(), 1);

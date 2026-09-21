@@ -25,7 +25,7 @@ const PROTECTED: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<CallableTemplateOrigin> {
+fn required(output: &hir::DependencyHirOutput) -> BTreeSet<CallableTemplateOrigin> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
     let nominals =
@@ -72,7 +72,7 @@ fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<CallableTemplateOrigin>
     }
     required
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
+fn table(output: &hir::DependencyHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 
@@ -91,7 +91,7 @@ fn nominal_callable_sources_preserve_generic_members_all_accessors_and_variants(
 fn complete_and_protected_callable_sources_share_the_same_contracts() {
     with_source(PROTECTED, |output, _| {
         let complete = table(output);
-        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_ordinary_hir(
+        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
             output,
             &mut meter(),
         )

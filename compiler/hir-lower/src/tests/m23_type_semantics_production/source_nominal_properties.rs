@@ -23,7 +23,7 @@ fn meter() -> BudgetMeter {
 }
 
 fn required(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
 ) -> hir::CanonicalPersistentIdsV1<PersistentPropertyId> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
@@ -48,7 +48,7 @@ fn required(
     )
     .unwrap()
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
+fn table(output: &hir::DependencyHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 
@@ -82,7 +82,7 @@ fn nominal_and_inheritance_properties_reuse_the_same_runtime_contracts() {
     with_source(COMBINED, |output, _| {
         let table = table(output);
         let inheritance =
-            hir::CanonicalInheritanceSourcePropertiesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         for record in inheritance.records() {
             assert_eq!(table.get(record.declaration()), Some(record));

@@ -6,7 +6,7 @@ pub(super) const INDEPENDENT: &str = include_str!(concat!(
 ));
 pub(super) fn with_template(run: impl FnOnce(&Template)) {
     with_hir_source(INDEPENDENT, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "ReferenceClosureHost.all"),
             0,

@@ -81,13 +81,25 @@ impl Lowerer {
     ) -> Result<hir::TypeId, ImportedSignatureTypeError> {
         match signature {
             SignatureTypeKey::Nominal(identity) => {
+                if *identity
+                    == scoop_identity::CoreBuiltinNominal::Unit
+                        .identity_record()
+                        .id()
+                {
+                    return Ok(self.unit);
+                }
+                if *identity
+                    == scoop_identity::CoreBuiltinNominal::Any
+                        .identity_record()
+                        .id()
+                {
+                    return Ok(self.any);
+                }
                 let CoreLoweringAuthority::Imported(authority) = &self.core else {
-                    panic!("defined-core lowering cannot map an imported signature")
+                    return Err(ImportedSignatureTypeError::Structural);
                 };
                 let fundamental = authority.protocols.fundamental_types();
-                if *identity == fundamental.unit().persistent() {
-                    Ok(self.unit)
-                } else if let Some(kind) = hir::IntegerKind::ALL
+                if let Some(kind) = hir::IntegerKind::ALL
                     .into_iter()
                     .find(|kind| *identity == fundamental.integer(*kind).persistent())
                 {
@@ -96,12 +108,6 @@ impl Lowerer {
                     Ok(self.boolean)
                 } else if *identity == fundamental.string().persistent() {
                     Ok(self.string)
-                } else if *identity
-                    == scoop_identity::CoreBuiltinNominal::Any
-                        .identity_record()
-                        .id()
-                {
-                    Ok(self.any)
                 } else {
                     Err(ImportedSignatureTypeError::Structural)
                 }

@@ -15,12 +15,12 @@ pub struct NominalDefaultSourceProductionV1 {
     templates: CanonicalDefaultSourceTemplatesV1,
 }
 impl NominalDefaultSourceProductionV1 {
-    pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput,
+    pub fn from_dependency_hir(
+        output: &DependencyHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         produce(&output.output().export, meter, |owner, position, meter| {
-            DefaultSourceBodyProductionV1::from_ordinary_hir(output, owner, position, meter)
+            DefaultSourceBodyProductionV1::from_dependency_hir(output, owner, position, meter)
                 .map_err(Error::Body)?
                 .into_source_template(meter)
                 .map_err(Error::Template)

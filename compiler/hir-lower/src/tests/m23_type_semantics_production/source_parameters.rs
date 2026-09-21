@@ -19,8 +19,8 @@ const SOURCE: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
-    Table::from_ordinary_hir(output, &mut meter()).unwrap()
+fn table(output: &hir::DependencyHirOutput) -> Table {
+    Table::from_dependency_hir(output, &mut meter()).unwrap()
 }
 fn declaration(
     export: &hir::ExportHir,
@@ -125,7 +125,7 @@ fn inheritance_parameter_sources_preserve_names_categories_origins_and_empty_rec
             ))
         );
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         let mut expected = BTreeSet::new();
         for owner in inventory.records() {

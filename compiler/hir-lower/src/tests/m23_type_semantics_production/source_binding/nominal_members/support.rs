@@ -8,7 +8,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) struct Sourc
 }
 impl Sources {
     pub(in crate::tests::m23_type_semantics_production::source_binding) fn from_output(
-        output: &hir::OrdinaryHirOutput,
+        output: &hir::DependencyHirOutput,
         fixture: &mut Fixture,
     ) -> Self {
         macro_rules! restore {
@@ -89,7 +89,7 @@ impl Sources {
 pub(super) fn with_sources(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput,
+        &hir::DependencyHirOutput,
         &Fixture,
         &Sources,
         &hir::ImportedCoreFundamentalTypeProtocol,

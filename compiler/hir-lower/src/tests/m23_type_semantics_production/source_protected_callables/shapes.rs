@@ -134,12 +134,12 @@ fn protected_result_type_tree_is_budgeted_before_signature_projection() {
             semantic_recursion: 3,
             ..DecodeLimits::default()
         };
-        hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+        hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
             output,
             &mut BudgetMeter::new(limits),
         )
         .unwrap();
-        let error = Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)).unwrap_err();
+        let error = Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)).unwrap_err();
         let hir::CrossConeTypeSemanticsProductionError::SourceInventory(
             hir::SourceInventoryError::Resource(error),
         ) = error

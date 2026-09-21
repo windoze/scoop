@@ -26,7 +26,7 @@ fn source_reference_wire_requires_all_six_sequences_and_three_record_fields() {
         assert!(decode_canonical::<Decoded>(&bad, DecodeLimits::default()).is_err());
     }
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "callable"),
             0,
@@ -50,7 +50,7 @@ fn source_reference_wire_requires_all_six_sequences_and_three_record_fields() {
 #[test]
 fn source_reference_reader_retains_even_identical_occurrences_in_encoded_order() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "combined"),
             0,
@@ -79,7 +79,7 @@ fn source_reference_reader_retains_even_identical_occurrences_in_encoded_order()
 #[test]
 fn source_reference_reader_rejects_unknown_target_identity() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "callable"),
             0,
@@ -109,7 +109,7 @@ fn source_reference_reader_rejects_unknown_target_identity() {
 #[test]
 fn source_reference_constructor_cannot_masquerade_as_a_local_function() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "constructor"),
             0,

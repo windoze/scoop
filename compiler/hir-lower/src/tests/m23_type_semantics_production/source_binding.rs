@@ -40,9 +40,9 @@ struct Fixture {
 }
 
 impl Fixture {
-    fn from_output(output: &hir::OrdinaryHirOutput) -> Self {
+    fn from_output(output: &hir::DependencyHirOutput) -> Self {
         let source =
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
                 .unwrap()
                 .source_transcript(&mut meter())
                 .unwrap();

@@ -12,10 +12,10 @@ mod type_semantics;
 use source_points::source_records;
 
 impl CanonicalHirFoundation {
-    /// Builds an ordinary HIR foundation with the external nominal identities
+    /// Builds a current-Cone HIR foundation with the external nominal identities
     /// referenced by its exact types.
-    pub fn from_ordinary_output(
-        output: &crate::OrdinaryHirOutput,
+    pub fn from_dependency_output(
+        output: &crate::DependencyHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
         let hir = output.output();
         let mut foundation =

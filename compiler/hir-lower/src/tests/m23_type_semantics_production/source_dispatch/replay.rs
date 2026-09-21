@@ -24,7 +24,8 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
     with_source(INTERFACES, |output, _| {
         let mut identities = super::super::source_inventory::identity_closure(output);
         let source =
-            CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(output, &mut meter()).unwrap();
+            CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
+                .unwrap();
         let decoded: DecodedCanonicalInterfaceSourceDispatchesV1 =
             decode_canonical(&encode(&source).unwrap(), DecodeLimits::default()).unwrap();
         let restored = decoded.resolve(&mut identities, &mut meter()).unwrap();
@@ -176,7 +177,8 @@ fn real_interface_source_bytes_replay_exact_slots_and_reject_an_unjustified_supp
 fn real_interface_source_transport_is_independent_of_unrelated_arena_ids() {
     let source = with_source(INTERFACES, |output, _| {
         encode(
-            &CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(output, &mut meter()).unwrap(),
+            &CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
+                .unwrap(),
         )
         .unwrap()
     });
@@ -184,7 +186,7 @@ fn real_interface_source_transport_is_independent_of_unrelated_arena_ids() {
         &format!("fun unrelated(): Int = 0\n{INTERFACES}"),
         |output, _| {
             encode(
-                &CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(output, &mut meter())
+                &CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, &mut meter())
                     .unwrap(),
             )
             .unwrap()

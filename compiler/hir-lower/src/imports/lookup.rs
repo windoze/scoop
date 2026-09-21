@@ -288,7 +288,7 @@ impl Lowerer {
         package: PackageId,
         name: &str,
     ) -> LookupResult<TypeLookupCandidate> {
-        if self.current_source_is_core() {
+        if !self.source_is_current_cone(self.current_file) {
             return LookupResult::Missing;
         }
         let bindings = self

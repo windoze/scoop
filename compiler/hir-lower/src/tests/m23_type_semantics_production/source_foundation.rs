@@ -5,7 +5,7 @@ use scoop_wire::{decode_canonical, encode};
 mod object_origins;
 
 fn fixture() -> (
-    hir::OrdinaryHirOutput,
+    hir::DependencyHirOutput,
     hir::CrossConeTypeSemanticsProductionV1,
 ) {
     let output = lower_public_nominals();
@@ -26,7 +26,7 @@ fn source_foundation_product_round_trips_real_hir_and_generated_object_roles() {
         .source_transcript(&mut meter())
         .unwrap();
     let independent =
-        hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(&output, &mut meter())
+        hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output, &mut meter())
             .unwrap()
             .source_transcript(&mut meter())
             .unwrap();
@@ -39,7 +39,7 @@ fn source_foundation_product_round_trips_real_hir_and_generated_object_roles() {
     let decoded: hir::DecodedTypeFoundationSourceAuthorityV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    let legacy = hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
+    let legacy = hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
     let mut legacy_graph =
         super::source_inventory::identity_closure_for_foundation(&output, legacy);
     assert!(matches!(

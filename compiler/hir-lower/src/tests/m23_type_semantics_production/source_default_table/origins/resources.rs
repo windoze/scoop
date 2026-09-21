@@ -14,7 +14,7 @@ impl From<WireError> for VisitError {
 #[test]
 fn default_source_origin_walk_stops_at_callback_failure() {
     with_hir_source(ORIGINS, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let mut visits = 0;
         let result = production.templates().visit_definition_sources_metered(
             &mut |_, _, site, _, _| {
@@ -33,7 +33,7 @@ fn default_source_origin_walk_stops_at_callback_failure() {
 #[test]
 fn default_source_origin_walk_and_callbacks_share_resource_limits() {
     with_hir_source(ORIGINS, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let walk = |meter: &mut BudgetMeter| {
             production.templates().visit_definition_sources_metered(
                 &mut |_, _, _, meter, path| {

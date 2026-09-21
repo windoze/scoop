@@ -30,7 +30,7 @@ const EFFECTS: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<PersistentConstructorId> {
+fn required(output: &hir::DependencyHirOutput) -> BTreeSet<PersistentConstructorId> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
     let nominals =
@@ -42,7 +42,7 @@ fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<PersistentConstructorId
         .flat_map(|n| n.constructors().values().iter().copied())
         .collect()
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
+fn table(output: &hir::DependencyHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 
@@ -62,7 +62,7 @@ fn complete_and_inheritance_constructor_sources_share_exact_contracts() {
     for input in [SOURCE, INHERITANCE, EFFECTS] {
         with_source(input, |output, _| {
             let complete = table(output);
-            let inheritance = hir::CanonicalInheritanceSourceConstructorsV1::from_ordinary_hir(
+            let inheritance = hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(
                 output,
                 &mut meter(),
             )

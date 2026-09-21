@@ -32,10 +32,10 @@ pub(super) struct Sources {
     properties: hir::CanonicalInheritanceSourcePropertiesV1,
 }
 impl Sources {
-    pub(super) fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
+    pub(super) fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         let dispatch = super::dispatch_binding::Sources::from_output(output, fixture);
         let source =
-            hir::CanonicalInheritanceSourcePropertiesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         let bytes = encode(&source).unwrap();
         let decoded: hir::DecodedCanonicalInheritanceSourcePropertiesV1 =

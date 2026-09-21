@@ -6,8 +6,8 @@ use crate::*;
 use scoop_wire::{BudgetMeter, WirePath};
 
 impl TypeDeclarationSourceAuthorityV1 {
-    pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput,
+    pub fn from_dependency_hir(
+        output: &DependencyHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let path = WirePath::root();
@@ -38,12 +38,14 @@ impl TypeDeclarationSourceAuthorityV1 {
             constructors,
             properties,
             callables,
-            inheritance: CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(output, meter)?,
-            interfaces: CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(output, meter)?,
-            selections: CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+            inheritance: CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
                 output, meter,
             )?,
-            dispatch_callables: CanonicalInheritanceSourceCallablesV1::from_ordinary_hir(
+            interfaces: CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(output, meter)?,
+            selections: CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
+                output, meter,
+            )?,
+            dispatch_callables: CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
                 output, meter,
             )?,
         };

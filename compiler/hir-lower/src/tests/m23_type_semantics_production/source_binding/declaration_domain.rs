@@ -14,7 +14,7 @@ const SOURCE: &str = include_str!(concat!(
 fn with_domain(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput,
+        &hir::DependencyHirOutput,
         &mut Fixture,
         &Sources,
         &Domain,
@@ -24,9 +24,9 @@ fn with_domain(
     with_hir_source(source, |output, core| {
         let mut fixture = Fixture::from_output(output);
         let independent = Sources::from_output(output, &mut fixture);
-        let source = Domain::from_ordinary_hir(output, &mut meter()).unwrap();
+        let source = Domain::from_dependency_hir(output, &mut meter()).unwrap();
         assert_eq!(
-            Domain::from_ordinary_hir(output, &mut meter()).unwrap(),
+            Domain::from_dependency_hir(output, &mut meter()).unwrap(),
             source
         );
         let bytes = encode(&source).unwrap();

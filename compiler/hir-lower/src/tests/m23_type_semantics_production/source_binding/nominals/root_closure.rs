@@ -119,7 +119,7 @@ fn source_foundation_root_projection_uses_the_callers_shared_budget() {
                 ..DecodeLimits::default()
             },
         ] {
-            let result = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(
+            let result = hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(
                 output,
                 &mut BudgetMeter::new(limits),
             );
@@ -141,7 +141,7 @@ fn source_foundation_root_projection_uses_the_callers_shared_budget() {
             ..DecodeLimits::default()
         };
         assert!(
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(
                 output,
                 &mut BudgetMeter::new(limits)
             )

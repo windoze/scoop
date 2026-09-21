@@ -34,7 +34,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.Scope.reference", 0),
 ];
 fn template(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     name: &str,
     position: u32,
 ) -> hir::DefaultSourceTemplateV1 {
@@ -47,7 +47,7 @@ fn template(
         .find(|(_, f)| f.name == name)
         .unwrap()
         .0;
-    hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+    hir::DefaultSourceBodyProductionV1::from_dependency_hir(
         output,
         hir::ExportParameterOwner::Function(id),
         position,

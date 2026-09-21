@@ -8,7 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};
 use super::*;
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 use hir::NominalInheritanceSemanticAuthority as _;
 
 mod source_binding;
@@ -36,7 +36,7 @@ mod source_protected_callables;
 mod source_shapes;
 
 fn produce_cross_cone_type_semantics(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
     crate::produce_cross_cone_type_semantics(
@@ -46,13 +46,13 @@ fn produce_cross_cone_type_semantics(
     )
 }
 
-fn public_interface(output: &hir::OrdinaryHirOutput) -> hir::CrossConeHirInterfaceSectionV1 {
+fn public_interface(output: &hir::DependencyHirOutput) -> hir::CrossConeHirInterfaceSectionV1 {
     let export = output.output().export.module();
     let mut authority = PublicProjectionAuthority {
         current: export.cone,
         local_nominals: local_nominals(export),
     };
-    hir::CrossConeHirInterfaceSectionV1::from_ordinary_hir(output, &[], &mut authority).unwrap()
+    hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(output, &[], &mut authority).unwrap()
 }
 
 struct PublicProjectionAuthority {
@@ -174,7 +174,7 @@ fn object_decl(name: &str) -> Decl {
     })
 }
 
-fn lower_public_nominals() -> hir::OrdinaryHirOutput {
+fn lower_public_nominals() -> hir::DependencyHirOutput {
     lower_public_declarations(vec![
         struct_decl("EmptyValue", Vec::new()),
         struct_decl("WordValue", vec![("value", ty_named("Int"))]),
@@ -205,15 +205,15 @@ fn lower_public_nominals() -> hir::OrdinaryHirOutput {
     ])
 }
 
-fn lower_public_declarations(declarations: Vec<Decl>) -> hir::OrdinaryHirOutput {
+fn lower_public_declarations(declarations: Vec<Decl>) -> hir::DependencyHirOutput {
     let core = trusted_core();
     let mut source = file(declarations);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
-    lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap()
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
+    lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap()
 }
 
 #[test]

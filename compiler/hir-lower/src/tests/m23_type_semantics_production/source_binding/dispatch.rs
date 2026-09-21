@@ -23,9 +23,11 @@ fn independent_foundation_replays_nonempty_dispatch_and_accessor_sources() {
             for edge in entries.local_inheritance_edges.records() {
                 assert_eq!(graph.get(edge.owner()).unwrap().edges(), edge);
             }
-            let callables =
-                hir::CanonicalInheritanceSourceCallablesV1::from_ordinary_hir(output, &mut meter())
-                    .unwrap();
+            let callables = hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
+                output,
+                &mut meter(),
+            )
+            .unwrap();
             assert!(!callables.records().is_empty());
             for callable in callables.records() {
                 assert!(
@@ -90,7 +92,7 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
             Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedProtectedConstructor(_))
         ));
         let sources =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         assert_eq!(
             sources
@@ -128,7 +130,7 @@ fn independent_foundation_projects_existing_generic_edges_without_materializing(
 fn independent_foundation_bytes_are_deterministic_and_still_budgeted() {
     let first = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         assert!(
             foundation
@@ -142,7 +144,7 @@ fn independent_foundation_bytes_are_deterministic_and_still_budgeted() {
     });
     let second = with_source(INTERFACES, |output, _| {
         let foundation =
-            hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
+            hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         encode(&foundation.source_transcript(&mut meter()).unwrap()).unwrap()
     });

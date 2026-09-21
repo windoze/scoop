@@ -3,7 +3,7 @@ use scoop_wire::{ResourceKind, WireErrorKind};
 #[test]
 fn source_reference_resolution_shares_one_monotonic_budget() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "combined"),
             0,
@@ -41,7 +41,7 @@ fn source_reference_resolution_shares_one_monotonic_budget() {
 #[test]
 fn source_reference_resolution_charges_every_resource_dimension() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "combined"),
             0,
@@ -153,7 +153,7 @@ fn source_producer_checks_occurrence_allocation_in_the_body_budget() {
 #[test]
 fn source_reference_vector_allocation_is_charged_before_any_target_lookup() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "callable"),
             0,

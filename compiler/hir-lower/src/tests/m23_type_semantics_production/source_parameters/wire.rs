@@ -91,7 +91,7 @@ fn source_parameter_reader_rejects_unknown_ids_and_checks_shared_budgets() {
                 Err(hir::SourceInventoryError::Resource(_))
             ));
             assert!(matches!(
-                Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)),
+                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
                 Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                     hir::SourceInventoryError::Resource(_)
                 ))

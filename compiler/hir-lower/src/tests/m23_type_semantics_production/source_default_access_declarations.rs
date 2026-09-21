@@ -56,7 +56,7 @@ pub(super) fn required(export: &hir::ExportHir) -> BTreeSet<Subject> {
         .map(|r| r.subject())
         .collect()
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
+fn table(output: &hir::DependencyHirOutput) -> Table {
     Table::from_export_hir(
         &output.output().export,
         &required(output.output().export.module()),

@@ -1,0 +1,64 @@
+//! Current-Cone source lowering against the shared dependency semantic world.
+
+use scoop_ast::{Diagnostic, Span};
+use scoop_hir as hir;
+
+use crate::{
+    CoreProtocolInput, CurrentConeSources, IntrinsicDeclarationPolicy, Lowerer, finish_output,
+    materialize_current_sources, select_cone_output_kind,
+};
+
+/// Lowers current sources against one validated dependency semantic world.
+pub fn lower_current_cone(
+    requested: scoop_identity::RequestedConeKind,
+    input: &CurrentConeSources<'_, '_>,
+) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    let (files, sources) = materialize_current_sources(input.sources());
+    let world = input.semantic_world();
+    let nominals = world
+        .direct_provider(scoop_identity::ConeIdentity::CORE)
+        .map(|provider| provider.nominal_interfaces().records())
+        .unwrap_or_default();
+    let classifier = hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to classify core ABI leaves: {error}"),
+            )]
+        })?;
+    let dependency_selection = world
+        .dependency_selection_plan(&classifier)
+        .map_err(|error| {
+            vec![Diagnostic::at(
+                Span { start: 0, end: 0 },
+                format!("failed to prepare dependency selection: {error}"),
+            )]
+        })?;
+    let lowerer = Lowerer::new()
+        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
+        .with_imported_dependencies(dependency_selection);
+    let (lowerer, external_native_types) = match input.core() {
+        CoreProtocolInput::CurrentDeclarations => (
+            lowerer,
+            hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
+        ),
+        CoreProtocolInput::Imported(core) => (
+            lowerer.with_imported_core(core),
+            hir::HirNativeBoundaryExternalTypes::TrustedCore(core.native_boundary_types()),
+        ),
+    };
+    let (module, warnings, completion) = lowerer.run_with_dependencies(&files, world)?;
+    let output_kind = select_cone_output_kind(&module, requested)?;
+    let output = finish_output(module, output_kind, warnings, external_native_types)?;
+    hir::DependencyHirOutput::try_new(
+        output,
+        completion.dependencies.finish(),
+        completion.binding_witness_uses,
+    )
+    .map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal dependency-aware HIR: {error}"),
+        )]
+    })
+}

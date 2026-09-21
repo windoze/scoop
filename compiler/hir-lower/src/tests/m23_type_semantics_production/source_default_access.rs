@@ -87,7 +87,7 @@ fn actual_default_witnesses_round_trip_all_source_regions_without_public_lookup(
             "Generic.choose",
             "Generic.Static.literal",
         ] {
-            let body = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+            let body = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
                 output,
                 function(export, name),
                 0,

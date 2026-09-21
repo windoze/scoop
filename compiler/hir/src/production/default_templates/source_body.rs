@@ -33,8 +33,8 @@ impl<'a> DefaultSourceBodyProductionV1<'a> {
         Self::project(export, &entities, owner, parameter_position)
     }
 
-    pub fn from_ordinary_hir(
-        output: &'a OrdinaryHirOutput,
+    pub fn from_dependency_hir(
+        output: &'a DependencyHirOutput,
         owner: ExportParameterOwner,
         parameter_position: u32,
         meter: &mut BudgetMeter,

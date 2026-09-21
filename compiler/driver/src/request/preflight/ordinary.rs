@@ -37,11 +37,11 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
         let core_classifier =
             scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
                 .map_err(OrdinaryConeHirStageError::CoreClassifier)?;
-        let input = scoop_hir_lower::OrdinarySources::try_new(&self.sources, core, &world)
+        let input = scoop_hir_lower::CurrentConeSources::try_new(&self.sources, core, &world)
             .map_err(OrdinaryConeHirStageError::Input)?;
-        let hir = scoop_hir_lower::lower_ordinary(requested, &input)
+        let hir = scoop_hir_lower::lower_current_cone(requested, &input)
             .map_err(OrdinaryConeHirStageError::Lowering)?;
-        let mut foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&hir)
+        let mut foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&hir)
             .map_err(OrdinaryConeHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
@@ -52,8 +52,12 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
                 &hir.output().export.public_export_bindings,
                 &world,
             );
-            scoop_hir::CrossConeHirInterfaceSectionV1::from_ordinary_hir(&hir, &[], &mut authority)
-                .map_err(OrdinaryConeHirStageError::CrossConeSection)?
+            scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
+                &hir,
+                &[],
+                &mut authority,
+            )
+            .map_err(OrdinaryConeHirStageError::CrossConeSection)?
         };
         foundation
             .complete_cross_cone_source_points(
@@ -166,7 +170,7 @@ pub struct OrdinaryConeHirOutput<'stage, 'artifact> {
     trusted_core: &'stage ValidatedTrustedCoreArtifact<'artifact>,
     dependencies: &'stage ValidatedExplicitDependencyInputSet<'artifact>,
     target_profile: scoop_lir::LirTargetProfile,
-    hir: scoop_hir::OrdinaryHirOutput,
+    hir: scoop_hir::DependencyHirOutput,
     foundation: scoop_hir::CanonicalHirFoundation,
     production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
     cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
@@ -174,7 +178,7 @@ pub struct OrdinaryConeHirOutput<'stage, 'artifact> {
 }
 
 impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
-    pub const fn hir(&self) -> &scoop_hir::OrdinaryHirOutput {
+    pub const fn hir(&self) -> &scoop_hir::DependencyHirOutput {
         &self.hir
     }
 

@@ -2,8 +2,8 @@
 
 use crate::{
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1,
-    CanonicalExportDefaultTemplatesV1, ExportDefaultSourceId, ExportHir, ExportParameterCalling,
-    ExportParameterInterface, ExportParameterOwner, OrdinaryHirOutput,
+    CanonicalExportDefaultTemplatesV1, DependencyHirOutput, ExportDefaultSourceId, ExportHir,
+    ExportParameterCalling, ExportParameterInterface, ExportParameterOwner,
 };
 
 use super::callable_source_interfaces::{SourceCallableOwner, public_source_callable_owners};
@@ -33,15 +33,15 @@ use entities::DefaultEntityProjector;
 
 impl CanonicalExportDefaultTemplatesV1 {
     /// Projects defaults for a self-contained Export HIR graph. Imported
-    /// dependency calls require the selections owned by `OrdinaryHirOutput`.
+    /// dependency calls require the selections owned by `DependencyHirOutput`.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, DefaultTemplateProductionError> {
         Self::from_parts(export, None)
     }
 
     /// Projects defaults from an ordinary graph using its owned dependency
     /// selections to resolve imported call handles.
-    pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput,
+    pub fn from_dependency_hir(
+        output: &DependencyHirOutput,
     ) -> Result<Self, DefaultTemplateProductionError> {
         let export = output.output().export.module();
         Self::from_parts(export, Some(output.imported_dependencies()))

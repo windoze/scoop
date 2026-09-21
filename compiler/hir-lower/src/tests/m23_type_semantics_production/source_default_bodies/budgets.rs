@@ -5,15 +5,15 @@ fn source_body_uses_the_callers_remaining_budget() {
     with_hir_source(SOURCE, |output, _| {
         let owner = function(output.output().export.module(), "Base.callback");
         let mut measured = meter();
-        Body::from_ordinary_hir(output, owner, 1, &mut measured).unwrap();
+        Body::from_dependency_hir(output, owner, 1, &mut measured).unwrap();
         let work = measured.usage().validation_work_units;
         assert!(work > 0);
         let mut shared = BudgetMeter::new(DecodeLimits {
             validation_work_units: work * 2 - 1,
             ..DecodeLimits::default()
         });
-        Body::from_ordinary_hir(output, owner, 1, &mut shared).unwrap();
-        let error = Body::from_ordinary_hir(output, owner, 1, &mut shared).unwrap_err();
+        Body::from_dependency_hir(output, owner, 1, &mut shared).unwrap();
+        let error = Body::from_dependency_hir(output, owner, 1, &mut shared).unwrap_err();
         assert_resource(&error, ResourceKind::ValidationWorkUnits);
         assert!(shared.usage().validation_work_units >= work);
     });
@@ -74,7 +74,7 @@ fn source_body_checks_allocation_and_recursion_limits_before_projection() {
                 ResourceKind::SemanticLeafBytes,
             ),
         ] {
-            let error = Body::from_ordinary_hir(output, owner, 1, &mut BudgetMeter::new(limits))
+            let error = Body::from_dependency_hir(output, owner, 1, &mut BudgetMeter::new(limits))
                 .unwrap_err();
             assert_resource(&error, kind);
         }
@@ -100,7 +100,7 @@ fn source_body_charges_literal_bytes_before_copying_private_defaults() {
             ..DecodeLimits::default()
         };
         let error =
-            Body::from_ordinary_hir(output, owner, 0, &mut BudgetMeter::new(limits)).unwrap_err();
+            Body::from_dependency_hir(output, owner, 0, &mut BudgetMeter::new(limits)).unwrap_err();
         assert_resource(&error, ResourceKind::SemanticLeafBytes);
     });
 }

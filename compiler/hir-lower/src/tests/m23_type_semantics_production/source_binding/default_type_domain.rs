@@ -37,7 +37,7 @@ fn scope(name: &str) -> hir::SignatureBinderScopeV1 {
         _ => hir::SignatureBinderScopeV1::for_declaration(0, None),
     }
 }
-fn templates(output: &hir::OrdinaryHirOutput) -> Templates {
+fn templates(output: &hir::DependencyHirOutput) -> Templates {
     NAMES
         .iter()
         .map(|name| {
@@ -52,7 +52,7 @@ fn templates(output: &hir::OrdinaryHirOutput) -> Templates {
                 .0;
             (
                 *name,
-                hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+                hir::DefaultSourceBodyProductionV1::from_dependency_hir(
                     output,
                     hir::ExportParameterOwner::Function(id),
                     1,

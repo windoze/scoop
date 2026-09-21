@@ -22,10 +22,10 @@ struct Sources {
 }
 
 impl Sources {
-    fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
+    fn from_output(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Self {
         macro_rules! restore {
             ($canonical:ty, $decoded:ty) => {{
-                let source = <$canonical>::from_ordinary_hir(output, &mut meter()).unwrap();
+                let source = <$canonical>::from_dependency_hir(output, &mut meter()).unwrap();
                 let bytes = encode(&source).unwrap();
                 let decoded: $decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
                 let restored = decoded

@@ -2,12 +2,12 @@ use super::*;
 use crate::{ExportDefinitionSourceV1, NominalDefaultSourceProductionV1};
 
 pub(super) fn collect(
-    output: &crate::OrdinaryHirOutput,
+    output: &crate::DependencyHirOutput,
     sources: &mut Vec<ExportDefinitionSourceV1>,
     meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationBuildError> {
     use HirFoundationBuildError as Error;
-    let defaults = NominalDefaultSourceProductionV1::from_ordinary_hir(output, meter)
+    let defaults = NominalDefaultSourceProductionV1::from_dependency_hir(output, meter)
         .map_err(|error| Error::DefaultSourceProduction(Box::new(error)))?;
     defaults
         .templates()

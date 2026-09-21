@@ -1,0 +1,3 @@
+public object LocalTools {
+    public const val enabled: Boolean = true
+}

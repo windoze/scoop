@@ -31,7 +31,7 @@ pub(super) struct ConcreteNominal<'a> {
 }
 
 pub(super) fn produce(
-    output: &OrdinaryHirOutput,
+    output: &DependencyHirOutput,
     public: &CrossConeHirInterfaceSectionV1,
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {

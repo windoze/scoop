@@ -34,7 +34,15 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
                 .map(|source| scoop_ast::dump(source.ast()))
                 .collect()
         });
-        let hir = TrustedCoreBootstrapHirOutput::lower(&self.sources)
+        let world = self
+            .request
+            .dependencies()
+            .semantic()
+            .imported_semantic_world()
+            .map_err(|error| {
+                CoreBootstrapProductionError::Hir(CoreBootstrapHirStageError::SemanticWorld(error))
+            })?;
+        let hir = TrustedCoreBootstrapHirOutput::lower_with_world(&self.sources, &world)
             .map_err(CoreBootstrapProductionError::Hir)?;
         let warnings = CurrentConeDiagnosticSet::try_new(hir.hir().warnings.clone(), &self.sources)
             .map_err(CoreBootstrapProductionError::Warnings)?;
@@ -92,34 +100,45 @@ impl<'request, 'artifact> ParsedCoreBootstrapBuildRequest<'request, 'artifact> {
 }
 
 impl TrustedCoreBootstrapHirOutput {
+    #[cfg(test)]
     pub fn lower(sources: &CurrentConeParsedSources) -> Result<Self, CoreBootstrapHirStageError> {
-        let sources = scoop_hir_lower::CoreBootstrapSources::try_new(sources)
-            .map_err(CoreBootstrapHirStageError::Sources)?;
-        let hir = scoop_hir_lower::lower_core_bootstrap(&sources)
-            .map_err(CoreBootstrapHirStageError::Lowering)?;
-        let mut foundation = scoop_hir::CanonicalHirFoundation::from_modules(
-            &hir.export,
-            &hir.local,
-            &hir.native_boundary_types,
-        )
-        .map_err(CoreBootstrapHirStageError::Foundation)?;
-        let production_section =
-            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.export)
-                .map_err(CoreBootstrapHirStageError::ProductionSection)?;
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
-            hir.export.cone,
+            sources.cone(),
             Vec::new(),
             Vec::new(),
         )
         .map_err(CoreBootstrapHirStageError::SemanticWorld)?;
+        Self::lower_with_world(sources, &world)
+    }
+
+    fn lower_with_world(
+        sources: &CurrentConeParsedSources,
+        world: &scoop_hir::ImportedSemanticWorld<'_>,
+    ) -> Result<Self, CoreBootstrapHirStageError> {
+        let sources = scoop_hir_lower::CurrentConeSources::try_new(
+            sources,
+            scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+            world,
+        )
+        .map_err(CoreBootstrapHirStageError::Sources)?;
+        let hir = scoop_hir_lower::lower_current_cone(
+            scoop_identity::RequestedConeKind::Library,
+            &sources,
+        )
+        .map_err(CoreBootstrapHirStageError::Lowering)?;
+        let mut foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&hir)
+            .map_err(CoreBootstrapHirStageError::Foundation)?;
+        let production_section =
+            scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
+                .map_err(CoreBootstrapHirStageError::ProductionSection)?;
         let cross_cone_section = {
             let mut authority = scoop_hir::CrossConeHirProductionAuthority::new(
                 &foundation,
-                &hir.export.public_export_bindings,
-                &world,
+                &hir.output().export.public_export_bindings,
+                world,
             );
-            scoop_hir::CrossConeHirInterfaceSectionV1::from_export_hir(
-                hir.export.module(),
+            scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
+                &hir,
                 &[],
                 &mut authority,
             )
@@ -132,7 +151,7 @@ impl TrustedCoreBootstrapHirOutput {
             .map_err(CoreBootstrapHirStageError::CoreClassifier)?;
         foundation
             .complete_cross_cone_source_points(
-                hir.export.module(),
+                hir.output().export.module(),
                 cross_cone_section.definition_sources(),
             )
             .map_err(CoreBootstrapHirStageError::Foundation)?;
@@ -152,7 +171,7 @@ impl TrustedCoreBootstrapHirOutput {
 /// mandatory production section. The graph already owns its output contract,
 /// and both are derived during the same successful stage.
 pub struct TrustedCoreBootstrapHirOutput {
-    hir: scoop_hir::Output,
+    hir: scoop_hir::DependencyHirOutput,
     foundation: scoop_hir::CanonicalHirFoundation,
     production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
     cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
@@ -161,11 +180,11 @@ pub struct TrustedCoreBootstrapHirOutput {
 
 impl TrustedCoreBootstrapHirOutput {
     pub const fn hir(&self) -> &scoop_hir::Output {
-        &self.hir
+        self.hir.output()
     }
 
     pub const fn output_kind(&self) -> &scoop_hir::ConeOutputKind {
-        self.hir.output_kind()
+        self.hir.output().output_kind()
     }
 
     pub const fn foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
@@ -187,7 +206,7 @@ impl TrustedCoreBootstrapHirOutput {
     /// inseparable stage product.
     pub fn lower_mir(self) -> Result<TrustedCoreBootstrapMirOutput, CoreBootstrapMirStageError> {
         let scoop_hir::LocalConcreteMaterializationContract::CoreShapeSupport(shape_support) =
-            self.hir.local.materialization()
+            self.hir.output().local.materialization()
         else {
             return Err(CoreBootstrapMirStageError::MissingCoreShapeSupportPlan);
         };
@@ -198,7 +217,7 @@ impl TrustedCoreBootstrapHirOutput {
                 .map(|root| root.declaration().clone())
                 .collect(),
         );
-        let mir = scoop_mir_lower::lower(&self.hir.local)
+        let mir = scoop_mir_lower::lower(&self.hir.output().local)
             .map_err(CoreBootstrapMirStageError::Lowering)?;
         let foundation = scoop_mir::OdrFreeMirFoundation::from_module(&mir)
             .map_err(CoreBootstrapMirStageError::Foundation)?;

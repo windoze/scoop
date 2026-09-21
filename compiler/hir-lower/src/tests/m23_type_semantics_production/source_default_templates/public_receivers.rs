@@ -8,7 +8,8 @@ fn public_template_bytes_preserve_provider_receivers_and_binder_mappings() {
         "/../../tests/fixtures/m23-type-source-defaults/public-provider-receivers.scoop"
     ));
     with_hir_source(source, |output, _| {
-        let templates = hir::CanonicalExportDefaultTemplatesV1::from_ordinary_hir(output).unwrap();
+        let templates =
+            hir::CanonicalExportDefaultTemplatesV1::from_dependency_hir(output).unwrap();
         let bytes = encode(&templates.index_locals().unwrap()).unwrap();
         let decoded: hir::DecodedCanonicalExportDefaultTemplatesV1 =
             decode_canonical(&bytes, DecodeLimits::default()).unwrap();

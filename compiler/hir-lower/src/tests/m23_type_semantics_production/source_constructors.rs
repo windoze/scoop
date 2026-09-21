@@ -15,8 +15,8 @@ fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
-    Table::from_ordinary_hir(output, &mut meter()).unwrap()
+fn table(output: &hir::DependencyHirOutput) -> Table {
+    Table::from_dependency_hir(output, &mut meter()).unwrap()
 }
 
 #[test]
@@ -24,7 +24,7 @@ fn constructors_project_protected_public_defaults_and_struct_representation() {
     with_source(SOURCE, |output, _| {
         let records = table(output);
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         let required = inventory
             .records()
@@ -177,7 +177,7 @@ fn constructor_projection_obeys_the_shared_resource_budget() {
             },
         ] {
             assert!(matches!(
-                Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)),
+                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
                 Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                     hir::SourceInventoryError::Resource(_)
                 ))

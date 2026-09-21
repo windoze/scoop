@@ -8,7 +8,7 @@ use super::{
     Decl, file, fun_expr, generic_struct_decl, ident, make_core_public, sp, struct_decl,
     ty_generic, ty_named, var,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
 #[derive(Debug)]
 struct AliasLoweringSummary {
@@ -100,8 +100,8 @@ fn lower_alias_fixture(
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
-    lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).map(|output| {
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
+    lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).map(|output| {
         let facade = output
             .output()
             .export

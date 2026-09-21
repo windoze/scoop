@@ -140,7 +140,7 @@ pub enum OrdinaryConeHirStageError {
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
     CoreInterface(scoop_hir::CoreInterfaceImportError),
     CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
-    Input(scoop_hir_lower::OrdinarySourceError),
+    Input(scoop_hir_lower::CurrentConeSourceError),
     Lowering(Vec<scoop_ast::Diagnostic>),
     Foundation(scoop_hir::HirFoundationBuildError),
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),

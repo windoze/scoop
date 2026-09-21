@@ -17,7 +17,7 @@ fn shape(ty: &SignatureTypeKey) -> String {
     }
 }
 
-pub(super) fn verify(output: &hir::OrdinaryHirOutput, source: &Table) -> String {
+pub(super) fn verify(output: &hir::DependencyHirOutput, source: &Table) -> String {
     let export = output.output().export.module();
     let ids = source
         .records()

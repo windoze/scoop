@@ -86,7 +86,7 @@ fn runtime(
 }
 fn property(
     sources: &Sources,
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     name: &str,
 ) -> hir::NominalSupportPropertyInterfaceV1 {
     let export = output.output().export.module();

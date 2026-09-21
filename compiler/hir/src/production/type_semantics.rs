@@ -6,7 +6,7 @@ use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId};
 
 use crate::{
     CanonicalPersistentIdsV1, CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
-    ExactTypeFactShapeV1, NominalInheritanceEdgesV1, OrdinaryHirOutput, SourceNominalId,
+    DependencyHirOutput, ExactTypeFactShapeV1, NominalInheritanceEdgesV1, SourceNominalId,
     TypeSectionDependencyFactV1,
 };
 
@@ -51,8 +51,8 @@ impl CrossConeTypeSemanticsProductionV1 {
     /// generic materialization return typed capability errors before a
     /// partial section can be observed. M23-5 narrow dependency selections
     /// remain in their existing partition and do not populate field 8.
-    pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput,
+    pub fn from_dependency_hir(
+        output: &DependencyHirOutput,
         public: &CrossConeHirInterfaceSectionV1,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {

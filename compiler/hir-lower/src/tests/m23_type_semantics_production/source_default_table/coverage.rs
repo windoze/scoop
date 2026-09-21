@@ -2,14 +2,14 @@ use super::*;
 #[test]
 fn source_coverage_rejects_missing_extra_and_reclassified_default_positions() {
     with_hir_source(SOURCE, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let table = production.templates();
         let missing = table.records()[0].key();
         let subset = Table::try_new(table.records()[1..].to_vec(), &mut meter()).unwrap();
         assert!(
             matches!(subset.validate_parameter_coverage(production.parameters(), &mut meter()), Err(hir::DefaultSourceTemplateCoverageError::Missing(key)) if key == missing)
         );
-        let extra = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+        let extra = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
             output,
             function(output.output().export.module(), "topLevel"),
             0,

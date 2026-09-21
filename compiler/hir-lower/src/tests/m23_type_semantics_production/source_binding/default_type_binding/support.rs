@@ -5,7 +5,7 @@ use scoop_identity::DefinitionOriginSubject as Subject;
 type Access = hir::CanonicalDefaultSourceAccessDeclarationsV1;
 
 pub(super) struct Inputs<'a> {
-    pub output: &'a hir::OrdinaryHirOutput,
+    pub output: &'a hir::DependencyHirOutput,
     pub fixture: &'a Fixture,
     pub sources: &'a Sources,
     pub core_types: &'a hir::ImportedCoreFundamentalTypeProtocol,

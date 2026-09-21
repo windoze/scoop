@@ -5,7 +5,7 @@ use super::*;
 /// Lowers one ordinary HIR product against the exact MIR projections of all
 /// selected external callables.
 pub fn lower_ordinary<'core>(
-    output: &scoop_hir::OrdinaryHirOutput,
+    output: &scoop_hir::DependencyHirOutput,
     imported_core: mir::SelectedImportedMirSet<'core>,
     imported_dependencies: mir::SelectedDependencyMirSet,
 ) -> Result<mir::OrdinaryMirOutput<'core>, ImportedCoreMirLoweringError> {
@@ -43,7 +43,7 @@ type CoreCallableLowering = (
 );
 
 fn lower_core_callables<'core>(
-    output: &scoop_hir::OrdinaryHirOutput,
+    output: &scoop_hir::DependencyHirOutput,
     imported: &mir::SelectedImportedMirSet<'core>,
 ) -> Result<CoreCallableLowering, ImportedCoreMirLoweringError> {
     let hir = output.output().local.module();
@@ -103,7 +103,7 @@ type DependencyCallableLowering = (
 );
 
 fn lower_dependency_callables(
-    output: &scoop_hir::OrdinaryHirOutput,
+    output: &scoop_hir::DependencyHirOutput,
     imported: &mir::SelectedDependencyMirSet,
 ) -> Result<DependencyCallableLowering, ImportedCoreMirLoweringError> {
     let hir = output.output().local.module();

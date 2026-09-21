@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use crate::{NominalTarget, SourceKind, aliases::SourceTypeAliasId};
+use crate::{NominalTarget, aliases::SourceTypeAliasId};
 
 pub(crate) const fn is_file_private(syntax: ast::VisibilitySyntax) -> bool {
     matches!(
@@ -148,23 +148,23 @@ impl TopLevelNamespaces {
 
     pub(crate) fn initialize_sources(
         &mut self,
-        kinds: impl IntoIterator<Item = SourceKind>,
+        source_cones: impl IntoIterator<Item = scoop_identity::ConeIdentity>,
+        current_cone: scoop_identity::ConeIdentity,
         files: &[ast::SourceFile],
     ) {
         assert!(
             self.source_namespaces.is_empty(),
             "source namespaces are initialized exactly once"
         );
-        let kinds = kinds.into_iter().collect::<Vec<_>>();
-        assert_eq!(kinds.len(), files.len());
-        for (kind, file) in kinds.into_iter().zip(files) {
-            let namespace = match kind {
-                SourceKind::Core => TopLevelLookupLayer::CorePrelude,
-                SourceKind::CurrentUnit => {
-                    let package = self.intern_package(&file.package);
-                    self.current.entry(package).or_default();
-                    TopLevelLookupLayer::CurrentPackage(package)
-                }
+        let source_cones = source_cones.into_iter().collect::<Vec<_>>();
+        assert_eq!(source_cones.len(), files.len());
+        for (cone, file) in source_cones.into_iter().zip(files) {
+            let namespace = if cone == current_cone {
+                let package = self.intern_package(&file.package);
+                self.current.entry(package).or_default();
+                TopLevelLookupLayer::CurrentPackage(package)
+            } else {
+                TopLevelLookupLayer::CorePrelude
             };
             self.source_namespaces.push(namespace);
         }
@@ -344,11 +344,17 @@ impl TopLevelNamespaces {
             .collect()
     }
 
-    pub(crate) fn core_type(&self, name: &str) -> Option<TopLevelTypeTarget> {
-        self.core_prelude
+    pub(crate) fn declared_types_in_file(
+        &self,
+        file: usize,
+        name: &str,
+    ) -> impl Iterator<Item = TopLevelTypeTarget> + '_ {
+        self.namespace(self.source_namespace(file))
             .types
             .get(name)
-            .and_then(|bindings| bindings.first())
+            .into_iter()
+            .flatten()
+            .filter(move |binding| binding.file == file)
             .map(|binding| binding.target)
     }
 

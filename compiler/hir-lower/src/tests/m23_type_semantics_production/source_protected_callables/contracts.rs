@@ -45,7 +45,7 @@ fn identities(
     result
 }
 
-pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
+pub(super) fn verify(output: &hir::DependencyHirOutput, table: &Table) {
     let export = output.output().export.module();
     let identities = identities(export);
     for record in table.records() {
@@ -118,7 +118,7 @@ pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
     }
 }
 
-pub(super) fn render(output: &hir::OrdinaryHirOutput, table: &Table) -> String {
+pub(super) fn render(output: &hir::DependencyHirOutput, table: &Table) -> String {
     let identities = identities(output.output().export.module());
     let mut lines = table
         .records()

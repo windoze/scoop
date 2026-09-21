@@ -404,7 +404,7 @@ fn extension_provider(
 fn inspect_extensions<R>(
     providers: Vec<DependencyExtensionProvider>,
     consumer: scoop_ast::SourceFile,
-    inspect: impl FnOnce(Result<scoop_hir::OrdinaryHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
+    inspect: impl FnOnce(Result<scoop_hir::DependencyHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
 ) -> R {
     let mut core = trusted_core();
     let prepared = providers
@@ -450,8 +450,8 @@ fn inspect_extensions<R>(
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
-    inspect(lower_ordinary(
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
+    inspect(lower_current_cone(
         scoop_identity::RequestedConeKind::Library,
         &input,
     ))

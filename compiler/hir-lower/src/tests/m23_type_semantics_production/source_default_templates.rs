@@ -29,9 +29,9 @@ fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
             .0,
     )
 }
-fn template(output: &hir::OrdinaryHirOutput, name: &str, position: u32) -> Template {
+fn template(output: &hir::DependencyHirOutput, name: &str, position: u32) -> Template {
     let mut shared = meter();
-    Body::from_ordinary_hir(
+    Body::from_dependency_hir(
         output,
         function(output.output().export.module(), name),
         position,
@@ -44,7 +44,7 @@ fn template(output: &hir::OrdinaryHirOutput, name: &str, position: u32) -> Templ
 fn bytes(value: &Template) -> Vec<u8> {
     encode(&value.index_locals(&mut meter()).unwrap()).unwrap()
 }
-fn round_trip(output: &hir::OrdinaryHirOutput, value: &Template) -> Template {
+fn round_trip(output: &hir::DependencyHirOutput, value: &Template) -> Template {
     let bytes = bytes(value);
     assert_eq!(&bytes[..2], &[0xac, 1]);
     let mut shared = meter();
@@ -111,7 +111,7 @@ fn source_template_bytes_restore_local_bindings_captures_and_original_provider()
 #[test]
 fn source_template_conversion_moves_owned_leaves_without_reprojection() {
     with_hir_source(SOURCE, |output, _| {
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(output.output().export.module(), "literal"),
             0,
@@ -162,7 +162,7 @@ fn source_template_round_trips_all_reference_kinds_and_constructor_providers() {
                         continue;
                     }
                     let mut shared = meter();
-                    let value = Body::from_ordinary_hir(
+                    let value = Body::from_dependency_hir(
                         output,
                         interface.owner,
                         position as u32,

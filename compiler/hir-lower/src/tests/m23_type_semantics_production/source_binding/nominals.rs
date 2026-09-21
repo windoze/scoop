@@ -26,7 +26,7 @@ const NESTED: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-nominals/nested.scoop"
 ));
 
-fn sources(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Table {
+fn sources(output: &hir::DependencyHirOutput, fixture: &mut Fixture) -> Table {
     let table = Table::from_export_hir(
         &output.output().export,
         &fixture.source.entries().source_roots,

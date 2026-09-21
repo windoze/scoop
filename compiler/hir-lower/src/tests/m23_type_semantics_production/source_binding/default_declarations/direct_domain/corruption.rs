@@ -47,7 +47,12 @@ fn default_direct_domains_reject_removing_generic_outer_visibility_from_static_n
     });
 }
 
-fn changed(t: &Template, kind: Kind, domain: Domain, output: &hir::OrdinaryHirOutput) -> Template {
+fn changed(
+    t: &Template,
+    kind: Kind,
+    domain: Domain,
+    output: &hir::DependencyHirOutput,
+) -> Template {
     super::super::reference_witness::change(
         t,
         kind,

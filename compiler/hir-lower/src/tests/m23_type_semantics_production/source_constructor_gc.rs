@@ -15,7 +15,7 @@ fn constructor_nogc_source_effects_match_public_interfaces_and_survive_wire() {
                 .unwrap();
         let mut meter = BudgetMeter::new(DecodeLimits::default());
         let sources =
-            hir::CanonicalInheritanceSourceConstructorsV1::from_ordinary_hir(output, &mut meter)
+            hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(output, &mut meter)
                 .unwrap();
         let mut no_gc_count = 0;
         for record in sources.records() {

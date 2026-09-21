@@ -1,19 +1,21 @@
 use super::*;
 use crate::{
-    Lowerer, NominalTarget, Owner, SourceKind,
+    Lowerer, NominalTarget, Owner,
     namespace::{TopLevelLookupLayer, TopLevelTypeTarget},
 };
 
 impl Lowerer {
     fn import_source(&self, file: usize) -> scoop_identity::SourceIdentity {
-        debug_assert_eq!(self.intrinsic_sources[file].kind, SourceKind::CurrentUnit);
+        debug_assert!(self.source_is_current_cone(file));
         self.visibility_file(file)
     }
 
     fn import_package(&self, file: usize) -> PackageId {
         match self.top_level_namespaces.source_namespace(file) {
             TopLevelLookupLayer::CurrentPackage(package) => package,
-            TopLevelLookupLayer::CorePrelude => unreachable!("core has no import package"),
+            TopLevelLookupLayer::CorePrelude => {
+                unreachable!("external prelude has no current import package")
+            }
         }
     }
 
@@ -81,7 +83,7 @@ impl Lowerer {
         nominal: NominalTarget,
     ) {
         let (target, file, span, access) = self.nominal_import_parts(nominal);
-        if self.source_is_core(file) {
+        if !self.source_is_current_cone(file) {
             return;
         }
         // Named companions may have more than one static spelling. Each edge
@@ -237,7 +239,7 @@ impl Lowerer {
             );
         }
         for &(function, declaration, file) in functions {
-            if self.source_is_core(file) {
+            if !self.source_is_current_cone(file) {
                 continue;
             }
             surface.insert(
@@ -253,7 +255,7 @@ impl Lowerer {
             );
         }
         for &(function, declaration, file, owner) in methods {
-            if self.source_is_core(file) || !matches!(owner, Owner::Object(_)) {
+            if !self.source_is_current_cone(file) || !matches!(owner, Owner::Object(_)) {
                 continue;
             }
             surface.insert(
@@ -269,7 +271,7 @@ impl Lowerer {
             );
         }
         for &(declaration, file) in properties {
-            if self.source_is_core(file) {
+            if !self.source_is_current_cone(file) {
                 surface
                     .global_property_sources
                     .push(PropertyImportSource::OutsideCurrentUnitSurface);
@@ -287,7 +289,7 @@ impl Lowerer {
                 .push(PropertyImportSource::CurrentUnit(id));
         }
         for &(object, source, file) in objects {
-            if self.source_is_core(file) {
+            if !self.source_is_current_cone(file) {
                 continue;
             }
             for (member_index, member) in source.members().iter().enumerate() {
@@ -308,7 +310,7 @@ impl Lowerer {
             }
         }
         for &(enumeration, declaration, file) in enumerations {
-            if self.source_is_core(file) {
+            if !self.source_is_current_cone(file) {
                 continue;
             }
             for (index, variant) in declaration.variants.iter().enumerate() {
@@ -351,7 +353,7 @@ impl Lowerer {
         let direct_namespaces = surface.namespaces.clone();
         for (&host, &relation) in &self.companion_by_host {
             let object = self.companion_relations[relation].object;
-            if self.source_is_core(self.object_files[&object]) {
+            if !self.source_is_current_cone(self.object_files[&object]) {
                 continue;
             }
             let from = ResolvedNamespace::Static(StaticNamespace::Companion(relation));
@@ -369,7 +371,7 @@ impl Lowerer {
         self.current_owner = None;
         for (file, syntax) in files.iter().enumerate() {
             self.current_file = file;
-            let imports = if self.source_kind(file) == SourceKind::CurrentUnit {
+            let imports = if self.source_is_current_cone(file) {
                 surface.resolve_file_with_world(self, syntax, world)
             } else {
                 FrozenFileImports::default()

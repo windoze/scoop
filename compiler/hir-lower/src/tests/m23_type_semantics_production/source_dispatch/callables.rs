@@ -67,7 +67,7 @@ fn source_contracts_cover_exactly_slot_roots_and_selected_targets() {
                     });
                 }
             }
-            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
                 output,
                 &mut meter(),
             )
@@ -108,7 +108,7 @@ fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budg
             },
         ] {
             assert!(matches!(
-                Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)),
+                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
                 Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                     hir::SourceInventoryError::Resource(_)
                 ))
@@ -145,10 +145,10 @@ fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budg
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
-    Table::from_ordinary_hir(output, &mut meter()).unwrap()
+fn table(output: &hir::DependencyHirOutput) -> Table {
+    Table::from_dependency_hir(output, &mut meter()).unwrap()
 }
-fn roundtrip(output: &hir::OrdinaryHirOutput, table: &Table) {
+fn roundtrip(output: &hir::DependencyHirOutput, table: &Table) {
     let mut identities = super::super::source_inventory::identity_closure(output);
     let decoded: DecodedTable =
         decode_canonical(&encode(table).unwrap(), DecodeLimits::default()).unwrap();

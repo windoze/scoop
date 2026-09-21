@@ -11,12 +11,12 @@ fn private_literal_body_is_independent_of_public_lookup() {
         let export = output.output().export.module();
         let owner = function(export, "hidden");
         assert!(
-            hir::CanonicalExportDefaultTemplatesV1::from_ordinary_hir(output)
+            hir::CanonicalExportDefaultTemplatesV1::from_dependency_hir(output)
                 .unwrap()
                 .records()
                 .is_empty()
         );
-        let ordinary = Body::from_ordinary_hir(output, owner, 0, &mut meter()).unwrap();
+        let ordinary = Body::from_dependency_hir(output, owner, 0, &mut meter()).unwrap();
         let direct = Body::from_export_hir(export, owner, 0, &mut meter()).unwrap();
         assert_eq!(ordinary.body(), direct.body());
         assert_eq!(ordinary.result(), direct.result());
@@ -76,14 +76,14 @@ fn inherited_generic_body_keeps_provider_binders_and_target_substitution() {
     ));
     with_hir_source(source, |output, _| {
         let export = output.output().export.module();
-        let body = Body::from_ordinary_hir(
+        let body = Body::from_dependency_hir(
             output,
             function(export, "GenericChild.choose"),
             1,
             &mut meter(),
         )
         .unwrap();
-        let parent = Body::from_ordinary_hir(
+        let parent = Body::from_dependency_hir(
             output,
             function(export, "GenericParent.choose"),
             1,

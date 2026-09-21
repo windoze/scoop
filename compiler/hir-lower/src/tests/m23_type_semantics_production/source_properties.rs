@@ -21,8 +21,8 @@ const DIRECT: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
-    Table::from_ordinary_hir(output, &mut meter()).unwrap()
+fn table(output: &hir::DependencyHirOutput) -> Table {
+    Table::from_dependency_hir(output, &mut meter()).unwrap()
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn public_property_with_protected_setter_keeps_its_original_visibility() {
             public.capability().setter_access(),
             Some(hir::PropertySetterPublicAccessV1::Restricted)
         );
-        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_ordinary_hir(
+        let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
             output,
             &mut meter(),
         )
@@ -102,14 +102,17 @@ fn property_source_inventory_covers_protected_and_dispatch_accessors_exactly() {
         with_source(source, |output, _| {
             let table = table(output);
             contracts::verify(output, &table);
-            let protected = hir::CanonicalInheritanceSourceProtectedCallablesV1::from_ordinary_hir(
+            let protected =
+                hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
+                    output,
+                    &mut meter(),
+                )
+                .unwrap();
+            let dispatched = hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
                 output,
                 &mut meter(),
             )
             .unwrap();
-            let dispatched =
-                hir::CanonicalInheritanceSourceCallablesV1::from_ordinary_hir(output, &mut meter())
-                    .unwrap();
             let mut required = protected
                 .records()
                 .iter()
@@ -208,7 +211,7 @@ fn property_source_projection_obeys_shared_resources() {
             },
         ] {
             assert!(matches!(
-                Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)),
+                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
                 Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                     hir::SourceInventoryError::Resource(_)
                 ))

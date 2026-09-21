@@ -66,7 +66,17 @@ impl Lowerer {
     }
 
     pub(crate) fn core_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        match self.top_level_namespaces.core_type(name)? {
+        let mut declarations = self
+            .intrinsic_sources
+            .iter()
+            .enumerate()
+            .filter(|(_, source)| source.kind == crate::SourceKind::Core)
+            .flat_map(|(file, _)| self.top_level_namespaces.declared_types_in_file(file, name));
+        let target = declarations.next()?;
+        if declarations.next().is_some() {
+            return None;
+        }
+        match target {
             crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
             crate::namespace::TopLevelTypeTarget::Alias(_) => None,
         }

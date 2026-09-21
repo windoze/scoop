@@ -6,7 +6,7 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
     decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
 }
 
-pub(super) fn identity_closure(output: &hir::OrdinaryHirOutput) -> ValidatedIdentityGraph {
+pub(super) fn identity_closure(output: &hir::DependencyHirOutput) -> ValidatedIdentityGraph {
     identity_closure_for_foundation(
         output,
         hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap(),
@@ -14,7 +14,7 @@ pub(super) fn identity_closure(output: &hir::OrdinaryHirOutput) -> ValidatedIden
 }
 
 pub(super) fn identity_closure_for_foundation(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     foundation: hir::CanonicalHirFoundation,
 ) -> ValidatedIdentityGraph {
     let core = trusted_core();
@@ -139,32 +139,32 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
         constructors += entry.constructors().values().len();
     }
     assert_eq!(constructors, 4);
-    let interface_sources = hir::CanonicalInterfaceSourceDispatchesV1::from_ordinary_hir(
+    let interface_sources = hir::CanonicalInterfaceSourceDispatchesV1::from_dependency_hir(
         &output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(production.interface_sources(), &interface_sources);
-    let slot_selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+    let slot_selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
         &output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(production.slot_selections(), &slot_selections);
-    let source_callables = hir::CanonicalInheritanceSourceCallablesV1::from_ordinary_hir(
+    let source_callables = hir::CanonicalInheritanceSourceCallablesV1::from_dependency_hir(
         &output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(production.source_callables(), &source_callables);
-    let source_constructors = hir::CanonicalInheritanceSourceConstructorsV1::from_ordinary_hir(
+    let source_constructors = hir::CanonicalInheritanceSourceConstructorsV1::from_dependency_hir(
         &output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap();
     assert_eq!(production.source_constructors(), &source_constructors);
     let source_protected_callables =
-        hir::CanonicalInheritanceSourceProtectedCallablesV1::from_ordinary_hir(
+        hir::CanonicalInheritanceSourceProtectedCallablesV1::from_dependency_hir(
             &output,
             &mut BudgetMeter::new(DecodeLimits::default()),
         )
@@ -202,7 +202,7 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
     );
     assert_eq!(
         parameters,
-        hir::CanonicalInheritanceSourceParameterProtocolsV1::from_ordinary_hir(
+        hir::CanonicalInheritanceSourceParameterProtocolsV1::from_dependency_hir(
             &output,
             &mut BudgetMeter::new(DecodeLimits::default())
         )
@@ -210,7 +210,7 @@ fn inheritance_inventory_is_independently_projected_before_candidate_and_survive
     );
     assert_eq!(
         properties,
-        hir::CanonicalInheritanceSourcePropertiesV1::from_ordinary_hir(
+        hir::CanonicalInheritanceSourcePropertiesV1::from_dependency_hir(
             &output,
             &mut BudgetMeter::new(DecodeLimits::default())
         )

@@ -99,6 +99,8 @@ mod class;
 mod concretize;
 mod constructor_resolution;
 mod core_contract;
+mod current_input;
+mod current_lowering;
 mod declaration_surface;
 mod declarations;
 mod defaults;
@@ -116,8 +118,6 @@ mod imports;
 mod lowering_context;
 mod model;
 mod namespace;
-mod ordinary_input;
-mod ordinary_lowering;
 mod output_kind;
 mod overload;
 mod patterns;
@@ -151,8 +151,8 @@ mod tests;
 mod types;
 mod visibility;
 
-pub use ordinary_input::*;
-pub use ordinary_lowering::lower_ordinary;
+pub use current_input::*;
+pub use current_lowering::lower_current_cone;
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -183,7 +183,7 @@ pub(crate) struct ProviderSource<'a> {
 }
 
 /// Test-only defined-world input. Production callers must use
-/// `CoreBootstrapSources` or `OrdinarySources`.
+/// `CurrentConeSources`.
 #[cfg(test)]
 pub(crate) struct DefinedTestSources<'a> {
     core: Vec<ProviderSource<'a>>,
@@ -200,15 +200,13 @@ pub(crate) struct CurrentSourceDetails<'a> {
     pub source_text: &'a str,
 }
 
-/// Parsed source input authorized for the trusted core bootstrap branch.
-///
-/// Construction proves that the parser output belongs to the reserved core
-/// Cone. The ordinary consumer path uses a different input type carrying an
-/// imported prelude capability.
-pub struct CoreBootstrapSources<'a> {
+/// Test fixture adapter for the shared current-Cone HIR entry.
+#[cfg(test)]
+pub(crate) struct CoreBootstrapSources<'a> {
     sources: &'a ast::CurrentConeParsedSources,
 }
 
+#[cfg(test)]
 impl<'a> CoreBootstrapSources<'a> {
     pub fn try_new(
         sources: &'a ast::CurrentConeParsedSources,
@@ -220,11 +218,13 @@ impl<'a> CoreBootstrapSources<'a> {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreBootstrapSourceError {
+pub(crate) enum CoreBootstrapSourceError {
     NotCore(scoop_identity::ConeIdentity),
 }
 
+#[cfg(test)]
 impl std::fmt::Display for CoreBootstrapSourceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -236,6 +236,7 @@ impl std::fmt::Display for CoreBootstrapSourceError {
     }
 }
 
+#[cfg(test)]
 impl std::error::Error for CoreBootstrapSourceError {}
 
 #[derive(Clone)]
@@ -249,12 +250,7 @@ struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
 }
 
-enum LoweringCompletion {
-    Defined,
-    Imported(Box<ImportedLoweringCompletion>),
-}
-
-struct ImportedLoweringCompletion {
+struct LoweringCompletion {
     dependencies: hir::ImportedDependencySelectionPlan,
     binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
 }
@@ -384,20 +380,33 @@ pub(crate) fn lower_defined_for_test(
         .with_intrinsic_sources(sources, policy)
         .run_defined(&files)?;
     let output_kind = select_cone_output_kind(&export, requested)?;
-    finish_output(export, output_kind, warnings)
+    finish_output(
+        export,
+        output_kind,
+        warnings,
+        hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
+    )
 }
 
-/// Lowers the trusted core directly from the atomic current-Cone parser
-/// product. This path does not construct or pass through a combined legacy
-/// source set.
-pub fn lower_core_bootstrap(
+/// Test fixture adapter using the same input and lowering as production.
+#[cfg(test)]
+pub(crate) fn lower_core_bootstrap(
     input: &CoreBootstrapSources<'_>,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let (files, sources) = materialize_core_bootstrap_sources(input.sources);
-    let (export, warnings) = Lowerer::new()
-        .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
-        .run_defined(&files)?;
-    finish_output(export, hir::ConeOutputKind::Library, warnings)
+    let world = hir::ImportedSemanticWorld::from_validated_closure(
+        input.sources.cone(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let sources = CurrentConeSources::try_new(
+        input.sources,
+        CoreProtocolInput::CurrentDeclarations,
+        &world,
+    )
+    .unwrap();
+    lower_current_cone(scoop_identity::RequestedConeKind::Library, &sources)
+        .map(|output| output.into_parts().0)
 }
 
 /// Projects the M23-6 type-semantics payload from a sealed ordinary HIR
@@ -405,17 +414,18 @@ pub fn lower_core_bootstrap(
 /// carries the independently derived source/fact/inheritance inventories that
 /// the driver must retain for semantic sealing.
 pub fn produce_cross_cone_type_semantics(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsProductionV1::from_ordinary_hir(output, public, meter)
+    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, public, meter)
 }
 
 fn finish_output(
     export: hir::ExportHir,
     output_kind: hir::ConeOutputKind,
     warnings: Vec<Diagnostic>,
+    external_native_types: hir::HirNativeBoundaryExternalTypes<'_>,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
     let export = hir::ExportHirOutput::try_new(export, output_kind).map_err(|error| {
         vec![Diagnostic::at(
@@ -440,7 +450,7 @@ fn finish_output(
     let native_boundary_types = crate::persistent_native_boundary::build(
         export.module(),
         local.module(),
-        hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
+        external_native_types,
     )
     .map_err(native_boundary_diagnostic)?;
     hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
@@ -492,7 +502,7 @@ fn materialize_defined_test_sources(
     (files, sources)
 }
 
-fn materialize_core_bootstrap_sources(
+fn materialize_current_sources(
     input: &ast::CurrentConeParsedSources,
 ) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
     let mut files = Vec::with_capacity(input.sources().sources().len());
@@ -501,25 +511,11 @@ fn materialize_core_bootstrap_sources(
         files.push(source.source().ast().clone());
         sources.push(SourceProvider {
             provider: hir::IntrinsicProviderId::from_raw(0),
-            kind: SourceKind::Core,
-            identity: source.source().identity().clone(),
-            name: source.diagnostic().display_locator().display().to_string(),
-            source: source.text().text().to_owned(),
-        });
-    }
-    (files, sources)
-}
-
-fn materialize_ordinary_sources(
-    input: &ast::CurrentConeParsedSources,
-) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
-    let mut files = Vec::with_capacity(input.sources().sources().len());
-    let mut sources = Vec::with_capacity(input.sources().sources().len());
-    for source in input.iter() {
-        files.push(source.source().ast().clone());
-        sources.push(SourceProvider {
-            provider: hir::IntrinsicProviderId::from_raw(0),
-            kind: SourceKind::CurrentUnit,
+            kind: if input.cone() == scoop_identity::ConeIdentity::CORE {
+                SourceKind::Core
+            } else {
+                SourceKind::CurrentUnit
+            },
             identity: source.source().identity().clone(),
             name: source.diagnostic().display_locator().display().to_string(),
             source: source.text().text().to_owned(),

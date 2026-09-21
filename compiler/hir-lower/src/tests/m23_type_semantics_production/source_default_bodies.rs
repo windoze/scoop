@@ -38,16 +38,20 @@ fn calling_source(calling: hir::ExportParameterCalling) -> Option<hir::ExportDef
 fn source_body_projection_covers_restricted_and_inherited_defaults() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
-        let public = hir::CanonicalExportDefaultTemplatesV1::from_ordinary_hir(output).unwrap();
+        let public = hir::CanonicalExportDefaultTemplatesV1::from_dependency_hir(output).unwrap();
         let mut summary = Vec::new();
         for interface in &export.source_parameter_interfaces {
             for (position, parameter) in interface.parameters.iter().enumerate() {
                 let Some(source) = calling_source(parameter.calling) else {
                     continue;
                 };
-                let projected =
-                    Body::from_ordinary_hir(output, interface.owner, position as u32, &mut meter())
-                        .unwrap();
+                let projected = Body::from_dependency_hir(
+                    output,
+                    interface.owner,
+                    position as u32,
+                    &mut meter(),
+                )
+                .unwrap();
                 let original =
                     &export.export_default_exprs[export.export_default_sources[source].expression];
                 assert!(std::ptr::eq(
@@ -56,9 +60,13 @@ fn source_body_projection_covers_restricted_and_inherited_defaults() {
                 ));
                 assert_eq!(projected.definition_path(), &original.definition_path);
                 assert_eq!(projected.locals().records().len(), original.locals.len());
-                let again =
-                    Body::from_ordinary_hir(output, interface.owner, position as u32, &mut meter())
-                        .unwrap();
+                let again = Body::from_dependency_hir(
+                    output,
+                    interface.owner,
+                    position as u32,
+                    &mut meter(),
+                )
+                .unwrap();
                 assert_eq!(again.body(), projected.body());
                 assert_eq!(again.locals(), projected.locals());
                 if let Some(template) = public.get(hir::ExportDefaultTemplateKeyV1::new(
@@ -95,16 +103,16 @@ fn source_body_projection_covers_restricted_and_inherited_defaults() {
             ))
         );
         let child =
-            Body::from_ordinary_hir(output, function(export, "Child.choose"), 1, &mut meter())
+            Body::from_dependency_hir(output, function(export, "Child.choose"), 1, &mut meter())
                 .unwrap();
         let parent =
-            Body::from_ordinary_hir(output, function(export, "Base.choose"), 1, &mut meter())
+            Body::from_dependency_hir(output, function(export, "Base.choose"), 1, &mut meter())
                 .unwrap();
         assert_ne!(child.owner(), parent.owner());
         assert_eq!(child.body(), parent.body());
         assert_eq!(child.definition_root(), parent.definition_root());
         let generic =
-            Body::from_ordinary_hir(output, function(export, "Base.generic"), 1, &mut meter())
+            Body::from_dependency_hir(output, function(export, "Base.generic"), 1, &mut meter())
                 .unwrap();
         assert!(matches!(
             generic.owner(),
@@ -116,7 +124,7 @@ fn source_body_projection_covers_restricted_and_inherited_defaults() {
             &[scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }]
         );
         let callback =
-            Body::from_ordinary_hir(output, function(export, "Base.callback"), 1, &mut meter())
+            Body::from_dependency_hir(output, function(export, "Base.callback"), 1, &mut meter())
                 .unwrap();
         let hir::DefaultExpressionKindV1::Lambda(lambda) = callback.body().value().kind() else {
             panic!("lambda descriptor required")

@@ -6,8 +6,9 @@ use super::{
     int_lit, make_core_public, method_call, sp, stmt, subscript, this_expr, tuple_lit, ty_named,
     ty_tuple, unit_lit, val,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
+mod core;
 mod extensions;
 pub(super) mod support;
 
@@ -51,9 +52,9 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("a core-closed dependency function is executable in M23-5");
 
     assert_eq!(output.imported_dependencies().len(), 1);
@@ -126,9 +127,9 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("a direct dependency contributes to the current split package");
 
     assert_eq!(output.imported_dependencies().callable_count(), 1);
@@ -173,9 +174,9 @@ fn unsupported_dependency_candidate_falls_through_to_current_package() {
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("an unsupported exact candidate must not shadow a lower valid layer");
 
     assert!(output.imported_dependencies().is_empty());
@@ -223,9 +224,9 @@ fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let diagnostics = match lower_ordinary(scoop_identity::RequestedConeKind::Library, &input) {
+    let diagnostics = match lower_current_cone(scoop_identity::RequestedConeKind::Library, &input) {
         Ok(_) => panic!("a dependency pointer result requires the M23-6 ABI capability"),
         Err(diagnostics) => diagnostics,
     };

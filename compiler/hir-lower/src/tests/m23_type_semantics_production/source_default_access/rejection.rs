@@ -84,7 +84,7 @@ fn private_literal_fixture_preserves_its_file_constraint_and_source_provider() {
     ));
     with_hir_source(source, |output, _| {
         let export = output.output().export.module();
-        let body = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+        let body = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
             output,
             function(export, "hidden"),
             0,

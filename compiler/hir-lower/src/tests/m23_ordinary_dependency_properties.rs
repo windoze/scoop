@@ -9,7 +9,7 @@ use super::{
     file, fun, fun_expr, ident, int_lit, make_core_public, method_call, sp, this_expr, tuple_lit,
     ty_named, ty_tuple, var,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
 mod extension;
 
@@ -51,7 +51,7 @@ impl DependencyPropertyFixture {
     fn inspect<R>(
         &self,
         consumer: scoop_ast::SourceFile,
-        inspect: impl FnOnce(Result<scoop_hir::OrdinaryHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
+        inspect: impl FnOnce(Result<scoop_hir::DependencyHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
     ) -> R {
         let ordinary = parsed_ordinary(consumer);
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
@@ -73,8 +73,8 @@ impl DependencyPropertyFixture {
             .foundation
             .import_core_inputs(&self.core.interface)
             .unwrap();
-        let input = OrdinarySources::try_new(&ordinary, core, &world).unwrap();
-        inspect(lower_ordinary(
+        let input = CurrentConeSources::try_new(&ordinary, core, &world).unwrap();
+        inspect(lower_current_cone(
             scoop_identity::RequestedConeKind::Library,
             &input,
         ))

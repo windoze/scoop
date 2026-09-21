@@ -2,7 +2,7 @@ use super::*;
 
 pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     source: &str,
-    run: impl FnOnce(&hir::OrdinaryHirOutput, &scoop_mir::Module) -> T,
+    run: impl FnOnce(&hir::DependencyHirOutput, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
         let mut imported = core.empty_core_mir_selection();
@@ -25,7 +25,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
 pub(in crate::tests::m23_type_semantics_production) fn with_hir_source<T>(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput,
+        &hir::DependencyHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -36,7 +36,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
     source: &str,
     path: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput,
+        &hir::DependencyHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -46,7 +46,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
 pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
     sources: &[(&str, &str)],
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput,
+        &hir::DependencyHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -79,22 +79,22 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     run(&output, &core)
 }
 
 pub(super) fn project(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
 ) -> hir::CanonicalSourceInheritanceInventoriesV1 {
-    hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+    hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
         output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
     .unwrap()
 }
 
-pub(super) fn owners(output: &hir::OrdinaryHirOutput) -> BTreeMap<String, PersistentExactTypeId> {
+pub(super) fn owners(output: &hir::DependencyHirOutput) -> BTreeMap<String, PersistentExactTypeId> {
     let export = output.output().export.module();
     let mut result = BTreeMap::new();
     let mut add = |name: &str, ty: hir::TypeId| {
@@ -136,12 +136,12 @@ pub(super) fn owners(output: &hir::OrdinaryHirOutput) -> BTreeMap<String, Persis
     result
 }
 
-pub(super) fn owner(output: &hir::OrdinaryHirOutput, name: &str) -> PersistentExactTypeId {
+pub(super) fn owner(output: &hir::DependencyHirOutput, name: &str) -> PersistentExactTypeId {
     owners(output)[name]
 }
 
 pub(super) fn render(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
 ) -> String {
     let export = output.output().export.module();

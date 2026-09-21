@@ -93,7 +93,7 @@ fn declaration_domain_rejects_shared_budget_exhaustion_before_callback_publicati
                 .unwrap_err();
             assert!(matches!(error, Error::Resource(_)), "{limits:?}: {error}");
             assert!(!entered.get());
-            assert!(Domain::from_ordinary_hir(output, &mut BudgetMeter::new(limits)).is_err());
+            assert!(Domain::from_dependency_hir(output, &mut BudgetMeter::new(limits)).is_err());
         }
     });
 }

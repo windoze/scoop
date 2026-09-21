@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
+pub(super) fn verify(output: &hir::DependencyHirOutput, table: &Table) {
     let export = output.output().export.module();
     for record in table.records() {
         let access = record.declaration_access();

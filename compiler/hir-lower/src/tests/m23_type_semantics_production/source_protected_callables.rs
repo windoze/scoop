@@ -20,8 +20,8 @@ const DIRECT: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn table(output: &hir::OrdinaryHirOutput) -> Table {
-    Table::from_ordinary_hir(output, &mut meter()).unwrap()
+fn table(output: &hir::DependencyHirOutput) -> Table {
+    Table::from_dependency_hir(output, &mut meter()).unwrap()
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn protected_source_inventory_excludes_other_visibilities_and_logical_properties
     ] {
         with_source(source, |output, _| {
             let table = table(output);
-            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
                 output,
                 &mut meter(),
             )
@@ -156,7 +156,7 @@ fn protected_source_projection_obeys_shared_resources() {
             },
         ] {
             assert!(matches!(
-                Table::from_ordinary_hir(output, &mut BudgetMeter::new(limits)),
+                Table::from_dependency_hir(output, &mut BudgetMeter::new(limits)),
                 Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                     hir::SourceInventoryError::Resource(_)
                 ))

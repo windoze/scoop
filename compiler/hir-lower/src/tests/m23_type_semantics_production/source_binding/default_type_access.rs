@@ -44,7 +44,7 @@ fn with_types(
                     .find(|(_, f)| f.name == *name)
                     .unwrap()
                     .0;
-                let template = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+                let template = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
                     output,
                     hir::ExportParameterOwner::Function(function),
                     *position,

@@ -138,7 +138,7 @@ fn source_dispatch_graph_traversal_obeys_shared_depth_and_work_limits() {
             },
         ] {
             assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
                     output,
                     &mut BudgetMeter::new(limits)
                 ),
@@ -151,7 +151,7 @@ fn source_dispatch_graph_traversal_obeys_shared_depth_and_work_limits() {
 }
 
 fn roundtrip(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
 ) {
     let mut identities = super::source_inventory::identity_closure(output);
@@ -172,7 +172,7 @@ fn source_dispatch_rejects_generic_interface_materialization() {
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
             assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
                     output,
                     &mut BudgetMeter::new(DecodeLimits::default())
                 ),

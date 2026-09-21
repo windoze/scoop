@@ -79,7 +79,7 @@ fn owner_name(export: &hir::ExportHir, owner: hir::ExportParameterOwner) -> Stri
         ),
     }
 }
-fn restored(output: &hir::OrdinaryHirOutput, table: &Table) -> Table {
+fn restored(output: &hir::DependencyHirOutput, table: &Table) -> Table {
     let bytes = bytes(table);
     let input: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(encode(&input).unwrap(), bytes);
@@ -97,7 +97,7 @@ fn restored(output: &hir::OrdinaryHirOutput, table: &Table) -> Table {
 fn complete_nominal_default_source_production_matches_raw_parameter_omissions() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let required = super::source_nominal_parameters::required(&output.output().export);
         let mut expected = BTreeSet::new();
         let mut summary = Vec::new();
@@ -180,7 +180,7 @@ fn complete_nominal_default_source_production_matches_raw_parameter_omissions() 
             production
         );
         assert_eq!(
-            Production::from_ordinary_hir(output, &mut meter()).unwrap(),
+            Production::from_dependency_hir(output, &mut meter()).unwrap(),
             production
         );
     });
@@ -199,7 +199,7 @@ fn complete_default_sources_cover_nested_generic_static_and_variant_owners() {
         )),
     ] {
         with_hir_source(source, |output, _| {
-            let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
             assert!(!production.templates().records().is_empty());
             let restored = restored(output, production.templates());
             assert_eq!(&restored, production.templates());
@@ -227,7 +227,7 @@ fn nominal_source_production_retains_empty_protocols_without_fake_defaults() {
     with_hir_source(
         "public class Empty { public fun zero(): Int = 0 }\nprivate fun top(value: Int = 1): Int = value",
         |output, _| {
-            let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
             assert!(!production.parameters().records().is_empty());
             assert!(
                 production

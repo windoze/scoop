@@ -4,7 +4,7 @@ use super::*;
 fn source_access_projection_and_resolution_share_remaining_resources() {
     with_hir_source(SOURCE, |output, _| {
         let export = output.output().export.module();
-        let body = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+        let body = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
             output,
             function(export, "fileDefault"),
             0,

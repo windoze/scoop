@@ -1,46 +1,25 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use crate::{CoreProtocols, LocalConcreteMaterializationContract, concrete};
+use crate::concrete;
 
-/// Ordinary HIR product with the committed dependency selections and source
+/// HIR product with the committed dependency selections and source
 /// binding routes needed by subsequent interface and machine-IR production.
-pub struct OrdinaryHirOutput {
+pub struct DependencyHirOutput {
     output: crate::Output,
     imported_dependencies: crate::SelectedImportedDependencySet,
     binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     concrete_dependency_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
 }
 
-impl OrdinaryHirOutput {
+impl DependencyHirOutput {
     pub fn try_new(
         output: crate::Output,
         imported_dependencies: crate::SelectedImportedDependencySet,
         mut binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
-    ) -> Result<Self, OrdinaryHirOutputError> {
-        if output.export.module().cone == scoop_identity::ConeIdentity::CORE {
-            return Err(OrdinaryHirOutputError::CurrentConeIsCore);
-        }
-        if !matches!(
-            (
-                &output.export.module().core_protocols,
-                &output.local.module().core_protocols
-            ),
-            (
-                CoreProtocols::Imported(_),
-                concrete::ConcreteCoreProtocols::Imported(_)
-            )
-        ) {
-            return Err(OrdinaryHirOutputError::DefinedCoreProtocols);
-        }
-        if !matches!(
-            output.local.materialization(),
-            LocalConcreteMaterializationContract::Ordinary
-        ) {
-            return Err(OrdinaryHirOutputError::CoreShapeSupportMaterialization);
-        }
+    ) -> Result<Self, DependencyHirOutputError> {
         if imported_dependencies.consumer() != output.export.module().cone {
-            return Err(OrdinaryHirOutputError::DependencyConsumerMismatch {
+            return Err(DependencyHirOutputError::DependencyConsumerMismatch {
                 output: output.export.module().cone,
                 selected: imported_dependencies.consumer(),
             });
@@ -128,17 +107,19 @@ fn validate_imported_dependency_projection(
     export: &crate::ExportHir,
     local: &concrete::Module,
     selected: &crate::SelectedImportedDependencySet,
-) -> Result<(), OrdinaryHirOutputError> {
+) -> Result<(), DependencyHirOutputError> {
     let export_count = export.imported_dependency_callables.len();
     let local_count = local.imported_dependency_callables.len();
     if export_count != local_count {
-        return Err(OrdinaryHirOutputError::DependencyProjectionCountMismatch {
-            export: export_count,
-            local: local_count,
-        });
+        return Err(
+            DependencyHirOutputError::DependencyProjectionCountMismatch {
+                export: export_count,
+                local: local_count,
+            },
+        );
     }
     if export_count != selected.callable_count() {
-        return Err(OrdinaryHirOutputError::DependencySelectionCountMismatch {
+        return Err(DependencyHirOutputError::DependencySelectionCountMismatch {
             hir: export_count,
             selected: selected.callable_count(),
         });
@@ -154,24 +135,21 @@ fn validate_imported_dependency_projection(
         if export_id.into_raw() != local_id.into_raw()
             || export_use.reference() != local_use.reference()
         {
-            return Err(OrdinaryHirOutputError::DependencyProjectionMismatch { index });
+            return Err(DependencyHirOutputError::DependencyProjectionMismatch { index });
         }
         let reference = export_use.reference();
         if selected.resolve_callable(reference).is_none() {
-            return Err(OrdinaryHirOutputError::ForeignImportedDependencyUse { index });
+            return Err(DependencyHirOutputError::ForeignImportedDependencyUse { index });
         }
         if !references.insert(reference) {
-            return Err(OrdinaryHirOutputError::DuplicateImportedDependencyUse { index });
+            return Err(DependencyHirOutputError::DuplicateImportedDependencyUse { index });
         }
     }
     Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum OrdinaryHirOutputError {
-    CurrentConeIsCore,
-    DefinedCoreProtocols,
-    CoreShapeSupportMaterialization,
+pub enum DependencyHirOutputError {
     DependencyConsumerMismatch {
         output: scoop_identity::ConeIdentity,
         selected: scoop_identity::ConeIdentity,
@@ -195,13 +173,10 @@ pub enum OrdinaryHirOutputError {
     },
 }
 
-impl fmt::Display for OrdinaryHirOutputError {
+impl fmt::Display for DependencyHirOutputError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "cannot seal ordinary imported-core HIR: {self:?}"
-        )
+        write!(formatter, "cannot seal dependency-aware HIR: {self:?}")
     }
 }
 
-impl std::error::Error for OrdinaryHirOutputError {}
+impl std::error::Error for DependencyHirOutputError {}

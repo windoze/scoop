@@ -128,14 +128,14 @@ fn nested_generic_edges_are_metadata_before_dispatch_materialization() {
                     .unwrap();
             assert_eq!(foundation.source_roots().len(), 3);
             assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
+                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
                     output,
                     &mut meter()
                 ),
                 Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
             ));
             assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
                     output,
                     &mut meter()
                 ),

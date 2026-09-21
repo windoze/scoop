@@ -456,7 +456,7 @@ impl Lowerer {
             let import_source = self.imports.object_property_source(
                 object,
                 member_index,
-                self.current_source_is_core(),
+                !self.source_is_current_cone(self.current_file),
             );
             if let Some(field) =
                 self.allocate_object_property(object, property, ty, access, import_source)

@@ -30,7 +30,7 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     .find(|(_, f)| f.name == *name)
                     .unwrap()
                     .0;
-                let production = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+                let production = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
                     output,
                     hir::ExportParameterOwner::Function(id),
                     2,
@@ -63,7 +63,7 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     .iter()
                     .find(|(_, c)| c.name == "Holder")
                     .unwrap();
-                let production = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+                let production = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
                     output,
                     hir::ExportParameterOwner::ClassConstructor(holder.constructors[0]),
                     0,

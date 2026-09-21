@@ -12,8 +12,10 @@ const SELECTIONS: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/selections.scoop"
 ));
 
-fn selections(output: &hir::OrdinaryHirOutput) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
-    hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+fn selections(
+    output: &hir::DependencyHirOutput,
+) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
+    hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
         output,
         &mut BudgetMeter::new(DecodeLimits::default()),
     )
@@ -96,7 +98,7 @@ fn source_selection_bytes_ignore_arena_order_and_obey_shared_limits() {
             },
         ] {
             assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
                     output,
                     &mut BudgetMeter::new(limits)
                 ),
@@ -118,7 +120,7 @@ fn source_selections_reject_generic_dispatch_application_without_odr_authority()
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
             assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
+                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
                     output,
                     &mut BudgetMeter::new(DecodeLimits::default())
                 ),
@@ -129,7 +131,7 @@ fn source_selections_reject_generic_dispatch_application_without_odr_authority()
 }
 
 fn roundtrip(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
 ) {
     let mut identities = super::super::source_inventory::identity_closure(output);

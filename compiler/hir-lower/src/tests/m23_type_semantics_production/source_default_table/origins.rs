@@ -47,7 +47,7 @@ fn occurrences(
 #[test]
 fn default_source_origins_preserve_typed_sites_paths_and_repeated_occurrences() {
     with_hir_source(ORIGINS, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let table = production.templates();
         let actual = occurrences(table);
         assert_eq!(actual, occurrences(&restored(output, table)));

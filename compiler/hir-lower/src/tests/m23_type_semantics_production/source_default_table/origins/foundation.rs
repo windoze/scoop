@@ -11,10 +11,10 @@ fn default_source_points_survive_foundation_bytes_and_public_completion() {
         )),
     ] {
         with_hir_source(source, |output, _| {
-            let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+            let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
             let origins = occurrences(production.templates());
             let legacy = hir::OdrFreeHirFoundation::try_new(
-                hir::CanonicalHirFoundation::from_ordinary_output(output).unwrap(),
+                hir::CanonicalHirFoundation::from_dependency_output(output).unwrap(),
             )
             .unwrap();
             let mut completed =

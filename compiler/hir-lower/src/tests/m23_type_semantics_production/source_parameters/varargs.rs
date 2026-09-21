@@ -122,7 +122,7 @@ fn sealed_vararg_sources_preserve_array_values_defaults_and_generic_binders() {
 fn source_parameter_projection_rejects_missing_duplicate_and_mismatched_interfaces() {
     with_source(SOURCE, |output, _| {
         let inventory =
-            hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(output, &mut meter())
+            hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();
         let expected = table(output);
         let export = &output.output().export;

@@ -4,14 +4,14 @@ use super::*;
 fn generic_parameter_source_points_survive_public_interface_completion() {
     with_source(SOURCE, |output, _| {
         let export = &output.output().export;
-        let protocols = Table::from_ordinary_hir(output, &mut meter()).unwrap();
+        let protocols = Table::from_dependency_hir(output, &mut meter()).unwrap();
         let generic = protocols
             .records()
             .iter()
             .find(|record| matches!(record.owner(), CallableTemplateOrigin::GenericFunction(_)))
             .unwrap();
         let origin = generic.parameters()[0].definition_origin().origin();
-        let legacy = hir::CanonicalHirFoundation::from_ordinary_output(output).unwrap();
+        let legacy = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
         let legacy = hir::OdrFreeHirFoundation::try_new(legacy).unwrap();
         assert!(
             legacy

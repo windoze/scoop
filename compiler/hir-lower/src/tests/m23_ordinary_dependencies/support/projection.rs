@@ -7,7 +7,7 @@ use scoop_identity::{
 use super::super::super::m23_ordinary_core_only::support::{
     TrustedCoreFixture, parsed_ordinary_at,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
 pub(crate) fn project_dependency(
     core: &TrustedCoreFixture,
@@ -50,16 +50,16 @@ fn project_dependency_with_core_roles(
         .flat_map(|name| core_type_witnesses(core, name, include_default_role))
         .collect::<Vec<_>>();
     let world = core.world(parsed.cone());
-    let input = OrdinarySources::try_new(&parsed, core_inputs, &world).unwrap();
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let input = CurrentConeSources::try_new(&parsed, core_inputs, &world).unwrap();
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the dependency provider must lower before interface projection");
     let current_nominals = current_nominal_targets(output.output().export.module());
-    let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
+    let foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&output).unwrap();
     let mut authority = ProviderProjectionAuthority {
         provider: coordinate.identity().unwrap(),
         current_nominals,
     };
-    let interface = scoop_hir::CrossConeHirInterfaceSectionV1::from_ordinary_hir(
+    let interface = scoop_hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(
         &output,
         &witnesses,
         &mut authority,

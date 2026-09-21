@@ -15,8 +15,8 @@ use crate::{
     LocalExecutableEntryError, PublicNominalShapeRequirementsV1, concrete,
 };
 
-mod ordinary;
-pub use ordinary::*;
+mod dependencies;
+pub use dependencies::*;
 
 /// Export HIR paired with its validated library/executable contract.
 #[derive(Debug, Clone)]

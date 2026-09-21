@@ -52,7 +52,7 @@ fn source_reference_closure_matches_every_collector_occurrence_in_order() {
                     ) {
                         continue;
                     }
-                    let template = Body::from_ordinary_hir(
+                    let template = Body::from_dependency_hir(
                         output,
                         interface.owner,
                         position as u32,

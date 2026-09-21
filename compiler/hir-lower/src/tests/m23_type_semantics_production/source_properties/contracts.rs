@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
+pub(super) fn verify(output: &hir::DependencyHirOutput, table: &Table) {
     let export = output.output().export.module();
     let mapper = hir::HirSignatureTypeMapper::new(hir::HirTypeIdentityInputs::from_export(export));
     for (id, property) in export.properties.iter() {
@@ -65,7 +65,7 @@ pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
     }
 }
 
-pub(super) fn render(output: &hir::OrdinaryHirOutput, table: &Table) -> String {
+pub(super) fn render(output: &hir::DependencyHirOutput, table: &Table) -> String {
     let export = output.output().export.module();
     let mut lines = Vec::new();
     for (id, property) in export.properties.iter() {

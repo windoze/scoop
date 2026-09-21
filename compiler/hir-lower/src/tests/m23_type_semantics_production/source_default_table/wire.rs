@@ -17,7 +17,7 @@ fn rows(records: &[hir::DefaultSourceTemplateV1]) -> Vec<u8> {
 #[test]
 fn source_table_producer_sorts_but_reader_rejects_duplicate_and_reversed_keys() {
     with_hir_source(SOURCE, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let original = production.templates();
         let mut reversed = original.records().to_vec();
         reversed.reverse();
@@ -52,7 +52,7 @@ fn source_table_wire_preserves_explicit_empty_and_rejects_non_array() {
     assert_eq!(bytes(&empty), [0x80]);
     assert!(decode_canonical::<Decoded>(&[0xa0], DecodeLimits::default()).is_err());
     with_hir_source(SOURCE, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let input: Decoded =
             decode_canonical(&bytes(production.templates()), DecodeLimits::default()).unwrap();
         let mut empty = scoop_identity::PendingIdentityValidation::new()

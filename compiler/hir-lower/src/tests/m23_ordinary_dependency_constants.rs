@@ -8,7 +8,7 @@ use super::{
     Decl, Expr, TypeRef, bool_lit, file, fun_expr, ident, int_lit, make_core_public, return_value,
     sp, str_lit, ty_named, var,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
 struct DependencyConstantFixture {
     core: TrustedCoreFixture,
@@ -52,7 +52,7 @@ impl DependencyConstantFixture {
     fn inspect<R>(
         &self,
         consumer: scoop_ast::SourceFile,
-        inspect: impl FnOnce(scoop_hir::OrdinaryHirOutput) -> R,
+        inspect: impl FnOnce(scoop_hir::DependencyHirOutput) -> R,
     ) -> R {
         let ordinary = parsed_ordinary(consumer);
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
@@ -74,8 +74,8 @@ impl DependencyConstantFixture {
             .foundation
             .import_core_inputs(&self.core.interface)
             .unwrap();
-        let input = OrdinarySources::try_new(&ordinary, core, &world).unwrap();
-        let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+        let input = CurrentConeSources::try_new(&ordinary, core, &world).unwrap();
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
             .expect("core-closed dependency constants must inline in an ordinary consumer");
         inspect(output)
     }

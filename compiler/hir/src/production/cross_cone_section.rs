@@ -8,11 +8,11 @@ use crate::{
     CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
     CanonicalExportDefinitionSourcesV1, CanonicalExternalHirReferencesV1,
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalTypeAliasInterfacesV1,
-    CrossConeHirInterfaceSectionV1, DefaultTemplateProductionError, ExportConstValueBuildError,
-    ExportDefinitionSourceProductionError, ExportHir, ExternalHirBindingWitnessUse,
-    ExternalHirReferenceProductionError, ExternalHirReferenceProductionInput,
-    ExternalHirReferenceSemanticAuthority, NominalInterfaceBuildError, OrdinaryHirOutput,
-    PropertyInterfaceBuildError, TypeAliasInterfaceBuildError,
+    CrossConeHirInterfaceSectionV1, DefaultTemplateProductionError, DependencyHirOutput,
+    ExportConstValueBuildError, ExportDefinitionSourceProductionError, ExportHir,
+    ExternalHirBindingWitnessUse, ExternalHirReferenceProductionError,
+    ExternalHirReferenceProductionInput, ExternalHirReferenceSemanticAuthority,
+    NominalInterfaceBuildError, PropertyInterfaceBuildError, TypeAliasInterfaceBuildError,
 };
 
 impl CrossConeHirInterfaceSectionV1 {
@@ -29,10 +29,10 @@ impl CrossConeHirInterfaceSectionV1 {
         Self::from_parts(export, None, witness_uses, authority)
     }
 
-    /// Projects an ordinary HIR graph using its dependency selections to
+    /// Projects a current-Cone HIR graph using its dependency selections to
     /// serialize exported default bodies.
-    pub fn from_ordinary_hir<A, E>(
-        output: &OrdinaryHirOutput,
+    pub fn from_dependency_hir<A, E>(
+        output: &DependencyHirOutput,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
     ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>

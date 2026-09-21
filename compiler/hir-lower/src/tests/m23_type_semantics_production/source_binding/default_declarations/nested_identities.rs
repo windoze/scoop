@@ -152,7 +152,7 @@ fn default_source_nested_identities_require_actual_generated_roles_and_paths() {
 #[test]
 fn source_foundation_publishes_unmaterialized_callable_reference_keys_and_origins() {
     with_sources(SOURCE, |output, fixture, _, _| {
-        let legacy = hir::CanonicalHirFoundation::from_ordinary_output(output).unwrap();
+        let legacy = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
         assert!(
             fixture
                 .foundation

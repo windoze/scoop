@@ -4,21 +4,21 @@ use scoop_wire::{ResourceKind, WireErrorKind};
 fn complete_default_source_production_uses_one_remaining_budget() {
     with_hir_source(SOURCE, |output, _| {
         let mut measured = meter();
-        Production::from_ordinary_hir(output, &mut measured).unwrap();
+        Production::from_dependency_hir(output, &mut measured).unwrap();
         let work = measured.usage().validation_work_units;
         let mut shared = BudgetMeter::new(DecodeLimits {
             validation_work_units: work * 2 - 1,
             ..DecodeLimits::default()
         });
-        Production::from_ordinary_hir(output, &mut shared).unwrap();
-        assert!(Production::from_ordinary_hir(output, &mut shared).is_err());
+        Production::from_dependency_hir(output, &mut shared).unwrap();
+        assert!(Production::from_dependency_hir(output, &mut shared).is_err());
         assert!(shared.usage().validation_work_units >= work);
     });
 }
 #[test]
 fn source_table_resolution_and_indexing_preflight_table_and_allocation_limits() {
     with_hir_source(SOURCE, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let value = production.templates();
         for (limits, expected) in [
             (
@@ -104,7 +104,7 @@ fn source_table_resolution_and_indexing_preflight_table_and_allocation_limits() 
 #[test]
 fn source_table_reader_shares_budget_across_all_records() {
     with_hir_source(SOURCE, |output, _| {
-        let production = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let production = Production::from_dependency_hir(output, &mut meter()).unwrap();
         let input: Decoded =
             decode_canonical(&bytes(production.templates()), DecodeLimits::default()).unwrap();
         let mut measured = meter();

@@ -1,27 +1,24 @@
 use super::*;
 
 impl Lowerer {
+    #[cfg(test)]
     pub(crate) fn run_defined(
         self,
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
-        let (module, warnings, completion) = self.run(files, None)?;
-        let LoweringCompletion::Defined = completion else {
-            panic!("defined HIR entry cannot complete with imported core authority")
-        };
+        let dependencies = hir::ImportedDependencySelectionPlan::empty(self.current_cone());
+        let (module, warnings, _) = self
+            .with_imported_dependencies(dependencies)
+            .run(files, None)?;
         Ok((module, warnings))
     }
 
-    pub(crate) fn run_imported(
+    pub(crate) fn run_with_dependencies(
         self,
         files: &[ast::SourceFile],
         world: &hir::ImportedSemanticWorld<'_>,
-    ) -> Result<(hir::Module, Vec<Diagnostic>, ImportedLoweringCompletion), Vec<Diagnostic>> {
-        let (module, warnings, completion) = self.run(files, Some(world))?;
-        let LoweringCompletion::Imported(completion) = completion else {
-            panic!("ordinary HIR entry cannot complete with defined core authority")
-        };
-        Ok((module, warnings, *completion))
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
+        self.run(files, Some(world))
     }
 
     fn run(
@@ -46,7 +43,10 @@ impl Lowerer {
         let defines_core = matches!(self.core, CoreLoweringAuthority::Defined);
         let core_diagnostic_file = self.core_diagnostic_file();
         self.top_level_namespaces.initialize_sources(
-            self.intrinsic_sources.iter().map(|source| source.kind),
+            self.intrinsic_sources
+                .iter()
+                .map(|source| source.identity.cone()),
+            current_cone,
             files,
         );
 
@@ -526,11 +526,9 @@ impl Lowerer {
             return Err(self.diagnostics);
         }
         let warnings = std::mem::take(&mut self.warnings);
-        // A successful frontend run seals exactly one core authority. Defined
-        // modules publish the locally validated protocol graph; ordinary
-        // modules retain the imported graph and its detached selection plan.
-        let (core_protocols, completion) = match self.core.clone() {
-            CoreLoweringAuthority::Defined => (
+        // Protocol provenance and dependency selections are independent.
+        let core_protocols = match self.core.clone() {
+            CoreLoweringAuthority::Defined => {
                 hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
                     option: self
                         .option_core
@@ -550,19 +548,18 @@ impl Lowerer {
                         .expect("missing or invalid intrinsic core types are always diagnosed"),
                     source_location: source_location_core
                         .expect("a missing or invalid source location core is always diagnosed"),
-                })),
-                LoweringCompletion::Defined,
-            ),
-            CoreLoweringAuthority::Imported(authority) => (
-                hir::CoreProtocols::Imported(Box::new(authority.protocols)),
-                LoweringCompletion::Imported(Box::new(ImportedLoweringCompletion {
-                    dependencies: self
-                        .dependencies
-                        .take()
-                        .expect("ordinary HIR lowering always carries a dependency selection plan"),
-                    binding_witness_uses: std::mem::take(&mut self.retained_binding_witness_uses),
-                })),
-            ),
+                }))
+            }
+            CoreLoweringAuthority::Imported(authority) => {
+                hir::CoreProtocols::Imported(Box::new(authority.protocols))
+            }
+        };
+        let completion = LoweringCompletion {
+            dependencies: self
+                .dependencies
+                .take()
+                .expect("every HIR entry installs its dependency selection plan"),
+            binding_witness_uses: std::mem::take(&mut self.retained_binding_witness_uses),
         };
         self.finish(current_cone, warnings, core_protocols, completion)
     }

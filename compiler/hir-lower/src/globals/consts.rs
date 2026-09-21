@@ -467,13 +467,13 @@ impl Lowerer {
                     ) => {}
                     _ => return None,
                 }
-                // Core const declarations have no current-unit import ids and
+                // Embedded prelude constants have no current-unit import ids and
                 // are evaluated before their ordinary prelude properties exist.
                 let candidates = declarations
                     .iter()
                     .enumerate()
                     .filter_map(|(index, candidate)| {
-                        (self.source_is_core(candidate.file)
+                        (!self.source_is_current_cone(candidate.file)
                             && candidate.owner == wanted_owner
                             && candidate.declaration.name.text == name
                             && self.access_domain_allows(&candidate.access.lookup.0))

@@ -169,7 +169,7 @@ fn corrupt(t: &Template, count: u32, arguments: Option<Arguments>) -> Template {
     .unwrap();
     envelope::rebuild(t, t.locals().records().to_vec(), body)
 }
-fn round_trip(template: Template, output: &hir::OrdinaryHirOutput) -> Template {
+fn round_trip(template: Template, output: &hir::DependencyHirOutput) -> Template {
     let bytes = encode(&template.index_locals(&mut meter()).unwrap()).unwrap();
     let decoded: hir::DecodedDefaultSourceTemplateV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();

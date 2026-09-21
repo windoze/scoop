@@ -7,7 +7,7 @@ use super::m23_ordinary_dependencies::support::{
 use super::{
     call, file, fun, fun_expr, int_lit, make_core_public, scoop_extern_fun, sp, stmt, ty_named, var,
 };
-use crate::{OrdinarySources, lower_ordinary};
+use crate::{CurrentConeSources, lower_current_cone};
 
 #[test]
 fn dependency_default_calls_public_provider_helper_with_split_origins() {
@@ -40,9 +40,9 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("the provider-bound default helper must materialize in the consumer");
 
     assert_eq!(output.imported_dependencies().len(), 2);
@@ -141,9 +141,9 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
     )
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
 
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
         .expect("a rejected dependency default must not shadow the current-package callable");
 
     assert!(output.imported_dependencies().is_empty());
@@ -172,8 +172,8 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
         .push(exact_import(&["dependency", "api", "withDefault"]));
     let unsupported = parsed_ordinary(unsupported);
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = OrdinarySources::try_new(&unsupported, core_inputs, &world).unwrap();
-    let diagnostics = match lower_ordinary(scoop_identity::RequestedConeKind::Library, &input) {
+    let input = CurrentConeSources::try_new(&unsupported, core_inputs, &world).unwrap();
+    let diagnostics = match lower_current_cone(scoop_identity::RequestedConeKind::Library, &input) {
         Ok(_) => panic!("a native dependency in the only default candidate must be rejected"),
         Err(diagnostics) => diagnostics,
     };

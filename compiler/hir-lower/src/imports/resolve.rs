@@ -4,7 +4,6 @@ use scoop_identity::{BindingNamespace, BindingTarget, CanonicalIdentifier, Packa
 
 use super::selector::SelectorResult;
 use super::*;
-use crate::SourceKind;
 use crate::{Lowerer, namespace::TopLevelLookupLayer};
 
 impl CurrentUnitImports {
@@ -57,10 +56,7 @@ impl CurrentUnitImports {
             ..FrozenFileImports::default()
         };
         let mut exact_dependency_slots = BTreeMap::new();
-        debug_assert_eq!(
-            lowerer.intrinsic_sources[lowerer.current_file].kind,
-            SourceKind::CurrentUnit
-        );
+        debug_assert!(lowerer.source_is_current_cone(lowerer.current_file));
         let source_identity = lowerer.visibility_file(lowerer.current_file);
         for import in &source.imports {
             match import {

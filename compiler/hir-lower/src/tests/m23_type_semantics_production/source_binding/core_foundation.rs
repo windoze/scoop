@@ -24,6 +24,33 @@ fn core_source_foundation_replays_real_bootstrap_artifact() {
 fn core_source_foundation_replays_full_sysroot_artifact() {
     let output = lower_sysroot();
     replay(&output);
+    let origins = output.export.export_definition_origins.records();
+    let declaration_origins = origins
+        .iter()
+        .filter(|record| !matches!(record.subject(), Subject::LocalBinding(_)))
+        .map(|record| record.origin())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(declaration_origins.len(), 515);
+    let all_origins = origins
+        .iter()
+        .map(|record| record.origin())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(all_origins.difference(&declaration_origins).count(), 37);
+    for binding in output.export.local_binding_identities.iter() {
+        assert_eq!(
+            binding.record().key().source_role(),
+            scoop_identity::LocalBindingRole::Declaration
+        );
+        assert_eq!(
+            output
+                .export
+                .export_definition_origins
+                .get(Subject::LocalBinding(binding.record().id()))
+                .unwrap()
+                .origin(),
+            binding.origin()
+        );
+    }
     assert_eq!(
         snapshot::render(&output),
         include_str!(concat!(
@@ -120,7 +147,7 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
 fn ordinary_and_core_sources_share_the_same_foundation_projection() {
     super::super::source_dispatch::with_hir_source("public struct Value()", |output, _| {
         let common = Production::from_hir(output.output(), &mut meter()).unwrap();
-        let ordinary = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        let ordinary = Production::from_dependency_hir(output, &mut meter()).unwrap();
         assert_eq!(
             encode(&common.source_transcript(&mut meter()).unwrap()).unwrap(),
             encode(&ordinary.source_transcript(&mut meter()).unwrap()).unwrap()

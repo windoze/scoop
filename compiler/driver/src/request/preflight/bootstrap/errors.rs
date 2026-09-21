@@ -130,7 +130,7 @@ impl std::error::Error for CoreBootstrapMirStageError {
 
 #[derive(Debug)]
 pub enum CoreBootstrapHirStageError {
-    Sources(scoop_hir_lower::CoreBootstrapSourceError),
+    Sources(scoop_hir_lower::CurrentConeSourceError),
     Lowering(Vec<scoop_ast::Diagnostic>),
     Foundation(scoop_hir::HirFoundationBuildError),
     ProductionSection(scoop_hir::CoreBootstrapInterfaceBuildError),

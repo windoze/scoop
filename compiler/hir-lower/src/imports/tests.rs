@@ -124,9 +124,10 @@ fn lowerer() -> (Lowerer, PackageId, PackageId) {
         .collect(),
         IntrinsicDeclarationPolicy::CoreOnly,
     );
+    let cone = lowerer.current_cone();
     lowerer
         .top_level_namespaces
-        .initialize_sources([SourceKind::CurrentUnit; 4], &files);
+        .initialize_sources([cone; 4], cone, &files);
     let (api, _) = lowerer
         .top_level_namespaces
         .longest_package_prefix(&[ident("api")]);

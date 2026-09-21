@@ -7,7 +7,7 @@ use scoop_identity::{CallableTemplateOrigin, OptionalSignatureType};
 mod missing;
 mod scopes;
 
-fn target(output: &hir::OrdinaryHirOutput, name: &str, position: u32) -> Callable {
+fn target(output: &hir::DependencyHirOutput, name: &str, position: u32) -> Callable {
     template(output, name, position).references().callables()[0]
         .target()
         .clone()

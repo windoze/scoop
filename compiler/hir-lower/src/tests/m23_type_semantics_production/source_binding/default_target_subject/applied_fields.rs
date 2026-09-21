@@ -24,7 +24,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.tuple", 1),
 ];
 fn reference(
-    output: &hir::OrdinaryHirOutput,
+    output: &hir::DependencyHirOutput,
     name: &str,
     position: u32,
 ) -> hir::DefaultSourceReferenceV1<Field> {
@@ -35,7 +35,7 @@ fn reference(
         .find(|(_, f)| f.name == name)
         .unwrap()
         .0;
-    let body = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+    let body = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
         output,
         hir::ExportParameterOwner::Function(id),
         position,

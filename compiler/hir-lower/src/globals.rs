@@ -486,7 +486,7 @@ impl Lowerer {
                     import_source: self.imports.object_property_source(
                         object,
                         member_index,
-                        self.source_is_core(file),
+                        !self.source_is_current_cone(file),
                     ),
                     declaration: property,
                     file,

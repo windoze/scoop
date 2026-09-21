@@ -7,7 +7,7 @@ const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-imported-core-const/operators.scoop"
 ));
 
-fn with_input<R>(source: &str, run: impl FnOnce(&OrdinarySources<'_, '_>) -> R) -> R {
+fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
     let core = trusted_core();
     let identity = crate::tests::test_source_identity("src/main.scoop");
     let sources = ast::CurrentConeParsedSources::try_new(
@@ -31,14 +31,14 @@ fn with_input<R>(source: &str, run: impl FnOnce(&OrdinarySources<'_, '_>) -> R) 
     .unwrap();
     let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(sources.cone());
-    let input = OrdinarySources::try_new(&sources, protocols, &world).unwrap();
+    let input = CurrentConeSources::try_new(&sources, protocols, &world).unwrap();
     run(&input)
 }
 
 #[test]
 fn imported_core_integer_protocols_fold_const_and_static_operators() {
     with_input(SOURCE, |input| {
-        let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, input).unwrap();
+        let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input).unwrap();
         let export = output.output().export.module();
         let value = |name: &str| {
             let (_, property) = export
@@ -120,7 +120,7 @@ fn imported_core_const_errors_keep_precise_operator_diagnostics() {
         ),
     ] {
         with_input(source, |input| {
-            let diagnostics = lower_ordinary(scoop_identity::RequestedConeKind::Library, input)
+            let diagnostics = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
                 .err()
                 .expect("invalid const must be diagnosed");
             let start = source.find(expression).unwrap() as u32;

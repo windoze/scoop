@@ -100,8 +100,8 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
     .unwrap();
     let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(parsed.cone());
-    let input = OrdinarySources::try_new(&parsed, inputs, &world).unwrap();
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
+    let input = CurrentConeSources::try_new(&parsed, inputs, &world).unwrap();
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let export = output.output().export.module();
     let pick = export
         .functions
@@ -109,7 +109,7 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         .find(|(_, f)| f.name == "pick")
         .unwrap()
         .0;
-    let template = hir::DefaultSourceBodyProductionV1::from_ordinary_hir(
+    let template = hir::DefaultSourceBodyProductionV1::from_dependency_hir(
         &output,
         hir::ExportParameterOwner::Function(pick),
         1,
@@ -122,10 +122,11 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
     };
     let required = BTreeSet::from([Subject::Type(id)]);
     let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
-    let source = hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(&output, &mut meter())
-        .unwrap()
-        .source_transcript(&mut meter())
-        .unwrap();
+    let source =
+        hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output, &mut meter())
+            .unwrap()
+            .source_transcript(&mut meter())
+            .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(
         hir::CanonicalHirFoundation::from_type_semantics_output(&output).unwrap(),
     )

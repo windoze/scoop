@@ -148,9 +148,9 @@ impl CurrentUnitImports {
         &self,
         object: hir::ObjectId,
         member_index: usize,
-        is_core: bool,
+        outside_current_cone: bool,
     ) -> PropertyImportSource {
-        if is_core {
+        if outside_current_cone {
             PropertyImportSource::OutsideCurrentUnitSurface
         } else {
             PropertyImportSource::CurrentUnit(self.object_property_sources[&(object, member_index)])

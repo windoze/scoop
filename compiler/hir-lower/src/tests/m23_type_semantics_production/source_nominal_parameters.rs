@@ -119,7 +119,7 @@ fn complete_parameter_sources_keep_legacy_records_and_bytes_unchanged() {
     ));
     with_source(source, |output, _| {
         let full = table(&output.output().export);
-        let old = hir::CanonicalInheritanceSourceParameterProtocolsV1::from_ordinary_hir(
+        let old = hir::CanonicalInheritanceSourceParameterProtocolsV1::from_dependency_hir(
             output,
             &mut meter(),
         )
