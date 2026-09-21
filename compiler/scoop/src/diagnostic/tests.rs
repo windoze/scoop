@@ -53,7 +53,6 @@ fn stable_orchestrator_codes_are_unique() {
         BuildDiagnosticCode::CACHE_LOCK,
         BuildDiagnosticCode::CACHE_NONDETERMINISTIC_PRODUCTION,
         BuildDiagnosticCode::CACHE_PUBLISH,
-        BuildDiagnosticCode::CORE_SLOT_CORRUPT,
         BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
         BuildDiagnosticCode::CHILD_TRANSPORT,
         BuildDiagnosticCode::CHILD_PROTOCOL,

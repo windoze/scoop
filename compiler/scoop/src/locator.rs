@@ -194,6 +194,20 @@ fn locate_source_dependency(
     expected: &ConeCoordinate,
     path: PathBuf,
 ) -> Result<ManifestSourceProjection, DependencyLocatorError> {
+    let manifest = load_dependency_manifest(expected, path)?;
+    if manifest.real_root() == parent.real_root() {
+        return Err(DependencyLocatorError::SelfSourceLocator {
+            coordinate: expected.clone(),
+            root: manifest.real_root().to_path_buf(),
+        });
+    }
+    Ok(ManifestSourceProjection { manifest })
+}
+
+pub(crate) fn load_dependency_manifest(
+    expected: &ConeCoordinate,
+    path: PathBuf,
+) -> Result<LoadedConeManifest, DependencyLocatorError> {
     let locator = ManifestRootLocator::from_path(path).map_err(DependencyLocatorError::Manifest)?;
     let manifest = load_cone_manifest(&locator).map_err(DependencyLocatorError::Manifest)?;
     if manifest.coordinate() != expected {
@@ -209,13 +223,7 @@ fn locate_source_dependency(
             path: manifest.manifest_path().to_path_buf(),
         });
     }
-    if manifest.real_root() == parent.real_root() {
-        return Err(DependencyLocatorError::SelfSourceLocator {
-            coordinate: expected.clone(),
-            root: manifest.real_root().to_path_buf(),
-        });
-    }
-    Ok(ManifestSourceProjection { manifest })
+    Ok(manifest)
 }
 
 pub(crate) fn locate_from_search_roots(

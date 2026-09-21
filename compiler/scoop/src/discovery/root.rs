@@ -49,20 +49,15 @@ impl BuildGraphRequest {
         ) {
             (Vec::new(), sysroot)
         } else {
-            let sysroot_path = std::fs::canonicalize(sysroot.as_path()).map_err(|source| {
-                LoadBuildRootError::TrustedSysroot {
-                    path: sysroot.as_path().to_path_buf(),
-                    source,
-                }
-            })?;
-            let sysroot = TrustedSysrootRoot::from_canonical(sysroot_path);
             let core_layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
                 sysroot.as_path(),
                 target.lir_target_selection(),
             );
-            let core_locator = ManifestRootLocator::cone_directory(core_layout.source_root());
-            let core = load_trusted_core_manifest(&core_locator)
-                .map_err(LoadBuildRootError::TrustedCoreManifest)?;
+            let core = crate::locator::load_dependency_manifest(
+                &ConeCoordinate::reserved_core(),
+                core_layout.source_root().to_path_buf(),
+            )
+            .map_err(|error| LoadBuildRootError::DefaultDependency(Box::new(error)))?;
             (vec![core], sysroot)
         };
         Ok(LoadedBuildRoot {

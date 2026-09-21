@@ -1,4 +1,5 @@
 use super::*;
+use crate::TrustedCoreArtifactInput;
 
 #[test]
 fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
@@ -7,7 +8,11 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
     )
     .unwrap();
-    let sources = discover_manifest_sources(slot.source().manifest()).unwrap();
+    let manifest = scoop_manifest::load_cone_manifest(&ManifestRootLocator::cone_directory(
+        slot.source_root(),
+    ))
+    .unwrap();
+    let sources = discover_manifest_sources(&manifest).unwrap();
     let parsed = parse_discovered_sources(&sources).unwrap();
     let output = TrustedCoreBootstrapHirOutput::lower(&parsed).unwrap();
     assert!(matches!(
@@ -438,11 +443,11 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
         target.lir_target_selection(),
     )
     .unwrap();
-    let artifact_path = slot.artifact().path().to_path_buf();
+    let artifact_path = slot.artifact().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
     let request = SingleConeBuildRequest::new(
         CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(slot.source().manifest().real_root()),
+            root: ManifestRootLocator::cone_directory(slot.source_root()),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
         TrustedCoreInput::BootstrapSelf,
@@ -507,7 +512,10 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
             source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
+        TrustedCoreInput::Artifact(
+            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
+                .unwrap(),
+        ),
         target,
         SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),
         DiagnosticOutputPolicy::Human,

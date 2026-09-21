@@ -61,4 +61,56 @@ fn real_process_builds_and_caches_an_edited_core_root_without_a_sysroot() {
             .as_bytes()
     );
     assert!(!missing_sysroot.exists());
+    assert_artifact_only_cli_consumer(&compiler, workspace, first.root());
+}
+
+fn assert_artifact_only_cli_consumer(
+    compiler: &Path,
+    workspace: &Path,
+    core: &crate::CompletedNode,
+) {
+    let sysroot = workspace.join("artifact-only-sysroot");
+    let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+        &sysroot,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    );
+    std::fs::create_dir_all(layout.artifact_root()).unwrap();
+    std::fs::write(layout.artifact(), core.artifact().snapshot().as_bytes()).unwrap();
+    assert!(!layout.source_root().exists());
+    let source = workspace.join("consumer.scoop");
+    std::fs::write(
+        &source,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/core-library/consumer.scoop"
+        )),
+    )
+    .unwrap();
+    let output = workspace.join("consumer.slib");
+    let result = std::process::Command::new(compiler)
+        .arg("build")
+        .arg(&source)
+        .arg("--out-slib")
+        .arg(&output)
+        .env_clear()
+        .env("SCOOP_SYSROOT", &sysroot)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let bytes = std::fs::read(output).unwrap();
+    let summary = probe_prebuilt_manifest_summary(
+        &bytes,
+        DecodeLimits::M23_DEFAULT,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+    )
+    .unwrap();
+    assert_eq!(
+        summary.direct_dependencies(),
+        &[core.artifact().publication().dependency_record()]
+    );
+    assert!(!layout.source_root().exists());
 }

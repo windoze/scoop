@@ -445,7 +445,7 @@ summary只允许：
 
 discovery不用递归调用栈追locator。它维护按expected coordinate排序的bounded worklist：
 
-1. 插入root source projection；根不是core时再加载默认core源码manifest，同样作为普通source projection插入；
+1. 插入root source projection；根不是core时再通过普通依赖manifest loader加载默认core源码manifest，同样作为普通source projection插入；
 2. 取最小pending claim，解析其manifest或summary并立即按ConeIdentity intern；
 3. claim与已有node冲突时记录4.6错误，不覆盖已有值；
 4. 对source manifest的每条dependency生成带原span和locator kind的claim；
@@ -1308,7 +1308,7 @@ graph phase尽量收集互不依赖的多个错误后一次排序返回；execut
 - graph：`SCOOP_GRAPH_RESERVED_IDENTITY`、`SCOOP_GRAPH_MULTIPLE_VERSIONS`、`SCOOP_GRAPH_EXECUTABLE_DEPENDENCY`、`SCOOP_GRAPH_SINGLE_FILE_DEPENDENCY`、`SCOOP_GRAPH_MISSING_CORE`、`SCOOP_GRAPH_CYCLE`、`SCOOP_GRAPH_UNREACHABLE_NODE`、`SCOOP_GRAPH_RESOURCE_LIMIT`；
 - prebuilt：`SCOOP_PREBUILT_SUMMARY_MISMATCH`、`SCOOP_PREBUILT_VIEW_INVALID`、`SCOOP_PREBUILT_STALE_DEPENDENCY`、`SCOOP_PREBUILT_CHANGED`；
 - cache：`SCOOP_CACHE_IO`、`SCOOP_CACHE_ENTRY_CORRUPT`、`SCOOP_CACHE_LOCK`、`SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION`、`SCOOP_CACHE_PUBLISH`；
-- 默认core位置加载失败沿用`SCOOP_CORE_SLOT_CORRUPT`；core源码编译、缓存及产物失败使用普通Cone对应phase与code，不另设bootstrap/source-change错误族；
+- 默认core位置通过普通dependency locator加载，coordinate/kind及文件错误使用通用locator诊断；core源码编译、缓存及产物失败使用普通Cone对应phase与code，不另设slot/bootstrap/source-change错误族；
 - child：`SCOOP_CHILD_TOOL_MISMATCH`、`SCOOP_CHILD_TRANSPORT`、`SCOOP_CHILD_PROTOCOL`、`SCOOP_CHILD_EXIT`、`SCOOP_CHILD_OUTPUT_MISSING`、`SCOOP_CHILD_OUTPUT_PLAN_MISMATCH`、`SCOOP_CHILD_RESPONSE_MISMATCH`。
 
 底层`scoopc`/slib structured code保留原值；orchestrator通过typed nesting增加Cone/phase context，不把所有错误压成一个字符串code。

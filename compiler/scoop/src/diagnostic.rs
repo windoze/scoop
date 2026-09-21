@@ -93,8 +93,6 @@ impl BuildDiagnosticCode {
         Self("SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION");
     pub const CACHE_PUBLISH: Self = Self("SCOOP_CACHE_PUBLISH");
 
-    pub const CORE_SLOT_CORRUPT: Self = Self("SCOOP_CORE_SLOT_CORRUPT");
-
     pub const CHILD_TOOL_MISMATCH: Self = Self("SCOOP_CHILD_TOOL_MISMATCH");
     pub const CHILD_TRANSPORT: Self = Self("SCOOP_CHILD_TRANSPORT");
     pub const CHILD_PROTOCOL: Self = Self("SCOOP_CHILD_PROTOCOL");
@@ -174,10 +172,7 @@ impl ClassifyBuildFailure for LoadBuildRootError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::RootManifest(_) => phase_only(BuildFailurePhase::Root),
-            Self::TrustedSysroot { .. } | Self::TrustedCoreManifest(_) => classified(
-                BuildFailurePhase::Root,
-                BuildDiagnosticCode::CORE_SLOT_CORRUPT,
-            ),
+            Self::DefaultDependency(source) => source.classification(),
             Self::Resource(_) => classified(
                 BuildFailurePhase::Root,
                 BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,

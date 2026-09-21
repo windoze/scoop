@@ -341,3 +341,23 @@ fn source_and_artifact_claims_never_select_by_discovery_order() {
         Err(BuildGraphDiscoveryError::ConflictingNodeRepresentation { .. })
     ));
 }
+
+#[test]
+fn default_core_uses_the_common_dependency_coordinate_check() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("root");
+    let sysroot = temp.path().join("sysroot");
+    write_manifest(&root, "root", "");
+    write_manifest(&sysroot.join("lib/scoop.core"), "different-library", "");
+    let error = request(&root, &sysroot, vec![]).load_root().unwrap_err();
+    assert!(matches!(error,
+        LoadBuildRootError::DefaultDependency(ref source)
+            if matches!(source.as_ref(), DependencyLocatorError::CoordinateMismatch { expected, actual, .. }
+                if expected.as_ref() == &ConeCoordinate::reserved_core()
+                && actual.name() == "different-library")
+    ));
+    assert_eq!(
+        crate::ClassifyBuildFailure::classification(&error).code(),
+        Some(crate::BuildDiagnosticCode::LOCATOR_COORDINATE_MISMATCH)
+    );
+}

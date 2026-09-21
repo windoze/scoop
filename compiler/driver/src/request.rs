@@ -396,8 +396,7 @@ pub fn normalize_direct_build_request(
         let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
             .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
         TrustedCoreInput::Artifact(
-            core_slot
-                .existing_artifact_input()
+            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
                 .map_err(BuildRequestNormalizationError::TrustedCoreArtifact)?,
         )
     };
@@ -484,9 +483,7 @@ pub fn normalize_protocol_build_request(
                 .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
             (
                 CurrentConeInput::Manifest {
-                    root: ManifestRootLocator::cone_directory(
-                        core_slot.source().manifest().real_root(),
-                    ),
+                    root: ManifestRootLocator::cone_directory(core_slot.source_root()),
                 },
                 TrustedCoreInput::BootstrapSelf,
             )

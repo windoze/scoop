@@ -4,9 +4,7 @@ use std::path::{Path, PathBuf};
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_wire::HashError;
 
-use crate::{
-    ManifestParseError, ParsedConeManifest, parse_cone_manifest, parse_trusted_core_manifest,
-};
+use crate::{ManifestParseError, ParsedConeManifest, parse_cone_manifest};
 
 const MANIFEST_FILE_NAME: &str = "Cone.toml";
 
@@ -208,19 +206,6 @@ impl std::error::Error for ManifestRootError {
 pub fn load_cone_manifest(
     locator: &ManifestRootLocator,
 ) -> Result<LoadedConeManifest, ManifestRootError> {
-    load_manifest(locator, parse_cone_manifest)
-}
-
-pub fn load_trusted_core_manifest(
-    locator: &ManifestRootLocator,
-) -> Result<LoadedConeManifest, ManifestRootError> {
-    load_manifest(locator, parse_trusted_core_manifest)
-}
-
-fn load_manifest(
-    locator: &ManifestRootLocator,
-    parse: fn(&str) -> Result<ParsedConeManifest, ManifestParseError>,
-) -> Result<LoadedConeManifest, ManifestRootError> {
     let (real_root, manifest_path) = match locator {
         ManifestRootLocator::ConeDirectory(root) => {
             let real_root = canonicalize(root)?;
@@ -281,7 +266,7 @@ fn load_manifest(
     let source = String::from_utf8(bytes).map_err(|_| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::InvalidUtf8)
     })?;
-    let parsed = parse(&source).map_err(|error| {
+    let parsed = parse_cone_manifest(&source).map_err(|error| {
         ManifestRootError::new(manifest_path.clone(), ManifestRootErrorKind::Parse(error))
     })?;
     let identity = parsed.semantic().coordinate().identity().map_err(|error| {
@@ -406,12 +391,10 @@ mod tests {
         .unwrap();
         let locator = ManifestRootLocator::cone_directory(&directory.0);
 
-        let trusted = load_trusted_core_manifest(&locator).unwrap();
+        let ordinary = load_cone_manifest(&locator).unwrap();
         assert_eq!(
-            trusted.parsed().semantic().coordinate(),
+            ordinary.parsed().semantic().coordinate(),
             &scoop_identity::ConeCoordinate::reserved_core()
         );
-        let ordinary = load_cone_manifest(&locator).unwrap();
-        assert_eq!(ordinary.parsed().semantic(), trusted.parsed().semantic());
     }
 }

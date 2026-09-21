@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::{
     DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootError,
-    ManifestRootLocator, SingleFileLocator, load_cone_manifest, load_trusted_core_manifest,
+    SingleFileLocator, load_cone_manifest,
 };
 use scoop_slib::{
     DependencyRecord, SlibClosureDecodeMeterV1, SlibClosureDecodeUsageV1,
@@ -329,11 +329,7 @@ pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate)
 #[derive(Debug)]
 pub enum LoadBuildRootError {
     RootManifest(ManifestRootError),
-    TrustedSysroot {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    TrustedCoreManifest(ManifestRootError),
+    DefaultDependency(Box<DependencyLocatorError>),
     Resource(SlibClosureResourceErrorV1),
 }
 
@@ -341,14 +337,7 @@ impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
-            Self::TrustedSysroot { path, source } => {
-                write!(
-                    formatter,
-                    "invalid trusted sysroot {}: {source}",
-                    path.display()
-                )
-            }
-            Self::TrustedCoreManifest(error) => write!(formatter, "invalid trusted core: {error}"),
+            Self::DefaultDependency(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),
         }
     }
@@ -357,8 +346,8 @@ impl fmt::Display for LoadBuildRootError {
 impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::RootManifest(error) | Self::TrustedCoreManifest(error) => Some(error),
-            Self::TrustedSysroot { source, .. } => Some(source),
+            Self::RootManifest(error) => Some(error),
+            Self::DefaultDependency(error) => Some(error),
             Self::Resource(error) => Some(error),
         }
     }

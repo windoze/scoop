@@ -273,7 +273,6 @@ pub enum ManifestParseErrorKind {
     UnsupportedSchema(i64),
     InvalidConeCoordinate(ConeCoordinateError),
     ReservedConeCoordinate,
-    TrustedCoreCoordinateMismatch,
     TrustedCoreMustBeLibrary,
     TrustedCoreHasDependencies,
     InvalidConeKind(String),
@@ -298,9 +297,6 @@ impl fmt::Display for ManifestParseErrorKind {
             Self::ReservedConeCoordinate => {
                 formatter.write_str("user Cone.toml must not declare a reserved Cone coordinate")
             }
-            Self::TrustedCoreCoordinateMismatch => formatter.write_str(
-                "trusted core Cone.toml must declare scoop:scoop.core:0.1.0",
-            ),
             Self::TrustedCoreMustBeLibrary => {
                 formatter.write_str("trusted core Cone.toml must declare kind = \"library\"")
             }
@@ -373,23 +369,6 @@ struct RawDependencyDetails {
 }
 
 pub fn parse_cone_manifest(source: &str) -> Result<ParsedConeManifest, ManifestParseError> {
-    parse_manifest(source, ManifestCoordinatePolicy::User)
-}
-
-pub fn parse_trusted_core_manifest(source: &str) -> Result<ParsedConeManifest, ManifestParseError> {
-    parse_manifest(source, ManifestCoordinatePolicy::TrustedCore)
-}
-
-#[derive(Clone, Copy)]
-enum ManifestCoordinatePolicy {
-    User,
-    TrustedCore,
-}
-
-fn parse_manifest(
-    source: &str,
-    coordinate_policy: ManifestCoordinatePolicy,
-) -> Result<ParsedConeManifest, ManifestParseError> {
     let document = source.parse::<toml_edit::ImDocument<String>>().map_err(
         |error: toml_edit::TomlError| {
             ManifestParseError::new(
@@ -431,20 +410,11 @@ fn parse_manifest(
             Some(group_span.start..version_span.end),
         )
     })?;
-    match coordinate_policy {
-        ManifestCoordinatePolicy::User if coordinate == ConeCoordinate::reserved_single_file() => {
-            return Err(ManifestParseError::new(
-                ManifestParseErrorKind::ReservedConeCoordinate,
-                Some(group_span.start..version_span.end),
-            ));
-        }
-        ManifestCoordinatePolicy::TrustedCore if coordinate != ConeCoordinate::reserved_core() => {
-            return Err(ManifestParseError::new(
-                ManifestParseErrorKind::TrustedCoreCoordinateMismatch,
-                Some(group_span.start..version_span.end),
-            ));
-        }
-        ManifestCoordinatePolicy::User | ManifestCoordinatePolicy::TrustedCore => {}
+    if coordinate == ConeCoordinate::reserved_single_file() {
+        return Err(ManifestParseError::new(
+            ManifestParseErrorKind::ReservedConeCoordinate,
+            Some(group_span.start..version_span.end),
+        ));
     }
 
     let requested_kind = match kind.as_str() {
@@ -783,11 +753,11 @@ kind = "library"
     }
 
     #[test]
-    fn trusted_core_parser_accepts_only_the_reserved_dependency_free_library() {
+    fn core_uses_the_common_manifest_parser() {
         let core = MINIMAL
             .replace("dev.example", "scoop")
             .replace("sample", "scoop.core");
-        let parsed = parse_trusted_core_manifest(&core).unwrap();
+        let parsed = parse_cone_manifest(&core).unwrap();
         assert_eq!(
             parsed.semantic().coordinate(),
             &ConeCoordinate::reserved_core()
@@ -797,28 +767,15 @@ kind = "library"
             RequestedConeKind::Library
         );
         assert!(parsed.semantic().is_dependency_free());
-        assert_eq!(
-            parse_cone_manifest(&core).unwrap().semantic(),
-            parsed.semantic()
-        );
-
-        let wrong_coordinate = MINIMAL.to_owned();
-        assert_eq!(
-            *parse_trusted_core_manifest(&wrong_coordinate)
-                .unwrap_err()
-                .kind(),
-            ManifestParseErrorKind::TrustedCoreCoordinateMismatch
-        );
-
         let executable = core.replace("kind = \"library\"", "kind = \"executable\"");
         assert_eq!(
-            *parse_trusted_core_manifest(&executable).unwrap_err().kind(),
+            *parse_cone_manifest(&executable).unwrap_err().kind(),
             ManifestParseErrorKind::TrustedCoreMustBeLibrary
         );
 
         let dependency = format!("{core}\n[dependencies]\n\"dev.example:dep\" = \"1.0.0\"\n");
         assert_eq!(
-            *parse_trusted_core_manifest(&dependency).unwrap_err().kind(),
+            *parse_cone_manifest(&dependency).unwrap_err().kind(),
             ManifestParseErrorKind::TrustedCoreHasDependencies
         );
     }

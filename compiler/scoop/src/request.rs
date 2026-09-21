@@ -40,13 +40,6 @@ absolute_locator!(ArtifactCacheRoot, "artifact cache root");
 absolute_locator!(TrustedSysrootRoot, "trusted sysroot");
 absolute_locator!(PairedScoopcLocator, "paired scoopc executable");
 
-impl TrustedSysrootRoot {
-    pub(crate) fn from_canonical(path: PathBuf) -> Self {
-        debug_assert!(path.is_absolute());
-        Self(path)
-    }
-}
-
 fn validate_absolute_path(path: &Path, role: &'static str) -> Result<(), HostLocatorError> {
     if path.as_os_str().is_empty() {
         return Err(HostLocatorError {

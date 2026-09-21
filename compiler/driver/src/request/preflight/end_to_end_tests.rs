@@ -1,3 +1,4 @@
+use crate::TrustedCoreArtifactInput;
 use std::path::Path;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -238,7 +239,10 @@ fn production_entry_uses_the_shared_closure_profile_for_current_sources() {
             source: SingleFileLocator::from_path(&source).unwrap(),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
+        TrustedCoreInput::Artifact(
+            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
+                .unwrap(),
+        ),
         target,
         SlibOutputDestination::new(&output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -556,11 +560,11 @@ fn bootstrap_core(
     let slot =
         crate::trusted_core::resolve_trusted_core_slot_at(sysroot, target.lir_target_selection())
             .unwrap();
-    let artifact_path = slot.artifact().path().to_path_buf();
+    let artifact_path = slot.artifact().to_path_buf();
     std::fs::create_dir_all(artifact_path.parent().unwrap()).unwrap();
     SingleConeBuildRequest::new(
         CurrentConeInput::Manifest {
-            root: ManifestRootLocator::cone_directory(slot.source().manifest().real_root()),
+            root: ManifestRootLocator::cone_directory(slot.source_root()),
         },
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
         TrustedCoreInput::BootstrapSelf,
@@ -619,7 +623,10 @@ fn build_ordinary(
     SingleConeBuildRequest::new(
         current,
         ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
+        TrustedCoreInput::Artifact(
+            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
+                .unwrap(),
+        ),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,
@@ -659,7 +666,10 @@ fn build_manifest_request(
                 .unwrap(),
         )
         .unwrap(),
-        TrustedCoreInput::Artifact(core_slot.existing_artifact_input().unwrap()),
+        TrustedCoreInput::Artifact(
+            TrustedCoreArtifactInput::new(core_slot.artifact(), target.lir_target_selection())
+                .unwrap(),
+        ),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
         DiagnosticOutputPolicy::Human,

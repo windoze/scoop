@@ -341,17 +341,13 @@ SingleConeBuildRequest {
 CurrentConeInput =
     Manifest { root: ManifestRootLocator }
   | SingleFile { source: SingleFileLocator }
-  | TrustedCoreBootstrap {
-        source_slot: TrustedCoreSourceSlot,
-        authority: CoreBootstrapAuthority,
-    }
 
 TrustedCoreInput =
     Artifact(TrustedCoreArtifactInput)
-  | BootstrapSelf { artifact_slot: TrustedCoreArtifactSlot }
+  | BootstrapSelf
 ```
 
-`CoreBootstrapAuthority`、`TrustedCoreSourceSlot`和`TrustedCoreArtifactSlot`没有public字符串/path构造器，只能由当前toolchain的trusted sysroot resolver成组产生；bootstrap constructor还逐项验证三者的source root、artifact slot、target与toolchain compatibility相等。artifact自报reserved coordinate、目录名叫`scoop.core`或用户传入普通path都不能构造它。普通分支只能携带已经解析到该slot同一regular file的`Artifact`；bootstrap分支只能携带`BootstrapSelf`且输出必须就是成组产生的artifact slot。
+core源码使用普通Manifest入口，输出使用请求指定的路径；不把source、artifact与sysroot位置绑定为授权对象。依赖artifact使用显式路径或默认sysroot布局派生的路径，读取时执行共有的metadata、identity、target与ABI一致性检查。`BootstrapSelf`目前仅表示编译core时不注入自身依赖，不授权源码来源或输出位置。
 
 完整`ResolvedTargetProfile`由请求入口原子解析，driver只把精确projection下发：HIR不接target；LIR接`lir_target`；Scoop codegen接`lir_target + backend`；generated bridge producer接`lir_target + c_bridge_toolchain`。`runtime_build`与`final_link`在本阶段仅参与请求整体兼容性证明，不传给current-Cone pipeline，也不进入`.slib`，除非某个实际generated bridge section按第11.5节记录C-bridge production contract。
 
@@ -527,22 +523,21 @@ root entry descriptor不得复用表示static-storage registration的`rr`符号�
 
 ## 7. `scoop.core`独立artifact
 
-### 7.1 trusted sysroot slot
+### 7.1 默认core查找位置
 
-sysroot resolver返回：
+sysroot resolver返回普通路径布局：
 
 ```text
-TrustedCoreSlot {
-    source: TrustedCoreSourceSlot,
-    artifact: TrustedCoreArtifactSlot,
-    expected_coordinate: ConeCoordinate::CORE,
-    toolchain_compatibility: CompositeIdentityAbiFingerprint,
+TrustedCoreSlotLayoutV1 {
+    source_root: PathBuf,
+    artifact_root: PathBuf,
+    artifact: PathBuf,
 }
 ```
 
-slot的host布局是安装策略，不进入identity。M23-3 workspace adapter把source固定映射到`<sysroot>/lib/scoop.core`，artifact固定映射到`<sysroot>/artifacts/<target-profile-id>/scoop.core.slib`；这些片段只存在于driver的sysroot resolver，semantic代码不能拼接字符串。`SCOOP_SYSROOT`若保留，只选择整套受信安装根，不授权一个普通dependency path成为core。resolver先canonicalize整套sysroot、以trusted-core manifest入口验证source slot，再产生字段私有的`TrustedCoreSlot`；bootstrap可允许artifact尚不存在，普通消费则要求请求path与该slot解析为同一regular file。
+sysroot布局只是默认查找策略，不进入identity。driver只由配置根和target派生source与artifact路径，不构造源码/产物slot授权对象，不读取source来授权artifact。普通消费允许仅安装core `.slib`而没有core源码；编译默认core源目录时才使用通用manifest loader。所有core与用户manifest共用同一parser，所需coordinate/kind由普通依赖locator或实际typed IR角色检查。
 
-trusted source manifest必须声明exact core coordinate、`kind=library`、无dependency；它本身不能写“intrinsic=true”。`IntrinsicAuthority::Core`只来自`CoreBootstrapAuthority` sidecar。bootstrap artifact也不持久化一个可被复制来伪造authority的bool。
+当前manifest parser仍要求core声明`kind=library`且无dependency；这些现存限制的后续清理由core普通library工作项跟踪。默认依赖查找要求声明的coordinate与请求一致，与其他依赖使用同一检查。`@Intrinsic`由前端识别并正规化为typed IR，不依赖源码路径或resolver签发的sidecar。
 
 ### 7.2 bootstrap
 
@@ -556,18 +551,14 @@ core bootstrap执行普通manifest discovery和同一parser→HIR→MIR→LIR→
 
 bootstrap失败时不保留或覆盖旧slot artifact。普通`scoopc`请求不会因slot缺失/stale而自行bootstrap；M23-4的trusted orchestration负责先显式发起bootstrap，再把成功artifact交给dependent。
 
-HIR侧source-only输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先拒绝非reserved-core
-Cone；driver只能从`ParsedCoreBootstrapBuildRequest`投影更强的`TrustedCoreBootstrapHirInput`，后者同时借用原
-resolver `CoreBootstrapAuthority`和必须接收最终产物的精确`TrustedCoreArtifactSlot`，逐项验证path、target和
-toolchain compatibility仍与authority一致。普通parsed variant没有该投影API。随后该driver input调用
-`lower_core_bootstrap`，直接沿原子source view建立当前core的source/provider表，并以固定`CoreOnly` intrinsic策略
-运行lowerer；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到另一个
-可重新配对的公开输入。lowerer在没有ordinary current-unit时以canonical首个core source作为output/诊断主source，
-输出Cone仍由全部core source共同证明为reserved core。driver的authority-bearing入口不返回可被重新配对的裸
-`hir::Output`，而是原子构造`TrustedCoreBootstrapHirOutput`；其私有字段同时持有HIR、固定的`Library`
-`ConeOutputKind`以及从同一Export HIR派生并验证成功的`CoreBootstrapInterfaceSectionV1`。任一lowering诊断或
-production section构造错误都不会产生partial HIR stage成功值，后续stage也不能把core graph改配为executable或
-遗漏mandatory HIR section。
+HIR侧source-only输入为借用`CurrentConeParsedSources`的`CoreBootstrapSources`，其构造首先检查当前Cone。
+当前driver的`TrustedCoreBootstrapHirOutput::lower`直接接收已解析源码并调用`lower_core_bootstrap`，不再经过
+绑定source/output路径的输入包装。lowerer沿原子source view建立当前core的source/provider表，以`CoreOnly`
+intrinsic策略运行；它不构造`LegacyCombinedSources`，不注入伪current-unit source，也不把core AST/text复制到
+另一个可重新配对的公开输入。没有ordinary current-unit时以canonical首个core source作为output/诊断主source。
+当前专用HIR product仍原子持有HIR、`Library`输出种类和从同一Export HIR派生的
+`CoreBootstrapInterfaceSectionV1`；任一lowering诊断或production section构造错误都不会产生partial stage成功值。
+这些专用stage product和普通pipeline的后续合并由core普通library工作项跟踪。
 
 进入MIR时，driver只暴露消费上述sealed HIR product的`lower_mir(self)`；它在同一原子操作中运行正式
 `mir-lower`、从结果构造`OdrFreeMirFoundation`并投影mandatory `CoreBootstrapBridgeSectionV1`，成功后返回
@@ -638,13 +629,13 @@ identity判断，不能把`ConeIdentity::CORE`作为整组豁免，也不能用�
 `ParsedCoreBootstrapBuildRequest::build_and_publish(self, temporary_parent, limits)`是bootstrap从parsed request到
 published artifact的唯一终态入口。它按上述顺序消费HIR、MIR、LIR与strong-profile状态，从请求自身唯一派生
 reserved core `ConeRecord { Library, Manifest }`、空dependency、固定compiler producer record、完整target以及
-`empty_core_bootstrap()` external-owner authority，再调用统一object/artifact pipeline并只向同一authority绑定的
-artifact slot发布。调用方不能另传Cone、dependency、producer、output或core owner，也不能在stage之间取得裸对象
+`empty_core_bootstrap()` external-owner authority，再调用统一object/artifact pipeline向请求指定的
+output发布。调用方不能另传Cone、dependency、producer、output或core owner，也不能在stage之间取得裸对象
 路径或assembled bytes；任一stage、object、双视图或publish失败都只返回分层错误且不覆盖slot中的旧artifact。
 
 ### 7.3 core Compile capability
 
-本阶段新增的HIR/MIR section都使用封闭`NotCore | Core`分支。writer只有持有`CoreBootstrapAuthority`，且current Cone为reserved core、source form为Manifest、output为Library、dependency table为空时，才可构造`Core`；普通writer只能构造`NotCore`，不能携带空的伪core表。raw reader只验证`Core`分支的结构与内容关系，不因看见reserved coordinate或该tag就授予authority；consumer仍须从trusted slot单独构造7.4节的`ValidatedTrustedCoreArtifact`。
+当前HIR/MIR section仍使用封闭`NotCore | Core`分支。core producer从实际HIR/MIR构造`Core`内容，普通producer构造`NotCore`；两者都必须保证metadata结构与typed identity一致。该分支不要求源码位置授权或固定输出slot。consumer从请求指定的artifact路径加载，校验metadata、依赖与ABI；当前`ValidatedTrustedCoreArtifact`专用接口的后续合并由core普通library工作项跟踪。
 
 `CoreHirInterfaceV1::Core`包含：
 

@@ -3,72 +3,12 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::ConeCoordinate;
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_manifest::{LoadedConeManifest, ManifestRootError, ManifestRootLocator};
 use scoop_slib::{CompositeIdentityAbiFingerprint, IdentityAbiDescriptor};
 use scoop_toolchain::TrustedCoreSlotLayoutV1;
 use scoop_wire::HashError;
 
 mod artifact;
 pub use artifact::*;
-
-#[derive(Debug)]
-pub struct TrustedCoreSourceSlot {
-    manifest: LoadedConeManifest,
-}
-
-impl TrustedCoreSourceSlot {
-    pub const fn manifest(&self) -> &LoadedConeManifest {
-        &self.manifest
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TrustedCoreArtifactSlot {
-    path: PathBuf,
-    expected_coordinate: ConeCoordinate,
-    target: ValidatedLirTargetSelection,
-    toolchain_compatibility: CompositeIdentityAbiFingerprint,
-}
-
-impl TrustedCoreArtifactSlot {
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    pub const fn expected_coordinate(&self) -> &ConeCoordinate {
-        &self.expected_coordinate
-    }
-
-    pub const fn target(&self) -> ValidatedLirTargetSelection {
-        self.target
-    }
-
-    pub const fn toolchain_compatibility(&self) -> CompositeIdentityAbiFingerprint {
-        self.toolchain_compatibility
-    }
-}
-
-#[derive(Debug)]
-pub struct TrustedCoreSlot {
-    source: TrustedCoreSourceSlot,
-    artifact: TrustedCoreArtifactSlot,
-}
-
-impl TrustedCoreSlot {
-    pub const fn source(&self) -> &TrustedCoreSourceSlot {
-        &self.source
-    }
-
-    pub const fn artifact(&self) -> &TrustedCoreArtifactSlot {
-        &self.artifact
-    }
-
-    pub fn existing_artifact_input(
-        &self,
-    ) -> Result<TrustedCoreArtifactInput, TrustedCoreArtifactInputError> {
-        TrustedCoreArtifactInput::new(self.artifact.path(), self.artifact.target())
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TrustedCoreArtifactInput {
@@ -164,8 +104,6 @@ pub enum TrustedCoreSlotErrorKind {
         source: std::io::Error,
     },
     SysrootNotDirectory,
-    SourceManifest(ManifestRootError),
-    ToolchainCompatibility(HashError),
 }
 
 impl fmt::Display for TrustedCoreSlotError {
@@ -182,10 +120,6 @@ impl fmt::Display for TrustedCoreSlotError {
             TrustedCoreSlotErrorKind::SysrootNotDirectory => {
                 formatter.write_str("resolved sysroot is not a directory")
             }
-            TrustedCoreSlotErrorKind::SourceManifest(error) => error.fmt(formatter),
-            TrustedCoreSlotErrorKind::ToolchainCompatibility(error) => {
-                write!(formatter, "cannot derive toolchain compatibility: {error}")
-            }
         }
     }
 }
@@ -194,8 +128,6 @@ impl std::error::Error for TrustedCoreSlotError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.kind {
             TrustedCoreSlotErrorKind::Io { source, .. } => Some(source),
-            TrustedCoreSlotErrorKind::SourceManifest(error) => Some(error),
-            TrustedCoreSlotErrorKind::ToolchainCompatibility(error) => Some(error),
             TrustedCoreSlotErrorKind::SysrootNotDirectory => None,
         }
     }
@@ -243,7 +175,7 @@ impl std::error::Error for TrustedCoreArtifactInputError {
 
 pub fn resolve_trusted_core_slot(
     target: ValidatedLirTargetSelection,
-) -> Result<TrustedCoreSlot, TrustedCoreSlotError> {
+) -> Result<TrustedCoreSlotLayoutV1, TrustedCoreSlotError> {
     resolve_trusted_core_slot_at(&configured_sysroot_root(), target)
 }
 
@@ -257,7 +189,7 @@ pub(crate) fn configured_sysroot_root() -> PathBuf {
 pub(crate) fn resolve_trusted_core_slot_at(
     sysroot: &Path,
     target: ValidatedLirTargetSelection,
-) -> Result<TrustedCoreSlot, TrustedCoreSlotError> {
+) -> Result<TrustedCoreSlotLayoutV1, TrustedCoreSlotError> {
     let real_sysroot = std::fs::canonicalize(sysroot).map_err(|source| {
         TrustedCoreSlotError::new(
             sysroot.to_path_buf(),
@@ -283,33 +215,7 @@ pub(crate) fn resolve_trusted_core_slot_at(
         ));
     }
 
-    let layout = TrustedCoreSlotLayoutV1::new(&real_sysroot, target);
-    let source_path = layout.source_root().to_path_buf();
-    let source = scoop_manifest::load_trusted_core_manifest(&ManifestRootLocator::cone_directory(
-        &source_path,
-    ))
-    .map_err(|error| {
-        TrustedCoreSlotError::new(source_path, TrustedCoreSlotErrorKind::SourceManifest(error))
-    })?;
-    let toolchain_compatibility = IdentityAbiDescriptor::current()
-        .and_then(IdentityAbiDescriptor::fingerprint)
-        .map_err(|error| {
-            TrustedCoreSlotError::new(
-                real_sysroot.clone(),
-                TrustedCoreSlotErrorKind::ToolchainCompatibility(error),
-            )
-        })?;
-    let artifact_path = layout.artifact().to_path_buf();
-
-    Ok(TrustedCoreSlot {
-        source: TrustedCoreSourceSlot { manifest: source },
-        artifact: TrustedCoreArtifactSlot {
-            path: artifact_path,
-            expected_coordinate: ConeCoordinate::reserved_core(),
-            target,
-            toolchain_compatibility,
-        },
-    })
+    Ok(TrustedCoreSlotLayoutV1::new(&real_sysroot, target))
 }
 
 fn canonical_regular_file(path: &Path) -> Result<PathBuf, TrustedCoreArtifactInputError> {
