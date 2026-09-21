@@ -8,10 +8,10 @@ use scoop_identity::{
 
 use crate::{
     CallableSignatureSubject, CanonicalMirFoundation, CoreBootstrapBridgeSectionV1,
-    CoreMirBridgeBranchV1, EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId,
-    FunctionId, GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId,
-    InitializationUnitId, MirOutput, Module, ObjectId, OdrFreeMirFoundation,
-    SelectedExternalMirSet, SourceExactTypeOwner, StringConstId, Type,
+    EntryMirBridgeBranchV1, ExternFunctionId, ExternalCallableUseId, FunctionId,
+    GeneratedExactTypeLocation, GeneratedExactTypeOwner, GlobalId, InitializationUnitId, MirOutput,
+    Module, ObjectId, OdrFreeMirFoundation, SelectedExternalMirSet, SourceExactTypeOwner,
+    StringConstId, Type,
 };
 
 mod errors;
@@ -80,7 +80,7 @@ pub struct StrongGeneratedNominalShapeRoot {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongExternalCallableRoot {
     callable: ExternalCallableUseId,
-    role: crate::ExternalCallableRole,
+    role: crate::CallableRole,
     provider: ConeIdentity,
     declaration: DependencyCallableDeclarationId,
     implementation: StrongCallableDefinitionOwner,
@@ -89,7 +89,7 @@ pub struct StrongExternalCallableRoot {
 }
 
 impl StrongExternalCallableRoot {
-    pub const fn role(&self) -> crate::ExternalCallableRole {
+    pub const fn role(&self) -> crate::CallableRole {
         self.role
     }
 
@@ -241,16 +241,19 @@ impl SingleConeStrongMirInput {
             return Err(SingleConeStrongMirInputError::FoundationMismatch);
         }
 
-        let expected_bridges =
-            crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation);
-        if production.strong_callable_bridges() != &expected_bridges {
+        if !production
+            .strong_callable_bridges()
+            .matches_foundation(&foundation)
+        {
             return Err(SingleConeStrongMirInputError::StrongCallableSurfaceMismatch);
         }
 
-        validate_core_branch(module.cone, production.core_bridge())?;
+        production
+            .validate_for_artifact(module.cone)
+            .map_err(SingleConeStrongMirInputError::Production)?;
         let external_callable_roots = validate_external_callables(&module, external_callables)?;
         let callable_roots = callable_roots(&module)?;
-        validate_callable_roots(&callable_roots, &expected_bridges)?;
+        validate_callable_roots(&callable_roots, production.strong_callable_bridges())?;
         validate_output(&module, &production, &callable_roots)?;
         let initialization_roots = initialization::validate(&module, &callable_roots)
             .map_err(SingleConeStrongMirInputError::Initialization)?;
@@ -330,18 +333,6 @@ impl SingleConeStrongMirInput {
 
     pub const fn materialization(&self) -> &SingleConeStrongMaterializationPlan {
         &self.materialization
-    }
-}
-
-fn validate_core_branch(
-    producer: scoop_identity::ConeIdentity,
-    branch: &CoreMirBridgeBranchV1,
-) -> Result<(), SingleConeStrongMirInputError> {
-    match (producer == scoop_identity::ConeIdentity::CORE, branch) {
-        (true, CoreMirBridgeBranchV1::Core(_)) | (false, CoreMirBridgeBranchV1::NotCore) => Ok(()),
-        (true, CoreMirBridgeBranchV1::NotCore) | (false, CoreMirBridgeBranchV1::Core(_)) => {
-            Err(SingleConeStrongMirInputError::CoreBranchMismatch)
-        }
     }
 }
 

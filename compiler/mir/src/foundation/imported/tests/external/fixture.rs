@@ -45,14 +45,13 @@ impl Fixture {
             .unwrap();
         let production = CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::CORE,
-            CoreMirBridgeBranchV1::Core(CoreMirBridgeV1::new(
-                CoreMirInitializationCycleThrowerV1::new(cycle, owner).unwrap(),
-            )),
             EntryMirBridgeBranchV1::Library,
             StrongCallableBridgeSurfaceV1::try_new(vec![StrongCallableBridgeV1::new(
                 owner,
                 signature.clone(),
             )])
+            .unwrap()
+            .with_initialization_cycle(cycle)
             .unwrap(),
         )
         .unwrap();
@@ -128,7 +127,6 @@ pub(super) fn seal(
     let foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
-        CoreMirBridgeBranchV1::NotCore,
         EntryMirBridgeBranchV1::Library,
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )
@@ -140,4 +138,46 @@ pub(super) fn seal(
         Vec::new(),
         StrongExternalCallableInput::Selected(dependencies),
     )
+}
+
+#[test]
+fn projection_uses_the_role_of_the_requested_strong_record() {
+    let fixture = Fixture::new();
+    let mut canonical = fixture.foundation.canonical.clone();
+    let mut signatures = canonical.callable_signatures().to_vec();
+    signatures.push(CallableSignatureRecord::new(
+        CallableSignatureSubject::Strong(CallableOwner::Function(fixture.ordinary)),
+        fixture.signature.clone(),
+    ));
+    canonical.set_callable_signatures(signatures).unwrap();
+    let strong = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
+        &OdrFreeMirFoundation::try_new(canonical.clone()).unwrap(),
+    )
+    .with_initialization_cycle(fixture.cycle)
+    .unwrap();
+    let production = CoreBootstrapBridgeSectionV1::try_new(
+        ConeIdentity::CORE,
+        EntryMirBridgeBranchV1::Library,
+        strong,
+    )
+    .unwrap();
+    let imported = imported_foundation(canonical);
+    assert_eq!(
+        imported.project_initialization_cycle_thrower(
+            &production,
+            fixture.ordinary,
+            fixture.signature.clone()
+        ),
+        Err(ImportedMirCallableProjectionError::InitializationCycleRoleMismatch(fixture.ordinary))
+    );
+    assert_eq!(
+        imported
+            .project_initialization_cycle_thrower(
+                &production,
+                fixture.cycle,
+                fixture.signature.clone()
+            )
+            .unwrap(),
+        fixture.cycle_record()
+    );
 }

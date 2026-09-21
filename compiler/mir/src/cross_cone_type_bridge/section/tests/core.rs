@@ -34,15 +34,12 @@ pub(super) fn fixture() -> Fixture {
     )
     .unwrap();
     let (cycle, _) = add_function_to(&mut types, ConeIdentity::CORE, "cycle");
-    let core = crate::CoreMirBridgeV1::new(
-        crate::CoreMirInitializationCycleThrowerV1::new(cycle, CallableOwner::Function(cycle))
-            .unwrap(),
-    );
     let production = crate::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        crate::CoreMirBridgeBranchV1::Core(core),
         crate::EntryMirBridgeBranchV1::Library,
-        crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&types.foundation),
+        crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&types.foundation)
+            .with_initialization_cycle(cycle)
+            .unwrap(),
     )
     .unwrap();
     Fixture {
@@ -106,14 +103,16 @@ fn fixed_core_and_ordinary_callable_partitions_cannot_be_selected_again() {
     let graph = graph(&[&core_provider, &ordinary, &consumer]);
     let core = core_provider.section(&[], &graph).unwrap();
     let old = ordinary.section(&[], &graph).unwrap();
-    let crate::CoreMirBridgeBranchV1::Core(bridge) = core_provider.production.core_bridge() else {
-        panic!()
+    let bridge = core_provider
+        .production
+        .strong_callable_bridges()
+        .initialization_cycle()
+        .unwrap();
+    let CallableOwner::Function(cycle) = bridge.implementation() else {
+        panic!("cycle function")
     };
     for (provider, target) in [
-        (
-            core_provider.source.provider,
-            bridge.initialization_cycle_thrower().definition(),
-        ),
+        (core_provider.source.provider, cycle),
         (ordinary.source.provider, function),
     ] {
         consumer.source.uses = vec![MirTypeBridgeDependencyV1::new(

@@ -6,31 +6,31 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-pub use scoop_identity::ExternalCallableRole;
+pub use scoop_identity::CallableRole;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SelectedExternalMirCallable {
     record: SelectedDependencyMirCallableV1,
-    role: ExternalCallableRole,
+    role: CallableRole,
 }
 
 impl SelectedExternalMirCallable {
     pub(super) fn dependency(record: SelectedDependencyMirCallableV1) -> Self {
         Self {
             record,
-            role: ExternalCallableRole::Dependency,
+            role: CallableRole::Ordinary,
         }
     }
     pub(super) fn initialization_cycle(record: SelectedDependencyMirCallableV1) -> Self {
         Self {
             record,
-            role: ExternalCallableRole::InitializationCycle,
+            role: CallableRole::InitializationCycle,
         }
     }
     pub const fn record(&self) -> &SelectedDependencyMirCallableV1 {
         &self.record
     }
-    pub const fn role(&self) -> ExternalCallableRole {
+    pub const fn role(&self) -> CallableRole {
         self.role
     }
     pub const fn provider(&self) -> ConeIdentity {

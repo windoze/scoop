@@ -41,7 +41,7 @@ pub enum ExternalCallableOrigin {
 impl ExternalCallable {
     pub(crate) fn new(
         selected: SelectedDependencyLirCallableV1,
-        role: crate::ExternalCallableRole,
+        role: crate::CallableRole,
         signature: ScoopAbiSignature,
     ) -> Result<Self, ExternalCallableBuildError> {
         let bridge = selected.bridge();
@@ -60,10 +60,10 @@ impl ExternalCallable {
             .map_err(ExternalCallableBuildError::Identity)?;
         Ok(Self {
             origin: match role {
-                crate::ExternalCallableRole::Dependency => {
+                crate::CallableRole::Ordinary => {
                     ExternalCallableOrigin::Legacy(bridge.declaration())
                 }
-                crate::ExternalCallableRole::InitializationCycle => {
+                crate::CallableRole::InitializationCycle => {
                     ExternalCallableOrigin::InitializationCycle
                 }
             },

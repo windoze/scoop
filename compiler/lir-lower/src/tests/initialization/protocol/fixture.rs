@@ -45,11 +45,8 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
         .clone();
     let core_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        mir::CoreMirBridgeBranchV1::Core(mir::CoreMirBridgeV1::new(
-            mir::CoreMirInitializationCycleThrowerV1::new(definition, implementation).unwrap(),
-        )),
         mir::EntryMirBridgeBranchV1::Library,
-        strong,
+        strong.with_initialization_cycle(definition).unwrap(),
     )
     .unwrap();
     let core_input = mir::SingleConeStrongMirInput::try_new(
@@ -120,7 +117,6 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
     let ordinary_foundation = mir::OdrFreeMirFoundation::from_module(&ordinary_module).unwrap();
     let ordinary_production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::SINGLE_FILE,
-        mir::CoreMirBridgeBranchV1::NotCore,
         mir::EntryMirBridgeBranchV1::Library,
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&ordinary_foundation),
     )

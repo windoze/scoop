@@ -59,7 +59,6 @@ pub enum StrongLirLoweringError {
         producer: scoop_identity::ConeIdentity,
     },
     MissingCoreCallableMaterialization(scoop_identity::CallableOwner),
-    MissingCoreCallableSignature(scoop_identity::CallableOwner),
     UnsupportedCoreCallableEffect(scoop_identity::CallableOwner),
     UnsupportedCoreCallableReceiver(scoop_identity::CallableOwner),
     UnsupportedCoreCallableOwner(scoop_identity::CallableOwner),
@@ -138,9 +137,6 @@ impl fmt::Display for StrongLirLoweringError {
                     "core callable {owner:?} has no strong materialization"
                 )
             }
-            Self::MissingCoreCallableSignature(owner) => {
-                write!(formatter, "core callable {owner:?} has no exact signature")
-            }
             Self::UnsupportedCoreCallableEffect(owner) => write!(
                 formatter,
                 "core callable {owner:?} has an unsupported suspend ABI"
@@ -177,7 +173,6 @@ impl std::error::Error for StrongLirLoweringError {
             | Self::MissingExternalResultType { .. }
             | Self::MissingRuntimeStringDescriptor { .. }
             | Self::RuntimeStringDescriptorOwnership { .. }
-            | Self::MissingCoreCallableSignature(_)
             | Self::UnsupportedCoreCallableEffect(_)
             | Self::UnsupportedCoreCallableReceiver(_)
             | Self::UnsupportedCoreCallableOwner(_) => None,

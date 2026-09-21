@@ -170,7 +170,6 @@ pub(super) fn seal(
     let foundation = OdrFreeMirFoundation::from_module(&module).unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
-        CoreMirBridgeBranchV1::NotCore,
         EntryMirBridgeBranchV1::Library,
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )

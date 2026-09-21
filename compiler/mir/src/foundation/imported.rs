@@ -1,9 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, CoreImportedCallableKind, ExactCallableSignature,
-    ImportedIdentityId, ImportedIdentityMap, MirIdentityLayer, PersistentFunctionId, PersistentId,
-    StrongCallableDefinitionOwner,
+    CallableOwner, ConeIdentity, ExactCallableSignature, ImportedIdentityId, ImportedIdentityMap,
+    MirIdentityLayer, PersistentFunctionId, PersistentId, StrongCallableDefinitionOwner,
 };
 use scoop_wire::WireEncode;
 
@@ -79,19 +78,22 @@ impl ImportedMirFoundation {
         definition: PersistentFunctionId,
         signature: ExactCallableSignature,
     ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
-        let kind = CoreImportedCallableKind::InitializationCycleThrower;
         if self.origin() != ConeIdentity::CORE {
             return Err(ImportedMirCallableProjectionError::FoundationNotCore(
                 self.origin(),
             ));
         }
-        let crate::CoreMirBridgeBranchV1::Core(core_bridge) = production.core_bridge() else {
-            return Err(ImportedMirCallableProjectionError::MissingCoreBridge);
-        };
-        let bridge = core_bridge.initialization_cycle_thrower();
         let implementation = CallableOwner::Function(definition);
-        if bridge.definition() != definition || bridge.implementation() != implementation {
-            return Err(ImportedMirCallableProjectionError::CallableMismatch(kind));
+        let bridge = production
+            .strong_callable_bridges()
+            .get(implementation)
+            .ok_or(ImportedMirCallableProjectionError::MissingStrongSignature(
+                definition,
+            ))?;
+        if bridge.role() != crate::CallableRole::InitializationCycle {
+            return Err(
+                ImportedMirCallableProjectionError::InitializationCycleRoleMismatch(definition),
+            );
         }
         self.project_checked_callable(production, definition, implementation, signature)
     }
@@ -154,8 +156,7 @@ impl WireEncode for ImportedMirFoundation {
 pub enum ImportedMirCallableProjectionError {
     CallableShape(crate::ParamFreeMirCallableBuildError),
     FoundationNotCore(ConeIdentity),
-    MissingCoreBridge,
-    CallableMismatch(CoreImportedCallableKind),
+    InitializationCycleRoleMismatch(PersistentFunctionId),
     MissingStrongSignature(PersistentFunctionId),
     StrongSignatureMismatch(PersistentFunctionId),
 }

@@ -323,7 +323,6 @@ fn dependency_input(
     let foundation = mir::OdrFreeMirFoundation::from_module(&module).unwrap();
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
-        mir::CoreMirBridgeBranchV1::NotCore,
         mir::EntryMirBridgeBranchV1::Library,
         mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )

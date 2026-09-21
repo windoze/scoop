@@ -1,31 +1,31 @@
 //! Selected canonical callable data shared by all external LIR materialization.
 
 use crate::{ParamFreeLirCallableExportV1, SelectedDependencyLirCallableV1};
-pub use scoop_identity::ExternalCallableRole;
+pub use scoop_identity::CallableRole;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SelectedExternalLirCallable {
     record: SelectedDependencyLirCallableV1,
-    role: ExternalCallableRole,
+    role: CallableRole,
 }
 
 impl SelectedExternalLirCallable {
     pub(super) fn dependency(record: SelectedDependencyLirCallableV1) -> Self {
         Self {
             record,
-            role: ExternalCallableRole::Dependency,
+            role: CallableRole::Ordinary,
         }
     }
     pub(super) fn initialization_cycle(record: SelectedDependencyLirCallableV1) -> Self {
         Self {
             record,
-            role: ExternalCallableRole::InitializationCycle,
+            role: CallableRole::InitializationCycle,
         }
     }
     pub const fn record(&self) -> &SelectedDependencyLirCallableV1 {
         &self.record
     }
-    pub const fn role(&self) -> ExternalCallableRole {
+    pub const fn role(&self) -> CallableRole {
         self.role
     }
     pub const fn provider(&self) -> scoop_identity::ConeIdentity {

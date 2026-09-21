@@ -11,14 +11,12 @@ impl<'a> MirTypeBridgeLocalAuthorityV1<'a> {
         {
             return Err(Error::ProviderContext);
         }
-        if self.ordinary().artifact() != self.provider()
-            || matches!(
-                self.production().core_bridge(),
-                crate::CoreMirBridgeBranchV1::Core(_)
-            ) != (self.provider() == ConeIdentity::CORE)
-        {
+        if self.ordinary().artifact() != self.provider() {
             return Err(Error::ProviderContext);
         }
+        self.production()
+            .validate_for_artifact(self.provider())
+            .map_err(|_| Error::ProviderContext)?;
         let foundation = self.foundation().as_canonical().callable_signatures();
         let surface = self.production().strong_callable_bridges().bridges();
         meter.charge_work(surface.len() as u64, &WirePath::root())?;
@@ -44,18 +42,19 @@ impl<'a> MirTypeBridgeLocalAuthorityV1<'a> {
         self,
         meter: &mut BudgetMeter,
     ) -> Result<Vec<StrongCallableDefinitionOwner>, MirTypeBridgeSectionError<E>> {
-        let core_count = match self.production().core_bridge() {
-            crate::CoreMirBridgeBranchV1::Core(_) => 1_usize,
-            crate::CoreMirBridgeBranchV1::NotCore => 0,
-        };
-        let count = core_count
+        let cycle = self
+            .production()
+            .strong_callable_bridges()
+            .initialization_cycle();
+        let count = usize::from(cycle.is_some())
             .checked_add(self.ordinary().exports().len())
             .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
         let mut targets = reserve(count, meter)?;
-        if let crate::CoreMirBridgeBranchV1::Core(core) = self.production().core_bridge() {
-            targets.push(StrongCallableDefinitionOwner::Function(
-                core.initialization_cycle_thrower().definition(),
-            ));
+        if let Some(cycle) = cycle {
+            let scoop_identity::CallableOwner::Function(definition) = cycle.implementation() else {
+                return Err(MirTypeBridgeSectionError::ProviderContext);
+            };
+            targets.push(StrongCallableDefinitionOwner::Function(definition));
         }
         targets.extend(
             self.ordinary()

@@ -72,10 +72,14 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         validated.production().hir().core_interface(),
         scoop_hir::CoreHirInterfaceBranchV1::NotCore
     ));
-    assert!(matches!(
-        validated.production().mir().core_bridge(),
-        scoop_mir::CoreMirBridgeBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .production()
+            .mir()
+            .strong_callable_bridges()
+            .initialization_cycle()
+            .is_none()
+    );
     assert_eq!(validated.production().lir().external_bridges(), &external);
     let _ = validated.link_identity_closure_wire();
     let _ = validated.production_manifest_wire();
@@ -699,7 +703,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         let hir_proof = scoop_hir::OdrFreeHirFoundation::try_new(hir_foundation).unwrap();
         let mir_proof = scoop_mir::OdrFreeMirFoundation::try_new(mir_foundation).unwrap();
         let hir_production = decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
-            &empty_not_core_library_section(),
+            &empty_hir_library_section(),
             DecodeLimits::default(),
         )
         .unwrap()
@@ -707,7 +711,6 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
         .unwrap();
         let mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
             cone().identity(),
-            scoop_mir::CoreMirBridgeBranchV1::NotCore,
             scoop_mir::EntryMirBridgeBranchV1::Library,
             scoop_mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&mir_proof),
         )
@@ -743,7 +746,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
             MetadataLocation::Hir,
             hir_core_bootstrap_interface_capability(),
             MemberPurposeSet::COMPILE,
-            empty_not_core_library_section(),
+            empty_hir_library_section(),
         )
         .unwrap(),
     ];
@@ -759,7 +762,7 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
             MetadataLocation::Mir,
             mir_core_bootstrap_bridge_capability(),
             MemberPurposeSet::COMPILE,
-            empty_not_core_library_section(),
+            empty_mir_library_section(),
         )
         .unwrap(),
     ];
@@ -895,7 +898,7 @@ fn build_artifact(
                 MetadataLocation::Hir,
                 hir_core_bootstrap_interface_capability(),
                 MemberPurposeSet::COMPILE,
-                empty_not_core_library_section(),
+                empty_hir_library_section(),
             )
             .unwrap(),
         );
@@ -912,7 +915,7 @@ fn build_artifact(
             MetadataLocation::Mir,
             mir_core_bootstrap_bridge_capability(),
             MemberPurposeSet::COMPILE,
-            empty_not_core_library_section(),
+            empty_mir_library_section(),
         )
         .unwrap(),
     ];
@@ -1210,7 +1213,7 @@ pub(super) fn cone() -> ConeRecord {
     .unwrap()
 }
 
-fn empty_not_core_library_section() -> Vec<u8> {
+fn empty_hir_library_section() -> Vec<u8> {
     vec![
         0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
     ]
@@ -1658,6 +1661,18 @@ pub(super) fn c_bridge_profile() -> CBridgeToolchainProfileV1 {
         )
         .unwrap(),
         AppleClangCompilerIdentityV1::new(21, 0, 0, "clang-2100.1.1.101").unwrap(),
+    )
+    .unwrap()
+}
+
+fn empty_mir_library_section() -> Vec<u8> {
+    encode(
+        &scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
+            cone().identity(),
+            scoop_mir::EntryMirBridgeBranchV1::Library,
+            scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
+        )
+        .unwrap(),
     )
     .unwrap()
 }

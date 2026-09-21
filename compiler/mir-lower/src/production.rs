@@ -2,8 +2,7 @@ use std::fmt;
 
 use scoop_hir::{CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1};
 use scoop_mir::{
-    CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1,
-    CoreMirBridgeV1, CoreMirInitializationCycleThrowerV1, MirProductionBuildError,
+    CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, MirProductionBuildError,
     OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
 };
 
@@ -19,24 +18,19 @@ pub fn lower_production_section(
 ) -> Result<CoreBootstrapBridgeSectionV1, MirProductionLoweringError> {
     let strong_callable_bridges =
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation);
-    let core_bridge = lower_core_bridge(hir, &strong_callable_bridges)?;
+    let strong_callable_bridges = lower_callable_roles(hir, strong_callable_bridges)?;
     let entry_bridge = lower_entry_bridge(hir.output_contract())
         .map_err(MirProductionLoweringError::Production)?;
-    CoreBootstrapBridgeSectionV1::try_new(
-        artifact,
-        core_bridge,
-        entry_bridge,
-        strong_callable_bridges,
-    )
-    .map_err(MirProductionLoweringError::Production)
+    CoreBootstrapBridgeSectionV1::try_new(artifact, entry_bridge, strong_callable_bridges)
+        .map_err(MirProductionLoweringError::Production)
 }
 
-fn lower_core_bridge(
+fn lower_callable_roles(
     hir: &CoreBootstrapInterfaceSectionV1,
-    strong: &StrongCallableBridgeSurfaceV1,
-) -> Result<CoreMirBridgeBranchV1, MirProductionLoweringError> {
+    strong: StrongCallableBridgeSurfaceV1,
+) -> Result<StrongCallableBridgeSurfaceV1, MirProductionLoweringError> {
     let CoreHirInterfaceBranchV1::Core(interface) = hir.core_interface() else {
-        return Ok(CoreMirBridgeBranchV1::NotCore);
+        return Ok(strong);
     };
 
     let cycle = interface
@@ -63,10 +57,9 @@ fn lower_core_bridge(
     if cycle_signature != &expected_cycle_signature {
         return Err(MirProductionLoweringError::InitializationCycleSignatureMismatch);
     }
-    let cycle = CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
-        .map_err(MirProductionLoweringError::Production)?;
-
-    Ok(CoreMirBridgeBranchV1::Core(CoreMirBridgeV1::new(cycle)))
+    strong
+        .with_initialization_cycle(cycle_definition)
+        .map_err(MirProductionLoweringError::Production)
 }
 
 /// Projects the sealed HIR output branch without dropping any part of the

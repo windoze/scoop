@@ -198,7 +198,6 @@ fn seal_strong_input(mut module: mir::Module) -> mir::SingleConeStrongMirInput {
     };
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         module.cone,
-        mir::CoreMirBridgeBranchV1::NotCore,
         entry_bridge,
         strong_callable_bridges,
     )

@@ -18,7 +18,7 @@ fn bridge_section_has_a_fixed_wire_vector_and_validates_against_mir() {
     let fixture = fixture();
     assert_eq!(
         hex(&encode(&fixture.section).unwrap()),
-        "a301a2000201a103a201582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a100010382a201a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dca201a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
+        "a202a100010382a301a2000101582030e4b1927a81fbe498d6b5e02580f89a3da5912f818139892760a6c6ea037df102a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0301a301a2000101582098e824248002f28e6d3b39a8b68c54c2baaf96b7afae9ba5812f2f22f4b2ddb502a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0302"
     );
 
     let (mut identities, foundation) = validate_foundations(&fixture);
@@ -31,17 +31,11 @@ fn bridge_section_has_a_fixed_wire_vector_and_validates_against_mir() {
 #[test]
 fn bridge_reader_rejects_non_closed_products_and_sums() {
     for bytes in [
-        vec![0xa2],
-        vec![0xa4],
-        vec![
-            0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x04, 0x80,
-        ],
-        vec![
-            0xa3, 0x01, 0xa1, 0x00, 0x03, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
-        ],
-        vec![
-            0xa3, 0x01, 0xa2, 0x00, 0x01, 0x01, 0x00, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
-        ],
+        vec![0xa1],
+        vec![0xa3],
+        vec![0xa2, 0x01, 0xa1, 0x00, 0x01, 0x03, 0x80],
+        vec![0xa2, 0x02, 0xa1, 0x00, 0x03, 0x03, 0x80],
+        vec![0xa2, 0x02, 0xa2, 0x00, 0x01, 0x01, 0x00, 0x03, 0x80],
     ] {
         assert!(
             decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(
@@ -54,11 +48,12 @@ fn bridge_reader_rejects_non_closed_products_and_sums() {
 }
 
 #[test]
-fn reader_rejects_removed_core_callable_and_shape_tables() {
-    for field in [1, 2] {
+fn reader_rejects_removed_core_production_field() {
+    for old_branch in [vec![0xa1, 0x00, 0x01], vec![0xa2, 0x00, 0x02, 0x01, 0xa0]] {
         let mut bytes = encode(&fixture().section).unwrap();
-        assert_eq!(&bytes[..7], &[0xa3, 0x01, 0xa2, 0x00, 0x02, 0x01, 0xa1]);
-        bytes.splice(6..7, [0xa2, field, 0x80]);
+        assert_eq!(bytes[0], 0xa2);
+        bytes[0] = 0xa3;
+        bytes.splice(1..1, std::iter::once(0x01).chain(old_branch));
         let error = decode_canonical::<DecodedCoreBootstrapBridgeSectionV1>(
             &bytes,
             DecodeLimits::default(),
@@ -67,8 +62,8 @@ fn reader_rejects_removed_core_callable_and_shape_tables() {
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 1,
-                actual: 2
+                expected: 2,
+                actual: 3
             }
         );
     }
@@ -78,7 +73,6 @@ fn reader_rejects_removed_core_callable_and_shape_tables() {
 fn validation_requires_total_strong_signature_coverage() {
     let fixture = fixture();
     let invalid = CoreBootstrapBridgeSectionV1 {
-        core_bridge: fixture.section.core_bridge.clone(),
         entry_bridge: fixture.section.entry_bridge.clone(),
         strong_callable_bridges: StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
     };
@@ -99,7 +93,6 @@ fn validation_replays_the_foundation_signature() {
     let wrong_signature =
         ExactCallableSignature::new(Effect::Suspend, None, Vec::new(), fixture.exact_unit);
     let invalid = CoreBootstrapBridgeSectionV1 {
-        core_bridge: fixture.section.core_bridge.clone(),
         entry_bridge: fixture.section.entry_bridge.clone(),
         strong_callable_bridges: StrongCallableBridgeSurfaceV1::try_new(vec![
             StrongCallableBridgeV1::new(
@@ -143,9 +136,10 @@ fn validation_rejects_noncanonical_strong_callable_order() {
     );
     let section = CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        fixture.section.core_bridge.clone(),
         EntryMirBridgeBranchV1::Library,
-        strong_callable_bridges,
+        strong_callable_bridges
+            .with_initialization_cycle(fixture.other_function.id())
+            .unwrap(),
     )
     .unwrap();
     let mut decoded = decode(&section);
@@ -196,9 +190,10 @@ fn validation_joins_mixed_callable_owner_variants_by_subject() {
     ));
     let section = CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        fixture.section.core_bridge.clone(),
         EntryMirBridgeBranchV1::Library,
-        strong_callable_bridges,
+        strong_callable_bridges
+            .with_initialization_cycle(fixture.other_function.id())
+            .unwrap(),
     )
     .unwrap();
     let (mut identities, foundation) = validate_mir(&fixture.hir, &mir);
@@ -210,67 +205,75 @@ fn validation_joins_mixed_callable_owner_variants_by_subject() {
 }
 
 #[test]
-fn builder_closes_core_entry_and_implementation_branches() {
+fn builder_closes_callable_roles_and_entry_implementations() {
     let fixture = fixture();
     let entry = CborIdentityRecord::from_key(source_function("main")).unwrap();
-    assert!(matches!(
+    let unmarked = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
+        &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
+    );
+    assert_eq!(
         CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::CORE,
-            CoreMirBridgeBranchV1::NotCore,
             EntryMirBridgeBranchV1::Library,
-            fixture.section.strong_callable_bridges.clone(),
+            unmarked.clone()
         ),
-        Err(MirProductionBuildError::MissingCoreBridge)
-    ));
-    assert!(matches!(
+        Err(MirProductionBuildError::MissingInitializationCycle)
+    );
+    assert_eq!(
         CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::SINGLE_FILE,
-            fixture.section.core_bridge.clone(),
             EntryMirBridgeBranchV1::Library,
-            fixture.section.strong_callable_bridges.clone(),
+            fixture.section.strong_callable_bridges.clone()
         ),
-        Err(MirProductionBuildError::UnexpectedCoreBridge(
+        Err(MirProductionBuildError::UnexpectedInitializationCycle(
             ConeIdentity::SINGLE_FILE
         ))
-    ));
+    );
+    assert_eq!(
+        unmarked
+            .clone()
+            .with_initialization_cycle(other_function_id()),
+        Err(MirProductionBuildError::MissingStrongInitializationCycle(
+            CallableOwner::Function(other_function_id())
+        ))
+    );
+    assert_eq!(
+        fixture
+            .section
+            .strong_callable_bridges
+            .clone()
+            .with_initialization_cycle(fixture.function.id()),
+        Err(MirProductionBuildError::DuplicateInitializationCycle)
+    );
     assert!(matches!(
         CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::CORE,
-            fixture.section.core_bridge.clone(),
             EntryMirBridgeBranchV1::Executable(Box::new(
                 EntryMirBridgeV1::new(
                     entry_source(&entry, fixture.exact_unit),
-                    CallableOwner::Function(entry.id()),
+                    CallableOwner::Function(entry.id())
                 )
-                .unwrap(),
+                .unwrap()
             )),
-            fixture.section.strong_callable_bridges.clone(),
+            fixture.section.strong_callable_bridges.clone()
         ),
         Err(MirProductionBuildError::CoreMustBeLibrary)
     ));
     assert!(matches!(
-        CoreMirInitializationCycleThrowerV1::new(
-            fixture.function.id(),
-            CallableOwner::Function(other_function_id()),
-        ),
-        Err(MirProductionBuildError::CoreImplementationMismatch { .. })
-    ));
-    assert!(matches!(
         CoreBootstrapBridgeSectionV1::try_new(
             ConeIdentity::SINGLE_FILE,
-            CoreMirBridgeBranchV1::NotCore,
             EntryMirBridgeBranchV1::Executable(Box::new(
                 EntryMirBridgeV1::new(
                     entry_source(&entry, fixture.exact_unit),
-                    CallableOwner::Function(entry.id()),
+                    CallableOwner::Function(entry.id())
                 )
-                .unwrap(),
+                .unwrap()
             )),
-            fixture.section.strong_callable_bridges,
+            unmarked
         ),
         Err(MirProductionBuildError::ForeignEntrySource {
             artifact: ConeIdentity::SINGLE_FILE,
-            entry: ConeIdentity::CORE,
+            entry: ConeIdentity::CORE
         })
     ));
 }
@@ -300,7 +303,6 @@ fn executable_entry_bridge_round_trips_the_complete_hir_proof() {
     );
     let section = CoreBootstrapBridgeSectionV1::try_new(
         artifact,
-        CoreMirBridgeBranchV1::NotCore,
         EntryMirBridgeBranchV1::Executable(Box::new(
             EntryMirBridgeV1::new(source.clone(), CallableOwner::Function(function.id())).unwrap(),
         )),
@@ -310,7 +312,7 @@ fn executable_entry_bridge_round_trips_the_complete_hir_proof() {
     let bytes = encode(&section).unwrap();
     assert_eq!(
         hex(&bytes),
-        "a301a1000102a2000201a201a501582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60258209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde02a200010158209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd0381a201a200010158209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd02a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc"
+        "a202a2000201a201a501582000769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b60258209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd03a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0458205a43bee43f27e5c33d012c1129702324d18dd3856d3158b657383cc2d61c9257055820231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde02a200010158209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd0381a301a200010158209714f93e5ddfe8681524ef2048f90a96e0e87dcbc813b55879c836164da02cdd02a4010102a1000103800458201dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc0301"
     );
 
     let (mut identities, foundation) = validate_mir(&hir, &mir);
@@ -368,183 +370,6 @@ impl scoop_wire::WireEncode for IdOnlyEntryBranch {
     }
 }
 
-fn other_function_id() -> PersistentFunctionId {
-    CborIdentityRecord::from_key(source_function("other"))
-        .unwrap()
-        .id()
-}
-
-fn source_function(name: &str) -> SourceDeclarationKey {
-    source_function_in(ConeIdentity::CORE, name)
-}
-
-fn source_function_in(cone: ConeIdentity, name: &str) -> SourceDeclarationKey {
-    SourceDeclarationKey::function(
-        SourceDeclarationSite::new(
-            cone,
-            PackagePath::root(),
-            DefinitionOwnerChain::top_level(),
-            DeclarationScope::ConeWide,
-        )
-        .unwrap(),
-        CanonicalIdentifier::new(name).unwrap(),
-        0,
-        None,
-        Vec::new(),
-    )
-}
-
-fn entry_source(
-    declaration: &CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    exact_unit: PersistentExactTypeId,
-) -> ExecutableSourceEntryIdentity {
-    ExecutableSourceEntryIdentity::try_new(
-        declaration,
-        ExactOrdinaryNoArgUnitSignature::new(exact_unit),
-    )
-    .unwrap()
-}
-
-fn decode(section: &CoreBootstrapBridgeSectionV1) -> DecodedCoreBootstrapBridgeSectionV1 {
-    decode_canonical(&encode(section).unwrap(), DecodeLimits::default()).unwrap()
-}
-
-struct Fixture {
-    hir: CanonicalHirFoundation,
-    mir: CanonicalMirFoundation,
-    section: CoreBootstrapBridgeSectionV1,
-    function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    other_function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    exact_unit: PersistentExactTypeId,
-}
-
-fn fixture() -> Fixture {
-    let declaration = SourceDeclarationKey::function(
-        SourceDeclarationSite::new(
-            ConeIdentity::CORE,
-            PackagePath::root(),
-            DefinitionOwnerChain::top_level(),
-            DeclarationScope::ConeWide,
-        )
-        .unwrap(),
-        CanonicalIdentifier::new("printLine").unwrap(),
-        0,
-        None,
-        Vec::new(),
-    );
-    let function = CborIdentityRecord::from_key(declaration.clone()).unwrap();
-    let other_function = CborIdentityRecord::from_key(source_function("other")).unwrap();
-    let binding = CborIdentityRecord::from_key(ExportBindingKey::new(
-        ConeIdentity::CORE,
-        PackagePath::root(),
-        CanonicalIdentifier::new("printLine").unwrap(),
-        BindingTarget::function(&declaration).unwrap(),
-    ))
-    .unwrap();
-    let unit_record = CoreBuiltinNominal::Unit.identity_record();
-    let unit_type = unit_record.id();
-    let exact_unit_record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(unit_type)).unwrap();
-    let exact_unit = exact_unit_record.id();
-    let signature = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact_unit);
-
-    let mut hir = CanonicalHirFoundation::empty();
-    hir.set_types(vec![unit_record]).unwrap();
-    hir.set_functions(vec![function.clone(), other_function.clone()])
-        .unwrap();
-    hir.set_exact_types(vec![exact_unit_record]).unwrap();
-    hir.set_export_bindings(vec![binding.clone()]).unwrap();
-
-    let mut mir = CanonicalMirFoundation::empty();
-    mir.set_callable_signatures(vec![
-        CallableSignatureRecord::new(
-            CallableSignatureSubject::Strong(CallableOwner::Function(function.id())),
-            signature.clone(),
-        ),
-        CallableSignatureRecord::new(
-            CallableSignatureSubject::Strong(CallableOwner::Function(other_function.id())),
-            signature.clone(),
-        ),
-    ])
-    .unwrap();
-    let strong_callable_bridges = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
-        &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
-    );
-    let core_bridge = CoreMirBridgeV1::new(
-        CoreMirInitializationCycleThrowerV1::new(
-            other_function.id(),
-            CallableOwner::Function(other_function.id()),
-        )
-        .unwrap(),
-    );
-    let section = CoreBootstrapBridgeSectionV1::try_new(
-        ConeIdentity::CORE,
-        CoreMirBridgeBranchV1::Core(core_bridge),
-        EntryMirBridgeBranchV1::Library,
-        strong_callable_bridges,
-    )
-    .unwrap();
-
-    Fixture {
-        hir,
-        mir,
-        section,
-        function,
-        other_function,
-        exact_unit,
-    }
-}
-
-fn validate_foundations(fixture: &Fixture) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
-    validate_mir(&fixture.hir, &fixture.mir)
-}
-
-fn generated_callable_sorting_before(
-    function: PersistentFunctionId,
-) -> CborIdentityRecord<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableKey> {
-    for ordinal in 0..1_000 {
-        let record = CborIdentityRecord::from_key(GeneratedCallableKey::Lexical {
-            parent: LexicalCallableParent::function(function),
-            role: LexicalCallableRole::LambdaBody,
-            path: StructuralDefinitionPath::from_first(
-                StructuralPathSegment::new(StructuralDefinitionSiteRole::Lambda, ordinal),
-                [],
-            ),
-        })
-        .unwrap();
-        if record.id().as_array() < function.as_array() {
-            return record;
-        }
-    }
-    panic!("expected a generated callable sorting before the source function")
-}
-
-fn validate_mir(
-    hir: &CanonicalHirFoundation,
-    mir: &CanonicalMirFoundation,
-) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
-    let hir: scoop_hir::DecodedHirFoundation =
-        decode_canonical(&encode(hir).unwrap(), DecodeLimits::default()).unwrap();
-    let mir: DecodedMirFoundation =
-        decode_canonical(&encode(mir).unwrap(), DecodeLimits::default()).unwrap();
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    pending
-        .register_authority(ConeIdentity::SINGLE_FILE)
-        .unwrap();
-    hir.register_identities(&mut pending).unwrap();
-    mir.register_identities(&mut pending).unwrap();
-    hir.resolve_identities(&mut pending).unwrap();
-    mir.resolve_identities(&mut pending).unwrap();
-    let mut identities = pending.finish().unwrap();
-    let foundation = mir
-        .validate(
-            &mut identities,
-            &mut BudgetMeter::new(DecodeLimits::default()),
-        )
-        .unwrap();
-    (identities, foundation)
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
+mod support;
+use support::*;
+mod roles;

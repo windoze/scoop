@@ -123,16 +123,13 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         &minimal_foundation,
     )
     .unwrap();
-    let scoop_mir::CoreMirBridgeBranchV1::Core(minimal_core_bridge) =
-        minimal_production.core_bridge()
-    else {
-        panic!("the trusted bootstrap MIR production has a core bridge")
-    };
+    let cycle = minimal_production
+        .strong_callable_bridges()
+        .initialization_cycle()
+        .unwrap();
     assert_eq!(
-        minimal_core_bridge
-            .initialization_cycle_thrower()
-            .definition(),
-        cycle_definition
+        cycle.implementation(),
+        scoop_identity::CallableOwner::Function(cycle_definition)
     );
 
     let mut mismatched_signatures = vec![cycle_signature.clone()];
@@ -172,7 +169,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             &minimal_foundation,
         ),
         Err(scoop_mir_lower::MirProductionLoweringError::Production(
-            scoop_mir::MirProductionBuildError::UnexpectedCoreBridge(
+            scoop_mir::MirProductionBuildError::UnexpectedInitializationCycle(
                 scoop_identity::ConeIdentity::SINGLE_FILE
             )
         ))
@@ -215,14 +212,14 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required
         );
     }
-    let scoop_mir::CoreMirBridgeBranchV1::Core(real_core_bridge) =
-        real_mir.production_section().core_bridge()
-    else {
-        panic!("the real trusted bootstrap MIR product has a core bridge")
-    };
+    let cycle = real_mir
+        .production_section()
+        .strong_callable_bridges()
+        .initialization_cycle()
+        .unwrap();
     assert_eq!(
-        real_core_bridge.initialization_cycle_thrower().definition(),
-        cycle_definition
+        cycle.implementation(),
+        scoop_identity::CallableOwner::Function(cycle_definition)
     );
     assert!(expected_shape_roots > 0);
     assert_eq!(

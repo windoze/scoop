@@ -143,10 +143,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     drop(definitions);
     let id = selected_set.initialization_cycle().unwrap();
     let retained = selected_set.callable(id).unwrap();
-    assert_eq!(
-        retained.role(),
-        crate::ExternalCallableRole::InitializationCycle
-    );
+    assert_eq!(retained.role(), crate::CallableRole::InitializationCycle);
     assert_eq!(retained.bridge(), foreign.bridge());
     assert_eq!(selected_set.len(), 1);
     assert_eq!(selected_set.dependency_callables().count(), 0);

@@ -6,7 +6,7 @@ use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 
 use super::{CrossConeMirBridgeSectionV1, SelectedDependencyMirCallableV1};
 mod callable;
-pub use callable::{ExternalCallableRole, SelectedExternalMirCallable};
+pub use callable::{CallableRole, SelectedExternalMirCallable};
 
 /// Request-local index into one validated external selection.
 ///
@@ -192,14 +192,14 @@ impl SelectedExternalMirSet {
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyMirCallableV1> {
         self.callables
             .iter()
-            .filter(|callable| callable.role() == ExternalCallableRole::Dependency)
+            .filter(|callable| callable.role() == CallableRole::Ordinary)
             .map(SelectedExternalMirCallable::record)
     }
 
     pub fn initialization_cycle(&self) -> Option<SelectedExternalMirCallableId> {
         self.callables
             .iter()
-            .position(|callable| callable.role() == ExternalCallableRole::InitializationCycle)
+            .position(|callable| callable.role() == CallableRole::InitializationCycle)
             .map(|index| SelectedExternalMirCallableId(index as u32))
     }
 

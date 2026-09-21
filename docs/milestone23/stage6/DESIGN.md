@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-22 当前清理约定：MIR production 删除独立 CoreMirBridge 与字段1；所有 strong callable 记录使用必需 CallableRole，初始化声明与实现只保存在共有记录中。HIR 协议、MIR foundation 与 LIR 投影按同一 typed 实现和签名核对，旧记录格式拒绝并重建；详见实现规范的当前约定。
+
 M23-6当前约定：MIR初始化服务和普通依赖共用一个完整的`SelectedExternalMirSet`及typed选择引用。初始化角色显式保存，typed bridge与签名检查后进入共有集合，不保留core专用MIR借用凭证或泛型协议sidecar。strong输入使用共有consumer/覆盖/引用校验；旧wire与LIR协议仅在投影边界按角色区分，String与ABI契约保持完整。以`SCOOP-IMPL-SPEC.md`的共有外部调用约定为准。
 
 LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。

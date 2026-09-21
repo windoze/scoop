@@ -61,7 +61,7 @@ fn validate_mir_selections(
             .materialization()
             .external_callable_roots()
             .iter()
-            .filter(|root| root.role() == scoop_identity::ExternalCallableRole::Dependency),
+            .filter(|root| root.role() == scoop_identity::CallableRole::Ordinary),
     );
     roots.sort_unstable_by_key(|root| (root.provider(), root.declaration()));
 

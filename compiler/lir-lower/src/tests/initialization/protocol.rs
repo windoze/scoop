@@ -28,15 +28,10 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         .unwrap()
         .signature()
         .clone();
-    let core = mir::CoreMirBridgeV1::new(
-        mir::CoreMirInitializationCycleThrowerV1::new(cycle_definition, cycle_implementation)
-            .unwrap(),
-    );
     let production = mir::CoreBootstrapBridgeSectionV1::try_new(
         ConeIdentity::CORE,
-        mir::CoreMirBridgeBranchV1::Core(core),
         mir::EntryMirBridgeBranchV1::Library,
-        strong,
+        strong.with_initialization_cycle(cycle_definition).unwrap(),
     )
     .unwrap();
     let input = mir::SingleConeStrongMirInput::try_new(

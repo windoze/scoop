@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+2026-09-22 当前清理约定：MIR production 删除独立 CoreMirBridge 与字段1；所有 strong callable 记录使用必需 CallableRole，初始化声明与实现只保存在共有记录中。HIR 协议、MIR foundation 与 LIR 投影按同一 typed 实现和签名核对，旧记录格式拒绝并重建；详见实现规范的当前约定。
+
 M23-6当前约定：MIR初始化服务和普通依赖共用一个完整的`SelectedExternalMirSet`及typed选择引用。初始化角色显式保存，typed bridge与签名检查后进入共有集合，不保留core专用MIR借用凭证或泛型协议sidecar。strong输入使用共有consumer/覆盖/引用校验；旧wire与LIR协议仅在投影边界按角色区分，String与ABI契约保持完整。以`SCOOP-IMPL-SPEC.md`的共有外部调用约定为准。
 
 LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。
@@ -654,8 +656,7 @@ output发布。调用方不能另传Cone、dependency、producer、output或core
   `ParamFreeStrong`可用性必须再与MIR strong implementation bridge合取，不能由HIR单独授予；
 - exported param-free source nominal的shape-support obligation集合。
 
-`CoreMirBridgeV1::Core`包含HIR callable candidate到实际存在的strong exact signature subject及
-implementation的typed bridge；没有strong body的extern或intrinsic不会被伪造成bridge。
+MIR共有`StrongCallableBridgeV1`保存实际strong实现、exact签名与`CallableRole`；初始化服务由HIR的typed协议声明标记，普通调用保留Ordinary角色。不存在第二份core MIR bridge。
 `CoreLirBridgeV1`位于第9章strong production section，进一步给出每个可导入callable的canonical Scoop ABI、external calling convention、effect/root-plan、persistent symbol request和required callable-body definition；param-free shape-support definition继续由同一section的`shape_support_plan`字段唯一承载，不在callable bridge中复制第二份authority。
 
 这些record由同一`ExportHir`/MIR/LIR正式投影产生，不通过扫描名字、文件顺序或旧core arena补造。普通HIR
@@ -1070,28 +1071,12 @@ core public/prelude target只引用同section中完整typed declaration record�
 
 ```text
 CoreBootstrapBridgeSectionV1 {
-    core_bridge: NotCore | Core(CoreMirBridgeV1),
     entry_bridge: Library | Executable(EntryMirBridgeV1),
     strong_callable_bridges: CanonicalVec<StrongCallableBridgeV1>,
 }
 ```
 
-wire固定为closed product：`1=core_bridge, 2=entry_bridge,
-3=strong_callable_bridges`。`core_bridge`的sum tag为`NotCore=1`、
-`Core(CoreMirBridgeV1)=2`；`entry_bridge`的sum tag为`Library=1`、
-`Executable(EntryMirBridgeV1)=2`。`CoreMirBridgeV1`固定为
-`1=callable_targets, 2=shape_support_roots`。callable元素固定为`1=binding, 2=definition,
-3=implementation`；前两项分别引用HIR core interface中的
-`PersistentExportBindingId`与`PersistentFunctionId`，`implementation`必须逐值等于
-`CallableOwner::Function(definition)`。array按binding bytes严格递增，binding和
-implementation均不得重复。
-
-`shape_support_roots`元素固定为`1=source: PersistentTypeId,
-2=exact: PersistentExactTypeId`，并按source id bytes严格递增。每项exact必须逐值等于
-`ExactTypeKey::Nominal(source)`的派生identity；集合必须完整等于同一HIR core interface中
-`definition=Type && capability=ParamFreeStrong`的source nominal集合。typealias不产生第二项，generic/structural
-target不得混入。该数组是第7.2节in-memory materialization plan跨到LIR所需的typed root通道，不授权把任意exact
-type改写成source-owned strong实体。
+wire为closed product：`2=entry_bridge, 3=strong_callable_bridges`。删除字段1及整个CoreMirBridge；旧三字段格式直接拒绝。entry sum仍为`Library=1`、`Executable(EntryMirBridgeV1)=2`。形状根由共有HIR公共声明与foundation推导，不在该section重复序列化。
 
 `EntryMirBridgeV1`固定为`1=source: ExecutableSourceEntryIdentity, 2=implementation`，
 implementation必须逐值等于`CallableOwner::Function(source.declaration)`。MIR reader从HIR
@@ -1099,7 +1084,7 @@ identity graph重建完整source proof并要求其root Cone等于artifact；旧�
 `PersistentFunctionId`不再解码。`mir-lower`保留完整source proof形成该bridge，`lir-lower`再从已
 验证bridge形成`EntryProductionSourceV1`，两个stage都不得从裸declaration重新拼装或丢弃字段。
 `StrongCallableBridgeV1`固定为
-`1=implementation: CallableOwner, 2=signature: ExactCallableSignature`；其MIR signature
+`1=implementation: CallableOwner, 2=signature: ExactCallableSignature, 3=role: CallableRole`；role以`Ordinary=1`或`InitializationCycle=2`编码，缺失或未知tag拒绝。初始化角色至多一条且必须为source function；core producer必须有该角色，其他producer不得声明。HIR reader核对该角色的typed声明及普通、无receiver的`(String) -> Unit`签名。其MIR signature
 subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementation)`，wire中没有
 可伪造的第二份subject字段。`strong_callable_bridges`按`CallableOwner` canonical顺序完整覆盖
 同一MIR foundation的全部callable signature record；foundation出现ODR subject、缺项、多项、
@@ -1109,18 +1094,11 @@ subject按结构唯一导出为`CallableSignatureSubjectV1::Strong(implementatio
 
 每个callable bridge连接HIR persistent declaration identity、MIR
 `CallableSignatureSubjectV1::Strong`、exact signature与实现origin；subject必须递归回到当前Cone。
-Core分支是HIR `ParamFreeCandidate`与同一MIR foundation中
-`CallableOwner::Function(definition)` strong subject的规范最大交集：candidate不存在对应strong subject时不产生
-bridge并在consumer侧保持implementation unavailable；subject存在但signature不一致时拒绝；存在且signature一致时
-必须且只能出现一次，不能漏项；generic/structural target及generated helper不能混入。entry bridge只能指向当前Cone main。
+普通公共callable通过共有cross-Cone bridge的资格规则导出；初始化角色不创建public binding，不能进入prelude。entry bridge只能指向当前Cone main。
 
 本section不保存machine body、link symbol或object member；这些由LIR决定。
 
-MIR内存中的`SingleConeStrongMaterializationPlan`由本section、同一HIR core/output section和同一MIR foundation
-唯一重建，但不是本section的第四个wire字段。对core，shape root必须逐项等于HIR
-`type_targets`中`definition=Type && capability=ParamFreeStrong`的规范集合；typealias不产生第二个root。对普通Cone，
-core shape root集合必须为空。strong callable、entry与source-owned non-callable root也分别从已有typed graph/section
-重算，调用方不能另传一个“本次想发射哪些实体”的白名单。
+MIR内存中的`SingleConeStrongMaterializationPlan`由实际module、完整foundation、共有production与HIR提交的shape source声明构造，不新增wire字段。所有Cone均按共有声明完整物化source及helper；callable、entry与source-owned non-callable root使用已有typed identity，调用方不能另传任意发射白名单。
 
 ### 9.3 LIR strong production section
 
@@ -1141,16 +1119,7 @@ StrongProductionSectionV1 {
 }
 ```
 
-field 10 `core_lir_bridge`是trusted core producer向普通Cone发布的callable ABI authority。普通Cone必须编码
-`NotCore`；reserved core必须编码`Core`，即使当前可导入callable集合为空也不能用`NotCore`代替。
-`Core` payload按`PersistentExportBindingId`严格递增，每项是closed product：
-`1=binding`、`2=target: StrongCallableDefinitionOwner`、
-`3=abi_signature: CanonicalScoopAbiFunctionSignature`、`4=expected_symbol`、
-`5=calling_convention`、`6=root_plan: ManagedStatepoint | NoGc`、
-`7=required_definition: ObjectDefinitionPlanId`。binding和target均不得重复；symbol、callable body与definition
-必须从target唯一重算并存在于同一ODR-free LIR foundation/canonical definition surface，root plan必须与
-canonical ABI的GC effect一致。reader还必须将该array与同artifact的`CoreMirBridgeV1`逐binding、target、
-exact signature一一核对；不得从decoded LIR字段单独授予core export authority。
+field 10 `core_lir_bridge`当前仅保留初始化服务的旧LIR协议wire，普通callable使用共有cross-Cone bridge。其Core payload的字段2保存初始化记录：`1=target`、`2=abi_signature`、`3=expected_symbol`、`4=calling_convention`、`5=root_plan`、`6=required_definition`。symbol、body与definition从typed target推导并在共有foundation及definition surface验证，root plan须匹配canonical ABI的GC effect。reader与MIR共有strong callable表中的InitializationCycle记录直接核对target和exact签名，不再依赖已删除的CoreMirBridge。
 
 field 5 `StrongRegistrationProductionSurfaceV1`不是仅含identity的摘要，而是artifact-only Link重建
 registration与stackmap proof所需的完整、member-independent authority。其closed product固定为：

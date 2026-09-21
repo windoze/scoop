@@ -457,11 +457,13 @@ fn lower_core_lir_bridge(
     enums: &lir::EnumDefs,
     local_function_map: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> Result<lir::CoreLirBridgeBranchV1, StrongLirLoweringError> {
-    let mir::CoreMirBridgeBranchV1::Core(core) = input.production().core_bridge() else {
+    let Some(cycle) = input
+        .production()
+        .strong_callable_bridges()
+        .initialization_cycle()
+    else {
         return Ok(lir::CoreLirBridgeBranchV1::NotCore);
     };
-
-    let cycle = core.initialization_cycle_thrower();
     let cycle_implementation = cycle.implementation();
     let cycle_root = input
         .materialization()
@@ -471,16 +473,7 @@ fn lower_core_lir_bridge(
         .ok_or(StrongLirLoweringError::MissingCoreCallableMaterialization(
             cycle_implementation,
         ))?;
-    let cycle_exact = input
-        .production()
-        .strong_callable_bridges()
-        .bridges()
-        .iter()
-        .find(|bridge| bridge.implementation() == cycle_implementation)
-        .ok_or(StrongLirLoweringError::MissingCoreCallableSignature(
-            cycle_implementation,
-        ))?
-        .signature();
+    let cycle_exact = cycle.signature();
     if cycle_exact.effect() != scoop_identity::Effect::Ordinary {
         return Err(StrongLirLoweringError::UnsupportedCoreCallableEffect(
             cycle_implementation,

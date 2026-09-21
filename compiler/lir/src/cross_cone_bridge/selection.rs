@@ -5,7 +5,7 @@ use scoop_identity::{ConeIdentity, DependencyCallableDeclarationId};
 
 use super::{CrossConeLirBridgeSectionV1, SelectedDependencyLirCallableV1};
 mod callable;
-pub use callable::{ExternalCallableRole, SelectedExternalLirCallable};
+pub use callable::{CallableRole, SelectedExternalLirCallable};
 
 /// Request-local index into one validated external LIR selection.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -121,14 +121,14 @@ impl SelectedExternalLirSet {
     pub fn dependency_callables(&self) -> impl Iterator<Item = &SelectedDependencyLirCallableV1> {
         self.callables
             .iter()
-            .filter(|callable| callable.role() == ExternalCallableRole::Dependency)
+            .filter(|callable| callable.role() == CallableRole::Ordinary)
             .map(SelectedExternalLirCallable::record)
     }
 
     pub fn initialization_cycle(&self) -> Option<SelectedExternalLirCallableId> {
         self.callables
             .iter()
-            .position(|callable| callable.role() == ExternalCallableRole::InitializationCycle)
+            .position(|callable| callable.role() == CallableRole::InitializationCycle)
             .map(|index| SelectedExternalLirCallableId(index as u32))
     }
 

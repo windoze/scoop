@@ -96,7 +96,7 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
         .unwrap();
     let hir_proof = scoop_hir::OdrFreeHirFoundation::try_new(hir_foundation).unwrap();
     let hir_production = decode_canonical::<scoop_hir::DecodedCoreBootstrapInterfaceSectionV1>(
-        &empty_not_core_library_section(),
+        &empty_hir_library_section(),
         DecodeLimits::default(),
     )
     .unwrap()
@@ -121,7 +121,6 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
             .unwrap();
     let core_mir_production = scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
         cone().identity(),
-        scoop_mir::CoreMirBridgeBranchV1::NotCore,
         scoop_mir::EntryMirBridgeBranchV1::Library,
         scoop_mir::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&mir_proof),
     )

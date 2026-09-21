@@ -81,11 +81,7 @@ pub(crate) fn validate_strong_profile_relations(
         foundation.as_canonical(),
     )
     .map_err(StrongProfileRelationError::ShapeSources)?;
-    validate_core_relation(
-        hir.core_interface(),
-        mir.core_bridge(),
-        mir.strong_callable_bridges(),
-    )
+    validate_core_relation(hir.core_interface(), mir.strong_callable_bridges())
 }
 
 pub(crate) fn validate_strong_profile_lir_production(
@@ -119,7 +115,6 @@ pub(crate) fn validate_strong_profile_lir_production(
         )
         .map_err(StrongProfileLirProductionError::Production)?;
     validate_core_lir_relation(
-        front.mir_production.core_bridge(),
         front.mir_production.strong_callable_bridges(),
         lir.core_lir_bridge(),
     )
@@ -128,19 +123,17 @@ pub(crate) fn validate_strong_profile_lir_production(
 }
 
 fn validate_core_lir_relation(
-    mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
     lir: &CoreLirBridgeBranchV1,
 ) -> Result<(), StrongProfileCoreLirRelationError> {
-    let (CoreMirBridgeBranchV1::Core(mir), CoreLirBridgeBranchV1::Core(lir)) = (mir, lir) else {
-        return match (mir, lir) {
-            (CoreMirBridgeBranchV1::NotCore, CoreLirBridgeBranchV1::NotCore) => Ok(()),
+    let cycle = strong.initialization_cycle();
+    let (Some(cycle), CoreLirBridgeBranchV1::Core(lir)) = (cycle, lir) else {
+        return match (cycle, lir) {
+            (None, CoreLirBridgeBranchV1::NotCore) => Ok(()),
             _ => Err(StrongProfileCoreLirRelationError::BranchMismatch),
         };
     };
-    let mir_cycle = mir.initialization_cycle_thrower();
-    let cycle_implementation = mir_cycle.implementation();
-    let cycle_target = match cycle_implementation {
+    let cycle_target = match cycle.implementation() {
         scoop_identity::CallableOwner::Function(id) => {
             scoop_identity::StrongCallableDefinitionOwner::Function(id)
         }
@@ -150,12 +143,7 @@ fn validate_core_lir_relation(
     if lir_cycle.target() != cycle_target {
         return Err(StrongProfileCoreLirRelationError::InitializationCycleMismatch);
     }
-    let cycle_exact = strong
-        .bridges()
-        .iter()
-        .find(|bridge| bridge.implementation() == cycle_implementation)
-        .ok_or(StrongProfileCoreLirRelationError::MissingInitializationCycleSignature)?;
-    if lir_cycle.abi_signature().signature() != cycle_exact.signature() {
+    if lir_cycle.abi_signature().signature() != cycle.signature() {
         return Err(StrongProfileCoreLirRelationError::InitializationCycleSignatureMismatch);
     }
     Ok(())
@@ -183,13 +171,13 @@ fn validate_output_relation(
 
 pub(super) fn validate_core_relation(
     hir: &CoreHirInterfaceBranchV1,
-    mir: &CoreMirBridgeBranchV1,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
 ) -> Result<(), StrongProfileRelationError> {
-    let (CoreHirInterfaceBranchV1::Core(hir), CoreMirBridgeBranchV1::Core(mir)) = (hir, mir) else {
-        return match (hir, mir) {
-            (CoreHirInterfaceBranchV1::NotCore, CoreMirBridgeBranchV1::NotCore) => Ok(()),
-            _ => Err(StrongProfileRelationError::CoreBranchMismatch),
+    let actual_cycle = strong.initialization_cycle();
+    let (CoreHirInterfaceBranchV1::Core(hir), Some(actual_cycle)) = (hir, actual_cycle) else {
+        return match (hir, actual_cycle) {
+            (CoreHirInterfaceBranchV1::NotCore, None) => Ok(()),
+            _ => Err(StrongProfileRelationError::InitializationCycleRoleMismatch),
         };
     };
 
@@ -199,11 +187,8 @@ pub(super) fn validate_core_relation(
     else {
         return Err(StrongProfileRelationError::InvalidInitializationCycleDefinition);
     };
-    let actual_cycle = mir.initialization_cycle_thrower();
     let expected_implementation = scoop_identity::CallableOwner::Function(cycle_definition);
-    if actual_cycle.definition() != cycle_definition
-        || actual_cycle.implementation() != expected_implementation
-    {
+    if actual_cycle.implementation() != expected_implementation {
         return Err(StrongProfileRelationError::InitializationCycleMismatch);
     }
     let expected_signature = scoop_identity::ExactCallableSignature::new(
@@ -212,12 +197,7 @@ pub(super) fn validate_core_relation(
         vec![hir.string_capability().exact_type()],
         scoop_mir::core_unit_exact_type(),
     );
-    let actual_signature = strong
-        .bridges()
-        .iter()
-        .find(|bridge| bridge.implementation() == expected_implementation)
-        .ok_or(StrongProfileRelationError::MissingInitializationCycleSignature)?;
-    if actual_signature.signature() != &expected_signature {
+    if actual_cycle.signature() != &expected_signature {
         return Err(StrongProfileRelationError::InitializationCycleSignatureMismatch);
     }
     Ok(())

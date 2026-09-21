@@ -106,7 +106,6 @@ pub enum StrongProfileCoreLirRelationError {
     BranchMismatch,
     InvalidInitializationCycleOwner,
     InitializationCycleMismatch,
-    MissingInitializationCycleSignature,
     InitializationCycleSignatureMismatch,
 }
 
@@ -125,10 +124,9 @@ impl std::error::Error for StrongProfileCoreLirRelationError {}
 pub enum StrongProfileRelationError {
     ShapeSources(PublicNominalShapeProjectionError),
     OutputMismatch,
-    CoreBranchMismatch,
+    InitializationCycleRoleMismatch,
     InvalidInitializationCycleDefinition,
     InitializationCycleMismatch,
-    MissingInitializationCycleSignature,
     InitializationCycleSignatureMismatch,
 }
 

@@ -21,10 +21,9 @@ use scoop_lir::{
     StrongProductionSectionValidationError,
 };
 use scoop_mir::{
-    CoreBootstrapBridgeSectionV1, CoreMirBridgeBranchV1, DecodedCoreBootstrapBridgeSectionV1,
-    DecodedMirFoundation, EntryMirBridgeBranchV1, ImportedMirFoundation,
-    MirFoundationValidationError, MirProductionValidationError, OdrFreeMirFoundation,
-    OdrFreeMirFoundationError,
+    CoreBootstrapBridgeSectionV1, DecodedCoreBootstrapBridgeSectionV1, DecodedMirFoundation,
+    EntryMirBridgeBranchV1, ImportedMirFoundation, MirFoundationValidationError,
+    MirProductionValidationError, OdrFreeMirFoundation, OdrFreeMirFoundationError,
 };
 use scoop_wire::DecodeUsage;
 

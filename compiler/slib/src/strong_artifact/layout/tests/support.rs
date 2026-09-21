@@ -79,7 +79,6 @@ pub(super) fn mir_sections(
         CrossConeMirBridgeSectionV1::try_new(provider, &foundation, vec![], vec![]).unwrap();
     let production = CoreBootstrapBridgeSectionV1::try_new(
         provider,
-        CoreMirBridgeBranchV1::NotCore,
         EntryMirBridgeBranchV1::Library,
         StrongCallableBridgeSurfaceV1::from_odr_free_foundation(&foundation),
     )

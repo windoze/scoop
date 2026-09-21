@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    ExternalCallableRole, SelectedDependencyMirCallableV1, SelectedExternalMirSet,
+    CallableRole, SelectedDependencyMirCallableV1, SelectedExternalMirSet,
     SingleConeStrongMirInputError, StrongExternalCallableInput,
 };
 use scoop_identity::DependencyCallableDeclarationId;
@@ -24,7 +24,7 @@ fn mixed_core_calls_share_one_arena_and_preserve_selection_and_effect() {
                 .resolve_callable(value.reference())
                 .unwrap()
                 .role(),
-            ExternalCallableRole::Dependency
+            CallableRole::Ordinary
         ));
         assert_eq!(value.gc_effect(), GcEffect::NoGc);
         let (protocol, value) = callables.next().unwrap();
@@ -33,7 +33,7 @@ fn mixed_core_calls_share_one_arena_and_preserve_selection_and_effect() {
                 .resolve_callable(value.reference())
                 .unwrap()
                 .role(),
-            ExternalCallableRole::InitializationCycle
+            CallableRole::InitializationCycle
         ));
         assert_eq!(value.gc_effect(), GcEffect::Managed);
         (ordinary, protocol)

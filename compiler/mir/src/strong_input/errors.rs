@@ -36,9 +36,9 @@ pub enum SingleConeStrongMirInputError {
     },
     Initialization(super::StrongInitializationUnitError),
     Foundation(MirFoundationBuildError),
+    Production(crate::MirProductionBuildError),
     FoundationMismatch,
     StrongCallableSurfaceMismatch,
-    CoreBranchMismatch,
     NonCanonicalShapeSupportSource {
         index: usize,
         previous: PersistentTypeId,
@@ -91,6 +91,7 @@ impl std::error::Error for SingleConeStrongMirInputError {
         match self {
             Self::Initialization(source) => Some(source),
             Self::Foundation(source) => Some(source),
+            Self::Production(source) => Some(source),
             Self::ShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::ShapeSupportExactIdentity { error, .. } => Some(error),
             Self::MissingExternalCallableSelection
@@ -103,7 +104,6 @@ impl std::error::Error for SingleConeStrongMirInputError {
             | Self::DuplicateExternalImplementation { .. }
             | Self::FoundationMismatch
             | Self::StrongCallableSurfaceMismatch
-            | Self::CoreBranchMismatch
             | Self::NonCanonicalShapeSupportSource { .. }
             | Self::InvalidShapeSupportSource { .. }
             | Self::MissingCallableSubject(_)

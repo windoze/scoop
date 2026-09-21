@@ -36,7 +36,7 @@ pub use entity::{
     BindingResolver, BindingRole, BindingTarget, BindingTargetError, CallableApplicationKey,
     CallableApplicationResolutionError, CallableArguments, CallableBodyKey, CallableBodyKeyKind,
     CallableBodyResolutionError, CallableInstantiationOwner, CallableMaterialization,
-    CallableMaterializationContext, CallableTemplateOrigin, CallableTemplateOwner,
+    CallableMaterializationContext, CallableRole, CallableTemplateOrigin, CallableTemplateOwner,
     CallbackApplicationIdentityError, CallbackApplicationKey, CallbackIdentityResolutionError,
     CallbackParameterIndex, CallbackRegistrationKey, CoreBuiltinNominal, CoreImportedCallableKind,
     CoreNativeBoundaryNominal, DecodedBindableEntity, DecodedCallableApplicationKey,
@@ -48,9 +48,8 @@ pub use entity::{
     DecodedExportBindingKey, DecodedLocalBindingKey, DecodedPropertyAccessorKey,
     DecodedSignatureCallableShape, DecodedStrongCallableDefinitionOwner,
     DependencyCallableDeclarationId, ExecutableSourceEntryIdentity,
-    ExecutableSourceEntryIdentityError, ExportBindingKey, ExternalCallableRole, LocalBindingKey,
-    LocalBindingRole, MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape,
-    StrongCallableDefinitionOwner,
+    ExecutableSourceEntryIdentityError, ExportBindingKey, LocalBindingKey, LocalBindingRole,
+    MainCallableBodyId, PropertyAccessorKey, SignatureCallableShape, StrongCallableDefinitionOwner,
 };
 pub use entity::{
     CDataPointee, CLayoutByteAlignment, CLayoutOverride, CPointerStorage, CanonicalCAbiError,

@@ -3,10 +3,10 @@ use crate::{
     PackagePath, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
-/// Semantic role of an external callable across compiler stages.
+/// Semantic role of a local or external callable across compiler stages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ExternalCallableRole {
-    Dependency,
+pub enum CallableRole {
+    Ordinary,
     InitializationCycle,
 }
 

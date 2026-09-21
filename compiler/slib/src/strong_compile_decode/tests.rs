@@ -117,10 +117,13 @@ fn strong_compile_validates_hir_and_mir_production_sections() {
         validated.hir_production().core_interface(),
         scoop_hir::CoreHirInterfaceBranchV1::NotCore
     ));
-    assert!(matches!(
-        validated.mir_production().core_bridge(),
-        scoop_mir::CoreMirBridgeBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .mir_production()
+            .strong_callable_bridges()
+            .initialization_cycle()
+            .is_none()
+    );
 }
 
 #[test]
@@ -163,17 +166,28 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
     ));
 
     let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
-    let mir = scoop_mir::CoreMirBridgeBranchV1::Core(scoop_mir::CoreMirBridgeV1::new(
-        test_cycle_thrower(),
-    ));
-    let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap();
+    let definition = test_cycle_thrower();
+    let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(vec![
+        scoop_mir::StrongCallableBridgeV1::new(
+            scoop_identity::CallableOwner::Function(definition),
+            scoop_identity::ExactCallableSignature::new(
+                scoop_identity::Effect::Ordinary,
+                None,
+                vec![],
+                scoop_mir::core_unit_exact_type(),
+            ),
+        ),
+    ])
+    .unwrap()
+    .with_initialization_cycle(definition)
+    .unwrap();
     assert_eq!(
-        validate_core_relation(&hir, &mir, &strong,),
-        Err(StrongProfileRelationError::CoreBranchMismatch)
+        validate_core_relation(&hir, &strong),
+        Err(StrongProfileRelationError::InitializationCycleRoleMismatch)
     );
 }
 
-fn test_cycle_thrower() -> scoop_mir::CoreMirInitializationCycleThrowerV1 {
+fn test_cycle_thrower() -> scoop_identity::PersistentFunctionId {
     let declaration = scoop_identity::SourceDeclarationKey::function(
         scoop_identity::SourceDeclarationSite::new(
             scoop_identity::ConeIdentity::CORE,
@@ -182,18 +196,12 @@ fn test_cycle_thrower() -> scoop_mir::CoreMirInitializationCycleThrowerV1 {
             scoop_identity::DeclarationScope::ConeWide,
         )
         .unwrap(),
-        scoop_identity::CanonicalIdentifier::new("__scoopThrowInitializationCycle").unwrap(),
+        scoop_identity::CanonicalIdentifier::new("cycle").unwrap(),
         0,
         None,
         Vec::new(),
     );
-    let definition =
-        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
-    scoop_mir::CoreMirInitializationCycleThrowerV1::new(
-        definition,
-        scoop_identity::CallableOwner::Function(definition),
-    )
-    .unwrap()
+    scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap()
 }
 
 #[test]
@@ -418,7 +426,7 @@ pub(crate) fn required_sections() -> (
             MetadataLocation::Hir,
             hir_core_bootstrap_interface_capability(),
             MemberPurposeSet::COMPILE,
-            empty_not_core_library_section(),
+            empty_hir_library_section(),
         ),
     ];
     let mir = vec![
@@ -432,7 +440,7 @@ pub(crate) fn required_sections() -> (
             MetadataLocation::Mir,
             mir_core_bootstrap_bridge_capability(),
             MemberPurposeSet::COMPILE,
-            empty_not_core_library_section(),
+            empty_mir_library_section(),
         ),
     ];
     let lir = vec![
@@ -676,7 +684,7 @@ pub(crate) fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
         .unwrap()
 }
 
-fn empty_not_core_library_section() -> Vec<u8> {
+fn empty_hir_library_section() -> Vec<u8> {
     vec![
         0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
     ]
@@ -697,4 +705,16 @@ pub(crate) fn cone_named(name: &str) -> ConeRecord {
 
 fn selection() -> scoop_lir::ValidatedLirTargetSelection {
     scoop_lir::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1
+}
+
+fn empty_mir_library_section() -> Vec<u8> {
+    encode(
+        &scoop_mir::CoreBootstrapBridgeSectionV1::try_new(
+            cone().identity(),
+            scoop_mir::EntryMirBridgeBranchV1::Library,
+            scoop_mir::StrongCallableBridgeSurfaceV1::try_new(Vec::new()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap()
 }

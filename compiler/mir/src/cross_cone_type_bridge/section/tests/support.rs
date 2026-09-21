@@ -167,7 +167,6 @@ pub(super) fn production(
 ) -> crate::CoreBootstrapBridgeSectionV1 {
     crate::CoreBootstrapBridgeSectionV1::try_new(
         provider,
-        crate::CoreMirBridgeBranchV1::NotCore,
         crate::EntryMirBridgeBranchV1::Library,
         crate::StrongCallableBridgeSurfaceV1::from_odr_free_foundation(foundation),
     )
