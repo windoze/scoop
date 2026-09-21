@@ -11,7 +11,7 @@ core 是可由用户修改、扩展和重建的普通 library Cone。源码层�
 - [ ] 继续合并默认core发现、manifest限制与driver artifact加载的专用路径。
 - [ ] 基础类型、普通callable/type/value及desugar通过普通声明metadata解析；intrinsic前端正规化后不携带来源授权。
 - [ ] 合并MIR/LIR专用调用桥、String TD与shape-support重复分支，以及slib专用requirement closure。
-- [ ] 删除M23-6 core source foundation专用入口及仅为防伪设计的授权链。已删除fundamental/Array/Unit/Any/Ptr/FunPtr消费者的重复core归属绑定和默认类型域的第二份core artifact参数。
+- [ ] 删除M23-6 core source foundation专用入口及仅为防伪设计的授权链。已删除fundamental/Array/Unit/Any/Ptr/FunPtr消费者的重复core归属绑定和默认类型域的第二份core artifact参数；已删除core source foundation factory及其coordinate、Library、导入集合和CoreShapeSupport复核，core和普通Cone统一从已有typed HIR投影source foundation。
 - [ ] 增加真实源码验证：修改core现有实现、增加导出函数和类型，重建后由用户代码消费；保留所有Cone共用的metadata、identity、ABI和缓存一致性检查。
 
 每项完成后独立提交，先fmt和workspace lint再测试；构建进程退出后定期清理target。全部清理完成前不宣布目标完成。旧阶段文档尚存的trusted-core、独立authority和冻结专用格式描述属于待删除实现的历史背景，不作为保留理由。

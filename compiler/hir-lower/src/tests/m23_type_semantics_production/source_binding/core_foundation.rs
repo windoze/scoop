@@ -34,7 +34,7 @@ fn core_source_foundation_replays_full_sysroot_artifact() {
 }
 
 fn replay(output: &hir::Output) {
-    let source = Production::from_core_bootstrap(output, &mut meter()).unwrap();
+    let source = Production::from_hir(output, &mut meter()).unwrap();
     let transcript = source.source_transcript(&mut meter()).unwrap();
     assert!(!transcript.entries().source_roots.values().is_empty());
     assert!(!transcript.entries().representations.records().is_empty());
@@ -64,7 +64,7 @@ fn replay(output: &hir::Output) {
 #[test]
 fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
     let output = lower_minimal();
-    let source = Production::from_core_bootstrap(&output, &mut meter())
+    let source = Production::from_hir(&output, &mut meter())
         .unwrap()
         .source_transcript(&mut meter())
         .unwrap();
@@ -117,11 +117,13 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
 }
 
 #[test]
-fn core_source_foundation_rejects_an_ordinary_pair() {
+fn ordinary_and_core_sources_share_the_same_foundation_projection() {
     super::super::source_dispatch::with_hir_source("public struct Value()", |output, _| {
-        assert!(matches!(
-            Production::from_core_bootstrap(output.output(), &mut meter()),
-            Err(hir::CrossConeTypeSemanticsProductionError::InvalidCoreSourcePair(_))
-        ));
+        let common = Production::from_hir(output.output(), &mut meter()).unwrap();
+        let ordinary = Production::from_ordinary_hir(output, &mut meter()).unwrap();
+        assert_eq!(
+            encode(&common.source_transcript(&mut meter()).unwrap()).unwrap(),
+            encode(&ordinary.source_transcript(&mut meter()).unwrap()).unwrap()
+        );
     });
 }

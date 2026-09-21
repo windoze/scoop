@@ -9,9 +9,9 @@ mod ownership;
 mod shapes;
 
 #[derive(Clone, Copy)]
-enum FactProvider<'a> {
-    Imported(&'a SelectedImportedCoreSet<'a>),
-    CoreBootstrap,
+enum FactMode<'a> {
+    Candidate(&'a SelectedImportedCoreSet<'a>),
+    Source,
 }
 
 type FactSourceProjection = (
@@ -28,7 +28,7 @@ pub(super) fn candidate(
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<CanonicalExactTypeFactsV1, Error> {
     let candidate = project(
-        FactProvider::Imported(imported_core),
+        FactMode::Candidate(imported_core),
         export,
         local,
         root_exacts,
@@ -43,30 +43,13 @@ pub(super) fn candidate(
 }
 
 pub(super) fn source(
-    imported_core: &SelectedImportedCoreSet<'_>,
-    export: &ExportHir,
-    local: &LocalConcreteHir,
-    root_exacts: &BTreeSet<PersistentExactTypeId>,
-    required_exacts: &BTreeSet<PersistentExactTypeId>,
-) -> Result<FactSourceProjection, Error> {
-    let authority = project(
-        FactProvider::Imported(imported_core),
-        export,
-        local,
-        root_exacts,
-        required_exacts,
-    )?;
-    source_projection(authority)
-}
-
-pub(super) fn core_source(
     export: &ExportHir,
     local: &LocalConcreteHir,
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactSourceProjection, Error> {
     source_projection(project(
-        FactProvider::CoreBootstrap,
+        FactMode::Source,
         export,
         local,
         root_exacts,
@@ -89,14 +72,14 @@ fn source_projection(authority: FactProjector<'_>) -> Result<FactSourceProjectio
 }
 
 fn project<'a>(
-    provider: FactProvider<'a>,
+    mode: FactMode<'a>,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<FactProjector<'a>, Error> {
     let mut projector = FactProjector {
-        provider,
+        mode,
         export,
         local,
         root_exacts,
@@ -115,7 +98,7 @@ fn project<'a>(
 }
 
 struct FactProjector<'a> {
-    provider: FactProvider<'a>,
+    mode: FactMode<'a>,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
@@ -139,23 +122,17 @@ impl FactProjector<'_> {
             .exact_type_identities
             .type_for_identity(exact)
             .ok_or(Error::MissingConcreteType(exact))?;
-        if let FactProvider::Imported(imported_core) = self.provider
-            && !force_local
-            && self.is_core_leaf(ty)
-        {
-            if !imported_core.contains_hir_identity(exact) {
+        if !force_local && let Some(provider) = self.dependency_provider(ty) {
+            if let FactMode::Candidate(imported_core) = self.mode
+                && (provider != ConeIdentity::CORE || !imported_core.contains_hir_identity(exact))
+            {
                 return Err(Error::MissingLocalSupport(exact));
             }
-            self.dependency_facts.insert(
-                exact,
-                TypeSectionDependencyFactV1 {
-                    provider: ConeIdentity::CORE,
-                    exact,
-                },
-            );
+            self.dependency_facts
+                .insert(exact, TypeSectionDependencyFactV1 { provider, exact });
             return Ok(());
         }
-        if matches!(self.provider, FactProvider::Imported(_)) && self.is_generic_application(ty) {
+        if matches!(self.mode, FactMode::Candidate(_)) && self.is_generic_application(ty) {
             return Err(Error::GenericOdrRequired(exact));
         }
         if !force_local && !self.is_locally_owned(ty)? {

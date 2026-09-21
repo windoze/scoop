@@ -42,7 +42,7 @@ pub(super) fn produce(
         root_exacts,
         public: projected_public,
         foundation,
-    } = source_foundation::project(output, meter)?;
+    } = source_foundation::project(output.output(), meter)?;
     if &projected_public != public.nominal_interfaces() {
         return Err(Error::PublicInterface(
             "the supplied M23-5 section was not projected from this Export HIR".into(),

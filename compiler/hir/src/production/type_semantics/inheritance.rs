@@ -7,7 +7,7 @@ use crate::*;
 mod constructors;
 mod edges;
 use edges::exact;
-pub(super) use edges::{project_core_source_edges, project_edges};
+pub(super) use edges::{project_edges, project_source_edges};
 mod schemas;
 pub(super) use schemas::{interface_sources, slot_selections};
 mod source_callables;

@@ -16,6 +16,8 @@ core 是可由用户修改、扩展和重建的普通 library Cone。源码层�
 - Scoop永久不支持执行managed代码、访问对象图或允许对象复活的GC finalizer。M15 collector在不可达判定、evacuation和reclaim中不调用managed用户代码；M24只按runtime spec 3.8增加同步typed GC-free release hook，不能扩展为finalizer；
 - M15首个可执行target固定为macOS/AArch64（Mach-O、LLVM stack map v3）。M22进一步把data pointer与code pointer恰为64位、两类AS0 null的内部carrier全零、且合法非null data/code地址可经各自内部64位carrier逐bit往返设为LIR-target必需能力；它只限定pointer representation，不产生`ULong ↔ FunPtr`源码conversion。M22不引入platform-native integer：当前64位pointer/size source surface暂以`Long`/`ULong`表示，`Ptr`的raw往返使用`ULong`、元素offset使用`Long`，`sizeOf`/`alignOf`返回`ULong`；以后讨论native integer时再逐项决定这些surface是否及如何迁移。profile在生成任何IR前验证，不满足者明确诊断，未来开放其他宽度/表示须先修订语言与FFI/runtime契约。请求级选择必须由registry原子解析`ResolvedTargetProfile`的`lir_target`、`backend`、`c_bridge_toolchain`、`runtime_build`与`final_link`五个互相相容的projection；各stage只取得自己所需投影，不能从host、object或另一projection补猜。其他target在拥有自己的platform adapter前明确诊断，不允许以M13保守扫描或非移动collector回退。section发现、frame/location解释、线程栈边界、arena reservation与虚拟内存保护均隔离在runtime platform层。
 
+M23-6 foundation源码投影对core和其他Cone共用sealed HIR入口；类型归属读取已有typed声明和导入协议，不检查core源码来源、不重算core shape-support计划。源码中的既有泛型exact引用与candidate物化职责分离。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。

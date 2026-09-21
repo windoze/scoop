@@ -12,7 +12,7 @@ fn core_source_foundation_supplies_real_dependency_domains_to_default_binding() 
         let sources = Sources::from_output(output, &mut fixture);
         let templates = super::super::default_origins::templates(output);
         let core_output = support::lower_protocol_core();
-        let core_source = Production::from_core_bootstrap(&core_output, &mut meter())
+        let core_source = Production::from_hir(&core_output, &mut meter())
             .unwrap()
             .source_transcript(&mut meter())
             .unwrap();

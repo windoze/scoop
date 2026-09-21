@@ -104,14 +104,22 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
 }
 
 #[test]
-fn independent_foundation_keeps_generic_odr_rejection() {
+fn independent_foundation_projects_existing_generic_edges_without_materializing() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            assert!(matches!(
-                hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter()),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
+            let foundation =
+                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
+                    .unwrap();
+            assert!(
+                !foundation
+                    .source_transcript(&mut meter())
+                    .unwrap()
+                    .entries()
+                    .local_inheritance_edges
+                    .records()
+                    .is_empty()
+            );
         },
     );
 }

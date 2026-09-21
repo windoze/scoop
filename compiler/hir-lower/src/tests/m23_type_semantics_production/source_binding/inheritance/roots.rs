@@ -122,14 +122,14 @@ fn render(foundation: &hir::BoundTypeFoundationSourcesV1<'_>, sources: &Sources)
 }
 
 #[test]
-fn nested_param_free_support_cannot_downgrade_a_generic_base_to_source_only() {
+fn nested_generic_edges_are_metadata_before_dispatch_materialization() {
     with_source(
         "public interface Generic<T> {}\npublic open class Host { protected class Nested : Generic<Int> {} }",
         |output, _| {
-            assert!(matches!(
-                hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter()),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
+            let foundation =
+                hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
+                    .unwrap();
+            assert_eq!(foundation.source_roots().len(), 3);
             assert!(matches!(
                 hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
                     output,

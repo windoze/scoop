@@ -35,7 +35,7 @@ impl FactProjector<'_> {
     pub(super) fn is_locally_owned(&self, ty: concrete::TypeId) -> Result<bool, Error> {
         let exact = self.exact(ty)?;
         Ok(self.root_exacts.contains(&exact)
-            || self.core_owned(ty)
+            || self.declared_origin(ty) == Some(self.local.cone)
             || matches!(
                 self.local.types[ty].kind,
                 concrete::TypeKind::Tuple(_)
@@ -45,19 +45,25 @@ impl FactProjector<'_> {
             ))
     }
 
-    fn core_owned(&self, ty: concrete::TypeId) -> bool {
-        if !matches!(self.provider, FactProvider::CoreBootstrap) {
-            return false;
-        }
+    pub(super) fn dependency_provider(&self, ty: concrete::TypeId) -> Option<ConeIdentity> {
+        self.declared_origin(ty)
+            .filter(|origin| *origin != self.local.cone)
+    }
+
+    fn declared_origin(&self, ty: concrete::TypeId) -> Option<ConeIdentity> {
         let origin = match self.local.types[ty].kind {
             concrete::TypeKind::Struct(id) => &self.local.structs[id].origin,
             concrete::TypeKind::Enum(id) => &self.local.enums[id].origin,
             concrete::TypeKind::Class(id) => &self.local.classes[id].origin,
             concrete::TypeKind::Interface(id) => &self.local.interfaces[id].origin,
-            _ => return self.is_core_leaf(ty),
+            _ if self.is_core_leaf(ty) => {
+                return Some(match &self.local.core_protocols {
+                    concrete::ConcreteCoreProtocols::Defined(_) => self.local.cone,
+                    concrete::ConcreteCoreProtocols::Imported(_) => ConeIdentity::CORE,
+                });
+            }
+            _ => return None,
         };
-        origin
-            .source()
-            .is_some_and(|source| source.declaration().origin() == ConeIdentity::CORE)
+        origin.source().map(|source| source.declaration().origin())
     }
 }

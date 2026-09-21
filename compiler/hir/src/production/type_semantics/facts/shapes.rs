@@ -17,11 +17,6 @@ impl FactProjector<'_> {
             },
             TypeKind::Struct(id) => {
                 let structure = &self.local.structs[*id];
-                if matches!(self.provider, FactProvider::Imported(_))
-                    && !structure.type_arguments.is_empty()
-                {
-                    return Err(Error::GenericOdrRequired(self.exact(ty)?));
-                }
                 match &structure.representation {
                     concrete::StructRepresentation::Declared { attributes, fields } => {
                         let fields = exacts(
@@ -55,11 +50,6 @@ impl FactProjector<'_> {
             }
             TypeKind::Enum(id) => {
                 let enumeration = &self.local.enums[*id];
-                if matches!(self.provider, FactProvider::Imported(_))
-                    && !enumeration.type_arguments.is_empty()
-                {
-                    return Err(Error::GenericOdrRequired(self.exact(ty)?));
-                }
                 let exact = self.exact(ty)?;
                 let owner = enumeration
                     .origin

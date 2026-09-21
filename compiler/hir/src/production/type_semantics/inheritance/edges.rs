@@ -7,7 +7,7 @@ pub(in crate::production::type_semantics) fn project_edges(
     project_edges_with(export, nominal, exact)
 }
 
-pub(in crate::production::type_semantics) fn project_core_source_edges(
+pub(in crate::production::type_semantics) fn project_source_edges(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
 ) -> Result<NominalInheritanceEdgesV1, Error> {
