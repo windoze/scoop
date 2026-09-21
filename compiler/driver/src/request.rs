@@ -411,15 +411,14 @@ pub fn normalize_protocol_build_request(
             let path = root
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            Some((true, path))
+            (true, path)
         }
         CurrentConeRequestV1::SingleFile { source } => {
             let path = source
                 .to_path_buf()
                 .map_err(BuildRequestNormalizationError::HostPath)?;
-            Some((false, path))
+            (false, path)
         }
-        CurrentConeRequestV1::TrustedCoreBootstrap => None,
     };
     let dependencies = explicit_dependencies(
         protocol_paths(build.direct_slibs())?,
@@ -436,7 +435,7 @@ pub fn normalize_protocol_build_request(
     scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
         .map_err(BuildRequestNormalizationError::Backend)?;
     let (current, trusted_core) = match (current_path, build.trusted_core()) {
-        (Some((true, path)), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
+        ((true, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
             let root = ManifestRootLocator::from_path(path)
                 .map_err(BuildRequestNormalizationError::ManifestRoot)?;
             let artifact = artifact
@@ -449,7 +448,7 @@ pub fn normalize_protocol_build_request(
                 TrustedCoreInput::Artifact(input),
             )
         }
-        (Some((false, path)), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
+        ((false, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
             let source = SingleFileLocator::from_path(path)
                 .map_err(BuildRequestNormalizationError::SingleFile)?;
             let artifact = artifact
@@ -462,23 +461,13 @@ pub fn normalize_protocol_build_request(
                 TrustedCoreInput::Artifact(input),
             )
         }
-        (Some((true, path)), TrustedCoreRequestV1::Bootstrap) => (
+        ((true, path), TrustedCoreRequestV1::Bootstrap) => (
             CurrentConeInput::Manifest {
                 root: ManifestRootLocator::from_path(path)
                     .map_err(BuildRequestNormalizationError::ManifestRoot)?,
             },
             TrustedCoreInput::BootstrapSelf,
         ),
-        (None, TrustedCoreRequestV1::Bootstrap) => {
-            let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
-                .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
-            (
-                CurrentConeInput::Manifest {
-                    root: ManifestRootLocator::cone_directory(core_slot.source_root()),
-                },
-                TrustedCoreInput::BootstrapSelf,
-            )
-        }
         _ => {
             return Err(BuildRequestNormalizationError::Request(
                 SingleConeBuildRequestError::InvalidCurrentCoreCombination,

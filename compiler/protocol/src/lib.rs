@@ -53,7 +53,6 @@ pub enum ProtocolValidationError {
     TooManyInputs { role: &'static str, actual: usize },
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
-    BootstrapHasDependencies,
     InvalidTargetTriple,
     TooManyDiagnostics(usize),
     TooManyEmittedDumps(usize),
@@ -100,9 +99,6 @@ impl std::fmt::Display for ProtocolValidationError {
                 .write_str("current Cone input and trusted core request are not a permitted pair"),
             Self::SingleFileHasDependencies => {
                 formatter.write_str("single-file input cannot carry dependency artifacts")
-            }
-            Self::BootstrapHasDependencies => {
-                formatter.write_str("trusted core bootstrap cannot carry dependency artifacts")
             }
             Self::InvalidTargetTriple => formatter.write_str(
                 "target triple must be 1..255 printable ASCII bytes without path separators",

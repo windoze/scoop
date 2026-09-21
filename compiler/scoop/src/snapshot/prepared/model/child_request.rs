@@ -57,12 +57,12 @@ impl PreparedBuildGraph {
         let (current, direct, support, trusted_core, output_path) = match self.nodes.get(&identity)
         {
             Some(PreparedGraphNode::ManifestSource(node)) => {
-                let (direct, support, core) = if identity == ConeIdentity::CORE {
-                    (Vec::new(), Vec::new(), TrustedCoreRequestV1::Bootstrap)
+                let projection = self.source_projection(identity)?;
+                let (direct, support) = dependency_paths(identity, projection, &completed)?;
+                let core = if identity == ConeIdentity::CORE {
+                    TrustedCoreRequestV1::Bootstrap
                 } else {
-                    let projection = self.source_projection(identity)?;
-                    let (direct, support) = dependency_paths(identity, projection, &completed)?;
-                    (direct, support, completed_core_input(&completed)?)
+                    completed_core_input(&completed)?
                 };
                 (
                     CurrentConeRequestV1::ManifestRoot {

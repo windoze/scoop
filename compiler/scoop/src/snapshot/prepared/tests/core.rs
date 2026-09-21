@@ -123,7 +123,7 @@ fn core_child_plan_uses_the_common_manifest_snapshot_request() {
     write_core(&sysroot);
     write_manifest(&root, "root", "");
     write_fake_compiler(&workspace.join("bin/scoopc"));
-    let prepared = prepare(&root, workspace).unwrap();
+    let mut prepared = prepare(&root, workspace).unwrap();
     let request_id = RequestCorrelationId::from_array([4; 16]);
 
     let plan = prepared
@@ -156,4 +156,9 @@ fn core_child_plan_uses_the_common_manifest_snapshot_request() {
         plan.request().build().target().canonical_triple(),
         "aarch64-apple-darwin"
     );
+    prepared.source_inputs.remove(&ConeIdentity::CORE).unwrap();
+    assert!(matches!(
+        prepared.child_invocation_plan(ConeIdentity::CORE, request_id, &[]),
+        Err(crate::ChildRequestPlanError::MissingSourceProjection(identity)) if identity == ConeIdentity::CORE
+    ));
 }

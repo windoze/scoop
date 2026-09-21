@@ -12,7 +12,6 @@ const REQUEST_MAGIC: &[u8; 8] = b"SCOOPREQ";
 pub enum CurrentConeRequestV1 {
     ManifestRoot { root: HostPathCarrier },
     SingleFile { source: HostPathCarrier },
-    TrustedCoreBootstrap,
 }
 
 impl WireEncode for CurrentConeRequestV1 {
@@ -31,11 +30,6 @@ impl WireEncode for CurrentConeRequestV1 {
                 encoder.unsigned(2)?;
                 encoder.field(1)?;
                 source.encode(encoder)
-            }
-            Self::TrustedCoreBootstrap => {
-                encoder.map(1)?;
-                encoder.field(0)?;
-                encoder.unsigned(3)
             }
         }
     }
@@ -317,7 +311,6 @@ impl WireEncode for ScoopcRequestEnvelopeV1 {
 enum DecodedCurrentConeRequestV1 {
     ManifestRoot(DecodedHostPathCarrier),
     SingleFile(DecodedHostPathCarrier),
-    TrustedCoreBootstrap,
 }
 
 impl DecodedCurrentConeRequestV1 {
@@ -331,7 +324,6 @@ impl DecodedCurrentConeRequestV1 {
                     .validate()
                     .map_err(ProtocolValidationError::HostPath)?,
             }),
-            Self::TrustedCoreBootstrap => Ok(CurrentConeRequestV1::TrustedCoreBootstrap),
         }
     }
 }
@@ -353,11 +345,6 @@ impl WireEncode for DecodedCurrentConeRequestV1 {
                 encoder.field(1)?;
                 source.encode(encoder)
             }
-            Self::TrustedCoreBootstrap => {
-                encoder.map(1)?;
-                encoder.field(0)?;
-                encoder.unsigned(3)
-            }
         }
     }
 }
@@ -378,10 +365,6 @@ impl WireDecode for DecodedCurrentConeRequestV1 {
                 decoder
                     .field(1, DecodedHostPathCarrier::decode)
                     .map(Self::SingleFile)
-            }
-            3 => {
-                crate::framing::expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::TrustedCoreBootstrap)
             }
             tag => Err(crate::framing::unknown_tag(decoder, tag)),
         }
@@ -676,24 +659,12 @@ fn validate_build_shape(
         });
     }
     match (current, trusted_core) {
-        (CurrentConeRequestV1::ManifestRoot { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
-            Ok(())
-        }
+        (CurrentConeRequestV1::ManifestRoot { .. }, _) => Ok(()),
         (CurrentConeRequestV1::SingleFile { .. }, TrustedCoreRequestV1::ArtifactSlot { .. }) => {
             if direct_slibs.is_empty() && support_slibs.is_empty() {
                 Ok(())
             } else {
                 Err(ProtocolValidationError::SingleFileHasDependencies)
-            }
-        }
-        (
-            CurrentConeRequestV1::TrustedCoreBootstrap | CurrentConeRequestV1::ManifestRoot { .. },
-            TrustedCoreRequestV1::Bootstrap,
-        ) => {
-            if direct_slibs.is_empty() && support_slibs.is_empty() {
-                Ok(())
-            } else {
-                Err(ProtocolValidationError::BootstrapHasDependencies)
             }
         }
         _ => Err(ProtocolValidationError::InvalidCurrentCoreCombination),
@@ -740,157 +711,4 @@ fn encode_decoded_paths(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
-
-    use super::*;
-
-    fn path(value: &str) -> HostPathCarrier {
-        HostPathCarrier::from_path(Path::new(value)).unwrap()
-    }
-
-    fn target() -> TargetSelectionRequestV1 {
-        TargetSelectionRequestV1::new("aarch64-apple-darwin".to_owned()).unwrap()
-    }
-
-    #[test]
-    fn core_manifest_request_round_trips_without_a_default_source_slot() {
-        let request = ScoopcRequestEnvelopeV1::new(
-            RequestCorrelationId::from_array([72; 16]),
-            ScoopcBuildRequestV1::new(
-                CurrentConeRequestV1::ManifestRoot {
-                    root: path("edited-library"),
-                },
-                Vec::new(),
-                Vec::new(),
-                TrustedCoreRequestV1::Bootstrap,
-                target(),
-                path("custom-output/core.slib"),
-                DiagnosticOutputPolicyV1::Structured,
-                StageDumpPolicyV1::None,
-            )
-            .unwrap(),
-        );
-        let decoded = decode_canonical::<DecodedScoopcRequestEnvelopeV1>(
-            &encode(&request).unwrap(),
-            DecodeLimits::M23_DEFAULT,
-        )
-        .unwrap()
-        .validate()
-        .unwrap();
-        assert_eq!(decoded, request);
-    }
-
-    #[test]
-    fn request_constructor_closes_core_bootstrap_combinations() {
-        let error = ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::TrustedCoreBootstrap,
-            vec![path("dependency.slib")],
-            Vec::new(),
-            TrustedCoreRequestV1::Bootstrap,
-            target(),
-            path("core.slib"),
-            DiagnosticOutputPolicyV1::Structured,
-            StageDumpPolicyV1::None,
-        )
-        .unwrap_err();
-        assert_eq!(error, ProtocolValidationError::BootstrapHasDependencies);
-
-        let error = ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::SingleFile {
-                source: path("main.scoop"),
-            },
-            Vec::new(),
-            Vec::new(),
-            TrustedCoreRequestV1::Bootstrap,
-            target(),
-            path("main.slib"),
-            DiagnosticOutputPolicyV1::Human,
-            StageDumpPolicyV1::Stage(StageDumpKindV1::Hir),
-        )
-        .unwrap_err();
-        assert_eq!(
-            error,
-            ProtocolValidationError::InvalidCurrentCoreCombination
-        );
-
-        let error = ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::SingleFile {
-                source: path("main.scoop"),
-            },
-            vec![path("dependency.slib")],
-            Vec::new(),
-            TrustedCoreRequestV1::ArtifactSlot {
-                artifact: path("core.slib"),
-            },
-            target(),
-            path("main.slib"),
-            DiagnosticOutputPolicyV1::Human,
-            StageDumpPolicyV1::None,
-        )
-        .unwrap_err();
-        assert_eq!(error, ProtocolValidationError::SingleFileHasDependencies);
-
-        let input = path("dependency.slib");
-        let error = ScoopcBuildRequestV1::new(
-            CurrentConeRequestV1::SingleFile {
-                source: path("main.scoop"),
-            },
-            vec![input; MAX_INPUT_ARTIFACTS + 1],
-            Vec::new(),
-            TrustedCoreRequestV1::ArtifactSlot {
-                artifact: path("core.slib"),
-            },
-            target(),
-            path("main.slib"),
-            DiagnosticOutputPolicyV1::Human,
-            StageDumpPolicyV1::None,
-        )
-        .unwrap_err();
-        assert_eq!(
-            error,
-            ProtocolValidationError::TooManyInputs {
-                role: "direct",
-                actual: MAX_INPUT_ARTIFACTS + 1,
-            }
-        );
-    }
-
-    struct RawCurrentCone {
-        fields: u64,
-        tag: u64,
-    }
-
-    impl WireEncode for RawCurrentCone {
-        fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-            encoder.map(self.fields)?;
-            encoder.field(0)?;
-            encoder.unsigned(self.tag)
-        }
-    }
-
-    #[test]
-    fn current_cone_reader_distinguishes_unknown_tag_and_wrong_sum_length() {
-        let error = decode_canonical::<DecodedCurrentConeRequestV1>(
-            &encode(&RawCurrentCone { fields: 1, tag: 9 }).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
-        assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 9 });
-
-        let error = decode_canonical::<DecodedCurrentConeRequestV1>(
-            &encode(&RawCurrentCone { fields: 1, tag: 1 }).unwrap(),
-            DecodeLimits::default(),
-        )
-        .unwrap_err();
-        assert_eq!(
-            error.kind(),
-            &WireErrorKind::InvalidLength {
-                expected: 2,
-                actual: 1,
-            }
-        );
-    }
-}
+mod tests;
