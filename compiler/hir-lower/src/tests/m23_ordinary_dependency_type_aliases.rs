@@ -107,10 +107,7 @@ fn lower_alias_fixture(
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).map(|output| {
         let facade = output

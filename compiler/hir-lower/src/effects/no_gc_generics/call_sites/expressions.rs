@@ -239,8 +239,7 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(arg, out);
                 }
             }
-            ExprKind::ImportedCoreCall { args, .. }
-            | ExprKind::ImportedDependencyCall { args, .. } => {
+            ExprKind::ImportedDependencyCall { args, .. } => {
                 for arg in args {
                     self.collect_generic_calls_in_expr(arg, out);
                 }

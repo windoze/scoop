@@ -28,7 +28,7 @@ const COMBINATIONS: &str = include_str!(concat!(
 
 fn with_sources(
     source: &str,
-    run: impl FnOnce(&hir::OrdinaryHirOutput<'_>, &Fixture, &BTreeSet<Subject>, &Table),
+    run: impl FnOnce(&hir::OrdinaryHirOutput, &Fixture, &BTreeSet<Subject>, &Table),
 ) {
     with_hir_source(source, |output, _| {
         let mut fixture = Fixture::from_output(output);

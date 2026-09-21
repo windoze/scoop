@@ -29,7 +29,7 @@ fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
             .0,
     )
 }
-fn template(output: &hir::OrdinaryHirOutput<'_>, name: &str, position: u32) -> Template {
+fn template(output: &hir::OrdinaryHirOutput, name: &str, position: u32) -> Template {
     let mut shared = meter();
     Body::from_ordinary_hir(
         output,
@@ -44,7 +44,7 @@ fn template(output: &hir::OrdinaryHirOutput<'_>, name: &str, position: u32) -> T
 fn bytes(value: &Template) -> Vec<u8> {
     encode(&value.index_locals(&mut meter()).unwrap()).unwrap()
 }
-fn round_trip(output: &hir::OrdinaryHirOutput<'_>, value: &Template) -> Template {
+fn round_trip(output: &hir::OrdinaryHirOutput, value: &Template) -> Template {
     let bytes = bytes(value);
     assert_eq!(&bytes[..2], &[0xac, 1]);
     let mut shared = meter();

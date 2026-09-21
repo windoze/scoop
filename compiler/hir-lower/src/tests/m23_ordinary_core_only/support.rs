@@ -25,7 +25,6 @@ pub(crate) struct TrustedCoreFixture {
     pub(crate) interface: scoop_hir::CoreHirInterfaceV1,
     mir_foundation: scoop_mir::ImportedMirFoundation,
     mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
-    pub(crate) strong_callables: Vec<scoop_identity::PersistentExportBindingId>,
     session: SemanticIdentitySession,
 }
 
@@ -153,10 +152,6 @@ fn trusted_core_from_source(
                 .clone()
         })
         .into_iter()
-        .collect::<Vec<_>>();
-    let strong_callables = strong_targets
-        .iter()
-        .map(|target| target.binding())
         .collect::<Vec<_>>();
     let mut canonical = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.export,
@@ -292,7 +287,6 @@ fn trusted_core_from_source(
         interface,
         mir_foundation,
         mir_production,
-        strong_callables,
         session,
     }
 }

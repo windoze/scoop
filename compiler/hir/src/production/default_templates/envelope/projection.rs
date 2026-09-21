@@ -25,7 +25,7 @@ pub(in crate::production::default_templates) struct ProjectedDefaultBody<'a> {
 
 pub(in crate::production::default_templates) fn project_body<'a>(
     export: &'a ExportHir,
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     target_binders: &[HirSignatureBinder],
     source_id: ExportDefaultSourceId,
 ) -> Result<ProjectedDefaultBody<'a>, DefaultTemplateEnvelopeProjectionError> {

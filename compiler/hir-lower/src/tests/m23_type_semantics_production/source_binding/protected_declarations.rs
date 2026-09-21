@@ -52,10 +52,7 @@ fn complete_protected_production_roundtrips_and_matches_independent_sources() {
             assert_eq!(produced.required(), &required);
             let (declarations, protocols) = restore(&mut fixture, &produced);
             let foundation = fixture.bind().unwrap();
-            let core = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let core = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources.with_bound(&foundation, core.protocols().fundamental_types(), |members, constructors| {
                 let mut authority = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
                 let mut owners = BTreeSet::new();

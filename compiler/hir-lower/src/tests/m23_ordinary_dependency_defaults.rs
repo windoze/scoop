@@ -45,10 +45,7 @@ fn dependency_default_calls_public_provider_helper_with_split_origins() {
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
@@ -155,10 +152,7 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
@@ -189,10 +183,7 @@ fn rejected_dependency_default_falls_through_without_committing_provider_state()
         .imports
         .push(exact_import(&["dependency", "api", "withDefault"]));
     let unsupported = parsed_ordinary(unsupported);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&unsupported, core_inputs, &world).unwrap();
     let diagnostics = match lower_ordinary(scoop_identity::RequestedConeKind::Library, &input) {
         Ok(_) => panic!("a native dependency in the only default candidate must be rejected"),

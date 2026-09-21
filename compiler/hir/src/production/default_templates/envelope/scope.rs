@@ -14,7 +14,7 @@ pub(in crate::production::default_templates) struct ProviderScope {
 
 pub(in crate::production::default_templates) fn provider_scope(
     export: &ExportHir,
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     root: crate::LexicalDefinitionRoot,
 ) -> Result<ProviderScope, DefaultTemplateEnvelopeProjectionError> {
     let signatures = HirInterfaceSignatureProjector::new(export);
@@ -150,7 +150,7 @@ fn parameter_ids(parameters: &[TypeParamDecl]) -> Vec<TypeParamId> {
 }
 
 fn charge_binders(
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     count: usize,
 ) -> Result<(), scoop_wire::WireError> {
     entities.resources.collection::<HirSignatureBinder>(count)?;

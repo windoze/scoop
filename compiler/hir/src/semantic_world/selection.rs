@@ -13,6 +13,7 @@ mod catalog;
 mod error;
 mod model;
 mod properties;
+mod routes;
 pub use error::*;
 pub use model::*;
 
@@ -50,6 +51,7 @@ impl ImportedDependencySelectionPlan {
     pub fn empty(consumer: ConeIdentity) -> Self {
         Self {
             catalog: Arc::new(DependencyCatalog {
+                direct_binding_witnesses: Arc::new(BTreeMap::new()),
                 world_brand: 0,
                 consumer,
                 projection: DependencyProjectionId(next_id(
@@ -390,6 +392,7 @@ impl ImportedDependencySelectionPlan {
 
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
+            direct_binding_witnesses: self.catalog.direct_binding_witnesses.clone(),
             consumer: self.catalog.consumer,
             selection: self.selection,
             callables: self.callables,

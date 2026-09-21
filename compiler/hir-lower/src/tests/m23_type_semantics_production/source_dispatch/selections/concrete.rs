@@ -2,7 +2,7 @@ use super::*;
 use hir::concrete as local;
 
 pub(super) fn verify(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     mir: &scoop_mir::Module,
     table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
 ) {

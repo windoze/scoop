@@ -15,7 +15,7 @@ fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     Table::from_ordinary_hir(output, &mut meter()).unwrap()
 }
 

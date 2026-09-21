@@ -12,10 +12,10 @@ mod type_semantics;
 use source_points::source_records;
 
 impl CanonicalHirFoundation {
-    /// Builds an ordinary HIR foundation together with the exact external
-    /// nominal authority required by its imported-core exact types.
+    /// Builds an ordinary HIR foundation with the external nominal identities
+    /// referenced by its exact types.
     pub fn from_ordinary_output(
-        output: &crate::OrdinaryHirOutput<'_>,
+        output: &crate::OrdinaryHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
         let hir = output.output();
         let mut foundation =
@@ -41,21 +41,11 @@ impl CanonicalHirFoundation {
         for record in &foundation.exact_types {
             match record.key() {
                 ExactTypeKey::Nominal(source) if !declared_source_types.contains(source) => {
-                    if !output.imported_core().contains_hir_identity(*source) {
-                        return Err(HirFoundationBuildError::MissingCoreExternalSourceType(
-                            *source,
-                        ));
-                    }
                     external_source_types.insert(*source);
                 }
                 ExactTypeKey::NominalApplication { origin, .. }
                     if !declared_generic_types.contains(origin) =>
                 {
-                    if !output.imported_core().contains_hir_identity(*origin) {
-                        return Err(HirFoundationBuildError::MissingCoreExternalGenericType(
-                            *origin,
-                        ));
-                    }
                     external_generic_types.insert(*origin);
                 }
                 ExactTypeKey::Nominal(_)
@@ -71,21 +61,11 @@ impl CanonicalHirFoundation {
                 crate::NativeBoundaryNominalOwner::Concrete(source)
                     if !declared_source_types.contains(&source) =>
                 {
-                    if !output.imported_core().contains_hir_identity(source) {
-                        return Err(HirFoundationBuildError::MissingCoreExternalSourceType(
-                            source,
-                        ));
-                    }
                     external_source_types.insert(source);
                 }
                 crate::NativeBoundaryNominalOwner::GenericTemplate(origin)
                     if !declared_generic_types.contains(&origin) =>
                 {
-                    if !output.imported_core().contains_hir_identity(origin) {
-                        return Err(HirFoundationBuildError::MissingCoreExternalGenericType(
-                            origin,
-                        ));
-                    }
                     external_generic_types.insert(origin);
                 }
                 crate::NativeBoundaryNominalOwner::Concrete(_)

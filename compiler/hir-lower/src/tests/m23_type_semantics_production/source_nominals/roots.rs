@@ -5,10 +5,7 @@ const ROOTS: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-nominals/roots.scoop"
 ));
 
-fn names(
-    output: &hir::OrdinaryHirOutput<'_>,
-    roots: &hir::CanonicalSourceNominalIdsV1,
-) -> Vec<String> {
+fn names(output: &hir::OrdinaryHirOutput, roots: &hir::CanonicalSourceNominalIdsV1) -> Vec<String> {
     let identities = sources(output.output().export.module());
     let mut names = roots
         .values()

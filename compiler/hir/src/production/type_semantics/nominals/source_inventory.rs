@@ -6,7 +6,7 @@ impl CanonicalSourceInheritanceInventoriesV1 {
     /// consulting candidate interfaces. This is source data, not a checked
     /// type-section or machine-use capability.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -18,7 +18,7 @@ impl CanonicalInterfaceSourceDispatchesV1 {
     /// Projects complete interface declaration order and override edges from
     /// the required source inheritance closure, before schema candidates.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -30,7 +30,7 @@ impl CanonicalInheritanceSourceSlotSelectionsV1 {
     /// Projects actual sealed dispatch decisions independently of candidate
     /// slot contracts, generated MIR adapters, and runtime trap functions.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -42,7 +42,7 @@ impl CanonicalInheritanceSourceCallablesV1 {
     /// Projects only actual source slot roots and implementation targets from
     /// sealed HIR, including contracts outside the public lookup surface.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -57,7 +57,7 @@ impl CanonicalInheritanceSourceConstructorsV1 {
     /// Projects public/protected constructor contracts directly from sealed
     /// source declarations, independently of candidate callable interfaces.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -71,7 +71,7 @@ impl CanonicalInheritanceSourceProtectedCallablesV1 {
     /// Projects protected source methods and accessors before candidate
     /// interfaces, including source-only generic method metadata.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -85,7 +85,7 @@ impl CanonicalInheritanceSourcePropertiesV1 {
     /// Projects logical properties required by protected members and actual
     /// dispatch sources, without using public or candidate property tables.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -100,7 +100,7 @@ impl CanonicalInheritanceSourceParameterProtocolsV1 {
     /// Projects source argument facts for the independent inheritance inventory,
     /// without deriving names, calling categories or origins from candidates.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let nominals = roots(output, meter)?;
@@ -111,7 +111,7 @@ impl CanonicalInheritanceSourceParameterProtocolsV1 {
 }
 
 fn roots<'a>(
-    output: &'a OrdinaryHirOutput<'_>,
+    output: &'a OrdinaryHirOutput,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<ConcreteNominal<'a>>, Error> {
     let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.output().export, meter)?;
@@ -119,7 +119,7 @@ fn roots<'a>(
 }
 
 pub(super) fn from_required<'a>(
-    output: &'a OrdinaryHirOutput<'_>,
+    output: &'a OrdinaryHirOutput,
     required: &CanonicalSourceNominalIdsV1,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<ConcreteNominal<'a>>, Error> {

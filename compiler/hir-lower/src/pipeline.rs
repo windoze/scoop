@@ -204,10 +204,7 @@ impl Lowerer {
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
-            imported_core_callables: Arena::new(),
             imported_dependency_callables: Arena::new(),
-            imported_core_types: Arena::new(),
-            imported_core_values: Arena::new(),
             type_alias_binding_witnesses: HashMap::new(),
             retained_binding_witness_uses: Vec::new(),
             bound_callable_refs: Arena::new(),
@@ -400,7 +397,6 @@ impl Lowerer {
             .collect();
         self.core = CoreLoweringAuthority::Imported(Box::new(ImportedCoreLoweringAuthority {
             protocols: core.protocols().clone(),
-            selection: core.prelude().selection_plan(),
             type_bindings,
         }));
         self

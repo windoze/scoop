@@ -23,10 +23,7 @@ fn with_sources(
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let dispatch = Dispatch::from_output(output, &mut fixture);
-        let core = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
             &fixture,
             &sources,

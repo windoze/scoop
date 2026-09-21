@@ -3,24 +3,18 @@ use std::fmt;
 
 use crate::{CoreProtocols, LocalConcreteMaterializationContract, concrete};
 
-/// Closed ordinary HIR product whose imported-core uses are bound to the
-/// exact selected set that admitted them.
-///
-/// This wrapper is the only ordinary product accepted by the imported-core
-/// MIR path. Keeping the sidecars here prevents a caller from pairing the HIR
-/// graph with selections projected from other trusted artifacts.
-pub struct OrdinaryHirOutput<'a> {
+/// Ordinary HIR product with the committed dependency selections and source
+/// binding routes needed by subsequent interface and machine-IR production.
+pub struct OrdinaryHirOutput {
     output: crate::Output,
-    imported_core: crate::SelectedImportedCoreSet<'a>,
     imported_dependencies: crate::SelectedImportedDependencySet,
     binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     concrete_dependency_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
 }
 
-impl<'a> OrdinaryHirOutput<'a> {
+impl OrdinaryHirOutput {
     pub fn try_new(
         output: crate::Output,
-        imported_core: crate::SelectedImportedCoreSet<'a>,
         imported_dependencies: crate::SelectedImportedDependencySet,
         mut binding_witness_uses: Vec<crate::ExternalHirBindingWitnessUse>,
     ) -> Result<Self, OrdinaryHirOutputError> {
@@ -54,53 +48,6 @@ impl<'a> OrdinaryHirOutput<'a> {
         let export = output.export.module();
         let local = output.local.module();
         validate_imported_dependency_projection(export, local, &imported_dependencies)?;
-        let selected_count = imported_core.callable_count()
-            + imported_core.type_count()
-            + imported_core.value_count();
-        let mut bindings = HashSet::with_capacity(selected_count);
-        validate_imported_core_projection(
-            ImportedCoreUseKind::Callable,
-            export
-                .imported_core_callables
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            local
-                .imported_core_callables
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            imported_core.callable_count(),
-            |reference| imported_core.resolve_callable(reference),
-            &mut bindings,
-        )?;
-        validate_imported_core_projection(
-            ImportedCoreUseKind::Type,
-            export
-                .imported_core_types
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            local
-                .imported_core_types
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            imported_core.type_count(),
-            |reference| imported_core.resolve_type(reference),
-            &mut bindings,
-        )?;
-        validate_imported_core_projection(
-            ImportedCoreUseKind::Value,
-            export
-                .imported_core_values
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            local
-                .imported_core_values
-                .iter()
-                .map(|(id, use_)| (id.into_raw().into_u32(), use_.reference())),
-            imported_core.value_count(),
-            |reference| imported_core.resolve_value(reference),
-            &mut bindings,
-        )?;
-
         let concrete_dependency_witness_uses =
             concrete_dependency_witness_uses(&imported_dependencies);
         binding_witness_uses.sort_unstable();
@@ -108,7 +55,6 @@ impl<'a> OrdinaryHirOutput<'a> {
 
         Ok(Self {
             output,
-            imported_core,
             imported_dependencies,
             binding_witness_uses,
             concrete_dependency_witness_uses,
@@ -117,10 +63,6 @@ impl<'a> OrdinaryHirOutput<'a> {
 
     pub const fn output(&self) -> &crate::Output {
         &self.output
-    }
-
-    pub const fn imported_core(&self) -> &crate::SelectedImportedCoreSet<'a> {
-        &self.imported_core
     }
 
     pub const fn imported_dependencies(&self) -> &crate::SelectedImportedDependencySet {
@@ -140,14 +82,8 @@ impl<'a> OrdinaryHirOutput<'a> {
         &self.concrete_dependency_witness_uses
     }
 
-    pub fn into_parts(
-        self,
-    ) -> (
-        crate::Output,
-        crate::SelectedImportedCoreSet<'a>,
-        crate::SelectedImportedDependencySet,
-    ) {
-        (self.output, self.imported_core, self.imported_dependencies)
+    pub fn into_parts(self) -> (crate::Output, crate::SelectedImportedDependencySet) {
+        (self.output, self.imported_dependencies)
     }
 }
 
@@ -231,60 +167,6 @@ fn validate_imported_dependency_projection(
     Ok(())
 }
 
-fn validate_imported_core_projection<'a, Reference: Copy + Eq>(
-    kind: ImportedCoreUseKind,
-    export: impl ExactSizeIterator<Item = (u32, Reference)>,
-    local: impl ExactSizeIterator<Item = (u32, Reference)>,
-    selected_count: usize,
-    mut resolve: impl FnMut(Reference) -> Option<crate::SelectedImportedCoreTarget<'a>>,
-    bindings: &mut HashSet<scoop_identity::PersistentExportBindingId>,
-) -> Result<(), OrdinaryHirOutputError> {
-    let export_count = export.len();
-    let local_count = local.len();
-    if export_count != local_count {
-        return Err(OrdinaryHirOutputError::ProjectionCountMismatch {
-            kind,
-            export: export_count,
-            local: local_count,
-        });
-    }
-    if export_count != selected_count {
-        return Err(OrdinaryHirOutputError::SelectionCountMismatch {
-            kind,
-            hir: export_count,
-            selected: selected_count,
-        });
-    }
-    for ((export_index, export_reference), (local_index, local_reference)) in export.zip(local) {
-        if export_index != local_index || export_reference != local_reference {
-            return Err(OrdinaryHirOutputError::ProjectionMismatch {
-                kind,
-                index: export_index,
-            });
-        }
-        let Some(selected) = resolve(export_reference) else {
-            return Err(OrdinaryHirOutputError::ForeignImportedCoreUse {
-                kind,
-                index: export_index,
-            });
-        };
-        if !bindings.insert(selected.binding().persistent()) {
-            return Err(OrdinaryHirOutputError::DuplicateImportedCoreBinding {
-                kind,
-                index: export_index,
-            });
-        }
-    }
-    Ok(())
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ImportedCoreUseKind {
-    Callable,
-    Type,
-    Value,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OrdinaryHirOutputError {
     CurrentConeIsCore,
@@ -309,28 +191,6 @@ pub enum OrdinaryHirOutputError {
         index: u32,
     },
     DuplicateImportedDependencyUse {
-        index: u32,
-    },
-    ProjectionCountMismatch {
-        kind: ImportedCoreUseKind,
-        export: usize,
-        local: usize,
-    },
-    SelectionCountMismatch {
-        kind: ImportedCoreUseKind,
-        hir: usize,
-        selected: usize,
-    },
-    ProjectionMismatch {
-        kind: ImportedCoreUseKind,
-        index: u32,
-    },
-    ForeignImportedCoreUse {
-        kind: ImportedCoreUseKind,
-        index: u32,
-    },
-    DuplicateImportedCoreBinding {
-        kind: ImportedCoreUseKind,
         index: u32,
     },
 }

@@ -54,7 +54,7 @@ fn sources<'a>(
     }
     records
 }
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     let required = hir::CanonicalSourceNominalIdsV1::try_new(
         sources(output.output().export.module())
             .into_keys()

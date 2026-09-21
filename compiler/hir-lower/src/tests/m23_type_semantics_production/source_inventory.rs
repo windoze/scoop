@@ -6,7 +6,7 @@ fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
     decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
 }
 
-pub(super) fn identity_closure(output: &hir::OrdinaryHirOutput<'_>) -> ValidatedIdentityGraph {
+pub(super) fn identity_closure(output: &hir::OrdinaryHirOutput) -> ValidatedIdentityGraph {
     identity_closure_for_foundation(
         output,
         hir::CanonicalHirFoundation::from_type_semantics_output(output).unwrap(),
@@ -14,7 +14,7 @@ pub(super) fn identity_closure(output: &hir::OrdinaryHirOutput<'_>) -> Validated
 }
 
 pub(super) fn identity_closure_for_foundation(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     foundation: hir::CanonicalHirFoundation,
 ) -> ValidatedIdentityGraph {
     let core = trusted_core();

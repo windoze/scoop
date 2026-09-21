@@ -11,7 +11,7 @@ impl CanonicalHirFoundation {
     /// class, and all source parameter/default-body origins before materialization.
     /// Legacy producers keep their original projection unchanged.
     pub fn from_type_semantics_output(
-        output: &crate::OrdinaryHirOutput<'_>,
+        output: &crate::OrdinaryHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
         Self::from_type_semantics_output_with_budget(
             output,
@@ -21,7 +21,7 @@ impl CanonicalHirFoundation {
 
     /// Shares the source-default projection and occurrence budget with the caller.
     pub fn from_type_semantics_output_with_budget(
-        output: &crate::OrdinaryHirOutput<'_>,
+        output: &crate::OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, HirFoundationBuildError> {
         let mut foundation = Self::from_ordinary_output(output)?;

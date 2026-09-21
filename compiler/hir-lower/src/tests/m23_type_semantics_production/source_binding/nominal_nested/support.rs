@@ -84,10 +84,7 @@ pub(super) fn with_candidates(
         let protocols = decoded
             .resolve(&mut fixture.identities, &keys, &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
             &fixture,
             &sources,

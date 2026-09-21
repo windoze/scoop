@@ -10,10 +10,7 @@ fn restored_protocol_authority_replays_candidates_and_rejects_calling_and_origin
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             let core = inputs.protocols().fundamental_types();
             let entries = foundation.source().entries();
             let graph = hir::CheckedNominalInheritanceGraphV1::validate_with_source_roots(

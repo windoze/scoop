@@ -27,10 +27,7 @@ fn public_type_alias(name: &str, target: scoop_ast::TypeRef) -> scoop_ast::Decl 
 fn ordinary_library_lowers_against_imported_core_without_core_sources() {
     let core = trusted_core();
     let ordinary = parsed_ordinary(file(Vec::new()));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
@@ -54,9 +51,6 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
         output.output().local.materialization(),
         scoop_hir::LocalConcreteMaterializationContract::Ordinary
     ));
-    assert_eq!(output.imported_core().callable_count(), 0);
-    assert_eq!(output.imported_core().type_count(), 0);
-    assert_eq!(output.imported_core().value_count(), 0);
     assert!(output.imported_dependencies().is_empty());
     let foundation = scoop_hir::CanonicalHirFoundation::from_ordinary_output(&output).unwrap();
     assert_eq!(foundation.counts().core_external_source_types, 10);
@@ -67,10 +61,7 @@ fn ordinary_library_lowers_against_imported_core_without_core_sources() {
 fn public_alias_retains_the_exact_imported_core_type_binding() {
     let core = trusted_core();
     let ordinary = parsed_ordinary(file(vec![public_type_alias("Number", ty_named("Int"))]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let int_binding = core_inputs
         .prelude()
         .candidates(BindingNamespace::Type, "Int")
@@ -119,10 +110,7 @@ fn public_alias_retains_the_exact_imported_core_type_binding() {
 fn ordinary_executable_selects_current_main_under_imported_core_authority() {
     let core = trusted_core();
     let ordinary = parsed_ordinary(file(vec![fun("main", Vec::new())]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
@@ -153,17 +141,13 @@ fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
             stmt(call("coreAnswer", Vec::new())),
         ],
     )]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &core.strong_callables)
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("a param-free strong core callable is available to ordinary HIR");
 
-    assert_eq!(output.imported_core().callable_count(), 0);
     assert_eq!(output.imported_dependencies().callable_count(), 1);
     assert_eq!(
         output.output().export.imported_dependency_callables.len(),
@@ -179,8 +163,7 @@ fn ordinary_calls_select_one_strong_core_binding_and_reuse_its_typed_use() {
 }
 
 #[test]
-fn imported_core_default_requires_the_selected_set_to_project() {
-    let core = trusted_core_with_answer();
+fn imported_core_default_projects_after_the_input_world_is_dropped() {
     let mut declaration = fun_expr(
         "ordinaryDefault",
         Vec::new(),
@@ -199,15 +182,15 @@ fn imported_core_default_requires_the_selected_set_to_project() {
         expression: call("coreAnswer", Vec::new()),
         equals_span: sp(),
     };
-    let ordinary = parsed_ordinary(file(vec![declaration]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &core.strong_callables)
-        .unwrap();
-    let world = core.world(ordinary.cone());
-    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
-    let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
-        .expect("the ordinary default selects the strong core callable");
+    let output = {
+        let core = trusted_core_with_answer();
+        let ordinary = parsed_ordinary(file(vec![declaration]));
+        let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+        let world = core.world(ordinary.cone());
+        let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+        lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
+            .expect("the ordinary default selects the strong core callable")
+    };
 
     assert!(matches!(
         scoop_hir::CanonicalExportDefaultTemplatesV1::from_export_hir(
@@ -225,7 +208,7 @@ fn imported_core_default_requires_the_selected_set_to_project() {
     ));
 
     let templates = scoop_hir::CanonicalExportDefaultTemplatesV1::from_ordinary_hir(&output)
-        .expect("the ordinary product supplies the exact imported-core selection sidecar");
+        .expect("the ordinary product owns the dependency selections needed by its defaults");
     let export = output.output().export.module();
     let function = export
         .functions
@@ -263,10 +246,7 @@ fn ordinary_selected_core_call_lowers_to_one_branded_direct_mir_target() {
             stmt(call("coreAnswer", Vec::new())),
         ],
     )]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &core.strong_callables)
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let hir = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
@@ -331,17 +311,13 @@ fn ordinary_core_call_uses_general_interface_without_legacy_strong_allowlist() {
         "main",
         vec![stmt(call("coreAnswer", Vec::new()))],
     )]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("ordinary HIR selection uses the shared callable interface");
     assert_eq!(output.imported_dependencies().callable_count(), 1);
-    assert_eq!(output.imported_core().callable_count(), 0);
 }
 
 #[test]
@@ -351,10 +327,7 @@ fn ordinary_core_call_uses_shared_generic_argument_diagnostics() {
         "main",
         vec![stmt(call("print", vec![int_lit(1)]))],
     )]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
@@ -377,16 +350,11 @@ fn current_function_shadows_an_imported_core_prelude_callable() {
         fun("coreAnswer", Vec::new()),
         fun("main", vec![stmt(call("coreAnswer", Vec::new()))]),
     ]));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &core.strong_callables)
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Executable, &input)
         .expect("the current package layer wins before core prelude lookup");
-
-    assert_eq!(output.imported_core().callable_count(), 0);
-    assert!(output.output().export.imported_core_callables.is_empty());
+    assert!(output.imported_dependencies().is_empty());
 }

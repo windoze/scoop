@@ -98,10 +98,7 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         ),
     )
     .unwrap();
-    let inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(parsed.cone());
     let input = OrdinarySources::try_new(&parsed, inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();

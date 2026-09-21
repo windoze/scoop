@@ -406,7 +406,6 @@ pub enum ExportDefaultCallableTarget {
     Callable(Callable),
     /// Strong imported core callable normalized to `Callable` in the
     /// portable default representation.
-    ImportedCore(ImportedCoreCallableUseId),
     /// Ordinary-dependency callable normalized to `Callable` through the
     /// exact selected dependency sidecar.
     ImportedDependency(ImportedDependencyCallableUseId),

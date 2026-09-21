@@ -245,7 +245,6 @@ enum CoreLoweringAuthority {
 #[derive(Clone)]
 struct ImportedCoreLoweringAuthority {
     protocols: hir::ImportedCoreProtocols,
-    selection: hir::ImportedCoreSelectionPlan,
     type_bindings: Vec<ImportedCoreTypeBinding>,
 }
 
@@ -262,7 +261,6 @@ enum LoweringCompletion {
 }
 
 struct ImportedLoweringCompletion {
-    core: hir::ImportedCoreSelectionPlan,
     dependencies: hir::ImportedDependencySelectionPlan,
     binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
 }
@@ -413,7 +411,7 @@ pub fn lower_core_bootstrap(
 /// carries the independently derived source/fact/inheritance inventories that
 /// the driver must retain for semantic sealing.
 pub fn produce_cross_cone_type_semantics(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
@@ -424,7 +422,7 @@ pub fn produce_cross_cone_type_semantics(
 pub fn lower_ordinary<'core>(
     requested: scoop_identity::RequestedConeKind,
     input: &OrdinarySources<'core, '_>,
-) -> Result<hir::OrdinaryHirOutput<'core>, Vec<Diagnostic>> {
+) -> Result<hir::OrdinaryHirOutput, Vec<Diagnostic>> {
     let (files, sources) = materialize_ordinary_sources(input.sources());
     let world = input.semantic_world();
     let classifier = input
@@ -470,17 +468,8 @@ pub fn lower_ordinary<'core>(
                 format!("failed to seal ordinary HIR output: {error}"),
             )]
         })?;
-    let selected = input
-        .bind_core_selection(completion.core)
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to bind ordinary core selection: {error}"),
-            )]
-        })?;
     hir::OrdinaryHirOutput::try_new(
         output,
-        selected,
         completion.dependencies.finish(),
         completion.binding_witness_uses,
     )
@@ -689,10 +678,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
-    pub(crate) imported_core_callables: Arena<hir::ImportedCoreCallableUse>,
     pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
-    pub(crate) imported_core_types: Arena<hir::ImportedCoreTypeUse>,
-    pub(crate) imported_core_values: Arena<hir::ImportedCoreValueUse>,
     /// Exact source-name routes selected while resolving public type-alias
     /// targets. Entries remain attached to their source alias until public
     /// surface publication, so private aliases cannot leak witness records.

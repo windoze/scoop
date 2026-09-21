@@ -9,10 +9,7 @@ fn producer_rejects_unprojected_dispatch_instead_of_emitting_partial_tables() {
     )]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -34,10 +31,7 @@ fn producer_keeps_final_direct_methods_in_the_m23_5_partition() {
     )]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -65,10 +59,7 @@ fn producer_rejects_generic_materialization_without_odr_authority() {
     ]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -96,10 +87,7 @@ fn producer_rejects_generic_class_backing_field_without_odr_authority() {
     ]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -136,10 +124,7 @@ fn producer_rejects_generic_constructor_parameter_without_odr_authority() {
     ]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -157,10 +142,7 @@ fn generic_source_only_root_has_independent_definition_origin_authority() {
     let mut source = file(vec![generic_struct_decl("Box", vec!["T"], Vec::new())]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -195,10 +177,7 @@ fn empty_slot_schemas_cover_transitive_interfaces() {
     ]);
     make_core_public(&mut source);
     let ordinary = parsed_ordinary(source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();

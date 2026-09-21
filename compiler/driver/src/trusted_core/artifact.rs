@@ -2,21 +2,19 @@ use std::fmt;
 use std::rc::Rc;
 
 use scoop_hir::{
-    CoreCallableDefinitionV1, CoreHirCallableCapabilityV1, CoreHirInterfaceBranchV1,
-    CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs, ImportedCorePreludeTarget,
-    SelectedImportedCoreSet, SelectedImportedCoreTarget,
+    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs,
 };
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, CoreImportedCallableKind, Effect, ExactCallableSignature,
-    ExactTypeKey, PersistentExactTypeId, PersistentExportBindingId,
+    ExactTypeKey, PersistentExactTypeId,
 };
 use scoop_lir::{
     ImportedLirCallableProjectionError, ImportedLirSelectionError,
     ImportedLirTypeDescriptorProjectionError, SelectedImportedLirCallable, SelectedImportedLirSet,
 };
 use scoop_mir::{
-    CoreMirBridgeBranchV1, ImportedMirCallableProjectionError, ImportedMirSelectionError,
-    SelectedImportedMirCallable, SelectedImportedMirSet,
+    ImportedMirCallableProjectionError, ImportedMirSelectionError, SelectedImportedMirCallable,
+    SelectedImportedMirSet,
 };
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeSemanticsStrongProfile, SharedCrossConeArtifact,
@@ -26,15 +24,9 @@ use scoop_slib::{
 mod projection;
 pub use projection::*;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ValidatedCoreInterface {
-    interface: CoreHirInterfaceV1,
-    strong_callable_bindings: Vec<PersistentExportBindingId>,
-}
-
 pub struct ValidatedTrustedCoreArtifact<'input> {
     artifact: SharedCrossConeArtifact<'input>,
-    core_interface: ValidatedCoreInterface,
+    interface: CoreHirInterfaceV1,
 }
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
@@ -51,22 +43,9 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
                 return Err(TrustedCoreArtifactValidationError::MissingCoreInterface);
             }
         };
-        let strong_callable_bindings = match compile.production().mir_core().core_bridge() {
-            CoreMirBridgeBranchV1::Core(bridge) => bridge
-                .callable_targets()
-                .iter()
-                .map(|target| target.binding())
-                .collect(),
-            CoreMirBridgeBranchV1::NotCore => {
-                return Err(TrustedCoreArtifactValidationError::MissingCoreMirBridge);
-            }
-        };
         Ok(Self {
             artifact,
-            core_interface: ValidatedCoreInterface {
-                interface,
-                strong_callable_bindings,
-            },
+            interface,
         })
     }
 
@@ -76,14 +55,10 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         self.artifact.compile()
     }
 
-    /// Atomically projects the only HIR lookup and compiler-protocol
-    /// capabilities authorized for an M23-3 consumer from this artifact's
-    /// own Compile proof and core interface.
+    /// Projects prelude lookup and compiler protocols from the shared
+    /// dependency artifact and its decoded interface.
     pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs<'_>, CoreInterfaceImportError> {
-        self.compile().hir().import_core_inputs(
-            &self.core_interface.interface,
-            &self.core_interface.strong_callable_bindings,
-        )
+        self.compile().hir().import_core_inputs(&self.interface)
     }
 
     pub fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
@@ -95,7 +70,6 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 pub enum TrustedCoreArtifactValidationError {
     MissingCore,
     MissingCoreInterface,
-    MissingCoreMirBridge,
 }
 
 impl fmt::Display for TrustedCoreArtifactValidationError {
@@ -104,9 +78,6 @@ impl fmt::Display for TrustedCoreArtifactValidationError {
             Self::MissingCore => formatter.write_str("dependency closure has no core artifact"),
             Self::MissingCoreInterface => {
                 formatter.write_str("trusted core Compile proof has no Core HIR interface")
-            }
-            Self::MissingCoreMirBridge => {
-                formatter.write_str("trusted core Compile proof has no Core MIR bridge")
             }
         }
     }

@@ -14,7 +14,7 @@ mod patterns;
 mod statements;
 
 pub(super) fn project(
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     locals: &TemplateLocalProjection,
     binders: &[HirSignatureBinder],
     template_origin: crate::DefinitionOrigin,
@@ -33,15 +33,15 @@ pub(super) fn project(
     ExportDefaultBodyV1::try_new(statements, value).map_err(super::DefaultBodyProjectionError::Body)
 }
 
-pub(super) struct BodyProjection<'a, 'hir, 'core, 'meter> {
-    entities: &'a DefaultEntityProjector<'hir, 'core, 'meter>,
+pub(super) struct BodyProjection<'a, 'hir, 'meter> {
+    entities: &'a DefaultEntityProjector<'hir, 'meter>,
     locals: &'a TemplateLocalProjection,
     binders: &'a [HirSignatureBinder],
     template_origin: crate::DefinitionOrigin,
     loops: Vec<crate::LoopId>,
 }
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn type_key(
         &self,
         ty: TypeId,

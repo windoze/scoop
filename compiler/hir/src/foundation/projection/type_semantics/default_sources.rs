@@ -2,7 +2,7 @@ use super::*;
 use crate::{ExportDefinitionSourceV1, NominalDefaultSourceProductionV1};
 
 pub(super) fn collect(
-    output: &crate::OrdinaryHirOutput<'_>,
+    output: &crate::OrdinaryHirOutput,
     sources: &mut Vec<ExportDefinitionSourceV1>,
     meter: &mut BudgetMeter,
 ) -> Result<(), HirFoundationBuildError> {

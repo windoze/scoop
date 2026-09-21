@@ -5,7 +5,7 @@ use scoop_identity::DefinitionOriginSubject as Subject;
 type Access = hir::CanonicalDefaultSourceAccessDeclarationsV1;
 
 pub(super) struct Inputs<'a> {
-    pub output: &'a hir::OrdinaryHirOutput<'a>,
+    pub output: &'a hir::OrdinaryHirOutput,
     pub fixture: &'a Fixture,
     pub sources: &'a Sources,
     pub core_types: &'a hir::ImportedCoreFundamentalTypeProtocol,
@@ -76,10 +76,7 @@ pub(super) fn with_inputs(source: &str, run: impl FnOnce(&Inputs<'_>)) {
         let access = decoded
             .resolve(&mut fixture.identities, &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(&Inputs {
             output,
             fixture: &fixture,

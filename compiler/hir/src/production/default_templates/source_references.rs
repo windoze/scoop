@@ -7,7 +7,7 @@ use DefaultSourceReferencesProductionError as Error;
 pub use errors::DefaultSourceReferencesProductionError;
 
 pub(super) fn project(
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     provider: CallableTemplateOrigin,
     binders: &[HirSignatureBinder],
     source: &ExportDefaultReferences,
@@ -104,7 +104,7 @@ pub(super) fn project(
 }
 
 fn sequence<'a, S, T>(
-    entities: &DefaultEntityProjector<'_, '_, '_>,
+    entities: &DefaultEntityProjector<'_, '_>,
     provider: CallableTemplateOrigin,
     source: impl ExactSizeIterator<Item = (S, DefinitionOrigin, &'a ExportDefaultAccessWitness)>,
     kind: ExportDefaultReferenceKindV1,

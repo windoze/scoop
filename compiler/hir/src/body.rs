@@ -407,10 +407,6 @@ pub enum ExprKind {
     /// Direct call to a param-free strong callable selected from the trusted
     /// core artifact. The target belongs to this module's imported-callable
     /// arena and cannot be represented as a local source declaration.
-    ImportedCoreCall {
-        callee: ImportedCoreCallableUseId,
-        args: Vec<Expr>,
-    },
     /// Direct call to a core-closed callable owned by an ordinary dependency.
     /// Its branded arena use resolves only through this output's dependency
     /// selection sidecar.

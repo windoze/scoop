@@ -55,7 +55,7 @@ impl DependencyConstantFixture {
     fn inspect<R>(
         &self,
         consumer: scoop_ast::SourceFile,
-        inspect: impl FnOnce(scoop_hir::OrdinaryHirOutput<'_>) -> R,
+        inspect: impl FnOnce(scoop_hir::OrdinaryHirOutput) -> R,
     ) -> R {
         let ordinary = parsed_ordinary(consumer);
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
@@ -80,7 +80,7 @@ impl DependencyConstantFixture {
         let core = self
             .core
             .foundation
-            .import_core_inputs(&self.core.interface, &[])
+            .import_core_inputs(&self.core.interface)
             .unwrap();
         let input = OrdinarySources::try_new(&ordinary, core, &world).unwrap();
         let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)

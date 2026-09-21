@@ -45,10 +45,7 @@ fn project_dependency_with_core_roles(
     scoop_hir::CrossConeHirInterfaceSectionV1,
 ) {
     let parsed = parsed_ordinary_at(coordinate, source);
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let witnesses = core_types
         .iter()
         .flat_map(|name| core_type_witnesses(&core_inputs, name, include_default_role))

@@ -52,7 +52,7 @@ impl CrossConeTypeSemanticsProductionV1 {
     /// partial section can be observed. M23-5 narrow dependency selections
     /// remain in their existing partition and do not populate field 8.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         public: &CrossConeHirInterfaceSectionV1,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {

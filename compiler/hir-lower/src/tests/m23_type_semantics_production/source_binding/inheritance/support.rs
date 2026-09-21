@@ -8,7 +8,7 @@ pub(super) struct Sources {
     pub nominals: hir::CanonicalNominalSourceContractsV1,
 }
 impl Sources {
-    pub fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
         let properties = super::super::properties::Sources::from_output(output, fixture);
         macro_rules! restore {
             ($value:expr, $decoded:ty) => {{

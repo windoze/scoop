@@ -23,7 +23,7 @@ fn meter() -> BudgetMeter {
 }
 
 fn required(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
 ) -> hir::CanonicalPersistentIdsV1<PersistentPropertyId> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
@@ -48,7 +48,7 @@ fn required(
     )
     .unwrap()
 }
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 

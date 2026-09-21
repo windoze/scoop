@@ -638,11 +638,7 @@ impl BodyLowerer<'_> {
             hir::ExprKind::Call { callee, args } => {
                 return self.lower_call(*callee, args, expr.ty);
             }
-            hir::ExprKind::ImportedCoreCall { callee, args } => {
-                let callee = mir::Callee::CoreExternal(self.imported_core_callable_map[callee]);
-                let return_ty = self.lower_type(expr.ty);
-                return self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty);
-            }
+
             hir::ExprKind::ImportedDependencyCall { callee, args } => {
                 let callee =
                     mir::Callee::DependencyStrong(self.imported_dependency_callable_map[callee]);

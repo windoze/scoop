@@ -208,14 +208,9 @@ struct Concretizer<'a> {
         (export::CallableReferenceId, Vec<concrete::TypeId>),
         concrete::CallableReferenceId,
     >,
-    imported_core_callables: Arena<concrete::ImportedCoreCallableUse>,
-    imported_core_callable_map:
-        HashMap<export::ImportedCoreCallableUseId, concrete::ImportedCoreCallableUseId>,
     imported_dependency_callables: Arena<concrete::ImportedDependencyCallableUse>,
     imported_dependency_callable_map:
         HashMap<export::ImportedDependencyCallableUseId, concrete::ImportedDependencyCallableUseId>,
-    imported_core_types: Arena<concrete::ImportedCoreTypeUse>,
-    imported_core_values: Arena<concrete::ImportedCoreValueUse>,
     function_coercions: Arena<concrete::FunctionCoercion>,
     coercion_by_key:
         HashMap<(export::FunctionCoercionId, Vec<concrete::TypeId>), concrete::FunctionCoercionId>,
@@ -286,16 +281,6 @@ impl<'a> Concretizer<'a> {
             .iter()
             .map(|(object, declaration)| (declaration.backing_class, object))
             .collect();
-        let mut imported_core_callables = Arena::new();
-        let imported_core_callable_map = source
-            .imported_core_callables
-            .iter()
-            .map(|(source_id, source)| {
-                let target = imported_core_callables
-                    .alloc(concrete::ImportedCoreCallableUse::from_export(*source));
-                (source_id, target)
-            })
-            .collect();
         let mut imported_dependency_callables = Arena::new();
         let imported_dependency_callable_map = source
             .imported_dependency_callables
@@ -306,16 +291,6 @@ impl<'a> Concretizer<'a> {
                 );
                 (source_id, target)
             })
-            .collect();
-        let imported_core_types = source
-            .imported_core_types
-            .iter()
-            .map(|(_, source)| concrete::ImportedCoreTypeUse::from_export(*source))
-            .collect();
-        let imported_core_values = source
-            .imported_core_values
-            .iter()
-            .map(|(_, source)| concrete::ImportedCoreValueUse::from_export(*source))
             .collect();
         Self {
             source,
@@ -375,12 +350,8 @@ impl<'a> Concretizer<'a> {
             local_by_key: HashMap::new(),
             callable_reference_slots: Vec::new(),
             reference_by_key: HashMap::new(),
-            imported_core_callables,
-            imported_core_callable_map,
             imported_dependency_callables,
             imported_dependency_callable_map,
-            imported_core_types,
-            imported_core_values,
             function_coercions: Arena::new(),
             coercion_by_key: HashMap::new(),
             foreign_callback_slots: Vec::new(),
@@ -727,10 +698,7 @@ impl<'a> Concretizer<'a> {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references,
-            imported_core_callables: self.imported_core_callables,
             imported_dependency_callables: self.imported_dependency_callables,
-            imported_core_types: self.imported_core_types,
-            imported_core_values: self.imported_core_values,
             function_coercions: self.function_coercions,
             foreign_callback_registrations,
             functions,

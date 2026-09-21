@@ -556,7 +556,6 @@ impl Lowerer {
             CoreLoweringAuthority::Imported(authority) => (
                 hir::CoreProtocols::Imported(Box::new(authority.protocols)),
                 LoweringCompletion::Imported(Box::new(ImportedLoweringCompletion {
-                    core: authority.selection,
                     dependencies: self
                         .dependencies
                         .take()

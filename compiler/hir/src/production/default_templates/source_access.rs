@@ -18,7 +18,7 @@ impl DefaultSourceAccessWitnessV1 {
         meter.check_semantic_depth(4, &path)?;
         meter.charge_nodes(1, &path)?;
         meter.charge_work(1, &path)?;
-        let owner = super::entities::DefaultEntityProjector::new(export, None, None, meter)
+        let owner = super::entities::DefaultEntityProjector::new(export, None, meter)
             .parameter_owner(witness.owner)
             .map_err(Error::Owner)?;
         let direct = DefaultSourceAccessDomainV1::from_export_hir(

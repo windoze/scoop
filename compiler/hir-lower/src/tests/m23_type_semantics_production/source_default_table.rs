@@ -79,7 +79,7 @@ fn owner_name(export: &hir::ExportHir, owner: hir::ExportParameterOwner) -> Stri
         ),
     }
 }
-fn restored(output: &hir::OrdinaryHirOutput<'_>, table: &Table) -> Table {
+fn restored(output: &hir::OrdinaryHirOutput, table: &Table) -> Table {
     let bytes = bytes(table);
     let input: Decoded = decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(encode(&input).unwrap(), bytes);

@@ -8,10 +8,7 @@ fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
         let dispatch = sources
             .properties
@@ -80,10 +77,7 @@ fn inheritance_source_composition_shares_constructor_replay_budgets() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,

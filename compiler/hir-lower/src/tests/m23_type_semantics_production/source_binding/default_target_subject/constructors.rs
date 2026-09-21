@@ -27,7 +27,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.nested", 0),
 ];
 pub(super) fn reference(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     name: &str,
     position: u32,
 ) -> hir::DefaultSourceReferenceV1<Constructor> {

@@ -24,7 +24,7 @@ struct Sources {
     callables: Table,
 }
 impl Sources {
-    fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
         let properties = super::properties::Sources::from_output(output, fixture);
         let source = Table::from_ordinary_hir(output, &mut meter()).unwrap();
         let bytes = encode(&source).unwrap();
@@ -68,10 +68,7 @@ fn restored_protected_sources_bind_methods_generics_accessors_and_overrides() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             let protocol = inputs.protocols().fundamental_types();
             let bound = sources.bind(&foundation, protocol, &mut meter()).unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
@@ -117,10 +114,7 @@ fn protected_binding_uses_shared_resource_limits_before_publication() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,

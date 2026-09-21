@@ -15,27 +15,25 @@ use super::errors::DefaultEntityProjectionError;
 use crate::{
     DefaultCallableDeclarationV1, DefaultClassConstructorIdV1, ExportHir, HirFunctionIdentity,
     HirPropertyAccessorFunction, HirSignatureBinder, LexicalDefinitionRoot,
-    PersistentLexicalRootV1, SelectedImportedCoreSet, SelectedImportedDependencySet, TypeId,
+    PersistentLexicalRootV1, SelectedImportedDependencySet, TypeId,
 };
 
-pub(super) struct DefaultEntityProjector<'a, 'core, 'meter> {
+pub(super) struct DefaultEntityProjector<'a, 'meter> {
     export: &'a ExportHir,
-    imported_core: Option<&'a SelectedImportedCoreSet<'core>>,
     imported_dependencies: Option<&'a SelectedImportedDependencySet>,
     signatures: HirInterfaceSignatureProjector<'a>,
     pub(super) resources: super::resources::ProjectionResources<'meter>,
 }
 
-impl<'a, 'core, 'meter> DefaultEntityProjector<'a, 'core, 'meter> {
+impl<'a, 'meter> DefaultEntityProjector<'a, 'meter> {
     pub(super) fn new(
         export: &'a ExportHir,
-        imported_core: Option<&'a SelectedImportedCoreSet<'core>>,
         imported_dependencies: Option<&'a SelectedImportedDependencySet>,
         meter: &'meter mut scoop_wire::BudgetMeter,
     ) -> Self {
         Self {
             export,
-            imported_core,
+
             imported_dependencies,
             signatures: HirInterfaceSignatureProjector::new(export),
             resources: super::resources::ProjectionResources::new(meter),

@@ -66,10 +66,7 @@ fn foreign_body_locations_route_to_their_explicit_artifact_provider() {
             .bind_to_foundation(&core.source_foundation, &fixture.identities, &mut meter())
             .unwrap();
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         sources.with_bound(
             &foundation,
             inputs.protocols().fundamental_types(),

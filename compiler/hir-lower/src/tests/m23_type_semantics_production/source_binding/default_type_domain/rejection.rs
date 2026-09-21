@@ -7,10 +7,7 @@ fn default_type_domains_reject_wrong_arity_and_provider_binder_scope() {
         let declarations = foundation
             .bind_default_access_declarations(table, required, &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let domains = Domains::new(
             &declarations,
             &[],
@@ -72,10 +69,7 @@ fn default_type_domains_require_declaration_sources_even_for_known_type_identiti
         let declarations = foundation
             .bind_default_access_declarations(&table, &BTreeSet::new(), &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let domains = Domains::new(
             &declarations,
             &[],

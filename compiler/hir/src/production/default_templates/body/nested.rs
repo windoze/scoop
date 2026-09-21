@@ -8,7 +8,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn lambda(
         &mut self,
         id: crate::LambdaId,

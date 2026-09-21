@@ -9,7 +9,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) struct Sourc
 }
 impl Sources {
     pub(in crate::tests::m23_type_semantics_production::source_binding) fn from_output(
-        output: &hir::OrdinaryHirOutput<'_>,
+        output: &hir::OrdinaryHirOutput,
         fixture: &mut Fixture,
     ) -> Self {
         let members = Members::from_output(output, fixture);
@@ -109,7 +109,7 @@ impl Sources {
 pub(in crate::tests::m23_type_semantics_production::source_binding) fn with_sources(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput<'_>,
+        &hir::OrdinaryHirOutput,
         &Fixture,
         &Sources,
         &hir::ImportedCoreFundamentalTypeProtocol,
@@ -118,10 +118,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn with_sour
     with_hir_source(source, |output, core| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
             output,
             &fixture,

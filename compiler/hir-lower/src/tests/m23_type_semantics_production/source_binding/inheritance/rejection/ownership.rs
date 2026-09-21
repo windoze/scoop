@@ -7,10 +7,7 @@ fn inheritance_sources_cannot_mix_equal_artifacts_with_distinct_bindings() {
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let other = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
         let dispatch = sources
             .properties

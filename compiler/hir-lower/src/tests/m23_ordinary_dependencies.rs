@@ -56,10 +56,7 @@ fn ordinary_dependency_calls_commit_one_reused_typed_hir_use() {
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
@@ -140,10 +137,7 @@ fn direct_dependency_function_is_visible_in_the_split_current_package() {
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
@@ -196,10 +190,7 @@ fn unsupported_dependency_candidate_falls_through_to_current_package() {
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input)
@@ -255,10 +246,7 @@ fn unsupported_dependency_winner_reports_the_stable_layout_gate() {
         Vec::new(),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
 
     let diagnostics = match lower_ordinary(scoop_identity::RequestedConeKind::Library, &input) {

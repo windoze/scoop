@@ -25,7 +25,7 @@ const PROTECTED: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn required(output: &hir::OrdinaryHirOutput<'_>) -> BTreeSet<CallableTemplateOrigin> {
+fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<CallableTemplateOrigin> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
     let nominals =
@@ -72,7 +72,7 @@ fn required(output: &hir::OrdinaryHirOutput<'_>) -> BTreeSet<CallableTemplateOri
     }
     required
 }
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 

@@ -120,10 +120,7 @@ fn default_root_origin_cannot_borrow_another_files_valid_source_context() {
                 ),
             );
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources.with_bound(&foundation, inputs.protocols().fundamental_types(), |members, constructors| {
                 let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
                 parameters.bind_default_origins(&table, &[], &mut meter()).unwrap();

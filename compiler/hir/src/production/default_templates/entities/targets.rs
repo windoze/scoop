@@ -1,7 +1,7 @@
 //! Targets shared by public envelopes and independent source occurrences.
 use super::DefaultEntityProjector;
 use crate::{ExportDefaultCallableTarget, ExportDefaultCallableTargetV1, HirSignatureBinder};
-impl DefaultEntityProjector<'_, '_, '_> {
+impl DefaultEntityProjector<'_, '_> {
     pub(in crate::production::default_templates) fn reference_callable(
         &self,
         target: ExportDefaultCallableTarget,
@@ -13,9 +13,7 @@ impl DefaultEntityProjector<'_, '_, '_> {
             ExportDefaultCallableTarget::Callable(callable) => {
                 ExportDefaultCallableTargetV1::Callable(entities.callable(callable, binders)?)
             }
-            ExportDefaultCallableTarget::ImportedCore(callable) => {
-                ExportDefaultCallableTargetV1::Callable(entities.imported_callable(callable)?)
-            }
+
             ExportDefaultCallableTarget::ImportedDependency(callable) => {
                 ExportDefaultCallableTargetV1::Callable(
                     entities.imported_dependency_callable(callable)?,

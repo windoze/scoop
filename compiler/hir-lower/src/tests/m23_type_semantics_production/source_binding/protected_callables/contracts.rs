@@ -33,10 +33,7 @@ fn protected_origins_must_match_the_exact_typed_foundation_subject() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for record in sources.callables.records() {
             let old = record.declaration_access();
             let other = fixture
@@ -88,10 +85,7 @@ fn protected_sources_cannot_truncate_nested_lexical_owners() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let mut checked = 0;
         for record in sources
             .callables

@@ -614,7 +614,6 @@ impl ImportedHirFoundation {
     pub fn import_core_inputs<'a>(
         &'a self,
         interface: &'a CoreHirInterfaceV1,
-        strong_callable_bindings: &'a [scoop_identity::PersistentExportBindingId],
     ) -> Result<ImportedCoreInputs<'a>, CoreInterfaceImportError> {
         let protocols = ImportedCoreProtocols::import(self, interface)
             .map_err(CoreInterfaceImportError::Protocols)?;
@@ -622,7 +621,7 @@ impl ImportedHirFoundation {
             ImportedCoreNativeBoundaryTypes::import(self, protocols.fundamental_types())
                 .map_err(CoreInterfaceImportError::NativeBoundary)?;
         let prelude = self
-            .import_core_prelude(interface, strong_callable_bindings)
+            .import_core_prelude(interface)
             .map_err(CoreInterfaceImportError::Prelude)?;
         Ok(ImportedCoreInputs {
             prelude,

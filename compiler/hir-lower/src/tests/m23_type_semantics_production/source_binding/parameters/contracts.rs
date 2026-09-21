@@ -7,10 +7,7 @@ fn source_parameter_arity_names_and_types_must_match_bound_signatures() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
         for record in sources
             .protocols
@@ -62,10 +59,7 @@ fn scalar_and_binder_parameters_cannot_claim_vararg_array_protocols() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for record in sources
             .protocols
             .records()
@@ -97,10 +91,7 @@ fn parameter_origins_must_resolve_actual_foundation_source_points() {
         let mut fixture = Fixture::from_output(output);
         let mut sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let record = sources
             .protocols
             .records()

@@ -135,4 +135,26 @@ fn world_separates_direct_enumeration_from_support_exact_lookup() {
         if binding.bindings().next().unwrap().target().persistent()
             == scoop_identity::BindableEntity::Type(id))
     );
+
+    let classifier = crate::CoreClosedExactLeafClassifierV1::from_exact_leaves_for_test(Vec::new());
+    let selected = world
+        .dependency_selection_plan(&classifier)
+        .unwrap()
+        .finish();
+    drop(world);
+    for (fixture, expected_routes) in [(&core, 1), (&direct, 1), (&support, 0)] {
+        let crate::SourceNominalId::Concrete(id) = fixture.outer.unwrap() else {
+            panic!("fixture target must be a concrete nominal");
+        };
+        let target = crate::ExternalHirTargetV1::from(scoop_identity::BindableEntity::Type(id));
+        let routes = selected.direct_binding_witnesses(target);
+        assert_eq!(routes.len(), expected_routes);
+        for witness in routes {
+            assert_eq!(witness.route().immediate_provider(), fixture.identity());
+            assert_eq!(
+                witness.route().terminal().binding(),
+                fixture.outer_binding.unwrap()
+            );
+        }
+    }
 }

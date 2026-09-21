@@ -14,7 +14,7 @@ const SOURCE: &str = include_str!(concat!(
 fn with_domain(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput<'_>,
+        &hir::OrdinaryHirOutput,
         &mut Fixture,
         &Sources,
         &Domain,
@@ -37,10 +37,7 @@ fn with_domain(
             .resolve(&mut fixture.identities, &mut meter())
             .unwrap();
         assert_eq!(restored, source);
-        let core = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         run(
             output,
             &mut fixture,

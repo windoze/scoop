@@ -34,7 +34,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.Scope.reference", 0),
 ];
 fn template(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     name: &str,
     position: u32,
 ) -> hir::DefaultSourceTemplateV1 {

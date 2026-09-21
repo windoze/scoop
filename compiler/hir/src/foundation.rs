@@ -35,12 +35,8 @@ mod strong_profile;
 pub use counts::HirFoundationCounts;
 mod type_source_keys;
 pub use imported::{
-    CorePreludeCapabilityError, CorePreludeImportError, CorePreludeOnly,
-    CorePreludeSelectionBindError, CorePreludeSelectionError, CorePreludeUnavailableCapability,
-    ImportedCoreCallableRef, ImportedCorePreludeBinding, ImportedCorePreludeRef,
-    ImportedCorePreludeTarget, ImportedCoreSelectionPlan, ImportedCoreTypeRef,
-    ImportedCoreValueRef, ImportedHirFoundation, ImportedHirId, ImportedHirSet,
-    SelectedImportedCoreId, SelectedImportedCoreSet, SelectedImportedCoreTarget,
+    CorePreludeImportError, CorePreludeOnly, ImportedCorePreludeBinding, ImportedCorePreludeTarget,
+    ImportedHirFoundation, ImportedHirId, ImportedHirSet,
 };
 pub use imported_protocols::{
     CoreInterfaceImportError, CoreNativeBoundaryImportError, CoreProtocolIdentityKind,
@@ -868,8 +864,6 @@ pub enum HirFoundationBuildError {
         table: HirFoundationTable,
         reason: String,
     },
-    MissingCoreExternalSourceType(PersistentTypeId),
-    MissingCoreExternalGenericType(PersistentGenericTypeId),
 }
 
 impl fmt::Display for HirFoundationBuildError {
@@ -943,14 +937,6 @@ impl fmt::Display for HirFoundationBuildError {
                     table.name()
                 )
             }
-            Self::MissingCoreExternalSourceType(identity) => write!(
-                formatter,
-                "HIR exact types reference source type {identity} absent from the imported core foundation"
-            ),
-            Self::MissingCoreExternalGenericType(identity) => write!(
-                formatter,
-                "HIR exact types reference generic type {identity} absent from the imported core foundation"
-            ),
         }
     }
 }

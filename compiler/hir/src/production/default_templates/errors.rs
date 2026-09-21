@@ -85,8 +85,6 @@ pub enum DefaultEntityProjectionError {
     Type(HirInterfaceSignatureProjectionError),
     Callable(DefaultCallableRefBuildError),
     GeneratedIdentity(scoop_identity::GeneratedCallableIdentityError),
-    ImportedCoreUnavailable(u32),
-    ImportedCoreKind(u32),
     ImportedDependencyUnavailable(u32),
 }
 

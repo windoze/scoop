@@ -3,97 +3,16 @@
 use super::*;
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
-    /// Projects one checked param-free callable candidate through this exact
-    /// trusted artifact's HIR and MIR production surfaces.
-    pub fn project_core_callable_to_mir<'artifact>(
+    pub fn project_initialization_protocol_to_mir<'artifact>(
         &'artifact self,
-        selected: SelectedImportedCoreTarget<'_>,
-    ) -> Result<SelectedImportedMirCallable<'artifact>, TrustedCoreCallableProjectionError> {
-        let ImportedCorePreludeTarget::Callable(selected_target) = selected.target() else {
-            return Err(TrustedCoreCallableProjectionError::NotCallable {
-                binding: selected.binding().persistent(),
-            });
-        };
-        let binding = selected.binding();
-        if !selected.belongs_to(
-            self.compile().hir(),
-            &self.core_interface.interface,
-            &self.core_interface.strong_callable_bindings,
-        ) {
-            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
-                binding: binding.persistent(),
-            });
-        }
-        let own_target = self
-            .core_interface
-            .interface
-            .callable_targets()
-            .targets()
-            .iter()
-            .find(|target| target.binding() == binding.persistent())
-            .ok_or(TrustedCoreCallableProjectionError::MissingHirCallable {
-                binding: binding.persistent(),
-            })?;
-        if own_target != selected_target {
-            return Err(TrustedCoreCallableProjectionError::ForeignHirSelection {
-                binding: binding.persistent(),
-            });
-        }
-        let CoreCallableDefinitionV1::Function(definition) = own_target.definition() else {
-            return Err(
-                TrustedCoreCallableProjectionError::InvalidHirCallableDefinition {
-                    binding: binding.persistent(),
-                },
-            );
-        };
-        let CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) = own_target.capability()
-        else {
-            return Err(TrustedCoreCallableProjectionError::UnavailableHirCallable {
-                binding: binding.persistent(),
-            });
-        };
-        self.compile()
-            .mir()
-            .project_core_callable(
-                self.compile().production().mir_core(),
-                binding.persistent(),
-                definition,
-                signature.clone(),
-            )
-            .map_err(TrustedCoreCallableProjectionError::Mir)
-    }
-
-    /// Atomically projects every HIR-selected public callable and, when
-    /// requested, the initialization-cycle compiler protocol through this
-    /// artifact's MIR bridge. A foreign or partially projectable set does not
-    /// yield a MIR sidecar.
-    pub fn project_core_callables_to_mir<'artifact>(
-        &'artifact self,
-        selected: &SelectedImportedCoreSet<'_>,
         include_initialization_cycle_thrower: bool,
     ) -> Result<SelectedImportedMirSet<'artifact>, TrustedCoreCallableSetProjectionError> {
-        if !selected.belongs_to(
-            self.compile().hir(),
-            &self.core_interface.interface,
-            &self.core_interface.strong_callable_bindings,
-        ) {
-            return Err(TrustedCoreCallableSetProjectionError::ForeignHirSet);
-        }
         let mut projected = SelectedImportedMirSet::new(
             self.compile().mir(),
             self.compile().production().mir_core(),
         );
-        for selected in selected.callable_selections() {
-            let callable = self
-                .project_core_callable_to_mir(selected)
-                .map_err(TrustedCoreCallableSetProjectionError::Callable)?;
-            projected
-                .insert(callable)
-                .map_err(TrustedCoreCallableSetProjectionError::MirSet)?;
-        }
         if include_initialization_cycle_thrower {
             let cycle = self
-                .core_interface
                 .interface
                 .compiler_protocols()
                 .initialization_cycle_thrower();
@@ -111,12 +30,7 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             let signature = ExactCallableSignature::new(
                 Effect::Ordinary,
                 None,
-                vec![
-                    self.core_interface
-                        .interface
-                        .string_capability()
-                        .exact_type(),
-                ],
+                vec![self.interface.string_capability().exact_type()],
                 unit,
             );
             let callable = self
@@ -206,11 +120,7 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .core_lir_bridge()
             .core()
             .expect("a validated trusted core artifact has a core LIR bridge");
-        let string_exact = self
-            .core_interface
-            .interface
-            .string_capability()
-            .exact_type();
+        let string_exact = self.interface.string_capability().exact_type();
         let shape_support = self
             .compile()
             .production()
@@ -264,25 +174,19 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 
 #[derive(Debug)]
 pub enum TrustedCoreCallableSetProjectionError {
-    ForeignHirSet,
     InvalidInitializationCycleThrower,
     InitializationCycleUnitIdentity(scoop_wire::HashError),
     InitializationCycleMir(ImportedMirCallableProjectionError),
-    Callable(TrustedCoreCallableProjectionError),
     MirSet(ImportedMirSelectionError),
 }
 
 impl fmt::Display for TrustedCoreCallableSetProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ForeignHirSet => {
-                formatter.write_str("selected core HIR set belongs to another artifact projection")
-            }
             Self::InvalidInitializationCycleThrower => formatter
                 .write_str("trusted core initialization-cycle protocol is not a source function"),
             Self::InitializationCycleUnitIdentity(error) => error.fmt(formatter),
             Self::InitializationCycleMir(error) => error.fmt(formatter),
-            Self::Callable(error) => error.fmt(formatter),
             Self::MirSet(error) => error.fmt(formatter),
         }
     }
@@ -291,10 +195,9 @@ impl fmt::Display for TrustedCoreCallableSetProjectionError {
 impl std::error::Error for TrustedCoreCallableSetProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::ForeignHirSet | Self::InvalidInitializationCycleThrower => None,
+            Self::InvalidInitializationCycleThrower => None,
             Self::InitializationCycleUnitIdentity(error) => Some(error),
             Self::InitializationCycleMir(error) => Some(error),
-            Self::Callable(error) => Some(error),
             Self::MirSet(error) => Some(error),
         }
     }
@@ -344,12 +247,6 @@ impl std::error::Error for TrustedCoreLirSetProjectionError {
 
 #[derive(Debug)]
 pub enum TrustedCoreCallableProjectionError {
-    NotCallable { binding: PersistentExportBindingId },
-    ForeignHirSelection { binding: PersistentExportBindingId },
-    MissingHirCallable { binding: PersistentExportBindingId },
-    InvalidHirCallableDefinition { binding: PersistentExportBindingId },
-    UnavailableHirCallable { binding: PersistentExportBindingId },
-    Mir(ImportedMirCallableProjectionError),
     ForeignMirSelection { kind: CoreImportedCallableKind },
     Lir(ImportedLirCallableProjectionError),
 }
@@ -357,25 +254,6 @@ pub enum TrustedCoreCallableProjectionError {
 impl fmt::Display for TrustedCoreCallableProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotCallable { binding } => {
-                write!(formatter, "selected core binding {binding} is not callable")
-            }
-            Self::ForeignHirSelection { binding } => write!(
-                formatter,
-                "selected core HIR binding {binding} belongs to another artifact projection"
-            ),
-            Self::MissingHirCallable { binding } => {
-                write!(formatter, "trusted core HIR callable {binding} is missing")
-            }
-            Self::InvalidHirCallableDefinition { binding } => write!(
-                formatter,
-                "trusted core HIR callable {binding} is not a param-free function definition"
-            ),
-            Self::UnavailableHirCallable { binding } => write!(
-                formatter,
-                "trusted core HIR callable {binding} is unavailable to this production profile"
-            ),
-            Self::Mir(error) => error.fmt(formatter),
             Self::ForeignMirSelection { kind } => write!(
                 formatter,
                 "selected core MIR callable {kind:?} belongs to another artifact projection"
@@ -388,7 +266,6 @@ impl fmt::Display for TrustedCoreCallableProjectionError {
 impl std::error::Error for TrustedCoreCallableProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Mir(error) => Some(error),
             Self::Lir(error) => Some(error),
             _ => None,
         }

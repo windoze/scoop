@@ -7,10 +7,7 @@ fn another_applicable_base_implementation_cannot_replace_the_sealed_override_cho
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let slots = dispatch
             .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
             .unwrap();
@@ -51,10 +48,7 @@ fn matching_candidate_root_and_target_effects_cannot_override_source_contracts()
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let slots = dispatch
             .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
             .unwrap();

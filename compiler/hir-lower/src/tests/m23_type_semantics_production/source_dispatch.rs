@@ -151,7 +151,7 @@ fn source_dispatch_graph_traversal_obeys_shared_depth_and_work_limits() {
 }
 
 fn roundtrip(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
 ) {
     let mut identities = super::source_inventory::identity_closure(output);

@@ -40,7 +40,7 @@ struct Fixture {
 }
 
 impl Fixture {
-    fn from_output(output: &hir::OrdinaryHirOutput<'_>) -> Self {
+    fn from_output(output: &hir::OrdinaryHirOutput) -> Self {
         let source =
             hir::CrossConeTypeSemanticsFoundationV1::from_ordinary_hir(output, &mut meter())
                 .unwrap()

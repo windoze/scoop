@@ -1,11 +1,11 @@
-//! Ordinary-Cone lowering with branded trusted-core and dependency inputs.
+//! Ordinary-Cone lowering with compiler-protocol and dependency projections.
 
 use super::*;
 
 /// Lowers one ordinary HIR product against the exact MIR projections of all
 /// selected external callables.
 pub fn lower_ordinary<'core>(
-    output: &scoop_hir::OrdinaryHirOutput<'core>,
+    output: &scoop_hir::OrdinaryHirOutput,
     imported_core: mir::SelectedImportedMirSet<'core>,
     imported_dependencies: mir::SelectedDependencyMirSet,
 ) -> Result<mir::OrdinaryMirOutput<'core>, ImportedCoreMirLoweringError> {
@@ -22,8 +22,7 @@ pub fn lower_ordinary<'core>(
         );
     }
 
-    let (core_callables, core_mapping, cycle_authority) =
-        lower_core_callables(output, &imported_core)?;
+    let (core_callables, cycle_authority) = lower_core_callables(output, &imported_core)?;
     let (dependency_callables, dependency_mapping) =
         lower_dependency_callables(output, &imported_dependencies)?;
     let module = lower_with_core_authority(
@@ -31,7 +30,6 @@ pub fn lower_ordinary<'core>(
         CoreMirLoweringAuthority::Imported,
         cycle_authority,
         core_callables,
-        core_mapping,
         dependency_callables,
         dependency_mapping,
     );
@@ -41,70 +39,15 @@ pub fn lower_ordinary<'core>(
 
 type CoreCallableLowering = (
     Arena<mir::ImportedCoreCallableUse>,
-    HashMap<hir::ImportedCoreCallableUseId, mir::ImportedCoreCallableUseId>,
     InitializationCycleLoweringAuthority,
 );
 
 fn lower_core_callables<'core>(
-    output: &scoop_hir::OrdinaryHirOutput<'core>,
+    output: &scoop_hir::OrdinaryHirOutput,
     imported: &mir::SelectedImportedMirSet<'core>,
 ) -> Result<CoreCallableLowering, ImportedCoreMirLoweringError> {
     let hir = output.output().local.module();
-    let selected = output.imported_core();
     let mut callables = Arena::new();
-    let mut mapping = HashMap::new();
-    for (source_id, source) in hir.imported_core_callables.iter() {
-        let selected_target = selected.resolve_callable(source.reference()).ok_or(
-            ImportedCoreMirLoweringError::ForeignHirCallable {
-                index: source_id.into_raw().into_u32(),
-            },
-        )?;
-        let scoop_hir::ImportedCorePreludeTarget::Callable(target) = selected_target.target()
-        else {
-            return Err(ImportedCoreMirLoweringError::HirTargetIsNotCallable {
-                index: source_id.into_raw().into_u32(),
-            });
-        };
-        let scoop_hir::CoreHirCallableCapabilityV1::ParamFreeCandidate(signature) =
-            target.capability()
-        else {
-            return Err(ImportedCoreMirLoweringError::HirCapabilityMismatch {
-                index: source_id.into_raw().into_u32(),
-            });
-        };
-        if signature.effect() != scoop_hir::concrete::Effect::Ordinary {
-            return Err(ImportedCoreMirLoweringError::SuspendCallableUnavailable {
-                index: source_id.into_raw().into_u32(),
-            });
-        }
-        if signature.receiver().is_present() {
-            return Err(ImportedCoreMirLoweringError::ReceiverCallableUnavailable {
-                index: source_id.into_raw().into_u32(),
-            });
-        }
-        let id = imported
-            .callable_for_kind(mir::CoreImportedCallableKind::Prelude(
-                selected_target.binding().persistent(),
-            ))
-            .ok_or(ImportedCoreMirLoweringError::MissingMirCallable {
-                index: source_id.into_raw().into_u32(),
-            })?;
-        let mir_target = imported
-            .callable(id)
-            .expect("a binding lookup returns an in-bounds MIR callable");
-        if mir_target.signature() != signature {
-            return Err(ImportedCoreMirLoweringError::SignatureMismatch {
-                index: source_id.into_raw().into_u32(),
-            });
-        }
-        let target = callables.alloc(
-            imported
-                .callable_use(id)
-                .expect("a selected MIR callable mints one branded use"),
-        );
-        mapping.insert(source_id, target);
-    }
-
     let cycle_authority = lower_initialization_cycle_authority(hir, imported, &mut callables)?;
     if callables.len() != imported.len() {
         return Err(ImportedCoreMirLoweringError::UnusedMirCallable {
@@ -112,7 +55,7 @@ fn lower_core_callables<'core>(
             used: callables.len(),
         });
     }
-    Ok((callables, mapping, cycle_authority))
+    Ok((callables, cycle_authority))
 }
 
 fn lower_initialization_cycle_authority(
@@ -160,7 +103,7 @@ type DependencyCallableLowering = (
 );
 
 fn lower_dependency_callables(
-    output: &scoop_hir::OrdinaryHirOutput<'_>,
+    output: &scoop_hir::OrdinaryHirOutput,
     imported: &mir::SelectedDependencyMirSet,
 ) -> Result<DependencyCallableLowering, ImportedCoreMirLoweringError> {
     let hir = output.output().local.module();
@@ -217,27 +160,6 @@ fn lower_dependency_callables(
 #[derive(Debug)]
 pub enum ImportedCoreMirLoweringError {
     DefinedCoreProtocols,
-    ForeignHirCallable {
-        index: u32,
-    },
-    HirTargetIsNotCallable {
-        index: u32,
-    },
-    HirCapabilityMismatch {
-        index: u32,
-    },
-    SuspendCallableUnavailable {
-        index: u32,
-    },
-    ReceiverCallableUnavailable {
-        index: u32,
-    },
-    MissingMirCallable {
-        index: u32,
-    },
-    SignatureMismatch {
-        index: u32,
-    },
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleThrowerMismatch,

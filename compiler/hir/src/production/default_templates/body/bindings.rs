@@ -10,7 +10,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn binding_temporary(
         &self,
         temporary: BindingTemporary,

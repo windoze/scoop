@@ -5,10 +5,7 @@ fn callable_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
     with_source(DIRECT, |output, core| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for generic in [false, true] {
             let mut canonical = fixture.foundation.as_canonical().clone();
             if generic {
@@ -50,10 +47,7 @@ fn protected_callable_inventory_rejects_missing_and_extra_real_declarations() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let unused = output
             .output()
             .export
@@ -135,10 +129,7 @@ fn protected_methods_cannot_move_or_repeat_between_inventory_owners() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let inventory = &sources.properties.dispatch.inventory;
         let (index, declaration) = inventory.records().iter().enumerate().find_map(|(index, owner)| {
             owner.protected_members().values().iter().find(|member| matches!(member,

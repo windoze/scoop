@@ -35,7 +35,6 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
-            imported_core_callable_map: &self.imported_core_callable_map,
             imported_dependency_callable_map: &self.imported_dependency_callable_map,
             global_map: &self.global_map,
             singleton_root_map: &self.singleton_root_map,

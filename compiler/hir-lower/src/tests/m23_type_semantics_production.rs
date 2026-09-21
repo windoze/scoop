@@ -36,7 +36,7 @@ mod source_protected_callables;
 mod source_shapes;
 
 fn produce_cross_cone_type_semantics(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
     crate::produce_cross_cone_type_semantics(
@@ -46,7 +46,7 @@ fn produce_cross_cone_type_semantics(
     )
 }
 
-fn public_interface(output: &hir::OrdinaryHirOutput<'_>) -> hir::CrossConeHirInterfaceSectionV1 {
+fn public_interface(output: &hir::OrdinaryHirOutput) -> hir::CrossConeHirInterfaceSectionV1 {
     let export = output.output().export.module();
     let mut authority = PublicProjectionAuthority {
         current: export.cone,
@@ -174,7 +174,7 @@ fn object_decl(name: &str) -> Decl {
     })
 }
 
-fn lower_public_nominals() -> hir::OrdinaryHirOutput<'static> {
+fn lower_public_nominals() -> hir::OrdinaryHirOutput {
     lower_public_declarations(vec![
         struct_decl("EmptyValue", Vec::new()),
         struct_decl("WordValue", vec![("value", ty_named("Int"))]),
@@ -205,20 +205,15 @@ fn lower_public_nominals() -> hir::OrdinaryHirOutput<'static> {
     ])
 }
 
-fn lower_public_declarations(declarations: Vec<Decl>) -> hir::OrdinaryHirOutput<'static> {
-    let core = Box::leak(Box::new(trusted_core()));
+fn lower_public_declarations(declarations: Vec<Decl>) -> hir::OrdinaryHirOutput {
+    let core = trusted_core();
     let mut source = file(declarations);
     make_core_public(&mut source);
-    let ordinary = Box::leak(Box::new(parsed_ordinary(source)));
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let ordinary = parsed_ordinary(source);
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
-    let input = Box::leak(Box::new(
-        OrdinarySources::try_new(ordinary, core_inputs, &world).unwrap(),
-    ));
-    lower_ordinary(scoop_identity::RequestedConeKind::Library, input).unwrap()
+    let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
+    lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap()
 }
 
 #[test]

@@ -2,7 +2,7 @@ use super::*;
 
 pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
     source: &str,
-    run: impl FnOnce(&hir::OrdinaryHirOutput<'_>, &scoop_mir::Module) -> T,
+    run: impl FnOnce(&hir::OrdinaryHirOutput, &scoop_mir::Module) -> T,
 ) -> T {
     with_hir_source(source, |output, core| {
         let mut imported = core.empty_core_mir_selection();
@@ -25,7 +25,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_source<T>(
 pub(in crate::tests::m23_type_semantics_production) fn with_hir_source<T>(
     source: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput<'_>,
+        &hir::OrdinaryHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -36,7 +36,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
     source: &str,
     path: &str,
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput<'_>,
+        &hir::OrdinaryHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -46,7 +46,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_source_at<T>(
 pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
     sources: &[(&str, &str)],
     run: impl FnOnce(
-        &hir::OrdinaryHirOutput<'_>,
+        &hir::OrdinaryHirOutput,
         &crate::tests::m23_ordinary_core_only::support::TrustedCoreFixture,
     ) -> T,
 ) -> T {
@@ -77,10 +77,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
         ast::NonEmptyVec::new(context(first), rest.iter().map(context).collect()),
     )
     .unwrap();
-    let core_inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(ordinary.cone());
     let input = OrdinarySources::try_new(&ordinary, core_inputs, &world).unwrap();
     let output = lower_ordinary(scoop_identity::RequestedConeKind::Library, &input).unwrap();
@@ -88,7 +85,7 @@ pub(in crate::tests::m23_type_semantics_production) fn with_hir_sources<T>(
 }
 
 pub(super) fn project(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
 ) -> hir::CanonicalSourceInheritanceInventoriesV1 {
     hir::CanonicalSourceInheritanceInventoriesV1::from_ordinary_hir(
         output,
@@ -97,9 +94,7 @@ pub(super) fn project(
     .unwrap()
 }
 
-pub(super) fn owners(
-    output: &hir::OrdinaryHirOutput<'_>,
-) -> BTreeMap<String, PersistentExactTypeId> {
+pub(super) fn owners(output: &hir::OrdinaryHirOutput) -> BTreeMap<String, PersistentExactTypeId> {
     let export = output.output().export.module();
     let mut result = BTreeMap::new();
     let mut add = |name: &str, ty: hir::TypeId| {
@@ -141,12 +136,12 @@ pub(super) fn owners(
     result
 }
 
-pub(super) fn owner(output: &hir::OrdinaryHirOutput<'_>, name: &str) -> PersistentExactTypeId {
+pub(super) fn owner(output: &hir::OrdinaryHirOutput, name: &str) -> PersistentExactTypeId {
     owners(output)[name]
 }
 
 pub(super) fn render(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     inventory: &hir::CanonicalSourceInheritanceInventoriesV1,
 ) -> String {
     let export = output.output().export.module();

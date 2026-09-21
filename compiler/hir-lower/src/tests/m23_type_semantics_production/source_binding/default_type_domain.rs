@@ -37,7 +37,7 @@ fn scope(name: &str) -> hir::SignatureBinderScopeV1 {
         _ => hir::SignatureBinderScopeV1::for_declaration(0, None),
     }
 }
-fn templates(output: &hir::OrdinaryHirOutput<'_>) -> Templates {
+fn templates(output: &hir::OrdinaryHirOutput) -> Templates {
     NAMES
         .iter()
         .map(|name| {
@@ -151,10 +151,7 @@ fn default_type_source_domains_replay_actual_sealed_type_witnesses() {
         let declarations = foundation
             .bind_default_access_declarations(table, required, &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let domains = Domains::new(
             &declarations,
             &[],

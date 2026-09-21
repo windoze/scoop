@@ -30,7 +30,7 @@ const EFFECTS: &str = include_str!(concat!(
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn required(output: &hir::OrdinaryHirOutput<'_>) -> BTreeSet<PersistentConstructorId> {
+fn required(output: &hir::OrdinaryHirOutput) -> BTreeSet<PersistentConstructorId> {
     let export = &output.output().export;
     let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(export, &mut meter()).unwrap();
     let nominals =
@@ -42,7 +42,7 @@ fn required(output: &hir::OrdinaryHirOutput<'_>) -> BTreeSet<PersistentConstruct
         .flat_map(|n| n.constructors().values().iter().copied())
         .collect()
 }
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     Table::from_export_hir(&output.output().export, &required(output), &mut meter()).unwrap()
 }
 

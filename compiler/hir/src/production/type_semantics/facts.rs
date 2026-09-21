@@ -9,8 +9,8 @@ mod ownership;
 mod shapes;
 
 #[derive(Clone, Copy)]
-enum FactMode<'a> {
-    Candidate(&'a SelectedImportedCoreSet<'a>),
+enum FactMode {
+    Candidate,
     Source,
 }
 
@@ -21,14 +21,13 @@ type FactSourceProjection = (
 );
 
 pub(super) fn candidate(
-    imported_core: &SelectedImportedCoreSet<'_>,
     export: &ExportHir,
     local: &LocalConcreteHir,
     root_exacts: &BTreeSet<PersistentExactTypeId>,
     required_exacts: &BTreeSet<PersistentExactTypeId>,
 ) -> Result<CanonicalExactTypeFactsV1, Error> {
     let candidate = project(
-        FactMode::Candidate(imported_core),
+        FactMode::Candidate,
         export,
         local,
         root_exacts,
@@ -72,7 +71,7 @@ fn source_projection(authority: FactProjector<'_>) -> Result<FactSourceProjectio
 }
 
 fn project<'a>(
-    mode: FactMode<'a>,
+    mode: FactMode,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
@@ -98,7 +97,7 @@ fn project<'a>(
 }
 
 struct FactProjector<'a> {
-    mode: FactMode<'a>,
+    mode: FactMode,
     export: &'a ExportHir,
     local: &'a LocalConcreteHir,
     root_exacts: &'a BTreeSet<PersistentExactTypeId>,
@@ -123,16 +122,11 @@ impl FactProjector<'_> {
             .type_for_identity(exact)
             .ok_or(Error::MissingConcreteType(exact))?;
         if !force_local && let Some(provider) = self.dependency_provider(ty) {
-            if let FactMode::Candidate(imported_core) = self.mode
-                && (provider != ConeIdentity::CORE || !imported_core.contains_hir_identity(exact))
-            {
-                return Err(Error::MissingLocalSupport(exact));
-            }
             self.dependency_facts
                 .insert(exact, TypeSectionDependencyFactV1 { provider, exact });
             return Ok(());
         }
-        if matches!(self.mode, FactMode::Candidate(_)) && self.is_generic_application(ty) {
+        if matches!(self.mode, FactMode::Candidate) && self.is_generic_application(ty) {
             return Err(Error::GenericOdrRequired(exact));
         }
         if !force_local && !self.is_locally_owned(ty)? {

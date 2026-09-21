@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn verify(output: &hir::OrdinaryHirOutput<'_>, table: &Table) {
+pub(super) fn verify(output: &hir::OrdinaryHirOutput, table: &Table) {
     let export = output.output().export.module();
     for (id, property) in export.properties.iter() {
         let hir::HirPropertyIdentity::Ordinary(identity) = &export.property_identities[id] else {
@@ -79,7 +79,7 @@ pub(super) fn verify(output: &hir::OrdinaryHirOutput<'_>, table: &Table) {
     }
 }
 
-pub(super) fn render(output: &hir::OrdinaryHirOutput<'_>, table: &Table) -> String {
+pub(super) fn render(output: &hir::OrdinaryHirOutput, table: &Table) -> String {
     let export = output.output().export.module();
     let mut lines = Vec::new();
     for (id, property) in export.properties.iter() {

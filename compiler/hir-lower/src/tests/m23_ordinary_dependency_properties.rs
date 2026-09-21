@@ -54,7 +54,7 @@ impl DependencyPropertyFixture {
     fn inspect<R>(
         &self,
         consumer: scoop_ast::SourceFile,
-        inspect: impl FnOnce(Result<scoop_hir::OrdinaryHirOutput<'_>, Vec<scoop_ast::Diagnostic>>) -> R,
+        inspect: impl FnOnce(Result<scoop_hir::OrdinaryHirOutput, Vec<scoop_ast::Diagnostic>>) -> R,
     ) -> R {
         let ordinary = parsed_ordinary(consumer);
         let world = scoop_hir::ImportedSemanticWorld::from_validated_closure(
@@ -79,7 +79,7 @@ impl DependencyPropertyFixture {
         let core = self
             .core
             .foundation
-            .import_core_inputs(&self.core.interface, &[])
+            .import_core_inputs(&self.core.interface)
             .unwrap();
         let input = OrdinarySources::try_new(&ordinary, core, &world).unwrap();
         inspect(lower_ordinary(

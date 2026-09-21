@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn verify_concrete(output: &hir::OrdinaryHirOutput<'_>, table: &Table) {
+pub(super) fn verify_concrete(output: &hir::OrdinaryHirOutput, table: &Table) {
     let local = output.output().local.module();
     let export = output.output().export.module();
     for record in table.records() {
@@ -110,7 +110,7 @@ pub(super) fn verify_concrete(output: &hir::OrdinaryHirOutput<'_>, table: &Table
     }
 }
 
-pub(super) fn render(output: &hir::OrdinaryHirOutput<'_>, table: &Table) -> String {
+pub(super) fn render(output: &hir::OrdinaryHirOutput, table: &Table) -> String {
     let mut lines = table
         .records()
         .iter()
@@ -134,7 +134,7 @@ pub(super) fn render(output: &hir::OrdinaryHirOutput<'_>, table: &Table) -> Stri
     lines.concat()
 }
 
-fn source_name<'a>(output: &'a hir::OrdinaryHirOutput<'_>, declaration: Declaration) -> &'a str {
+fn source_name(output: &hir::OrdinaryHirOutput, declaration: Declaration) -> &str {
     let export = output.output().export.module();
     export
         .functions

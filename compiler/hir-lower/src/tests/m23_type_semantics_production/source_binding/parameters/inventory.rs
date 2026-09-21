@@ -6,10 +6,7 @@ fn parameter_protocols_require_exact_owned_declaration_inventory() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let unused =
             output
                 .output()
@@ -55,10 +52,7 @@ fn parameter_sources_cannot_mix_distinct_bound_foundations() {
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let other = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
         let protected = sources.protected(&foundation, core);
         let constructors = other
@@ -86,10 +80,7 @@ fn constructor_and_protected_source_inventories_must_agree() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
         let protected = sources.protected(&foundation, core);
         let mut records = sources.properties.dispatch.inventory.records().to_vec();

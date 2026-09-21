@@ -16,7 +16,7 @@ pub(crate) fn visit_source_callable_reference_keys(
         &mut BudgetMeter,
     ) -> Result<(), Error>,
 ) -> Result<(), Error> {
-    let entities = DefaultEntityProjector::new(export, None, None, meter);
+    let entities = DefaultEntityProjector::new(export, None, meter);
     entities
         .resources
         .with_meter(|meter, _| {

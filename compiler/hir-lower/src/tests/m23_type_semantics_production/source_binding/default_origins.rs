@@ -12,7 +12,7 @@ const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-defaults/origin-binding.scoop"
 ));
 
-pub(super) fn templates(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+pub(super) fn templates(output: &hir::OrdinaryHirOutput) -> Table {
     let production =
         hir::NominalDefaultSourceProductionV1::from_ordinary_hir(output, &mut meter()).unwrap();
     let bytes = encode(&production.templates().index_locals(&mut meter()).unwrap()).unwrap();

@@ -19,10 +19,7 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
             )
             .unwrap()
     });
-    let inputs = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let core_types = inputs.protocols().fundamental_types();
     let mut dependencies = [&declarations[1], &declarations[2]];
     dependencies.sort_by_key(|d| d.provider());

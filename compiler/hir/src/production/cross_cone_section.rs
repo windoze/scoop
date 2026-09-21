@@ -26,13 +26,13 @@ impl CrossConeHirInterfaceSectionV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        Self::from_parts(export, None, None, witness_uses, authority)
+        Self::from_parts(export, None, witness_uses, authority)
     }
 
-    /// Projects an ordinary HIR graph while retaining the exact imported-core
-    /// selection world needed to serialize exported default bodies.
+    /// Projects an ordinary HIR graph using its dependency selections to
+    /// serialize exported default bodies.
     pub fn from_ordinary_hir<A, E>(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
     ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>
@@ -49,7 +49,6 @@ impl CrossConeHirInterfaceSectionV1 {
         complete_witness_uses.extend_from_slice(output.concrete_dependency_witness_uses());
         Self::from_parts(
             output.output().export.module(),
-            Some(output.imported_core()),
             Some(output.imported_dependencies()),
             &complete_witness_uses,
             authority,
@@ -58,7 +57,6 @@ impl CrossConeHirInterfaceSectionV1 {
 
     fn from_parts<A, E>(
         export: &ExportHir,
-        imported_core: Option<&crate::SelectedImportedCoreSet<'_>>,
         imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
@@ -85,7 +83,6 @@ impl CrossConeHirInterfaceSectionV1 {
             .map_err(CrossConeHirInterfaceProductionError::SourceInterfaces)?;
         let default_templates = CanonicalExportDefaultTemplatesV1::from_parts_with_interfaces(
             export,
-            imported_core,
             imported_dependencies,
             &callable_interfaces,
             &source_interfaces,
@@ -100,22 +97,23 @@ impl CrossConeHirInterfaceSectionV1 {
             &constants,
         )
         .map_err(CrossConeHirInterfaceProductionError::DefinitionSources)?;
-        let external_references = CanonicalExternalHirReferencesV1::from_interface_parts_with_core(
-            ExternalHirReferenceProductionInput::new(
-                &export.public_export_bindings,
-                &nominal_interfaces,
-                &callable_interfaces,
-                &property_interfaces,
-                &type_aliases,
-                &source_interfaces,
-                &default_templates,
-                &constants,
-            ),
-            witness_uses,
-            imported_core,
-            authority,
-        )
-        .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;
+        let external_references =
+            CanonicalExternalHirReferencesV1::from_interface_parts_with_dependencies(
+                ExternalHirReferenceProductionInput::new(
+                    &export.public_export_bindings,
+                    &nominal_interfaces,
+                    &callable_interfaces,
+                    &property_interfaces,
+                    &type_aliases,
+                    &source_interfaces,
+                    &default_templates,
+                    &constants,
+                ),
+                witness_uses,
+                imported_dependencies,
+                authority,
+            )
+            .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;
 
         Ok(Self::new(
             export.public_export_bindings.clone(),

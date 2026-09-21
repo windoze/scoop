@@ -169,4 +169,31 @@ fn diamond_reexports_fold_target_and_preserve_canonical_routes() {
         assert_eq!(route.terminal().exporter(), terminal.identity());
         assert_eq!(route.terminal().binding(), terminal.outer_binding.unwrap());
     }
+
+    let classifier = crate::CoreClosedExactLeafClassifierV1::from_exact_leaves_for_test(Vec::new());
+    let selected = world
+        .dependency_selection_plan(&classifier)
+        .unwrap()
+        .finish();
+    drop(world);
+    let target =
+        crate::ExternalHirTargetV1::from(scoop_identity::BindableEntity::Type(terminal_type));
+    let witnesses = selected.direct_binding_witnesses(target);
+    assert_eq!(witnesses.len(), 2);
+    let mut providers = witnesses
+        .iter()
+        .map(|witness| witness.route().immediate_provider())
+        .collect::<Vec<_>>();
+    providers.sort_unstable();
+    let mut expected = [first.identity(), second.identity()];
+    expected.sort_unstable();
+    assert_eq!(providers, expected);
+    for witness in witnesses {
+        assert_eq!(witness.route().hops().len(), 2);
+        assert_eq!(witness.route().terminal().exporter(), terminal.identity());
+        assert_eq!(
+            witness.route().terminal().binding(),
+            terminal.outer_binding.unwrap()
+        );
+    }
 }

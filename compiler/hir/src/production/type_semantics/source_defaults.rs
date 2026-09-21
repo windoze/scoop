@@ -16,7 +16,7 @@ pub struct NominalDefaultSourceProductionV1 {
 }
 impl NominalDefaultSourceProductionV1 {
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         produce(&output.output().export, meter, |owner, position, meter| {

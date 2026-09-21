@@ -53,6 +53,8 @@ pub(super) struct TypeAliasCatalogEntry {
 
 #[derive(Debug)]
 pub(super) struct DependencyCatalog {
+    pub(super) direct_binding_witnesses:
+        Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) world_brand: u64,
     pub(super) consumer: ConeIdentity,
     pub(super) projection: DependencyProjectionId,
@@ -198,6 +200,7 @@ impl ImportedSemanticWorld<'_> {
         let direct_callable_bindings = self.direct_callable_bindings()?;
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
+                direct_binding_witnesses: Arc::new(self.direct_binding_witnesses()),
                 world_brand: self.brand,
                 consumer: self.current,
                 projection,

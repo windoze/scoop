@@ -1,7 +1,7 @@
 use super::*;
 
 pub(super) fn render(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
 ) -> String {
     let export = output.output().export.module();

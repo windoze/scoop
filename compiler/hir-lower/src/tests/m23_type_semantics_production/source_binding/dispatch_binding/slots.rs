@@ -18,10 +18,7 @@ fn restored_slot_sources_replay_methods_accessors_defaults_and_overrides() {
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
             let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             let slots = dispatch
                 .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
                 .unwrap();
@@ -54,10 +51,7 @@ fn slot_role_binding_and_replay_share_resource_limits() {
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,

@@ -7,10 +7,7 @@ fn default_type_domains_replay_with_one_shared_resource_budget() {
         let declarations = foundation
             .bind_default_access_declarations(table, required, &mut meter())
             .unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core_types = inputs.protocols().fundamental_types();
         let domains = Domains::new(&declarations, &[], core_types, &mut meter()).unwrap();
         for (name, template) in templates {

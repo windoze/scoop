@@ -6,7 +6,7 @@ pub(super) struct Sources {
     pub constructors: Table,
 }
 impl Sources {
-    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(super) fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
         let source = hir::CanonicalNominalSourceContractsV1::from_export_hir(
             &output.output().export,
             &fixture.source.entries().source_roots,

@@ -9,7 +9,7 @@ use crate::{
     DefaultFieldRefV1, HirClassConstructorIdentity, HirSignatureBinder, LexicalDefinitionRoot,
 };
 
-impl DefaultEntityProjector<'_, '_, '_> {
+impl DefaultEntityProjector<'_, '_> {
     pub(in crate::production::default_templates) fn struct_constructor(
         &self,
         application: crate::StructConstructorApplicationId,

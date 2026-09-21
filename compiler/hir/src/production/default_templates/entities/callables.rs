@@ -6,11 +6,10 @@ use super::{DefaultEntityProjector, arena_get, unknown};
 use crate::{
     Callable, DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultCallableRefV1, GenericMethodOwner, HirSignatureBinder,
-    ImportedCoreCallableUseId, ImportedCorePreludeTarget, ImportedDependencyCallableUseId,
-    MethodOwnerApplication, TypeId,
+    ImportedDependencyCallableUseId, MethodOwnerApplication, TypeId,
 };
 
-impl DefaultEntityProjector<'_, '_, '_> {
+impl DefaultEntityProjector<'_, '_> {
     pub(in crate::production::default_templates) fn callable(
         &self,
         callable: Callable,
@@ -96,36 +95,6 @@ impl DefaultEntityProjector<'_, '_, '_> {
         self.resources
             .collection::<scoop_identity::SignatureTypeKey>(count)?;
         arguments.map(|&ty| self.type_key(ty, binders)).collect()
-    }
-
-    pub(in crate::production::default_templates) fn imported_callable(
-        &self,
-        id: ImportedCoreCallableUseId,
-    ) -> Result<DefaultCallableRefV1, super::super::DefaultEntityProjectionError> {
-        let index = super::super::raw_index(id);
-        let use_ = arena_get(&self.export.imported_core_callables, id).ok_or(
-            super::super::DefaultEntityProjectionError::Unknown {
-                kind: "imported-core callable use",
-                index,
-            },
-        )?;
-        let selected = self
-            .imported_core
-            .and_then(|set| set.resolve_callable(use_.reference()))
-            .ok_or(super::super::DefaultEntityProjectionError::ImportedCoreUnavailable(index))?;
-        let ImportedCorePreludeTarget::Callable(target) = selected.target() else {
-            return Err(super::super::DefaultEntityProjectionError::ImportedCoreKind(index));
-        };
-        let declaration = match target.definition() {
-            crate::CoreCallableDefinitionV1::Function(id) => {
-                DefaultCallableDeclarationV1::Function(id)
-            }
-            crate::CoreCallableDefinitionV1::GenericFunction(id) => {
-                DefaultCallableDeclarationV1::GenericFunction(id)
-            }
-        };
-        DefaultCallableRefV1::try_new(declaration, OptionalSignatureType::Absent, Vec::new())
-            .map_err(super::super::DefaultEntityProjectionError::Callable)
     }
 
     pub(in crate::production::default_templates) fn imported_dependency_callable(

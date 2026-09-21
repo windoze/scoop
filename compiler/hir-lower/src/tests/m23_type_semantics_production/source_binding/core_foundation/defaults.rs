@@ -51,10 +51,7 @@ fn core_source_foundation_supplies_real_dependency_domains_to_default_binding() 
         let local_access = foundation
             .bind_default_access_declarations(&local_access, &local_required, &mut meter())
             .unwrap();
-        let imported = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let imported = core.foundation.import_core_inputs(&core.interface).unwrap();
         let types = imported.protocols().fundamental_types();
         let dependencies = [&core_access];
         let domains =

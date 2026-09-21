@@ -8,7 +8,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn change(
     t: &Template,
     kind: Kind,
     update: impl FnOnce(&Witness) -> Witness,
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
 ) -> Template {
     change_at(t, kind, 0, update, output)
 }
@@ -18,7 +18,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) fn change_at
     kind: Kind,
     index: usize,
     update: impl FnOnce(&Witness) -> Witness,
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
 ) -> Template {
     let refs = t.references();
     let mut callables = refs.callables().to_vec();

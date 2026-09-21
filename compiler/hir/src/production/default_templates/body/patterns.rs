@@ -7,7 +7,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn pattern(
         &mut self,
         pattern: &Pattern,

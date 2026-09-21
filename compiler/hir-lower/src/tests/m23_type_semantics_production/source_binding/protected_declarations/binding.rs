@@ -18,10 +18,7 @@ fn with_binding(
         let produced = Production::from_export_hir(&output.output().export, &mut meter()).unwrap();
         let (declarations, protocols) = restore(&mut fixture, &produced);
         let foundation = fixture.bind().unwrap();
-        let core = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         sources.with_bound(
             &foundation,
             core.protocols().fundamental_types(),

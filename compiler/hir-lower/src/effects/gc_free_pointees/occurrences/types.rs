@@ -413,7 +413,7 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::ImportedCoreCall { args, .. } | ExprKind::ImportedDependencyCall { args, .. } => {
+        ExprKind::ImportedDependencyCall { args, .. } => {
             for argument in args {
                 collect_expr_types(lowerer, argument, out);
             }

@@ -29,10 +29,7 @@ fn restored_inheritance_sources_replay_constructors_and_all_query_roles() {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources
                 .with_bound(
                     &foundation,

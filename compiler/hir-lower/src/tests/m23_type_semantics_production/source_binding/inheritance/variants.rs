@@ -88,10 +88,7 @@ fn inheritance_sources_replay_real_generic_and_concrete_enum_constructors() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         sources
             .with_bound(
                 &foundation,

@@ -253,10 +253,7 @@ impl Lowerer {
                 callee: self.instantiate_default_callable(*callee, context),
                 args: self.instantiate_default_exprs(args, context),
             },
-            hir::ExprKind::ImportedCoreCall { callee, args } => hir::ExprKind::ImportedCoreCall {
-                callee: *callee,
-                args: self.instantiate_default_exprs(args, context),
-            },
+
             hir::ExprKind::ImportedDependencyCall { callee, args } => {
                 hir::ExprKind::ImportedDependencyCall {
                     callee: *callee,

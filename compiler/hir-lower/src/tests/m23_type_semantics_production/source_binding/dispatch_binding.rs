@@ -24,7 +24,7 @@ pub(super) struct Sources {
 }
 
 impl Sources {
-    pub(super) fn from_output(output: &hir::OrdinaryHirOutput<'_>, fixture: &mut Fixture) -> Self {
+    pub(super) fn from_output(output: &hir::OrdinaryHirOutput, fixture: &mut Fixture) -> Self {
         macro_rules! restore {
             ($canonical:ty, $decoded:ty) => {{
                 let source = <$canonical>::from_ordinary_hir(output, &mut meter()).unwrap();

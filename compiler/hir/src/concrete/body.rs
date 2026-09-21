@@ -302,10 +302,6 @@ pub enum ExprKind {
         callee: Callable,
         args: Vec<Expr>,
     },
-    ImportedCoreCall {
-        callee: ImportedCoreCallableUseId,
-        args: Vec<Expr>,
-    },
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
         args: Vec<Expr>,

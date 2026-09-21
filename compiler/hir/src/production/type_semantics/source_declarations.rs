@@ -7,7 +7,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 impl TypeDeclarationSourceAuthorityV1 {
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         let path = WirePath::root();

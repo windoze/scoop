@@ -24,7 +24,7 @@ const COMBINED_CASES: &[(&str, u32)] = &[
     ("Envelope.tuple", 1),
 ];
 fn reference(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     name: &str,
     position: u32,
 ) -> hir::DefaultSourceReferenceV1<Field> {

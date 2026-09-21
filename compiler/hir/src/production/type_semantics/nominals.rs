@@ -31,7 +31,7 @@ pub(super) struct ConcreteNominal<'a> {
 }
 
 pub(super) fn produce(
-    output: &OrdinaryHirOutput<'_>,
+    output: &OrdinaryHirOutput,
     public: &CrossConeHirInterfaceSectionV1,
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
@@ -72,13 +72,7 @@ pub(super) fn produce(
         meter,
     )?;
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
-    let facts = facts::candidate(
-        output.imported_core(),
-        export,
-        local,
-        &root_exacts,
-        &fact_requirements,
-    )?;
+    let facts = facts::candidate(export, local, &root_exacts, &fact_requirements)?;
     let mut representations = Vec::with_capacity(concrete.len());
     let mut definition_sources = Vec::new();
     for nominal in &concrete {

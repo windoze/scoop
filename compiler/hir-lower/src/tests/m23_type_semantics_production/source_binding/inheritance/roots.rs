@@ -17,10 +17,7 @@ fn nested_inheritance_closure_replays_all_bound_sources_after_byte_restoration()
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources
                 .with_bound(
                     &foundation,

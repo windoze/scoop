@@ -358,15 +358,7 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
-            ExprKind::ImportedCoreCall { args, .. } => {
-                out.push((
-                    expr.span,
-                    "imported core calls are not allowed in `@NoGC` code".to_string(),
-                ));
-                for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out, requirements);
-                }
-            }
+
             ExprKind::ImportedDependencyCall { callee, args } => {
                 let reference = self.imported_dependency_callables[*callee].reference();
                 let selected = self

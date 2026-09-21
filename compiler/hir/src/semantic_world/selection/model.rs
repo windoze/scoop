@@ -375,6 +375,8 @@ impl SelectedImportedDependencyTypeAlias {
 /// proofs and artifact reopen certificates.
 #[derive(Debug)]
 pub struct SelectedImportedDependencySet {
+    pub(super) direct_binding_witnesses:
+        Arc<BTreeMap<crate::ExternalHirTargetV1, Vec<crate::DependencyBindingWitnessV1>>>,
     pub(super) consumer: ConeIdentity,
     pub(super) selection: DependencySelectionId,
     pub(super) callables:
@@ -386,6 +388,16 @@ pub struct SelectedImportedDependencySet {
 }
 
 impl SelectedImportedDependencySet {
+    pub(crate) fn direct_binding_witnesses(
+        &self,
+        target: crate::ExternalHirTargetV1,
+    ) -> &[crate::DependencyBindingWitnessV1] {
+        self.direct_binding_witnesses
+            .get(&target)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
     pub const fn consumer(&self) -> ConeIdentity {
         self.consumer
     }

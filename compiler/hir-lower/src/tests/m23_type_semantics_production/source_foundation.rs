@@ -5,7 +5,7 @@ use scoop_wire::{decode_canonical, encode};
 mod object_origins;
 
 fn fixture() -> (
-    hir::OrdinaryHirOutput<'static>,
+    hir::OrdinaryHirOutput,
     hir::CrossConeTypeSemanticsProductionV1,
 ) {
     let output = lower_public_nominals();

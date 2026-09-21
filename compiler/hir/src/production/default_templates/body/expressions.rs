@@ -9,7 +9,7 @@ use crate::{
 
 use super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn expression(
         &mut self,
         expression: &Expr,
@@ -264,10 +264,7 @@ impl BodyProjection<'_, '_, '_, '_> {
                 callee: self.entities.callable(*callee, self.binders)?,
                 arguments: self.expressions(args)?,
             },
-            ExprKind::ImportedCoreCall { callee, args } => DefaultExpressionKindV1::Call {
-                callee: self.entities.imported_callable(*callee)?,
-                arguments: self.expressions(args)?,
-            },
+
             ExprKind::ImportedDependencyCall { callee, args } => DefaultExpressionKindV1::Call {
                 callee: self.entities.imported_dependency_callable(*callee)?,
                 arguments: self.expressions(args)?,

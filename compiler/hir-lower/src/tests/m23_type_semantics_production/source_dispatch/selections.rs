@@ -12,9 +12,7 @@ const SELECTIONS: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/selections.scoop"
 ));
 
-fn selections(
-    output: &hir::OrdinaryHirOutput<'_>,
-) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
+fn selections(output: &hir::OrdinaryHirOutput) -> hir::CanonicalInheritanceSourceSlotSelectionsV1 {
     hir::CanonicalInheritanceSourceSlotSelectionsV1::from_ordinary_hir(
         output,
         &mut BudgetMeter::new(DecodeLimits::default()),
@@ -131,7 +129,7 @@ fn source_selections_reject_generic_dispatch_application_without_odr_authority()
 }
 
 fn roundtrip(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
 ) {
     let mut identities = super::super::source_inventory::identity_closure(output);

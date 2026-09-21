@@ -12,10 +12,7 @@ fn complete_parameter_origins_cannot_borrow_valid_points_from_another_source_fil
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core
-                .foundation
-                .import_core_inputs(&core.interface, &[])
-                .unwrap();
+            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
             sources.with_bound(
                 &foundation,
                 inputs.protocols().fundamental_types(),

@@ -128,56 +128,6 @@ pub enum Callable {
     GenericMethod(GenericMethodApplicationId),
 }
 
-/// Export-HIR use of one callable selected from the trusted core artifact.
-/// The wrapper gives this arena its own id domain; LocalConcrete HIR defines
-/// a distinct wrapper and therefore cannot reuse its indices accidentally.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ImportedCoreCallableUse {
-    reference: ImportedCoreCallableRef,
-}
-
-impl ImportedCoreCallableUse {
-    pub fn new(reference: ImportedCoreCallableRef) -> Self {
-        Self { reference }
-    }
-
-    pub const fn reference(self) -> ImportedCoreCallableRef {
-        self.reference
-    }
-}
-
-/// Export-HIR use of one type selected from the trusted core artifact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ImportedCoreTypeUse {
-    reference: ImportedCoreTypeRef,
-}
-
-impl ImportedCoreTypeUse {
-    pub fn new(reference: ImportedCoreTypeRef) -> Self {
-        Self { reference }
-    }
-
-    pub const fn reference(self) -> ImportedCoreTypeRef {
-        self.reference
-    }
-}
-
-/// Export-HIR use of one value selected from the trusted core artifact.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ImportedCoreValueUse {
-    reference: ImportedCoreValueRef,
-}
-
-impl ImportedCoreValueUse {
-    pub fn new(reference: ImportedCoreValueRef) -> Self {
-        Self { reference }
-    }
-
-    pub const fn reference(self) -> ImportedCoreValueRef {
-        self.reference
-    }
-}
-
 pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
         Callable::Function(function) => function,

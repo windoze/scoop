@@ -152,8 +152,7 @@ pub fn lower(
     output: &scoop_hir::LocalConcreteHirOutput,
 ) -> Result<mir::Module, DefinedCoreMirLoweringError> {
     assert!(
-        output.module().imported_core_callables.is_empty()
-            && output.module().imported_dependency_callables.is_empty(),
+        output.module().imported_dependency_callables.is_empty(),
         "an imported HIR graph requires lower_ordinary"
     );
     let hir::ConcreteCoreProtocols::Defined(core_protocols) = &output.module().core_protocols
@@ -165,7 +164,6 @@ pub fn lower(
         CoreMirLoweringAuthority::Defined(core_protocols.clone()),
         InitializationCycleLoweringAuthority::Local,
         Arena::new(),
-        HashMap::new(),
         Arena::new(),
         HashMap::new(),
     ))
@@ -176,10 +174,7 @@ fn lower_with_core_authority(
     core_protocols: CoreMirLoweringAuthority,
     initialization_cycle: InitializationCycleLoweringAuthority,
     imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
-    imported_core_callable_map: HashMap<
-        hir::ImportedCoreCallableUseId,
-        mir::ImportedCoreCallableUseId,
-    >,
+
     imported_dependency_callables: Arena<mir::ImportedDependencyMirCallableUse>,
     imported_dependency_callable_map: HashMap<
         hir::ImportedDependencyCallableUseId,
@@ -264,7 +259,6 @@ fn lower_with_core_authority(
         finalized_function_bridges: HashSet::new(),
         boxing_adjusts: Vec::new(),
         imported_core_callables,
-        imported_core_callable_map,
         imported_dependency_callables,
         imported_dependency_callable_map,
     }
@@ -401,8 +395,7 @@ struct Lowerer {
     /// adjust thunk.
     boxing_adjusts: Vec<mir::BoxingAdjust>,
     imported_core_callables: Arena<mir::ImportedCoreCallableUse>,
-    imported_core_callable_map:
-        HashMap<hir::ImportedCoreCallableUseId, mir::ImportedCoreCallableUseId>,
+
     imported_dependency_callables: Arena<mir::ImportedDependencyMirCallableUse>,
     imported_dependency_callable_map:
         HashMap<hir::ImportedDependencyCallableUseId, mir::ImportedDependencyMirCallableId>,

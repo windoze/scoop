@@ -5,7 +5,7 @@ use super::DefaultEntityProjector;
 use crate::{ExportDefaultTypeTarget, HirSignatureBinder, LocalFunctionId};
 use scoop_identity::SignatureTypeKey;
 
-impl DefaultEntityProjector<'_, '_, '_> {
+impl DefaultEntityProjector<'_, '_> {
     pub(in super::super) fn reference_type(
         &self,
         target: ExportDefaultTypeTarget,

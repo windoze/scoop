@@ -15,7 +15,7 @@ impl CrossConeTypeSemanticsFoundationV1 {
     /// or default contracts are built. Serialization and binding have their
     /// own validation step; this sealed-HIR product is not a proof.
     pub fn from_ordinary_hir(
-        output: &OrdinaryHirOutput<'_>,
+        output: &OrdinaryHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         Self::from_hir(output.output(), meter)

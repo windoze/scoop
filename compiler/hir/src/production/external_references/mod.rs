@@ -28,13 +28,13 @@ impl CanonicalExternalHirReferencesV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        Self::from_interface_parts_with_core(input, witness_uses, None, authority)
+        Self::from_interface_parts_with_dependencies(input, witness_uses, None, authority)
     }
 
-    pub(crate) fn from_interface_parts_with_core<A, E>(
+    pub(crate) fn from_interface_parts_with_dependencies<A, E>(
         input: ExternalHirReferenceProductionInput<'_>,
         witness_uses: &[ExternalHirBindingWitnessUse],
-        imported_core: Option<&crate::SelectedImportedCoreSet<'_>>,
+        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
         authority: &mut A,
     ) -> Result<Self, ExternalHirReferenceProductionError<E>>
     where
@@ -51,8 +51,8 @@ impl CanonicalExternalHirReferencesV1 {
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
         }
-        if let Some(core) = imported_core {
-            accumulator.add_implicit_core_witnesses(core);
+        if let Some(dependencies) = imported_dependencies {
+            accumulator.add_implicit_dependency_witnesses(dependencies);
         }
 
         accumulator.finish()

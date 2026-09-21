@@ -143,31 +143,20 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         Ok(())
     }
 
-    pub(super) fn add_implicit_core_witnesses(
+    pub(super) fn add_implicit_dependency_witnesses(
         &mut self,
-        core: &crate::SelectedImportedCoreSet<'_>,
+        dependencies: &crate::SelectedImportedDependencySet,
     ) {
-        let required = self
-            .references
-            .iter()
-            .filter(|(_, pending)| pending.origin == ConeIdentity::CORE)
-            .filter_map(|(&target, pending)| {
-                pending
-                    .roles
-                    .contains(&ExternalHirReferenceRoleV1::DefaultDependency)
-                    .then_some((target, ExternalHirReferenceRoleV1::DefaultDependency))
-            })
-            .collect::<Vec<_>>();
-        for (target, role) in required {
-            let Some(witness) = core.implicit_binding_witness(target) else {
+        let role = ExternalHirReferenceRoleV1::DefaultDependency;
+        for (target, pending) in &mut self.references {
+            if !pending.roles.contains(&role) || pending.witnessed_roles.contains(&role) {
                 continue;
-            };
-            let pending = self
-                .references
-                .get_mut(&target)
-                .expect("an observed core target remains in the accumulator");
-            pending.witnessed_roles.insert(role);
-            pending.witnesses.insert(witness);
+            }
+            let witnesses = dependencies.direct_binding_witnesses(*target);
+            if !witnesses.is_empty() {
+                pending.witnessed_roles.insert(role);
+                pending.witnesses.extend(witnesses.iter().cloned());
+            }
         }
     }
 

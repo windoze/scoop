@@ -6,10 +6,7 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let record = sources
             .callables
             .records()
@@ -91,10 +88,7 @@ fn accessors_replay_property_value_types_and_the_imported_core_unit_role() {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core
-            .foundation
-            .import_core_inputs(&core.interface, &[])
-            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let mut checked = 0;
         for record in sources.callables.records() {
             let CallableTemplateOrigin::Accessor(id) = record.declaration() else {

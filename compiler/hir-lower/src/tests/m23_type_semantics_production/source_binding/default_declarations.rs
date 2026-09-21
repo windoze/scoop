@@ -25,7 +25,7 @@ const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-type-source-defaults/declaration-binding.scoop"
 ));
-fn source_template(output: &hir::OrdinaryHirOutput<'_>, name: &str, position: u32) -> Template {
+fn source_template(output: &hir::OrdinaryHirOutput, name: &str, position: u32) -> Template {
     let export = &output.output().export;
     let id = export
         .functions
@@ -44,7 +44,7 @@ fn source_template(output: &hir::OrdinaryHirOutput<'_>, name: &str, position: u3
     .unwrap()
 }
 fn key(
-    output: &hir::OrdinaryHirOutput<'_>,
+    output: &hir::OrdinaryHirOutput,
     name: &str,
     position: u32,
 ) -> hir::ProtectedDefaultTemplateKeyV1 {

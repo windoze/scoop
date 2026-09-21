@@ -145,10 +145,10 @@ fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budg
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
-fn table(output: &hir::OrdinaryHirOutput<'_>) -> Table {
+fn table(output: &hir::OrdinaryHirOutput) -> Table {
     Table::from_ordinary_hir(output, &mut meter()).unwrap()
 }
-fn roundtrip(output: &hir::OrdinaryHirOutput<'_>, table: &Table) {
+fn roundtrip(output: &hir::OrdinaryHirOutput, table: &Table) {
     let mut identities = super::super::source_inventory::identity_closure(output);
     let decoded: DecodedTable =
         decode_canonical(&encode(table).unwrap(), DecodeLimits::default()).unwrap();

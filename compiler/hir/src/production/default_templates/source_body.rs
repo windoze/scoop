@@ -29,29 +29,25 @@ impl<'a> DefaultSourceBodyProductionV1<'a> {
         parameter_position: u32,
         meter: &mut BudgetMeter,
     ) -> Result<Self, DefaultSourceBodyProductionError> {
-        let entities = DefaultEntityProjector::new(export, None, None, meter);
+        let entities = DefaultEntityProjector::new(export, None, meter);
         Self::project(export, &entities, owner, parameter_position)
     }
 
     pub fn from_ordinary_hir(
-        output: &'a OrdinaryHirOutput<'_>,
+        output: &'a OrdinaryHirOutput,
         owner: ExportParameterOwner,
         parameter_position: u32,
         meter: &mut BudgetMeter,
     ) -> Result<Self, DefaultSourceBodyProductionError> {
         let export = output.output().export.module();
-        let entities = DefaultEntityProjector::new(
-            export,
-            Some(output.imported_core()),
-            Some(output.imported_dependencies()),
-            meter,
-        );
+        let entities =
+            DefaultEntityProjector::new(export, Some(output.imported_dependencies()), meter);
         Self::project(export, &entities, owner, parameter_position)
     }
 
     fn project(
         export: &'a ExportHir,
-        entities: &DefaultEntityProjector<'_, '_, '_>,
+        entities: &DefaultEntityProjector<'_, '_>,
         owner: ExportParameterOwner,
         parameter_position: u32,
     ) -> Result<Self, DefaultSourceBodyProductionError> {

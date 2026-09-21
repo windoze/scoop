@@ -17,7 +17,7 @@ pub(super) struct TemplateLocalProjection {
 
 impl TemplateLocalProjection {
     pub(super) fn project(
-        entities: &DefaultEntityProjector<'_, '_, '_>,
+        entities: &DefaultEntityProjector<'_, '_>,
         template: &ExportDefaultExpr,
         binders: &[HirSignatureBinder],
     ) -> Result<(Self, CanonicalTemplateLocalTableV1), DefaultTemplateEnvelopeProjectionError> {

@@ -8,7 +8,7 @@ struct SourceIdentities {
 }
 
 impl SourceIdentities {
-    fn from_hir(output: &hir::OrdinaryHirOutput<'_>) -> Self {
+    fn from_hir(output: &hir::OrdinaryHirOutput) -> Self {
         let local = &output.output().local;
         let export = &output.output().export;
         let exacts = local

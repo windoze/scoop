@@ -29,10 +29,7 @@ fn with_input<R>(source: &str, run: impl FnOnce(&OrdinarySources<'_, '_>) -> R) 
         ),
     )
     .unwrap();
-    let protocols = core
-        .foundation
-        .import_core_inputs(&core.interface, &[])
-        .unwrap();
+    let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
     let world = core.world(sources.cone());
     let input = OrdinarySources::try_new(&sources, protocols, &world).unwrap();
     run(&input)
@@ -93,13 +90,6 @@ fn imported_core_integer_protocols_fold_const_and_static_operators() {
                 }
             }
         ));
-        assert!(
-            output
-                .imported_core()
-                .callable_selections()
-                .next()
-                .is_none()
-        );
         assert!(
             export
                 .functions

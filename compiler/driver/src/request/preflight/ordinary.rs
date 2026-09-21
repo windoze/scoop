@@ -156,13 +156,13 @@ impl<'request, 'artifact> ParsedOrdinaryConeBuildRequest<'request, 'artifact> {
     }
 }
 
-/// Atomic ordinary HIR product whose imported uses remain borrowed from the
-/// exact trusted artifact selected during request validation.
+/// Owned ordinary HIR with the validated dependency closure borrowed for
+/// subsequent machine IR projections.
 pub struct OrdinaryConeHirOutput<'stage, 'artifact> {
     trusted_core: &'stage ValidatedTrustedCoreArtifact<'artifact>,
     dependencies: &'stage ValidatedExplicitDependencyInputSet<'artifact>,
     target_profile: scoop_lir::LirTargetProfile,
-    hir: scoop_hir::OrdinaryHirOutput<'stage>,
+    hir: scoop_hir::OrdinaryHirOutput,
     foundation: scoop_hir::CanonicalHirFoundation,
     production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
     cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
@@ -170,7 +170,7 @@ pub struct OrdinaryConeHirOutput<'stage, 'artifact> {
 }
 
 impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
-    pub const fn hir(&self) -> &scoop_hir::OrdinaryHirOutput<'stage> {
+    pub const fn hir(&self) -> &scoop_hir::OrdinaryHirOutput {
         &self.hir
     }
 
@@ -194,8 +194,7 @@ impl<'stage, 'artifact> OrdinaryConeHirOutput<'stage, 'artifact> {
     ) -> Result<OrdinaryConeMirOutput<'stage, 'artifact>, OrdinaryConeMirStageError> {
         let selected = self
             .trusted_core
-            .project_core_callables_to_mir(
-                self.hir.imported_core(),
+            .project_initialization_protocol_to_mir(
                 !self
                     .hir
                     .output()

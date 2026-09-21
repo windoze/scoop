@@ -62,13 +62,6 @@ impl<'input, 'world> OrdinarySources<'input, 'world> {
     pub(crate) const fn core(&self) -> &hir::ImportedCoreInputs<'input> {
         &self.core
     }
-
-    pub(crate) fn bind_core_selection(
-        &self,
-        selection: hir::ImportedCoreSelectionPlan,
-    ) -> Result<hir::SelectedImportedCoreSet<'input>, hir::CorePreludeSelectionBindError> {
-        self.core.prelude().bind_selection(selection)
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -7,7 +7,7 @@ use crate::{
 
 use super::super::BodyProjection;
 
-impl BodyProjection<'_, '_, '_, '_> {
+impl BodyProjection<'_, '_, '_> {
     pub(super) fn optional_expression(
         &mut self,
         expression: Option<&crate::Expr>,
