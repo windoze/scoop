@@ -1,6 +1,8 @@
 use super::*;
 use DefaultNestedCallableSiteV1 as Site;
 
+mod local_functions;
+
 struct Occurrences {
     identity: DefaultNestedCallableIdentityV1,
     shape: DefaultNestedCallableIdentityShapeV1,

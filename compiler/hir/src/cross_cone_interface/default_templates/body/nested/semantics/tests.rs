@@ -4,6 +4,7 @@ use scoop_identity::{
     StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePath};
+use std::fmt;
 
 use super::*;
 use crate::{
@@ -16,6 +17,7 @@ use crate::{
 
 use super::super::test_support::{Fixture, binder, source_function};
 
+mod local_scopes;
 mod occurrences;
 
 #[test]
@@ -943,6 +945,15 @@ fn template_with_body(
     statements: Vec<DefaultStatementV1>,
     value: DefaultExpressionV1,
 ) -> ExportDefaultTemplateV1 {
+    template_with_locals(fixture, Vec::new(), statements, value)
+}
+
+fn template_with_locals(
+    fixture: &Fixture,
+    locals: Vec<crate::TemplateLocalRecordV1>,
+    statements: Vec<DefaultStatementV1>,
+    value: DefaultExpressionV1,
+) -> ExportDefaultTemplateV1 {
     let result = value.result_type().clone();
     let origin = origin(fixture);
     ExportDefaultTemplateV1::try_new(
@@ -952,7 +963,7 @@ fn template_with_body(
             StructuralPathSegment::new(StructuralDefinitionSiteRole::DefaultValue, 0),
             [],
         ),
-        CanonicalTemplateLocalTableV1::try_new(Vec::new()).unwrap(),
+        CanonicalTemplateLocalTableV1::try_new(locals).unwrap(),
         ExportDefaultBodyV1::try_new(statements, value).unwrap(),
         result,
         CanonicalBooleanV1::False,

@@ -75,7 +75,8 @@ where
             self.process_node(work.node, work.depth, &mut pending)?;
         }
 
-        self.validate_local_uses()
+        debug_assert!(self.local_scopes.is_empty());
+        Ok(())
     }
 
     fn process_node<'body>(
@@ -85,6 +86,20 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         match node {
+            BodyNode::LeaveLocalScope => self.leave_local_scope(),
+            BodyNode::StatementBlock(statements) => {
+                self.enter_node(depth)?;
+                self.enter_local_scope()?;
+                self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
+                self.push_statements(pending, depth, statements)
+            }
+            BodyNode::Evaluation { setup, value } => {
+                self.enter_node(depth)?;
+                self.enter_local_scope()?;
+                self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
+                self.push_child(pending, depth, BodyNode::Expression(value))?;
+                self.push_statements(pending, depth, setup)
+            }
             BodyNode::Body(body) => {
                 self.enter_node(depth)?;
                 self.process_body(body, depth, pending)
@@ -152,6 +167,8 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
+        self.enter_local_scope()?;
+        self.push_child(pending, depth, BodyNode::LeaveLocalScope)?;
         self.push_child(pending, depth, BodyNode::Expression(body.value()))?;
         self.push_statements(pending, depth, body.statements())
     }
@@ -179,6 +196,12 @@ pub(super) struct WorkItem<'a> {
 
 #[derive(Clone, Copy)]
 pub(super) enum BodyNode<'a> {
+    LeaveLocalScope,
+    StatementBlock(&'a [DefaultStatementV1]),
+    Evaluation {
+        setup: &'a [DefaultStatementV1],
+        value: &'a DefaultExpressionV1,
+    },
     Body(&'a ExportDefaultBodyV1),
     Statement(&'a DefaultStatementV1),
     Expression(&'a DefaultExpressionV1),

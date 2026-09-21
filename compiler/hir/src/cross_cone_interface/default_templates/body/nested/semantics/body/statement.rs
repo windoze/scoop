@@ -50,9 +50,9 @@ where
                 else_body,
             } => {
                 if let OptionalDefaultStatementListViewV1::Present(statements) = else_body.view() {
-                    self.push_statements(pending, depth, statements)?;
+                    self.push_child(pending, depth, BodyNode::StatementBlock(statements))?;
                 }
-                self.push_statements(pending, depth, then_body)?;
+                self.push_child(pending, depth, BodyNode::StatementBlock(then_body))?;
                 self.push_child(pending, depth, BodyNode::Expression(condition))
             }
             DefaultStatementKindV1::While {
@@ -60,9 +60,15 @@ where
                 condition,
                 body,
             } => {
-                self.push_statements(pending, depth, body)?;
-                self.push_child(pending, depth, BodyNode::Expression(condition))?;
-                self.push_statements(pending, depth, condition_setup)
+                self.push_child(pending, depth, BodyNode::StatementBlock(body))?;
+                self.push_child(
+                    pending,
+                    depth,
+                    BodyNode::Evaluation {
+                        setup: condition_setup,
+                        value: condition,
+                    },
+                )
             }
             DefaultStatementKindV1::For(plan) => {
                 self.push_child(pending, depth, BodyNode::For(plan))
@@ -113,7 +119,7 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        self.push_statements(pending, depth, arm.body())?;
+        self.push_child(pending, depth, BodyNode::StatementBlock(arm.body()))?;
         if let Some(guard) = arm.guard().as_ref() {
             self.push_child(pending, depth, BodyNode::WhenGuard(guard))?;
         }
@@ -126,8 +132,14 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        self.push_child(pending, depth, BodyNode::Expression(guard.condition()))?;
-        self.push_statements(pending, depth, guard.setup())
+        self.push_child(
+            pending,
+            depth,
+            BodyNode::Evaluation {
+                setup: guard.setup(),
+                value: guard.condition(),
+            },
+        )
     }
 
     pub(super) fn process_when_fallback<'body>(
@@ -138,7 +150,7 @@ where
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         match fallback.view() {
             DefaultWhenFallbackViewV1::Else(statements) => {
-                self.push_statements(pending, depth, statements)
+                self.push_child(pending, depth, BodyNode::StatementBlock(statements))
             }
             DefaultWhenFallbackViewV1::IrrefutableArm { .. }
             | DefaultWhenFallbackViewV1::PatternMatrix { .. }
@@ -154,12 +166,12 @@ where
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         if let OptionalDefaultStatementListViewV1::Present(statements) = value.finally_body().view()
         {
-            self.push_statements(pending, depth, statements)?;
+            self.push_child(pending, depth, BodyNode::StatementBlock(statements))?;
         }
         for catch in value.catches().iter().rev() {
             self.push_child(pending, depth, BodyNode::Catch(catch))?;
         }
-        self.push_statements(pending, depth, value.body())
+        self.push_child(pending, depth, BodyNode::StatementBlock(value.body()))
     }
 
     pub(super) fn process_catch<'body>(
@@ -168,7 +180,7 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        self.push_statements(pending, depth, catch.body())
+        self.push_child(pending, depth, BodyNode::StatementBlock(catch.body()))
     }
 
     pub(super) fn process_for<'body>(
@@ -177,14 +189,26 @@ where
         depth: u64,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
-        self.push_statements(pending, depth, plan.body())?;
+        self.push_child(pending, depth, BodyNode::StatementBlock(plan.body()))?;
         for action in plan.binding().actions().iter().rev() {
             self.push_child(pending, depth, BodyNode::BindingAction(action))?;
         }
-        self.push_child(pending, depth, BodyNode::Expression(plan.iterator_call()))?;
-        self.push_statements(pending, depth, plan.iterator_setup())?;
-        self.push_child(pending, depth, BodyNode::Expression(plan.source_init()))?;
-        self.push_statements(pending, depth, plan.source_setup())
+        self.push_child(
+            pending,
+            depth,
+            BodyNode::Evaluation {
+                setup: plan.iterator_setup(),
+                value: plan.iterator_call(),
+            },
+        )?;
+        self.push_child(
+            pending,
+            depth,
+            BodyNode::Evaluation {
+                setup: plan.source_setup(),
+                value: plan.source_init(),
+            },
+        )
     }
 
     pub(super) fn process_binding_action<'body>(
@@ -195,8 +219,7 @@ where
     ) -> Result<(), DefaultNestedCallableAbiValidationError<E>> {
         match action.view() {
             DefaultBindingActionViewV1::Component { setup, call, .. } => {
-                self.push_child(pending, depth, BodyNode::Expression(call))?;
-                self.push_statements(pending, depth, setup)
+                self.push_child(pending, depth, BodyNode::Evaluation { setup, value: call })
             }
             DefaultBindingActionViewV1::Project { .. }
             | DefaultBindingActionViewV1::Bind { .. } => Ok(()),
