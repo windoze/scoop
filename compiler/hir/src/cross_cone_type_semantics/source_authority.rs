@@ -69,3 +69,6 @@ pub use default_declaration_binding::*;
 
 mod default_access_binding;
 pub use default_access_binding::*;
+
+mod default_target_subject;
+pub use default_target_subject::*;

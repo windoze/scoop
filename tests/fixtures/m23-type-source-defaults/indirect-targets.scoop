@@ -1,0 +1,8 @@
+private struct Pair(val value: Int)
+internal class Cell(private var stored: Int)
+internal object Cache {
+    private var stored: Int = 3
+}
+internal enum Choice {
+    Present(val value: Int)
+}
