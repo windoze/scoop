@@ -47,10 +47,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
         name: "CoroutineStep<Int>".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
-        variants: vec![
-            variant_def("Completed", vec![result.clone()]),
-            variant_def("Suspended", Vec::new()),
-        ],
+        variants: step_variants(&result.clone()),
     });
     let completed = MirVariantRef::new(&module.enums, step_enum, 0).unwrap();
     let completed = MirVariantFieldRef::new(&module.enums, completed, 0).unwrap();
@@ -407,10 +404,7 @@ fn slot(module: &mut Module, name: &str, value: Type) -> (CoroutineSlotId, Type)
         name: name.to_string(),
         type_arguments: Vec::new(),
         gc_free: false,
-        variants: vec![
-            variant_def("Empty", Vec::new()),
-            variant_def("Value", vec![value.clone()]),
-        ],
+        variants: slot_variants(&value.clone()),
     });
     let empty = MirVariantRef::new(&module.enums, enumeration, 0).unwrap();
     let payload = MirVariantRef::new(&module.enums, enumeration, 1).unwrap();

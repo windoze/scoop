@@ -133,30 +133,30 @@ fn tagged_enum_shared_region_retains_its_size_and_zst_payload_never_removes_tag(
         type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
-            mir::VariantDef {
-                name: "Aligned".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Aligned".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::Struct(aligned),
                 }],
-            },
-            mir::VariantDef {
-                name: "Triple".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            ),
+            test_variant(
+                "Triple".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::Struct(triple),
                 }],
-            },
-            mir::VariantDef {
-                name: "Reference".to_string(),
-                gc_free: false,
-                fields: vec![mir::Field {
+            ),
+            test_variant(
+                "Reference".to_string(),
+                false,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::String,
                 }],
-            },
+            ),
         ],
     });
     let zst = builder.option_enum("Option<Unit>", mir::Type::Unit);

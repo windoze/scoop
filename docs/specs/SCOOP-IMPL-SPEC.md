@@ -269,6 +269,8 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 
 **MIR meta**：每个Cone的MIR同时输出一份metadata，随`.slib`导出（见2.6），内容包括：persistent HIR source id到external callable/global/constructor/accessor的typed bridge；各单态化实例的symbol、specialization key、ODR group、generic来源与具体类型实参；各导出exact类型的vtable/itable schema、slot/adjust thunk、exact generic ancestry/conformance与TypeDescriptor symbol。类型布局不在其中——布局由LIR生产、经LIR meta导出（见2.4）。MIR module以封闭`MirOutput::{Library, Executable { entry: FunctionId }}`保存产物分支；Library结构上没有entry，Executable的entry必须属于本module已登记callable。`ExportHir` template、`LocalConcreteHir` concrete实例与MIR实体使用不同typed id；跨层关系只能通过显式mapping表达，不能由name mangling反推。
 
+enum 的 variant 与 payload field 在 LocalConcrete HIR 和 MIR 实体中必须直接携带非可选的 `PersistentEnumVariantId` 与 `PersistentEnumVariantFieldId`，与 struct field 的持久身份采用相同的保留规则。源码成员身份从 Export HIR 的 typed member relation 复制，泛型具体化只替换字段类型，不改变声明成员身份；协程生成的 enum 从既有 `CoroutineStepIdentity` / `CoroutineSlotIdentity` 取得成员身份，并在协议校验中核对实际 variant 与字段。跨层引用仍使用各层独立的 checked local reference，后续 type bridge / layout 投影通过该引用读取持久身份，不得按名称、显示字符串或 arena 编号重建。
+
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：

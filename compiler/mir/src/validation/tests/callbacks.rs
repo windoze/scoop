@@ -15,11 +15,7 @@ use scoop_identity::{
 };
 
 fn unit_variant(name: &str) -> VariantDef {
-    VariantDef {
-        name: name.to_string(),
-        gc_free: true,
-        fields: Vec::new(),
-    }
+    variant_def(name, Vec::new())
 }
 
 fn named_callback_owner(name: &str) -> PersistentFunctionId {

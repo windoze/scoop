@@ -130,18 +130,18 @@ fn exact_layout_producer_preserves_class_prefix_and_enum_slots() {
         type_arguments: vec![],
         gc_free: false,
         variants: vec![
-            mir::VariantDef {
-                name: "Value".into(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Value".into(),
+                true,
+                vec![mir::Field {
                     name: "_1".into(),
                     ty: LONG,
                 }],
-            },
-            mir::VariantDef {
-                name: "Reference".into(),
-                gc_free: false,
-                fields: vec![
+            ),
+            test_variant(
+                "Reference".into(),
+                false,
+                vec![
                     mir::Field {
                         name: "_1".into(),
                         ty: mir::Type::Class(child),
@@ -151,7 +151,7 @@ fn exact_layout_producer_preserves_class_prefix_and_enum_slots() {
                         ty: mir::Type::Unit,
                     },
                 ],
-            },
+            ),
         ],
     });
     let fixture = Fixture::new(builder);

@@ -337,12 +337,14 @@ impl EnumRegistry {
             .variants
             .iter()
             .map(|variant| mir::VariantDef {
+                identity: variant.identity,
                 name: variant.name.clone(),
                 gc_free: variant.gc_free,
                 fields: variant
                     .fields
                     .iter()
-                    .map(|field| mir::Field {
+                    .map(|field| mir::VariantField {
+                        identity: field.identity,
                         name: field.name.clone(),
                         ty: types.lower(field.ty, exact_types, self, structs, interfaces, shell),
                     })

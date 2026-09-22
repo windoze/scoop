@@ -318,17 +318,35 @@ impl Concretizer<'_> {
         let variants: Vec<_> = source
             .variants
             .iter()
-            .map(|variant| {
+            .enumerate()
+            .map(|(variant_index, variant)| {
+                let variant_ref = export::EnumVariantRef::checked(
+                    &self.source.enums,
+                    source_id,
+                    u32::try_from(variant_index).expect("source variant indices fit u32"),
+                )
+                .expect("the source variant exists");
                 let fields: Vec<_> = variant
                     .fields
                     .iter()
-                    .map(|field| concrete::Field {
-                        name: field.name.clone(),
-                        ty: self.lower_type(field.ty, &arguments),
+                    .enumerate()
+                    .map(|(field_index, field)| {
+                        let field_ref = export::EnumVariantFieldRef::checked(
+                            &self.source.enums,
+                            variant_ref,
+                            u32::try_from(field_index).expect("source field indices fit u32"),
+                        )
+                        .expect("the source payload field exists");
+                        concrete::VariantField {
+                            identity: self.source.enum_member_identities[field_ref].id(),
+                            name: field.name.clone(),
+                            ty: self.lower_type(field.ty, &arguments),
+                        }
                     })
                     .collect();
                 let gc_free = fields.iter().all(|field| self.types[field.ty].gc_free);
                 concrete::Variant {
+                    identity: self.source.enum_member_identities[variant_ref].id(),
                     name: variant.name.clone(),
                     gc_free,
                     fields,

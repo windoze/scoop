@@ -150,11 +150,7 @@ fn enum_unit_constant_maps_between_checked_stage_local_refs() {
         name: "Flag".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
-        variants: vec![mir::VariantDef {
-            name: "Off".to_string(),
-            gc_free: true,
-            fields: Vec::new(),
-        }],
+        variants: vec![test_variant("Off".to_string(), true, Vec::new())],
     });
     let source = mir::MirVariantRef::new(&mir_enums, mir_enum, 0).expect("unit variant");
     let mut lir_enums = lir::EnumDefs::default();

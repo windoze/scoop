@@ -1,0 +1,12 @@
+enum Signal {
+    Idle,
+    Pair(Int, Boolean),
+    Named { count: Int, ready: Boolean },
+    Defaulted(val count: Int = 7)
+}
+
+fun consume(value: Signal) {}
+fun main() {
+    consume(Signal.Pair(1, true))
+    consume(Signal.Defaulted())
+}

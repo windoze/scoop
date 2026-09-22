@@ -1392,19 +1392,15 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Some".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Some".to_string(),
+                true,
+                vec![mir::Field {
                     name: "_1".to_string(),
                     ty: payload.clone(),
                 }],
-            },
-            mir::VariantDef {
-                name: "None".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("None".to_string(), true, Vec::new()),
         ],
     });
     builder.extern_functions.alloc(mir::ExternFunction {
@@ -1454,11 +1450,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             ],
         },
     });
-    let unit_variant = |name: &str| mir::VariantDef {
-        name: name.to_string(),
-        gc_free: true,
-        fields: Vec::new(),
-    };
+    let unit_variant = |name: &str| test_variant(name.to_string(), true, Vec::new());
     let mode = builder.enums.alloc(mir::EnumDef {
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),

@@ -28,27 +28,23 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Value".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Value".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::Struct(outer),
                 }],
-            },
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
-            mir::VariantDef {
-                name: "Number".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            ),
+            test_variant("Empty".to_string(), true, Vec::new()),
+            test_variant(
+                "Number".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: INT,
                 }],
-            },
+            ),
         ],
     });
     let outer_array = b.array("Array<Outer>", mir::Type::Struct(outer));
@@ -209,18 +205,18 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
         type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
-            mir::VariantDef {
-                name: "Text".to_string(),
-                gc_free: false,
-                fields: vec![mir::Field {
+            test_variant(
+                "Text".to_string(),
+                false,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::String,
                 }],
-            },
-            mir::VariantDef {
-                name: "Pair".to_string(),
-                gc_free: false,
-                fields: vec![
+            ),
+            test_variant(
+                "Pair".to_string(),
+                false,
+                vec![
                     mir::Field {
                         name: "flag".to_string(),
                         ty: mir::Type::Boolean,
@@ -230,12 +226,8 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
                         ty: mir::Type::String,
                     },
                 ],
-            },
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("Empty".to_string(), true, Vec::new()),
         ],
     });
     // A niche enum inside a struct: the value itself is the

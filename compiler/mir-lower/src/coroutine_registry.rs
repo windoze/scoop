@@ -78,23 +78,28 @@ impl CoroutineRegistry {
             let step = &self.steps[*id];
             return (*id, mir::Type::Enum(step.enum_id(), Vec::new()));
         }
+        let identity = mir::CoroutineStepIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one coroutine-step root");
         let name = format!("CoroutineStep<{}>", mir::type_name(shell, result));
         let result_gc_free = mir_type_gc_free(result, structs, enums);
         let mut variants = Vec::new();
         let completed_index = next_index(&variants);
         let mut completed_fields = Vec::new();
         let completed_payload_index = next_index(&completed_fields);
-        completed_fields.push(mir::Field {
+        completed_fields.push(mir::VariantField {
+            identity: identity.completed_payload_record().id(),
             name: "value".to_string(),
             ty: result.clone(),
         });
         variants.push(mir::VariantDef {
+            identity: identity.completed_variant_record().id(),
             name: "Completed".to_string(),
             gc_free: result_gc_free,
             fields: completed_fields,
         });
         let suspended_index = next_index(&variants);
         variants.push(mir::VariantDef {
+            identity: identity.suspended_variant_record().id(),
             name: "Suspended".to_string(),
             gc_free: true,
             fields: Vec::new(),
@@ -115,8 +120,6 @@ impl CoroutineRegistry {
         let completed = enums.variant_ref(enum_id, completed_index);
         let completed_payload = enums.variant_field_ref(completed, completed_payload_index);
         let suspended = enums.variant_ref(enum_id, suspended_index);
-        let identity = mir::CoroutineStepIdentity::new(exact, nominal_group)
-            .expect("local-concrete exact types have one coroutine-step root");
         let step = mir::CoroutineStep::checked(
             &enums.defs,
             completed_payload,
@@ -174,11 +177,14 @@ impl CoroutineRegistry {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
+        let identity = mir::CoroutineSlotIdentity::new(exact, nominal_group)
+            .expect("local-concrete exact types have one coroutine-slot root");
         let name = format!("CoroutineSlot<{}>", mir::type_name(shell, value));
         let value_gc_free = mir_type_gc_free(value, structs, enums);
         let mut variants = Vec::new();
         let empty_index = next_index(&variants);
         variants.push(mir::VariantDef {
+            identity: identity.empty_variant_record().id(),
             name: "Empty".to_string(),
             gc_free: true,
             fields: Vec::new(),
@@ -186,11 +192,13 @@ impl CoroutineRegistry {
         let value_index = next_index(&variants);
         let mut value_fields = Vec::new();
         let value_payload_index = next_index(&value_fields);
-        value_fields.push(mir::Field {
+        value_fields.push(mir::VariantField {
+            identity: identity.value_payload_record().id(),
             name: "value".to_string(),
             ty: value.clone(),
         });
         variants.push(mir::VariantDef {
+            identity: identity.value_variant_record().id(),
             name: "Value".to_string(),
             gc_free: value_gc_free,
             fields: value_fields,
@@ -211,8 +219,6 @@ impl CoroutineRegistry {
         let empty = enums.variant_ref(enum_id, empty_index);
         let value_variant = enums.variant_ref(enum_id, value_index);
         let value_payload = enums.variant_field_ref(value_variant, value_payload_index);
-        let identity = mir::CoroutineSlotIdentity::new(exact, nominal_group)
-            .expect("local-concrete exact types have one coroutine-slot root");
         let slot =
             mir::CoroutineSlot::checked(&enums.defs, value_payload, empty, value.clone(), identity)
                 .expect("synthesized CoroutineSlot metadata matches its enum definition");

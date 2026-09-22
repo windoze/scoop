@@ -839,6 +839,10 @@ impl CoroutineStep {
             && suspended.variant_index() == 1
             && completed_definition.name == "Completed"
             && suspended_definition.name == "Suspended"
+            && completed_definition.identity == identity.completed_variant_record().id()
+            && suspended_definition.identity == identity.suspended_variant_record().id()
+            && completed_payload.definition(enums).ok()?.identity
+                == identity.completed_payload_record().id()
             && completed_definition.fields.len() == 1
             && completed_payload.field_index() == 0
             && completed_payload.definition(enums).ok()?.ty == result
@@ -911,6 +915,10 @@ impl CoroutineSlot {
             && value_variant.variant_index() == 1
             && empty_definition.name == "Empty"
             && value_definition.name == "Value"
+            && value_definition.identity == identity.value_variant_record().id()
+            && empty_definition.identity == identity.empty_variant_record().id()
+            && value_payload.definition(enums).ok()?.identity
+                == identity.value_payload_record().id()
             && value_definition.fields.len() == 1
             && value_payload.field_index() == 0
             && value_payload.definition(enums).ok()?.ty == value

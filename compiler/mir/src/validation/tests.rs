@@ -54,20 +54,8 @@ fn test_static_storage_owner(name: &str) -> StaticStorageOwner {
     )))
 }
 
-fn variant_def(name: &str, fields: Vec<Type>) -> VariantDef {
-    VariantDef {
-        name: name.to_string(),
-        gc_free: true,
-        fields: fields
-            .into_iter()
-            .enumerate()
-            .map(|(index, ty)| Field {
-                name: format!("_{index}"),
-                ty,
-            })
-            .collect(),
-    }
-}
+mod enum_members;
+use enum_members::{slot_variants, step_variants, variant_def};
 
 fn test_exact_type(
     ty: &Type,
@@ -1050,10 +1038,8 @@ fn raw_struct_construction_validation_rejects_unknown_and_intrinsic_targets() {
 
 #[test]
 fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
-    let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Completed", vec![Type::Integer(IntegerKind::SIGNED_32)]),
-        variant_def("Suspended", Vec::new()),
-    ]);
+    let (mut module, enum_id) =
+        module_with_variants(step_variants(&Type::Integer(IntegerKind::SIGNED_32)));
     let left = MirVariantRef::new(&module.enums, enum_id, 0).expect("Left exists");
     assert_eq!(left.enum_id(), enum_id);
     assert_eq!(left.variant_index(), 0);
@@ -1182,10 +1168,7 @@ fn typed_variant_and_field_refs_are_checked_by_the_definition_store() {
         name: "CoroutineSlot".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
-        variants: vec![
-            variant_def("Empty", Vec::new()),
-            variant_def("Value", vec![payload_ty.clone()]),
-        ],
+        variants: slot_variants(&payload_ty.clone()),
     });
     let empty = MirVariantRef::new(&module.enums, slot_enum, 0).unwrap();
     let value = MirVariantRef::new(&module.enums, slot_enum, 1).unwrap();

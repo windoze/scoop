@@ -103,19 +103,15 @@ fn option_of_code_pointer_records_code_niche_provenance() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Some".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Some".to_string(),
+                true,
+                vec![mir::Field {
                     name: "_1".to_string(),
                     ty: mir::Type::FunPtr(signature),
                 }],
-            },
-            mir::VariantDef {
-                name: "None".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("None".to_string(), true, Vec::new()),
         ],
     });
     let main = builder.main(Arena::new(), Vec::new());
@@ -210,19 +206,15 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
         type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
-            mir::VariantDef {
-                name: "Naught".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
-            mir::VariantDef {
-                name: "Value".to_string(),
-                gc_free: false,
-                fields: vec![mir::Field {
+            test_variant("Naught".to_string(), true, Vec::new()),
+            test_variant(
+                "Value".to_string(),
+                false,
+                vec![mir::Field {
                     name: "_1".to_string(),
                     ty: mir::Type::String,
                 }],
-            },
+            ),
         ],
     });
     // Two variants, but the payload variant has two fields: tagged.
@@ -231,10 +223,10 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Pair".to_string(),
-                gc_free: true,
-                fields: vec![
+            test_variant(
+                "Pair".to_string(),
+                true,
+                vec![
                     mir::Field {
                         name: "_1".to_string(),
                         ty: INT,
@@ -244,12 +236,8 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
                         ty: INT,
                     },
                 ],
-            },
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("Empty".to_string(), true, Vec::new()),
         ],
     });
     let main = b.main(Arena::new(), Vec::new());

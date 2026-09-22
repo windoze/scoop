@@ -45,17 +45,13 @@ impl Builder {
             name: "_1".to_string(),
             ty: payload.clone(),
         });
-        variants.push(mir::VariantDef {
-            name: "Some".to_string(),
-            gc_free: payload_gc_free,
-            fields: some_fields,
-        });
+        variants.push(test_variant(
+            "Some".to_string(),
+            payload_gc_free,
+            some_fields,
+        ));
         let none_index = u32::try_from(variants.len()).expect("test enum arity fits u32");
-        variants.push(mir::VariantDef {
-            name: "None".to_string(),
-            gc_free: true,
-            fields: Vec::new(),
-        });
+        variants.push(test_variant("None".to_string(), true, Vec::new()));
         let id = self.enums.alloc(mir::EnumDef {
             name: name.to_string(),
             type_arguments: vec![payload],

@@ -478,3 +478,6 @@ pub(super) fn single_catch_body(
 pub(super) fn empty_vtable() -> Vec<mir::TableSlot> {
     Vec::new()
 }
+
+mod enum_members;
+pub(super) use enum_members::test_variant;

@@ -358,10 +358,7 @@ fn module_validation_rejects_stale_option_core_metadata() {
 #[test]
 fn module_validation_rejects_stale_coroutine_step_shape() {
     let result = Type::Integer(IntegerKind::SIGNED_32);
-    let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Completed", vec![result.clone()]),
-        variant_def("Suspended", Vec::new()),
-    ]);
+    let (mut module, enum_id) = module_with_variants(step_variants(&result.clone()));
     register_test_exact_type(&mut module, &result);
     let (completed_payload, suspended) = checked_pair(&module, enum_id);
     let identity = test_step_identity(&result);
@@ -377,7 +374,9 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
     install_generated_exact_types(&mut module);
     assert_eq!(module.validate(), Ok(()));
 
-    module.enums[enum_id].variants[0].fields.push(Field {
+    let identity = module.enums[enum_id].variants[0].fields[0].identity;
+    module.enums[enum_id].variants[0].fields.push(VariantField {
+        identity,
         name: "stale".to_string(),
         ty: Type::Boolean,
     });
@@ -393,10 +392,7 @@ fn module_validation_rejects_stale_coroutine_step_shape() {
 #[test]
 fn module_validation_rejects_stale_coroutine_slot_reference() {
     let value = Type::Boolean;
-    let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Empty", Vec::new()),
-        variant_def("Value", vec![value.clone()]),
-    ]);
+    let (mut module, enum_id) = module_with_variants(slot_variants(&value.clone()));
     register_test_exact_type(&mut module, &value);
     let empty = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let value_variant = MirVariantRef::new(&module.enums, enum_id, 1).unwrap();
@@ -421,10 +417,7 @@ fn module_validation_rejects_stale_coroutine_slot_reference() {
 #[test]
 fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     let result = Type::Integer(IntegerKind::SIGNED_32);
-    let (mut module, enum_id) = module_with_variants(vec![
-        variant_def("Completed", vec![result.clone()]),
-        variant_def("Suspended", Vec::new()),
-    ]);
+    let (mut module, enum_id) = module_with_variants(step_variants(&result.clone()));
     register_test_exact_type(&mut module, &result);
     let (completed_payload, suspended) = checked_pair(&module, enum_id);
     module.meta.coroutine_steps.alloc(
