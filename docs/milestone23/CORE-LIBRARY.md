@@ -229,3 +229,11 @@ nominal shape 的 enum 数据与 wire 按职责拆分，主文件缩短到 366 �
 2026-09-22：protected callable 与 dispatch slot 的 Unit 输入清理通过 workspace fmt、clippy（含 all-targets，无警告）及 HIR/HIR-lower/SLIB 共 3,329 项回归（零失败、零忽略）。删除 bind_protected_callable_sources、bind_slot_sources 仅为取得 Unit 而接收的 ImportedCoreFundamentalTypeProtocol 参数，protected binding 不再保存第二份 Unit nominal；普通 nominal member、dispatch 与 setter 统一引用语言内建 CoreBuiltinNominal::Unit。exact Unit key、setter 参数和结果、slot signature、实际实现选择、effect、owner 与资源预算检查保持。
 
 已有独立与组合源码 fixture 及 golden 覆盖 protected method/generic/accessor/override、class/interface slot、默认实现、继承和完整 sysroot source foundation；错误 setter 返回/参数、错误 owner、实际实现替换、同步伪造 root/target effect 及预算耗尽负例全部通过。测试辅助入口同步删除多余 core 协议导入，相关生产模块均少于 160 行；wire/profile、persistent identity、runtime ABI 与 ODR gate 不变。常量、Array 和其他源码 nominal 不能使用 Unit 内建例外，其共有声明查询以及其余 M23-6 实现与验收继续推进。
+
+2026-09-22：HIR/MIR 协议定义外层清理通过 workspace fmt、clippy（含 all-targets，无警告）及配套 scoopc 的全部 5,735 项 workspace 回归（37 组，零失败、零忽略）。测试含真实 core 修改与重建、公共缓存、任意输出路径消费、Compile/Link 双 view、普通 provider 协议导入，以及 CORE/普通 provider × library/executable × 初始化角色有无的 MIR 组合。
+
+HIR 删除 CoreHirInterfaceBranchV1 和 Core/NotCore 资格分支，以 CompilerProtocolDefinitionsV1 保存实际完整定义。core-bootstrap-interface 升级为 v3：section 保留 field 2 output 与 field 3 direct surface，新增 field 4 的 0/1 definitions array；旧 field 1 及其 tag 1、2 退役，旧 v1/v2、旧字段、多份定义与旧 sum 替换 array 均拒绝。producer 依据实际 Defined/Imported 发布，reader 按同一 foundation 校验；三个生产 profile 的 descriptor/fingerprint、Compile/Link inventory 和 golden 同步更新。公开 intrinsic 按自身 canonical 声明 origin 查询对应可达 provider 的类型角色，缺失或重复 provider 不能由其他候选补足，查询继续计入当前 artifact 的预算。
+
+String capability 删除固定 CORE、名称、包、owner 链与 scope 检查，保留非泛型 class、source/exact nominal 关系及与 compiler protocol 的 String 身份一致性；新负例验证两份记录各自有效但指向不同 class 时仍失败。MIR 删除按 CORE 判定初始化角色必须存在、禁止出现或必须搭配 library 的分支，实际角色由相邻 HIR 定义核对。角色唯一性、source function、完整 strong signature 覆盖与重放、ordinary effect、String 参数与 Unit 返回、main/entry 归属和实际实现检查继续执行，旧角色字段、persistent identity、String 表示和 runtime C ABI 不变。
+
+String 的测试按职责拆到独立模块；相关 HIR section、String capability 和 MIR production 主文件分别为 348、298、451 行。全部构建与测试结束后 cargo clean 删除 40,949 个文件、41.8 GiB。本批完成 HIR/MIR 外层清理，LIR 初始化桥、String descriptor/registration、Link 的 core 独立闭包、native 后端固定身份重建，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布与 ZST 验收仍须继续完成。

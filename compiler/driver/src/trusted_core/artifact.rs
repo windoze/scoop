@@ -1,9 +1,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use scoop_hir::{
-    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CoreProtocolImportError, ImportedCoreInputs,
-};
+use scoop_hir::{CompilerProtocolDefinitionsV1, CoreProtocolImportError, ImportedCoreInputs};
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
     PersistentExactTypeId,
@@ -20,7 +18,7 @@ pub use projection::*;
 
 pub struct ValidatedTrustedCoreArtifact<'input> {
     artifact: SharedCrossConeArtifact<'input>,
-    interface: CoreHirInterfaceV1,
+    interface: CompilerProtocolDefinitionsV1,
 }
 
 impl<'input> ValidatedTrustedCoreArtifact<'input> {
@@ -31,12 +29,12 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .share_artifact(ConeIdentity::CORE)
             .ok_or(TrustedCoreArtifactValidationError::MissingCore)?;
         let compile = artifact.compile();
-        let interface = match compile.production().hir_core().core_interface() {
-            CoreHirInterfaceBranchV1::Core(interface) => interface.as_ref().clone(),
-            CoreHirInterfaceBranchV1::NotCore => {
-                return Err(TrustedCoreArtifactValidationError::MissingCoreInterface);
-            }
-        };
+        let interface = compile
+            .production()
+            .hir_core()
+            .compiler_protocol_definitions()
+            .ok_or(TrustedCoreArtifactValidationError::MissingProtocolDefinitions)?
+            .clone();
         Ok(Self {
             artifact,
             interface,
@@ -62,16 +60,16 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
 #[derive(Debug)]
 pub enum TrustedCoreArtifactValidationError {
     MissingCore,
-    MissingCoreInterface,
+    MissingProtocolDefinitions,
 }
 
 impl fmt::Display for TrustedCoreArtifactValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingCore => formatter.write_str("dependency closure has no core artifact"),
-            Self::MissingCoreInterface => {
-                formatter.write_str("trusted core Compile proof has no Core HIR interface")
-            }
+            Self::MissingProtocolDefinitions => formatter.write_str(
+                "selected language-library artifact has no compiler protocol definitions",
+            ),
         }
     }
 }

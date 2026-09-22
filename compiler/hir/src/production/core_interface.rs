@@ -1,4 +1,4 @@
-//! Atomic HIR production interface for ordinary and trusted core Cones.
+//! HIR output contracts and locally defined compiler protocol roles.
 
 use std::fmt;
 
@@ -19,26 +19,23 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreHirInterfaceV1 {
+pub struct CompilerProtocolDefinitionsV1 {
     string_capability: RuntimeCoreCapabilityV1,
     compiler_protocols: CoreCompilerProtocolSurfaceV1,
 }
 
-impl CoreHirInterfaceV1 {
-    pub fn from_core_export(export: &ExportHir) -> Result<Self, CoreHirInterfaceBuildError> {
-        if export.cone != ConeIdentity::CORE {
-            return Err(CoreHirInterfaceBuildError::NotCore(export.cone));
-        }
+impl CompilerProtocolDefinitionsV1 {
+    pub fn from_export(export: &ExportHir) -> Result<Self, CompilerProtocolDefinitionsBuildError> {
         let crate::CoreProtocols::Defined(protocols) = &export.core_protocols else {
-            return Err(CoreHirInterfaceBuildError::ImportedProtocolsInCore);
+            return Err(CompilerProtocolDefinitionsBuildError::NoLocalDefinitions);
         };
         let interface = Self {
-            string_capability: RuntimeCoreCapabilityV1::string_from_core_export(export, protocols)
-                .map_err(CoreHirInterfaceBuildError::String)?,
+            string_capability: RuntimeCoreCapabilityV1::string_from_export(export, protocols)
+                .map_err(CompilerProtocolDefinitionsBuildError::String)?,
             compiler_protocols: CoreCompilerProtocolSurfaceV1::from_core_export(export, protocols)
-                .map_err(CoreHirInterfaceBuildError::CompilerProtocols)?,
+                .map_err(CompilerProtocolDefinitionsBuildError::CompilerProtocols)?,
         };
-        validate_relations(&interface).map_err(CoreHirInterfaceBuildError::Relation)?;
+        validate_relations(&interface).map_err(CompilerProtocolDefinitionsBuildError::Relation)?;
         Ok(interface)
     }
 
@@ -51,7 +48,7 @@ impl CoreHirInterfaceV1 {
     }
 }
 
-impl WireEncode for CoreHirInterfaceV1 {
+impl WireEncode for CompilerProtocolDefinitionsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(2)?;
@@ -62,32 +59,33 @@ impl WireEncode for CoreHirInterfaceV1 {
 }
 
 #[derive(Debug)]
-pub struct DecodedCoreHirInterfaceV1 {
+pub struct DecodedCompilerProtocolDefinitionsV1 {
     string_capability: DecodedRuntimeCoreCapabilityV1,
     compiler_protocols: DecodedCoreCompilerProtocolSurfaceV1,
 }
 
-impl DecodedCoreHirInterfaceV1 {
+impl DecodedCompilerProtocolDefinitionsV1 {
     fn validate_against(
         self,
         foundation: &CanonicalHirFoundation,
-    ) -> Result<CoreHirInterfaceV1, CoreHirInterfaceValidationError> {
-        let interface = CoreHirInterfaceV1 {
+    ) -> Result<CompilerProtocolDefinitionsV1, CompilerProtocolDefinitionsValidationError> {
+        let interface = CompilerProtocolDefinitionsV1 {
             string_capability: self
                 .string_capability
                 .validate_against(foundation)
-                .map_err(CoreHirInterfaceValidationError::String)?,
+                .map_err(CompilerProtocolDefinitionsValidationError::String)?,
             compiler_protocols: self
                 .compiler_protocols
                 .validate_against(foundation)
-                .map_err(CoreHirInterfaceValidationError::CompilerProtocols)?,
+                .map_err(CompilerProtocolDefinitionsValidationError::CompilerProtocols)?,
         };
-        validate_relations(&interface).map_err(CoreHirInterfaceValidationError::Relation)?;
+        validate_relations(&interface)
+            .map_err(CompilerProtocolDefinitionsValidationError::Relation)?;
         Ok(interface)
     }
 }
 
-impl WireEncode for DecodedCoreHirInterfaceV1 {
+impl WireEncode for DecodedCompilerProtocolDefinitionsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(2)?;
         encoder.field(2)?;
@@ -97,7 +95,7 @@ impl WireEncode for DecodedCoreHirInterfaceV1 {
     }
 }
 
-impl WireDecode for DecodedCoreHirInterfaceV1 {
+impl WireDecode for DecodedCompilerProtocolDefinitionsV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(2)?;
         Ok(Self {
@@ -108,65 +106,8 @@ impl WireDecode for DecodedCoreHirInterfaceV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CoreHirInterfaceBranchV1 {
-    NotCore,
-    Core(Box<CoreHirInterfaceV1>),
-}
-
-impl WireEncode for CoreHirInterfaceBranchV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::NotCore => encode_empty_sum(encoder, 1),
-            Self::Core(interface) => encode_value_sum(encoder, 2, interface.as_ref()),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum DecodedCoreHirInterfaceBranchV1 {
-    NotCore,
-    Core(Box<DecodedCoreHirInterfaceV1>),
-}
-
-impl WireEncode for DecodedCoreHirInterfaceBranchV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::NotCore => encode_empty_sum(encoder, 1),
-            Self::Core(interface) => encode_value_sum(encoder, 2, interface.as_ref()),
-        }
-    }
-}
-
-impl WireDecode for DecodedCoreHirInterfaceBranchV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        if fields == 0 {
-            return Err(wire_error(
-                decoder,
-                WireErrorKind::MissingField { field: 0 },
-            ));
-        }
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        match tag {
-            1 => {
-                require_sum_length(decoder, fields, 1)?;
-                Ok(Self::NotCore)
-            }
-            2 => {
-                require_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, DecodedCoreHirInterfaceV1::decode)
-                    .map(Box::new)
-                    .map(Self::Core)
-            }
-            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreBootstrapInterfaceSectionV1 {
-    core_interface: CoreHirInterfaceBranchV1,
+    protocol_definitions: Option<Box<CompilerProtocolDefinitionsV1>>,
     output_contract: HirOutputContractV1,
     direct_public_surface: CanonicalDirectPublicSurfaceV1,
 }
@@ -177,26 +118,22 @@ impl CoreBootstrapInterfaceSectionV1 {
         let direct_public_surface = CanonicalDirectPublicSurfaceV1::from_export_hir(module)
             .map_err(CoreBootstrapInterfaceBuildError::DirectSurface)?;
         let output_contract = HirOutputContractV1::from_output_kind(export.output_kind());
-        let core_interface = if module.cone == ConeIdentity::CORE {
-            if output_contract != HirOutputContractV1::Library {
-                return Err(CoreBootstrapInterfaceBuildError::CoreMustBeLibrary);
-            }
-            CoreHirInterfaceBranchV1::Core(Box::new(
-                CoreHirInterfaceV1::from_core_export(module)
-                    .map_err(CoreBootstrapInterfaceBuildError::CoreInterface)?,
-            ))
-        } else {
-            CoreHirInterfaceBranchV1::NotCore
+        let protocol_definitions = match &module.core_protocols {
+            crate::CoreProtocols::Defined(_) => Some(Box::new(
+                CompilerProtocolDefinitionsV1::from_export(module)
+                    .map_err(CoreBootstrapInterfaceBuildError::ProtocolDefinitions)?,
+            )),
+            crate::CoreProtocols::Imported(_) => None,
         };
         Ok(Self {
-            core_interface,
+            protocol_definitions,
             output_contract,
             direct_public_surface,
         })
     }
 
-    pub const fn core_interface(&self) -> &CoreHirInterfaceBranchV1 {
-        &self.core_interface
+    pub fn compiler_protocol_definitions(&self) -> Option<&CompilerProtocolDefinitionsV1> {
+        self.protocol_definitions.as_deref()
     }
 
     pub const fn output_contract(&self) -> &HirOutputContractV1 {
@@ -211,18 +148,18 @@ impl CoreBootstrapInterfaceSectionV1 {
 impl WireEncode for CoreBootstrapInterfaceSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
-        encoder.field(1)?;
-        self.core_interface.encode(encoder)?;
         encoder.field(2)?;
         self.output_contract.encode(encoder)?;
         encoder.field(3)?;
-        self.direct_public_surface.encode(encoder)
+        self.direct_public_surface.encode(encoder)?;
+        encoder.field(4)?;
+        encode_definitions(self.protocol_definitions.as_deref(), encoder)
     }
 }
 
 #[derive(Debug)]
 pub struct DecodedCoreBootstrapInterfaceSectionV1 {
-    core_interface: DecodedCoreHirInterfaceBranchV1,
+    protocol_definitions: Option<Box<DecodedCompilerProtocolDefinitionsV1>>,
     output_contract: DecodedHirOutputContractV1,
     direct_public_surface: DecodedCanonicalDirectPublicSurfaceV1,
 }
@@ -256,29 +193,13 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
             .output_contract
             .validate_against(artifact, foundation)
             .map_err(CoreBootstrapInterfaceValidationError::OutputContract)?;
-        let core_interface = match (artifact == ConeIdentity::CORE, self.core_interface) {
-            (false, DecodedCoreHirInterfaceBranchV1::NotCore) => CoreHirInterfaceBranchV1::NotCore,
-            (false, DecodedCoreHirInterfaceBranchV1::Core(_)) => {
-                return Err(
-                    CoreBootstrapInterfaceValidationError::UnexpectedCoreInterface(artifact),
-                );
-            }
-            (true, DecodedCoreHirInterfaceBranchV1::NotCore) => {
-                return Err(CoreBootstrapInterfaceValidationError::MissingCoreInterface);
-            }
-            (true, DecodedCoreHirInterfaceBranchV1::Core(interface)) => {
-                if output_contract != HirOutputContractV1::Library {
-                    return Err(CoreBootstrapInterfaceValidationError::CoreMustBeLibrary);
-                }
-                CoreHirInterfaceBranchV1::Core(Box::new(
-                    interface
-                        .validate_against(foundation)
-                        .map_err(CoreBootstrapInterfaceValidationError::CoreInterface)?,
-                ))
-            }
-        };
+        let protocol_definitions = self
+            .protocol_definitions
+            .map(|definitions| definitions.validate_against(foundation).map(Box::new))
+            .transpose()
+            .map_err(CoreBootstrapInterfaceValidationError::ProtocolDefinitions)?;
         Ok(CoreBootstrapInterfaceSectionV1 {
-            core_interface,
+            protocol_definitions,
             output_contract,
             direct_public_surface,
         })
@@ -288,12 +209,12 @@ impl DecodedCoreBootstrapInterfaceSectionV1 {
 impl WireEncode for DecodedCoreBootstrapInterfaceSectionV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
-        encoder.field(1)?;
-        self.core_interface.encode(encoder)?;
         encoder.field(2)?;
         self.output_contract.encode(encoder)?;
         encoder.field(3)?;
-        self.direct_public_surface.encode(encoder)
+        self.direct_public_surface.encode(encoder)?;
+        encoder.field(4)?;
+        encode_definitions(self.protocol_definitions.as_deref(), encoder)
     }
 }
 
@@ -301,72 +222,88 @@ impl WireDecode for DecodedCoreBootstrapInterfaceSectionV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(3)?;
         Ok(Self {
-            core_interface: decoder.field(1, DecodedCoreHirInterfaceBranchV1::decode)?,
             output_contract: decoder.field(2, DecodedHirOutputContractV1::decode)?,
             direct_public_surface: decoder
                 .field(3, DecodedCanonicalDirectPublicSurfaceV1::decode)?,
+            protocol_definitions: decoder.field(4, |decoder| match decoder.array()? {
+                0 => Ok(None),
+                1 => decoder
+                    .index(0, DecodedCompilerProtocolDefinitionsV1::decode)
+                    .map(Box::new)
+                    .map(Some),
+                actual => Err(wire_error(
+                    decoder,
+                    WireErrorKind::InvalidLength {
+                        expected: 1,
+                        actual,
+                    },
+                )),
+            })?,
         })
     }
 }
 
-fn validate_relations(interface: &CoreHirInterfaceV1) -> Result<(), CoreHirInterfaceRelationError> {
+fn validate_relations(
+    interface: &CompilerProtocolDefinitionsV1,
+) -> Result<(), CompilerProtocolDefinitionsRelationError> {
     let string_source = interface.string_capability.source_type();
     if interface.compiler_protocols.string_source_type() != string_source {
-        return Err(CoreHirInterfaceRelationError::ProtocolStringMismatch);
+        return Err(CompilerProtocolDefinitionsRelationError::ProtocolStringMismatch);
     }
     Ok(())
 }
 
 #[derive(Debug)]
-pub enum CoreHirInterfaceBuildError {
-    NotCore(ConeIdentity),
-    ImportedProtocolsInCore,
+pub enum CompilerProtocolDefinitionsBuildError {
+    NoLocalDefinitions,
     String(RuntimeCoreCapabilityBuildError),
     CompilerProtocols(CoreCompilerProtocolSurfaceBuildError),
-    Relation(CoreHirInterfaceRelationError),
+    Relation(CompilerProtocolDefinitionsRelationError),
 }
 
-impl fmt::Display for CoreHirInterfaceBuildError {
+impl fmt::Display for CompilerProtocolDefinitionsBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot build core HIR interface: {self:?}")
+        write!(
+            formatter,
+            "cannot build compiler protocol definitions: {self:?}"
+        )
     }
 }
 
-impl std::error::Error for CoreHirInterfaceBuildError {}
+impl std::error::Error for CompilerProtocolDefinitionsBuildError {}
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum CoreHirInterfaceValidationError {
+pub enum CompilerProtocolDefinitionsValidationError {
     String(RuntimeCoreCapabilityValidationError),
     CompilerProtocols(CoreCompilerProtocolSurfaceValidationError),
-    Relation(CoreHirInterfaceRelationError),
+    Relation(CompilerProtocolDefinitionsRelationError),
 }
 
-impl fmt::Display for CoreHirInterfaceValidationError {
+impl fmt::Display for CompilerProtocolDefinitionsValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid core HIR interface: {self:?}")
+        write!(formatter, "invalid compiler protocol definitions: {self:?}")
     }
 }
 
-impl std::error::Error for CoreHirInterfaceValidationError {}
+impl std::error::Error for CompilerProtocolDefinitionsValidationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreHirInterfaceRelationError {
+pub enum CompilerProtocolDefinitionsRelationError {
     ProtocolStringMismatch,
 }
 
-impl fmt::Display for CoreHirInterfaceRelationError {
+impl fmt::Display for CompilerProtocolDefinitionsRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "invalid core HIR constituent relation: {self:?}")
+        write!(formatter, "invalid compiler protocol relation: {self:?}")
     }
 }
 
-impl std::error::Error for CoreHirInterfaceRelationError {}
+impl std::error::Error for CompilerProtocolDefinitionsRelationError {}
 
 #[derive(Debug)]
 pub enum CoreBootstrapInterfaceBuildError {
     DirectSurface(DirectPublicSurfaceBuildError),
-    CoreMustBeLibrary,
-    CoreInterface(CoreHirInterfaceBuildError),
+    ProtocolDefinitions(CompilerProtocolDefinitionsBuildError),
 }
 
 impl fmt::Display for CoreBootstrapInterfaceBuildError {
@@ -381,10 +318,7 @@ impl std::error::Error for CoreBootstrapInterfaceBuildError {}
 pub enum CoreBootstrapInterfaceValidationError {
     DirectSurface(DirectPublicSurfaceValidationError),
     OutputContract(HirOutputContractValidationError),
-    UnexpectedCoreInterface(ConeIdentity),
-    MissingCoreInterface,
-    CoreMustBeLibrary,
-    CoreInterface(CoreHirInterfaceValidationError),
+    ProtocolDefinitions(CompilerProtocolDefinitionsValidationError),
 }
 
 impl fmt::Display for CoreBootstrapInterfaceValidationError {
@@ -395,37 +329,15 @@ impl fmt::Display for CoreBootstrapInterfaceValidationError {
 
 impl std::error::Error for CoreBootstrapInterfaceValidationError {}
 
-fn encode_empty_sum(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(1)?;
-    encoder.field(0)?;
-    encoder.unsigned(tag)
-}
-
-fn encode_value_sum(
+fn encode_definitions(
+    definitions: Option<&impl WireEncode>,
     encoder: &mut Encoder,
-    tag: u64,
-    value: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(2)?;
-    encoder.field(0)?;
-    encoder.unsigned(tag)?;
-    encoder.field(1)?;
-    value.encode(encoder)
-}
-
-fn require_sum_length(
-    decoder: &Decoder<'_, '_>,
-    actual: u64,
-    expected: u64,
-) -> Result<(), WireError> {
-    if actual == expected {
-        Ok(())
-    } else {
-        Err(wire_error(
-            decoder,
-            WireErrorKind::InvalidLength { expected, actual },
-        ))
+    encoder.array(u64::from(definitions.is_some()))?;
+    if let Some(definitions) = definitions {
+        definitions.encode(encoder)?;
     }
+    Ok(())
 }
 
 fn wire_error(decoder: &Decoder<'_, '_>, kind: WireErrorKind) -> WireError {

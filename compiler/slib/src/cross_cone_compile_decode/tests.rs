@@ -158,10 +158,12 @@ fn cross_cone_hir_front_validates_the_legacy_direct_surface() {
             .bindings()
             .is_empty()
     );
-    assert!(matches!(
-        validated.hir_core_production().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .hir_core_production()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
 }
 
 #[test]

@@ -17,55 +17,84 @@ use crate::{DecodedHirFoundation, ImportedHirFoundation, PublicNominalShapeRequi
 mod wire;
 
 #[test]
-fn section_selects_exactly_one_branch_from_the_artifact_identity() {
+fn protocol_definitions_are_data_independent_of_the_artifact_coordinate() {
     let fixture = fixture();
-    assert_eq!(
-        decode_section(&fixture.section).validate_against(ConeIdentity::CORE, &fixture.foundation),
-        Ok(fixture.section.clone())
-    );
-    assert_eq!(
-        decode_section(&fixture.section)
-            .validate_against(ConeIdentity::SINGLE_FILE, &fixture.foundation),
-        Err(
-            CoreBootstrapInterfaceValidationError::UnexpectedCoreInterface(
-                ConeIdentity::SINGLE_FILE,
-            )
-        )
-    );
+    for artifact in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
+        assert_eq!(
+            decode_section(&fixture.section).validate_against(artifact, &fixture.foundation),
+            Ok(fixture.section.clone())
+        );
+        let imported = CoreBootstrapInterfaceSectionV1 {
+            protocol_definitions: None,
+            output_contract: HirOutputContractV1::Library,
+            direct_public_surface: fixture.direct.clone(),
+        };
+        assert_eq!(
+            decode_section(&imported).validate_against(artifact, &fixture.foundation),
+            Ok(imported)
+        );
+    }
+}
 
-    let not_core = CoreBootstrapInterfaceSectionV1 {
-        core_interface: CoreHirInterfaceBranchV1::NotCore,
-        output_contract: HirOutputContractV1::Library,
-        direct_public_surface: fixture.direct,
+#[test]
+fn ordinary_provider_definitions_validate_and_import_their_actual_typed_roles() {
+    let provider = crate::production::core_protocol_test_support::ordinary_origin();
+    let (compiler_protocols, mut foundation) =
+        crate::production::core_protocol_test_support::standalone_at(provider);
+    let source_type = compiler_protocols.string_source_type();
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(source_type)).unwrap();
+    let mut exact_types = foundation.type_source_exact_records().to_vec();
+    exact_types.extend([exact.clone(), unit_exact_record()]);
+    foundation.set_exact_types(exact_types).unwrap();
+    let definitions = CompilerProtocolDefinitionsV1 {
+        string_capability: RuntimeCoreCapabilityV1::String {
+            source_type,
+            exact_type: exact.id(),
+        },
+        compiler_protocols,
+    };
+    let section = CoreBootstrapInterfaceSectionV1 {
+        protocol_definitions: Some(Box::new(definitions.clone())),
+        ..non_core_section()
     };
     assert_eq!(
-        decode_section(&not_core).validate_against(ConeIdentity::CORE, &fixture.foundation),
-        Err(CoreBootstrapInterfaceValidationError::MissingCoreInterface)
+        decode_section(&section).validate_against(provider, &foundation),
+        Ok(section)
+    );
+    let imported = imported_foundation_at(&foundation, provider);
+    assert_eq!(
+        imported
+            .import_core_inputs(&definitions)
+            .unwrap()
+            .protocols()
+            .fundamental_types()
+            .string()
+            .persistent(),
+        source_type
     );
 }
 
 #[test]
-fn core_section_rejects_an_executable_output_contract() {
+fn protocol_definitions_do_not_replace_the_executable_output_contract() {
     let mut fixture = fixture();
     let entry = function("main");
-    fixture
-        .foundation
-        .set_functions(vec![entry.clone()])
-        .unwrap();
+    let mut functions = fixture.foundation.type_source_function_records().to_vec();
+    functions.push(entry.clone());
+    fixture.foundation.set_functions(functions).unwrap();
     let proof = ExecutableSourceEntryIdentity::try_new(
         &entry,
         ExactOrdinaryNoArgUnitSignature::new(unit_exact_record().id()),
     )
     .unwrap();
     let executable = CoreBootstrapInterfaceSectionV1 {
-        core_interface: CoreHirInterfaceBranchV1::Core(Box::new(fixture.interface)),
+        protocol_definitions: Some(Box::new(fixture.interface)),
         output_contract: HirOutputContractV1::Executable(Box::new(proof)),
         direct_public_surface: fixture.direct,
     };
 
     assert_eq!(
         decode_section(&executable).validate_against(ConeIdentity::CORE, &fixture.foundation),
-        Err(CoreBootstrapInterfaceValidationError::CoreMustBeLibrary)
+        Ok(executable)
     );
 }
 
@@ -265,7 +294,9 @@ fn imported_protocols_do_not_require_duplicate_public_bindings() {
     assert!(imported.import_core_inputs(&fixture.interface).is_ok());
 }
 
-fn decode_interface(interface: &CoreHirInterfaceV1) -> DecodedCoreHirInterfaceV1 {
+fn decode_interface(
+    interface: &CompilerProtocolDefinitionsV1,
+) -> DecodedCompilerProtocolDefinitionsV1 {
     decode_canonical(&encode(interface).unwrap(), DecodeLimits::default()).unwrap()
 }
 
@@ -277,7 +308,7 @@ fn decode_section(
 
 fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
     CoreBootstrapInterfaceSectionV1 {
-        core_interface: CoreHirInterfaceBranchV1::NotCore,
+        protocol_definitions: None,
         output_contract: HirOutputContractV1::Library,
         direct_public_surface: CanonicalDirectPublicSurfaceV1::try_new(Vec::new()).unwrap(),
     }
@@ -286,7 +317,7 @@ fn non_core_section() -> CoreBootstrapInterfaceSectionV1 {
 struct Fixture {
     foundation: CanonicalHirFoundation,
     direct: CanonicalDirectPublicSurfaceV1,
-    interface: CoreHirInterfaceV1,
+    interface: CompilerProtocolDefinitionsV1,
     section: CoreBootstrapInterfaceSectionV1,
 }
 
@@ -331,7 +362,7 @@ fn fixture() -> Fixture {
             exact_types: vec![string_exact_record.clone(), unit_exact_record()],
         },
     );
-    let interface = CoreHirInterfaceV1 {
+    let interface = CompilerProtocolDefinitionsV1 {
         string_capability: RuntimeCoreCapabilityV1::String {
             source_type: string_id,
             exact_type: string_exact_record.id(),
@@ -339,7 +370,7 @@ fn fixture() -> Fixture {
         compiler_protocols,
     };
     let section = CoreBootstrapInterfaceSectionV1 {
-        core_interface: CoreHirInterfaceBranchV1::Core(Box::new(interface.clone())),
+        protocol_definitions: Some(Box::new(interface.clone())),
         output_contract: HirOutputContractV1::Library,
         direct_public_surface: direct.clone(),
     };
@@ -357,17 +388,27 @@ fn fixture() -> Fixture {
 }
 
 fn imported_foundation(foundation: &CanonicalHirFoundation) -> ImportedHirFoundation {
+    imported_foundation_at(foundation, ConeIdentity::CORE)
+}
+
+fn imported_foundation_at(
+    foundation: &CanonicalHirFoundation,
+    provider: ConeIdentity,
+) -> ImportedHirFoundation {
     let decoded: DecodedHirFoundation =
         decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
+    if provider != ConeIdentity::CORE {
+        pending.register_authority(provider).unwrap();
+    }
     decoded.register_identities(&mut pending).unwrap();
     decoded.resolve_identities(&mut pending).unwrap();
     let identities = pending.finish().unwrap();
     let mut session = SemanticIdentitySession::new();
     let imported = session
         .import(
-            ConeIdentity::CORE,
+            provider,
             SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
             &identities,
         )

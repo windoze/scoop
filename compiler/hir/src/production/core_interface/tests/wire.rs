@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
+fn protocol_definitions_have_a_fixed_wire_vector_and_validates_atomically() {
     let fixture = fixture();
     let bytes = encode(&fixture.interface).unwrap();
     assert_eq!(
@@ -19,27 +19,34 @@ fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
 }
 
 #[test]
-fn interface_and_section_readers_require_closed_products_and_sums() {
+fn definition_and_section_readers_require_closed_products_and_definition_cardinality() {
     for bytes in [vec![0xa1], vec![0xa3], vec![0xa2, 0x07, 0x00]] {
         assert!(
-            decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
-        );
-    }
-
-    for bytes in [
-        vec![0xa0],
-        vec![0xa1, 0x00, 0x03],
-        vec![0xa2, 0x00, 0x01, 0x01, 0x00],
-    ] {
-        assert!(
-            decode_canonical::<DecodedCoreHirInterfaceBranchV1>(&bytes, DecodeLimits::default())
-                .is_err()
+            decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(
+                &bytes,
+                DecodeLimits::default()
+            )
+            .is_err()
         );
     }
 
     for bytes in [
         vec![0xa2],
         vec![0xa4],
+        // A current section with two protocol definitions is invalid before reading either one.
+        vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x82],
+        // An old qualification sum cannot replace the new definitions array either.
+        vec![
+            0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0xa1, 0x00, 0x01,
+        ],
+        vec![
+            0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0xa2, 0x00, 0x02, 0x01, 0xa2,
+        ],
+        // The retired field 1 and both of its old sum tags remain invalid.
+        vec![
+            0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
+        ],
+        vec![0xa3, 0x01, 0xa2, 0x00, 0x02, 0x01, 0xa2],
         vec![
             0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x04, 0x80,
         ],
@@ -55,14 +62,9 @@ fn interface_and_section_readers_require_closed_products_and_sums() {
 }
 
 #[test]
-fn core_branch_and_non_core_section_have_fixed_wire_vectors() {
-    assert_eq!(
-        hex(&encode(&CoreHirInterfaceBranchV1::NotCore).unwrap()),
-        "a10001"
-    );
-
+fn section_without_local_protocol_definitions_has_a_fixed_wire_vector() {
     let section = non_core_section();
-    assert_eq!(hex(&encode(&section).unwrap()), "a301a1000102a100010380");
+    assert_eq!(hex(&encode(&section).unwrap()), "a302a1000103800480");
     assert_eq!(
         decode_section(&section)
             .validate_against(ConeIdentity::SINGLE_FILE, &CanonicalHirFoundation::empty(),),
@@ -71,9 +73,40 @@ fn core_branch_and_non_core_section_have_fixed_wire_vectors() {
 }
 
 #[test]
+fn definitions_preserve_the_string_relation_after_resolving_both_valid_declarations() {
+    let mut fixture = fixture();
+    let source = fixture
+        .foundation
+        .type_source_nominal_records()
+        .iter()
+        .find(|record| {
+            record.key().declaration_kind() == scoop_identity::SourceDeclarationKind::Class
+                && record.id() != fixture.interface.string_capability().source_type()
+        })
+        .unwrap()
+        .id();
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(source)).unwrap();
+    let mut exact_types = fixture.foundation.type_source_exact_records().to_vec();
+    if !exact_types.iter().any(|record| record.id() == exact.id()) {
+        exact_types.push(exact.clone());
+    }
+    fixture.foundation.set_exact_types(exact_types).unwrap();
+    fixture.interface.string_capability = RuntimeCoreCapabilityV1::String {
+        source_type: source,
+        exact_type: exact.id(),
+    };
+    assert!(matches!(
+        decode_interface(&fixture.interface).validate_against(&fixture.foundation),
+        Err(CompilerProtocolDefinitionsValidationError::Relation(
+            CompilerProtocolDefinitionsRelationError::ProtocolStringMismatch
+        ))
+    ));
+}
+
+#[test]
 fn reader_rejects_removed_core_snapshot_type_callable_and_value_fields() {
     struct WithRemovedTable<'a> {
-        interface: &'a CoreHirInterfaceV1,
+        interface: &'a CompilerProtocolDefinitionsV1,
         removed_field: u64,
     }
 
@@ -114,7 +147,11 @@ fn reader_rejects_removed_core_snapshot_type_callable_and_value_fields() {
         })
         .unwrap();
         assert!(
-            decode_canonical::<DecodedCoreHirInterfaceV1>(&bytes, DecodeLimits::default()).is_err()
+            decode_canonical::<DecodedCompilerProtocolDefinitionsV1>(
+                &bytes,
+                DecodeLimits::default()
+            )
+            .is_err()
         );
     }
 }

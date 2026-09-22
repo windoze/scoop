@@ -53,25 +53,34 @@ pub(super) struct Fixture {
 }
 
 pub(super) fn fixture() -> Fixture {
+    fixture_named(ConeIdentity::CORE, "printLine")
+}
+
+pub(super) fn fixture_at(provider: ConeIdentity) -> Fixture {
+    fixture_named(provider, "main")
+}
+
+fn fixture_named(provider: ConeIdentity, name: &str) -> Fixture {
     let declaration = SourceDeclarationKey::function(
         SourceDeclarationSite::new(
-            ConeIdentity::CORE,
+            provider,
             PackagePath::root(),
             DefinitionOwnerChain::top_level(),
             DeclarationScope::ConeWide,
         )
         .unwrap(),
-        CanonicalIdentifier::new("printLine").unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
         0,
         None,
         Vec::new(),
     );
     let function = CborIdentityRecord::from_key(declaration.clone()).unwrap();
-    let other_function = CborIdentityRecord::from_key(source_function("other")).unwrap();
+    let other_function =
+        CborIdentityRecord::from_key(source_function_in(provider, "other")).unwrap();
     let binding = CborIdentityRecord::from_key(ExportBindingKey::new(
-        ConeIdentity::CORE,
+        provider,
         PackagePath::root(),
-        CanonicalIdentifier::new("printLine").unwrap(),
+        CanonicalIdentifier::new(name).unwrap(),
         BindingTarget::function(&declaration).unwrap(),
     ))
     .unwrap();
@@ -104,7 +113,7 @@ pub(super) fn fixture() -> Fixture {
         &OdrFreeMirFoundation::try_new(mir.clone()).unwrap(),
     );
     let section = CoreBootstrapBridgeSectionV1::try_new(
-        ConeIdentity::CORE,
+        provider,
         EntryMirBridgeBranchV1::Library,
         strong_callable_bridges
             .with_initialization_cycle(other_function.id())
@@ -125,7 +134,7 @@ pub(super) fn fixture() -> Fixture {
 pub(super) fn validate_foundations(
     fixture: &Fixture,
 ) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
-    validate_mir(&fixture.hir, &fixture.mir)
+    validate_mir_at(&fixture.hir, &fixture.mir, fixture.function.key().origin())
 }
 
 pub(super) fn generated_callable_sorting_before(
@@ -152,6 +161,14 @@ pub(super) fn validate_mir(
     hir: &CanonicalHirFoundation,
     mir: &CanonicalMirFoundation,
 ) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
+    validate_mir_at(hir, mir, ConeIdentity::CORE)
+}
+
+fn validate_mir_at(
+    hir: &CanonicalHirFoundation,
+    mir: &CanonicalMirFoundation,
+    provider: ConeIdentity,
+) -> (ValidatedIdentityGraph, ValidatedMirFoundation) {
     let hir: scoop_hir::DecodedHirFoundation =
         decode_canonical(&encode(hir).unwrap(), DecodeLimits::default()).unwrap();
     let mir: DecodedMirFoundation =
@@ -161,6 +178,9 @@ pub(super) fn validate_mir(
     pending
         .register_authority(ConeIdentity::SINGLE_FILE)
         .unwrap();
+    if provider != ConeIdentity::CORE && provider != ConeIdentity::SINGLE_FILE {
+        pending.register_authority(provider).unwrap();
+    }
     hir.register_identities(&mut pending).unwrap();
     mir.register_identities(&mut pending).unwrap();
     hir.resolve_identities(&mut pending).unwrap();

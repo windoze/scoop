@@ -81,7 +81,10 @@ pub(crate) fn validate_strong_profile_relations(
         foundation.as_canonical(),
     )
     .map_err(StrongProfileRelationError::ShapeSources)?;
-    validate_core_relation(hir.core_interface(), mir.strong_callable_bridges())
+    validate_protocol_relation(
+        hir.compiler_protocol_definitions(),
+        mir.strong_callable_bridges(),
+    )
 }
 
 pub(crate) fn validate_strong_profile_lir_production(
@@ -169,14 +172,14 @@ fn validate_output_relation(
     }
 }
 
-pub(super) fn validate_core_relation(
-    hir: &CoreHirInterfaceBranchV1,
+pub(super) fn validate_protocol_relation(
+    hir: Option<&CompilerProtocolDefinitionsV1>,
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
 ) -> Result<(), StrongProfileRelationError> {
     let actual_cycle = strong.initialization_cycle();
-    let (CoreHirInterfaceBranchV1::Core(hir), Some(actual_cycle)) = (hir, actual_cycle) else {
+    let (Some(hir), Some(actual_cycle)) = (hir, actual_cycle) else {
         return match (hir, actual_cycle) {
-            (CoreHirInterfaceBranchV1::NotCore, None) => Ok(()),
+            (None, None) => Ok(()),
             _ => Err(StrongProfileRelationError::InitializationCycleRoleMismatch),
         };
     };

@@ -13,10 +13,10 @@ fn source_interface_v3_preserves_intrinsic_families_and_rejects_both_retired_maj
 }
 
 #[test]
-fn compiler_protocol_v2_retires_the_total_operation_table_capability_in_all_views() {
+fn compiler_protocol_v3_rejects_both_retired_core_qualification_formats_in_all_views() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        2,
+        3,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,

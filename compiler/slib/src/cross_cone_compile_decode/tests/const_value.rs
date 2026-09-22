@@ -38,10 +38,12 @@ fn const_reader_uses_an_ordinary_providers_explicit_intrinsic_declaration() {
         .validate_const_values(vec![])
         .unwrap();
     assert_ne!(validated.identity(), ConeIdentity::CORE);
-    assert!(matches!(
-        validated.hir_core_production().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .hir_core_production()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
     assert_eq!(validated.hir_interface().constants().records().len(), 1);
 }
 

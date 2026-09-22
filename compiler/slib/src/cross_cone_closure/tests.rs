@@ -213,16 +213,13 @@ fn nominal_authority_walks_only_the_provider_transitive_dependencies() {
 }
 
 #[test]
-fn hir_production_failure_is_attributed_to_the_exact_artifact() {
+fn protocol_definition_absence_is_not_inferred_from_the_core_coordinate() {
     let core_bytes = artifact(core_cone(), Vec::new());
-    let mut direct = vec![ConeIdentity::CORE];
-    direct.sort_unstable();
-
-    assert!(matches!(
+    assert!(
         DecodedCrossConeClosure::new(
             cone_named("current").identity(),
             target(),
-            direct,
+            vec![ConeIdentity::CORE],
             vec![decode(&core_bytes)],
         )
         .validate_profile_graph()
@@ -233,12 +230,9 @@ fn hir_production_failure_is_attributed_to_the_exact_artifact() {
         .unwrap()
         .resolve_hir_interfaces()
         .unwrap()
-        .validate_hir_productions(),
-        Err(CrossConeClosureHirProductionError::Artifact {
-            identity: ConeIdentity::CORE,
-            source: scoop_hir::CoreBootstrapInterfaceValidationError::MissingCoreInterface,
-        })
-    ));
+        .validate_hir_productions()
+        .is_ok()
+    );
 }
 
 #[test]

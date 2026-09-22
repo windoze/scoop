@@ -113,10 +113,12 @@ fn strong_compile_validates_hir_and_mir_production_sections() {
         .validate_local_production()
         .unwrap();
     assert_eq!(validated.identity(), cone().identity());
-    assert!(matches!(
-        validated.hir_production().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .hir_production()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
     assert!(
         validated
             .mir_production()
@@ -165,7 +167,7 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
         Err(StrongProfileRelationError::OutputMismatch)
     ));
 
-    let hir = scoop_hir::CoreHirInterfaceBranchV1::NotCore;
+    let hir = None;
     let definition = test_cycle_thrower();
     let strong = scoop_mir::StrongCallableBridgeSurfaceV1::try_new(vec![
         scoop_mir::StrongCallableBridgeV1::new(
@@ -182,7 +184,7 @@ fn strong_compile_closes_manifest_hir_and_mir_output_relation() {
     .with_initialization_cycle(definition)
     .unwrap();
     assert_eq!(
-        validate_core_relation(&hir, &strong),
+        validate_protocol_relation(hir, &strong),
         Err(StrongProfileRelationError::InitializationCycleRoleMismatch)
     );
 }
@@ -247,10 +249,13 @@ fn strong_compile_validates_lir_production_from_the_semantic_front() {
     assert_eq!(compiled.lir().origin(), cone().identity());
     assert_eq!(session.origin_count(), 1);
     assert_eq!(session.entity_count(), 17);
-    assert!(matches!(
-        compiled.production().hir().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        compiled
+            .production()
+            .hir()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
     assert_eq!(compiled.production().lir().external_bridges(), &external);
 
     let (hir, mir, lir) = required_sections();
@@ -685,9 +690,7 @@ pub(crate) fn open_graph(bytes: &[u8]) -> ValidatedGraphArtifact<'_> {
 }
 
 fn empty_hir_library_section() -> Vec<u8> {
-    vec![
-        0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
-    ]
+    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80]
 }
 
 pub(crate) fn cone() -> ConeRecord {

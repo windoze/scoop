@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-22 当前 HIR 协议定义约定：`core-bootstrap-interface/3` 删除 `CoreHirInterfaceBranchV1`。section 的旧 field 1 及 Core/NotCore tag 退役，保留 field 2 output、field 3 direct surface，新增 field 4 长度 0/1 的完整 definitions array；由实际 Defined/Imported 决定发布，不按 CORE 身份或输出种类选择分支。String 按实际非泛型 class 与 exact nominal 关系解析，intrinsic 按其 canonical 声明 origin 查询对应可达 provider 的完整类型角色。旧版本、旧字段、多份定义、缺失/冲突角色和错误关系均拒绝；typed 引用、effect、签名、成员、预算和后续布局/registration 检查保持。完整合同见实现规范 2.12；LIR/Link 外层另行迁移，runtime C ABI 与 String capability kind 不变。 MIR production 同时删除基于 CORE 坐标判定初始化角色缺失、多余或必须 library 的分支；角色有无交给相邻 HIR 实际定义核对，MIR 的唯一性、source function、完整签名覆盖、entry 归属与实现检查保持。
+
 2026-09-22 当前 nominal intrinsic 约定：共有 source shape 以新增 tag 6 保存完整 `NominalIntrinsicRepresentationV1`，public、source contract、nested support 与独立 representation 使用相同 family、声明 kind 和 binder 合同；不再将 intrinsic 退化为空 struct 或普通 class。`hir/cross-cone-interface` 升级为 `/3`，旧 major 拒绝并重建产物。公开常量与 vararg reader 沿自身完整 typed 类型引用查询实际 provider，核对 intrinsic kind 及元素类型关系，删除这些消费者的 trusted-core 查询；不以同名、同布局或全局候选扫描替换类型 id。最小 native source witness 保持既有 wire，完整规则见实现规范 2.11。
 
 2026-09-22 当前 Unit binding 约定：protected callable 与 dispatch slot 使用语言内建 Unit identity，删除仅为取 Unit 而传入的 imported core 协议；setter result、slot signature 和完整 exact key 的一致性检查保持。其他 intrinsic/source nominal 仍必须查询实际声明与 provider，不能套用 Unit 例外，见实现规范 2.11。
@@ -152,9 +154,9 @@ native-boundary reader 在同一 validated identity graph 中解析本地与外�
 
 native-boundary producer 直接借用共有 dependency world，不再接收 `CurrentArtifactOnly/TrustedCore` sum 或 `ImportedCoreNativeBoundaryTypes`。外来 owner 必须解析到实际 provider 的 canonical source key；共有 v3 source shape 提供 intrinsic family、完整 struct CLayout/字段或 enum variant/字段，成员 key 来自同一 provider。非公开但已有 native witness 的声明可沿已持有 typed 引用继续闭合，Reference 由真实声明 kind 决定；共有 source shape 与已有 native witness 同时存在时逐项一致。缺失或不一致立即失败，不按 CORE、名称或空字段补默认记录。本地和外来 shape 都进入同一 signature-type 传递遍历，支持跨 direct/support provider 的字段/variant 闭包并按实际 owner 规范化；不把该最小 witness 作为一般 layout、lookup 或物化能力。
 
-compiler protocol 的 constituent 仅验证实际声明与角色关系，不额外要求当前 export、声明 owner 或导入 foundation 的来源为 CORE。已有 identity/definition-origin 检查、完整 signature 与 binder、constructor/generated-adapter source、enum kind/member owner、effect 和固定角色完整性继续执行，普通 provider 的相同声明经同一路径验证；缺失或不一致不能以来源身份豁免。Unit 保留既有语言内建身份。producer/reader 删除重复来源资格，typed 引用编码与前端 intrinsic 使用边界不变；完整 operation 表按下一段退役，Core/NotCore 外层、其他重复协议投影和 String/初始化服务仍须完成后续共有引用迁移。
+compiler protocol 的 constituent 仅验证实际声明与角色关系，不额外要求当前 export、声明 owner 或导入 foundation 的来源为 CORE。已有 identity/definition-origin 检查、完整 signature 与 binder、constructor/generated-adapter source、enum kind/member owner、effect 和固定角色完整性继续执行，普通 provider 的相同声明经同一路径验证；缺失或不一致不能以来源身份豁免。Unit 保留既有语言内建身份。producer/reader 删除重复来源资格，typed 引用编码与前端 intrinsic 使用边界不变；完整 operation 表按下一段退役，HIR 的 Core/NotCore 外层按本节 `/3` 修订迁移；其余协议投影及 String/初始化服务的 LIR/Link 外层继续共有化。
 
-完整 intrinsic operation 表从 protocol product 的 field 9 退役，HIR `core-bootstrap-interface/2` 只接受 field 1～8，旧 capability 与旧九字段 payload 拒绝；field 9 保留为退役编号。共有 callable effects 是发布 intrinsic kind 的唯一记录，普通 Compile 与 layout-profile 均在实际共有 callable/public-source 验证路径中检查 source owner、own binder、参数/结果与 execution，所用语言类型角色来自已解析的实际 provider 依赖闭包，不能由 CORE 常量或名称补出。验证按已有 callable 表逐项执行，重复 kind、角色缺失/冲突和错误签名拒绝，查询与临时记录沿用同一预算。前端完整 intrinsic 声明检查和固定语言协议角色继续保留；没有实际导入消费者的完整 operation 表不作为新的授权或执行目录。
+完整 intrinsic operation 表从 protocol product 的 field 9 退役，HIR `core-bootstrap-interface` 的 `/2` 修订使协议 product 只接受 field 1～8，当前 `/3` 同时使用本节开头规定的 definitions section，旧 `/1`、`/2` capability 与旧九字段 payload 拒绝；field 9 保留为退役编号。共有 callable effects 是发布 intrinsic kind 的唯一记录，普通 Compile 与 layout-profile 均在实际共有 callable/public-source 验证路径中检查 source owner、own binder、参数/结果与 execution，所用语言类型角色来自已解析的实际 provider 依赖闭包，不能由 CORE 常量或名称补出。验证按已有 callable 表逐项执行，重复 kind、角色缺失/冲突和错误签名拒绝，查询与临时记录沿用同一预算。前端完整 intrinsic 声明检查和固定语言协议角色继续保留；没有实际导入消费者的完整 operation 表不作为新的授权或执行目录。
 
 输入链扩展为：
 

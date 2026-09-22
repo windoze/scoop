@@ -1,18 +1,19 @@
 //! Intrinsic contracts attached to the shared callable declaration surface.
 
 use scoop_hir::{
-    CallableImplementationV1, CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1,
-    CrossConeHirInterfaceSectionV1, IntrinsicCallableContractError, IntrinsicFunctionKind,
+    CallableImplementationV1, CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
+    IntrinsicCallableContractError, IntrinsicFunctionKind,
 };
 use scoop_identity::{
-    CallableTemplateOrigin, IdentityReferenceError, SourceDeclarationKey, ValidatedIdentityGraph,
+    CallableTemplateOrigin, ConeIdentity, IdentityReferenceError, SourceDeclarationKey,
+    ValidatedIdentityGraph,
 };
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 pub(crate) fn validate_intrinsic_declarations<'a>(
     interface: &CrossConeHirInterfaceSectionV1,
     identities: &ValidatedIdentityGraph,
-    providers: impl IntoIterator<Item = &'a CoreBootstrapInterfaceSectionV1>,
+    providers: impl IntoIterator<Item = (ConeIdentity, &'a CoreBootstrapInterfaceSectionV1)> + Clone,
     meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeIntrinsicDeclarationError> {
     let path = WirePath::root();
@@ -39,18 +40,6 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
     if intrinsics.is_empty() {
         return Ok(());
     }
-    let mut roles = None;
-    for provider in providers {
-        meter
-            .charge_work(1, &path)
-            .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
-        if let CoreHirInterfaceBranchV1::Core(interface) = provider.core_interface() {
-            if roles.replace(interface.compiler_protocols()).is_some() {
-                return Err(CrossConeIntrinsicDeclarationError::ConflictingTypeRoles);
-            }
-        }
-    }
-    let roles = roles.ok_or(CrossConeIntrinsicDeclarationError::MissingTypeRoles)?;
     for (_, callable) in intrinsics {
         meter
             .charge_work(1, &path)
@@ -69,6 +58,24 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
             }
         }
         .map_err(CrossConeIntrinsicDeclarationError::Identity)?;
+        let provider = source.origin();
+        let mut selected = None;
+        for (identity, section) in providers.clone() {
+            meter
+                .charge_work(1, &path)
+                .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
+            if identity == provider && selected.replace(section).is_some() {
+                return Err(CrossConeIntrinsicDeclarationError::DuplicateProvider(
+                    provider,
+                ));
+            }
+        }
+        let roles = selected
+            .and_then(CoreBootstrapInterfaceSectionV1::compiler_protocol_definitions)
+            .ok_or(CrossConeIntrinsicDeclarationError::MissingTypeRoles(
+                provider,
+            ))?
+            .compiler_protocols();
         roles
             .validate_intrinsic_declaration(&source, callable)
             .map_err(|source| CrossConeIntrinsicDeclarationError::Contract {
@@ -81,8 +88,8 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
 
 #[derive(Debug)]
 pub enum CrossConeIntrinsicDeclarationError {
-    MissingTypeRoles,
-    ConflictingTypeRoles,
+    MissingTypeRoles(ConeIdentity),
+    DuplicateProvider(ConeIdentity),
     DuplicateKind(IntrinsicFunctionKind),
     CallableKind(CallableTemplateOrigin),
     Identity(IdentityReferenceError),
@@ -105,8 +112,8 @@ impl std::error::Error for CrossConeIntrinsicDeclarationError {
             Self::Identity(error) => Some(error),
             Self::Resource(error) => Some(error),
             Self::Contract { source, .. } => Some(source),
-            Self::MissingTypeRoles
-            | Self::ConflictingTypeRoles
+            Self::MissingTypeRoles(_)
+            | Self::DuplicateProvider(_)
             | Self::DuplicateKind(_)
             | Self::CallableKind(_) => None,
         }

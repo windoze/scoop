@@ -17,7 +17,7 @@ fn compile_callable_gate_rejects_missing_intrinsic_roles_and_duplicate_kinds() {
         match count {
             1 => assert!(matches!(
                 *error,
-                CrossConeIntrinsicDeclarationError::MissingTypeRoles
+                CrossConeIntrinsicDeclarationError::MissingTypeRoles(provider) if provider == cone().identity()
             )),
             2 => assert!(matches!(
                 *error,
@@ -30,12 +30,15 @@ fn compile_callable_gate_rejects_missing_intrinsic_roles_and_duplicate_kinds() {
 
 #[test]
 fn shared_intrinsic_validation_preserves_empty_and_continuous_budget_semantics() {
-    let identities = scoop_identity::PendingIdentityValidation::new()
-        .finish()
-        .unwrap();
     let bytes = intrinsic_artifact(1);
     let front = validate_until_property(&bytes);
     let interface = front.hir_interface();
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
     let mut zero = BudgetMeter::new(DecodeLimits {
         validation_work_units: 0,
         ..DecodeLimits::default()
@@ -65,7 +68,7 @@ fn shared_intrinsic_validation_preserves_empty_and_continuous_budget_semantics()
             [],
             &mut meter,
         ),
-        Err(CrossConeIntrinsicDeclarationError::MissingTypeRoles)
+        Err(CrossConeIntrinsicDeclarationError::MissingTypeRoles(provider)) if provider == cone().identity()
     ));
     let used = meter.usage().validation_work_units;
     assert!(used > interface.callable_interfaces().records().len() as u64);
@@ -83,6 +86,38 @@ fn shared_intrinsic_validation_preserves_empty_and_continuous_budget_semantics()
             &mut meter,
         ),
         Err(CrossConeIntrinsicDeclarationError::Resource(_))
+    ));
+}
+
+#[test]
+fn intrinsic_provider_lookup_rejects_duplicate_provider_entries_and_missing_actual_roles() {
+    let bytes = intrinsic_artifact(1);
+    let front = validate_until_property(&bytes);
+    let mut decoded = open_graph(&bytes)
+        .decode_cross_cone_hir_front_sections()
+        .unwrap();
+    let identities = decoded
+        .validate_foundation_identities(std::iter::empty())
+        .unwrap();
+    let provider = front.identity();
+    let section = front.hir_core_production();
+    assert!(matches!(
+        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
+            front.hir_interface(),
+            &identities,
+            [(provider, section), (provider, section)],
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        ),
+        Err(CrossConeIntrinsicDeclarationError::DuplicateProvider(actual)) if actual == provider
+    ));
+    assert!(matches!(
+        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
+            front.hir_interface(),
+            &identities,
+            [(ConeIdentity::CORE, section)],
+            &mut BudgetMeter::new(DecodeLimits::default()),
+        ),
+        Err(CrossConeIntrinsicDeclarationError::MissingTypeRoles(actual)) if actual == provider
     ));
 }
 

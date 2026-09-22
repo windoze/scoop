@@ -22,7 +22,7 @@ pub(crate) struct TrustedCoreFixture {
     pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
     aliases: scoop_hir::CanonicalTypeAliasExpansionsV1,
-    pub(crate) interface: scoop_hir::CoreHirInterfaceV1,
+    pub(crate) interface: scoop_hir::CompilerProtocolDefinitionsV1,
     mir_foundation: scoop_mir::ImportedMirFoundation,
     mir_production: scoop_mir::CoreBootstrapBridgeSectionV1,
     session: SemanticIdentitySession,
@@ -117,7 +117,7 @@ pub(super) fn trusted_core_from_source(
     );
     let input = CoreBootstrapSources::try_new(&parsed).unwrap();
     let output = lower_core_bootstrap(&input).unwrap();
-    let interface = scoop_hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    let interface = scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let strong_definition = strong_callable.map(|name| {
         let function = output
             .export

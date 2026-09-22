@@ -249,7 +249,11 @@ where
     crate::cross_cone_hir_authority::validate_intrinsic_declarations(
         interface,
         identities,
-        std::iter::once(core).chain(public_dependencies.iter().map(|dependency| dependency.core)),
+        std::iter::once((provider, core)).chain(
+            public_dependencies
+                .iter()
+                .map(|dependency| (dependency.provider, dependency.core)),
+        ),
         meter,
     )
     .map_err(

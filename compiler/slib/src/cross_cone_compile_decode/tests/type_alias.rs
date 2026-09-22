@@ -4,9 +4,8 @@ use scoop_hir::{
     CanonicalExportDefaultTemplatesV1, CanonicalExportDefinitionSourcesV1,
     CanonicalExternalHirReferencesV1, CanonicalNominalInterfacesV1, CanonicalPersistentIdsV1,
     CanonicalPropertyInterfacesV1, CanonicalPublicExportBindingsV1, CanonicalPublicMemberRefsV1,
-    CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, CoreHirInterfaceBranchV1,
-    CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
-    ExportDefinitionSourceSemanticValidationError,
+    CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1,
+    ExportBindingSourceV1, ExportDefinitionSourceSemanticValidationError,
     ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceV1,
     HirOutputContractV1, NominalInterfaceRecordV1, NominalSourceShapeV1,
     PublicExportBindingRecordV1, PublicLookupAccessV1, PublicNominalKindV1,
@@ -455,7 +454,7 @@ impl AliasSurface {
         replace_section(
             &mut hir,
             hir_core_bootstrap_interface_capability(),
-            encode(&NonCoreHirProduction { direct: &direct }).unwrap(),
+            encode(&HirProductionWithoutDefinitions { direct: &direct }).unwrap(),
         );
         hir.push(section(
             MetadataLocation::Hir,
@@ -493,18 +492,18 @@ fn replace_section(
     );
 }
 
-struct NonCoreHirProduction<'a> {
+struct HirProductionWithoutDefinitions<'a> {
     direct: &'a CanonicalDirectPublicSurfaceV1,
 }
 
-impl WireEncode for NonCoreHirProduction<'_> {
+impl WireEncode for HirProductionWithoutDefinitions<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(3)?;
-        encoder.field(1)?;
-        CoreHirInterfaceBranchV1::NotCore.encode(encoder)?;
         encoder.field(2)?;
         HirOutputContractV1::Library.encode(encoder)?;
         encoder.field(3)?;
-        self.direct.encode(encoder)
+        self.direct.encode(encoder)?;
+        encoder.field(4)?;
+        encoder.array(0)
     }
 }

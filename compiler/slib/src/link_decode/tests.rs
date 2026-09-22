@@ -68,10 +68,13 @@ fn strong_graph_decodes_all_link_sections_atomically() {
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
     let validated = odr_free.validate_production(&external).unwrap();
     assert_eq!(validated.identity(), cone().identity());
-    assert!(matches!(
-        validated.production().hir().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .production()
+            .hir()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
     assert!(
         validated
             .production()
@@ -1214,9 +1217,7 @@ pub(super) fn cone() -> ConeRecord {
 }
 
 fn empty_hir_library_section() -> Vec<u8> {
-    vec![
-        0xa3, 0x01, 0xa1, 0x00, 0x01, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80,
-    ]
+    vec![0xa3, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x80, 0x04, 0x80]
 }
 
 fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {

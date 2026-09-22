@@ -32,10 +32,12 @@ fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
         .validate_source_interfaces(vec![])
         .unwrap();
     assert_ne!(validated.identity(), ConeIdentity::CORE);
-    assert!(matches!(
-        validated.hir_core_production().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::NotCore
-    ));
+    assert!(
+        validated
+            .hir_core_production()
+            .compiler_protocol_definitions()
+            .is_none()
+    );
 }
 
 #[test]

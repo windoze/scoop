@@ -335,8 +335,11 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
         crate::cross_cone_hir_authority::validate_intrinsic_declarations(
             &hir_interface,
             &identities,
-            std::iter::once(&hir_core_production)
-                .chain(dependencies.iter().map(|provider| provider.core)),
+            std::iter::once((graph.identity(), &hir_core_production)).chain(
+                dependencies
+                    .iter()
+                    .map(|provider| (provider.identity, provider.core)),
+            ),
             graph.envelope.meter_mut(),
         )
         .map_err(|error| CrossConeHirCallableSurfaceError::Intrinsics(Box::new(error)))?;

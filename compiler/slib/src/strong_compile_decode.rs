@@ -4,10 +4,11 @@
 use std::fmt;
 
 use scoop_hir::{
-    CoreBootstrapInterfaceSectionV1, CoreBootstrapInterfaceValidationError,
-    CoreHirInterfaceBranchV1, DecodedCoreBootstrapInterfaceSectionV1, DecodedHirFoundation,
-    HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation, OdrFreeHirFoundation,
-    OdrFreeHirFoundationError, PublicNominalShapeProjectionError, PublicNominalShapeRequirementsV1,
+    CompilerProtocolDefinitionsV1, CoreBootstrapInterfaceSectionV1,
+    CoreBootstrapInterfaceValidationError, DecodedCoreBootstrapInterfaceSectionV1,
+    DecodedHirFoundation, HirFoundationValidationError, HirOutputContractV1, ImportedHirFoundation,
+    OdrFreeHirFoundation, OdrFreeHirFoundationError, PublicNominalShapeProjectionError,
+    PublicNominalShapeRequirementsV1,
 };
 use scoop_identity::{
     ConeCoordinate, ConeIdentity, IdentityValidationError, SemanticIdentitySession,
@@ -829,7 +830,7 @@ pub(crate) use validation::{
 };
 
 #[cfg(test)]
-use validation::validate_core_relation;
+use validation::validate_protocol_relation;
 
 #[cfg(test)]
 pub(crate) mod tests;

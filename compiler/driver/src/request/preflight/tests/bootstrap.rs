@@ -24,10 +24,12 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         output.production_section().output_contract(),
         &scoop_hir::HirOutputContractV1::Library
     );
-    assert!(matches!(
-        output.production_section().core_interface(),
-        scoop_hir::CoreHirInterfaceBranchV1::Core(_)
-    ));
+    assert!(
+        output
+            .production_section()
+            .compiler_protocol_definitions()
+            .is_some()
+    );
     let mut expected_foundation = scoop_hir::CanonicalHirFoundation::from_modules(
         &output.hir().export,
         &output.hir().local,
@@ -73,11 +75,9 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .unwrap(),
         output.production_section().clone()
     );
-    scoop_hir::CoreHirInterfaceV1::from_core_export(&output.hir().export).unwrap();
+    scoop_hir::CompilerProtocolDefinitionsV1::from_export(&output.hir().export).unwrap();
 
-    let scoop_hir::CoreHirInterfaceBranchV1::Core(interface) =
-        output.production_section().core_interface()
-    else {
+    let Some(interface) = output.production_section().compiler_protocol_definitions() else {
         panic!("the trusted bootstrap output has a core interface")
     };
     let cycle = interface
@@ -162,18 +162,6 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
     ));
 
-    assert!(matches!(
-        scoop_mir_lower::lower_production_section(
-            scoop_identity::ConeIdentity::SINGLE_FILE,
-            output.production_section(),
-            &minimal_foundation,
-        ),
-        Err(scoop_mir_lower::MirProductionLoweringError::Production(
-            scoop_mir::MirProductionBuildError::UnexpectedInitializationCycle(
-                scoop_identity::ConeIdentity::SINGLE_FILE
-            )
-        ))
-    ));
     let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_direct_surface(
         output.production_section().direct_public_surface(),
         output.foundation(),

@@ -318,23 +318,6 @@ fn validate_section_relations(
             entry: entry.source().root_cone(),
         });
     }
-    match (
-        artifact == scoop_identity::ConeIdentity::CORE,
-        strong_callable_bridges.initialization_cycle().is_some(),
-    ) {
-        (true, false) => return Err(MirProductionBuildError::MissingInitializationCycle),
-        (false, true) => {
-            return Err(MirProductionBuildError::UnexpectedInitializationCycle(
-                artifact,
-            ));
-        }
-        (true, true) | (false, false) => {}
-    }
-    if artifact == scoop_identity::ConeIdentity::CORE
-        && entry_bridge != &EntryMirBridgeBranchV1::Library
-    {
-        return Err(MirProductionBuildError::CoreMustBeLibrary);
-    }
     if let EntryMirBridgeBranchV1::Executable(entry) = entry_bridge
         && strong_callable_bridges.get(entry.implementation).is_none()
     {
@@ -356,11 +339,8 @@ pub enum MirProductionBuildError {
         artifact: scoop_identity::ConeIdentity,
         entry: scoop_identity::ConeIdentity,
     },
-    MissingInitializationCycle,
-    UnexpectedInitializationCycle(scoop_identity::ConeIdentity),
     DuplicateInitializationCycle,
     InvalidInitializationCycleOwner(CallableOwner),
-    CoreMustBeLibrary,
     MissingStrongInitializationCycle(CallableOwner),
     MissingStrongEntryImplementation(CallableOwner),
 }

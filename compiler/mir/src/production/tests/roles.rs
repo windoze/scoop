@@ -100,24 +100,34 @@ fn builder_and_reader_require_a_source_function_for_initialization() {
 }
 
 #[test]
-fn reader_requires_the_producer_role_without_a_second_bridge() {
-    let fixture = fixture();
-    let (mut identities, foundation) = validate_foundations(&fixture);
-    assert_eq!(
-        decode(&fixture.section).validate(ConeIdentity::SINGLE_FILE, &mut identities, &foundation),
-        Err(MirProductionValidationError::Relation(
-            MirProductionBuildError::UnexpectedInitializationCycle(ConeIdentity::SINGLE_FILE)
-        ))
-    );
-    let mut ordinary = fixture.section.clone();
-    for bridge in &mut ordinary.strong_callable_bridges.bridges {
-        bridge.role = CallableRole::Ordinary;
+fn role_presence_is_independent_of_provider_coordinates_and_output_kinds() {
+    let ordinary = scoop_identity::ConeCoordinate::new("test", "protocol-provider", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for provider in [ConeIdentity::CORE, ordinary] {
+        let fixture = fixture_at(provider);
+        let unmarked = StrongCallableBridgeSurfaceV1::from_odr_free_foundation(
+            &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
+        );
+        let executable = EntryMirBridgeBranchV1::Executable(Box::new(
+            EntryMirBridgeV1::new(
+                entry_source(&fixture.function, fixture.exact_unit),
+                CallableOwner::Function(fixture.function.id()),
+            )
+            .unwrap(),
+        ));
+        for entry in [EntryMirBridgeBranchV1::Library, executable] {
+            for strong in [&unmarked, &fixture.section.strong_callable_bridges] {
+                let section =
+                    CoreBootstrapBridgeSectionV1::try_new(provider, entry.clone(), strong.clone())
+                        .unwrap();
+                let (mut identities, foundation) = validate_foundations(&fixture);
+                assert_eq!(
+                    decode(&section).validate(provider, &mut identities, &foundation),
+                    Ok(section)
+                );
+            }
+        }
     }
-    let (mut identities, foundation) = validate_foundations(&fixture);
-    assert_eq!(
-        decode(&ordinary).validate(ConeIdentity::CORE, &mut identities, &foundation),
-        Err(MirProductionValidationError::Relation(
-            MirProductionBuildError::MissingInitializationCycle
-        ))
-    );
 }

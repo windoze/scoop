@@ -119,7 +119,7 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
         .bind_default_access_declarations(&access, &required, &mut meter())
         .unwrap();
     let imported = support::import(&foundation, &identities);
-    let interface = hir::CoreHirInterfaceV1::from_core_export(&output.export).unwrap();
+    let interface = hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let inputs = imported.import_core_inputs(&interface).unwrap();
     let core = inputs.protocols().fundamental_types();
     let domains = hir::DefaultSourceTypeDomainsV1::new(&access, &[], core, &mut meter()).unwrap();

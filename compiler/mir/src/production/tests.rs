@@ -212,24 +212,6 @@ fn builder_closes_callable_roles_and_entry_implementations() {
         &OdrFreeMirFoundation::try_new(fixture.mir.clone()).unwrap(),
     );
     assert_eq!(
-        CoreBootstrapBridgeSectionV1::try_new(
-            ConeIdentity::CORE,
-            EntryMirBridgeBranchV1::Library,
-            unmarked.clone()
-        ),
-        Err(MirProductionBuildError::MissingInitializationCycle)
-    );
-    assert_eq!(
-        CoreBootstrapBridgeSectionV1::try_new(
-            ConeIdentity::SINGLE_FILE,
-            EntryMirBridgeBranchV1::Library,
-            fixture.section.strong_callable_bridges.clone()
-        ),
-        Err(MirProductionBuildError::UnexpectedInitializationCycle(
-            ConeIdentity::SINGLE_FILE
-        ))
-    );
-    assert_eq!(
         unmarked
             .clone()
             .with_initialization_cycle(other_function_id()),
@@ -257,7 +239,8 @@ fn builder_closes_callable_roles_and_entry_implementations() {
             )),
             fixture.section.strong_callable_bridges.clone()
         ),
-        Err(MirProductionBuildError::CoreMustBeLibrary)
+        Err(MirProductionBuildError::MissingStrongEntryImplementation(actual))
+            if actual == CallableOwner::Function(entry.id())
     ));
     assert!(matches!(
         CoreBootstrapBridgeSectionV1::try_new(

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_hir::{CoreBootstrapInterfaceSectionV1, CoreHirInterfaceBranchV1};
+use scoop_hir::CoreBootstrapInterfaceSectionV1;
 use scoop_mir::{
     CallableOwner, ConeIdentity, CoreBootstrapBridgeSectionV1, MirProductionBuildError,
     OdrFreeMirFoundation, StrongCallableBridgeSurfaceV1,
@@ -29,7 +29,7 @@ fn lower_callable_roles(
     hir: &CoreBootstrapInterfaceSectionV1,
     strong: StrongCallableBridgeSurfaceV1,
 ) -> Result<StrongCallableBridgeSurfaceV1, MirProductionLoweringError> {
-    let CoreHirInterfaceBranchV1::Core(interface) = hir.core_interface() else {
+    let Some(interface) = hir.compiler_protocol_definitions() else {
         return Ok(strong);
     };
 
