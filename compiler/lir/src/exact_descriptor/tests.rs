@@ -3,6 +3,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 use crate::*;
 
+mod export_boundary;
 mod fixture;
 mod projection;
 mod shape_link;

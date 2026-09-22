@@ -150,18 +150,47 @@ fn ten_field_section_replay_uses_one_cumulative_budget() {
 }
 
 #[test]
-fn final_layout_join_rejects_missing_local_descriptor_exports() {
+fn final_layout_join_keeps_dependency_checks_for_unexported_local_types() {
     let fixture = complete_fixture();
     let bytes = encode(&section(&fixture)).unwrap();
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
     let replayed = replay_section(&fixture, &bytes, &definitions, &mut meter()).unwrap();
-    let missing = replayed.type_registrations().registrations()[0].exact_type();
     let layout = empty_layout_section();
     assert!(matches!(
         replayed.validate_layout_abi(&layout, &mut meter()),
-        Err(crate::StrongProductionLayoutJoinError::MissingDescriptorExport(actual))
-            if actual == missing
+        Err(crate::StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, .. })
+            if provider == ConeIdentity::CORE
     ));
+}
+
+#[test]
+fn final_layout_join_preserves_complete_private_type_registrations() {
+    let mut fixture = Fixture::new(Options::default());
+    let coordinate = ConeCoordinate::reserved_single_file();
+    crate::production::strong_section::tests::attach_image(
+        &coordinate,
+        &mut fixture.foundation,
+        &mut fixture.digests,
+    );
+    let production = StrongProductionSectionV2::from_parts(
+        coordinate,
+        &fixture.foundation,
+        StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
+        fixture.digests.clone(),
+        surface(&fixture, false),
+        EntryProductionSourceV1::Library,
+        &[],
+        None,
+    )
+    .unwrap();
+    let expected = production.registration_production().types().clone();
+    assert!(!expected.registrations().is_empty());
+    let joined = production
+        .validate_layout_abi(&empty_layout_section(), &mut meter())
+        .unwrap();
+    assert_eq!(joined.type_registrations(), &expected);
+    assert!(joined.descriptors().records().is_empty());
+    assert!(joined.dispatch().records().is_empty());
 }
 
 struct EmptyLayoutSource;

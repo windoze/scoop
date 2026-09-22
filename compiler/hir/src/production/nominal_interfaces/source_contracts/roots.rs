@@ -1,14 +1,15 @@
 //! Declaration-side roots, independent of transported nominal candidates.
 
 use super::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 mod index;
+mod storage;
 pub(super) use index::Index;
 
 impl CanonicalSourceNominalIdsV1 {
-    /// Discovers local public/inheritance roots and complete protected nested
-    /// source support. This does not grant concrete or public lookup authority.
+    /// Discovers public/inheritance roots, their storage dependencies, and
+    /// protected nested support without granting public lookup authority.
     pub fn from_export_hir(
         output: &ExportHirOutput,
         meter: &mut BudgetMeter,
@@ -21,6 +22,7 @@ impl CanonicalSourceNominalIdsV1 {
         let mut roots = Roots {
             required: BTreeMap::new(),
             pending: Vec::new(),
+            field_types: BTreeSet::new(),
             meter,
         };
         for local in index::public(export) {
@@ -56,6 +58,9 @@ impl CanonicalSourceNominalIdsV1 {
                 }
                 Ok(())
             })?;
+            storage::visit_fields(export, node.local, |ty| {
+                roots.require_field_type(export, &index, ty, 1)
+            })?;
             work(roots.meter, index.children.len())?;
             if let Some(children) = index.children.get(&owner) {
                 for child in children {
@@ -81,6 +86,7 @@ struct Roots<'m> {
     // support. A normal inheritance root only introduces protected children.
     required: BTreeMap<SourceNominalId, bool>,
     pending: Vec<(SourceNominalId, bool)>,
+    field_types: BTreeSet<TypeId>,
     meter: &'m mut BudgetMeter,
 }
 impl Roots<'_> {

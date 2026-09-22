@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn canonical_table_covers_foundation_and_reader_rejects_omission() {
+fn canonical_exports_borrow_foundation_and_reader_rejects_omission() {
     let fixture = DirectFixture::new(1);
     let mut resolver = fixture.local_resolver();
     let record = ExactDispatchExportV1::replay(
@@ -44,18 +44,15 @@ fn canonical_table_covers_foundation_and_reader_rejects_omission() {
         })
     ));
 
-    assert!(matches!(
-        CanonicalExactDispatchExportsV1::try_new(
-            TARGET,
-            &fixture.foundation,
-            Vec::new(),
-            &mut meter()
-        ),
-        Err(ExactDispatchTableError::Count {
-            expected: 1,
-            actual: 0
-        })
-    ));
+    let private_only = CanonicalExactDispatchExportsV1::try_new(
+        TARGET,
+        &fixture.foundation,
+        Vec::new(),
+        &mut meter(),
+    )
+    .unwrap();
+    assert!(private_only.records().is_empty());
+    assert_eq!(fixture.foundation.dispatch_tables().len(), 1);
     assert!(matches!(
         CanonicalExactDispatchExportsV1::try_new(
             TARGET,

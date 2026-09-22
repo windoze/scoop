@@ -233,7 +233,7 @@ fn exact_layout_producer_rejects_mir_field_mismatch_and_different_physical_outpu
 }
 
 #[test]
-fn exact_layout_producer_rejects_missing_source_record_and_exhausted_budget() {
+fn exact_layout_producer_keeps_unexported_definitions_and_rejects_exhausted_budget() {
     let mut fixture = Fixture::new(Builder::new());
     let limits = DecodeLimits {
         validation_work_units: 1,
@@ -251,10 +251,9 @@ fn exact_layout_producer_rejects_missing_source_record_and_exhausted_budget() {
         Err(ExactLayoutLoweringError::Resource(_))
     ));
     fixture.types = mir::CanonicalParamFreeMirTypeExportsV1::default();
-    assert!(matches!(
-        fixture.replay(),
-        Err(ExactLayoutLoweringError::MissingMirShape(_))
-    ));
+    assert!(fixture.output.shape_support().roots().is_empty());
+    assert!(!fixture.output.module().meta.layouts.is_empty());
+    assert!(fixture.replay().unwrap().records().is_empty());
 }
 
 #[test]

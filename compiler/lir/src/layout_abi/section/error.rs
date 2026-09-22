@@ -18,6 +18,7 @@ pub enum LayoutAbiSectionError<E> {
     Layout(crate::ExactLayoutTableError),
     Descriptor(crate::ExactDescriptorTableError),
     Dispatch(crate::ExactDispatchTableError),
+    DescriptorDispatch(scoop_identity::PersistentDispatchTableId),
     Callable(crate::ExactCallableAbiTableError),
     ShapeSupport,
     Physical(crate::ShapeLinkError),

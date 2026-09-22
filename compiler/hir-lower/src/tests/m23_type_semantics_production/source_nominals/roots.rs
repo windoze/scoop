@@ -134,6 +134,65 @@ fn nominal_source_roots_can_be_empty_despite_private_protected_declarations() {
 }
 
 #[test]
+fn nominal_source_roots_close_private_storage_dependencies_without_private_siblings() {
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-lir-export-assembly/private-support.scoop"
+    ));
+    with_source(
+        &format!("private struct Unrelated() {{}}\n{source}"),
+        |output, _| {
+            let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(
+                &output.output().export,
+                &mut meter(),
+            )
+            .unwrap();
+            assert_eq!(
+                names(output, &roots),
+                ["Deep", "Exposed", "Hidden", "Token"]
+            );
+            let source =
+                Table::from_export_hir(&output.output().export, &roots, &mut meter()).unwrap();
+            assert_eq!(source.records().len(), roots.values().len());
+        },
+    );
+}
+
+#[test]
+fn nominal_source_roots_close_object_enum_and_compound_storage() {
+    let source = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/m23-type-source-nominals/storage-roots.scoop"
+    ));
+    // Pointer and Option declarations are local here; this checks source
+    // closure without claiming ordinary imported generic capability.
+    let output = crate::tests::lower_core_with_additional_declarations(
+        scoop_parser::parse(source).unwrap().declarations,
+    );
+    let roots = hir::CanonicalSourceNominalIdsV1::from_export_hir(&output, &mut meter()).unwrap();
+    let identities = sources(output.module());
+    let expected = [
+        "Box",
+        "Fields",
+        "Payload",
+        "Result",
+        "Selection",
+        "Storage",
+        "Target",
+    ];
+    let mut actual = roots
+        .values()
+        .iter()
+        .map(|owner| name(identities[owner]))
+        .filter(|name| *name == "Unrelated" || expected.contains(name))
+        .collect::<Vec<_>>();
+    actual.sort();
+    assert_eq!(actual, expected);
+    let source = Table::from_export_hir(&output, &roots, &mut meter()).unwrap();
+    assert_eq!(source.records().len(), roots.values().len());
+}
+
+#[test]
 fn nominal_source_root_discovery_obeys_shared_resource_limits() {
     with_source(ROOTS, |output, _| {
         for limits in [

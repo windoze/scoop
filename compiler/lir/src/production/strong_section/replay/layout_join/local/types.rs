@@ -17,21 +17,6 @@ fn validate_descriptors(
 ) -> Result<(), StrongProductionLayoutJoinError> {
     let path = WirePath::root();
     meter.charge_work(
-        production.type_registrations().registrations().len() as u64,
-        &path,
-    )?;
-    for registration in production.type_registrations().registrations() {
-        if section
-            .descriptors()
-            .get(registration.exact_type())
-            .is_none()
-        {
-            return Err(StrongProductionLayoutJoinError::MissingDescriptorExport(
-                registration.exact_type(),
-            ));
-        }
-    }
-    meter.charge_work(
         (section.descriptors().records().len() as u64)
             .saturating_mul(production.type_registrations().registrations().len().max(1) as u64)
             .saturating_add(
@@ -112,25 +97,6 @@ fn validate_dispatch(
     section: &crate::CrossConeLayoutAbiSectionV1<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), StrongProductionLayoutJoinError> {
-    let expected_tables = production.type_registrations().registrations().iter().fold(
-        0_u64,
-        |count, registration| {
-            count.saturating_add((registration.semantic().itables().len() as u64).saturating_add(1))
-        },
-    );
-    meter.charge_work(expected_tables, &WirePath::root())?;
-    for registration in production.type_registrations().registrations() {
-        let semantic = registration.semantic();
-        for table in std::iter::once(semantic.vtable().table())
-            .chain(semantic.itables().iter().map(|table| table.table()))
-        {
-            if section.dispatch().get(table).is_none() {
-                return Err(StrongProductionLayoutJoinError::MissingDispatchExport(
-                    table,
-                ));
-            }
-        }
-    }
     meter.charge_work(
         (section.dispatch().records().len() as u64)
             .saturating_mul(production.type_registrations().registrations().len().max(1) as u64),

@@ -1,0 +1,17 @@
+private struct Payload(val flag: Boolean) {}
+private enum Selection { Empty, Present(Payload) }
+private struct Box<T>(val value: T) {}
+@CLayout private struct Target(val value: Boolean) {}
+@CLayout private struct Result(val value: Boolean) {}
+private class Fields private constructor(
+    private val boxed: Box<Payload>,
+    private val pair: (Target, Payload),
+    private val callback: (Target) -> Result,
+    private val pointer: Ptr<Target>,
+    private val native: FunPtr<(Target) -> Result>
+) {}
+public object Storage {
+    private val selected: Selection = Empty
+    private val fields: Fields? = None
+}
+private struct Unrelated() {}

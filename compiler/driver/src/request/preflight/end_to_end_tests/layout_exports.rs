@@ -7,6 +7,7 @@ use scoop_wire::{BudgetMeter, WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
 mod dependencies;
+mod private_types;
 mod rejections;
 mod support;
 
@@ -24,7 +25,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
-    for name in ["standalone", "combined"] {
+    for name in ["standalone", "combined", "private-support"] {
         let path = crate::workspace_root().join("tests/fixtures/m23-lir-export-assembly");
         let source = std::fs::read_to_string(path.join(format!("{name}.scoop"))).unwrap();
         let mut expected = None;
@@ -63,6 +64,9 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                         });
                 assertions::actual(input, &result);
                 rejections::check(input, dependencies);
+                if name == "private-support" {
+                    private_types::check_support(input, dependencies, &result);
+                }
                 expected = Some(assertions::bytes(&result));
                 let dump = assertions::dump(input, &result);
                 if let Some(directory) = std::env::var_os("SCOOP_LIR_EXPORT_SNAPSHOT_DIR") {
@@ -81,11 +85,15 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
             sysroot.path(),
             &target,
             &bytes,
-            &format!("private fun unrelated(): Boolean = true\n{source}"),
+            &format!(
+                "{}\nprivate fun unrelated(): Boolean = true\n{source}",
+                std::fs::read_to_string(path.join("private-local.scoop")).unwrap()
+            ),
             |input, dependencies| {
                 let result =
                     scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
                         .unwrap();
+                private_types::check(input, &result);
                 assert_eq!(assertions::bytes(&result), expected.unwrap());
             },
         );

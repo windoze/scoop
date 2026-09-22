@@ -41,6 +41,7 @@ pub(super) fn complete<'a, E>(
     source
         .validate_local_exports(&exports, meter)
         .map_err(LayoutAbiSectionError::Source)?;
+    dispatch_inventory::validate(&exports, meter)?;
     source
         .validate_physical_imports(physical_imports.records(), meter)
         .map_err(LayoutAbiSectionError::Source)?;

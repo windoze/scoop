@@ -41,17 +41,11 @@ impl CanonicalExactDispatchExportsV1 {
             }
         }
         let expected = foundation.dispatch_tables();
-        if records.len() != expected.len() {
-            return Err(ExactDispatchTableError::Count {
-                expected: expected.len(),
-                actual: records.len(),
-            });
-        }
-        meter.charge_work(expected.len() as u64, &path)?;
-        for (record, identity) in records.iter().zip(expected) {
-            if record.table() != identity.id() {
-                return Err(ExactDispatchTableError::Missing(identity.id()));
-            }
+        for record in &records {
+            meter.charge_work(u64::from(expected.len().max(1).ilog2()) + 1, &path)?;
+            expected
+                .binary_search_by_key(&record.table(), |identity| identity.id())
+                .map_err(|_| ExactDispatchTableError::Missing(record.table()))?;
             if record.physical_definition().provider() != foundation.producer() {
                 return Err(ExactDispatchTableError::Provider(record.table()));
             }

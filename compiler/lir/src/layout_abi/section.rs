@@ -2,6 +2,7 @@ use super::*;
 
 mod build;
 pub(super) mod dependencies;
+mod dispatch_inventory;
 mod error;
 mod selection;
 mod source;

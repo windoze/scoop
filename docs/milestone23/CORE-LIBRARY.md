@@ -310,3 +310,13 @@ cargo fmt --all 与 cargo clippy --workspace --all-targets 通过；scoop-hir-lo
 每批变更先执行 cargo fmt --all 与 cargo clippy --workspace --all-targets；定向 MIR/MIR-lower、LIR-lower 及实际源码导出测试通过。更新并核对受归属修复影响的 golden 后，重建配套 scoopc，完整 workspace 37 组、5,786 项全部通过，0 failed、0 ignored，含真实 core 修改、缓存、任意输出路径消费与 Compile/Link 双 view 回归。确认本任务构建测试会话结束后 cargo clean 删除 2,871 个文件、6.5 GiB。
 
 本批完成五表投影入口。无关私有 nominal 的本地物理定义与跨 Cone 导出边界、新 layout profile 正式发布、一般跨 Cone nominal/member/dispatch 消费以及其余完成门继续推进，M23-6 保持进行中。
+
+2026-09-23：私有类型的本地物理定义与跨 Cone 导出范围按实际依赖闭包分别闭合。HIR 来源根遍历 struct、enum payload、class 与 object backing 的全部存储字段，递归保留 nominal/application、tuple、function 和 pointer 的组成关系；字段可见性不截断表示依赖。所有遍历使用同一预算，按 typed type/owner 去重，不扫描函数正文或展开无关私有 sibling。generic 字段只补充来源关系，既有 ODR gate 保持。
+
+LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；无关私有 layout、TD、dispatch 和 body 继续进入完整 Strong production、registration、object 与 fingerprint。有限 shape-support 根及 helper 缺 MIR type 时仍拒绝。dispatch constituent 逐项验证实际 foundation，完整 section 要求导出 TD 的 vtable/itable 与 dispatch export 精确对应；Strong V2 join 核对每项 export 与实际 registration，并继续验证未导出本地定义的外部依赖。
+
+真实源码组合 fixture 验证 Exposed → Hidden → Deep 的私有字段传递导出及缺失支持类型拒绝；三个源码场景前置无关 LocalOnly 后五表 bytes 不变，LocalOnly 的本地 layout/TD/registration 完整保留。新增 golden 锁定私有支持类型的布局、ABI 与 dispatch。独立 HIR fixture 覆盖 object、enum、tuple、function、pointer 与 generic 字段闭包，复用既有 core 源码入口验证指针结构，不放开 ordinary generic 导入。完整 section 的缺失或多余 dispatch、私有 registration 保留及其外部依赖缺项负例通过。
+
+每批代码变更先执行 cargo fmt --all 与 cargo clippy --workspace --all-targets，定向来源根和真实源码导出测试通过。重建配套 scoopc 后完整 workspace 37 组、5,790 项全部通过，0 failed、0 ignored，包含 core 修改与重建、缓存、跨 Cone 调用和 Compile/Link 双 view。新增生产模块为 38～106 行，测试按职责拆分。确认构建测试会话全部退出后 cargo clean 删除 2,788 个文件、6.4 GiB。
+
+本批完成私有类型导出边界。新 layout profile 正式发布、一般跨 Cone nominal/member/dispatch 的实际消费及其余完成门继续推进，M23-6 保持进行中。

@@ -15,14 +15,16 @@ mod error;
 mod fields;
 mod instance;
 mod physical;
+mod scope;
 mod source;
 mod value;
 
 pub use error::ExactLayoutLoweringError;
 type Result<T> = std::result::Result<T, ExactLayoutLoweringError>;
 
-/// Joins canonical MIR representation records to every emitted layout and
-/// descriptor instance. The containing section separately closes HIR source,
+/// Joins canonical MIR exports to their emitted layouts and descriptor instances.
+/// Local definitions outside that closure retain their Strong production proofs.
+/// The containing section separately closes HIR source,
 /// intrinsic bindings, and selected-provider authority for dependency tables.
 pub fn lower_exact_layout_exports(
     input: &mir::SingleConeStrongMirInput,
@@ -46,12 +48,7 @@ pub fn lower_exact_layout_exports(
         completed: BTreeMap::new(),
         active: BTreeSet::new(),
     };
-    for (_, layout) in output.module().meta.layouts.iter() {
-        projection.add_root(layout.identity.layout_record())?;
-    }
-    for (_, descriptor) in output.module().meta.type_descriptors.iter() {
-        projection.add_root(descriptor.instance_layout.layout_record())?;
-    }
+    projection.collect_export_roots()?;
     let mut roots = projection.reserve(projection.roots.len())?;
     roots.extend(projection.roots.values().cloned());
     for root in roots {

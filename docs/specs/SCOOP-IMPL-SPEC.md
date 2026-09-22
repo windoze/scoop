@@ -8,7 +8,7 @@ M23-6 的 MIR export 由同一 `mir-lower` 入口完整组装六张组成表；�
 
 配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
 
-M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export 组成表和实际 Strong V2 registration，统一生产 layout、descriptor、dispatch、callable ABI 与有限 shape-support 五表。布局覆盖实际发射的本地根，descriptor 逐项对应实际 registration；callable 使用 MIR lowered signature 查询唯一的 ManagedValue layout，保留 receiver、重复参数和 Unit result 的逻辑位置。dispatch 从实际 LIR table 读取物理 callable，按 MIR schema 的声明序 slot 重放；BoxedValue 通过明确 payload 关系使用源码 value schema，step/slot 的无成员关系只允许实际空表。依赖表只借用，不能复制成局部定义；错误 provider、target、缺失或重复关系直接失败，所有查询与构造共用预算。完整 selected-use、source 与最终 artifact 闭包仍须单独闭合，此组装不新增来源授权体系，也不放开 ODR。
+M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export 组成表和实际 Strong V2 registration，统一生产 layout、descriptor、dispatch、callable ABI 与有限 shape-support 五表。布局覆盖 MIR 导出闭包中实际发射的本地根，descriptor 逐项对应实际 registration；callable 使用 MIR lowered signature 查询唯一的 ManagedValue layout，保留 receiver、重复参数和 Unit result 的逻辑位置。dispatch 从实际 LIR table 读取物理 callable，按 MIR schema 的声明序 slot 重放；BoxedValue 通过明确 payload 关系使用源码 value schema，step/slot 的无成员关系只允许实际空表。依赖表只借用，不能复制成局部定义；错误 provider、target、缺失或重复关系直接失败，所有查询与构造共用预算。完整 selected-use、source 与最终 artifact 闭包仍须单独闭合，此组装不新增来源授权体系，也不放开 ODR。
 
 ## 1. 总体技术路线
 
@@ -304,6 +304,10 @@ LocalConcrete → MIR 的 source exact relation 同时保留完整物化归属�
 ### 2.4 LIR
 
 layout profile 的 LIR 生产入口在封存输出前，从已验证 HIR/MIR identity graph 与实际 Cone coordinate 生成每个已发射 descriptor 的 canonical exact type diagnostic name。该名称直接进入实际 LIR、registration、object bytes 与 layout export；导出阶段重放并逐字比较，不修改已封存输出，也不从 arena 的显示名称接受候选值。名称生成、复制及重放共用调用方预算，缺失声明、生成关系或 coordinate 时整体失败。
+
+跨 Cone 导出范围与本地物理定义范围分别闭合。五表的类型范围来自同次 MIR 的完整 source/support/helper 导出闭包，callable 范围来自对应 binding；无关私有声明的本地 layout、TD、dispatch 和 body 保留完整 Strong production、registration、object 及 fingerprint 验证，不因此扩充 HIR source roots。私有类型一旦成为公开字段、基类、签名或有限 helper 的传递依赖，必须沿同一闭包完整导出，不能按 visibility 过滤。有限 shape-support 计划的源码根及其 helper 必须具有 MIR type 与实际物理定义，缺失不能作为非导出类型跳过；ObjectBacking 仍仅提供对应 source object 的 shape。dispatch constituent 验证每条记录的本地 foundation 与 definition，完整 section 再要求导出 TD 的 vtable/itable 集合与 dispatch export 精确相等。Strong V2 与五表的 join 对每项 export 核对实际 registration，并允许完整本地生产表包含闭包外的私有定义。
+
+HIR 来源根发现必须遍历已要求 nominal 的全部真实存储字段，包括 struct 字段、enum payload、class 字段和 object backing 字段，保持字段类型的完整 nominal/application、tuple、function 与 pointer 组成关系。被这些字段引用的本地声明进入同一 source/support 闭包，外来声明继续由实际 provider 提供；字段可见性不影响表示依赖。遍历使用同一预算并按 typed type/owner 去重，既不扫描函数正文扩充根，也不展开无关私有 sibling。generic 声明及其字段引用只产生源码依赖，实际 generic/structural 物化继续受原 ODR gate 约束。
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：
 

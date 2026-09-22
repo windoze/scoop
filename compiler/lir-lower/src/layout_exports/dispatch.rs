@@ -22,6 +22,10 @@ pub(super) fn lower(
     let mut records = reserve(count, meter)?;
     for (_, descriptor) in output.module().meta.type_descriptors.iter() {
         let owner = descriptor.identity.exact_type();
+        search(input.bridge.types().records().len(), meter)?;
+        if input.bridge.types().get(owner).is_none() {
+            continue;
+        }
         let schema = schemas::for_owner(input.bridge, owner, meter, 1)?;
         let slots = schema.vtable();
         let entries = entries::project(slots, layouts, callables, dependencies, meter)?;

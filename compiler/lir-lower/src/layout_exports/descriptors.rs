@@ -18,6 +18,10 @@ pub(super) fn lower(
     let mut records = reserve(registrations.len(), meter)?;
     for registration in registrations {
         let exact = registration.exact_type();
+        search(input.bridge.types().records().len(), meter)?;
+        if input.bridge.types().get(exact).is_none() {
+            continue;
+        }
         meter.charge_work(actual.len() as u64, &WirePath::root())?;
         let physical = actual
             .iter()
