@@ -37,6 +37,7 @@ pub(super) fn project(
                 fields,
                 c_layout,
                 interior_mutable,
+                ..
             } = &module.structs[*id].representation
             else {
                 return Err(mismatch());

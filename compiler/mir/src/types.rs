@@ -238,10 +238,19 @@ pub struct StructDef {
 pub enum StructRepresentation {
     Declared {
         c_layout: Option<MirCLayoutContract>,
+        c_abi: StructCAbi,
         interior_mutable: bool,
         fields: Vec<DeclaredStructField>,
     },
     Intrinsic(IntrinsicTypeRepresentation),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructCAbi {
+    SourceRepresentation,
+    UInt64Field {
+        field: scoop_identity::PersistentFieldId,
+    },
 }
 
 impl StructDef {

@@ -156,6 +156,7 @@ pub fn dump(module: &Module) -> String {
         match &def.representation {
             StructRepresentation::Declared {
                 c_layout,
+                c_abi,
                 interior_mutable,
                 fields,
             } => {
@@ -164,6 +165,9 @@ pub fn dump(module: &Module) -> String {
                     .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
                     .collect();
                 let mut attributes = Vec::new();
+                if let StructCAbi::UInt64Field { .. } = c_abi {
+                    attributes.push("c-abi uint64-field".to_owned());
+                }
                 if let Some(layout) = c_layout {
                     attributes.push(format!(
                         "c-layout aligned={} packed={}",

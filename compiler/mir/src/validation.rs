@@ -13,7 +13,9 @@ mod closure_environments;
 use closure_environments::validate_closure_environment_metadata;
 mod boxed_values;
 use boxed_values::{validate_boxed_value_metadata, validate_boxing_adjust_metadata};
+mod c_abi;
 mod metadata;
+use c_abi::validate_c_abi_projections;
 use metadata::{
     validate_enum_metadata, validate_local_value_metadata,
     validate_source_callable_materializations,
@@ -56,6 +58,7 @@ impl MirVariantOperation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirValidationErrorKind {
+    InvalidStructCAbiProjection,
     InvalidLoopHeaderPollTarget,
     DuplicateLoopHeaderPollTarget,
     InvalidOptionCore,
@@ -437,6 +440,9 @@ impl std::fmt::Display for MirValidationError {
             )?,
         }
         match &self.kind {
+            MirValidationErrorKind::InvalidStructCAbiProjection => {
+                formatter.write_str("C UInt64 projection requires the exact sole UInt64 field of a GC-free ordinary struct")
+            }
             MirValidationErrorKind::InvalidLoopHeaderPollTarget => {
                 formatter.write_str("loop-header poll target is outside the function body")
             }
@@ -687,6 +693,7 @@ impl Module {
 /// not to printed or structural expression equality. Producers must materialize
 /// a tested enum value into such a local before testing and projecting it.
 pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
+    validate_c_abi_projections(module)?;
     validate_source_callable_materializations(module)?;
     validate_local_value_metadata(module)?;
     validate_enum_metadata(module)?;

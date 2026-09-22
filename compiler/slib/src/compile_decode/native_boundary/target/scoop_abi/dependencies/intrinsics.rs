@@ -10,7 +10,7 @@ pub(super) fn collect<'a>(
     >,
     meter: &mut BudgetMeter,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let path = WirePath::root().field(33);
+    let path = WirePath::root().field(34);
     for nominal in source.nominals.records() {
         meter
             .charge_work(

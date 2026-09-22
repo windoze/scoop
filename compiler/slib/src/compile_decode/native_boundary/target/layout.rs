@@ -1,5 +1,6 @@
 use super::*;
 
+mod c_projection;
 mod intrinsics;
 use intrinsics::{integer_representation, intrinsic_layout, is_reference};
 
@@ -13,8 +14,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         enum Shape {
             DataPointer(PersistentExactTypeId),
             CodePointer,
-            NullableDataPointer(PersistentExactTypeId),
-            NullableCodePointer,
             CLayout,
             Unsupported,
         }
@@ -44,14 +43,8 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                 }
             };
         }
-        if is_core_application(self.exact(exact)?, CoreNativeBoundaryNominal::PinnedPtr)
-            || is_core_application(self.exact(exact)?, CoreNativeBoundaryNominal::GcHandle)
-        {
-            return Ok(CanonicalCStorageType::Integer {
-                exact_type: exact,
-                signedness: scoop_identity::Signedness::Unsigned,
-                bit_width: scoop_identity::IntegerBitWidth::Bits64,
-            });
+        if let Some(storage) = self.projected_c_storage(exact)? {
+            return Ok(storage);
         }
         let key = self
             .exact_types
@@ -60,21 +53,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         let shape = match key.as_ref() {
             ExactTypeKey::RawPointer(pointee) => Shape::DataPointer(*pointee),
             ExactTypeKey::NativeFunctionPointer { .. } => Shape::CodePointer,
-            ExactTypeKey::NominalApplication { origin, arguments }
-                if Some(*origin) == CoreNativeBoundaryNominal::Option.generic_id() =>
-            {
-                charge_relations(self.meter, 1, &path)?;
-                let payload = arguments.as_slice()[0];
-                let payload_key = self
-                    .exact_types
-                    .get(&payload)
-                    .ok_or(NativeBoundaryTargetError::MissingExactType { exact: payload })?;
-                match payload_key.as_ref() {
-                    ExactTypeKey::RawPointer(pointee) => Shape::NullableDataPointer(*pointee),
-                    ExactTypeKey::NativeFunctionPointer { .. } => Shape::NullableCodePointer,
-                    _ => Shape::Unsupported,
-                }
-            }
             ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => Shape::CLayout,
             ExactTypeKey::Tuple(_) | ExactTypeKey::Function { .. } => Shape::Unsupported,
         };
@@ -91,19 +69,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             Shape::CodePointer => Ok(CanonicalCStorageType::CodePointer {
                 exact_type: exact,
                 storage: CPointerStorage::Direct,
-            }),
-            Shape::NullableDataPointer(pointee) => Ok(CanonicalCStorageType::DataPointer {
-                exact_type: exact,
-                pointee: if self.is_unit(pointee) {
-                    CDataPointee::OpaqueUnit
-                } else {
-                    CDataPointee::ExactObject(pointee)
-                },
-                storage: CPointerStorage::NullableWrapper(exact),
-            }),
-            Shape::NullableCodePointer => Ok(CanonicalCStorageType::CodePointer {
-                exact_type: exact,
-                storage: CPointerStorage::NullableWrapper(exact),
             }),
             Shape::CLayout => {
                 let layout = self.c_layout(exact)?;

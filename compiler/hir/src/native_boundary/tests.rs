@@ -298,7 +298,7 @@ fn unknown_shape_tag_is_rejected() {
     let mut bytes = encode(&fixture.reference_record()).unwrap();
     let tag = bytes
         .windows(3)
-        .rposition(|window| window == [0xa1, 0x00, 0x01])
+        .position(|window| window == [0xa1, 0x00, 0x01])
         .unwrap()
         + 2;
     bytes[tag] = 4;
@@ -525,4 +525,5 @@ fn replace_once(bytes: &mut [u8], from: &[u8; 32], to: &[u8; 32]) {
     bytes[position..position + to.len()].copy_from_slice(to);
 }
 
+mod c_abi;
 mod intrinsics;

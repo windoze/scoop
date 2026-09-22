@@ -5,7 +5,6 @@ mod callable;
 mod callable_body;
 mod callback;
 mod core_builtin;
-mod core_native;
 mod dependency_callable;
 mod digest;
 mod dispatch;
@@ -74,7 +73,6 @@ pub use callback::{
     DecodedCallbackRegistrationKey, DecodedSignatureCallableShape, SignatureCallableShape,
 };
 pub use core_builtin::{CallableRole, CoreBuiltinNominal, CoreImportedCallableKind};
-pub use core_native::CoreNativeBoundaryNominal;
 pub use dependency_callable::{
     DecodedDependencyCallableDeclarationId, DependencyCallableDeclarationId,
 };

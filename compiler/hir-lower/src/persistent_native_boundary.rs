@@ -16,6 +16,7 @@ pub(crate) fn build(
         }
     };
     hir::HirNativeBoundaryTypeDefinitions::from_roots(hir::HirNativeBoundaryTypeDefinitionInputs {
+        protocols: &export.core_protocols,
         structs: &export.structs,
         enums: &export.enums,
         classes: &export.classes,

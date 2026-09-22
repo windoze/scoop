@@ -698,7 +698,7 @@ impl WireEncode for CanonicalHirFoundation {
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 31, &self.external_source_types)?;
         encode_table_field(encoder, 32, &self.external_generic_types)?;
-        encode_table_field(encoder, 33, &self.native_boundary_types)
+        encode_table_field(encoder, 34, &self.native_boundary_types)
     }
 }
 

@@ -1,6 +1,7 @@
 use super::*;
 
 mod boxed_values;
+mod c_abi;
 mod callbacks;
 mod closure_environments;
 mod constants;
@@ -712,6 +713,7 @@ fn module_with_declared_struct(fields: Vec<Type>) -> (Module, StructId) {
         name: "Record".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: fields

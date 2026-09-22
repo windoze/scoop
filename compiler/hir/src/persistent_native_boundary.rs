@@ -9,6 +9,7 @@ use crate::{
     InterfaceDecl, NativeBoundaryTypeDefinitionRecord, ObjectDecl, StructDecl,
 };
 
+mod c_abi;
 pub(crate) mod closure;
 mod declarations;
 mod error;
@@ -19,6 +20,7 @@ use declarations::LocalNominalDeclarations;
 pub use error::HirNativeBoundaryTypeDefinitionError;
 
 pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
+    pub protocols: &'a crate::CoreProtocols,
     pub structs: &'a Arena<StructDecl>,
     pub enums: &'a Arena<EnumDecl>,
     pub classes: &'a Arena<ClassDecl>,
@@ -54,9 +56,13 @@ impl HirNativeBoundaryTypeDefinitions {
         let mapper = HirSignatureTypeMapper::new(inputs.type_inputs);
         let result = closure::close(required, |owner| {
             if let Some(declaration) = declarations.get(owner) {
-                records::build(declaration, &inputs, &mapper)
+                c_abi::project(records::build(declaration, &inputs, &mapper)?, &inputs)
             } else {
-                inputs.dependencies.native_boundary_type_definition(owner)
+                inputs
+                    .dependencies
+                    .native_boundary_type_definition(owner, |record| {
+                        c_abi::project(record, &inputs)
+                    })
             }
         })?;
         Ok(Self { records: result })

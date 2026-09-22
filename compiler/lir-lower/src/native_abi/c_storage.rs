@@ -40,6 +40,19 @@ impl CanonicalCAbiBuilder<'_> {
                 storage: identity::CPointerStorage::Direct,
             },
             mir::Type::Struct(id) => {
+                if matches!(
+                    self.module.structs[*id].representation,
+                    mir::StructRepresentation::Declared {
+                        c_abi: mir::StructCAbi::UInt64Field { .. },
+                        ..
+                    }
+                ) {
+                    return Ok(identity::CanonicalCStorageType::Integer {
+                        exact_type: self.exact_type(ty),
+                        signedness: identity::Signedness::Unsigned,
+                        bit_width: identity::IntegerBitWidth::Bits64,
+                    });
+                }
                 let layout = self.layout(*id)?;
                 identity::CanonicalCStorageType::Struct {
                     exact_type: self.exact_type(ty),

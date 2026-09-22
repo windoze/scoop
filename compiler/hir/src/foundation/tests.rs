@@ -14,7 +14,7 @@ use crate::{NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord, Sour
 fn empty_foundation_has_all_thirty_two_empty_tables() {
     let actual = encode(&CanonicalHirFoundation::empty()).unwrap();
     let mut expected = vec![0xb8, 32];
-    for field in (1_u8..=29).chain(31..=33) {
+    for field in (1_u8..=29).chain([31, 32, 34]) {
         if field < 24 {
             expected.push(field);
         } else {
@@ -207,6 +207,26 @@ fn reader_rejects_retired_native_witness_field_thirty() {
         &scoop_wire::WireErrorKind::UnexpectedField {
             expected: 31,
             actual: 30
+        }
+    );
+}
+
+#[test]
+fn reader_rejects_retired_native_witness_without_explicit_c_projection() {
+    let mut bytes = scoop_wire::encode(&CanonicalHirFoundation::empty()).unwrap();
+    let end = bytes.len();
+    assert_eq!(&bytes[end - 3..], &[0x18, 34, 0x80]);
+    bytes[end - 2] = 33;
+    let error = scoop_wire::decode_canonical::<crate::DecodedHirFoundation>(
+        &bytes,
+        scoop_wire::DecodeLimits::default(),
+    )
+    .unwrap_err();
+    assert_eq!(
+        error.kind(),
+        &scoop_wire::WireErrorKind::UnexpectedField {
+            expected: 34,
+            actual: 33
         }
     );
 }

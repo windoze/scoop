@@ -69,6 +69,7 @@ pub(crate) fn struct_layout(
         c_layout,
         interior_mutable,
         fields: definition_fields,
+        ..
     } = &definition.representation
     else {
         unreachable!()

@@ -7,6 +7,7 @@ pub enum NativeBoundaryDefinitionError {
     ExpectedSourceField,
     ExpectedSourceVariant,
     ShapeKindMismatch,
+    CAbiProjectionMismatch,
     IntrinsicArityMismatch { expected: u32, actual: u32 },
     FieldOwnerMismatch,
     VariantOwnerMismatch,
@@ -36,6 +37,8 @@ impl fmt::Display for NativeBoundaryDefinitionError {
             Self::ShapeKindMismatch => {
                 formatter.write_str("native boundary shape does not match the source nominal kind")
             }
+            Self::CAbiProjectionMismatch => formatter
+                .write_str("native C projection does not select the complete declared shape"),
             Self::IntrinsicArityMismatch { expected, actual } => write!(
                 formatter,
                 "native intrinsic parameter count mismatch: expected {expected}, found {actual}"

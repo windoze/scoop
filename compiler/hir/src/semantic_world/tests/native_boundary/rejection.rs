@@ -17,7 +17,7 @@ fn native_producer_rejects_missing_canonical_fields_and_value_shapes() {
     fixture.foundation.set_fields(vec![]).unwrap();
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::MissingDependencyField { .. })
         ));
     });
@@ -25,7 +25,7 @@ fn native_producer_rejects_missing_canonical_fields_and_value_shapes() {
     fixture.interface = ProviderFixture::empty(fixture.coordinate.clone()).interface;
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::MissingDependencyShape { .. })
         ));
     });
@@ -45,7 +45,7 @@ fn native_producer_rejects_missing_canonical_variant_and_payload_keys() {
             fixture.foundation.set_enum_variant_fields(vec![]).unwrap();
         }
         let result = try_with_world(&[&fixture], &[], |world| {
-            world.native_boundary_type_definition(owner(&fixture))
+            world.native_boundary_type_definition(owner(&fixture), Ok)
         });
         if missing_variant {
             assert!(matches!(
@@ -99,7 +99,7 @@ fn native_producer_rejects_wrong_field_owner_kind_and_binder() {
     set_shape(&mut fixture, wrong_shape);
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::InvalidDefinition(
                 NativeBoundaryDefinitionError::FieldOwnerMismatch
             ))
@@ -109,7 +109,7 @@ fn native_producer_rejects_wrong_field_owner_kind_and_binder() {
     set_shape(&mut fixture, NominalSourceShapeV1::Class);
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::InvalidDefinition(
                 NativeBoundaryDefinitionError::ShapeKindMismatch
             ))
@@ -124,7 +124,7 @@ fn native_producer_rejects_wrong_field_owner_kind_and_binder() {
     );
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::InvalidDefinition(
                 NativeBoundaryDefinitionError::BinderIndexOutOfRange { .. }
             ))
@@ -137,7 +137,7 @@ fn native_producer_reuses_private_witnesses_and_rejects_divergent_public_shapes(
     let mut fixture = fixture();
     let record = with_world(&[&fixture], &[], |world| {
         world
-            .native_boundary_type_definition(owner(&fixture))
+            .native_boundary_type_definition(owner(&fixture), Ok)
             .unwrap()
     });
     fixture
@@ -150,7 +150,7 @@ fn native_producer_reuses_private_witnesses_and_rejects_divergent_public_shapes(
         assert!(world.nominal(fixture.outer.unwrap()).is_none());
         assert_eq!(
             world
-                .native_boundary_type_definition(owner(&fixture))
+                .native_boundary_type_definition(owner(&fixture), Ok)
                 .unwrap(),
             record
         );
@@ -174,7 +174,7 @@ fn native_producer_reuses_private_witnesses_and_rejects_divergent_public_shapes(
         .unwrap();
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
-            world.native_boundary_type_definition(owner(&fixture)),
+            world.native_boundary_type_definition(owner(&fixture), Ok),
             Err(Error::DependencyDefinitionMismatch { .. })
         ));
     });

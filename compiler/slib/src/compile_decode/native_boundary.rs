@@ -175,7 +175,7 @@ fn validate_source_closure(
         view.type_definitions,
         scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
         meter,
-        &WirePath::root().field(33),
+        &WirePath::root().field(34),
     )?;
 
     let mut closure = SourceClosureState::new(meter);
@@ -225,7 +225,7 @@ fn validate_source_closure(
                     collect_signature_type(
                         field.ty(),
                         &mut closure,
-                        &WirePath::root().field(33),
+                        &WirePath::root().field(34),
                         1,
                     )?;
                 }
@@ -236,7 +236,7 @@ fn validate_source_closure(
                         collect_signature_type(
                             field.ty(),
                             &mut closure,
-                            &WirePath::root().field(33),
+                            &WirePath::root().field(34),
                             1,
                         )?;
                     }

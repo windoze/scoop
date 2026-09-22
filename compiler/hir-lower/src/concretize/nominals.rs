@@ -1,5 +1,7 @@
 use super::*;
 
+mod c_abi;
+
 impl Concretizer<'_> {
     pub(super) fn build_dispatch_slot_identities(&self) -> concrete::DispatchSlotIdentities {
         let mut virtual_slots = vec![None; self.virtual_method_by_source.len()];
@@ -65,6 +67,7 @@ impl Concretizer<'_> {
                 ConcreteApplicationRepresentation::Declared,
             ) => concrete::StructRepresentation::Declared {
                 attributes: source.attributes,
+                c_abi: self.struct_c_abi(source_id),
                 fields: Vec::new(),
             },
             (

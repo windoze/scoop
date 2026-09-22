@@ -3,14 +3,11 @@ use scoop_identity::{CanonicalScoopStorage, CoreBuiltinNominal, ScoopAbiArgument
 
 pub(super) fn assert_abis(production: &scoop_slib::ValidatedCrossConeSemanticsProduction) {
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
-    let integer = CoreNativeBoundaryNominal::Signed32.concrete_id().unwrap();
-    let string = PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
-        site(),
-        name("String"),
-        SourceNominalKind::Class,
-        0,
-    ))
-    .unwrap();
+    let integer = intrinsic_type(
+        production,
+        scoop_hir::IntrinsicTypeKind::Integer(scoop_hir::IntegerKind::SIGNED_32),
+    );
+    let string = intrinsic_type(production, scoop_hir::IntrinsicTypeKind::String);
     let cases = [
         ("userCoreAbiUnit", vec![unit]),
         ("userCoreAbiMixed", vec![unit, integer, string]),

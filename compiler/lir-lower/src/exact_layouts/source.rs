@@ -159,6 +159,7 @@ impl<'a> Projection<'a, '_> {
                     fields: actual,
                     c_layout: actual_c,
                     interior_mutable: actual_mutable,
+                    ..
                 } = &definition.representation
                 else {
                     return Err(ExactLayoutLoweringError::SourceRepresentation(exact));

@@ -197,6 +197,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
         name: "ForeignCallback<() -> Unit>".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![

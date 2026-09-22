@@ -81,7 +81,7 @@ pub(super) fn validate_shape_coverage(
                 | NativeBoundaryNominalShape::Intrinsic(_)
                 | NativeBoundaryNominalShape::Enum { .. } => None,
             }),
-        &WirePath::root().field(33),
+        &WirePath::root().field(34),
     )?;
     let actual_variant_count = checked_sum(
         definitions
@@ -92,7 +92,7 @@ pub(super) fn validate_shape_coverage(
                 | NativeBoundaryNominalShape::Intrinsic(_)
                 | NativeBoundaryNominalShape::Struct { .. } => None,
             }),
-        &WirePath::root().field(33),
+        &WirePath::root().field(34),
     )?;
     let actual_variant_field_count = checked_sum(
         definitions
@@ -105,9 +105,9 @@ pub(super) fn validate_shape_coverage(
             })
             .flatten()
             .map(|variant| variant.fields().len()),
-        &WirePath::root().field(33),
+        &WirePath::root().field(34),
     )?;
-    let definition_path = WirePath::root().field(33);
+    let definition_path = WirePath::root().field(34);
     let mut actual_fields = HashSet::new();
     meter
         .try_reserve_set_slots(&mut actual_fields, actual_field_count, &definition_path)

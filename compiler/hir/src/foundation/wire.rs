@@ -269,7 +269,7 @@ impl WireEncode for DecodedHirFoundationWire {
         encode_table_field(encoder, 29, &self.definition_origins)?;
         encode_table_field(encoder, 31, &self.external_source_types)?;
         encode_table_field(encoder, 32, &self.external_generic_types)?;
-        encode_table_field(encoder, 33, &self.native_boundary_types)
+        encode_table_field(encoder, 34, &self.native_boundary_types)
     }
 }
 
@@ -308,7 +308,7 @@ impl WireDecode for DecodedHirFoundationWire {
             definition_origins: decode_table_field(decoder, 29)?,
             external_source_types: decode_table_field(decoder, 31)?,
             external_generic_types: decode_table_field(decoder, 32)?,
-            native_boundary_types: decode_table_field(decoder, 33)?,
+            native_boundary_types: decode_table_field(decoder, 34)?,
         })
     }
 }

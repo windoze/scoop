@@ -18,16 +18,24 @@ impl Lowerer {
     pub(super) fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
             let representation = match &decl.representation {
-                hir::StructRepresentation::Declared { attributes, .. } => {
-                    mir::StructRepresentation::Declared {
-                        c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
-                            aligned: lower_c_layout_value(layout.aligned),
-                            packed: lower_c_layout_value(layout.packed),
-                        }),
-                        interior_mutable: attributes.interior_mutable,
-                        fields: Vec::new(),
-                    }
-                }
+                hir::StructRepresentation::Declared {
+                    attributes, c_abi, ..
+                } => mir::StructRepresentation::Declared {
+                    c_abi: match c_abi {
+                        hir::StructCAbi::SourceRepresentation => {
+                            mir::StructCAbi::SourceRepresentation
+                        }
+                        hir::StructCAbi::UInt64Field { field } => {
+                            mir::StructCAbi::UInt64Field { field: *field }
+                        }
+                    },
+                    c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
+                        aligned: lower_c_layout_value(layout.aligned),
+                        packed: lower_c_layout_value(layout.packed),
+                    }),
+                    interior_mutable: attributes.interior_mutable,
+                    fields: Vec::new(),
+                },
                 hir::StructRepresentation::Intrinsic { application, .. } => {
                     mir::StructRepresentation::Intrinsic(match application {
                         hir::IntrinsicTypeRepresentation::Integer(kind) => {

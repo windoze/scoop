@@ -11,7 +11,11 @@ use crate::{
 mod shapes;
 
 impl ImportedSemanticWorld<'_> {
-    pub(crate) fn native_boundary_type_definition(&self, owner: Owner) -> Result<Record, Error> {
+    pub(crate) fn native_boundary_type_definition(
+        &self,
+        owner: Owner,
+        project: impl FnOnce(Record) -> Result<Record, Error>,
+    ) -> Result<Record, Error> {
         let (provider, declaration) = self
             .native_declaration_provider(owner)
             .ok_or(Error::MissingSourceNominal { owner })?;
@@ -23,6 +27,12 @@ impl ImportedSemanticWorld<'_> {
         {
             let shape = shapes::project(provider, source.source_shape())?;
             Record::new(declaration, &[source.type_parameters().len_u32()], shape)
+                .and_then(|record| {
+                    record.with_c_abi(existing.map_or(
+                        crate::NativeBoundaryCAbiV1::SourceRepresentation,
+                        Record::c_abi,
+                    ))
+                })
                 .map_err(Error::InvalidDefinition)?
         } else if let Some(existing) = existing {
             // This is an exact reference to an already validated witness, not public lookup.
@@ -43,6 +53,7 @@ impl ImportedSemanticWorld<'_> {
         } else {
             return Err(Error::MissingDependencyShape { owner });
         };
+        let record = project(record)?;
         if existing.is_some_and(|existing| existing != &record) {
             return Err(Error::DependencyDefinitionMismatch { owner });
         }

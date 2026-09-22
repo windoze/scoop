@@ -34,6 +34,7 @@ pub(super) fn representation(
                 fields,
                 c_layout,
                 interior_mutable,
+                ..
             } = &definition.representation
             else {
                 panic!("declared")

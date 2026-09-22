@@ -23,7 +23,7 @@ pub(super) fn collect<'a>(
 ) -> Result<AbiReplayTypes<'a>, NativeBoundaryCompileError> {
     let mut exact = HashMap::new();
     let mut definitions = HashMap::new();
-    let path = WirePath::root().field(33);
+    let path = WirePath::root().field(34);
     for source in std::iter::once(current).chain(dependencies.iter().copied()) {
         for (id, key) in exact_type_records(source.identities, meter)? {
             meter
@@ -62,7 +62,7 @@ fn insert_definition<'a>(
     record: Cow<'a, NativeBoundaryTypeDefinitionRecord>,
     meter: &mut BudgetMeter,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let path = WirePath::root().field(33);
+    let path = WirePath::root().field(34);
     meter
         .charge_work(
             scoop_wire::encoded_length(record.as_ref())
@@ -109,7 +109,7 @@ impl AbiReplayTypes<'_> {
             .try_reserve_map_slots(
                 &mut result,
                 self.definitions.len(),
-                &WirePath::root().field(33),
+                &WirePath::root().field(34),
             )
             .map_err(NativeBoundaryCompileError::Resource)?;
         result.extend(

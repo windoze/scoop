@@ -42,6 +42,7 @@ pub struct NativeBoundaryTypeDefinitionRecord {
     owner: NativeBoundaryNominalOwner,
     type_parameter_count: u32,
     shape: NativeBoundaryNominalShape,
+    c_abi: NativeBoundaryCAbiV1,
 }
 
 impl NativeBoundaryTypeDefinitionRecord {
@@ -59,7 +60,21 @@ impl NativeBoundaryTypeDefinitionRecord {
             owner,
             type_parameter_count,
             shape,
+            c_abi: NativeBoundaryCAbiV1::SourceRepresentation,
         })
+    }
+
+    pub fn with_c_abi(
+        mut self,
+        c_abi: NativeBoundaryCAbiV1,
+    ) -> Result<Self, NativeBoundaryDefinitionError> {
+        c_abi.validate_shape(&self.shape)?;
+        self.c_abi = c_abi;
+        Ok(self)
+    }
+
+    pub const fn c_abi(&self) -> NativeBoundaryCAbiV1 {
+        self.c_abi
     }
 
     pub const fn owner(&self) -> NativeBoundaryNominalOwner {
@@ -77,13 +92,15 @@ impl NativeBoundaryTypeDefinitionRecord {
 
 impl WireEncode for NativeBoundaryTypeDefinitionRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
         encoder.unsigned(u64::from(self.type_parameter_count))?;
         encoder.field(3)?;
-        self.shape.encode(encoder)
+        self.shape.encode(encoder)?;
+        encoder.field(4)?;
+        self.c_abi.encode(encoder)
     }
 }
 

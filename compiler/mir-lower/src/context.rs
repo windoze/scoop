@@ -27,10 +27,12 @@ pub(super) fn type_context(
         let representation = match &def.representation {
             mir::StructRepresentation::Declared {
                 c_layout,
+                c_abi,
                 interior_mutable,
                 ..
             } => mir::StructRepresentation::Declared {
                 c_layout: *c_layout,
+                c_abi: *c_abi,
                 interior_mutable: *interior_mutable,
                 fields: Vec::new(),
             },

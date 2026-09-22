@@ -76,14 +76,14 @@ impl SlibDiagnostic for NativeBoundaryCompileError {
             Self::Identity(error) => error.diagnostic(),
             Self::Reference(error) => error.diagnostic(),
             Self::TypeDefinition(_) => {
-                SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(33))
+                SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(34))
             }
             Self::IntrinsicProvider { owner, .. } => {
                 native_owner_diagnostic(SlibErrorCode::ReferenceInvalid, *owner)
             }
             Self::Resource(error) => error.diagnostic(),
             Self::Encoding(_) => {
-                SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(33))
+                SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(34))
             }
             Self::ConflictingExactType { exact } => identity_diagnostic(
                 SlibErrorCode::BridgeMismatch,

@@ -95,7 +95,9 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
                 let id = application.template;
-                if self.structs[id].attributes.c_layout.is_none() {
+                let scalar_projection =
+                    Some(id) == self.ffi_pinned_ptr || Some(id) == self.ffi_gc_handle;
+                if self.structs[id].attributes.c_layout.is_none() && !scalar_projection {
                     return Err(CAbiError {
                         path,
                         reason: format!(

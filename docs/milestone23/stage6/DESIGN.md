@@ -1,10 +1,12 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-23 当前 native C 投影约定：native witness 四字段记录新增必需 NativeBoundaryCAbiV1，封闭表达 SourceRepresentation、UInt64Field 和 NullablePointer，并保存实际 typed field/variant 引用。前端从完整声明角色正规化，依赖查询和 reader 按同一表示与完整字段闭包重放，不再使用 CoreNativeBoundaryNominal 固定身份。HIR foundation 升级为 /3，旧 native field 33 退役、新 field 34 必需，M24 的 HIR major 预留顺延为 /4；详细编码和验证见实现规范 2.11。C 投影不改变 Scoop aggregate ABI 或 runtime C 入口。
+
 2026-09-23 GC handle Scoop ABI 修正：PinnedPtr/GcHandle 的 C 透明表示不适用于 Scoop 调用。Scoop canonical ABI 从实际 nominal 字段重放普通 aggregate，并按共有规则间接传参/返回，固定 core 身份不能省略 witness 或字段闭包；具体合同见语言规范 14.1、14.2 与实现规范 2.11。
 
 2026-09-23 当前 Link requirement 约定：所有外来 strong 选择在共有步骤中按实际 provider/symbol/typed owner 解析，取消 core proof 与独立 core owner 参数。已有 verified dependency owner 集合同时服务外部 callable、descriptor、registration support 和普通 callable，按实际 capability/subject 保持用途互斥与 relocation 完整覆盖。最终 requirement 的旧 CoreStrong tag 2 退役，tag 8 保存 provider/typed strong owner，object-definition fingerprint 的扁平 target sum 使用独立 tag 13；link-identity-closure 升级为 /2，旧版本/tag 拒绝，profile、Code fingerprint、writer/reader 和固定向量同步。完整合同见实现规范 2.11。
 
-2026-09-22 当前 native intrinsic 表示约定：NativeBoundaryNominalShape 使用新 tag 4 保存完整共有 NominalIntrinsicRepresentationV1，生产与依赖投影不再丢弃 family。HIR identity-foundation 升级为 /2，旧 field 30 退役，field 33 保存完整 native 类型表；三十二字段集合为 1～29、31～33，旧字段/版本及 optional 混入拒绝。标量 canonical ABI 重放按实际 typed 声明的 intrinsic family 计算，不再重建 Integer/Boolean 的 CORE 身份，Unit 保持语言内建 identity；其余 Option 与 GC handle 固定身份分支继续迁移。具体表示、覆盖与版本合同见实现规范 2.11。
+2026-09-22 native intrinsic 迁移记录：NativeBoundaryNominalShape 使用新 tag 4 保存完整共有 NominalIntrinsicRepresentationV1，生产与依赖投影不再丢弃 family。HIR identity-foundation 升级为 /2，旧 field 30 退役，field 33 保存完整 native 类型表；三十二字段集合为 1～29、31～33，旧字段/版本及 optional 混入拒绝。标量 canonical ABI 重放按实际 typed 声明的 intrinsic family 计算，不再重建 Integer/Boolean 的 CORE 身份，Unit 保持语言内建 identity；Option 与 GC handle 随后改为显式 typed C 投影，当前 HIR foundation 为 /3、native field 为 34，见本文首段。具体表示、覆盖与版本合同见实现规范 2.11。
 
 2026-09-22 当前外部引用约定：String 和初始化 callable 使用共有 typed provider/definition 记录，禁止从 CORE 常量恢复 provider。strong production 的旧 field 1 退役，field 12 保存共有外部引用；旧 callable tag 1 退役，tag 3 直接保存完整 SelectedDependencyLirCallableV1，TypeDescriptor tag 2 保留已有含 provider 的载体。两种 TD/dispatch schema 统一使用显式 provider 的 DependencyExternal，CoreExternal tag 不复用；immortal registration 使用新的 tag 3 provider/exact 引用。strong-production /3、/4 升级为 /5、/6，cross-cone-layout-abi 与 cross-cone-layout-link-closure 升级为 /2。旧格式和 optional 版本混入均拒绝；local/runtime/absent、String 表示、runtime C ABI 和用途分区保持，详细编码与验证见实现规范 2.11、2.12。
 
@@ -59,7 +61,7 @@ core 是可由用户修改、扩展和重建的普通 library Cone。源码层�
 M23-6 把已有的本地类型表示变成可独立验证、可跨 Cone 消费的接口。成功解析到外部 nominal 之后，consumer 必须取得定义方的完整语义、layout、ABI、scan、TypeDescriptor 与 dispatch 证明，才能产生 machine use。
 
 1. 新增 `cross-cone-layout-strong/1` production profile。它在 M23-5 inventory 上新增 HIR type/inheritance、独立 HIR source authority、MIR type bridge、LIR layout/ABI 和 Link-only layout-use closure，并将强定义语义升级为 `strong-production/6`，以表达 ordinary dependency TD/dispatch 引用；仍拒绝全部 ODR production。
-2. 不改变 M23-2 的任何 persistent identity、native-boundary witness、extern/callback contract bytes，也不扩大 M23-3/M23-5 旧 capability 的含义。一般 layout 服务只能由新 required section 构造。
+2. persistent identity 与 extern/callback contract bytes 保持；native-boundary witness 按当前 intrinsic family 与 typed C 投影合同显式升代，旧字段和版本退役。一般 layout 服务只能由新 required section 构造，不从 native witness 推出通用 layout、scan 或 dispatch。
 3. HIR 输出每个 concrete type 完备的 `gc_free`、value `ZstStatus` 与继承/slot 语义；MIR 输出表示无关的类型、构造器、成员、slot 与生成 helper 关系；LIR 独占 target layout、Scoop ABI 与递归 scan 的生产权。
 4. 外部实体保持定义 Cone 的 Strong ownership。consumer 可以检查和在本地类型中内联外部 value 的表示，但不能重新定义其 body、layout constant、scan、TD、dispatch table、registration 或初始化 storage。
 5. 定义 Cone 为每个可跨 Cone 引用的 param-free source nominal 预物化完整、有限的 `BoxedValue`（仅 value）、`CoroutineStep`、`CoroutineSlot` shape-support。closure 从 source subject 展开一次，不递归把 helper 当作新 source subject。

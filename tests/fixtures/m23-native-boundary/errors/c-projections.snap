@@ -1,0 +1,2 @@
+handle-like-struct:3:1: extern parameter is not ABI-safe: consumeToken.parameter1: ordinary struct `ResourceToken` has no stable C layout
+nullable-handle:1:1: extern parameter is not ABI-safe: consumeNullableHandle.parameter1: only `Option<Ptr<T>>` and `Option<FunPtr<F>>` have a C ABI representation

@@ -165,6 +165,7 @@ impl Builder {
             type_arguments: Vec::new(),
             gc_free,
             representation: mir::StructRepresentation::Declared {
+                c_abi: mir::StructCAbi::SourceRepresentation,
                 c_layout: None,
                 interior_mutable: false,
                 fields: fields
@@ -193,6 +194,7 @@ impl Builder {
             type_arguments: Vec::new(),
             gc_free,
             representation: mir::StructRepresentation::Declared {
+                c_abi: mir::StructCAbi::SourceRepresentation,
                 c_layout: Some(mir::MirCLayoutContract { aligned, packed }),
                 interior_mutable,
                 fields: fields

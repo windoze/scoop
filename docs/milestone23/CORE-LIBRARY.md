@@ -283,3 +283,13 @@ workspace fmt 与 all-targets Clippy 通过；定向 LIR/LIR-lower/SLIB 1,169 �
 新增独立 typed fixture 验证 CORE 与其他 provider 的同名 struct、实际 UInt64/UInt8 字段布局、缺失 nominal/字段 witness 拒绝；组合 fixture 与 golden 锁定标量、handle、Unit 混合参数、indirect result 和完整签名 wire 往返。先 cargo fmt --all 与 cargo clippy --workspace --all-targets（无警告），SLIB 580 项测试全部通过；重建配套 scoopc 后 driver 的 43 项测试全部通过，包括真实修改 core、双 view 发布、跨 Cone 调用和 source extern。新增测试模块 252 行。测试进程退出后 cargo clean 删除 13,713 个文件、15.7 GiB。
 
 本批修复 Scoop ABI 重放；C 边界的 Option/PinnedPtr/GcHandle 固定身份分类与透明表示生产仍在后续迁移范围，未将该修复等同于完整 M23-6 完成。
+
+2026-09-23：显式 native C 投影与共有表示重放
+
+删除 CoreNativeBoundaryNominal 及 native 后端的固定 CORE 身份分类。native witness 以必需的 NativeBoundaryCAbiV1 保存 SourceRepresentation、带真实 PersistentFieldId 的 UInt64Field，或带真实 variant/payload id 的 NullablePointer；builder、reader 和目标重放分别验证完整结构、引用及实际字段类型。前端按已有 typed 声明角色正规化，共有依赖查询保留并核对投影；同名、同大小或相同 niche 的普通声明不会自动获得 C ABI。HIR concrete、MIR 与 LIR 显式传递 handle 的 UInt64 字段投影，Scoop 继续使用普通间接 aggregate，C 参数、返回、CLayout 字段、指针和 callback 使用 UInt64 storage。
+
+HIR identity-foundation 升为 /3，native field 33 退役、field 34 保存四字段记录；旧三字段记录、旧 major/field 与 optional 版本混入拒绝。四类 profile 的 descriptor/fingerprint、HIR semantic hash、cache receipt 固定向量及诊断路径同步，M24 HIR major 预留顺延为 /4。runtime C ABI、String 表示、extern/callback canonical key 与 ODR 生产边界保持。
+
+独立与组合源码 fixture、精确位置 negative fixture、HIR/MIR/LIR golden、typed wire 往返及错字段/variant/表示闭包负例通过。先 cargo fmt --all 与 cargo clippy --workspace --all-targets（无警告），相关 IR 的 3,876 项测试通过；重建配套 scoopc 并启用真实子进程后，完整 workspace 37 组中 5,780 项通过，唯一旧 cache receipt 固定向量按新 bytes 更新后定向复验通过，总计覆盖 5,781 项、0 ignored。driver 的 43 项包含真实 core 修改、双 view 发布与跨 Cone 调用回归。新生产逻辑按投影、wire、concretize 和 MIR 校验职责分拆。全部构建和测试进程退出后 cargo clean 删除 39,322 个文件、41.9 GiB。
+
+本批完成 native 固定身份分类迁移。M23-6 的新 layout profile 正式生产、跨 Cone nominal/member/dispatch 实际消费及其余完成门继续推进。

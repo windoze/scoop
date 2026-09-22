@@ -1,0 +1,6 @@
+handle-c.scoop
+  GcHandle: native=UInt64Field HIR=UInt64Field MIR=UInt64Field gc_free=true
+handle-c-combined.scoop
+  GcHandle: native=UInt64Field HIR=UInt64Field MIR=UInt64Field gc_free=true
+  PinnedPtr: native=UInt64Field HIR=UInt64Field MIR=UInt64Field gc_free=true
+  Option: native=NullablePointer callback_bridges=1

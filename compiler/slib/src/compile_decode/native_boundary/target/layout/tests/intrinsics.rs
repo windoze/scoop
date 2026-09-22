@@ -156,7 +156,18 @@ fn pointer_intrinsics_require_structural_exact_types() {
 
 #[test]
 fn a_fixed_core_scalar_identity_needs_its_actual_representation_witness() {
-    let source = CoreNativeBoundaryNominal::Unsigned8.declaration_key();
+    let source = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::CORE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("UInt8").unwrap(),
+        SourceNominalKind::Struct,
+        0,
+    );
     let owner = PersistentTypeId::from_source_declaration(&source).unwrap();
     let exact_record = CborIdentityRecord::from_key(ExactTypeKey::Nominal(owner)).unwrap();
     let exact = exact_record.id();

@@ -164,6 +164,7 @@ fn concrete_variant_and_struct_field_refs_are_checked() {
         type_arguments: Vec::new(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             attributes: StructAttributes::default(),
             fields: vec![DeclaredStructField {
                 identity: field_identity("Record", "value"),

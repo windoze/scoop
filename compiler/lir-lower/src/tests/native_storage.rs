@@ -1,5 +1,7 @@
 use super::*;
 
+mod c_projection;
+
 #[test]
 fn native_abi_replays_c_field_geometry_before_recording_the_contract() {
     let mut builder = Builder::new();

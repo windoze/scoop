@@ -1,0 +1,6 @@
+struct ResourceToken(val raw: ULong)
+
+@Extern(name = "consume_token")
+fun consumeToken(value: ResourceToken)
+
+fun main() {}

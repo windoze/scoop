@@ -77,6 +77,7 @@ fn struct_global_validation_rejects_an_inexact_field_arity() {
         name: "Pair".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![DeclaredStructField {
@@ -214,6 +215,7 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         name: "Inner".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![DeclaredStructField {
@@ -228,6 +230,7 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
         name: "Outer".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![DeclaredStructField {

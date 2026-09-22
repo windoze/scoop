@@ -10,10 +10,12 @@ use scoop_identity::{
 };
 use scoop_wire::{Encoder, HashError, WireEncode};
 
+mod c_abi;
 mod decode;
 mod errors;
 mod policy;
 mod shape;
+pub use c_abi::NativeBoundaryCAbiV1;
 pub use decode::{
     DecodedNativeBoundaryCLayoutPolicy, DecodedNativeBoundaryFieldDefinition,
     DecodedNativeBoundaryNominalOwner, DecodedNativeBoundaryNominalShape,

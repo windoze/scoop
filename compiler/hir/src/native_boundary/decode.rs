@@ -16,7 +16,9 @@ use super::{
     encode_sequence, encode_tag, encode_two_value_sum, encode_value_sum,
 };
 
+mod c_abi;
 mod shape;
+use c_abi::DecodedNativeBoundaryCAbiV1;
 pub use shape::DecodedNativeBoundaryNominalShape;
 
 pub trait NativeBoundaryResolver<E>:
@@ -289,6 +291,7 @@ pub struct DecodedNativeBoundaryTypeDefinitionRecord {
     owner: DecodedNativeBoundaryNominalOwner,
     type_parameter_count: u32,
     shape: DecodedNativeBoundaryNominalShape,
+    c_abi: DecodedNativeBoundaryCAbiV1,
 }
 
 impl DecodedNativeBoundaryTypeDefinitionRecord {
@@ -311,8 +314,13 @@ impl DecodedNativeBoundaryTypeDefinitionRecord {
         let type_parameter_count = resolver
             .native_boundary_type_parameter_count(&declaration)
             .map_err(NativeBoundaryResolutionError::Reference)?;
+        let c_abi = self
+            .c_abi
+            .resolve(&shape)
+            .map_err(NativeBoundaryResolutionError::Definition)?;
         let record =
             NativeBoundaryTypeDefinitionRecord::new(&declaration, &[type_parameter_count], shape)
+                .and_then(|record| record.with_c_abi(c_abi))
                 .map_err(NativeBoundaryResolutionError::Definition)?;
         let actual_owner_kind = match record.owner() {
             NativeBoundaryNominalOwner::Concrete(_) => DecodedOwnerKind::Concrete,
@@ -333,23 +341,26 @@ impl DecodedNativeBoundaryTypeDefinitionRecord {
 
 impl WireEncode for DecodedNativeBoundaryTypeDefinitionRecord {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
         encoder.unsigned(u64::from(self.type_parameter_count))?;
         encoder.field(3)?;
-        self.shape.encode(encoder)
+        self.shape.encode(encoder)?;
+        encoder.field(4)?;
+        self.c_abi.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedNativeBoundaryTypeDefinitionRecord {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(4)?;
         Ok(Self {
             owner: decoder.field(1, DecodedNativeBoundaryNominalOwner::decode)?,
             type_parameter_count: decoder.field(2, Decoder::u32)?,
             shape: decoder.field(3, DecodedNativeBoundaryNominalShape::decode)?,
+            c_abi: decoder.field(4, DecodedNativeBoundaryCAbiV1::decode)?,
         })
     }
 }

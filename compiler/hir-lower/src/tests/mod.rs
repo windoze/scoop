@@ -46,6 +46,7 @@ mod m22_pattern_warnings;
 mod m22_ranges;
 mod m22_recursive_named_fields;
 mod m23_address_of_globals;
+mod m23_c_projection;
 mod m23_callable_applications;
 mod m23_callable_interface_production;
 mod m23_callable_reference_identities;

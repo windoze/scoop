@@ -1434,6 +1434,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
         name: "ForeignCallback<(Int) -> Unit>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Declared {
+            c_abi: mir::StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![

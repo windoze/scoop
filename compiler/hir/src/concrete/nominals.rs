@@ -87,11 +87,20 @@ pub struct StructDef {
 pub enum StructRepresentation {
     Declared {
         attributes: StructAttributes,
+        c_abi: StructCAbi,
         fields: Vec<DeclaredStructField>,
     },
     Intrinsic {
         declaration: IntrinsicTypeDeclaration,
         application: IntrinsicTypeRepresentation,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructCAbi {
+    SourceRepresentation,
+    UInt64Field {
+        field: scoop_identity::PersistentFieldId,
     },
 }
 

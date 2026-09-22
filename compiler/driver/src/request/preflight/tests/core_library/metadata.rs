@@ -1,9 +1,9 @@
 use scoop_hir::{ExportDefaultTemplateKeyV1, SourceNominalId};
 use scoop_identity::{
-    CallableTemplateOrigin, CanonicalIdentifier, ConeIdentity, CoreNativeBoundaryNominal,
-    DeclarationScope, DefinitionOwnerChain, DependencyCallableDeclarationId, PackagePath,
-    PersistentFunctionId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    CallableTemplateOrigin, CanonicalIdentifier, ConeIdentity, DeclarationScope,
+    DefinitionOwnerChain, DependencyCallableDeclarationId, PackagePath, PersistentFunctionId,
+    PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, SignatureTypeKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
 mod abi;
@@ -69,9 +69,10 @@ pub(super) fn assert_ordinary_interfaces(
                 name(function_name),
                 0,
                 None,
-                vec![SignatureTypeKey::Nominal(
-                    CoreNativeBoundaryNominal::Signed32.concrete_id().unwrap(),
-                )],
+                vec![SignatureTypeKey::Nominal(intrinsic_type(
+                    production,
+                    scoop_hir::IntrinsicTypeKind::Integer(scoop_hir::IntegerKind::SIGNED_32),
+                ))],
             ))
             .unwrap();
         let declaration = CallableTemplateOrigin::Function(function);
@@ -103,4 +104,25 @@ fn site() -> SourceDeclarationSite {
 
 fn name(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
+}
+
+fn intrinsic_type(
+    production: &scoop_slib::ValidatedCrossConeSemanticsProduction,
+    family: scoop_hir::IntrinsicTypeKind,
+) -> PersistentTypeId {
+    production
+        .hir_interface()
+        .nominal_interfaces()
+        .records()
+        .iter()
+        .find_map(
+            |record| match (record.source_shape(), record.declaration()) {
+                (
+                    scoop_hir::NominalSourceShapeV1::Intrinsic(representation),
+                    SourceNominalId::Concrete(id),
+                ) if representation.family() == family => Some(id),
+                _ => None,
+            },
+        )
+        .expect("the actual source interface retains the intrinsic declaration")
 }

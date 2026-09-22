@@ -14,15 +14,15 @@ use scoop_identity::{
     CanonicalCAbiParameter, CanonicalCAbiReturn, CanonicalCAbiSignatureFingerprint,
     CanonicalCAbiSignatureFingerprintRecord, CanonicalCStorageType, CanonicalNativeLibraryName,
     CanonicalScoopAbiFunctionSignature, CanonicalScoopStorage, CborIdentityRecord,
-    CoreNativeBoundaryNominal, ExactCallableSignature, ExactTypeKey, GcEffect, IdentityLayer,
-    InitializationUnitKey, NativeExternalContract, NativeExternalContractRecord,
-    NativeExternalSymbolKey, NativeLibraryBinding, NativeLinkRequirementId,
-    NativeLinkRequirementKey, NonEmptyVec, OptionalSignatureType, PersistentCallableApplicationId,
-    PersistentCallbackApplicationId, PersistentCallbackRegistrationId, PersistentExactTypeId,
-    PersistentInitializationUnitId, ScoopAbiArgument, ScoopAbiReturn, ScoopAbiValueShape,
-    SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature, SourceCAbiReturn,
-    SourceExternFunctionAbi, SourceNativeExternalContract, SourceNativeExternalContractRecord,
-    SourceNativeLibraryBinding, SourceScoopAbiFunctionSignature, TargetCallingConvention,
+    ExactCallableSignature, ExactTypeKey, GcEffect, IdentityLayer, InitializationUnitKey,
+    NativeExternalContract, NativeExternalContractRecord, NativeExternalSymbolKey,
+    NativeLibraryBinding, NativeLinkRequirementId, NativeLinkRequirementKey, NonEmptyVec,
+    OptionalSignatureType, PersistentCallableApplicationId, PersistentCallbackApplicationId,
+    PersistentCallbackRegistrationId, PersistentExactTypeId, PersistentInitializationUnitId,
+    ScoopAbiArgument, ScoopAbiReturn, ScoopAbiValueShape, SignatureCallableShape, SignatureTypeKey,
+    SourceCAbiFunctionSignature, SourceCAbiReturn, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractRecord, SourceNativeLibraryBinding,
+    SourceScoopAbiFunctionSignature, TargetCallingConvention,
 };
 use scoop_wire::{BudgetMeter, WirePath};
 
@@ -142,7 +142,7 @@ pub(super) fn validate_target_normalization(
         view.type_definitions,
         NativeBoundaryTypeDefinitionRecord::owner,
         meter,
-        &WirePath::root().field(33),
+        &WirePath::root().field(34),
     )?;
 
     let actual_contracts = index_records(
@@ -893,14 +893,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         }
         Ok(())
     }
-}
-
-fn is_core_application(key: &ExactTypeKey, role: CoreNativeBoundaryNominal) -> bool {
-    matches!(
-        key,
-        ExactTypeKey::NominalApplication { origin, arguments }
-            if Some(*origin) == role.generic_id() && arguments.as_slice().len() == 1
-    )
 }
 
 fn source_target(

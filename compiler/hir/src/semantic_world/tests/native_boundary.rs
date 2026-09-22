@@ -53,7 +53,7 @@ fn native_producer_uses_actual_core_and_ordinary_source_shapes() {
         );
         with_world(&[&fixture], &[], |world| {
             let record = world
-                .native_boundary_type_definition(owner(&fixture))
+                .native_boundary_type_definition(owner(&fixture), Ok)
                 .unwrap();
             let Shape::Struct { c_layout, fields } = record.shape() else {
                 panic!("struct witness")
@@ -221,6 +221,6 @@ fn native_producer_missing_transitive_provider_does_not_publish_a_partial_closur
 
 fn close(world: &ImportedSemanticWorld<'_>, root: Owner) -> Result<Vec<Record>, Error> {
     crate::persistent_native_boundary::closure::close([root].into(), |owner| {
-        world.native_boundary_type_definition(owner)
+        world.native_boundary_type_definition(owner, Ok)
     })
 }

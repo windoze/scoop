@@ -1,6 +1,9 @@
 use super::*;
 use scoop_identity::PersistentGenericTypeId;
 
+mod c_projection;
+mod nullable_projection;
+
 struct Fixture {
     exact: PersistentExactTypeId,
     scalar: PersistentExactTypeId,

@@ -174,11 +174,23 @@ pub(super) fn c_ffi_type(
             signature: Box::new(c_function_type(module, structs, enums, *signature)),
             storage: lir::CCodePointerStorage::Direct,
         },
-        mir::Type::Struct(id) => lir::CType::Struct(
-            structs
-                .c_ref(struct_def_id(*id))
-                .expect("HIR C-FFI classification admits only C-layout structs"),
-        ),
+        mir::Type::Struct(id) => {
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Declared {
+                    c_abi: mir::StructCAbi::UInt64Field { .. },
+                    ..
+                }
+            ) {
+                lir::CType::Integer(lir::IntegerKind::UNSIGNED_64)
+            } else {
+                lir::CType::Struct(
+                    structs
+                        .c_ref(struct_def_id(*id))
+                        .expect("C struct storage requires an explicit C layout"),
+                )
+            }
+        }
         mir::Type::Enum(id, args) if module.option_core(*id).is_some() => {
             match exact_option_payload(module, *id, args) {
                 mir::Type::Ptr(pointee) => {

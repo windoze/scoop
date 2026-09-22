@@ -1,7 +1,7 @@
 use super::*;
 
 pub fn hir_identity_foundation_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "identity-foundation", 2)
+    CapabilityId::new("org.scoop-lang.hir", "identity-foundation", 3)
         .expect("built-in capability id is valid")
 }
 

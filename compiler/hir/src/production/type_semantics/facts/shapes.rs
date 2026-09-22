@@ -18,7 +18,9 @@ impl FactProjector<'_> {
             TypeKind::Struct(id) => {
                 let structure = &self.local.structs[*id];
                 match &structure.representation {
-                    concrete::StructRepresentation::Declared { attributes, fields } => {
+                    concrete::StructRepresentation::Declared {
+                        attributes, fields, ..
+                    } => {
                         let fields = exacts(
                             self.local,
                             &fields.iter().map(|field| field.ty).collect::<Vec<_>>(),
