@@ -9,7 +9,7 @@ use crate::cross_cone_hir_authority::{
 };
 
 /// One provider whose portable const records match its validated property
-/// surface and the exact trusted-core primitive identities.
+/// surface and the shared intrinsic declarations of their actual types.
 pub struct ConstValidatedCrossConeHirFrontSections<'input>(
     pub(super) ValidatedSurfaceFront<'input>,
 );
@@ -21,7 +21,7 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<ConstValidatedCrossConeHirFrontSections<'input>, CrossConeHirConstSurfaceError>
     {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -35,9 +35,9 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .constants()

@@ -10,6 +10,7 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
+    IntrinsicBinders(crate::NominalIntrinsicBinderError),
     SourceShapeKind {
         expected: PublicNominalKindV1,
         actual: PublicNominalKindV1,
@@ -22,6 +23,7 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntrinsicBinders(error) => error.fmt(formatter),
             Self::SourceShapeKind { expected, actual } => write!(
                 formatter,
                 "source shape kind {actual:?} does not match nominal kind {expected:?}"

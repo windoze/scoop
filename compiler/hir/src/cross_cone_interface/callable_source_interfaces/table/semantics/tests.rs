@@ -133,7 +133,7 @@ impl CallableSourceInterfaceSemanticAuthority<NoFactsError> for NoFacts {
         ConeIdentity::CORE
     }
 
-    fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, NoFactsError> {
+    fn validate_array_type(&mut self, _array: PersistentGenericTypeId) -> Result<(), NoFactsError> {
         Err(NoFactsError)
     }
 

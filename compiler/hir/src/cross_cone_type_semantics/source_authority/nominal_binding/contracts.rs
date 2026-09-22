@@ -86,6 +86,7 @@ pub(super) fn validate(
                 }
             }
         }
+        NominalSourceShapeV1::Intrinsic(_) => meter.charge_work(1, &WirePath::root())?,
         NominalSourceShapeV1::Class
         | NominalSourceShapeV1::Interface
         | NominalSourceShapeV1::Object(_) => {}

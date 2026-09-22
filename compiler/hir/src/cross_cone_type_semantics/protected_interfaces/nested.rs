@@ -50,6 +50,11 @@ impl ProtectedNestedSourceInterfaceV1 {
         source_shape: NominalSourceShapeV1,
         source_support: CanonicalNestedSourceSupportV1,
     ) -> Result<Self, NestedSourceBuildError> {
+        if let NominalSourceShapeV1::Intrinsic(representation) = &source_shape {
+            representation
+                .validate_binders(&type_parameters)
+                .map_err(NestedSourceBuildError::IntrinsicBinders)?;
+        }
         if source_shape.kind() != kind
             || (!constructors.is_empty()
                 && !matches!(

@@ -24,7 +24,55 @@ use scoop_identity::{
 use scoop_wire::encode;
 
 use super::*;
-use crate::cross_cone_hir_authority::CrossConeHirConstAuthorityError;
+use crate::cross_cone_hir_authority::{
+    CrossConeHirConstAuthorityError, CrossConeHirIntrinsicTypeError,
+};
+
+mod intrinsic_providers;
+
+#[test]
+fn const_reader_uses_an_ordinary_providers_explicit_intrinsic_declaration() {
+    let fixture = ConstSurface::new(ConstSurfaceCase::IntrinsicBoolean);
+    let bytes = fixture.artifact();
+    let validated = validate_until_source_interfaces(&bytes)
+        .validate_const_values(vec![])
+        .unwrap();
+    assert_ne!(validated.identity(), ConeIdentity::CORE);
+    assert!(matches!(
+        validated.hir_core_production().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+    assert_eq!(validated.hir_interface().constants().records().len(), 1);
+}
+
+#[test]
+fn const_reader_rejects_the_wrong_intrinsic_family_at_the_actual_type() {
+    let fixture = ConstSurface::new(ConstSurfaceCase::WrongFamily);
+    let bytes = fixture.artifact();
+    let front = validate_until_source_interfaces(&bytes);
+    let Err(CrossConeHirConstSurfaceError::Constants(error)) = front.validate_const_values(vec![])
+    else {
+        panic!("a Boolean constant cannot use an integer intrinsic declaration");
+    };
+    assert!(matches!(
+        error,
+        ExportConstValueSetSemanticValidationError::Record {
+            error: ExportConstValueSemanticValidationError::ValueType {
+                error: CrossConeHirConstAuthorityError::ValueType(
+                    CrossConeHirIntrinsicTypeError::Family {
+                        expected: scoop_hir::IntrinsicTypeKind::Boolean,
+                        actual: scoop_hir::IntrinsicTypeKind::Integer(
+                            scoop_hir::IntegerKind::SIGNED_32
+                        ),
+                        ..
+                    }
+                ),
+                ..
+            },
+            ..
+        }
+    ));
+}
 
 #[test]
 fn validates_an_empty_const_surface() {
@@ -38,21 +86,23 @@ fn validates_an_empty_const_surface() {
 }
 
 #[test]
-fn rejects_a_const_without_trusted_core_type_authority() {
-    let fixture = ConstSurface::new(ConstSurfaceCase::MissingTrustedCore);
+fn rejects_an_ordinary_nominal_as_a_const_intrinsic_type() {
+    let fixture = ConstSurface::new(ConstSurfaceCase::OrdinaryNominal);
     let bytes = fixture.artifact();
     let front = validate_until_source_interfaces(&bytes);
 
     let Err(CrossConeHirConstSurfaceError::Constants(error)) =
         front.validate_const_values(Vec::new())
     else {
-        panic!("a const without trusted core type authority must fail validation");
+        panic!("an ordinary nominal cannot supply the const intrinsic family");
     };
     assert!(matches!(
         error,
         ExportConstValueSetSemanticValidationError::Record {
-            error: ExportConstValueSemanticValidationError::CanonicalValueType {
-                error: CrossConeHirConstAuthorityError::MissingTrustedCore,
+            error: ExportConstValueSemanticValidationError::ValueType {
+                error: CrossConeHirConstAuthorityError::ValueType(
+                    CrossConeHirIntrinsicTypeError::NotIntrinsic { .. }
+                ),
                 ..
             },
             ..
@@ -114,8 +164,10 @@ fn validate_until_source_interfaces(
 
 #[derive(Clone, Copy)]
 enum ConstSurfaceCase {
-    MissingTrustedCore,
+    OrdinaryNominal,
     MismatchedOrigin,
+    IntrinsicBoolean,
+    WrongFamily,
 }
 
 struct ConstSurface {
@@ -230,13 +282,27 @@ impl ConstSurface {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-            NominalSourceShapeV1::Struct(
-                StructSourceShapeV1::try_new(
-                    Vec::new(),
-                    scoop_hir::NominalCLayoutPolicyV1::Ordinary,
-                )
-                .unwrap(),
-            ),
+            match case {
+                ConstSurfaceCase::IntrinsicBoolean => NominalSourceShapeV1::Intrinsic(
+                    scoop_hir::NominalIntrinsicRepresentationV1::new(
+                        scoop_hir::IntrinsicTypeKind::Boolean,
+                    ),
+                ),
+                ConstSurfaceCase::WrongFamily => NominalSourceShapeV1::Intrinsic(
+                    scoop_hir::NominalIntrinsicRepresentationV1::new(
+                        scoop_hir::IntrinsicTypeKind::Integer(scoop_hir::IntegerKind::SIGNED_32),
+                    ),
+                ),
+                ConstSurfaceCase::OrdinaryNominal | ConstSurfaceCase::MismatchedOrigin => {
+                    NominalSourceShapeV1::Struct(
+                        StructSourceShapeV1::try_new(
+                            Vec::new(),
+                            scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                        )
+                        .unwrap(),
+                    )
+                }
+            },
         )
         .unwrap();
         let property_interface = PropertyInterfaceRecordV1::try_new(

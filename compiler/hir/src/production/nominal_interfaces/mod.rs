@@ -122,7 +122,7 @@ impl<'a> NominalProjection<'a> {
             exact_supertypes,
             constructors::from_class(self, id, declaration, owner)?,
             members::ordinary(self, owner, &declaration.methods, &declaration.properties)?,
-            crate::NominalSourceShapeV1::Class,
+            source_shape::class_shape(declaration),
         )
     }
 

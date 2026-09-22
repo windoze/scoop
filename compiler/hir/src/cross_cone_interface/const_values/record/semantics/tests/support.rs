@@ -138,13 +138,15 @@ impl ExportConstValueSemanticAuthority<TestAuthorityError> for TestAuthority {
         }
     }
 
-    fn canonical_const_value_type(
+    fn validate_const_value_type(
         &mut self,
+        value_type: PersistentTypeId,
         kind: CanonicalConstValueKindV1,
-    ) -> Result<PersistentTypeId, TestAuthorityError> {
+    ) -> Result<(), TestAuthorityError> {
         self.core_types
             .get(&kind)
-            .copied()
+            .filter(|&&expected| expected == value_type)
+            .map(|_| ())
             .ok_or(TestAuthorityError::Core(kind))
     }
 }
@@ -198,6 +200,18 @@ pub(super) fn property_interface(
     value_type: PersistentTypeId,
     representation: PropertyRepresentationV1,
 ) -> PropertyInterfaceRecordV1 {
+    property_interface_with_type(
+        property,
+        SignatureTypeKey::Nominal(value_type),
+        representation,
+    )
+}
+
+pub(super) fn property_interface_with_type(
+    property: PersistentPropertyId,
+    value_type: SignatureTypeKey,
+    representation: PropertyRepresentationV1,
+) -> PropertyInterfaceRecordV1 {
     let declaration = PropertyOwner::Property(property);
     let getter = PersistentPropertyAccessorId::from_key(&PropertyAccessorKey::new(
         declaration,
@@ -209,7 +223,7 @@ pub(super) fn property_interface(
         PublicDeclarationOwnerV1::TopLevel,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
-        SignatureTypeKey::Nominal(value_type),
+        value_type,
         PropertyCapabilityV1::read_only(getter),
         representation,
         PropertyPublicAccessV1::DirectOnly,

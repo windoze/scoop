@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NestedSourceBuildError {
+    IntrinsicBinders(crate::NominalIntrinsicBinderError),
     Kind,
     Modality,
     Binders,
@@ -16,6 +17,7 @@ pub enum NestedSourceBuildError {
 impl fmt::Display for NestedSourceBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntrinsicBinders(error) => error.fmt(f),
             Self::Kind => {
                 f.write_str("nested source shape or constructor partition has the wrong kind")
             }

@@ -42,7 +42,9 @@ impl DecodedNominalSourceShapeV1 {
                     }
                 }
             }
-            Self::Class | Self::Interface | Self::Object(_) => {}
+            Self::Class | Self::Interface | Self::Object(_) | Self::Intrinsic(_) => {
+                return self.resolve(resolver).map_err(Error::Value);
+            }
         }
         self.resolve(resolver).map_err(Error::Value)
     }

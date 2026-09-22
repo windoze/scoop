@@ -57,7 +57,9 @@ fn shape_queries_borrow_the_artifact_keys_for_all_four_identity_roles() {
                     );
                     roles[3] += 1;
                 }
-                hir::NominalSourceShapeV1::Class | hir::NominalSourceShapeV1::Interface => continue,
+                hir::NominalSourceShapeV1::Class
+                | hir::NominalSourceShapeV1::Interface
+                | hir::NominalSourceShapeV1::Intrinsic(_) => continue,
             }
         }
         assert!(roles.into_iter().all(|count| count > 0));

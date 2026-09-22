@@ -18,6 +18,9 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
             .map_err(Error::Signature)
     };
     match source.source_shape() {
+        NominalSourceShapeV1::Intrinsic(_) => meter
+            .charge_work(1, &WirePath::root())
+            .map_err(Error::Resource)?,
         NominalSourceShapeV1::Struct(shape) => {
             for field in shape.fields() {
                 let key = authority

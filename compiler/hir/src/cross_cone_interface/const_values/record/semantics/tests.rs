@@ -1,6 +1,6 @@
 use scoop_identity::{
-    ConeIdentity, DeclarationScope, PersistentPropertyId, PropertyOwner, SignatureTypeKey,
-    SourceDeclarationKey, SourceDeclarationKind,
+    ConeIdentity, DeclarationScope, NonEmptyVec, PersistentPropertyId, PropertyOwner,
+    SignatureTypeKey, SourceDeclarationKey, SourceDeclarationKind,
 };
 
 use super::*;
@@ -11,7 +11,7 @@ mod support;
 use support::*;
 
 #[test]
-fn validates_every_value_kind_against_its_exact_core_nominal() {
+fn validates_every_value_kind_against_its_exact_intrinsic_nominal() {
     let fixture = Fixture::new();
 
     for (value, kind) in value_cases() {
@@ -216,7 +216,7 @@ fn property_interface_must_be_const_with_the_exact_value_type() {
 }
 
 #[test]
-fn value_kind_requires_available_typed_core_authority() {
+fn value_kind_requires_the_actual_intrinsic_nominal_declaration() {
     let fixture = Fixture::new();
     let mut authority = fixture.authority();
     authority
@@ -225,12 +225,10 @@ fn value_kind_requires_available_typed_core_authority() {
 
     assert_eq!(
         fixture.record().validate_semantics(&mut authority),
-        Err(
-            ExportConstValueSemanticValidationError::CanonicalValueType {
-                kind: CanonicalConstValueKindV1::Boolean,
-                error: TestAuthorityError::Core(CanonicalConstValueKindV1::Boolean),
-            }
-        )
+        Err(ExportConstValueSemanticValidationError::ValueType {
+            kind: CanonicalConstValueKindV1::Boolean,
+            error: TestAuthorityError::Core(CanonicalConstValueKindV1::Boolean),
+        })
     );
 }
 
@@ -251,12 +249,40 @@ fn user_nominal_is_rejected_even_when_the_property_interface_matches() {
 
     assert!(matches!(
         record.validate_semantics(&mut authority),
-        Err(ExportConstValueSemanticValidationError::ValueKindTypeMismatch {
+        Err(ExportConstValueSemanticValidationError::ValueType {
             kind: CanonicalConstValueKindV1::Boolean,
-            expected,
-            actual,
-        }) if expected == Box::new(SignatureTypeKey::Nominal(
-            fixture.value_type(CanonicalConstValueKindV1::Boolean)
-        )) && actual == Box::new(SignatureTypeKey::Nominal(fixture.user_type))
+            error: TestAuthorityError::Core(CanonicalConstValueKindV1::Boolean),
+        })
     ));
+}
+
+#[test]
+fn structural_type_is_rejected_even_when_the_property_interface_matches() {
+    let fixture = Fixture::new();
+    let value_type = SignatureTypeKey::Tuple(NonEmptyVec::from_first(
+        SignatureTypeKey::Nominal(fixture.value_type(CanonicalConstValueKindV1::Boolean)),
+        [],
+    ));
+    let record = ExportConstValueV1::new(
+        fixture.property,
+        value_type.clone(),
+        CanonicalConstValueV1::Boolean(crate::CanonicalBooleanV1::True),
+        fixture.origin.clone(),
+    );
+    let mut authority = fixture.authority();
+    authority.interface = Some(property_interface_with_type(
+        fixture.property,
+        value_type.clone(),
+        PropertyRepresentationV1::Const,
+    ));
+
+    assert_eq!(
+        record.validate_semantics(&mut authority),
+        Err(
+            ExportConstValueSemanticValidationError::NonNominalValueType {
+                kind: CanonicalConstValueKindV1::Boolean,
+                actual: Box::new(value_type),
+            }
+        )
+    );
 }

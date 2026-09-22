@@ -22,7 +22,7 @@ pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 2)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 3)
         .expect("built-in capability id is valid")
 }
 

@@ -45,13 +45,12 @@ pub enum ExportConstValueSemanticValidationError<E> {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
-    CanonicalValueType {
+    ValueType {
         kind: CanonicalConstValueKindV1,
         error: E,
     },
-    ValueKindTypeMismatch {
+    NonNominalValueType {
         kind: CanonicalConstValueKindV1,
-        expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
 }
@@ -107,19 +106,15 @@ impl<E: fmt::Display> fmt::Display for ExportConstValueSemanticValidationError<E
                 formatter,
                 "const value type {actual:?} does not match property interface type {expected:?}"
             ),
-            Self::CanonicalValueType { kind, error } => {
+            Self::ValueType { kind, error } => {
                 write!(
                     formatter,
-                    "missing canonical core type for {kind:?}: {error}"
+                    "invalid intrinsic nominal for const {kind:?}: {error}"
                 )
             }
-            Self::ValueKindTypeMismatch {
-                kind,
-                expected,
-                actual,
-            } => write!(
+            Self::NonNominalValueType { kind, actual } => write!(
                 formatter,
-                "const {kind:?} value type {actual:?} does not match canonical core type {expected:?}"
+                "const {kind:?} requires a non-generic intrinsic nominal, found {actual:?}"
             ),
         }
     }

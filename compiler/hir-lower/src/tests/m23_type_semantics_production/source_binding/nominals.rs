@@ -166,7 +166,9 @@ fn byte_restored_nominal_sources_bind_complete_declarations_and_variant_origins(
                             shape.value()
                         );
                     }
-                    hir::NominalSourceShapeV1::Class | hir::NominalSourceShapeV1::Interface => {}
+                    hir::NominalSourceShapeV1::Class
+                    | hir::NominalSourceShapeV1::Interface
+                    | hir::NominalSourceShapeV1::Intrinsic(_) => continue,
                 }
             }
             if input == NESTED {

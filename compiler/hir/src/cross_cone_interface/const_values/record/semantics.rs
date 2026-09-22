@@ -34,8 +34,8 @@ impl ConstPropertyDeclarationSourceV1 {
     }
 }
 
-/// Supplies current-foundation facts, validated property interfaces, and
-/// trusted canonical core owners for exported const values.
+/// Supplies current-foundation facts and validates the actual nominal target
+/// through its shared declaration in the reachable provider closure.
 pub trait ExportConstValueSemanticAuthority<E> {
     fn current_cone(&self) -> ConeIdentity;
 
@@ -51,12 +51,12 @@ pub trait ExportConstValueSemanticAuthority<E> {
         property: PersistentPropertyId,
     ) -> Result<&PropertyInterfaceRecordV1, E>;
 
-    /// Returns the canonical non-generic core nominal for one closed value
-    /// kind without consulting display names or representation layout.
-    fn canonical_const_value_type(
+    /// Checks the declared intrinsic family of this exact non-generic nominal.
+    fn validate_const_value_type(
         &mut self,
+        value_type: PersistentTypeId,
         kind: CanonicalConstValueKindV1,
-    ) -> Result<PersistentTypeId, E>;
+    ) -> Result<(), E>;
 }
 
 impl ExportConstValueV1 {
@@ -79,22 +79,17 @@ impl ExportConstValueV1 {
         self.validate_property_interface(interface)?;
 
         let kind = self.value.kind();
-        let expected_owner = authority
-            .canonical_const_value_type(kind)
-            .map_err(
-                |error| ExportConstValueSemanticValidationError::CanonicalValueType { kind, error },
-            )?;
-        let expected = SignatureTypeKey::Nominal(expected_owner);
-        if self.value_type != expected {
+        let SignatureTypeKey::Nominal(value_type) = self.value_type else {
             return Err(
-                ExportConstValueSemanticValidationError::ValueKindTypeMismatch {
+                ExportConstValueSemanticValidationError::NonNominalValueType {
                     kind,
-                    expected: Box::new(expected),
                     actual: Box::new(self.value_type.clone()),
                 },
             );
-        }
-        Ok(())
+        };
+        authority
+            .validate_const_value_type(value_type, kind)
+            .map_err(|error| ExportConstValueSemanticValidationError::ValueType { kind, error })
     }
 
     fn validate_declaration_source<E>(

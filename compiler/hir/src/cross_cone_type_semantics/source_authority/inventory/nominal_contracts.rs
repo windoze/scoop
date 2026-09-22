@@ -34,6 +34,11 @@ impl NominalSourceContractV1 {
         children: CanonicalNestedNominalRefsV1,
         source_shape: NominalSourceShapeV1,
     ) -> Result<Self, SourceInventoryError> {
+        if let NominalSourceShapeV1::Intrinsic(representation) = &source_shape {
+            representation
+                .validate_binders(&type_parameters)
+                .map_err(reference)?;
+        }
         let kind = source_shape.kind();
         let valid = match kind {
             PublicNominalKindV1::Class => modality != NominalInheritanceModalityV1::Interface,

@@ -49,7 +49,9 @@ impl<'a> TypeFoundationSourceProviderV1<'a> {
             .filter(|record| {
                 matches!(
                     record.source_shape(),
-                    NominalSourceShapeV1::Struct(_) | NominalSourceShapeV1::Enum(_)
+                    NominalSourceShapeV1::Struct(_)
+                        | NominalSourceShapeV1::Enum(_)
+                        | NominalSourceShapeV1::Intrinsic(_)
                 )
             })
             .map_or(
@@ -88,7 +90,9 @@ pub(super) fn validate_public(
         if let SourceNominalId::Concrete(owner) = record.declaration()
             && matches!(
                 record.source_shape(),
-                NominalSourceShapeV1::Struct(_) | NominalSourceShapeV1::Enum(_)
+                NominalSourceShapeV1::Struct(_)
+                    | NominalSourceShapeV1::Enum(_)
+                    | NominalSourceShapeV1::Intrinsic(_)
             )
         {
             meter.charge_work(

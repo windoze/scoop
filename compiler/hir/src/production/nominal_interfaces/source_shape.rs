@@ -21,6 +21,15 @@ impl<'a> SourceShapeProjection<'a> {
     }
 }
 
+pub(super) fn class_shape(declaration: &crate::ClassDecl) -> NominalSourceShapeV1 {
+    match &declaration.representation {
+        crate::ClassRepresentation::Declared => NominalSourceShapeV1::Class,
+        crate::ClassRepresentation::Intrinsic(intrinsic) => NominalSourceShapeV1::Intrinsic(
+            crate::NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+        ),
+    }
+}
+
 pub(super) fn class_supertypes(
     projection: &SourceShapeProjection<'_>,
     owner: NominalDeclarationOwner,
@@ -119,6 +128,11 @@ pub(super) fn struct_shape(
     binders: &[HirSignatureBinder],
     owner: NominalDeclarationOwner,
 ) -> Result<NominalSourceShapeV1, NominalInterfaceBuildError> {
+    if let crate::StructRepresentation::Intrinsic(intrinsic) = &declaration.representation {
+        return Ok(NominalSourceShapeV1::Intrinsic(
+            crate::NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+        ));
+    }
     let mut fields = Vec::with_capacity(declaration.semantic_fields().len());
     for (index, field) in declaration.semantic_fields().iter().enumerate() {
         let local_index = u32::try_from(index)

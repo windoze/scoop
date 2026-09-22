@@ -19,7 +19,7 @@ pub(super) fn project(
             )?;
             (
                 source_shape::class_supertypes(&projection, owner, d, binders),
-                Ok(NominalSourceShapeV1::Class),
+                Ok(source_shape::class_shape(d)),
             )
         }
         LocalNominalId::Interface(id) => {

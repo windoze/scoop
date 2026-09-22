@@ -369,16 +369,10 @@ impl NominalRepresentationSupportV1 {
             | (NominalRepresentationShapeV1::Object { .. }, NominalSourceShapeV1::Object(_)) => {
                 true
             }
-            (NominalRepresentationShapeV1::Intrinsic { representation }, source) => {
-                match (representation.family().target(), source) {
-                    (IntrinsicTypeTarget::Struct, NominalSourceShapeV1::Struct(source)) => {
-                        source.fields().is_empty()
-                            && source.c_layout_policy() == NominalCLayoutPolicyV1::Ordinary
-                    }
-                    (IntrinsicTypeTarget::Class, NominalSourceShapeV1::Class) => true,
-                    _ => false,
-                }
-            }
+            (
+                NominalRepresentationShapeV1::Intrinsic { representation },
+                NominalSourceShapeV1::Intrinsic(source),
+            ) => representation == source,
             _ => false,
         };
         if agrees {

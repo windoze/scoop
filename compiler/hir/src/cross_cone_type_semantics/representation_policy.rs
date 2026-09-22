@@ -9,6 +9,9 @@ use crate::{
     IntrinsicTypeKind,
 };
 
+mod intrinsic_contract;
+pub use intrinsic_contract::NominalIntrinsicBinderError;
+
 #[cfg(test)]
 mod tests;
 

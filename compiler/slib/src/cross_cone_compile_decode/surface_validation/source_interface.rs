@@ -22,7 +22,7 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
         CrossConeHirSourceInterfaceSurfaceError,
     > {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -36,9 +36,9 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .source_interfaces()

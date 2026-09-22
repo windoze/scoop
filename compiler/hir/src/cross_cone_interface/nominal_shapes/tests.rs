@@ -9,6 +9,7 @@ use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canoni
 
 use super::*;
 
+mod intrinsic;
 mod policy;
 
 #[test]
@@ -241,13 +242,13 @@ fn reader_rejects_missing_typed_authority() {
 #[test]
 fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
     let unknown_shape = decode_canonical::<DecodedNominalSourceShapeV1>(
-        &[0xa1, 0x00, 0x06],
+        &[0xa1, 0x00, 0x07],
         DecodeLimits::default(),
     )
     .unwrap_err();
     assert!(matches!(
         unknown_shape.kind(),
-        WireErrorKind::UnknownTag { tag: 6 }
+        WireErrorKind::UnknownTag { tag: 7 }
     ));
 
     let unknown_style =

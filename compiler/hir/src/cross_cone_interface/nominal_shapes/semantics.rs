@@ -63,6 +63,9 @@ impl NominalSourceShapeV1 {
         let scope = type_parameters.signature_scope(None);
         match self {
             Self::Class | Self::Interface => Ok(()),
+            Self::Intrinsic(representation) => representation
+                .validate_binders(type_parameters)
+                .map_err(NominalSourceShapeSemanticError::IntrinsicBinders),
             Self::Struct(shape) => {
                 for (index, field) in shape.fields().iter().enumerate() {
                     validate_struct_field(field, declaration, &scope, authority).map_err(
@@ -275,6 +278,7 @@ pub enum ObjectSourceShapeSemanticError<E> {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeSemanticError<E> {
+    IntrinsicBinders(crate::NominalIntrinsicBinderError),
     Kind {
         expected: PublicNominalKindV1,
         actual: PublicNominalKindV1,
@@ -365,6 +369,7 @@ impl<E: std::error::Error + 'static> std::error::Error for ObjectSourceShapeSema
 impl<E: fmt::Display> fmt::Display for NominalSourceShapeSemanticError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IntrinsicBinders(error) => error.fmt(formatter),
             Self::Kind { expected, actual } => write!(
                 formatter,
                 "source shape kind {actual:?} does not match nominal kind {expected:?}"

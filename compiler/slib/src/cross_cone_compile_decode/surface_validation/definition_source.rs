@@ -21,7 +21,7 @@ impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
         CrossConeHirDefinitionSourceSurfaceError,
     > {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -35,9 +35,9 @@ impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             Vec::new(),
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .definition_sources()

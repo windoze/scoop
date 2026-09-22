@@ -39,6 +39,7 @@ pub(super) fn render(export: &hir::ExportHir, table: &Table) -> String {
             hir::NominalSourceShapeV1::Class => "class".into(),
             hir::NominalSourceShapeV1::Interface => "interface".into(),
             hir::NominalSourceShapeV1::Object(_) => "singleton".into(),
+            hir::NominalSourceShapeV1::Intrinsic(representation) => format!("intrinsic={:?}", representation.family()),
         };
         format!("{} {:?}/{:?} binders={} parents={} constructors={}\n  members: {}\n  children: {}\n  shape: {}\n", name(sources[&record.owner()]), record.kind(), record.modality(), record.type_parameters().len_u32(), record.supertypes().values().len(), record.constructors().values().len(), members.join(", "), children.join(", "), shape)
     }).collect::<Vec<_>>();

@@ -60,6 +60,11 @@ impl NominalInterfaceRecordV1 {
                 actual: source_shape.kind(),
             });
         }
+        if let NominalSourceShapeV1::Intrinsic(representation) = source_shape {
+            representation
+                .validate_binders(&type_parameters)
+                .map_err(NominalInterfaceRecordBuildError::IntrinsicBinders)?;
+        }
         if !constructors.is_empty()
             && !matches!(
                 kind,

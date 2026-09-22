@@ -226,7 +226,7 @@ impl CallableSourceInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
         self.0
     }
 
-    fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, Infallible> {
+    fn validate_array_type(&mut self, _array: PersistentGenericTypeId) -> Result<(), Infallible> {
         unreachable!()
     }
 
@@ -457,10 +457,11 @@ impl ExportConstValueSemanticAuthority<Infallible> for EmptyAuthority {
         unreachable!()
     }
 
-    fn canonical_const_value_type(
+    fn validate_const_value_type(
         &mut self,
+        _value_type: PersistentTypeId,
         _kind: crate::CanonicalConstValueKindV1,
-    ) -> Result<PersistentTypeId, Infallible> {
+    ) -> Result<(), Infallible> {
         unreachable!()
     }
 }

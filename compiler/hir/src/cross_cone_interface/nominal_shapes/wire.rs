@@ -25,6 +25,7 @@ impl WireEncode for NominalSourceShapeV1 {
                 encoder.field(1)?;
                 shape.value.encode(encoder)
             }
+            Self::Intrinsic(representation) => encode_intrinsic(encoder, *representation),
         }
     }
 }
@@ -57,6 +58,7 @@ impl WireEncode for DecodedNominalSourceShapeV1 {
                 encoder.field(1)?;
                 value.encode(encoder)
             }
+            Self::Intrinsic(representation) => encode_intrinsic(encoder, *representation),
         }
     }
 }
@@ -100,7 +102,23 @@ impl WireDecode for DecodedNominalSourceShapeV1 {
                     .field(1, DecodedPersistentId::decode)
                     .map(Self::Object)
             }
+            6 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, NominalIntrinsicRepresentationV1::decode)
+                    .map(Self::Intrinsic)
+            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
+}
+
+fn encode_intrinsic(
+    encoder: &mut Encoder,
+    representation: NominalIntrinsicRepresentationV1,
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_tag(encoder, 6)?;
+    encoder.field(1)?;
+    representation.encode(encoder)
 }

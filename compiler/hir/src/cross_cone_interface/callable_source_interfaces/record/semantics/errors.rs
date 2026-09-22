@@ -22,13 +22,13 @@ pub enum CallableSourceInterfaceSemanticValidationError<E> {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
-    CanonicalArrayType {
+    ArrayDeclaration {
         index: usize,
         error: E,
     },
     VarargArrayType {
         index: usize,
-        expected: Box<SignatureTypeKey>,
+        element_type: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
     DefinitionOriginCone {
@@ -69,17 +69,17 @@ impl<E: fmt::Display> fmt::Display for CallableSourceInterfaceSemanticValidation
                 formatter,
                 "source parameter {index} has type {actual:?}, expected {expected:?}"
             ),
-            Self::CanonicalArrayType { index, error } => write!(
+            Self::ArrayDeclaration { index, error } => write!(
                 formatter,
-                "cannot resolve canonical Array type for source parameter {index}: {error}"
+                "invalid intrinsic Array declaration for source parameter {index}: {error}"
             ),
             Self::VarargArrayType {
                 index,
-                expected,
+                element_type,
                 actual,
             } => write!(
                 formatter,
-                "vararg source parameter {index} has value type {actual:?}, expected {expected:?}"
+                "vararg source parameter {index} has value type {actual:?}, expected Array of {element_type:?}"
             ),
             Self::DefinitionOriginCone {
                 index,

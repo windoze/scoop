@@ -11,6 +11,10 @@ pub(in super::super) fn public_value(
     meter.charge_work(1, path)?;
     match (actual, expected) {
         (
+            NominalRepresentationShapeV1::Intrinsic { representation },
+            NominalSourceShapeV1::Intrinsic(source),
+        ) => Ok(representation == source),
+        (
             NominalRepresentationShapeV1::Struct {
                 fields,
                 c_layout_policy,

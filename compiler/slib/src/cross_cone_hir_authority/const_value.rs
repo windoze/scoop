@@ -3,15 +3,15 @@
 use std::fmt;
 
 use scoop_hir::{
-    CanonicalConstValueKindV1, ConstPropertyDeclarationSourceV1, CoreHirInterfaceBranchV1,
-    ExportConstValueSemanticAuthority, PropertyInterfaceRecordV1,
+    CanonicalConstValueKindV1, ConstPropertyDeclarationSourceV1, ExportConstValueSemanticAuthority,
+    IntrinsicTypeKind, PropertyInterfaceRecordV1, SourceNominalId,
 };
 use scoop_identity::{
     ConeIdentity, DefinitionOriginSubject, IdentityReferenceError, PersistentPropertyId,
     PropertyOwner, SourceDeclarationKey,
 };
 
-use super::CanonicalCrossConeHirSurfaceAuthority;
+use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirIntrinsicTypeError};
 
 impl ExportConstValueSemanticAuthority<CrossConeHirConstAuthorityError>
     for CanonicalCrossConeHirSurfaceAuthority<'_>
@@ -48,17 +48,18 @@ impl ExportConstValueSemanticAuthority<CrossConeHirConstAuthorityError>
             .ok_or(CrossConeHirConstAuthorityError::MissingPropertyInterface { property })
     }
 
-    fn canonical_const_value_type(
+    fn validate_const_value_type(
         &mut self,
+        value_type: scoop_identity::PersistentTypeId,
         kind: CanonicalConstValueKindV1,
-    ) -> Result<scoop_identity::PersistentTypeId, CrossConeHirConstAuthorityError> {
-        let core = self
-            .trusted_core()
-            .ok_or(CrossConeHirConstAuthorityError::MissingTrustedCore)?;
-        let CoreHirInterfaceBranchV1::Core(interface) = core.core_interface() else {
-            return Err(CrossConeHirConstAuthorityError::InvalidTrustedCore);
+    ) -> Result<(), CrossConeHirConstAuthorityError> {
+        let family = match kind {
+            CanonicalConstValueKindV1::Integer(kind) => IntrinsicTypeKind::Integer(kind),
+            CanonicalConstValueKindV1::Boolean => IntrinsicTypeKind::Boolean,
+            CanonicalConstValueKindV1::String => IntrinsicTypeKind::String,
         };
-        Ok(interface.compiler_protocols().const_value_source_type(kind))
+        self.validate_intrinsic_type(SourceNominalId::Concrete(value_type), family)
+            .map_err(CrossConeHirConstAuthorityError::ValueType)
     }
 }
 
@@ -67,8 +68,7 @@ pub enum CrossConeHirConstAuthorityError {
     Identity(IdentityReferenceError),
     MissingDefinitionOrigin { property: PersistentPropertyId },
     MissingPropertyInterface { property: PersistentPropertyId },
-    MissingTrustedCore,
-    InvalidTrustedCore,
+    ValueType(CrossConeHirIntrinsicTypeError),
 }
 
 impl fmt::Display for CrossConeHirConstAuthorityError {
@@ -83,11 +83,7 @@ impl fmt::Display for CrossConeHirConstAuthorityError {
                 formatter,
                 "const property {property} has no validated public property interface"
             ),
-            Self::MissingTrustedCore => formatter
-                .write_str("trusted core is absent from the exported-constant dependency closure"),
-            Self::InvalidTrustedCore => {
-                formatter.write_str("the canonical core provider has no trusted core interface")
-            }
+            Self::ValueType(error) => error.fmt(formatter),
         }
     }
 }
@@ -96,10 +92,8 @@ impl std::error::Error for CrossConeHirConstAuthorityError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Identity(error) => Some(error),
-            Self::MissingDefinitionOrigin { .. }
-            | Self::MissingPropertyInterface { .. }
-            | Self::MissingTrustedCore
-            | Self::InvalidTrustedCore => None,
+            Self::ValueType(error) => Some(error),
+            Self::MissingDefinitionOrigin { .. } | Self::MissingPropertyInterface { .. } => None,
         }
     }
 }

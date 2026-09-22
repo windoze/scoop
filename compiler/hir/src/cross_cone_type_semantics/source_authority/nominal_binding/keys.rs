@@ -100,6 +100,14 @@ pub(super) fn bind(
     }
     for record in bound.table.records() {
         match record.source_shape() {
+            NominalSourceShapeV1::Intrinsic(_) => {
+                exact_set(
+                    fields.get(&record.owner()),
+                    std::iter::empty(),
+                    meter,
+                    "intrinsic source fields",
+                )?;
+            }
             NominalSourceShapeV1::Struct(shape) => {
                 exact_set(
                     fields.get(&record.owner()),

@@ -217,3 +217,11 @@ lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生
 新增共有合同测试覆盖所有 intrinsic kind 的 core/普通 provider 与 wire 往返、整数 owner/位宽和 shift 参数替换、固定角色目标替换、wrong source kind/binder/effect，以及实际 Compile 入口的缺失角色、重复 kind 和零/连续预算耗尽；旧九字段 payload 和 capability 均有拒绝测试。按职责新增的生产模块分别为 39/81/91/114 行，product 主体与 wire 缩短到 585/455 行，测试与构造辅助模块均独立。确认无构建测试进程后 cargo clean 删除 33,598 个文件、41.0 GiB。
 
 本批完成完整 operation 表退役，未将其等同于 M23-6 完成。Core/NotCore 外层、native-boundary 后端固定身份重建、String/初始化与 Link 共有化，以及原有完整 MIR/LIR 生产、跨 Cone nominal 消费、双 view 与 ZST 验收仍继续推进。
+
+2026-09-22：共有 nominal intrinsic 与公开常量/vararg 查询批次通过 workspace fmt、clippy（含 all-targets，无警告）、独立与组合 producer fixture，以及配套 scoopc 的全部 5,730 项 workspace 测试（37 组，零失败、零忽略），含真实 core 修改、重建、缓存、任意输出路径消费与双 view 回归。
+
+共有 NominalSourceShapeV1 新增 tag 6，保存已有 NominalIntrinsicRepresentationV1 的完整 family；public nominal、source contract 与 nested support 复用 kind、binder 数量和 bounds 合同。producer 不再把 intrinsic 退化成空 struct 或普通 class，普通与带预算的 representation join 均核对完整 family。cross-cone-interface 升级为 v3，旧 v1/v2 section（包括 optional 混入）和缺 family 的 payload 拒绝并重建；profile descriptor/fingerprint、Compile/Link inventory 与 golden 同步。native witness 继续按真实声明 kind 投影既有格式，persistent identity 和 runtime C ABI 不变。
+
+公开常量按自身 value type id、vararg 按实际参数中的 generic template id 查询同一 identity graph 和可达 provider，验证该声明的 intrinsic family 与完整元素关系。删除这两条消费路径的 trusted_core 查询、current_core 输入及 protocol 的 const_value_source_type/array_source_type 重复 getter；不从 CORE、名称、相同布局或其他候选补目标。共有查询直接借用 canonical key，provider 与记录查找使用当前 artifact 的连续预算。测试覆盖全部十四种 intrinsic family、三类 source builder、wire 往返与错误 payload、普通 provider 和多个同名 provider、缺失声明/不可达 provider、错误 family/kind/binder、常量非 nominal 类型、vararg 元素/参数数量不符及连续预算耗尽；独立源码 golden 使用实际整数声明名，透明 alias 不生成新身份。
+
+nominal shape 的 enum 数据与 wire 按职责拆分，主文件缩短到 366 行；共有 reader 的 nominal 查询与 intrinsic 检查分别独立为 92/119 行。全部构建测试会话结束后 cargo clean 删除 30,183 个文件、37.9 GiB。本批完成公开常量/vararg 路径；protected/internal 查询、Core/NotCore 外层、native 后端固定身份分类、String/初始化/Link 共有化，以及原有 M23-6 完整生产、跨 Cone 消费和 ZST 验收继续推进。

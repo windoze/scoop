@@ -25,6 +25,20 @@ use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
 #[test]
+fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
+    let fixture = CallableSourceSurface::new(SourceInterfaceCase::IntrinsicArrayVararg);
+    let bytes = fixture.artifact();
+    let validated = validate_until_type_alias(&bytes)
+        .validate_source_interfaces(vec![])
+        .unwrap();
+    assert_ne!(validated.identity(), ConeIdentity::CORE);
+    assert!(matches!(
+        validated.hir_core_production().core_interface(),
+        scoop_hir::CoreHirInterfaceBranchV1::NotCore
+    ));
+}
+
+#[test]
 fn validates_a_complete_callable_source_interface() {
     let fixture = CallableSourceSurface::new(SourceInterfaceCase::Complete);
     let bytes = fixture.artifact();
@@ -87,23 +101,20 @@ fn rejects_a_parameter_origin_from_a_different_source() {
 }
 
 #[test]
-fn rejects_a_vararg_without_the_exact_trusted_core_provider() {
-    let fixture = CallableSourceSurface::new(SourceInterfaceCase::VarargWithoutCore);
+fn rejects_a_vararg_with_a_non_array_parameter_type() {
+    let fixture = CallableSourceSurface::new(SourceInterfaceCase::NonArrayVararg);
     let bytes = fixture.artifact();
     let front = validate_until_type_alias(&bytes);
 
     let Err(CrossConeHirSourceInterfaceSurfaceError::SourceInterfaces(error)) =
         front.validate_source_interfaces(Vec::new())
     else {
-        panic!("a vararg without trusted core authority must fail validation");
+        panic!("a vararg with a non-array parameter type must fail validation");
     };
     assert!(matches!(
         error,
         CallableSourceInterfaceSetSemanticValidationError::Record {
-            error: CallableSourceInterfaceSemanticValidationError::CanonicalArrayType {
-                index: 0,
-                error: CrossConeHirCallableSourceAuthorityError::MissingTrustedCore,
-            },
+            error: CallableSourceInterfaceSemanticValidationError::VarargArrayType { index: 0, .. },
             ..
         }
     ));
@@ -142,7 +153,8 @@ enum SourceInterfaceCase {
     Complete,
     Missing,
     DifferentParameterSource,
-    VarargWithoutCore,
+    NonArrayVararg,
+    IntrinsicArrayVararg,
 }
 
 struct CallableSourceSurface {
@@ -195,7 +207,24 @@ impl CallableSourceSurface {
                 0,
             ))
             .unwrap();
-        let value_type = SignatureTypeKey::Nominal(nominal.id());
+        let array = CborIdentityRecord::<scoop_identity::PersistentGenericTypeId, _>::from_key(
+            SourceDeclarationKey::nominal(
+                declaration_site.clone(),
+                CanonicalIdentifier::new("ValueArray").unwrap(),
+                SourceNominalKind::Class,
+                1,
+            ),
+        )
+        .unwrap();
+        let element_type = SignatureTypeKey::Nominal(nominal.id());
+        let value_type = if matches!(case, SourceInterfaceCase::IntrinsicArrayVararg) {
+            SignatureTypeKey::NominalApplication {
+                origin: array.id(),
+                arguments: scoop_identity::NonEmptyVec::from_first(element_type.clone(), []),
+            }
+        } else {
+            element_type.clone()
+        };
         let function = CborIdentityRecord::<PersistentFunctionId, _>::from_key(
             SourceDeclarationKey::function(
                 declaration_site,
@@ -236,7 +265,8 @@ impl CallableSourceSurface {
             }
             SourceInterfaceCase::Complete
             | SourceInterfaceCase::Missing
-            | SourceInterfaceCase::VarargWithoutCore => (
+            | SourceInterfaceCase::NonArrayVararg
+            | SourceInterfaceCase::IntrinsicArrayVararg => (
                 DefinitionOrigin::new(
                     declaration_source.clone(),
                     SourceSpan::new(14, 19).unwrap(),
@@ -263,6 +293,10 @@ impl CallableSourceSurface {
         foundation
             .set_definition_origins(vec![
                 DefinitionOriginRecord::new(
+                    DefinitionOriginSubject::GenericType(array.id()),
+                    nominal_origin.clone(),
+                ),
+                DefinitionOriginRecord::new(
                     DefinitionOriginSubject::Type(nominal.id()),
                     nominal_origin,
                 ),
@@ -280,6 +314,7 @@ impl CallableSourceSurface {
             ])
             .unwrap();
         foundation.set_functions(vec![function]).unwrap();
+        foundation.set_generic_types(vec![array.clone()]).unwrap();
 
         let nominal_interface = NominalInterfaceRecordV1::try_new(
             SourceNominalId::Concrete(nominal.id()),
@@ -298,6 +333,23 @@ impl CallableSourceSurface {
             ),
         )
         .unwrap();
+        let array_interface = NominalInterfaceRecordV1::try_new(
+            SourceNominalId::GenericTemplate(array.id()),
+            PublicNominalKindV1::Class,
+            CanonicalBinderListV1::try_new(vec![scoop_hir::TypeParameterBinderV1::new(
+                CanonicalIdentifier::new("T").unwrap(),
+                scoop_hir::TypeParameterBoundsV1::Unconstrained,
+            )])
+            .unwrap(),
+            CanonicalSignatureTypesV1::try_new(vec![]).unwrap(),
+            CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+            CanonicalPublicMemberRefsV1::try_new(vec![]).unwrap(),
+            CanonicalPersistentIdsV1::try_new(vec![]).unwrap(),
+            NominalSourceShapeV1::Intrinsic(scoop_hir::NominalIntrinsicRepresentationV1::new(
+                scoop_hir::IntrinsicTypeKind::Array,
+            )),
+        )
+        .unwrap();
         let callable_interface = CallableInterfaceRecordV1::try_new(
             owner,
             PublicDeclarationOwnerV1::TopLevel,
@@ -314,10 +366,11 @@ impl CallableSourceSurface {
             PublicLookupAccessV1::DirectOnly,
         )
         .unwrap();
-        let calling = if matches!(case, SourceInterfaceCase::VarargWithoutCore) {
-            CallableParameterCallingV1::VarargEmpty {
-                element_type: value_type.clone(),
-            }
+        let calling = if matches!(
+            case,
+            SourceInterfaceCase::NonArrayVararg | SourceInterfaceCase::IntrinsicArrayVararg
+        ) {
+            CallableParameterCallingV1::VarargEmpty { element_type }
         } else {
             CallableParameterCallingV1::Required
         };
@@ -347,7 +400,8 @@ impl CallableSourceSurface {
         };
         let mut section = CrossConeHirInterfaceSectionV1::new(
             CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
-            CanonicalNominalInterfacesV1::try_new(vec![nominal_interface]).unwrap(),
+            CanonicalNominalInterfacesV1::try_new(vec![nominal_interface, array_interface])
+                .unwrap(),
             CanonicalCallableInterfacesV1::try_new(vec![callable_interface]).unwrap(),
             CanonicalPropertyInterfacesV1::try_new(Vec::new()).unwrap(),
             CanonicalTypeAliasInterfacesV1::try_new(Vec::new()).unwrap(),

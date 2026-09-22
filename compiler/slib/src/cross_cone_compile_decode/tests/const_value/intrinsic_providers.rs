@@ -1,0 +1,251 @@
+use super::*;
+use scoop_hir::{
+    CallableSourceInterfaceSemanticAuthority, CanonicalConstValueKindV1,
+    ExportConstValueSemanticAuthority, IntrinsicTypeKind,
+};
+use scoop_identity::PendingIdentityValidation;
+use scoop_wire::{BudgetMeter, DecodeLimits};
+
+use crate::cross_cone_hir_authority::{
+    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirCallableSourceAuthorityError,
+};
+
+mod support;
+use support::*;
+
+#[test]
+fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_providers() {
+    with_base(|base| {
+        let mut pending = PendingIdentityValidation::new();
+        let families = std::iter::once(IntrinsicTypeKind::Boolean)
+            .chain(
+                scoop_hir::IntegerKind::ALL
+                    .into_iter()
+                    .map(IntrinsicTypeKind::Integer),
+            )
+            .chain([
+                IntrinsicTypeKind::String,
+                IntrinsicTypeKind::Array,
+                IntrinsicTypeKind::MutableArray,
+                IntrinsicTypeKind::Ptr,
+                IntrinsicTypeKind::FunPtr,
+            ]);
+        let providers = families
+            .enumerate()
+            .map(|(index, family)| {
+                let identity = if index == 0 {
+                    base.identity()
+                } else {
+                    provider_identity(index)
+                };
+                Provider::new(identity, family, &mut pending)
+            })
+            .collect::<Vec<_>>();
+        let identities = pending.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &providers[0].interface,
+            providers[1..]
+                .iter()
+                .map(|provider| provider.view(base))
+                .collect(),
+            &mut meter,
+        );
+        for provider in &providers {
+            match provider.family {
+                IntrinsicTypeKind::Integer(kind) => authority
+                    .validate_const_value_type(
+                        concrete(provider.owner),
+                        CanonicalConstValueKindV1::Integer(kind),
+                    )
+                    .unwrap(),
+                IntrinsicTypeKind::Boolean => authority
+                    .validate_const_value_type(
+                        concrete(provider.owner),
+                        CanonicalConstValueKindV1::Boolean,
+                    )
+                    .unwrap(),
+                IntrinsicTypeKind::String => authority
+                    .validate_const_value_type(
+                        concrete(provider.owner),
+                        CanonicalConstValueKindV1::String,
+                    )
+                    .unwrap(),
+                IntrinsicTypeKind::Array => authority
+                    .validate_array_type(generic(provider.owner))
+                    .unwrap(),
+                actual @ (IntrinsicTypeKind::MutableArray
+                | IntrinsicTypeKind::Ptr
+                | IntrinsicTypeKind::FunPtr) => {
+                    let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
+                        authority.validate_array_type(generic(provider.owner))
+                    else {
+                        panic!("only the declared Array family satisfies a vararg type");
+                    };
+                    assert!(matches!(*error, CrossConeHirIntrinsicTypeError::Family {
+                        declaration, expected: IntrinsicTypeKind::Array, actual: found,
+                    } if declaration == provider.owner && found == actual));
+                }
+            }
+        }
+        // A matching family exists on another provider; the actual typed id must win.
+        let byte = &providers[1];
+        assert!(
+            matches!(authority.validate_const_value_type(concrete(byte.owner),
+            CanonicalConstValueKindV1::Integer(scoop_hir::IntegerKind::SIGNED_32)),
+            Err(CrossConeHirConstAuthorityError::ValueType(CrossConeHirIntrinsicTypeError::Family {
+                declaration, actual: IntrinsicTypeKind::Integer(scoop_hir::IntegerKind::SIGNED_8), ..
+            })) if declaration == byte.owner)
+        );
+    });
+}
+
+#[test]
+fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records() {
+    with_base(|base| {
+        let mut pending = PendingIdentityValidation::new();
+        let local = Provider::new(base.identity(), IntrinsicTypeKind::Boolean, &mut pending);
+        let mut dependency =
+            Provider::new(provider_identity(1), IntrinsicTypeKind::Array, &mut pending);
+        let identities = pending.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![],
+            &mut meter,
+        );
+        let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
+            authority.validate_array_type(generic(dependency.owner))
+        else {
+            panic!("registered identities do not grant dependency reachability");
+        };
+        assert!(matches!(*error, CrossConeHirIntrinsicTypeError::Nominal(
+            CrossConeHirNominalAuthorityError::UnreachableProvider { origin }) if origin == dependency.identity));
+
+        dependency.replace_shape(NominalSourceShapeV1::Class);
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![dependency.view(base)],
+            &mut meter,
+        );
+        let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
+            authority.validate_array_type(generic(dependency.owner))
+        else {
+            panic!("an ordinary class is not an intrinsic Array");
+        };
+        assert!(
+            matches!(*error, CrossConeHirIntrinsicTypeError::NotIntrinsic { declaration, .. }
+            if declaration == dependency.owner)
+        );
+
+        dependency.interface = CrossConeHirInterfaceSectionV1::empty();
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![dependency.view(base)],
+            &mut meter,
+        );
+        let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
+            authority.validate_array_type(generic(dependency.owner))
+        else {
+            panic!("an identity without its source interface cannot supply a type");
+        };
+        assert!(matches!(*error, CrossConeHirIntrinsicTypeError::Nominal(
+            CrossConeHirNominalAuthorityError::MissingNominalInterface { declaration, .. })
+            if declaration == dependency.owner));
+    });
+}
+
+#[test]
+fn intrinsic_queries_recheck_canonical_source_kind_and_share_the_artifact_budget() {
+    with_base(|base| {
+        let mut pending = PendingIdentityValidation::new();
+        let mut local = Provider::new(base.identity(), IntrinsicTypeKind::String, &mut pending);
+        let array = Provider::new(provider_identity(1), IntrinsicTypeKind::Array, &mut pending);
+        let identities = pending.finish().unwrap();
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            decoded_nodes: 1,
+            ..DecodeLimits::default()
+        });
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![array.view(base)],
+            &mut meter,
+        );
+        authority
+            .validate_const_value_type(concrete(local.owner), CanonicalConstValueKindV1::String)
+            .unwrap();
+        let Err(CrossConeHirCallableSourceAuthorityError::ArrayType(error)) =
+            authority.validate_array_type(generic(array.owner))
+        else {
+            panic!("both queries must consume the same node budget");
+        };
+        assert!(matches!(
+            *error,
+            CrossConeHirIntrinsicTypeError::Resource(_)
+        ));
+
+        local.replace_shape(NominalSourceShapeV1::Intrinsic(
+            scoop_hir::NominalIntrinsicRepresentationV1::new(IntrinsicTypeKind::Boolean),
+        ));
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![],
+            &mut meter,
+        );
+        assert!(matches!(
+            authority.validate_const_value_type(
+                concrete(local.owner),
+                CanonicalConstValueKindV1::String
+            ),
+            Err(CrossConeHirConstAuthorityError::ValueType(
+                CrossConeHirIntrinsicTypeError::Nominal(
+                    CrossConeHirNominalAuthorityError::NominalKindMismatch {
+                        expected: PublicNominalKindV1::Class,
+                        actual: PublicNominalKindV1::Struct,
+                        ..
+                    }
+                )
+            ))
+        ));
+        let mut meter = BudgetMeter::new(DecodeLimits {
+            validation_work_units: 0,
+            ..DecodeLimits::default()
+        });
+        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
+            base.identity(),
+            &identities,
+            base.hir_foundation(),
+            &local.interface,
+            vec![],
+            &mut meter,
+        );
+        assert!(matches!(
+            authority.validate_const_value_type(
+                concrete(local.owner),
+                CanonicalConstValueKindV1::String
+            ),
+            Err(CrossConeHirConstAuthorityError::ValueType(
+                CrossConeHirIntrinsicTypeError::Resource(_)
+            ))
+        ));
+    });
+}

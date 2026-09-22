@@ -19,10 +19,11 @@ impl ExportConstValueSemanticAuthority<TestAuthorityError> for EmptyPublicAuthor
         Err(TestAuthorityError::UnexpectedCall)
     }
 
-    fn canonical_const_value_type(
+    fn validate_const_value_type(
         &mut self,
+        _value_type: PersistentTypeId,
         _kind: scoop_hir::CanonicalConstValueKindV1,
-    ) -> Result<PersistentTypeId, TestAuthorityError> {
+    ) -> Result<(), TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 }

@@ -227,7 +227,7 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<NominalValidatedCrossConeHirFrontSections<'input>, CrossConeHirNominalSurfaceError>
     {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -241,9 +241,9 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .nominal_interfaces()
@@ -273,7 +273,7 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<PropertyValidatedCrossConeHirFrontSections<'input>, CrossConeHirPropertySurfaceError>
     {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -287,9 +287,9 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .property_interfaces()
@@ -344,9 +344,9 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .callable_interfaces()
@@ -381,7 +381,7 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
         CrossConeHirTypeAliasSurfaceError,
     > {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -395,9 +395,9 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
             graph.identity(),
             &identities,
             &foundations.hir,
-            &hir_core_production,
             &hir_interface,
             dependencies,
+            graph.envelope.meter_mut(),
         );
         hir_interface
             .type_aliases()

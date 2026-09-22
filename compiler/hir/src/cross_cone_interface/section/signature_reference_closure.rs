@@ -117,7 +117,8 @@ impl CrossConeHirInterfaceSectionV1 {
                 }
                 NominalSourceShapeV1::Class
                 | NominalSourceShapeV1::Interface
-                | NominalSourceShapeV1::Object(_) => {}
+                | NominalSourceShapeV1::Object(_)
+                | NominalSourceShapeV1::Intrinsic(_) => continue,
             }
         }
         Ok(())

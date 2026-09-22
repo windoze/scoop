@@ -346,13 +346,15 @@ impl ExportConstValueSemanticAuthority<TestAuthorityError> for TestAuthority {
             .ok_or(TestAuthorityError::Interface(property))
     }
 
-    fn canonical_const_value_type(
+    fn validate_const_value_type(
         &mut self,
+        value_type: PersistentTypeId,
         kind: CanonicalConstValueKindV1,
-    ) -> Result<PersistentTypeId, TestAuthorityError> {
+    ) -> Result<(), TestAuthorityError> {
         self.core_types
             .get(&kind)
-            .copied()
+            .filter(|&&expected| expected == value_type)
+            .map(|_| ())
             .ok_or(TestAuthorityError::Core(kind))
     }
 }

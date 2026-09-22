@@ -63,6 +63,7 @@ mod m23_explicit_receiver_calls;
 mod m23_expression_qualifiers;
 mod m23_extension_properties;
 mod m23_hir_foundation;
+mod m23_intrinsic_source_shapes;
 mod m23_local_value_identities;
 mod m23_local_value_selectors;
 mod m23_named_calls;

@@ -1,0 +1,5 @@
+public const val exportedIntrinsicFlag: Boolean = true
+public const val exportedIntrinsicText: String = "source-shape"
+public const val exportedIntrinsicNumber: Int = 42
+public fun exportedFlagVarargs(vararg flags: Boolean): Int = 0
+public fun <T> exportedGenericVarargs(vararg values: T): Int = 0

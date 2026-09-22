@@ -81,7 +81,7 @@ fn rejects_callable_owner_arity_name_and_type_mismatches() {
 }
 
 #[test]
-fn rejects_a_user_nominal_that_only_looks_like_core_array() {
+fn rejects_a_template_without_an_intrinsic_array_declaration() {
     let fixture = Fixture::new();
     let impostor = generic_type("ArrayLike").id();
     let impostor_application = SignatureTypeKey::NominalApplication {
@@ -116,12 +116,49 @@ fn rejects_a_user_nominal_that_only_looks_like_core_array() {
 
     assert!(matches!(
         source.validate_semantics(&callable, &mut fixture.authority()),
-        Err(CallableSourceInterfaceSemanticValidationError::VarargArrayType {
-            index: 1,
-            actual,
-            ..
-        }) if *actual == impostor_application
+        Err(
+            CallableSourceInterfaceSemanticValidationError::ArrayDeclaration {
+                index: 1,
+                error: AuthorityError::Array,
+            }
+        )
     ));
+}
+
+#[test]
+fn rejects_vararg_element_and_application_arity_mismatches() {
+    let fixture = Fixture::new();
+    for arguments in [
+        NonEmptyVec::from_first(unit_type(), []),
+        NonEmptyVec::from_first(fixture.scalar_type(), [fixture.scalar_type()]),
+    ] {
+        let actual = SignatureTypeKey::NominalApplication {
+            origin: fixture.array,
+            arguments,
+        };
+        let callable = callable(fixture.owner, vec![("rest", actual.clone())]);
+        let source = source_interface(
+            fixture.owner,
+            vec![(
+                "rest",
+                actual.clone(),
+                CallableParameterCallingV1::VarargEmpty {
+                    element_type: fixture.scalar_type(),
+                },
+            )],
+            fixture.origin.clone(),
+        );
+        assert_eq!(
+            source.validate_semantics(&callable, &mut fixture.authority()),
+            Err(
+                CallableSourceInterfaceSemanticValidationError::VarargArrayType {
+                    index: 0,
+                    element_type: Box::new(fixture.scalar_type()),
+                    actual: Box::new(actual),
+                }
+            )
+        );
+    }
 }
 
 #[test]
@@ -176,7 +213,7 @@ fn rejects_foreign_and_authority_rejected_parameter_origins() {
 }
 
 #[test]
-fn reports_missing_trusted_array_authority_at_the_vararg() {
+fn reports_a_missing_array_declaration_at_the_vararg() {
     let fixture = Fixture::new();
     let mut authority = fixture.authority();
     authority.reject_array = true;
@@ -186,7 +223,7 @@ fn reports_missing_trusted_array_authority_at_the_vararg() {
             .source
             .validate_semantics(&fixture.callable, &mut authority),
         Err(
-            CallableSourceInterfaceSemanticValidationError::CanonicalArrayType {
+            CallableSourceInterfaceSemanticValidationError::ArrayDeclaration {
                 index: 1,
                 error: AuthorityError::Array,
             }
@@ -342,11 +379,14 @@ impl CallableSourceInterfaceSemanticAuthority<AuthorityError> for Authority {
         self.current
     }
 
-    fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, AuthorityError> {
-        if self.reject_array {
+    fn validate_array_type(
+        &mut self,
+        array: PersistentGenericTypeId,
+    ) -> Result<(), AuthorityError> {
+        if self.reject_array || array != self.array {
             Err(AuthorityError::Array)
         } else {
-            Ok(self.array)
+            Ok(())
         }
     }
 

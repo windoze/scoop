@@ -1,4 +1,4 @@
-use scoop_identity::{ConeIdentity, NonEmptyVec, PersistentGenericTypeId, SignatureTypeKey};
+use scoop_identity::{ConeIdentity, PersistentGenericTypeId, SignatureTypeKey};
 
 use super::CallableSourceInterfaceV1;
 use crate::{CallableInterfaceRecordV1, CallableSourceParameterV1, ExportDefinitionSourceV1};
@@ -7,12 +7,12 @@ mod errors;
 
 pub use errors::CallableSourceInterfaceSemanticValidationError;
 
-/// Trusted facts needed to validate one source-call protocol.
+/// Shared declaration facts needed to validate one source-call protocol.
 pub trait CallableSourceInterfaceSemanticAuthority<E> {
     fn current_cone(&self) -> ConeIdentity;
 
-    /// Returns the canonical generic `Array` declaration from trusted core.
-    fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, E>;
+    /// Checks the actual parameter template's intrinsic Array declaration.
+    fn validate_array_type(&mut self, array: PersistentGenericTypeId) -> Result<(), E>;
 
     /// Validates that this parameter origin belongs to the declared owner and
     /// source position, including source/context membership and point bounds.
@@ -112,23 +112,21 @@ impl CallableSourceInterfaceV1 {
         let Some(element_type) = parameter.calling().element_type() else {
             return Ok(());
         };
-        let array = authority.canonical_array_type().map_err(|error| {
-            CallableSourceInterfaceSemanticValidationError::CanonicalArrayType { index, error }
-        })?;
-        let expected = SignatureTypeKey::NominalApplication {
-            origin: array,
-            arguments: NonEmptyVec::from_first(element_type.clone(), []),
+        let mismatch = || CallableSourceInterfaceSemanticValidationError::VarargArrayType {
+            index,
+            element_type: Box::new(element_type.clone()),
+            actual: Box::new(parameter.value_type().clone()),
         };
-        if parameter.value_type() != &expected {
-            return Err(
-                CallableSourceInterfaceSemanticValidationError::VarargArrayType {
-                    index,
-                    expected: Box::new(expected),
-                    actual: Box::new(parameter.value_type().clone()),
-                },
-            );
+        let SignatureTypeKey::NominalApplication { origin, arguments } = parameter.value_type()
+        else {
+            return Err(mismatch());
+        };
+        if arguments.as_slice() != std::slice::from_ref(element_type) {
+            return Err(mismatch());
         }
-        Ok(())
+        authority.validate_array_type(*origin).map_err(|error| {
+            CallableSourceInterfaceSemanticValidationError::ArrayDeclaration { index, error }
+        })
     }
 }
 

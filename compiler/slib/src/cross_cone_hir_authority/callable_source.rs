@@ -3,14 +3,17 @@
 use std::fmt;
 
 use scoop_hir::{
-    CallableDeclarationId, CallableSourceInterfaceSemanticAuthority, CoreHirInterfaceBranchV1,
-    ExportDefinitionSourceV1,
+    CallableDeclarationId, CallableSourceInterfaceSemanticAuthority, ExportDefinitionSourceV1,
+    IntrinsicTypeKind, SourceNominalId,
 };
 use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, DefinitionOriginSubject, PersistentGenericTypeId,
 };
 
-use super::{CanonicalCrossConeHirSurfaceAuthority, CrossConeHirDefinitionSourceAuthorityError};
+use super::{
+    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirDefinitionSourceAuthorityError,
+    CrossConeHirIntrinsicTypeError,
+};
 
 impl CallableSourceInterfaceSemanticAuthority<CrossConeHirCallableSourceAuthorityError>
     for CanonicalCrossConeHirSurfaceAuthority<'_>
@@ -19,16 +22,15 @@ impl CallableSourceInterfaceSemanticAuthority<CrossConeHirCallableSourceAuthorit
         self.current
     }
 
-    fn canonical_array_type(
+    fn validate_array_type(
         &mut self,
-    ) -> Result<PersistentGenericTypeId, CrossConeHirCallableSourceAuthorityError> {
-        let core = self
-            .trusted_core()
-            .ok_or(CrossConeHirCallableSourceAuthorityError::MissingTrustedCore)?;
-        let CoreHirInterfaceBranchV1::Core(interface) = core.core_interface() else {
-            return Err(CrossConeHirCallableSourceAuthorityError::InvalidTrustedCore);
-        };
-        Ok(interface.compiler_protocols().array_source_type())
+        array: PersistentGenericTypeId,
+    ) -> Result<(), CrossConeHirCallableSourceAuthorityError> {
+        self.validate_intrinsic_type(
+            SourceNominalId::GenericTemplate(array),
+            IntrinsicTypeKind::Array,
+        )
+        .map_err(|error| CrossConeHirCallableSourceAuthorityError::ArrayType(Box::new(error)))
     }
 
     fn validate_source_parameter_origin(
@@ -75,8 +77,7 @@ fn callable_origin_subject(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeHirCallableSourceAuthorityError {
-    MissingTrustedCore,
-    InvalidTrustedCore,
+    ArrayType(Box<CrossConeHirIntrinsicTypeError>),
     AccessorOwner,
     MissingDeclarationOrigin {
         owner: CallableTemplateOrigin,
@@ -91,12 +92,7 @@ pub enum CrossConeHirCallableSourceAuthorityError {
 impl fmt::Display for CrossConeHirCallableSourceAuthorityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingTrustedCore => formatter.write_str(
-                "trusted core is absent from the callable source-interface dependency closure",
-            ),
-            Self::InvalidTrustedCore => {
-                formatter.write_str("the canonical core provider has no trusted core interface")
-            }
+            Self::ArrayType(error) => error.fmt(formatter),
             Self::AccessorOwner => {
                 formatter.write_str("a property accessor cannot own a source-call interface")
             }
@@ -117,9 +113,8 @@ impl std::error::Error for CrossConeHirCallableSourceAuthorityError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::DefinitionSource(error) => Some(error),
-            Self::MissingTrustedCore
-            | Self::InvalidTrustedCore
-            | Self::AccessorOwner
+            Self::ArrayType(error) => Some(error),
+            Self::AccessorOwner
             | Self::MissingDeclarationOrigin { .. }
             | Self::ParameterSourceMismatch { .. } => None,
         }

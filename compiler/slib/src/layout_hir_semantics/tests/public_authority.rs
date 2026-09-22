@@ -192,7 +192,10 @@ impl CallableSourceInterfaceSemanticAuthority<TestAuthorityError> for EmptyPubli
         self.0
     }
 
-    fn canonical_array_type(&mut self) -> Result<PersistentGenericTypeId, TestAuthorityError> {
+    fn validate_array_type(
+        &mut self,
+        _array: PersistentGenericTypeId,
+    ) -> Result<(), TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }
 
