@@ -9,7 +9,9 @@ pub(super) fn lower_minimal() -> hir::Output {
     lower_extra(text)
 }
 
-pub(super) fn lower_extra(text: &str) -> hir::Output {
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn lower_extra(
+    text: &str,
+) -> hir::Output {
     lower(vec![
         (
             "src/core.scoop".to_owned(),
@@ -71,7 +73,7 @@ fn lower(mut files: Vec<(String, String, ast::SourceFile)>) -> hir::Output {
     .unwrap();
     lower_core_bootstrap(&CoreBootstrapSources::try_new(&parsed).unwrap()).unwrap()
 }
-pub(super) fn artifact(
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifact(
     output: &hir::Output,
 ) -> (hir::OdrFreeHirFoundation, ValidatedIdentityGraph) {
     let foundation = hir::CanonicalHirFoundation::from_modules(
@@ -99,7 +101,7 @@ pub(super) fn artifact(
         ids,
     )
 }
-pub(super) fn import(
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn import(
     foundation: &hir::OdrFreeHirFoundation,
     identities: &ValidatedIdentityGraph,
 ) -> hir::ImportedHirFoundation {

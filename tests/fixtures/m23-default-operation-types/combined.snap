@@ -1,0 +1,10 @@
+array: Array
+callback: ForeignCallback
+mimicArray: ordinary
+mimicCallback: ordinary
+mimicMutable: ordinary
+mimicOption: ordinary
+mutable: MutableArray
+nested: Array
+option: Option
+tuple: ordinary

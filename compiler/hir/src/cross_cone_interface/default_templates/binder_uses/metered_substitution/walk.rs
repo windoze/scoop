@@ -15,33 +15,35 @@ impl<'a> Substitution<'a, '_> {
             SignatureTypeKey::Binder {
                 depth: binder_depth,
                 index,
-            } if substitute => {
-                let position = self
-                    .provider
-                    .flattened_binder_position(*binder_depth, *index)
-                    .map_err(DefaultTemplateTypeSubstitutionError::ProviderBinder)?;
-                let mapped = usize::try_from(position)
-                    .ok()
-                    .and_then(|position| self.mapping.arguments().get(position))
-                    .ok_or(DefaultTemplateTypeSubstitutionError::MissingMapping {
-                        position,
-                        len: self.mapping.len_u32(),
-                    })?;
-                self.meter.charge_edges(1, self.path)?;
-                self.meter.charge_work(1, self.path)?;
-                self.meter
-                    .try_reserve_collection_slots(&mut self.tasks, 1, self.path)?;
-                self.tasks.push(Task::Visit {
-                    value: mapped,
-                    substitute: false,
-                    depth,
-                });
-            }
-            SignatureTypeKey::Binder { depth, index } => {
-                self.values.push(SignatureTypeKey::Binder {
-                    depth: *depth,
-                    index: *index,
-                });
+            } => {
+                if let Transform::Substitute { mapping, provider } = self.transform
+                    && substitute
+                {
+                    let position = provider
+                        .flattened_binder_position(*binder_depth, *index)
+                        .map_err(DefaultTemplateTypeSubstitutionError::ProviderBinder)?;
+                    let mapped = usize::try_from(position)
+                        .ok()
+                        .and_then(|position| mapping.arguments().get(position))
+                        .ok_or(DefaultTemplateTypeSubstitutionError::MissingMapping {
+                            position,
+                            len: mapping.len_u32(),
+                        })?;
+                    self.meter.charge_edges(1, self.path)?;
+                    self.meter.charge_work(1, self.path)?;
+                    self.meter
+                        .try_reserve_collection_slots(&mut self.tasks, 1, self.path)?;
+                    self.tasks.push(Task::Visit {
+                        value: mapped,
+                        substitute: false,
+                        depth,
+                    });
+                } else {
+                    self.values.push(SignatureTypeKey::Binder {
+                        depth: *binder_depth,
+                        index: *index,
+                    });
+                }
             }
             SignatureTypeKey::NominalApplication { arguments, .. }
             | SignatureTypeKey::Tuple(arguments) => {

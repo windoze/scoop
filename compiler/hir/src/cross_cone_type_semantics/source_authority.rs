@@ -78,3 +78,6 @@ pub use default_type_access::*;
 
 mod default_domains;
 pub use default_domains::*;
+
+mod default_operation_types;
+pub use default_operation_types::*;

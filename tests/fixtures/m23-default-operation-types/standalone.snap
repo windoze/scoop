@@ -1,0 +1,13 @@
+boolean: Boolean
+byte: Integer(Signed8)
+int: Integer(Signed32)
+long: Integer(Signed64)
+short: Integer(Signed16)
+state: ForeignCallbackState
+string: String
+throwable: Throwable
+ubyte: Integer(Unsigned8)
+uint: Integer(Unsigned32)
+ulong: Integer(Unsigned64)
+unit: Unit
+ushort: Integer(Unsigned16)

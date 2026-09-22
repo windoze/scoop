@@ -617,6 +617,8 @@ inherited protected callable 的 default 继续在定义处解析，使用 M17 �
 
 profile reader 的来源前置条件是完整六类 target-domain 绑定：以同一 BoundNominalDefaultDeclarationsV1、同一 provider 注册表和原预算依次完成 Type、Constructor/Global/Singleton/Field、Callable 的逐 occurrence 重放，不接受调用者拼接任意独立凭证。声明绑定同时保存独立重放的 publishing_call_domain 与原 provider direct_call_domain；前者来自完整 template key 的真实发布声明，后者来自 definition root，两者不能因继承或空引用而混用。profile 表先精确覆盖已绑定的完整模板集合，随后逐项读取已验证的直接 nominal owner binder、发布域和全部 occurrence 的原始调用/槽/目标域，重放本节两分支分类并相等比较。任一覆盖、域或分类错误不交付结果；所有模板、查询及空表使用同一资源预算。只有成功结果实现 profile semantic authority，查询须接受并消耗调用者 BudgetMeter；raw canonical 表保持纯来源数据。此证明只闭合 profile 来源，其他 body operation、receiver、capture/ABI、继承代换及调用域 coverage 义务继续由完整 defaults 事务验证。
 
+默认操作类型的共有协议查询直接使用已导入的 typed 语言角色：Unit、Boolean、所有整数宽度和符号、String、Throwable、ForeignCallbackState，以及 Array、MutableArray、Option、ForeignCallback 的 generic identity。只识别真实 generic id，已识别应用精确校验一项实参；未知 identity 不按名称、布局或 arity 推断角色。查询与实参复制均纳入 defaults 原预算，复制以既有迭代类型变换引擎的 Copy 分支完成，保留全部 source binder 和函数 effect，不进行实例化或补造 exact type。此查询只提供操作校验所需的类型输入，不证明应用实参合法性、声明访问或执行能力，也不引入额外 core 来源资格门槛。
+
 完整default先从独立checked callable source取得owner/profile证明，即使body没有外部引用、六域reference set全部为空，也不得跳过该分类。reference访问重放仅接收实际typed occurrence、真实receiver上下文及该source证明；独立authority先验证target来源和词法/receiver规则，再返回与同一checked inheritance graph关联的target域，不能读取witness所声称的target域作为预期值。每个实际occurrence随后与wire witness逐项join，并验证完整direct及每个root-slot调用域的coverage。
 
 两分支都重放完整body、binder、source origin、typed target、receiver及源码合法性。GenericSourceMetadata只推迟无法定义的concrete-domain包含证明，不保存假exact或Empty/Universal域，且不产生concrete access资格；所有selected、default展开和物化入口必须显式拒绝该分支。其存在只使GenericTemplate的源元数据在本节完整保存，M23-6的param-free执行门限不变。metadata proof与可执行的ParamFree coverage proof使用不同checked类型，不提供隐式转换。

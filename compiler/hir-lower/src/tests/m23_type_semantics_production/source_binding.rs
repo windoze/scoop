@@ -9,6 +9,7 @@ mod declaration_domain;
 mod default_access;
 mod default_callable_domain;
 mod default_domains_support;
+mod default_operation_types;
 mod default_origins;
 mod default_production;
 mod default_profiles;

@@ -263,7 +263,7 @@ pub use default_templates::{
 };
 pub(crate) use default_templates::{
     DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
-    DefaultBodyValidationInputV1,
+    DefaultBodyValidationInputV1, copy_default_signature_type_metered,
 };
 pub use default_templates::{
     MeteredDefaultTemplateTypeSubstitutionError, MeteredTemplateReceiverSemanticValidationError,

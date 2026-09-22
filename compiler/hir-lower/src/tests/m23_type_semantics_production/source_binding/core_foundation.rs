@@ -4,7 +4,7 @@ use scoop_identity::{ConeIdentity, DefinitionOriginSubject as Subject, Signature
 mod defaults;
 mod rejection;
 mod snapshot;
-mod support;
+pub(super) mod support;
 use support::{artifact, lower_minimal, lower_sysroot};
 
 #[test]

@@ -20,7 +20,7 @@ impl Substitution<'_, '_> {
             SignatureTypeKey::Function {
                 effect, parameters, ..
             } => {
-                let result = Box::new(self.pop()?);
+                let result = self.boxed()?;
                 SignatureTypeKey::Function {
                     effect: *effect,
                     parameters: self.take(parameters.len())?,
@@ -32,14 +32,14 @@ impl Substitution<'_, '_> {
                 parameters,
                 ..
             } => {
-                let result = Box::new(self.pop()?);
+                let result = self.boxed()?;
                 SignatureTypeKey::NativeFunctionPointer {
                     calling_convention: *calling_convention,
                     parameters: self.take(parameters.len())?,
                     result,
                 }
             }
-            SignatureTypeKey::RawPointer(_) => SignatureTypeKey::RawPointer(Box::new(self.pop()?)),
+            SignatureTypeKey::RawPointer(_) => SignatureTypeKey::RawPointer(self.boxed()?),
             SignatureTypeKey::Nominal(_) | SignatureTypeKey::Binder { .. } => {
                 return Err(invalid_length(1, 0, self.path).into());
             }
@@ -51,6 +51,11 @@ impl Substitution<'_, '_> {
         self.values
             .pop()
             .ok_or_else(|| invalid_length(1, 0, self.path))
+    }
+    fn boxed(&mut self) -> Result<Box<SignatureTypeKey>, WireError> {
+        self.meter
+            .charge_owned_bytes(std::mem::size_of::<SignatureTypeKey>() as u64, self.path)?;
+        Ok(Box::new(self.pop()?))
     }
     fn take(&mut self, count: usize) -> Result<Vec<SignatureTypeKey>, WireError> {
         let start = self

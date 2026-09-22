@@ -20,6 +20,7 @@ pub(crate) use body::{
 };
 
 pub use binder_uses::MeteredDefaultTemplateTypeSubstitutionError;
+pub(crate) use binder_uses::copy_default_signature_type_metered;
 pub use receiver::MeteredTemplateReceiverSemanticValidationError;
 pub use value_parameters::MeteredTemplateValueParameterSemanticValidationError;
 

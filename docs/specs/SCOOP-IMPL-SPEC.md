@@ -233,6 +233,8 @@ M23-6 的默认参数 profile 在完整 source 正文与参数表生产时按参
 
 默认声明绑定分别从真实参数所属声明重放发布调用域与原 provider 调用域，二者为独立必需字段；继承正文不能用原 provider 域替代发布方法域，没有引用的正文也必须重放。六类 target 域的完整绑定在同一声明凭证、同一 provider 注册表与同一预算中依次完成 Type、四类 value 和 Callable 校验，全部成功才交付组合凭证。source profile 绑定只接受该组合结果，先核对 profile 表与完整默认正文集合的精确覆盖，再按已验证的直接 nominal owner binder、发布调用域及逐 occurrence 的原始调用/槽/目标域独立分类并比较。只有这一绑定结果可提供 profile semantic authority，raw 表不能直接提供；authority 查询也沿用调用者预算。该凭证不替代操作类型、receiver、nested ABI/capture、继承合法性和完整调用域包含证明，也不授予展开或机器执行资格。
 
+默认正文操作所需的 Unit、Boolean、八类整数、String、Throwable 和 ForeignCallbackState 均从已导入的完整语言协议取得真实 typed identity；Array、MutableArray、Option 与 ForeignCallback 的应用分类只比较各协议的真实 generic identity，并精确要求一个参数。普通同名或同形类型不被识别为协议应用；未知应用返回未分类，已识别应用的错误 arity 则报错。查询不新增 CORE 资格检查、artifact receipt 或 FQN 回退，不替代通常的类型、来源域和执行检查。分类结果完整保留实参中的 binder、参数、结果与 effects；复制复用默认类型代换的受预算迭代遍历，但不执行 binder 代换。查询、遍历深度、节点、工作量与输出分配均使用调用者预算，空结果也须计费。
+
 ### 2.3 MIR
 
 只接收**本Cone**的`LocalConcreteHir`以及由HIR `CrossConeUseSet`选出的**上游Cone MIR meta**（见下）。其输入类型签名不得接受`ExportHir`或未筛选的`.slib`reader结果，负责：

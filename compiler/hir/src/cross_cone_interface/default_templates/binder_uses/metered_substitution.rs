@@ -18,12 +18,34 @@ enum Task<'a> {
     Finish(&'a SignatureTypeKey),
 }
 struct Substitution<'a, 'm> {
-    mapping: &'a CanonicalBinderUseListV1,
-    provider: DefaultTemplateProviderShapeV1,
+    transform: Transform<'a>,
     tasks: Vec<Task<'a>>,
     values: Vec<SignatureTypeKey>,
     meter: &'m mut BudgetMeter,
     path: &'m WirePath,
+}
+#[derive(Clone, Copy)]
+enum Transform<'a> {
+    Copy,
+    Substitute {
+        mapping: &'a CanonicalBinderUseListV1,
+        provider: DefaultTemplateProviderShapeV1,
+    },
+}
+
+pub(crate) fn copy_default_signature_type_metered(
+    signature: &SignatureTypeKey,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<SignatureTypeKey, MeteredDefaultTemplateTypeSubstitutionError> {
+    Substitution {
+        transform: Transform::Copy,
+        tasks: Vec::new(),
+        values: Vec::new(),
+        meter,
+        path,
+    }
+    .run(signature)
 }
 impl CanonicalBinderUseListV1 {
     /// Substitutes provider binders once, charging every expanded output node.
@@ -42,39 +64,49 @@ impl CanonicalBinderUseListV1 {
             }
             .into());
         }
-        let mut walk = Substitution {
-            mapping: self,
-            provider,
+        Substitution {
+            transform: Transform::Substitute {
+                mapping: self,
+                provider,
+            },
             tasks: Vec::new(),
             values: Vec::new(),
             meter,
             path,
-        };
-        walk.meter
-            .try_reserve_collection_slots(&mut walk.tasks, 1, path)?;
-        walk.meter
-            .try_reserve_collection_slots(&mut walk.values, 1, path)?;
-        walk.tasks.push(Task::Visit {
+        }
+        .run(signature)
+    }
+}
+impl<'a> Substitution<'a, '_> {
+    fn run(
+        mut self,
+        signature: &'a SignatureTypeKey,
+    ) -> Result<SignatureTypeKey, MeteredDefaultTemplateTypeSubstitutionError> {
+        self.meter
+            .try_reserve_collection_slots(&mut self.tasks, 1, self.path)?;
+        self.meter
+            .try_reserve_collection_slots(&mut self.values, 1, self.path)?;
+        self.tasks.push(Task::Visit {
             value: signature,
             substitute: true,
             depth: 1,
         });
-        while let Some(task) = walk.tasks.pop() {
+        while let Some(task) = self.tasks.pop() {
             match task {
                 Task::Visit {
                     value,
                     substitute,
                     depth,
-                } => walk.visit(value, substitute, depth)?,
-                Task::Finish(value) => walk.finish(value)?,
+                } => self.visit(value, substitute, depth)?,
+                Task::Finish(value) => self.finish(value)?,
             }
         }
-        if walk.values.len() != 1 {
-            return Err(invalid_length(1, walk.values.len(), path).into());
+        if self.values.len() != 1 {
+            return Err(invalid_length(1, self.values.len(), self.path).into());
         }
-        walk.values
+        self.values
             .pop()
-            .ok_or_else(|| invalid_length(1, 0, path).into())
+            .ok_or_else(|| invalid_length(1, 0, self.path).into())
     }
 }
 fn invalid_length(expected: usize, actual: usize, path: &WirePath) -> WireError {
