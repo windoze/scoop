@@ -17,14 +17,7 @@ pub(super) fn identity_closure_for_foundation(
     output: &hir::DependencyHirOutput,
     foundation: hir::CanonicalHirFoundation,
 ) -> ValidatedIdentityGraph {
-    let core = trusted_core();
-    let core_foundation: hir::DecodedHirFoundation = decoded(&core.foundation);
-    let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    core_foundation.register_identities(&mut pending).unwrap();
-    core_foundation.resolve_identities(&mut pending).unwrap();
-    let core_graph = pending.finish().unwrap();
-
+    let core_graph = core_identity_closure();
     let foundation: hir::DecodedHirFoundation = decoded(&foundation);
     let mut pending = PendingIdentityValidation::new();
     pending
@@ -35,6 +28,16 @@ pub(super) fn identity_closure_for_foundation(
     pending
         .register_external_graph_authorities(&core_graph)
         .unwrap();
+    foundation.resolve_identities(&mut pending).unwrap();
+    pending.finish().unwrap()
+}
+
+pub(super) fn core_identity_closure() -> ValidatedIdentityGraph {
+    let core = trusted_core();
+    let foundation: hir::DecodedHirFoundation = decoded(&core.foundation);
+    let mut pending = PendingIdentityValidation::new();
+    pending.register_authority(ConeIdentity::CORE).unwrap();
+    foundation.register_identities(&mut pending).unwrap();
     foundation.resolve_identities(&mut pending).unwrap();
     pending.finish().unwrap()
 }

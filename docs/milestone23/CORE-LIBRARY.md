@@ -165,3 +165,11 @@ lower_dispatch_schemas 将同次 HIR 完整槽序和实现选择连接到 sealed
 独立与组合 fixture 覆盖 virtual prefix、final override、再次抽象化、默认实现抑制、菱形继承、value/enum 装箱、getter/setter、object/backing 及不同 singleton receiver 隔离；两份 golden、wire 往返、前置无关声明后的字节稳定性及共享预算耗尽均通过。仅检查 HIR source metadata 的旧测试直接使用 HIR fixture，保留 suspend 声明合同覆盖；真实 MIR 测试直接引用原接口 typed declaration，移除手工重复声明。suspend 执行所需 generic coroutine 协议仍遵守相邻 ODR 阶段的边界。
 
 derived equality 与其余实际 callable 组合、完整 MIR type bridge 组装、LIR layout/ABI、driver layout-strong 发布、一般跨 Cone nominal 消费及剩余 ZST 矩阵仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 43,048 个文件、43.5 GiB，target 已清理。
+
+2026-09-22：derived equality MIR binding 实际生产批次通过 workspace fmt、clippy（含 all-targets）、2 项新增真实源码测试及全部 5,675 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生成函数，按已有 DerivedEquality key 连接本地导出 owner 与 sealed MIR 的实际 Strong root。源码签名复用共有 exact 投影，semantic GC 来自 HIR，lowered GC 来自实际 MIR，逐项检查 receiver、唯一同类型参数、Boolean 结果和 effect。私有 owner、未请求候选与显式同签名 equals 不虚构派生导出；身份、wire 和 stage 依赖保持原规则，未新增来源授权结构。
+
+独立和组合 fixture 覆盖空 struct、嵌套字段、enum、自定义 equals、不同参数 overload、非可比较字段及私有类型。两份 golden 锁定实际 MIR 调用关系，wire 往返、前置无关声明后的字节稳定性、缺失 Boolean 类型或实际 Strong root、零复制预算和共享 work 耗尽均通过验证。测试复用已有完整依赖图导入流程，补全 Boolean 的 nominal key；依赖类型仍只是组成表 fixture，不表示 full core 已通过新 profile。生产三个模块分别 61、66、37 行，新增测试模块均不超过 102 行。
+
+其余实际 callable 组合、完整 MIR type bridge 组装、LIR layout/ABI、driver layout-strong 发布、一般跨 Cone nominal 消费、剩余 ZST 矩阵与 core 专用资格清理仍需继续完成，M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 22,653 个文件、24.4 GiB，target 已清理。

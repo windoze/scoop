@@ -9,6 +9,7 @@ mod callables;
 mod constructors;
 mod dependencies;
 mod dispatch;
+mod equality;
 mod identities;
 mod objects;
 mod shape_support;
@@ -71,6 +72,9 @@ fn with_production<R>(
         pending.register_authority(ConeIdentity::CORE).unwrap();
         local_hir.register_identities(&mut pending).unwrap();
         mir.register_identities(&mut pending).unwrap();
+        pending
+            .register_external_graph_authorities(&source_inventory::core_identity_closure())
+            .unwrap();
         local_hir.resolve_identities(&mut pending).unwrap();
         mir.resolve_identities(&mut pending).unwrap();
         let mut graph = pending.finish().unwrap();
