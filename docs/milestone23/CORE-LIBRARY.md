@@ -115,3 +115,11 @@ strong source shape-support 计划现在同时绑定源码 root 与完整 box/st
 独立 ZST fixture 与包含 String、struct/enum、class/interface/object、私有 box 的组合 fixture 均核对实际 MIR 位置与身份、完整 root 覆盖及 wire 回读；两份 golden 和前置无关 private 声明后的字节稳定性通过。缺失 source/box/step/slot 任一类型、缺失 identity、零复制预算与累计 work 耗尽均拒绝，空需求表有效。原有有限类型 golden 与编码保持不变。计划模块 136 行、类型导出 100 行、支持关系生产 46 行，新增测试模块 130/126 行。
 
 callable、dispatch 与 object-value 组成表的实际生产、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍待接通，整个 M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 24,831 个文件、24.8 GiB，target 已清理。
+
+2026-09-22：object 值与初始化 callable 共同生产批次通过 workspace fmt、clippy（含 all-targets）、2 项真实源码测试、既有 singleton 身份链测试及全部 5,661 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+LocalConcrete HIR 与 MIR 的 singleton 现在直接保存 Export HIR 已分配的 PersistentObjectValueId。MirObjectValueProductionV1 从 sealed strong MIR 的实际 published root、初始化 unit、initializer/ensure body、签名及 GC effect 同时生产 object-value 与两种 callable 记录。local 类型表决定导出范围，依赖类型通过共有联合索引借用；private object 与顶层 property 初始化不混入 object 导出，没有新增来源授权通道。
+
+独立 object 与包含相互引用、companion、private object 和顶层 property 的组合 fixture 逐项核对三阶段身份、物理 root、签名及 GC effect，两份 golden 与两张表的 canonical wire 回读通过。前置无关 private 声明不改变任一表的字节；缺少 Unit 依赖、object/backing 类型、实际初始化根或 ensure，以及零复制预算、累计 work 耗尽均拒绝。新增生产模块 125/73/98 行，测试模块 127/176/83 行。测试中的 Unit 依赖记录取实际 MIR exact identity，仅用于组成表验证，未宣称已完成真实 core 的新 type profile 发布。
+
+普通成员与构造器 callable、dispatch、LIR layout/ABI、driver layout-strong 发布及一般跨 Cone nominal 消费仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 25,300 个文件、26.3 GiB，target 已清理。

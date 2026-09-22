@@ -554,6 +554,7 @@ pub struct ObjectType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SingletonValue {
+    pub identity: scoop_identity::PersistentObjectValueId,
     pub declaration: ObjectId,
     pub object_type: ObjectTypeId,
     pub published_root: SingletonPublishedRootId,

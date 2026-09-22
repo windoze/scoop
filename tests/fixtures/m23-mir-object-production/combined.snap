@@ -1,0 +1,3 @@
+Companion: companion initializer+ensure=Managed published-root
+First: standalone initializer+ensure=Managed published-root
+Second: standalone initializer+ensure=Managed published-root

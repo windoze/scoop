@@ -466,6 +466,7 @@ impl<'a> Concretizer<'a> {
         }
         for (source_id, source) in self.source.singleton_values.iter() {
             let value = self.singleton_values.alloc(concrete::SingletonValue {
+                identity: self.source.object_value_identities[source_id].id(),
                 declaration: concrete::ObjectId::from_raw(source.declaration.into_raw()),
                 object_type: concrete::ObjectTypeId::from_raw(source.object_type.into_raw()),
                 published_root: concrete::SingletonPublishedRootId::from_raw(

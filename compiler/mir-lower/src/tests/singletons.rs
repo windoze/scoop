@@ -92,6 +92,14 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     );
     source.type_identities = rebuild_type_identities(&source);
     source.initialization_unit_identities = rebuild_initialization_unit_identities(&source);
+    source.object_value_identities = hir::HirObjectValueIdentities::from_declarations(
+        &source.objects,
+        &source.object_types,
+        &source.singleton_values,
+        &source.nominal_identities,
+    )
+    .unwrap();
+    let expected_value = source.object_value_identities[value].id();
 
     let source = executable_output(source, entry);
     let expected_identity = source.initialization_unit_identities[initialization].clone();
@@ -101,6 +109,7 @@ fn singleton_identity_chain_survives_concretization_and_mir_lowering() {
     let module = lower(&source);
     let declaration = &module.objects[mir::ObjectId::from_raw(0_u32.into())];
     let singleton = &module.singleton_values[mir::SingletonValueId::from_raw(0_u32.into())];
+    assert_eq!(singleton.identity, expected_value);
     let root = &module.singleton_published_roots[singleton.published_root];
     assert_eq!(
         module.initialization_units[singleton.initialization].display_name,

@@ -277,6 +277,8 @@ strong MIR 的每个 source shape-support 条目还必须绑定已验证的有�
 
 M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR type-semantics 与实际 MIR。源码 nominal/exact 对应关系取 MIR 已保存的 source exact registry；表示取实际 struct/enum/class 定义，class 声明字段的持久身份取 HIR 已解析表示，并跳过 MIR 的基类字段前缀。直接继承边及目标无关 ZST/GC facts 复用 HIR 结果，实际字段类型仍经 MIR exact registry 投影。object 同时产出源码类型与 HIR 所有的 backing 类型，两者引用同一实际 class 表示。所有 HIR 表示必须恰有实际 MIR 目标，缺项或形状不匹配返回错误；不按名称补身份、不为缺失类型构造占位表示。源码表与有限辅助类型表可移动合并到同一 canonical 类型表，保持共有预算与重复 exact 拒绝。泛型继承等 ODR 闭包继续在 HIR 候选阶段拒绝，core 使用相同条件。
 
+LocalConcrete HIR 与 MIR 的 singleton value 必须直接保存 Export HIR 已建立的 `PersistentObjectValueId`，不能在下游按名字或 object arena 位置重建。MIR object-value 生产按本地类型表中的 object 表示选择实际 published-root 与 initialization unit，并从 sealed 初始化计划读取已绑定的 initializer/ensure callable、实际签名和 GC effect。两种 callable 及 object-value 表共同产出；其类型查询复用共有本地/依赖索引，不能把依赖类型复制为本地导出。每个本地 object 表示恰有一个实际 published-root 读计划，private 非导出 object 与 top-level property unit 不混入该表；缺失 object/backing/签名类型或 ensure binding 必须由共有验证拒绝。此生产不承诺分派、普通成员与构造器 binding 已完整。
+
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：

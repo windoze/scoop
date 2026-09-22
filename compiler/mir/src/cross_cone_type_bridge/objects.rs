@@ -9,12 +9,14 @@ use scoop_identity::{
 
 mod initialization;
 mod model;
+mod production;
 mod tables;
 mod validation;
 mod wire;
 
 pub use initialization::*;
 pub use model::*;
+pub use production::{MirObjectProductionError, MirObjectValueProductionV1};
 pub use tables::*;
 pub use validation::MirObjectBridgeError;
 pub use wire::{DecodedParamFreeMirObjectValueV1, DecodedSelectedExternalInitializationUseV1};

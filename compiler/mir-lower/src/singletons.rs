@@ -63,6 +63,7 @@ impl Lowerer {
 
         for (source_id, source) in module.singleton_values.iter() {
             let id = self.singleton_values.alloc(mir::SingletonValue {
+                identity: source.identity,
                 declaration: mir::ObjectId::from_raw(source.declaration.into_raw()),
                 object_type: mir::ObjectTypeId::from_raw(source.object_type.into_raw()),
                 published_root: self.singleton_root_map[&source.published_root],
