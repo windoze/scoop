@@ -1287,7 +1287,7 @@ suspend fun <T> suspendCoroutine(
 - **`==` / `!=`（值相等）** 的决议规则：
   - `lhs == rhs`先各求值一次，再只从lhs静态类型收集成员`operator fun equals`候选，按普通成员overload规则选择唯一目标；`lhs != rhs`调用同一目标后对结果取反。不存在交换左右操作数、extension、地址比较、`Any.equals`或TypeDescriptor fallback。
   - **值类型：条件派生的结构相等**——编译器可以额外提供一个参数类型等于lhs完整静态value type的`operator fun equals`候选：例如`Point.equals(other: Point)`，generic template `Box<T>`中则是`Box<T>.equals(other: Box<T>)`，实例化后得到`Box<Int>.equals(other: Box<Int>)`。这些都是普通typed nominal application，不存在`Self`占位符。当且仅当类型的所有字段（元素）**可比较**时生成：字段可比较表示对两个该字段静态类型的值执行`==`能选出唯一目标；基本类型具有核心实现，其他value type递归应用本规则。struct/tuple逐字段按声明顺序短路；enum先比较tag，再只比较active variant payload；Unit恒等。任一字段不可比较时，该派生候选不存在，诊断指出首个失败字段/variant路径。
-  - 用户声明参数类型为当前完整宿主application的同签名`equals`时取代派生体；其他参数类型的equals overload不屏蔽该同类型候选。派生方法也是普通成员，遵守value-type`this`按值传递规则。
+  - 用户声明参数类型为当前完整宿主application的同签名`equals`时取代派生体；其他参数类型的equals overload不屏蔽该同类型候选。派生方法也是普通成员，遵守value-type`this`按值传递规则。tuple/Unit 的派生候选以 lhs 完整静态类型的有效访问域为准，tuple 保留全部元素类型的可见性约束；生成 helper 的所在文件或首次创建位置不增加源码访问限制。
   - **引用类型**：只使用该class/interface静态类型声明或继承的成员operator equals；不存在时是编译错误。`Any`没有成员，因而`Any == Any`非法；运行期对象另有equals不能补齐静态契约。需要identity比较时显式使用`===`。
   - equals 的决议只考虑成员函数（含编译器派生）；扩展函数不得参与——import不能改变某类型`==`的语义。
 - **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object/struct/enum都必须在声明中显式列出该interface并提供合法override；字段或payload实现`ToString`不会让宿主自动获得conformance。generic nominal type若在实现体中调用类型参数值的`toString()`，必须为相应参数声明普通`ToString`上界。tuple与Unit不能声明implements列表，因而不实现`ToString`。String与基础类型由core中的intrinsic nominal声明显式adopt，String实现返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback，也不按成员同形或字段结构补齐conformance。

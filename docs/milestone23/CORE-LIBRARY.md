@@ -341,3 +341,7 @@ LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；�
 新增完整四类 occurrence 绑定，消费已完成声明、origin、nested identity 和正文引用闭包的结果，要求与当前访问表共用同一 bound foundation。每次独立比较完整来源域，重复引用、继承默认值与空正文均计入共享预算；错误保留 template key、引用种类与序号。返回凭证只覆盖这四类来源域相等，Type、Callable、receiver、操作类型、profile 和调用域 coverage 各自继续验证。
 
 独立和泛型组合源码 fixture/golden 覆盖 struct/class/object 字段、tuple、constructor/variant、global、singleton、重复引用及继承默认值。三个同名 provider 的真实 artifact 验证逐目标来源路由；缺失 provider、错 foundation、缺访问记录、伪造 owner type、member property 冒充 global、逐次 witness 篡改与预算耗尽均拒绝。generated adapter 额外覆盖 graph 可解析但 artifact 缺记录以及其他 generated role 拒绝。每批代码先 cargo fmt --all 与 cargo clippy --workspace --all-targets，默认来源定向 122 项和完整 scoop-hir/scoop-hir-lower 2,804 项全部通过，0 failed、0 ignored。模块按路由、绑定和错误拆分；本轮沿用关闭增量缓存与 debug 信息的构建设置。完整 default authority、committed-use 和正式跨 Cone layout 发布/消费继续推进，M23-6 未完成。
+
+2026-09-23：修正 tuple/Unit 派生 equality 在默认参数中的来源访问域。collector 按完整 operand type 重放结构候选的可见性，保留 tuple 元素类型的全部约束；nominal 派生候选继续使用原声明域。结构 helper 的 file-private 实现域不再误拒绝合法 public 默认值，复用较早文件生成的 helper 不改变结果。
+
+独立及组合 fixture 覆盖 Unit、tuple、嵌套 tuple、派生 struct、继承默认值与构造器默认值，HIR 来源引用 golden 锁定 Universal 域并通过实际 MIR lowering。两种规范排序的多文件输入交换默认值与 helper 预热源码，结果相同；隐藏 tuple 元素的 negative fixture 仍在完整 equality 表达式位置报告准确的访问域错误。每批先 cargo fmt --all 与 cargo clippy --workspace --all-targets，完整 scoop-hir-lower/scoop-mir-lower 1,770 项测试通过，0 failed、0 ignored。生产修改集中在既有 collector 的派生来源分支，测试拆入独立子模块。Callable 来源域绑定及其余完整发布/消费门继续推进，M23-6 保持进行中。

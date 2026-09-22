@@ -1,5 +1,6 @@
 use super::*;
 use source_dispatch::with_source;
+mod structural;
 
 #[test]
 fn derived_equality_is_available_while_source_defaults_are_prepared() {

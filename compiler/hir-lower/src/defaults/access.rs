@@ -103,7 +103,13 @@ impl ReferenceCollector<'_> {
                 }
             },
             hir::MethodCallee::DerivedEquality(application) => {
-                self.lowerer.derived_equality_applications[application].function
+                let application = &self.lowerer.derived_equality_applications[application];
+                match application.origin {
+                    hir::DerivedEqualityOrigin::Nominal(_) => application.function,
+                    hir::DerivedEqualityOrigin::Structural(owner_type) => {
+                        return self.lowerer.type_access_domain(owner_type);
+                    }
+                }
             }
         };
         self.lowerer.function_access_domain(function)
