@@ -273,54 +273,46 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         {
             return Err(NativeBoundaryTargetError::ScoopLayoutCycle { exact }.into());
         }
-        let layout =
-            if is_core_application(self.exact(exact)?, CoreNativeBoundaryNominal::PinnedPtr)
-                || is_core_application(self.exact(exact)?, CoreNativeBoundaryNominal::GcHandle)
-            {
-                scalar(
-                    self.target.scalar_layout(scoop_lir::BackendScalarKind::I64),
-                    true,
-                )
-            } else if self.is_unit(exact) {
-                PhysicalType {
-                    size: 0,
-                    alignment: 1,
-                    shape: ScoopAbiValueShape::Aggregate,
-                    gc_free: true,
-                }
-            } else if matches!(
-                self.exact(exact)?,
-                ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
-            ) {
-                self.nominal_layout(exact)?
-            } else if let Some(element_count) = match self.exact(exact)? {
-                ExactTypeKey::Tuple(elements) => Some(elements.as_slice().len()),
-                _ => None,
-            } {
-                let path = WirePath::root().field(1);
-                let mut fields = metered_vec(self.meter, element_count, &path)?;
-                for index in 0..element_count {
-                    let field = match self.exact(exact)? {
-                        ExactTypeKey::Tuple(elements) => elements.as_slice()[index],
-                        _ => return Err(NativeBoundaryTargetError::InvalidSignatureShape.into()),
-                    };
-                    fields.push(self.scoop_layout(field)?);
-                }
-                aggregate(&fields, ScoopAbiValueShape::Aggregate, exact)?
-            } else {
-                match self.exact(exact)? {
-                    ExactTypeKey::Function { .. } => {
-                        pointer(self.target, scoop_lir::PointerKind::Managed, false)
-                    }
-                    ExactTypeKey::RawPointer(_) => {
-                        pointer(self.target, scoop_lir::PointerKind::Raw, true)
-                    }
-                    ExactTypeKey::NativeFunctionPointer { .. } => {
-                        pointer(self.target, scoop_lir::PointerKind::Code, true)
-                    }
+        let layout = if self.is_unit(exact) {
+            PhysicalType {
+                size: 0,
+                alignment: 1,
+                shape: ScoopAbiValueShape::Aggregate,
+                gc_free: true,
+            }
+        } else if matches!(
+            self.exact(exact)?,
+            ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. }
+        ) {
+            self.nominal_layout(exact)?
+        } else if let Some(element_count) = match self.exact(exact)? {
+            ExactTypeKey::Tuple(elements) => Some(elements.as_slice().len()),
+            _ => None,
+        } {
+            let path = WirePath::root().field(1);
+            let mut fields = metered_vec(self.meter, element_count, &path)?;
+            for index in 0..element_count {
+                let field = match self.exact(exact)? {
+                    ExactTypeKey::Tuple(elements) => elements.as_slice()[index],
                     _ => return Err(NativeBoundaryTargetError::InvalidSignatureShape.into()),
+                };
+                fields.push(self.scoop_layout(field)?);
+            }
+            aggregate(&fields, ScoopAbiValueShape::Aggregate, exact)?
+        } else {
+            match self.exact(exact)? {
+                ExactTypeKey::Function { .. } => {
+                    pointer(self.target, scoop_lir::PointerKind::Managed, false)
                 }
-            };
+                ExactTypeKey::RawPointer(_) => {
+                    pointer(self.target, scoop_lir::PointerKind::Raw, true)
+                }
+                ExactTypeKey::NativeFunctionPointer { .. } => {
+                    pointer(self.target, scoop_lir::PointerKind::Code, true)
+                }
+                _ => return Err(NativeBoundaryTargetError::InvalidSignatureShape.into()),
+            }
+        };
         self.visiting_scoop_layouts.remove(&exact);
         insert_metered(
             self.meter,

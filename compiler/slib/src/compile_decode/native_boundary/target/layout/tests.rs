@@ -210,4 +210,5 @@ fn scoop_layout_walk_has_inclusive_semantic_depth_boundaries() {
     }
 }
 
+mod declared_structs;
 mod intrinsics;

@@ -275,3 +275,11 @@ workspace fmt 与 all-targets Clippy 通过；定向 LIR/LIR-lower/SLIB 1,169 �
 新增 CORE consumer 同时引用三个实际 provider 的 callable/descriptor/registration/ordinary-callable 组合、依赖枚举顺序稳定、错误 provider/owner、重复用途及最终 requirement/wire 的正反例。先执行 cargo fmt --all、cargo clippy --workspace --all-targets（无警告），SLIB 577 项测试通过，重建配套 scoopc 后完整 workspace 37 组、5764 项通过，0 failed、0 ignored。分类主体、依赖查询、错误及新增组合测试分别为 327、138、86、232 行。全部测试进程退出后 cargo clean 删除 22,535 个文件、23.7 GiB。
 
 本批完成共有 Link requirement 合并。native Option/PinnedPtr/GcHandle 固定身份路径、跨 Cone nominal/member/dispatch 的真实消费、新 layout profile 完整生产发布与其余 M23-6 完成门继续推进。
+
+2026-09-23：GC handle 的 Scoop ABI 按实际字段重放
+
+删除 native canonical Scoop ABI 中 PinnedPtr/GcHandle 的固定 core 身份标量分支。二者现在与其他 declared struct 共用完整 nominal/字段闭包、布局与 GC-free 重放，非空值按 typed ABI 间接传参和返回；C 透明表示不再覆盖 Scoop 表示。语言规范 14.1 明确透明性只适用于 C ABI，runtime 4.2 同步真实 core wrapper/runtime intrinsic 的职责；不改变 runtime C 入口、handle 编码、wire 或 persistent identity。
+
+新增独立 typed fixture 验证 CORE 与其他 provider 的同名 struct、实际 UInt64/UInt8 字段布局、缺失 nominal/字段 witness 拒绝；组合 fixture 与 golden 锁定标量、handle、Unit 混合参数、indirect result 和完整签名 wire 往返。先 cargo fmt --all 与 cargo clippy --workspace --all-targets（无警告），SLIB 580 项测试全部通过；重建配套 scoopc 后 driver 的 43 项测试全部通过，包括真实修改 core、双 view 发布、跨 Cone 调用和 source extern。新增测试模块 252 行。测试进程退出后 cargo clean 删除 13,713 个文件、15.7 GiB。
+
+本批修复 Scoop ABI 重放；C 边界的 Option/PinnedPtr/GcHandle 固定身份分类与透明表示生产仍在后续迁移范围，未将该修复等同于完整 M23-6 完成。

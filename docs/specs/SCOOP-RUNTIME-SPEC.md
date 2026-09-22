@@ -275,7 +275,7 @@ release hook是遗漏显式释放时的best-effort兜底，其精确定义是：
 - pin / unpin：直接读写对象头的 pin 标志（`scoop_runtime_pin(ptr)` / `scoop_runtime_unpin(ptr)`），O(1)。
 - `scoop_runtime_pin_handle(handle) -> ptr`：把传入的（可移动）handle 解析为当前地址并固定，用于 FFI 收到 `GcHandle` 参数又需要裸指针的场景。
 - handle 校验：runtime 必须校验generation、slot与live状态；非法或stale handle按4.4视为fatal runtime ABI error。
-- Scoop 侧的 `pin` / `unpin` / `getGcHandle` / `releaseGcHandle`（spec 14.1）本身就是以 Scoop ABI 实现的 extern 函数，映射到上述能力。
+- Scoop 侧的 `pin` / `unpin` / `getGcHandle` / `releaseGcHandle`（spec 14.1）是普通 core 函数，通过已声明的 runtime intrinsic 映射到上述能力。`PinnedPtr<T>` / `GcHandle<T>` 的 Scoop 参数与返回使用实际单字段 struct 的 indirect aggregate ABI；只有 C 边界采用 `UInt64` 透明表示。底层 runtime 继续使用既有 raw pointer/`uint64_t` 入口与 handle 编码，不为 Scoop struct 改写 runtime C ABI。
 
 ### 4.3 回调 Scoop closure
 
