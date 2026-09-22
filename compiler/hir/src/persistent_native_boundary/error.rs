@@ -1,7 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    PersistentCallableApplicationId, PersistentExactTypeId, PersistentInitializationUnitId,
+    PersistentCallableApplicationId, PersistentEnumVariantFieldId, PersistentEnumVariantId,
+    PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId,
 };
 
 use crate::{
@@ -15,6 +16,21 @@ pub enum HirNativeBoundaryTypeDefinitionError {
     },
     MissingSourceNominal {
         owner: NativeBoundaryNominalOwner,
+    },
+    MissingDependencyShape {
+        owner: NativeBoundaryNominalOwner,
+    },
+    DependencyDefinitionMismatch {
+        owner: NativeBoundaryNominalOwner,
+    },
+    MissingDependencyField {
+        field: PersistentFieldId,
+    },
+    MissingDependencyVariant {
+        variant: PersistentEnumVariantId,
+    },
+    MissingDependencyVariantField {
+        field: PersistentEnumVariantFieldId,
     },
     MissingCallableApplication {
         application: PersistentCallableApplicationId,
@@ -56,7 +72,27 @@ impl fmt::Display for HirNativeBoundaryTypeDefinitionError {
             }
             Self::MissingSourceNominal { owner } => write!(
                 formatter,
-                "native-boundary-closure-required: source owner {owner:?} has no definition in the current artifact"
+                "native-boundary-closure-required: source owner {owner:?} has no definition in the current artifact or dependency closure"
+            ),
+            Self::MissingDependencyShape { owner } => write!(
+                formatter,
+                "native-boundary-closure-required: dependency source owner {owner:?} has no value shape"
+            ),
+            Self::DependencyDefinitionMismatch { owner } => write!(
+                formatter,
+                "native boundary dependency source shape and witness disagree for {owner:?}"
+            ),
+            Self::MissingDependencyField { field } => write!(
+                formatter,
+                "native boundary dependency field {field} has no canonical declaration"
+            ),
+            Self::MissingDependencyVariant { variant } => write!(
+                formatter,
+                "native boundary dependency variant {variant} has no canonical declaration"
+            ),
+            Self::MissingDependencyVariantField { field } => write!(
+                formatter,
+                "native boundary dependency variant field {field} has no canonical declaration"
             ),
             Self::MissingCallableApplication { application } => write!(
                 formatter,

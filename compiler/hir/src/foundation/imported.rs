@@ -1,6 +1,6 @@
 use scoop_identity::{
     ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId, ImportedIdentityMap,
-    PersistentExportBindingId, PersistentId, PersistentTypeId,
+    PersistentExportBindingId, PersistentId,
 };
 use scoop_wire::WireEncode;
 
@@ -105,15 +105,15 @@ impl ImportedHirFoundation {
         self.canonical.export_binding_key(id)
     }
 
-    pub(super) fn core_source_type_key(
+    pub(crate) fn native_boundary_type(
         &self,
-        id: PersistentTypeId,
-    ) -> Option<&scoop_identity::SourceDeclarationKey> {
-        self.canonical.source_type_key(id)
-    }
-
-    pub(super) fn core_source_field_count(&self, owner: PersistentTypeId) -> usize {
-        self.canonical.source_field_count(owner)
+        owner: crate::NativeBoundaryNominalOwner,
+    ) -> Option<&crate::NativeBoundaryTypeDefinitionRecord> {
+        self.canonical
+            .native_boundary_types
+            .binary_search_by(|record| record.owner().compare_sort_key(owner))
+            .ok()
+            .map(|index| &self.canonical.native_boundary_types[index])
     }
 }
 

@@ -1,0 +1,14 @@
+Boolean struct NotCLayout fields=0
+Choice enum fields=[1, 1, 0]
+Int struct NotCLayout fields=0
+Int16 struct NotCLayout fields=0
+Int8 struct NotCLayout fields=0
+Long struct NotCLayout fields=0
+Packed struct CLayout { aligned: Bytes(Bytes8), packed: Bytes(Bytes1) } fields=2
+String reference
+UInt struct NotCLayout fields=0
+UInt16 struct NotCLayout fields=0
+UInt8 struct NotCLayout fields=0
+ULong struct NotCLayout fields=0
+Unit struct NotCLayout fields=0
+Wrapper struct NotCLayout fields=1

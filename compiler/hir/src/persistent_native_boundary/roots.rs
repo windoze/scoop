@@ -252,3 +252,23 @@ pub(super) fn collect_signature_type(
         SignatureTypeKey::Binder { .. } => {}
     }
 }
+
+/// All source witnesses, including imported ones, extend the same closure.
+pub(super) fn collect_definition_types(
+    definition: &crate::NativeBoundaryTypeDefinitionRecord,
+    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
+) {
+    match definition.shape() {
+        crate::NativeBoundaryNominalShape::Reference => (),
+        crate::NativeBoundaryNominalShape::Struct { fields, .. } => {
+            for field in fields {
+                collect_signature_type(field.ty(), required);
+            }
+        }
+        crate::NativeBoundaryNominalShape::Enum { variants } => {
+            for field in variants.iter().flat_map(|variant| variant.fields()) {
+                collect_signature_type(field.ty(), required);
+            }
+        }
+    }
+}

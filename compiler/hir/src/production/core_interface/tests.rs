@@ -113,39 +113,6 @@ fn imported_core_inputs_expose_compiler_protocols() {
             .len(),
         integers.len()
     );
-    let native_boundary = core.native_boundary_types();
-    assert_eq!(native_boundary.records().len(), integers.len() + 2);
-    for identity in integers
-        .into_iter()
-        .chain([protocols.fundamental_types().boolean().persistent()])
-    {
-        let record = native_boundary
-            .records()
-            .iter()
-            .find(|record| record.owner() == crate::NativeBoundaryNominalOwner::Concrete(identity))
-            .unwrap();
-        assert_eq!(
-            record.shape(),
-            &crate::NativeBoundaryNominalShape::Struct {
-                c_layout: crate::NativeBoundaryCLayoutPolicy::NotCLayout,
-                fields: Vec::new(),
-            }
-        );
-    }
-    let string_boundary = native_boundary
-        .records()
-        .iter()
-        .find(|record| {
-            record.owner()
-                == crate::NativeBoundaryNominalOwner::Concrete(
-                    protocols.fundamental_types().string().persistent(),
-                )
-        })
-        .unwrap();
-    assert_eq!(
-        string_boundary.shape(),
-        &crate::NativeBoundaryNominalShape::Reference
-    );
     assert_eq!(
         protocols.option().some().persistent(),
         fixture.interface.compiler_protocols().option_some()

@@ -1,15 +1,12 @@
-//! Imported compiler protocol identities and native-boundary definitions.
+//! Imported compiler protocol identities.
 
 use std::fmt;
-
-mod native_boundary;
-pub use native_boundary::{CoreNativeBoundaryImportError, ImportedCoreNativeBoundaryTypes};
 
 use scoop_identity::{
     PersistentConstructorId, PersistentDispatchSlotId, PersistentEnumVariantFieldId,
     PersistentEnumVariantId, PersistentExactTypeId, PersistentFunctionId,
     PersistentGeneratedCallableId, PersistentGenericFunctionId, PersistentGenericTypeId,
-    PersistentId, PersistentTypeId, SignatureCallableShape, SourceDeclarationKind,
+    PersistentId, PersistentTypeId, SignatureCallableShape,
 };
 
 use super::{ImportedHirFoundation, ImportedHirId};
@@ -17,9 +14,7 @@ use crate::{
     COROUTINE_PROTOCOL_COUNT, CoreHirInterfaceV1, CoreProtocolCallableDefinitionV1,
     CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
     FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT,
-    ITERATION_PROTOCOL_COUNT, IntegerKind, NativeBoundaryCLayoutPolicy,
-    NativeBoundaryDefinitionError, NativeBoundaryNominalOwner, NativeBoundaryNominalShape,
-    NativeBoundaryTypeDefinitionRecord, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
+    ITERATION_PROTOCOL_COUNT, IntegerKind, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
 };
 
 /// Imported nominal identity in the HIR semantic session that owns the
@@ -540,20 +535,15 @@ impl ImportedCoreProtocols {
     }
 }
 
-/// Compiler protocol identities and native-boundary definitions. Ordinary
+/// Compiler protocol identities. Ordinary
 /// public name lookup uses the shared dependency semantic world.
 pub struct ImportedCoreInputs {
     protocols: ImportedCoreProtocols,
-    native_boundary_types: ImportedCoreNativeBoundaryTypes,
 }
 
 impl ImportedCoreInputs {
     pub const fn protocols(&self) -> &ImportedCoreProtocols {
         &self.protocols
-    }
-
-    pub const fn native_boundary_types(&self) -> &ImportedCoreNativeBoundaryTypes {
-        &self.native_boundary_types
     }
 }
 
@@ -562,16 +552,9 @@ impl ImportedHirFoundation {
     pub fn import_core_inputs(
         &self,
         interface: &CoreHirInterfaceV1,
-    ) -> Result<ImportedCoreInputs, CoreInterfaceImportError> {
-        let protocols = ImportedCoreProtocols::import(self, interface)
-            .map_err(CoreInterfaceImportError::Protocols)?;
-        let native_boundary_types =
-            ImportedCoreNativeBoundaryTypes::import(self, protocols.fundamental_types())
-                .map_err(CoreInterfaceImportError::NativeBoundary)?;
-        Ok(ImportedCoreInputs {
-            protocols,
-            native_boundary_types,
-        })
+    ) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
+        let protocols = ImportedCoreProtocols::import(self, interface)?;
+        Ok(ImportedCoreInputs { protocols })
     }
 }
 
@@ -761,27 +744,3 @@ impl fmt::Display for CoreProtocolImportError {
 }
 
 impl std::error::Error for CoreProtocolImportError {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CoreInterfaceImportError {
-    Protocols(CoreProtocolImportError),
-    NativeBoundary(CoreNativeBoundaryImportError),
-}
-
-impl fmt::Display for CoreInterfaceImportError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Protocols(error) => error.fmt(formatter),
-            Self::NativeBoundary(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for CoreInterfaceImportError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Protocols(error) => Some(error),
-            Self::NativeBoundary(error) => Some(error),
-        }
-    }
-}

@@ -645,6 +645,8 @@ native-boundary foundation reader 对本地与外来 owner 统一解析同一 id
 
 共有 public nominal source shape 必须保留 struct 声明的 `@CLayout` 策略，不能从字段列表或 provider 身份推断。M23-6 将 `org.scoop-lang.hir/cross-cone-interface/1` 升级为 `/2`：struct shape 的 tag 仍为 3，field 1 仍为源码序字段列表，新增必需 field 2 保存与 type-semantics representation 共用的 `NominalCLayoutPolicyV1`（Ordinary 或完整 aligned/packed contract）；其他 shape tag 不改义。nominal source contract 与 nested source support 使用同一 constituent。producer 从 sealed HIR 的实际属性投影，reader 对 public source shape 与独立 representation 同时核对字段及 policy；intrinsic struct 的 source shape 必须为空字段且为 Ordinary。旧 capability 或缺少 policy 的旧 struct payload 拒绝，artifact/cache 必须重建；profile descriptor/fingerprint、Compile/Link inventory 与 HIR contribution 同步更新。native-boundary witness、exact identity 及 runtime C ABI 的既有 bytes 不变。
 
+native-boundary producer 的外来类型输入统一为当前构建的 `ImportedSemanticWorld`，不再由 compiler protocol 输入附带 core 类型名单。对每个已持有的 nominal owner，先在共有依赖闭包定位实际持有 canonical 声明的 provider，再用该 provider 的 source shape 与 canonical 字段/variant key 构造 source witness；Reference 只能由实际 class/interface/object 声明 kind 得出。若非公开声明已存在于 provider 的已验证 native witness 闭包，可复用该记录，但不扩展公共查找；两份表示同时存在时须一致。缺少 owner 或 value shape 必须报闭包缺失，不能猜测 CLayout。当前与外来记录统一继续遍历全部 struct 字段、enum variant payload 和嵌套 signature type，按 owner 去重并规范排序，只保留本次 extern/callback 根所需的传递闭包。direct 与 support provider 的 typed 查询规则相同，不生成本地声明或新的授权载体；generic 声明的结构闭合不放宽 ODR/执行 gate，通用 layout/scan 仍由 M23-6 type/layout section 提供。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

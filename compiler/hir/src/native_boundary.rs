@@ -12,6 +12,7 @@ use scoop_identity::{
 use scoop_wire::{Encoder, HashError, WireEncode};
 
 mod decode;
+mod policy;
 pub use decode::{
     DecodedNativeBoundaryCLayoutPolicy, DecodedNativeBoundaryFieldDefinition,
     DecodedNativeBoundaryNominalOwner, DecodedNativeBoundaryNominalShape,

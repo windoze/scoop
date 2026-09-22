@@ -14,6 +14,7 @@ use crate::SourceNominalId;
 mod entities;
 mod error;
 mod namespace;
+mod native_boundary;
 mod production_authority;
 mod provider;
 mod selection;

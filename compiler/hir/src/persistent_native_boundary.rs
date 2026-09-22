@@ -1,17 +1,15 @@
 //! Exact source-nominal closure required to validate native boundaries.
 
-use std::collections::BTreeSet;
-
 use la_arena::Arena;
 
 use crate::{
     ClassDecl, EnumDecl, HirCallbackRegistrationIdentities, HirEnumMemberIdentities,
     HirFieldIdentities, HirInitializationUnitIdentities, HirNominalIdentities,
-    HirSignatureTypeMapper, HirSourceNativeContracts, HirTypeIdentityInputs,
-    ImportedCoreNativeBoundaryTypes, InterfaceDecl, NativeBoundaryNominalOwner,
-    NativeBoundaryTypeDefinitionRecord, ObjectDecl, StructDecl,
+    HirSignatureTypeMapper, HirSourceNativeContracts, HirTypeIdentityInputs, ImportedSemanticWorld,
+    InterfaceDecl, NativeBoundaryTypeDefinitionRecord, ObjectDecl, StructDecl,
 };
 
+pub(crate) mod closure;
 mod declarations;
 mod error;
 mod records;
@@ -19,24 +17,6 @@ mod roots;
 
 use declarations::LocalNominalDeclarations;
 pub use error::HirNativeBoundaryTypeDefinitionError;
-
-#[derive(Clone, Copy, Debug)]
-pub enum HirNativeBoundaryExternalTypes<'a> {
-    CurrentArtifactOnly,
-    TrustedCore(&'a ImportedCoreNativeBoundaryTypes),
-}
-
-impl<'a> HirNativeBoundaryExternalTypes<'a> {
-    fn definition(
-        self,
-        owner: NativeBoundaryNominalOwner,
-    ) -> Option<&'a NativeBoundaryTypeDefinitionRecord> {
-        match self {
-            Self::CurrentArtifactOnly => None,
-            Self::TrustedCore(core) => core.definition(owner),
-        }
-    }
-}
 
 pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
     pub structs: &'a Arena<StructDecl>,
@@ -52,7 +32,7 @@ pub struct HirNativeBoundaryTypeDefinitionInputs<'a> {
     pub callback_registration_identities: &'a HirCallbackRegistrationIdentities,
     pub initialization_unit_identities: &'a HirInitializationUnitIdentities,
     pub local: &'a crate::concrete::Module,
-    pub external_types: HirNativeBoundaryExternalTypes<'a>,
+    pub dependencies: &'a ImportedSemanticWorld<'a>,
 }
 
 /// Canonically ordered, exact native-boundary source-nominal closure.
@@ -70,29 +50,15 @@ impl HirNativeBoundaryTypeDefinitions {
         inputs: HirNativeBoundaryTypeDefinitionInputs<'_>,
     ) -> Result<Self, HirNativeBoundaryTypeDefinitionError> {
         let declarations = LocalNominalDeclarations::new(&inputs)?;
-        let mut required = roots::collect(&inputs)?;
+        let required = roots::collect(&inputs)?;
         let mapper = HirSignatureTypeMapper::new(inputs.type_inputs);
-        let mut visited = BTreeSet::new();
-        let mut result = Vec::new();
-
-        while let Some(owner) = required.pop_first() {
-            if !visited.insert(owner) {
-                continue;
-            }
+        let result = closure::close(required, |owner| {
             if let Some(declaration) = declarations.get(owner) {
-                result.push(records::build(
-                    declaration,
-                    &inputs,
-                    &mapper,
-                    &mut required,
-                )?);
-            } else if let Some(definition) = inputs.external_types.definition(owner) {
-                result.push(definition.clone());
+                records::build(declaration, &inputs, &mapper)
             } else {
-                return Err(HirNativeBoundaryTypeDefinitionError::MissingSourceNominal { owner });
+                inputs.dependencies.native_boundary_type_definition(owner)
             }
-        }
-        result.sort_by(|left, right| left.owner().compare_sort_key(right.owner()));
+        })?;
         Ok(Self { records: result })
     }
 

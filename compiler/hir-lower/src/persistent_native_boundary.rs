@@ -5,7 +5,7 @@ use scoop_hir as hir;
 pub(crate) fn build(
     export: &hir::Module,
     local: &hir::concrete::Module,
-    external_types: hir::HirNativeBoundaryExternalTypes<'_>,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
 ) -> Result<hir::HirNativeBoundaryTypeDefinitions, PersistentNativeBoundaryTypeError> {
     let core_types = match &export.core_protocols {
         hir::CoreProtocols::Defined(protocols) => {
@@ -43,7 +43,7 @@ pub(crate) fn build(
         callback_registration_identities: &export.callback_registration_identities,
         initialization_unit_identities: &export.initialization_unit_identities,
         local,
-        external_types,
+        dependencies,
     })
     .map_err(PersistentNativeBoundaryTypeError)
 }

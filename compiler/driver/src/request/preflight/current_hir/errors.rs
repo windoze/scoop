@@ -24,7 +24,7 @@ impl std::error::Error for CurrentConeStrongProfileError {
 #[derive(Debug)]
 pub enum CurrentConeHirStageError {
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
-    CoreInterface(scoop_hir::CoreInterfaceImportError),
+    CoreInterface(scoop_hir::CoreProtocolImportError),
     CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
     Input(scoop_hir_lower::CurrentConeSourceError),
     Lowering(Vec<scoop_ast::Diagnostic>),

@@ -380,12 +380,10 @@ pub(crate) fn lower_defined_for_test(
         .with_intrinsic_sources(sources, policy)
         .run_defined(&files)?;
     let output_kind = select_cone_output_kind(&export, requested)?;
-    finish_output(
-        export,
-        output_kind,
-        warnings,
-        hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
-    )
+    let world =
+        hir::ImportedSemanticWorld::from_validated_closure(export.cone, Vec::new(), Vec::new())
+            .unwrap();
+    finish_output(export, output_kind, warnings, &world)
 }
 
 /// Test fixture adapter using the same input and lowering as production.
@@ -425,7 +423,7 @@ fn finish_output(
     export: hir::ExportHir,
     output_kind: hir::ConeOutputKind,
     warnings: Vec<Diagnostic>,
-    external_native_types: hir::HirNativeBoundaryExternalTypes<'_>,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
     let export = hir::ExportHirOutput::try_new(export, output_kind).map_err(|error| {
         vec![Diagnostic::at(
@@ -445,12 +443,9 @@ fn finish_output(
         )]
     })?;
     let local = concretize::lower_output(&export, &requirements);
-    let native_boundary_types = crate::persistent_native_boundary::build(
-        export.module(),
-        local.module(),
-        external_native_types,
-    )
-    .map_err(native_boundary_diagnostic)?;
+    let native_boundary_types =
+        crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
+            .map_err(native_boundary_diagnostic)?;
     hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
         vec![Diagnostic::at(
             Span { start: 0, end: 0 },

@@ -37,19 +37,13 @@ pub fn lower_current_cone(
     let lowerer = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_dependencies(dependency_selection);
-    let (lowerer, external_native_types) = match input.core() {
-        CoreProtocolInput::CurrentDeclarations => (
-            lowerer,
-            hir::HirNativeBoundaryExternalTypes::CurrentArtifactOnly,
-        ),
-        CoreProtocolInput::Imported(core) => (
-            lowerer.with_imported_core(core),
-            hir::HirNativeBoundaryExternalTypes::TrustedCore(core.native_boundary_types()),
-        ),
+    let lowerer = match input.core() {
+        CoreProtocolInput::CurrentDeclarations => lowerer,
+        CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
     let (module, warnings, completion) = lowerer.run_with_dependencies(&files, world)?;
     let output_kind = select_cone_output_kind(&module, requested)?;
-    let output = finish_output(module, output_kind, warnings, external_native_types)?;
+    let output = finish_output(module, output_kind, warnings, world)?;
     hir::DependencyHirOutput::try_new(
         output,
         completion.dependencies.finish(),

@@ -36,11 +36,10 @@ pub use counts::HirFoundationCounts;
 mod type_source_keys;
 pub use imported::{ImportedHirFoundation, ImportedHirId};
 pub use imported_protocols::{
-    CoreInterfaceImportError, CoreNativeBoundaryImportError, CoreProtocolIdentityKind,
-    CoreProtocolImportError, ImportedCoreCoroutineProtocol, ImportedCoreExceptionProtocol,
-    ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
+    CoreProtocolIdentityKind, CoreProtocolImportError, ImportedCoreCoroutineProtocol,
+    ImportedCoreExceptionProtocol, ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
     ImportedCoreFundamentalTypeProtocol, ImportedCoreInputs, ImportedCoreIterationProtocol,
-    ImportedCoreNativeBoundaryTypes, ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
+    ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
     ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,
     ImportedCoreProtocols, ImportedCoreSourceLocationProtocol,
 };
@@ -214,14 +213,6 @@ impl CanonicalHirFoundation {
             .iter()
             .find(|record| record.id() == id)
             .map(CborIdentityRecord::key)
-    }
-
-    pub(crate) fn source_field_count(&self, owner: PersistentTypeId) -> usize {
-        let owner = scoop_identity::NominalDeclarationOwner::Concrete(owner);
-        self.fields
-            .iter()
-            .filter(|record| record.key().source_owner() == Some(owner))
-            .count()
     }
 
     pub(crate) fn exact_type_by_bytes(

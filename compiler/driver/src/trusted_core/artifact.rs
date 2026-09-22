@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use scoop_hir::{
-    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CoreInterfaceImportError, ImportedCoreInputs,
+    CoreHirInterfaceBranchV1, CoreHirInterfaceV1, CoreProtocolImportError, ImportedCoreInputs,
 };
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
@@ -49,9 +49,8 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
         self.artifact.compile()
     }
 
-    /// Projects compiler protocols and native-boundary definitions from the shared
-    /// dependency artifact and its decoded interface.
-    pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs, CoreInterfaceImportError> {
+    /// Projects compiler protocols from the shared dependency artifact and its decoded interface.
+    pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
         self.compile().hir().import_core_inputs(&self.interface)
     }
 

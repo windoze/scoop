@@ -1,24 +1,20 @@
-use std::collections::BTreeSet;
-
 use la_arena::Idx;
-use scoop_identity::{CLayoutByteAlignment, CLayoutOverride, CoreBuiltinNominal};
+use scoop_identity::CoreBuiltinNominal;
 
 use super::declarations::LocalNominalDeclaration;
-use super::roots::collect_signature_type;
 use super::{HirNativeBoundaryTypeDefinitionError, HirNativeBoundaryTypeDefinitionInputs};
 use crate::{
-    EnumVariantFieldRef, EnumVariantRef, HirCLayoutValue, HirNominalIdentity, HirSignatureBinder,
+    EnumVariantFieldRef, EnumVariantRef, HirNominalIdentity, HirSignatureBinder,
     HirSignatureTypeMapper, HirSourceNominalIdentity, NativeBoundaryCLayoutPolicy,
-    NativeBoundaryFieldDefinition, NativeBoundaryNominalOwner, NativeBoundaryNominalShape,
-    NativeBoundaryTypeDefinitionRecord, NativeBoundaryVariantDefinition,
-    NativeBoundaryVariantFieldDefinition, StructDecl, StructFieldRef, TypeParamDecl,
+    NativeBoundaryFieldDefinition, NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
+    NativeBoundaryVariantDefinition, NativeBoundaryVariantFieldDefinition, StructFieldRef,
+    TypeParamDecl,
 };
 
 pub(super) fn build(
     declaration: LocalNominalDeclaration,
     inputs: &HirNativeBoundaryTypeDefinitionInputs<'_>,
     mapper: &HirSignatureTypeMapper<'_>,
-    required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) -> Result<NativeBoundaryTypeDefinitionRecord, HirNativeBoundaryTypeDefinitionError> {
     match declaration {
         LocalNominalDeclaration::CoreBuiltin(builtin) => core_builtin(builtin, inputs),
@@ -36,7 +32,6 @@ pub(super) fn build(
                 let ty = mapper
                     .map(field.ty, &binders)
                     .map_err(HirNativeBoundaryTypeDefinitionError::InvalidSignatureType)?;
-                collect_signature_type(&ty, required);
                 fields.push(
                     NativeBoundaryFieldDefinition::new(
                         inputs.field_identities[field_ref].key(),
@@ -49,7 +44,10 @@ pub(super) fn build(
                 source.declaration(),
                 &[checked_parameter_count(&structure.type_params)?],
                 NativeBoundaryNominalShape::Struct {
-                    c_layout: c_layout_policy(structure),
+                    c_layout: crate::NominalCLayoutPolicyV1::from_source_contract(
+                        structure.attributes.c_layout,
+                    )
+                    .into(),
                     fields,
                 },
             )
@@ -84,7 +82,6 @@ pub(super) fn build(
                     let ty = mapper
                         .map(field.ty, &binders)
                         .map_err(HirNativeBoundaryTypeDefinitionError::InvalidSignatureType)?;
-                    collect_signature_type(&ty, required);
                     fields.push(
                         NativeBoundaryVariantFieldDefinition::new(
                             inputs.enum_member_identities[field_ref].key(),
@@ -186,27 +183,6 @@ fn checked_parameter_count(
 
 fn checked_index(index: usize) -> Result<u32, HirNativeBoundaryTypeDefinitionError> {
     u32::try_from(index).map_err(|_| HirNativeBoundaryTypeDefinitionError::SourceOrderOverflow)
-}
-
-fn c_layout_policy(structure: &StructDecl) -> NativeBoundaryCLayoutPolicy {
-    match structure.attributes.c_layout {
-        None => NativeBoundaryCLayoutPolicy::NotCLayout,
-        Some(contract) => NativeBoundaryCLayoutPolicy::CLayout {
-            aligned: c_layout_override(contract.aligned),
-            packed: c_layout_override(contract.packed),
-        },
-    }
-}
-
-fn c_layout_override(value: HirCLayoutValue) -> CLayoutOverride {
-    match value {
-        HirCLayoutValue::Natural => CLayoutOverride::Natural,
-        HirCLayoutValue::A1 => CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes1),
-        HirCLayoutValue::A2 => CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes2),
-        HirCLayoutValue::A4 => CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes4),
-        HirCLayoutValue::A8 => CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes8),
-        HirCLayoutValue::A16 => CLayoutOverride::Bytes(CLayoutByteAlignment::Bytes16),
-    }
 }
 
 fn raw_index<T>(id: Idx<T>) -> u32 {
