@@ -187,11 +187,7 @@ pub enum CrossConeTypeSemanticsProductionError {
     MissingConcreteType(PersistentExactTypeId),
     MissingLocalSupport(PersistentExactTypeId),
     GenericOdrRequired(PersistentExactTypeId),
-    UnsupportedProtectedMember(SourceNominalId),
-    UnsupportedProtectedNominal(SourceNominalId),
-    UnsupportedProtectedConstructor(SourceNominalId),
     MissingConstructor(PersistentExactTypeId),
-    MissingSourceInterface(CallableTemplateOrigin),
     DefaultTemplateAuthorityRequired(CallableTemplateOrigin),
     InvalidSourceShape {
         declaration: SourceNominalId,
@@ -256,23 +252,8 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
                 f,
                 "exact type {exact} requires generic ODR materialization from M23-7"
             ),
-            Self::UnsupportedProtectedMember(owner) => write!(
-                f,
-                "nominal {owner:?} has a protected member that requires protected-source production"
-            ),
-            Self::UnsupportedProtectedNominal(owner) => write!(
-                f,
-                "protected nominal {owner:?} requires protected nested-source production"
-            ),
-            Self::UnsupportedProtectedConstructor(owner) => write!(
-                f,
-                "nominal {owner:?} has a protected constructor that requires protected-source production"
-            ),
             Self::MissingConstructor(owner) => {
-                write!(f, "public constructor metadata for {owner} is missing")
-            }
-            Self::MissingSourceInterface(owner) => {
-                write!(f, "source-call interface for {owner:?} is missing")
+                write!(f, "source constructor metadata for {owner} is missing")
             }
             Self::DefaultTemplateAuthorityRequired(owner) => write!(
                 f,

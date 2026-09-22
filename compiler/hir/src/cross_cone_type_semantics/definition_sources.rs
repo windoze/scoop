@@ -6,6 +6,7 @@ use crate::{
 };
 use scoop_wire::{BudgetMeter, WirePath};
 
+mod collection;
 mod declarations;
 mod defaults;
 mod errors;
@@ -13,6 +14,16 @@ mod uses;
 mod validation;
 pub use errors::*;
 pub use uses::*;
+
+trait SourceVisitor<E> {
+    fn observe(
+        &mut self,
+        source: &crate::ExportDefinitionSourceV1,
+        source_use: TypeDefinitionSourceUseV1<'_>,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), TypeDefinitionSourceClosureError<E>>;
+}
 
 /// The actual origin-bearing fields of one candidate type section. This view
 /// is transport data and grants neither declaration access nor publication.

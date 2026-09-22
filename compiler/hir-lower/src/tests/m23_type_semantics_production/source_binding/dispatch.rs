@@ -64,23 +64,16 @@ fn independent_foundation_replays_nonempty_dispatch_and_accessor_sources() {
             ))
             .unwrap();
             assert!(graph.object_backing_relation(exact).is_some());
-            let production = produce_cross_cone_type_semantics(output, &public_interface(output));
-            if source == VIRTUAL {
-                assert!(matches!(
-                    production,
-                    Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedProtectedMember(_))
-                ));
-            } else {
-                assert!(
-                    production
-                        .unwrap()
-                        .section()
-                        .inheritance()
-                        .records()
-                        .iter()
-                        .any(|record| !record.slots().records().is_empty())
-                );
-            }
+            let production =
+                produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+            assert!(
+                production
+                    .section()
+                    .inheritance()
+                    .records()
+                    .iter()
+                    .any(|record| !record.slots().records().is_empty())
+            );
         });
     }
 }
@@ -100,10 +93,16 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
             &mut meter(),
         )
         .unwrap();
-        assert!(matches!(
-            produce_cross_cone_type_semantics(output, &public_interface(output)),
-            Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedProtectedConstructor(_))
-        ));
+        let production =
+            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+        assert_eq!(
+            production
+                .section()
+                .protected_declarations()
+                .records()
+                .len(),
+            1
+        );
         let sources =
             hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(output, &mut meter())
                 .unwrap();

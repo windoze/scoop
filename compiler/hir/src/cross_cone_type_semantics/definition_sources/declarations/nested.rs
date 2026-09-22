@@ -3,9 +3,9 @@ use crate::{
     NestedSourceSupportV1, NominalSupportPropertyPayloadV1, ProtectedNestedNominalPayloadV1,
 };
 
-pub(super) fn visit<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
+pub(super) fn visit<V: SourceVisitor<E>, E>(
     root: &ProtectedNestedNominalPayloadV1,
-    validator: &mut Validator<'_, A>,
+    validator: &mut V,
     meter: &mut BudgetMeter,
     path: WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {

@@ -1,0 +1,22 @@
+public open class Surface protected constructor() {
+    protected fun <T> identity(value: T): T = value
+    protected var state: Int
+        get() = 0
+        private set(value) {}
+    protected open class Nested protected constructor(value: Int) {
+        protected fun call(value: Int): Int = value
+        private open class Hidden {
+            protected fun buried(): Int = 5
+        }
+        protected class Child {}
+    }
+    protected class Generic<T> protected constructor(value: T) {}
+    protected enum Choice<T> { Empty, Some(val value: T) }
+    private open class Unrelated {
+        protected fun excluded(): Int = 6
+    }
+}
+private open class UnrelatedTop protected constructor() {
+    protected fun excluded(): Int = 7
+    protected class Ignored {}
+}

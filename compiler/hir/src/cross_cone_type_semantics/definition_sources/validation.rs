@@ -26,16 +26,26 @@ impl<'a, A> Validator<'a, A> {
             authority,
         })
     }
-    pub(super) fn observe<E>(
+    pub(super) fn finish<E>(
+        self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
+        meter.charge_work(self.seen.len() as u64, path)?;
+        if let Some(index) = self.seen.iter().position(|seen| !seen) {
+            return Err(TypeDefinitionSourceClosureError::Extra { index });
+        }
+        Ok(())
+    }
+}
+impl<A: TypeDefinitionSourceSemanticAuthority<E>, E> SourceVisitor<E> for Validator<'_, A> {
+    fn observe(
         &mut self,
         source: &ExportDefinitionSourceV1,
         source_use: TypeDefinitionSourceUseV1<'_>,
         meter: &mut BudgetMeter,
         path: &WirePath,
-    ) -> Result<(), TypeDefinitionSourceClosureError<E>>
-    where
-        A: TypeDefinitionSourceSemanticAuthority<E>,
-    {
+    ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
         meter.charge_nodes(1, path)?;
         meter.check_semantic_leaf(
             source.origin().source().logical_path().as_str().len() as u64,
@@ -69,19 +79,11 @@ impl<'a, A> Validator<'a, A> {
             insertion_index: left,
         })
     }
-    pub(super) fn finish<E>(
-        self,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
-        meter.charge_work(self.seen.len() as u64, path)?;
-        if let Some(index) = self.seen.iter().position(|seen| !seen) {
-            return Err(TypeDefinitionSourceClosureError::Extra { index });
-        }
-        Ok(())
-    }
 }
-fn source_bytes(source: &ExportDefinitionSourceV1, path: &WirePath) -> Result<u64, WireError> {
+pub(super) fn source_bytes(
+    source: &ExportDefinitionSourceV1,
+    path: &WirePath,
+) -> Result<u64, WireError> {
     encoded_length(source)
         .map_err(|_| WireError::new(WireErrorKind::IntegerOutOfRange, path.clone(), None))
 }

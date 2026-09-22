@@ -1,9 +1,9 @@
-use super::{validation::Validator, *};
+use super::*;
 use crate::{ProtectedDefaultTemplateV1, TemplateLocalDefinitionV1};
 
-pub(super) fn visit<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
+pub(super) fn visit<V: SourceVisitor<E>, E>(
     inputs: TypeDefinitionSourceInputsV1<'_>,
-    validator: &mut Validator<'_, A>,
+    validator: &mut V,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
@@ -33,9 +33,9 @@ pub(super) fn visit<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
     Ok(())
 }
 
-fn visit_template<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
+fn visit_template<V: SourceVisitor<E>, E>(
     template: &ProtectedDefaultTemplateV1,
-    validator: &mut Validator<'_, A>,
+    validator: &mut V,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {

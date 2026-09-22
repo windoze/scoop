@@ -26,54 +26,26 @@ pub(super) use source_parameters::project as source_parameters;
 pub(super) use source_properties::project as source_properties;
 pub(super) use source_protected_callables::project as source_protected_callables;
 
-type InheritanceProjection = (
-    CanonicalNominalInheritanceInterfacesV1,
-    CanonicalProtectedCallableSourceInterfacesV1,
-    Vec<ExportDefinitionSourceV1>,
-);
-
 pub(super) fn produce(
     export: &ExportHir,
     nominals: &[ConcreteNominal<'_>],
-    public_nominals: &CanonicalNominalInterfacesV1,
-    public_callables: &CanonicalCallableInterfacesV1,
-    public_sources: &CanonicalCallableSourceInterfacesV1,
+    inventory: &CanonicalSourceInheritanceInventoriesV1,
+    source_constructors: &CanonicalInheritanceSourceConstructorsV1,
     slots: &SlotContracts<'_>,
     meter: &mut scoop_wire::BudgetMeter,
-) -> Result<InheritanceProjection, Error> {
+) -> Result<CanonicalNominalInheritanceInterfacesV1, Error> {
     let mut records = Vec::with_capacity(nominals.len());
-    let mut origins = Vec::new();
-    let mut sources = Vec::new();
     for nominal in nominals {
-        let source_id = SourceNominalId::Concrete(nominal.owner);
-        let public = public_nominals
-            .get(source_id)
+        let source = inventory
+            .get(nominal.exact)
             .ok_or(Error::MissingLocalSupport(nominal.exact))?;
-        let edge = project_edges(export, nominal)?;
-        let domains = project_domains(export, nominal)?;
-        let constructors = constructors::project(
-            export,
-            nominal,
-            public,
-            public_callables,
-            public_sources,
-            &mut sources,
-            &mut origins,
-        )?;
-        let schemas = schemas::project(export, nominal, meter)?;
-        let contracts = slots.project(nominal.exact, &schemas, meter)?;
         let record = NominalInheritanceInterfaceV1::try_new(
-            edge.clone(),
-            domains,
-            constructors,
-            contracts,
-            CanonicalProtectedDeclarationRefsV1::try_new(Vec::new()).map_err(|error| {
-                Error::InvalidInheritance {
-                    exact: nominal.exact,
-                    reason: error.to_string(),
-                }
-            })?,
-            schemas,
+            project_edges(export, nominal)?,
+            project_domains(export, nominal)?,
+            constructors::project(nominal.exact, source, source_constructors, meter)?,
+            slots.project(nominal.exact, source.slot_schemas(), meter)?,
+            source.protected_members().clone(),
+            source.slot_schemas().clone(),
         )
         .map_err(|error| Error::InvalidInheritance {
             exact: nominal.exact,
@@ -81,72 +53,9 @@ pub(super) fn produce(
         })?;
         records.push(record);
     }
-    let table = CanonicalNominalInheritanceInterfacesV1::try_new(records).map_err(|error| {
-        Error::InvalidTable {
-            table: "inheritance",
-            reason: error.to_string(),
-        }
-    })?;
-    let sources =
-        CanonicalProtectedCallableSourceInterfacesV1::try_new(sources).map_err(|error| {
-            Error::InvalidTable {
-                table: "protected-source-interface",
-                reason: error.to_string(),
-            }
-        })?;
-    Ok((table, sources, origins))
-}
-
-pub(super) fn reject_unsupported_source_features(
-    export: &ExportHir,
-    local: NominalLocalId,
-    owner: SourceNominalId,
-) -> Result<(), Error> {
-    let has_protected_member = match local {
-        NominalLocalId::Struct(id) => {
-            has_protected_methods(export, &export.structs[id].methods)
-                || has_protected_properties(export, &export.structs[id].properties)
-        }
-        NominalLocalId::Enum(id) => {
-            has_protected_methods(export, &export.enums[id].methods)
-                || has_protected_properties(export, &export.enums[id].properties)
-        }
-        NominalLocalId::Class(id) => {
-            has_protected_methods(export, &export.classes[id].methods)
-                || has_protected_properties(export, &export.classes[id].properties)
-        }
-        NominalLocalId::Interface(_) => false,
-        NominalLocalId::Object(id) => {
-            let class = &export.classes[export.objects[id].backing_class];
-            has_protected_methods(export, &class.methods)
-                || has_protected_properties(export, &class.properties)
-        }
-    };
-    if has_protected_member {
-        return Err(Error::UnsupportedProtectedMember(owner));
-    }
-    if constructors::has_protected(export, local) {
-        Err(Error::UnsupportedProtectedConstructor(owner))
-    } else {
-        Ok(())
-    }
-}
-
-fn has_protected_methods(export: &ExportHir, methods: &[FunctionId]) -> bool {
-    methods.iter().any(|id| {
-        let function = &export.functions[*id];
-        function.access.declared == DeclaredVisibility::Protected
-    })
-}
-
-fn has_protected_properties(export: &ExportHir, properties: &[PropertyId]) -> bool {
-    properties.iter().any(|id| {
-        let property = &export.properties[*id];
-        property.access.declared == DeclaredVisibility::Protected
-            || property.capability.setter().is_some_and(|setter| {
-                let setter = &export.property_setters[setter];
-                setter.access.declared == DeclaredVisibility::Protected
-            })
+    CanonicalNominalInheritanceInterfacesV1::try_new(records).map_err(|error| Error::InvalidTable {
+        table: "inheritance",
+        reason: error.to_string(),
     })
 }
 

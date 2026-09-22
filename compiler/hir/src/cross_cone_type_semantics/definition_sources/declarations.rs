@@ -1,4 +1,4 @@
-use super::{validation::Validator, *};
+use super::*;
 use crate::{
     NominalSourcePropertyPayloadV1, ProtectedDeclarationInterfaceV1, ProtectedPropertyMutabilityV1,
 };
@@ -6,9 +6,9 @@ use scoop_identity::PersistentPropertyId;
 
 mod nested;
 
-pub(super) fn visit<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
+pub(super) fn visit<V: SourceVisitor<E>, E>(
     inputs: TypeDefinitionSourceInputsV1<'_>,
-    validator: &mut Validator<'_, A>,
+    validator: &mut V,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {
@@ -97,10 +97,10 @@ pub(super) fn visit<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
     Ok(())
 }
 
-fn setter<A: TypeDefinitionSourceSemanticAuthority<E>, E>(
+fn setter<V: SourceVisitor<E>, E>(
     property: PersistentPropertyId,
     interface: &NominalSourcePropertyPayloadV1,
-    validator: &mut Validator<'_, A>,
+    validator: &mut V,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), TypeDefinitionSourceClosureError<E>> {

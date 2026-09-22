@@ -213,9 +213,25 @@ fn protected_constructor_sources_are_available_before_candidate_construction() {
                 .count(),
             1
         );
-        assert!(matches!(
-            produce_cross_cone_type_semantics(output, &public_interface(output)),
-            Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedProtectedConstructor(_))
-        ));
+        let production =
+            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+        assert_eq!(
+            production
+                .section()
+                .inheritance()
+                .records()
+                .iter()
+                .map(|record| record.constructors().records().len())
+                .sum::<usize>(),
+            2
+        );
+        assert_eq!(
+            production
+                .section()
+                .protected_declarations()
+                .records()
+                .len(),
+            1
+        );
     });
 }

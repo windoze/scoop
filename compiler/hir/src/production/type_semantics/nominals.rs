@@ -10,6 +10,7 @@ use crate::*;
 
 mod authority_projection;
 pub(super) use authority_projection::all_nominals;
+mod interfaces;
 mod representation;
 mod source_foundation;
 mod source_inventory;
@@ -50,13 +51,11 @@ pub(super) fn produce(
     }
     for local_id in public_nominals(export) {
         let identity = identity(export, local_id)?;
-        let source = identity.source().ok_or_else(|| {
+        identity.source().ok_or_else(|| {
             let (kind, index) = location(local_id);
             Error::GeneratedPublicNominal { kind, index }
         })?;
-        inheritance::reject_unsupported_source_features(export, local_id, source_id(source))?;
     }
-    reject_protected_nominals(export, &foundation.source_roots().iter().copied().collect())?;
     meter
         .charge_collection_slots(
             foundation.source_roots().len() as u64,
@@ -74,7 +73,6 @@ pub(super) fn produce(
     let fact_requirements = representation::fact_requirements(export, &concrete)?;
     let facts = facts::candidate(export, local, &root_exacts, &fact_requirements)?;
     let mut representations = Vec::with_capacity(concrete.len());
-    let mut definition_sources = Vec::new();
     for nominal in &concrete {
         let source_id = SourceNominalId::Concrete(nominal.owner);
         let access = declaration_access(
@@ -82,7 +80,6 @@ pub(super) fn produce(
             nominal.source.declaration(),
             nominal_access(export, nominal.local).declared.into(),
         )?;
-        definition_sources.push(access.definition_origin().clone());
         let shape = representation::shape(export, local, nominal)?;
         let record =
             NominalRepresentationSupportV1::try_new(nominal.source.declaration(), access, shape)
@@ -121,53 +118,52 @@ pub(super) fn produce(
     let source_parameters = inheritance::source_parameters(export, &inheritance_inventory, meter)?;
     let slots =
         inheritance::SlotContracts::new(export, &source_callables, &slot_selections, meter)?;
-    let (inheritance, protected_sources, constructor_origins) = inheritance::produce(
+    let inheritance = inheritance::produce(
         export,
         &concrete,
-        &projected_public,
-        &public_callables,
-        &public_sources,
+        &inheritance_inventory,
+        &source_constructors,
         &slots,
         meter,
     )?;
-    definition_sources.extend(constructor_origins);
-    definition_sources.extend(
-        source_callables
-            .records()
-            .iter()
-            .map(|source| source.declaration_access().definition_origin().clone()),
-    );
+    let (protected_declarations, protected_sources) =
+        interfaces::project(output, &source_parameters, meter)?;
+    let protected_defaults =
+        CanonicalProtectedDefaultTemplatesV1::try_new(Vec::new()).map_err(|error| {
+            Error::InvalidTable {
+                table: "protected-default",
+                reason: error.to_string(),
+            }
+        })?;
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
         .map_err(|error| Error::InvalidTable {
             table: "representation-support",
             reason: error.to_string(),
         })?;
-    let definition_source_evidence = definition_sources.into_iter().collect::<BTreeSet<_>>();
-    let definition_sources = CanonicalExportDefinitionSourcesV1::try_new(
-        definition_source_evidence.iter().cloned().collect(),
-    )
-    .map_err(|error| Error::InvalidTable {
-        table: "definition-source",
-        reason: error.to_string(),
-    })?;
+    let origins = TypeDefinitionSourceInputsV1 {
+        representations: &representation_support,
+        inheritance: &inheritance,
+        protected_declarations: &protected_declarations,
+        source_interfaces: &protected_sources,
+        defaults: &protected_defaults,
+    }
+    .collect_definition_sources(meter, &scoop_wire::WirePath::root())
+    .map_err(|error| Error::InvalidSourceDeclaration(error.to_string()))?;
+    let definition_sources =
+        CanonicalExportDefinitionSourcesV1::try_new(origins).map_err(|error| {
+            Error::InvalidTable {
+                table: "definition-source",
+                reason: error.to_string(),
+            }
+        })?;
     let section = CrossConeTypeSemanticsSectionV1::new(
         facts,
         representation_support,
         inheritance,
-        CanonicalProtectedDeclarationInterfacesV1::try_new(Vec::new()).map_err(|error| {
-            Error::InvalidTable {
-                table: "protected-declaration",
-                reason: error.to_string(),
-            }
-        })?,
+        protected_declarations,
         protected_sources,
-        CanonicalProtectedDefaultTemplatesV1::try_new(Vec::new()).map_err(|error| {
-            Error::InvalidTable {
-                table: "protected-default",
-                reason: error.to_string(),
-            }
-        })?,
+        protected_defaults,
         definition_sources,
         CanonicalSelectedExternalTypeUsesV1::try_new(Vec::new()).map_err(|error| {
             Error::InvalidTable {
@@ -189,55 +185,6 @@ pub(super) fn produce(
         source_parameters,
         source_nominals,
     })
-}
-
-fn reject_protected_nominals(
-    export: &ExportHir,
-    source_roots: &BTreeSet<SourceNominalId>,
-) -> Result<(), Error> {
-    for (local, access) in export
-        .structs
-        .iter()
-        .map(|(id, declaration)| (NominalLocalId::Struct(id), &declaration.access))
-        .chain(
-            export
-                .enums
-                .iter()
-                .map(|(id, declaration)| (NominalLocalId::Enum(id), &declaration.access)),
-        )
-        .chain(
-            export
-                .classes
-                .iter()
-                .map(|(id, declaration)| (NominalLocalId::Class(id), &declaration.access)),
-        )
-        .chain(
-            export
-                .interfaces
-                .iter()
-                .map(|(id, declaration)| (NominalLocalId::Interface(id), &declaration.access)),
-        )
-        .chain(
-            export
-                .objects
-                .iter()
-                .map(|(id, declaration)| (NominalLocalId::Object(id), &declaration.access)),
-        )
-    {
-        if access.declared == DeclaredVisibility::Protected {
-            let source = identity(export, local)?
-                .source()
-                .ok_or(Error::MissingExactIdentity)?;
-            if !lexical_owners(source.declaration())?
-                .iter()
-                .any(|owner| source_roots.contains(owner))
-            {
-                continue;
-            }
-            return Err(Error::UnsupportedProtectedNominal(source_id(source)));
-        }
-    }
-    Ok(())
 }
 
 pub(super) fn nominal_access(export: &ExportHir, local: NominalLocalId) -> &NominalAccess {
