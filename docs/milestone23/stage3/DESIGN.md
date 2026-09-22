@@ -837,6 +837,8 @@ M23-6清理删除了`shape_support_plan`的Core/NotCore分支；strong-productio
 
 ### 8.1 capability id
 
+M23-6 已将下列历史清单中的 HIR `core-bootstrap-interface/1` 退役为 `/2`，删除 protocol product 的完整 operation field 9，编号保留不复用。当前 single-Cone、cross-Cone semantics 与 layout profile 的 Compile/Link inventory 均要求 `/2`；旧 capability 或旧九字段 payload 拒绝并重建 artifact/cache。固定语言角色与共有 callable metadata 的验证见 [M23-6 设计](../stage6/DESIGN.md)，下列 `/1` 清单仅记录原 M23-3 格式。
+
 M23-3在M23-2 registry中新增：
 
 | location | capability | `required_for` | sink |

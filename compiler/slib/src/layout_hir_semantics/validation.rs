@@ -246,6 +246,18 @@ where
     );
     direct_dependencies.sort_unstable();
 
+    crate::cross_cone_hir_authority::validate_intrinsic_declarations(
+        interface,
+        identities,
+        std::iter::once(core).chain(public_dependencies.iter().map(|dependency| dependency.core)),
+        meter,
+    )
+    .map_err(
+        |source| CrossConeLayoutHirSemanticClosureError::Intrinsics {
+            provider,
+            source: Box::new(source),
+        },
+    )?;
     let public = {
         let context = LayoutHirPublicAuthorityContextV1 {
             provider,

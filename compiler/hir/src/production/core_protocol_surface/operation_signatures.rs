@@ -208,7 +208,6 @@ fn expected_pointer_signature(
     }
 }
 
-#[cfg(test)]
 pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) -> u32 {
     match kind {
         IntrinsicFunctionKind::GcPinRaw

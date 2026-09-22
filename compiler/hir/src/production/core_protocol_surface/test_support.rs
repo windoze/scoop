@@ -11,7 +11,7 @@ use scoop_identity::{
 };
 
 use super::*;
-use crate::{CanonicalHirFoundation, CoreProtocolCallableDefinitionV1};
+use crate::{CanonicalHirFoundation, CoreProtocolCallableDefinitionV1, intrinsic_function_kinds};
 
 mod builder;
 mod operations;
@@ -54,6 +54,17 @@ pub(crate) fn standalone() -> (CoreCompilerProtocolSurfaceV1, CanonicalHirFounda
 pub(crate) fn standalone_at(
     origin: ConeIdentity,
 ) -> (CoreCompilerProtocolSurfaceV1, CanonicalHirFoundation) {
+    let (surface, foundation, _) = standalone_with_intrinsics_at(origin);
+    (surface, foundation)
+}
+
+pub(crate) fn standalone_with_intrinsics_at(
+    origin: ConeIdentity,
+) -> (
+    CoreCompilerProtocolSurfaceV1,
+    CanonicalHirFoundation,
+    Vec<(IntrinsicFunctionKind, CoreProtocolCallableV1)>,
+) {
     let string: TypeRecord = CborIdentityRecord::from_key(SourceDeclarationKey::nominal(
         site(origin, DefinitionOwnerChain::top_level()),
         CanonicalIdentifier::new("String").unwrap(),
@@ -87,7 +98,7 @@ pub(crate) fn standalone_at(
     )
     .unwrap();
     let mut foundation = CanonicalHirFoundation::empty();
-    let surface = install_at(
+    let (surface, intrinsics) = surface::install_with_intrinsics_at(
         &mut foundation,
         ExistingProtocolFixture {
             string,
@@ -99,7 +110,7 @@ pub(crate) fn standalone_at(
         },
         origin,
     );
-    (surface, foundation)
+    (surface, foundation, intrinsics)
 }
 
 pub(crate) fn install(

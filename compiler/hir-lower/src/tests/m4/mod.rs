@@ -40,6 +40,7 @@ fn shape_decl() -> Decl {
 mod core_contract;
 mod destructuring;
 mod enum_declarations;
+mod intrinsic_gc_contract;
 mod intrinsics;
 mod variant_construction;
 mod when;

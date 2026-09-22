@@ -322,7 +322,7 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<CallableValidatedCrossConeHirFrontSections<'input>, CrossConeHirCallableSurfaceError>
     {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             identities,
             foundations,
             hir_core_production,
@@ -332,6 +332,14 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
             lir_strong_production,
             lir_cross_cone_bridge,
         } = self.0;
+        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
+            &hir_interface,
+            &identities,
+            std::iter::once(&hir_core_production)
+                .chain(dependencies.iter().map(|provider| provider.core)),
+            graph.envelope.meter_mut(),
+        )
+        .map_err(|error| CrossConeHirCallableSurfaceError::Intrinsics(Box::new(error)))?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             graph.identity(),
             &identities,

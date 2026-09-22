@@ -42,51 +42,34 @@ fn protocol_surface_preserves_role_signatures_and_rejects_substitute_providers()
         ),
     ] {
         let (mut surface, foundation) = test_support::standalone_at(origin);
-        let operation = surface
-            .compiler_operation_protocol
-            .operations
-            .iter_mut()
-            .find(|operation| operation.kind == IntrinsicFunctionKind::GcStats)
-            .unwrap();
-        let original = operation.callable.clone();
-        operation.callable = CoreProtocolCallableV1::for_test(
-            original.definition(),
-            SignatureCallableShape::new(
-                Effect::Ordinary,
-                None,
-                vec![],
-                SignatureTypeKey::Nominal(
-                    scoop_identity::CoreBuiltinNominal::Unit
-                        .identity_record()
-                        .id(),
+        let original = callable_entry_ref(surface.source_location_protocol.entries(), 1).clone();
+        surface.source_location_protocol.0.entries[1] =
+            CoreProtocolEntryV1::Callable(CoreProtocolCallableV1::for_test(
+                original.definition(),
+                SignatureCallableShape::new(
+                    Effect::Ordinary,
+                    None,
+                    vec![],
+                    SignatureTypeKey::Nominal(
+                        scoop_identity::CoreBuiltinNominal::Unit
+                            .identity_record()
+                            .id(),
+                    ),
                 ),
-            ),
-        );
+            ));
         assert_eq!(
             decode(&surface).validate_against(&foundation),
             Err(CoreCompilerProtocolSurfaceValidationError::Relation(
                 CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
-                    IntrinsicFunctionKind::GcStats
+                    IntrinsicFunctionKind::CurrentSourceLocation
                 )
             ))
         );
         let (substitute, _) = test_support::standalone_at(other);
-        let substitute = substitute
-            .compiler_operation_protocol
-            .operations
-            .iter()
-            .find(|operation| operation.kind == IntrinsicFunctionKind::GcStats)
-            .unwrap();
-        let operation = surface
-            .compiler_operation_protocol
-            .operations
-            .iter_mut()
-            .find(|operation| operation.kind == IntrinsicFunctionKind::GcStats)
-            .unwrap();
-        operation.callable = substitute.callable.clone();
-        let crate::CoreProtocolCallableDefinitionV1::Function(id) =
-            substitute.callable.definition()
-        else {
+        let substitute = callable_entry_ref(substitute.source_location_protocol.entries(), 1);
+        surface.source_location_protocol.0.entries[1] =
+            CoreProtocolEntryV1::Callable(substitute.clone());
+        let crate::CoreProtocolCallableDefinitionV1::Function(id) = substitute.definition() else {
             panic!("ordinary operation")
         };
         assert_eq!(

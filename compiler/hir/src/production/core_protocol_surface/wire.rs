@@ -248,78 +248,9 @@ wire_protocol_product!(
     SOURCE_LOCATION_PROTOCOL_COUNT
 );
 
-impl WireEncode for CoreCompilerOperationV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.kind.encode(encoder)?;
-        encoder.field(2)?;
-        self.callable.encode(encoder)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedCoreCompilerOperationV1 {
-    kind: IntrinsicFunctionKind,
-    callable: crate::DecodedCoreProtocolCallableV1,
-}
-
-impl WireEncode for DecodedCoreCompilerOperationV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.kind.encode(encoder)?;
-        encoder.field(2)?;
-        self.callable.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedCoreCompilerOperationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        Ok(Self {
-            kind: decoder.field(1, IntrinsicFunctionKind::decode)?,
-            callable: decoder.field(2, crate::DecodedCoreProtocolCallableV1::decode)?,
-        })
-    }
-}
-
-impl WireEncode for CoreCompilerOperationProtocolV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.operations.len() as u64)?;
-        for operation in &self.operations {
-            operation.encode(encoder)?;
-        }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedCoreCompilerOperationProtocolV1 {
-    operations: Vec<DecodedCoreCompilerOperationV1>,
-}
-
-impl WireEncode for DecodedCoreCompilerOperationProtocolV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.operations.len() as u64)?;
-        for operation in &self.operations {
-            operation.encode(encoder)?;
-        }
-        Ok(())
-    }
-}
-
-impl WireDecode for DecodedCoreCompilerOperationProtocolV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|decoder, _| DecodedCoreCompilerOperationV1::decode(decoder))
-            .map(|operations| Self { operations })
-    }
-}
-
 impl WireEncode for CoreCompilerProtocolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.fundamental_types.encode(encoder)?;
         encoder.field(2)?;
@@ -335,9 +266,7 @@ impl WireEncode for CoreCompilerProtocolSurfaceV1 {
         encoder.field(7)?;
         self.foreign_callback_protocol.encode(encoder)?;
         encoder.field(8)?;
-        self.source_location_protocol.encode(encoder)?;
-        encoder.field(9)?;
-        self.compiler_operation_protocol.encode(encoder)
+        self.source_location_protocol.encode(encoder)
     }
 }
 
@@ -351,7 +280,6 @@ pub struct DecodedCoreCompilerProtocolSurfaceV1 {
     ffi_protocol: DecodedCoreFfiProtocolV1,
     foreign_callback_protocol: DecodedCoreForeignCallbackProtocolV1,
     source_location_protocol: DecodedCoreSourceLocationProtocolV1,
-    compiler_operation_protocol: DecodedCoreCompilerOperationProtocolV1,
 }
 
 impl DecodedCoreCompilerProtocolSurfaceV1 {
@@ -400,10 +328,6 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
                 &SOURCE_LOCATION_LAYOUT,
                 foundation,
             )?),
-            compiler_operation_protocol: validate_operations(
-                self.compiler_operation_protocol,
-                foundation,
-            )?,
         };
         surface
             .validate_internal_relations()
@@ -412,7 +336,7 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
         validate_fixed_callable_signatures(&surface)
             .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
         surface
-            .validate_operation_signatures()
+            .validate_fixed_intrinsic_signatures()
             .map_err(CoreCompilerProtocolSurfaceValidationError::Relation)?;
         Ok(surface)
     }
@@ -420,7 +344,7 @@ impl DecodedCoreCompilerProtocolSurfaceV1 {
 
 impl WireEncode for DecodedCoreCompilerProtocolSurfaceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(8)?;
         encoder.field(1)?;
         self.fundamental_types.encode(encoder)?;
         encoder.field(2)?;
@@ -436,15 +360,13 @@ impl WireEncode for DecodedCoreCompilerProtocolSurfaceV1 {
         encoder.field(7)?;
         self.foreign_callback_protocol.encode(encoder)?;
         encoder.field(8)?;
-        self.source_location_protocol.encode(encoder)?;
-        encoder.field(9)?;
-        self.compiler_operation_protocol.encode(encoder)
+        self.source_location_protocol.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(8)?;
         Ok(Self {
             fundamental_types: decoder.field(1, DecodedCoreFundamentalTypeProtocolV1::decode)?,
             option_protocol: decoder.field(2, DecodedCoreOptionProtocolV1::decode)?,
@@ -456,8 +378,6 @@ impl WireDecode for DecodedCoreCompilerProtocolSurfaceV1 {
                 .field(7, DecodedCoreForeignCallbackProtocolV1::decode)?,
             source_location_protocol: decoder
                 .field(8, DecodedCoreSourceLocationProtocolV1::decode)?,
-            compiler_operation_protocol: decoder
-                .field(9, DecodedCoreCompilerOperationProtocolV1::decode)?,
         })
     }
 }
@@ -485,47 +405,6 @@ fn validate_product<const N: usize>(
             .try_into()
             .unwrap_or_else(|_| unreachable!("validated the fixed protocol product length")),
     })
-}
-
-fn validate_operations(
-    decoded: DecodedCoreCompilerOperationProtocolV1,
-    foundation: &CanonicalHirFoundation,
-) -> Result<CoreCompilerOperationProtocolV1, CoreCompilerProtocolSurfaceValidationError> {
-    let expected = intrinsic_function_kinds();
-    if decoded.operations.len() != expected.len() {
-        return Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationCoverage {
-                expected: expected.len(),
-                actual: decoded.operations.len(),
-            },
-        ));
-    }
-    let operations = decoded
-        .operations
-        .into_iter()
-        .zip(expected)
-        .enumerate()
-        .map(|(index, (operation, expected))| {
-            if operation.kind != expected {
-                return Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-                    CoreCompilerProtocolSurfaceRelationError::OperationRoleMismatch {
-                        index,
-                        expected,
-                        actual: operation.kind,
-                    },
-                ));
-            }
-            operation
-                .callable
-                .validate_against(foundation)
-                .map(|callable| CoreCompilerOperationV1 {
-                    kind: operation.kind,
-                    callable,
-                })
-                .map_err(CoreCompilerProtocolSurfaceValidationError::Callable)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(CoreCompilerOperationProtocolV1 { operations })
 }
 
 fn entry_kind(entry: &DecodedCoreProtocolEntryV1) -> ProtocolEntryKind {

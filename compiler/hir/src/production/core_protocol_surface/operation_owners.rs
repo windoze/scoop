@@ -1,43 +1,37 @@
+use scoop_identity::DefinitionOwnerAtom;
+
 use super::*;
 
-pub(super) fn operation_entry(
-    operations: &[(IntrinsicFunctionKind, CoreProtocolCallableV1)],
+pub(super) fn expected_operation_owner(
+    surface: &CoreCompilerProtocolSurfaceV1,
     kind: IntrinsicFunctionKind,
-) -> CoreProtocolEntryV1 {
-    CoreProtocolEntryV1::Callable(
-        operations
-            .iter()
-            .find(|operation| operation.0 == kind)
-            .expect("the test fixture constructs every intrinsic operation")
-            .1
-            .clone(),
-    )
-}
-
-pub(super) fn fixture_operation_owner(
-    kind: IntrinsicFunctionKind,
-    fundamental: &CoreFundamentalTypeProtocolV1,
 ) -> Option<DefinitionOwnerAtom> {
+    let fundamental = surface.fundamental_types.entries();
     match kind {
         IntrinsicFunctionKind::Integer(kind) => {
+            let source = match kind {
+                crate::IntegerIntrinsicKind::NoGcOperation { kind, .. }
+                | crate::IntegerIntrinsicKind::ManagedOperation { kind, .. } => kind,
+                crate::IntegerIntrinsicKind::Conversion { source, .. } => source,
+            };
             let index = crate::IntegerKind::ALL
                 .iter()
-                .position(|candidate| *candidate == integer_source_kind(kind))
-                .expect("every integer intrinsic uses a canonical integer kind");
-            Some(DefinitionOwnerAtom::Type(concrete_entry_ref(
-                fundamental.entries(),
+                .position(|candidate| *candidate == source)
+                .expect("every integer intrinsic uses one canonical integer owner");
+            Some(DefinitionOwnerAtom::Type(concrete_entry(
+                fundamental,
                 index + 1,
             )))
         }
-        IntrinsicFunctionKind::PrimitiveUnary(_) => Some(DefinitionOwnerAtom::Type(
-            concrete_entry_ref(fundamental.entries(), 9),
-        )),
-        IntrinsicFunctionKind::PrimitiveBinary(_) => Some(DefinitionOwnerAtom::Type(
-            concrete_entry_ref(fundamental.entries(), 10),
-        )),
+        IntrinsicFunctionKind::PrimitiveUnary(_) => {
+            Some(DefinitionOwnerAtom::Type(concrete_entry(fundamental, 9)))
+        }
+        IntrinsicFunctionKind::PrimitiveBinary(_) => {
+            Some(DefinitionOwnerAtom::Type(concrete_entry(fundamental, 10)))
+        }
         IntrinsicFunctionKind::ArrayAccess(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_entry_ref(
-                fundamental.entries(),
+            Some(DefinitionOwnerAtom::GenericType(generic_entry(
+                fundamental,
                 if kind == crate::ArrayAccessKind::ImmutableGet {
                     11
                 } else {
@@ -46,8 +40,8 @@ pub(super) fn fixture_operation_owner(
             )))
         }
         IntrinsicFunctionKind::Array(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_entry_ref(
-                fundamental.entries(),
+            Some(DefinitionOwnerAtom::GenericType(generic_entry(
+                fundamental,
                 if kind == crate::ArrayIntrinsic::ToImmutable {
                     12
                 } else {
@@ -64,8 +58,8 @@ pub(super) fn fixture_operation_owner(
             | crate::PointerIntrinsic::StoreOffset
             | crate::PointerIntrinsic::Plus
             | crate::PointerIntrinsic::Minus,
-        ) => Some(DefinitionOwnerAtom::GenericType(generic_entry_ref(
-            fundamental.entries(),
+        ) => Some(DefinitionOwnerAtom::GenericType(generic_entry(
+            fundamental,
             13,
         ))),
         IntrinsicFunctionKind::GcPinRaw
@@ -83,13 +77,5 @@ pub(super) fn fixture_operation_owner(
         | IntrinsicFunctionKind::ForeignCallbackState
         | IntrinsicFunctionKind::ForeignCallbackFailure
         | IntrinsicFunctionKind::Pointer(_) => None,
-    }
-}
-
-fn integer_source_kind(kind: crate::IntegerIntrinsicKind) -> crate::IntegerKind {
-    match kind {
-        crate::IntegerIntrinsicKind::NoGcOperation { kind, .. }
-        | crate::IntegerIntrinsicKind::ManagedOperation { kind, .. } => kind,
-        crate::IntegerIntrinsicKind::Conversion { source, .. } => source,
     }
 }

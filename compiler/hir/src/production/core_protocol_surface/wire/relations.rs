@@ -9,8 +9,8 @@ pub(super) fn validate_foundation_relations(
     validate_foreign_callback_relations(surface, foundation)?;
     validate_protocol_callable_owners(surface, foundation)?;
     validate_interface_dispatch_relations(surface, foundation)?;
-    for operation in &surface.compiler_operation_protocol.operations {
-        validate_operation_owner(surface, foundation, operation)?;
+    for (kind, callable) in surface.fixed_intrinsic_callables() {
+        validate_operation_owner(surface, foundation, kind, callable)?;
     }
     Ok(())
 }
@@ -472,14 +472,15 @@ fn validate_interface_dispatch<const N: usize>(
 fn validate_operation_owner(
     surface: &CoreCompilerProtocolSurfaceV1,
     foundation: &CanonicalHirFoundation,
-    operation: &CoreCompilerOperationV1,
+    kind: IntrinsicFunctionKind,
+    callable: &CoreProtocolCallableV1,
 ) -> Result<(), CoreCompilerProtocolSurfaceValidationError> {
-    let source = protocol_callable_source(foundation, operation.callable.definition()).ok_or(
+    let source = protocol_callable_source(foundation, callable.definition()).ok_or(
         CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationCallableKindMismatch(operation.kind),
+            CoreCompilerProtocolSurfaceRelationError::OperationCallableKindMismatch(kind),
         ),
     )?;
-    let expected = expected_operation_owner(surface, operation.kind);
+    let expected = expected_operation_owner(surface, kind);
     let owners = source.owners().owners();
     let matches = match expected {
         None => owners.is_empty(),
@@ -488,85 +489,7 @@ fn validate_operation_owner(
     if matches {
         Ok(())
     } else {
-        Err(CoreCompilerProtocolSurfaceValidationError::OperationOwnerMismatch(operation.kind))
-    }
-}
-
-fn expected_operation_owner(
-    surface: &CoreCompilerProtocolSurfaceV1,
-    kind: IntrinsicFunctionKind,
-) -> Option<DefinitionOwnerAtom> {
-    let fundamental = surface.fundamental_types.entries();
-    match kind {
-        IntrinsicFunctionKind::Integer(kind) => {
-            let source = match kind {
-                crate::IntegerIntrinsicKind::NoGcOperation { kind, .. }
-                | crate::IntegerIntrinsicKind::ManagedOperation { kind, .. } => kind,
-                crate::IntegerIntrinsicKind::Conversion { source, .. } => source,
-            };
-            let index = crate::IntegerKind::ALL
-                .iter()
-                .position(|candidate| *candidate == source)
-                .expect("every integer intrinsic uses one canonical integer owner");
-            Some(DefinitionOwnerAtom::Type(concrete_nominal_id(
-                fundamental,
-                index + 1,
-            )))
-        }
-        IntrinsicFunctionKind::PrimitiveUnary(_) => Some(DefinitionOwnerAtom::Type(
-            concrete_nominal_id(fundamental, 9),
-        )),
-        IntrinsicFunctionKind::PrimitiveBinary(_) => Some(DefinitionOwnerAtom::Type(
-            concrete_nominal_id(fundamental, 10),
-        )),
-        IntrinsicFunctionKind::ArrayAccess(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_nominal_id(
-                fundamental,
-                if kind == crate::ArrayAccessKind::ImmutableGet {
-                    11
-                } else {
-                    12
-                },
-            )))
-        }
-        IntrinsicFunctionKind::Array(kind) => {
-            Some(DefinitionOwnerAtom::GenericType(generic_nominal_id(
-                fundamental,
-                if kind == crate::ArrayIntrinsic::ToImmutable {
-                    12
-                } else {
-                    11
-                },
-            )))
-        }
-        IntrinsicFunctionKind::Pointer(
-            crate::PointerIntrinsic::ToULong
-            | crate::PointerIntrinsic::Cast
-            | crate::PointerIntrinsic::Load
-            | crate::PointerIntrinsic::LoadOffset
-            | crate::PointerIntrinsic::Store
-            | crate::PointerIntrinsic::StoreOffset
-            | crate::PointerIntrinsic::Plus
-            | crate::PointerIntrinsic::Minus,
-        ) => Some(DefinitionOwnerAtom::GenericType(generic_nominal_id(
-            fundamental,
-            13,
-        ))),
-        IntrinsicFunctionKind::GcPinRaw
-        | IntrinsicFunctionKind::GcUnpinRaw
-        | IntrinsicFunctionKind::GcGetHandleRaw
-        | IntrinsicFunctionKind::GcReleaseHandleRaw
-        | IntrinsicFunctionKind::GcCollect
-        | IntrinsicFunctionKind::GcStats
-        | IntrinsicFunctionKind::CoroutineStart
-        | IntrinsicFunctionKind::CoroutineSuspend
-        | IntrinsicFunctionKind::CurrentSourceLocation
-        | IntrinsicFunctionKind::ForeignCallbackRegister
-        | IntrinsicFunctionKind::ForeignCallbackRetain
-        | IntrinsicFunctionKind::ForeignCallbackRelease
-        | IntrinsicFunctionKind::ForeignCallbackState
-        | IntrinsicFunctionKind::ForeignCallbackFailure
-        | IntrinsicFunctionKind::Pointer(_) => None,
+        Err(CoreCompilerProtocolSurfaceValidationError::OperationOwnerMismatch(kind))
     }
 }
 

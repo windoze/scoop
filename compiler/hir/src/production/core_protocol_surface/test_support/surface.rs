@@ -5,6 +5,17 @@ pub(super) fn install_at(
     existing: ExistingProtocolFixture,
     origin: ConeIdentity,
 ) -> CoreCompilerProtocolSurfaceV1 {
+    install_with_intrinsics_at(foundation, existing, origin).0
+}
+
+pub(super) fn install_with_intrinsics_at(
+    foundation: &mut CanonicalHirFoundation,
+    existing: ExistingProtocolFixture,
+    origin: ConeIdentity,
+) -> (
+    CoreCompilerProtocolSurfaceV1,
+    Vec<(IntrinsicFunctionKind, CoreProtocolCallableV1)>,
+) {
     let mut builder = FixtureBuilder::new(existing, origin);
 
     let integers: [CoreProtocolEntryV1; 8] =
@@ -218,9 +229,6 @@ pub(super) fn install_at(
         ffi_protocol: ffi_protocol.clone(),
         foreign_callback_protocol: foreign_callback_protocol.clone(),
         source_location_protocol: source_location_protocol.clone(),
-        compiler_operation_protocol: CoreCompilerOperationProtocolV1 {
-            operations: Vec::new(),
-        },
     };
     let operations = intrinsic_function_kinds()
         .into_iter()
@@ -230,10 +238,7 @@ pub(super) fn install_at(
                 operation_own_type_parameter_count(kind),
                 expected_operation_signature(&signature_surface, kind),
             );
-            CoreCompilerOperationV1 {
-                kind,
-                callable: callable_entry(callable),
-            }
+            (kind, callable_entry(callable))
         })
         .collect::<Vec<_>>();
 
@@ -314,9 +319,8 @@ pub(super) fn install_at(
         ffi_protocol,
         foreign_callback_protocol,
         source_location_protocol,
-        compiler_operation_protocol: CoreCompilerOperationProtocolV1 { operations },
     };
     surface.validate_internal_relations().unwrap();
     builder.install(foundation);
-    surface
+    (surface, operations)
 }

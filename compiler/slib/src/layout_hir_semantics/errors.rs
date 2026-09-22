@@ -30,6 +30,10 @@ pub enum CrossConeLayoutHirSemanticClosureError<E> {
         provider: ConeIdentity,
         source: Box<TypeSectionPublicSupportError<E>>,
     },
+    Intrinsics {
+        provider: ConeIdentity,
+        source: Box<crate::CrossConeIntrinsicDeclarationError>,
+    },
     Types {
         provider: ConeIdentity,
         source: Box<TypeSectionSemanticValidationError<E>>,
@@ -78,6 +82,10 @@ impl<E: fmt::Display> fmt::Display for CrossConeLayoutHirSemanticClosureError<E>
                     "invalid complete type HIR section for {provider}: {source}"
                 )
             }
+            Self::Intrinsics { provider, source } => write!(
+                formatter,
+                "invalid intrinsic declarations for {provider}: {source}"
+            ),
         }
     }
 }
@@ -90,6 +98,7 @@ impl<E: std::error::Error + 'static> std::error::Error
             Self::PublicAuthority { source, .. } => Some(source),
             Self::Public { source, .. } => Some(source.as_ref()),
             Self::Types { source, .. } => Some(source.as_ref()),
+            Self::Intrinsics { source, .. } => Some(source.as_ref()),
             Self::AuthorityCount { .. }
             | Self::AuthorityProvider { .. }
             | Self::Allocation { .. }

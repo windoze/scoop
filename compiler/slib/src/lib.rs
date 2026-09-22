@@ -67,7 +67,9 @@ mod cross_cone_closure;
 pub use cross_cone_closure::*;
 
 mod cross_cone_hir_authority;
-pub use cross_cone_hir_authority::CrossConeHirNominalAuthorityError;
+pub use cross_cone_hir_authority::{
+    CrossConeHirNominalAuthorityError, CrossConeIntrinsicDeclarationError,
+};
 
 mod publish;
 pub use publish::*;

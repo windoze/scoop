@@ -792,8 +792,8 @@ pub fn intrinsic_spec(name: &str) -> Option<IntrinsicRegistryEntry> {
 }
 
 /// Complete compiler-recognized intrinsic function role set in canonical
-/// semantic-key order. This is the authority used by production metadata;
-/// annotation spellings never cross that boundary.
+/// semantic-key order. Published callables carry their own typed kind;
+/// this enumeration is not a second persistent operation table.
 pub fn intrinsic_function_kinds() -> Vec<IntrinsicFunctionKind> {
     let mut kinds = INTRINSIC_REGISTRY
         .iter()

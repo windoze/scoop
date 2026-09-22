@@ -11,25 +11,17 @@ pub(super) fn validate_inventory<S>(
     let purpose = view.member_purpose();
     for (index, section) in sections.iter().enumerate() {
         let capability = capability_of(section);
-        let incompatible = if expected.contains(&lir_strong_production_v2_capability())
-            && capability == &lir_strong_production_capability()
-        {
-            Some(lir_strong_production_v2_capability())
-        } else if expected.contains(&hir_cross_cone_interface_capability())
-            && capability.namespace() == "org.scoop-lang.hir"
-            && capability.name() == "cross-cone-interface"
-            && capability != &hir_cross_cone_interface_capability()
-        {
-            Some(hir_cross_cone_interface_capability())
-        } else {
-            None
-        };
+        let incompatible = expected.iter().find(|required| {
+            required.namespace() == capability.namespace()
+                && required.name() == capability.name()
+                && *required != capability
+        });
         if let Some(required) = incompatible {
             return Err(
                 ArtifactProfileInventoryError::ConflictingCapabilityVersion {
                     location,
                     index,
-                    required: Box::new(required),
+                    required: Box::new(required.clone()),
                     actual: Box::new(capability.clone()),
                 },
             );

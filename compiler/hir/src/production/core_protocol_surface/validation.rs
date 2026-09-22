@@ -6,9 +6,7 @@ impl CoreCompilerProtocolSurfaceV1 {
     pub(super) fn validate_internal_relations(
         &self,
     ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
-        // Repetition across protocols is intentional only for callables that
-        // also appear in the total intrinsic operation table; fixed products
-        // themselves must not repeat one subject under two roles.
+        // Fixed products must not repeat one subject under two roles.
         for entries in [
             self.fundamental_types.entries().as_slice(),
             self.option_protocol.entries().as_slice(),
@@ -60,35 +58,30 @@ impl CoreCompilerProtocolSurfaceV1 {
             self.source_location_protocol.entries(),
             &[1],
         )?;
-        validate_operation_set(&self.compiler_operation_protocol.operations)?;
-        self.validate_repeated_operation_relations()?;
         Ok(())
     }
 
-    pub(super) fn validate_operation_signatures(
+    pub(super) fn validate_fixed_intrinsic_signatures(
         &self,
     ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
-        for operation in &self.compiler_operation_protocol.operations {
-            let expected = expected_operation_signature(self, operation.kind);
-            if operation.callable.signature() != &expected {
+        for (kind, callable) in self.fixed_intrinsic_callables() {
+            if callable.signature() != &expected_operation_signature(self, kind) {
                 return Err(
-                    CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
-                        operation.kind,
-                    ),
+                    CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(kind),
                 );
             }
         }
         Ok(())
     }
 
-    fn validate_repeated_operation_relations(
+    pub(super) fn fixed_intrinsic_callables(
         &self,
-    ) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
+    ) -> [(IntrinsicFunctionKind, &CoreProtocolCallableV1); 23] {
         let coroutine = self.coroutine_protocol.entries();
         let ffi = self.ffi_protocol.entries();
         let callback = self.foreign_callback_protocol.entries();
         let location = self.source_location_protocol.entries();
-        for (kind, callable) in [
+        [
             (
                 IntrinsicFunctionKind::CoroutineStart,
                 callable_entry_ref(coroutine, 11),
@@ -178,92 +171,8 @@ impl CoreCompilerProtocolSurfaceV1 {
                 IntrinsicFunctionKind::CurrentSourceLocation,
                 callable_entry_ref(location, 1),
             ),
-        ] {
-            let Some(operation) = self
-                .compiler_operation_protocol
-                .operations
-                .iter()
-                .find(|operation| operation.kind == kind)
-            else {
-                return Err(
-                    CoreCompilerProtocolSurfaceRelationError::OperationCoverage {
-                        expected: intrinsic_function_kinds().len(),
-                        actual: self.compiler_operation_protocol.operations.len(),
-                    },
-                );
-            };
-            if operation.callable != *callable {
-                return Err(
-                    CoreCompilerProtocolSurfaceRelationError::RepeatedOperationMismatch(kind),
-                );
-            }
-        }
-        Ok(())
+        ]
     }
-}
-
-pub(super) fn validate_operation_set(
-    operations: &[CoreCompilerOperationV1],
-) -> Result<(), CoreCompilerProtocolSurfaceRelationError> {
-    let expected = intrinsic_function_kinds();
-    if operations.len() != expected.len() {
-        return Err(
-            CoreCompilerProtocolSurfaceRelationError::OperationCoverage {
-                expected: expected.len(),
-                actual: operations.len(),
-            },
-        );
-    }
-    let mut definitions = Vec::with_capacity(operations.len());
-    for (index, (operation, expected)) in operations.iter().zip(expected).enumerate() {
-        if operation.kind != expected {
-            return Err(
-                CoreCompilerProtocolSurfaceRelationError::OperationRoleMismatch {
-                    index,
-                    expected,
-                    actual: operation.kind,
-                },
-            );
-        }
-        let expected_effect = if expected == IntrinsicFunctionKind::CoroutineSuspend {
-            scoop_identity::Effect::Suspend
-        } else {
-            scoop_identity::Effect::Ordinary
-        };
-        if operation.callable.signature().effect() != expected_effect {
-            return Err(
-                CoreCompilerProtocolSurfaceRelationError::OperationEffectMismatch(expected),
-            );
-        }
-        let receiver_expected = intrinsic_receiver_is_present(expected);
-        if operation.callable.signature().receiver().is_present() != receiver_expected {
-            return Err(
-                CoreCompilerProtocolSurfaceRelationError::OperationReceiverMismatch(expected),
-            );
-        }
-        if !matches!(
-            operation.callable.definition(),
-            super::super::CoreProtocolCallableDefinitionV1::Function(_)
-                | super::super::CoreProtocolCallableDefinitionV1::GenericFunction(_)
-        ) {
-            return Err(
-                CoreCompilerProtocolSurfaceRelationError::OperationCallableKindMismatch(expected),
-            );
-        }
-        definitions.push(operation.callable.definition());
-    }
-    definitions.sort_unstable();
-    if let Some(pair) = definitions.windows(2).find(|pair| pair[0] == pair[1]) {
-        return Err(CoreCompilerProtocolSurfaceRelationError::DuplicateOperationCallable(pair[0]));
-    }
-    Ok(())
-}
-
-fn intrinsic_receiver_is_present(_kind: IntrinsicFunctionKind) -> bool {
-    // SignatureCallableShape.receiver is the explicit extension receiver.
-    // Member ownership is carried by the source declaration owner chain, so
-    // every current intrinsic role has an absent signature receiver.
-    false
 }
 
 fn require_source_callables<const N: usize>(
@@ -350,21 +259,8 @@ pub enum CoreCompilerProtocolSurfaceRelationError {
         product: CoreProtocolProductKindV1,
         index: usize,
     },
-    OperationCoverage {
-        expected: usize,
-        actual: usize,
-    },
-    OperationRoleMismatch {
-        index: usize,
-        expected: IntrinsicFunctionKind,
-        actual: IntrinsicFunctionKind,
-    },
-    OperationEffectMismatch(IntrinsicFunctionKind),
-    OperationReceiverMismatch(IntrinsicFunctionKind),
     OperationSignatureMismatch(IntrinsicFunctionKind),
     OperationCallableKindMismatch(IntrinsicFunctionKind),
-    DuplicateOperationCallable(super::super::CoreProtocolCallableDefinitionV1),
-    RepeatedOperationMismatch(IntrinsicFunctionKind),
     FixedCallableSignatureMismatch {
         product: CoreProtocolProductKindV1,
         index: usize,

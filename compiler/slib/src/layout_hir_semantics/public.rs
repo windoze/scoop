@@ -140,6 +140,18 @@ where
     dependencies.sort_unstable_by_key(|dependency| dependency.provider);
     let direct = direct_dependencies(provider, position, dependency_positions, checked)?;
     let (identities, foundation, core, interface, _, meter) = artifact.hir_semantic_parts();
+    crate::cross_cone_hir_authority::validate_intrinsic_declarations(
+        interface,
+        identities,
+        std::iter::once(core).chain(dependencies.iter().map(|dependency| dependency.core)),
+        meter,
+    )
+    .map_err(
+        |source| CrossConeLayoutHirSemanticClosureError::Intrinsics {
+            provider,
+            source: Box::new(source),
+        },
+    )?;
     let context = LayoutHirPublicAuthorityContextV1 {
         provider,
         identities,

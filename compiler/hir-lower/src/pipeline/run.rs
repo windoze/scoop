@@ -387,6 +387,7 @@ impl Lowerer {
         if defines_core {
             self.validate_core_operator_intrinsics(files);
             self.validate_array_conversion_intrinsics(files);
+            self.validate_gc_control_intrinsics(files);
         }
         let source_location_core = if defines_core {
             self.validate_source_location_core(files)

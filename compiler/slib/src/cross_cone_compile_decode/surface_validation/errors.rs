@@ -45,6 +45,7 @@ pub enum CrossConeHirPropertySurfaceError {
 
 #[derive(Debug)]
 pub enum CrossConeHirCallableSurfaceError {
+    Intrinsics(Box<crate::CrossConeIntrinsicDeclarationError>),
     CallableInterfaces(
         Box<CallableInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
@@ -79,5 +80,21 @@ macro_rules! impl_surface_error {
 
 impl_surface_error!(CrossConeHirNominalSurfaceError, NominalInterfaces);
 impl_surface_error!(CrossConeHirPropertySurfaceError, PropertyInterfaces);
-impl_surface_error!(CrossConeHirCallableSurfaceError, CallableInterfaces);
+impl std::fmt::Display for CrossConeHirCallableSurfaceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CallableInterfaces(error) => error.fmt(f),
+            Self::Intrinsics(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeHirCallableSurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::CallableInterfaces(error) => Some(error.as_ref()),
+            Self::Intrinsics(error) => Some(error.as_ref()),
+        }
+    }
+}
 impl_surface_error!(CrossConeHirTypeAliasSurfaceError, TypeAliasInterfaces);

@@ -17,7 +17,8 @@ pub fn manifest_single_cone_production_capability() -> CapabilityId {
 }
 
 pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
-    known_capability("org.scoop-lang.hir", "core-bootstrap-interface")
+    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 2)
+        .expect("built-in capability id is valid")
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {

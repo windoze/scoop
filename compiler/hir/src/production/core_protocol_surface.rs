@@ -9,18 +9,20 @@ use super::{CoreProtocolCallableBuildError, CoreProtocolCallableV1};
 use crate::{
     ClassId, EnumId, EnumVariantFieldRef, EnumVariantRef, ExportHir, FunctionId,
     HirNominalIdentity, HirSourceNominalIdentity, InterfaceId, InterfaceMethodId,
-    IntrinsicFunctionKind, MethodDispatch, StructId, TypeId, intrinsic_function_kinds,
+    IntrinsicFunctionKind, MethodDispatch, StructId, TypeId,
 };
 
 mod fixed_signatures;
+mod operation_owners;
 mod operation_signatures;
+mod shared_intrinsics;
 use fixed_signatures::validate_fixed_callable_signatures;
+use operation_owners::expected_operation_owner;
+pub use shared_intrinsics::IntrinsicCallableContractError;
 mod validation;
 mod wire;
 use operation_signatures::expected_operation_signature;
-#[cfg(test)]
 use operation_signatures::operation_own_type_parameter_count;
-use validation::validate_operation_set;
 pub use validation::{
     CoreCompilerProtocolSurfaceBuildError, CoreCompilerProtocolSurfaceRelationError,
     CoreProtocolProductKindV1,
@@ -88,37 +90,8 @@ protocol_product!(
 );
 protocol_product!(CoreSourceLocationProtocolV1, SOURCE_LOCATION_PROTOCOL_COUNT);
 
-/// One total mapping from a closed intrinsic semantic role to the source
-/// callable and complete signature that implements it.
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct CoreCompilerOperationV1 {
-    kind: IntrinsicFunctionKind,
-    callable: CoreProtocolCallableV1,
-}
-
-impl CoreCompilerOperationV1 {
-    pub const fn kind(&self) -> IntrinsicFunctionKind {
-        self.kind
-    }
-
-    pub const fn callable(&self) -> &CoreProtocolCallableV1 {
-        &self.callable
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreCompilerOperationProtocolV1 {
-    operations: Vec<CoreCompilerOperationV1>,
-}
-
-impl CoreCompilerOperationProtocolV1 {
-    pub fn operations(&self) -> &[CoreCompilerOperationV1] {
-        &self.operations
-    }
-}
-
 /// Complete typed declaration references for compiler protocols. Every
-/// constituent is a closed product and the nine products are validated as
+/// constituent is a closed product and the eight products are validated as
 /// one artifact-bound value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoreCompilerProtocolSurfaceV1 {
@@ -130,7 +103,6 @@ pub struct CoreCompilerProtocolSurfaceV1 {
     ffi_protocol: CoreFfiProtocolV1,
     foreign_callback_protocol: CoreForeignCallbackProtocolV1,
     source_location_protocol: CoreSourceLocationProtocolV1,
-    compiler_operation_protocol: CoreCompilerOperationProtocolV1,
 }
 
 impl CoreCompilerProtocolSurfaceV1 {
@@ -298,7 +270,6 @@ impl CoreCompilerProtocolSurfaceV1 {
             callable(export, protocols, location.current)?,
         ]));
 
-        let compiler_operation_protocol = compiler_operations(export, protocols)?;
         let surface = Self {
             fundamental_types,
             option_protocol,
@@ -308,7 +279,6 @@ impl CoreCompilerProtocolSurfaceV1 {
             ffi_protocol,
             foreign_callback_protocol,
             source_location_protocol,
-            compiler_operation_protocol,
         };
         surface
             .validate_internal_relations()
@@ -316,7 +286,7 @@ impl CoreCompilerProtocolSurfaceV1 {
         validate_fixed_callable_signatures(&surface)
             .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
         surface
-            .validate_operation_signatures()
+            .validate_fixed_intrinsic_signatures()
             .map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
         Ok(surface)
     }
@@ -351,10 +321,6 @@ impl CoreCompilerProtocolSurfaceV1 {
 
     pub const fn source_location_protocol(&self) -> &CoreSourceLocationProtocolV1 {
         &self.source_location_protocol
-    }
-
-    pub const fn compiler_operation_protocol(&self) -> &CoreCompilerOperationProtocolV1 {
-        &self.compiler_operation_protocol
     }
 
     /// Core-internal compiler service used only by generated initialization
@@ -407,31 +373,6 @@ impl CoreCompilerProtocolSurfaceV1 {
     pub(crate) fn option_none(&self) -> PersistentEnumVariantId {
         variant_entry(self.option_protocol.entries(), 3)
     }
-}
-
-fn compiler_operations(
-    export: &ExportHir,
-    protocols: &crate::DefinedCoreProtocols,
-) -> Result<CoreCompilerOperationProtocolV1, CoreCompilerProtocolSurfaceBuildError> {
-    let mut operations = export
-        .functions
-        .iter()
-        .filter_map(|(function, declaration)| match declaration.kind {
-            crate::FunctionKind::Intrinsic(intrinsic) => Some((function, intrinsic.kind)),
-            crate::FunctionKind::User(_)
-            | crate::FunctionKind::DerivedEquality
-            | crate::FunctionKind::Extern(_) => None,
-        })
-        .map(|(function, kind)| {
-            callable(export, protocols, function).map(|entry| CoreCompilerOperationV1 {
-                kind,
-                callable: callable_entry(entry),
-            })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    operations.sort_unstable_by_key(|operation| operation.kind);
-    validate_operation_set(&operations).map_err(CoreCompilerProtocolSurfaceBuildError::Relation)?;
-    Ok(CoreCompilerOperationProtocolV1 { operations })
 }
 
 fn product<const N: usize>(entries: [CoreProtocolEntryV1; N]) -> CoreProtocolProductV1<N> {
@@ -625,6 +566,7 @@ fn variant_field_entry<const N: usize>(
     }
 }
 
+#[cfg(test)]
 fn callable_entry(entry: CoreProtocolEntryV1) -> CoreProtocolCallableV1 {
     match entry {
         CoreProtocolEntryV1::Callable(callable) => callable,

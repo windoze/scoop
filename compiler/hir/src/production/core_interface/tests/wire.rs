@@ -7,8 +7,8 @@ fn core_interface_has_a_fixed_wire_vector_and_validates_atomically() {
     assert_eq!(
         (bytes.len(), scoop_wire::sha256(&bytes).to_string()),
         (
-            34_681,
-            "554cf9138e0dc7c5d530d575378457ab708d24be77c43fc74cb9c49629a4b1b1".to_owned()
+            6_039,
+            "1be6b85e7a4f2d72141b847fb5447c7b42bd60739be87e02fba3a11b1a48ae1e".to_owned()
         )
     );
 

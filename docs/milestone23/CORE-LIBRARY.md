@@ -207,3 +207,13 @@ lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生
 共有 metadata fixture 现在按真实 library coordinate 构造 provider。六项新增测试及原有 callable 测试的双 provider 组合覆盖普通/core product 往返、definition origin 缺失、错误 enum owner、generated member、constructor 与生成 adapter 的 source/result、缺失 adapter source、错误 operation result、另一 provider 的同名目标替换及共有导入 id 保持。错误由现有 typed 关系和缺失 identity 诊断拒绝，不借名称补目标；原 wire/profile golden 不变，前端 intrinsic 使用边界、runtime ABI 和 ODR gate 不变。
 
 原 994 行 callable 模块按数据/wire、生产、验证、错误拆为 208/363/323/98 行；原 849 行 product wire 拆出角色布局、引用验证与错误，主体缩短至 576 行。原 876 行测试构造按入口、identity builder、product 和 operation 分离；新增测试模块分别为 77/99/110/49 行。后端固定 core 身份分类、protocol 外层与重复投影、String/初始化/Link 共有消费及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal 与 ZST 验收仍继续推进。确认全部构建测试进程退出后 cargo clean 删除 20,977 个文件、23.4 GiB，target 已清理。
+
+2026-09-22：完整 intrinsic operation 重复表退役批次通过 workspace fmt、clippy（含 all-targets）、HIR/SLIB 1,688 项回归、HIR lowering 1,627 项回归，以及配套 scoopc 的全部 5,716 项 workspace 测试（37 组，零失败、零忽略）。真实 core 源码修改、重建、任意产物路径消费、缓存与双 view 回归均通过。
+
+删除 CoreCompilerOperationV1、CoreCompilerOperationProtocolV1、全表 producer/reader 和重复协议交叉投影；compiler protocol product 仅保留 field 1～8，field 9 永久退役。core-bootstrap-interface 升级为 v2，三个 strong profile 的 inventory、descriptor/fingerprint 与 wire golden 同步更新；按 namespace/name 统一拒绝旧版本或混用版本，即使旧 section 声称 optional。原 constituent typed 引用、persistent identity 与 runtime C ABI 编码保持不变。
+
+完整 intrinsic kind 来自共有 callable effects，普通 Compile 及 layout profile 的两个 public-source 验证入口均重放 canonical source owner、own binder、参数、结果和 execution，并核对固定语言角色的声明 id；重复 kind、缺少或冲突角色、错误 kind/owner/签名不能通过。验证复用当前 artifact 的 identity graph、可达 provider 与连续预算，不再发布完整 operation 名单。固定语言角色继续保存必要 typed 引用与合同；原先只由旧表检查的 GC control 声明合同前移到 HIR，基础库缺失 GcCollect/GcStats 或参数、结果、receiver、泛型、suspend 形状错误均在源码位置诊断。
+
+新增共有合同测试覆盖所有 intrinsic kind 的 core/普通 provider 与 wire 往返、整数 owner/位宽和 shift 参数替换、固定角色目标替换、wrong source kind/binder/effect，以及实际 Compile 入口的缺失角色、重复 kind 和零/连续预算耗尽；旧九字段 payload 和 capability 均有拒绝测试。按职责新增的生产模块分别为 39/81/91/114 行，product 主体与 wire 缩短到 585/455 行，测试与构造辅助模块均独立。确认无构建测试进程后 cargo clean 删除 33,598 个文件、41.0 GiB。
+
+本批完成完整 operation 表退役，未将其等同于 M23-6 完成。Core/NotCore 外层、native-boundary 后端固定身份重建、String/初始化与 Link 共有化，以及原有完整 MIR/LIR 生产、跨 Cone nominal 消费、双 view 与 ZST 验收仍继续推进。

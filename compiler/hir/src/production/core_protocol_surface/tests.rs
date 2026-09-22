@@ -4,8 +4,8 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 
 #[test]
-fn compiler_protocol_surface_is_a_closed_nine_field_product() {
-    for bytes in [vec![0xa8], vec![0xaa], vec![0xa9, 0x0a, 0x00]] {
+fn compiler_protocol_surface_is_a_closed_eight_field_product() {
+    for bytes in [vec![0xa7], vec![0xa9], vec![0xa8, 0x09, 0x00]] {
         assert!(
             decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(
                 &bytes,
@@ -17,6 +17,20 @@ fn compiler_protocol_surface_is_a_closed_nine_field_product() {
 
     let (surface, foundation) = test_support::standalone();
     let bytes = encode(&surface).unwrap();
+    assert_eq!(bytes[0], 0xa8);
+    let mut retired = bytes.clone();
+    retired[0] = 0xa9;
+    retired.extend([0x09, 0x80]);
+    let error =
+        decode_canonical::<DecodedCoreCompilerProtocolSurfaceV1>(&retired, DecodeLimits::default())
+            .unwrap_err();
+    assert!(matches!(
+        error.kind(),
+        scoop_wire::WireErrorKind::InvalidLength {
+            expected: 8,
+            actual: 9
+        }
+    ));
     let decoded: DecodedCoreCompilerProtocolSurfaceV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(decoded.validate_against(&foundation), Ok(surface));
@@ -54,13 +68,9 @@ fn const_value_types_come_from_the_fixed_fundamental_roles() {
 }
 
 #[test]
-fn compiler_protocol_surface_rejects_wrong_callable_kinds_and_missing_operations() {
+fn compiler_protocol_surface_rejects_wrong_callable_kinds() {
     let (mut surface, foundation) = test_support::standalone();
-    surface.exception_protocol.0.entries[1] = CoreProtocolEntryV1::Callable(
-        surface.compiler_operation_protocol.operations[0]
-            .callable
-            .clone(),
-    );
+    surface.exception_protocol.0.entries[1] = surface.source_location_protocol.0.entries[1].clone();
     assert_eq!(
         decode(&surface).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
@@ -70,114 +80,45 @@ fn compiler_protocol_surface_rejects_wrong_callable_kinds_and_missing_operations
             }
         ))
     );
-
-    let (mut surface, foundation) = test_support::standalone();
-    surface.compiler_operation_protocol.operations.pop();
-    assert_eq!(
-        decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationCoverage {
-                expected: intrinsic_function_kinds().len(),
-                actual: intrinsic_function_kinds().len() - 1,
-            }
-        ))
-    );
 }
 
 #[test]
-fn compiler_protocol_surface_rejects_operation_effect_and_repetition_tampering() {
-    let (mut surface, foundation) = test_support::standalone();
-    let kind = surface.compiler_operation_protocol.operations[0].kind;
-    {
-        let operation = &mut surface.compiler_operation_protocol.operations[0];
-        let original = operation.callable.clone();
-        operation.callable = CoreProtocolCallableV1::for_test(
-            original.definition(),
-            SignatureCallableShape::new(
-                Effect::Suspend,
-                None,
-                original.signature().parameters().to_vec(),
-                original.signature().result().clone(),
-            ),
+fn fixed_intrinsic_roles_preserve_signature_and_effect_checks_without_a_total_table() {
+    let (surface, foundation) = test_support::standalone();
+    let original = callable_entry_ref(surface.source_location_protocol.entries(), 1);
+    for signature in [
+        SignatureCallableShape::new(
+            Effect::Suspend,
+            None,
+            vec![],
+            original.signature().result().clone(),
+        ),
+        SignatureCallableShape::new(
+            Effect::Ordinary,
+            None,
+            vec![],
+            SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0)),
+        ),
+    ] {
+        let mut invalid = surface.clone();
+        invalid.source_location_protocol.0.entries[1] = CoreProtocolEntryV1::Callable(
+            CoreProtocolCallableV1::for_test(original.definition(), signature),
+        );
+        assert_eq!(
+            decode(&invalid).validate_against(&foundation),
+            Err(CoreCompilerProtocolSurfaceValidationError::Relation(
+                CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
+                    IntrinsicFunctionKind::CurrentSourceLocation
+                )
+            ))
         );
     }
+    let mut invalid = surface.clone();
+    invalid.coroutine_protocol.0.entries[12] = invalid.coroutine_protocol.0.entries[11].clone();
     assert_eq!(
-        decode(&surface).validate_against(&foundation),
+        decode(&invalid).validate_against(&foundation),
         Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationEffectMismatch(kind)
-        ))
-    );
-
-    let (mut surface, foundation) = test_support::standalone();
-    let duplicate = surface.compiler_operation_protocol.operations[0]
-        .callable
-        .clone();
-    let definition = duplicate.definition();
-    surface.compiler_operation_protocol.operations[1].callable = duplicate;
-    assert_eq!(
-        decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::DuplicateOperationCallable(definition)
-        ))
-    );
-}
-
-#[test]
-fn compiler_protocol_surface_rejects_operation_parameter_and_result_tampering() {
-    let (mut surface, foundation) = test_support::standalone();
-    let unit = SignatureTypeKey::Nominal(concrete_entry(surface.fundamental_types.entries(), 0));
-    let operation = surface
-        .compiler_operation_protocol
-        .operations
-        .iter_mut()
-        .find(|operation| operation.kind == IntrinsicFunctionKind::GcStats)
-        .unwrap();
-    operation.callable = CoreProtocolCallableV1::for_test(
-        operation.callable.definition(),
-        SignatureCallableShape::new(Effect::Ordinary, None, Vec::new(), unit),
-    );
-    assert_eq!(
-        decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(
-                IntrinsicFunctionKind::GcStats
-            )
-        ))
-    );
-
-    let (mut surface, foundation) = test_support::standalone();
-    let add = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
-        kind: crate::IntegerKind::SIGNED_8,
-        operation: crate::NoGcIntegerOperation::Add,
-    });
-    let shift = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
-        kind: crate::IntegerKind::SIGNED_8,
-        operation: crate::NoGcIntegerOperation::Shl,
-    });
-    let add_index = surface
-        .compiler_operation_protocol
-        .operations
-        .iter()
-        .position(|operation| operation.kind == add)
-        .unwrap();
-    let shift_index = surface
-        .compiler_operation_protocol
-        .operations
-        .iter()
-        .position(|operation| operation.kind == shift)
-        .unwrap();
-    let shift_callable = surface.compiler_operation_protocol.operations[shift_index]
-        .callable
-        .clone();
-    let add_callable = std::mem::replace(
-        &mut surface.compiler_operation_protocol.operations[add_index].callable,
-        shift_callable,
-    );
-    surface.compiler_operation_protocol.operations[shift_index].callable = add_callable;
-    assert_eq!(
-        decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::OperationSignatureMismatch(add)
+            CoreCompilerProtocolSurfaceRelationError::DuplicateRoleSubject
         ))
     );
 }
@@ -220,59 +161,17 @@ fn compiler_protocol_surface_rejects_fixed_callable_signature_tampering() {
 }
 
 #[test]
-fn compiler_protocol_surface_rejects_fixed_and_total_operation_disagreement() {
-    let (mut surface, foundation) = test_support::standalone();
-    let replacement = surface
-        .compiler_operation_protocol
-        .operations
-        .iter()
-        .find(|operation| operation.kind == IntrinsicFunctionKind::GcCollect)
-        .unwrap()
-        .callable
-        .clone();
-    surface.ffi_protocol.0.entries[4] = CoreProtocolEntryV1::Callable(replacement);
-    assert_eq!(
-        decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::Relation(
-            CoreCompilerProtocolSurfaceRelationError::RepeatedOperationMismatch(
-                IntrinsicFunctionKind::Pointer(crate::PointerIntrinsic::ToULong)
-            )
-        ))
-    );
-}
-
-#[test]
 fn compiler_protocol_surface_replays_owner_variant_and_dispatch_relations() {
     let (mut surface, foundation) = test_support::standalone();
-    let int8 = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
-        kind: crate::IntegerKind::SIGNED_8,
-        operation: crate::NoGcIntegerOperation::UnaryPlus,
-    });
-    let int16 = IntrinsicFunctionKind::Integer(crate::IntegerIntrinsicKind::NoGcOperation {
-        kind: crate::IntegerKind::SIGNED_16,
-        operation: crate::NoGcIntegerOperation::UnaryPlus,
-    });
-    let int8_index = surface
-        .compiler_operation_protocol
-        .operations
-        .iter()
-        .position(|operation| operation.kind == int8)
-        .unwrap();
-    let int16_index = surface
-        .compiler_operation_protocol
-        .operations
-        .iter()
-        .position(|operation| operation.kind == int16)
-        .unwrap();
-    surface
-        .compiler_operation_protocol
-        .operations
-        .swap(int8_index, int16_index);
-    surface.compiler_operation_protocol.operations[int8_index].kind = int8;
-    surface.compiler_operation_protocol.operations[int16_index].kind = int16;
+    surface.ffi_protocol.0.entries[4] = surface.source_location_protocol.0.entries[1].clone();
     assert_eq!(
         decode(&surface).validate_against(&foundation),
-        Err(CoreCompilerProtocolSurfaceValidationError::OperationOwnerMismatch(int8))
+        Err(
+            CoreCompilerProtocolSurfaceValidationError::RoleCallableOwnerMismatch {
+                product: CoreProtocolProductKindV1::Ffi,
+                index: 4
+            }
+        )
     );
 
     let (mut surface, foundation) = test_support::standalone();
@@ -335,3 +234,5 @@ fn option_protocol_rejects_incomplete_some_and_nonempty_none_shapes() {
 }
 
 mod providers;
+
+mod shared_intrinsics;

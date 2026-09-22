@@ -7,6 +7,7 @@ mod callable_source;
 mod const_value;
 mod definition_source;
 mod errors;
+mod intrinsics;
 mod property;
 mod type_alias;
 
@@ -14,6 +15,8 @@ pub use callable_source::*;
 pub use const_value::*;
 pub use definition_source::*;
 pub use errors::*;
+pub use intrinsics::CrossConeIntrinsicDeclarationError;
+pub(crate) use intrinsics::validate_intrinsic_declarations;
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,
