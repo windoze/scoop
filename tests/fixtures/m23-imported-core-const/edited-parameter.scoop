@@ -1,0 +1,2 @@
+public const val named: Int = 3.shl(distance = 2L)
+public const val shifted: Int = 3 shl 2L

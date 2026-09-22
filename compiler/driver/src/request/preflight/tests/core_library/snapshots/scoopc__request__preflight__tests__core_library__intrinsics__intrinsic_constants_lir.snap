@@ -1,0 +1,35 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/intrinsics.rs
+expression: dump.text()
+---
+Module
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 value: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000001) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 external-fn0(local1)
+    store t0 -> local2
+    ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    global_store global0, t2
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td1 Int @scoop$1$td$5b4173e766beb9d8c1e802e267bb093ec7780edec9b83c1a9ba4061ba886f531 type-id=4986955097735443455 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Unit size=0 align=1 refs=[]
+  layout Int size=4 align=4 refs=[]
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

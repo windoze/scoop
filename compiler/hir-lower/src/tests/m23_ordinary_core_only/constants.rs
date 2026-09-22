@@ -7,7 +7,7 @@ const SOURCE: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-imported-core-const/operators.scoop"
 ));
 
-fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
+pub(super) fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {
     let core = trusted_core();
     let identity = crate::tests::test_source_identity("src/main.scoop");
     let sources = ast::CurrentConeParsedSources::try_new(

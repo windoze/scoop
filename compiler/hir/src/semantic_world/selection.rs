@@ -11,10 +11,12 @@ use crate::DefaultCallableDeclarationV1;
 
 mod catalog;
 mod error;
+mod intrinsics;
 mod model;
 mod properties;
 mod routes;
 pub use error::*;
+pub use intrinsics::ImportedIntrinsicCallable;
 pub use model::*;
 
 use catalog::DependencyCatalog;
@@ -45,6 +47,19 @@ pub struct ImportedDependencySelectionPlan {
 }
 
 impl ImportedDependencySelectionPlan {
+    /// Looks up compiler semantics on the actual shared callable declarations.
+    pub fn has_intrinsic_callable(
+        &self,
+        kind: crate::IntrinsicFunctionKind,
+        gc_effect: scoop_identity::GcEffect,
+    ) -> bool {
+        self.catalog.callables.values().any(|entry| {
+            let effects = entry.interface.effects();
+            effects.implementation() == crate::CallableImplementationV1::Intrinsic(kind)
+                && effects.gc_effect() == gc_effect
+        })
+    }
+
     /// Starts an empty transaction for an ordinary core-only request.
     /// No callable candidate can be minted from this plan.
     #[doc(hidden)]

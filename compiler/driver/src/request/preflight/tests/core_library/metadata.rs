@@ -10,6 +10,25 @@ pub(super) fn assert_ordinary_interfaces(
     production: &scoop_slib::ValidatedCrossConeSemanticsProduction,
 ) {
     let interface = production.hir_interface();
+    for kind in scoop_hir::intrinsic_function_kinds()
+        .into_iter()
+        .filter(|kind| kind.integer_gc_effect().is_some())
+    {
+        let implementation = scoop_hir::CallableImplementationV1::Intrinsic(kind);
+        let records = interface
+            .callable_interfaces()
+            .records()
+            .iter()
+            .filter(|record| record.effects().implementation() == implementation)
+            .collect::<Vec<_>>();
+        assert_eq!(records.len(), 1, "{kind:?}");
+        assert!(
+            interface
+                .source_interfaces()
+                .get(records[0].declaration())
+                .is_some()
+        );
+    }
     let value = PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
         site(),
         name("UserCoreValue"),

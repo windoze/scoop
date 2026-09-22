@@ -1,7 +1,7 @@
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use crate::{CoreLoweringAuthority, Lowerer};
+use crate::Lowerer;
 
 impl Lowerer {
     pub(in crate::globals) fn const_integer_operation_available(
@@ -14,15 +14,16 @@ impl Lowerer {
             return false;
         }
         let key = hir::IntrinsicFunctionKind::Integer(kind);
-        if let CoreLoweringAuthority::Imported(core) = &self.core {
-            return core
-                .protocols
-                .compiler_operations()
-                .iter()
-                .any(|operation| operation.kind() == key);
-        }
         let Some(&(function, _)) = self.intrinsic_functions.get(&key) else {
-            return false;
+            return self.dependencies.as_ref().is_some_and(|dependencies| {
+                dependencies.has_intrinsic_callable(
+                    key,
+                    match kind.gc_effect() {
+                        hir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
+                        hir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
+                    },
+                )
+            });
         };
         match kind {
             hir::IntegerIntrinsicKind::ManagedOperation { .. } => {

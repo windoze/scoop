@@ -6,6 +6,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 mod aliases;
 mod constants;
+mod intrinsic_calls;
 pub(crate) mod support;
 
 use support::{parsed_ordinary, trusted_core, trusted_core_with_answer};

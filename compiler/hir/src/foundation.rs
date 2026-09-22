@@ -37,8 +37,8 @@ mod type_source_keys;
 pub use imported::{ImportedHirFoundation, ImportedHirId};
 pub use imported_protocols::{
     CoreInterfaceImportError, CoreNativeBoundaryImportError, CoreProtocolIdentityKind,
-    CoreProtocolImportError, ImportedCoreCompilerOperation, ImportedCoreCoroutineProtocol,
-    ImportedCoreExceptionProtocol, ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
+    CoreProtocolImportError, ImportedCoreCoroutineProtocol, ImportedCoreExceptionProtocol,
+    ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,
     ImportedCoreFundamentalTypeProtocol, ImportedCoreInputs, ImportedCoreIterationProtocol,
     ImportedCoreNativeBoundaryTypes, ImportedCoreOptionProtocol, ImportedCoreProtocolCallable,
     ImportedCoreProtocolCallableDefinition, ImportedCoreProtocolEntry, ImportedCoreProtocolNominal,

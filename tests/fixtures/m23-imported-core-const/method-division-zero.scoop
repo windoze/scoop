@@ -1,0 +1,1 @@
+public const val broken: Int = 12.div(other = 0)

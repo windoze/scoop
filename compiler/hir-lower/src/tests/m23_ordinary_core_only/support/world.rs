@@ -66,3 +66,31 @@ pub(super) fn project_interface(
         .unwrap();
     interface
 }
+
+#[test]
+fn compiler_operations_come_from_shared_callable_declarations() {
+    let core = super::trusted_core();
+    let world = core.world(ConeIdentity::SINGLE_FILE);
+    let classifier = hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
+        core.general_interface.nominal_interfaces().records(),
+    )
+    .unwrap();
+    let selection = world.dependency_selection_plan(&classifier).unwrap();
+    for kind in hir::intrinsic_function_kinds() {
+        let Some(effect) = kind.integer_gc_effect() else {
+            continue;
+        };
+        let (effect, wrong) = match effect {
+            hir::GcEffect::NoGc => (
+                scoop_identity::GcEffect::NoGc,
+                scoop_identity::GcEffect::Managed,
+            ),
+            hir::GcEffect::Managed => (
+                scoop_identity::GcEffect::Managed,
+                scoop_identity::GcEffect::NoGc,
+            ),
+        };
+        assert!(selection.has_intrinsic_callable(kind, effect), "{kind:?}");
+        assert!(!selection.has_intrinsic_callable(kind, wrong), "{kind:?}");
+    }
+}

@@ -314,7 +314,7 @@ fn rejects_nonordinary_or_specialized_accessor_effects() {
     let mut getter = fixture.accessor(AccessorRole::Getter);
     getter.effects = effects(
         Effect::Ordinary,
-        CallableImplementationV1::Intrinsic,
+        CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
         CallableOperatorRoleV1::None,
         CallableInfixV1::Ordinary,
     );
@@ -322,7 +322,7 @@ fn rejects_nonordinary_or_specialized_accessor_effects() {
         validate(vec![property.clone()], vec![getter.build()]),
         Err(PropertyAccessorClosureValidationError::Implementation {
             accessor: fixture.getter,
-            actual: CallableImplementationV1::Intrinsic,
+            actual: CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
         })
     );
 

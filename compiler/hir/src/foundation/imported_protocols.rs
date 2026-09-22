@@ -17,7 +17,7 @@ use crate::{
     COROUTINE_PROTOCOL_COUNT, CoreHirInterfaceV1, CoreProtocolCallableDefinitionV1,
     CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
     FFI_PROTOCOL_COUNT, FOREIGN_CALLBACK_PROTOCOL_COUNT, FUNDAMENTAL_TYPE_COUNT,
-    ITERATION_PROTOCOL_COUNT, IntegerKind, IntrinsicFunctionKind, NativeBoundaryCLayoutPolicy,
+    ITERATION_PROTOCOL_COUNT, IntegerKind, NativeBoundaryCLayoutPolicy,
     NativeBoundaryDefinitionError, NativeBoundaryNominalOwner, NativeBoundaryNominalShape,
     NativeBoundaryTypeDefinitionRecord, OPTION_PROTOCOL_COUNT, SOURCE_LOCATION_PROTOCOL_COUNT,
 };
@@ -434,23 +434,6 @@ impl ImportedCoreSourceLocationProtocol {
     }
 }
 
-/// One total compiler-operation role mapped to its imported callable.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ImportedCoreCompilerOperation {
-    kind: IntrinsicFunctionKind,
-    callable: ImportedCoreProtocolCallable,
-}
-
-impl ImportedCoreCompilerOperation {
-    pub const fn kind(&self) -> IntrinsicFunctionKind {
-        self.kind
-    }
-
-    pub const fn callable(&self) -> &ImportedCoreProtocolCallable {
-        &self.callable
-    }
-}
-
 /// Complete imported compiler-protocol authority. Every persistent subject
 /// has already been resolved into the exact HIR identity session owned by the
 /// trusted artifact; no declaration is copied into the current Cone arenas.
@@ -464,7 +447,6 @@ pub struct ImportedCoreProtocols {
     ffi_protocol: ImportedCoreFfiProtocol,
     foreign_callback_protocol: ImportedCoreForeignCallbackProtocol,
     source_location_protocol: ImportedCoreSourceLocationProtocol,
-    compiler_operations: Vec<ImportedCoreCompilerOperation>,
 }
 
 impl ImportedCoreProtocols {
@@ -511,22 +493,7 @@ impl ImportedCoreProtocols {
                 foundation,
                 protocols.source_location_protocol().entries(),
             )?),
-            compiler_operations: protocols
-                .compiler_operation_protocol()
-                .operations()
-                .iter()
-                .map(|operation| {
-                    Ok(ImportedCoreCompilerOperation {
-                        kind: operation.kind(),
-                        callable: import_callable(foundation, operation.callable())?,
-                    })
-                })
-                .collect::<Result<Vec<_>, CoreProtocolImportError>>()?,
         })
-    }
-
-    pub fn compiler_operations(&self) -> &[ImportedCoreCompilerOperation] {
-        &self.compiler_operations
     }
 
     pub const fn fundamental_types(&self) -> &ImportedCoreFundamentalTypeProtocol {

@@ -160,7 +160,7 @@ object type、singleton value、companion relation、published root与initializa
 
 interface function/property accessor按slot保存abstract/default body。HIR对每个exact owner先应用class-hierarchy实现，再选择唯一most-specific interface default；未实现与互不相关default冲突在定义处诊断。`super<I>`只接受direct superinterface上的concrete default并保存强制direct typed target。LocalConcrete/后续itable已明确为class/value implementation、interface default或adjust thunk，不保留候选集合或“以后选择default”的flag。
 
-const及静态initializer的内建整数一元/二元运算使用同一typed core operation authority：定义core时查本地已验证intrinsic，ordinary Cone查同一trusted artifact原子导入的compiler-operation protocol，不要求也不伪造本地FunctionId。literal receiver选择仍逐个验证操作kind及实参类型，保留期望整数宽度、wrapping、比较和除零语义；generic source、普通同名函数或未验证protocol不能成为常量执行来源。显式method/infix调用仍须验证其真实source调用合同及参数规则，不能由内建运算的能力代替。
+const及静态initializer的内建整数一元/二元运算使用同一typed intrinsic声明：当前Cone查本地已验证intrinsic，导入声明从共有callable目录读取完整typed kind与GC effect，不要求也不伪造本地FunctionId。literal receiver选择仍逐个验证操作kind及实参类型，保留期望整数宽度、wrapping、比较和除零语义；generic source、普通同名函数或缺少完整intrinsic声明的候选不能成为常量执行来源。显式method/infix调用仍须验证其真实source调用合同及参数规则，不能由内建运算的能力代替。
 
 generic nominal的HIR类型只表示参数完整的exact application，class/struct/enum/interface继续使用kind-specific application id。实现/继承列表同样保存exact application；所有nominal参数固定invariant，HIR在声明/type位置拒绝`in`、`out`与`*`，并在subtyping、LUB与推导中要求同template实参逐项相等。MIR为每个实际使用的exact application建立独立单态化实体/TypeDescriptor；不得把不同实参擦除到裸template id。
 
@@ -589,6 +589,8 @@ program/image pointer链**不能**保活无符号`__LLVM_STACKMAPS,__llvm_stackm
 | HIR | `foreign_callback_register`及callback token retain/release/state/failure | 验证`ForeignCallbackCore`后直接生成类型化registration/token操作；source site取得`PersistentCallbackRegistrationId`，每个concrete materialization再取得不同的`PersistentCallbackApplicationId`；registration以native函数类型和`Long`（I64）常量`contextIndex`派生managed closure expected type，不按`Any`普通调用lower |
 | LIR | `size_of` / `align_of`、`ptr_load` / `ptr_store` / 指针算术、`address_of` | 依赖 2.4 的具体布局以及 address-taken local / parameter 的稳定存储；`size_of`/`align_of`将内部checked layout size物化为source `ULong`，pointer offset则从source `Long`精确降级，最终生成布局常量、带对齐的 raw memory 指令和局部地址 |
 | codegen | typed integer算术/位运算及LIR raw pointer指令 | 按`IntegerKind`机械映射；wrapping不带overflow flag，division/shift只接收MIR已guard/normalize的typed operation；此时不再按intrinsic名称分派 |
+
+共有CallableSourceEffectsV1的implementation必须完整表达实现种类：Scoop、Intrinsic(IntrinsicFunctionKind)、SourceExternScoop或SourceExternC。整数intrinsic的GC effect必须与typed kind一致，execution必须为Ordinary；builder与reader使用相同检查拒绝矛盾组合。Intrinsic的typed kind是该声明的必需数据，不能只保存标志再到core专用operation表补全，也不携带provider授权或annotation字符串。implementation wire使用closed sum：field 0为tag（1/2/3/4），仅Intrinsic具有field 1=完整typed kind；其余分支为单字段map，旧unsigned leaf格式拒绝并要求重建artifact/cache。生产投影直接保留已验证的FunctionKind::Intrinsic.kind，共有semantic world和依赖选择按声明读取同一完整记录。导入的整数常量运算从共有callable目录查询对应typed kind与GC effect，删除ImportedCoreProtocols中的重复compiler-operation载体和查询；常量method/infix调用按同一声明的typed id读取canonical源码名称，并使用共有source interface中的参数名及effects中的infix标志；解析结果完整保存常量执行所需的调用属性，不依赖本地FunctionId。源码名称只用于候选匹配，不能用预设英文名称或FQN推导intrinsic kind。非const实例成员执行仍需经过普通跨Cone调用选择。
 
 ### 2.11 IR输出完备性与typed identity
 

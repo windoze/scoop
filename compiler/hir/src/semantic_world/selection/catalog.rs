@@ -23,6 +23,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub(super) struct CallableCatalogEntry {
     pub(super) certificate: ImportedProviderCertificate,
+    pub(super) name: super::intrinsics::CallableCatalogName,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
     pub(super) capability: Option<ParamFreeCoreClosedCallableV1>,
@@ -84,6 +85,7 @@ impl ImportedSemanticWorld<'_> {
             for callable in provider.interface().callable_interfaces().records() {
                 let declaration = callable.declaration();
                 let entry = CallableCatalogEntry {
+                    name: super::intrinsics::callable_catalog_name(provider, declaration)?,
                     certificate: provider.certificate().clone(),
                     interface: callable.clone(),
                     source: provider

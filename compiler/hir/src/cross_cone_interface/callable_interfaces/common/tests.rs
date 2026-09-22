@@ -83,7 +83,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     .unwrap();
     assert_eq!(
         encode(&effects).unwrap(),
-        hex("a6010102020302040405a2000201a200181801030602")
+        hex("a601010202030204a1000405a2000201a200181801030602")
     );
     assert_eq!(
         decode_canonical::<DecodedCallableSourceEffectsV1>(
@@ -99,7 +99,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     assert_eq!(encode(&CallableSafetyV1::Safe).unwrap(), vec![1]);
     assert_eq!(
         encode(&CallableImplementationV1::SourceExternScoop).unwrap(),
-        vec![3]
+        vec![0xa1, 0, 3]
     );
     assert_eq!(encode(&CallableInfixV1::Infix).unwrap(), vec![2]);
     assert_eq!(
@@ -164,7 +164,7 @@ fn callable_effects_reject_impossible_semantic_combinations() {
     );
 
     let decoded = decode_canonical::<DecodedCallableSourceEffectsV1>(
-        &hex("a6010202010302040105a100010601"),
+        &hex("a601020201030204a1000105a100010601"),
         DecodeLimits::default(),
     )
     .unwrap();

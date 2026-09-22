@@ -94,10 +94,6 @@ fn imported_core_inputs_expose_compiler_protocols() {
 
     let core = imported.import_core_inputs(&fixture.interface).unwrap();
     assert_eq!(core.protocols().fixed_subject_count(), 84);
-    assert_eq!(
-        core.protocols().compiler_operations().len(),
-        crate::intrinsic_function_kinds().len()
-    );
     let protocols = core.protocols().clone();
     assert_eq!(
         protocols.fundamental_types().unit().persistent(),
@@ -161,39 +157,6 @@ fn imported_core_inputs_expose_compiler_protocols() {
     assert_eq!(
         protocols.option().none().persistent(),
         fixture.interface.compiler_protocols().option_none()
-    );
-    let operations = protocols.compiler_operations();
-    assert_eq!(
-        operations
-            .iter()
-            .map(|operation| operation.kind())
-            .collect::<Vec<_>>(),
-        crate::intrinsic_function_kinds()
-    );
-    let operation = |kind| {
-        operations
-            .iter()
-            .find(|operation| operation.kind() == kind)
-            .unwrap()
-            .callable()
-    };
-    assert_eq!(
-        protocols.ffi().ptr_to_ulong(),
-        operation(crate::IntrinsicFunctionKind::Pointer(
-            crate::PointerIntrinsic::ToULong,
-        ))
-    );
-    assert_eq!(
-        protocols.coroutines().start_coroutine(),
-        operation(crate::IntrinsicFunctionKind::CoroutineStart)
-    );
-    assert_eq!(
-        protocols.foreign_callbacks().register(),
-        operation(crate::IntrinsicFunctionKind::ForeignCallbackRegister)
-    );
-    assert_eq!(
-        protocols.source_location().current(),
-        operation(crate::IntrinsicFunctionKind::CurrentSourceLocation)
     );
     assert_ne!(
         protocols.iteration().next().definition(),

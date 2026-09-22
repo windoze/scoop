@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::{Effect, GcEffect};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::CallableOperatorRoleV1;
+use super::{CallableImplementationV1, CallableOperatorRoleV1};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CallableSafetyV1 {
@@ -25,37 +25,6 @@ impl WireDecode for CallableSafetyV1 {
         match decoder.unsigned()? {
             1 => Ok(Self::Safe),
             2 => Ok(Self::Unsafe),
-            tag => Err(unknown_tag(decoder, tag)),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum CallableImplementationV1 {
-    Scoop,
-    Intrinsic,
-    SourceExternScoop,
-    SourceExternC,
-}
-
-impl WireEncode for CallableImplementationV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::Scoop => 1,
-            Self::Intrinsic => 2,
-            Self::SourceExternScoop => 3,
-            Self::SourceExternC => 4,
-        })
-    }
-}
-
-impl WireDecode for CallableImplementationV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            1 => Ok(Self::Scoop),
-            2 => Ok(Self::Intrinsic),
-            3 => Ok(Self::SourceExternScoop),
-            4 => Ok(Self::SourceExternC),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -185,7 +154,22 @@ impl CallableSourceEffectsV1 {
                     return Err(CallableSourceEffectsBuildError::ManagedCExtern);
                 }
             }
-            CallableImplementationV1::Scoop | CallableImplementationV1::Intrinsic => {}
+            CallableImplementationV1::Intrinsic(kind) => {
+                if let Some(expected) = kind.integer_gc_effect() {
+                    let expected = match expected {
+                        crate::GcEffect::NoGc => GcEffect::NoGc,
+                        crate::GcEffect::Managed => GcEffect::Managed,
+                    };
+                    if gc_effect != expected || execution != Effect::Ordinary {
+                        return Err(CallableSourceEffectsBuildError::IntegerIntrinsicEffect {
+                            kind,
+                            execution,
+                            gc_effect,
+                        });
+                    }
+                }
+            }
+            CallableImplementationV1::Scoop => {}
         }
         Ok(Self {
             execution,
@@ -298,6 +282,11 @@ impl WireDecode for DecodedCallableSourceEffectsV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CallableSourceEffectsBuildError {
     NoGcSuspend,
+    IntegerIntrinsicEffect {
+        kind: crate::IntrinsicFunctionKind,
+        execution: Effect,
+        gc_effect: GcEffect,
+    },
     SuspendExtern(CallableImplementationV1),
     SafeCExtern,
     ManagedCExtern,
@@ -307,6 +296,14 @@ impl fmt::Display for CallableSourceEffectsBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NoGcSuspend => formatter.write_str("suspend callable cannot be NoGc"),
+            Self::IntegerIntrinsicEffect {
+                kind,
+                execution,
+                gc_effect,
+            } => write!(
+                formatter,
+                "integer intrinsic {kind:?} cannot have {execution:?} execution with {gc_effect:?} GC effect"
+            ),
             Self::SuspendExtern(implementation) => {
                 write!(formatter, "{implementation:?} callable cannot be suspend")
             }

@@ -56,7 +56,10 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
     let mut target = fixture.concrete(owner, slot);
     target.signature = InheritanceCallableSignatureV1::try_new(
         root.exact_signature().clone(),
-        effects(GcEffect::Managed, CallableImplementationV1::Intrinsic),
+        effects(
+            GcEffect::Managed,
+            CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
+        ),
     )
     .unwrap();
     fixture.contract(
@@ -66,7 +69,10 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
     );
     target.signature = InheritanceCallableSignatureV1::try_new(
         root.exact_signature().clone(),
-        effects(GcEffect::NoGc, CallableImplementationV1::Intrinsic),
+        effects(
+            GcEffect::NoGc,
+            CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
+        ),
     )
     .unwrap();
     assert!(matches!(

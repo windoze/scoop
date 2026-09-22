@@ -128,7 +128,7 @@ fn complete_constructor_binding_rejects_non_constructor_effect_contracts() {
             for (gc, implementation, operator, infix) in [
                 (
                     scoop_identity::GcEffect::Managed,
-                    hir::CallableImplementationV1::Intrinsic,
+                    hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::GcCollect),
                     hir::CallableOperatorRoleV1::None,
                     hir::CallableInfixV1::Ordinary,
                 ),

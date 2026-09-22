@@ -12,6 +12,7 @@ use crate::CoreClosedCallableClassificationError;
 pub enum ImportedDependencySelectionPlanBuildError {
     Classification(CoreClosedCallableClassificationError),
     DuplicateCallable(CallableTemplateOrigin),
+    MissingCallableSourceName(CallableTemplateOrigin),
     TooManyCallables {
         count: usize,
     },
@@ -46,6 +47,10 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
             Self::DuplicateCallable(declaration) => write!(
                 formatter,
                 "dependency semantic world contains duplicate callable {declaration:?}"
+            ),
+            Self::MissingCallableSourceName(declaration) => write!(
+                formatter,
+                "dependency callable {declaration:?} has no canonical function source name"
             ),
             Self::TooManyCallables { count } => write!(
                 formatter,
@@ -100,6 +105,7 @@ impl std::error::Error for ImportedDependencySelectionPlanBuildError {
             Self::Classification(error) => Some(error),
             Self::DirectBindingMerge { source, .. } => Some(source),
             Self::DuplicateCallable(_)
+            | Self::MissingCallableSourceName(_)
             | Self::TooManyCallables { .. }
             | Self::DuplicateConstant(_)
             | Self::DuplicateProperty(_)

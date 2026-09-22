@@ -1,0 +1,20 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/intrinsics.rs
+expression: dump.text()
+---
+Module
+  typealias Small = Int8
+  property0 val compared: Long getter0=constant <const Integer(Signed64(1))>
+  property1 val wrapped: Int8 getter1=constant <const Integer(Signed8(130))>
+  property2 val shifted: UInt getter2=constant <const Integer(Unsigned32(12))>
+  property3 val combined: Boolean getter3=constant <const Boolean(true)>
+  property4 val converted: Int getter4=constant <const Integer(Signed32(1))>
+  fun main(): Unit
+    val local0
+      IntegerLiteral 1 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.value : Int
+  output executable main

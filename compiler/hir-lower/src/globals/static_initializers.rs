@@ -262,7 +262,7 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_const_integer_intrinsic(kind, source_name) else {
                     return false;
                 };
-                if require_infix && !self.signatures[&resolved.function].modifiers.is_infix {
+                if require_infix && !resolved.is_infix {
                     return false;
                 }
                 match (
@@ -336,9 +336,7 @@ impl Lowerer {
         let ConstIntegerIntrinsicKind::NoGcOperation(operation) = resolved.kind else {
             return None;
         };
-        if !self.signatures[&resolved.function].modifiers.is_infix
-            || operation.arity() != hir::IntegerOperationArity::Binary
-        {
+        if !resolved.is_infix || operation.arity() != hir::IntegerOperationArity::Binary {
             return None;
         }
         let right_expected = if matches!(
@@ -412,13 +410,10 @@ impl Lowerer {
                         if matches!(argument.spread, ast::SpreadSyntax::Plain)
                             && match &argument.name {
                                 ast::CallArgumentName::Positional => true,
-                                ast::CallArgumentName::Named(argument_name) => self.signatures
-                                    [&resolved.function]
-                                    .params
+                                ast::CallArgumentName::Named(argument_name) => resolved
+                                    .parameters
                                     .first()
-                                    .is_some_and(|parameter| {
-                                        parameter.name.text == argument_name.text
-                                    }),
+                                    .is_some_and(|parameter| *parameter == argument_name.text),
                             } =>
                     {
                         let expected = if matches!(
@@ -454,11 +449,10 @@ impl Lowerer {
                 };
                 let named_argument_matches = match &argument.name {
                     ast::CallArgumentName::Positional => true,
-                    ast::CallArgumentName::Named(argument_name) => self.signatures
-                        [&resolved.function]
-                        .params
+                    ast::CallArgumentName::Named(argument_name) => resolved
+                        .parameters
                         .first()
-                        .is_some_and(|parameter| parameter.name.text == argument_name.text),
+                        .is_some_and(|parameter| *parameter == argument_name.text),
                 };
                 if !matches!(argument.spread, ast::SpreadSyntax::Plain) || !named_argument_matches {
                     return None;
