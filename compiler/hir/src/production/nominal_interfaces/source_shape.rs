@@ -149,9 +149,12 @@ pub(super) fn struct_shape(
             })?;
         fields.push(StructSourceFieldV1::new(identity.id(), value_type));
     }
-    StructSourceShapeV1::try_new(fields)
-        .map(NominalSourceShapeV1::Struct)
-        .map_err(|detail| source_error(owner, NominalSourceProjectionError::Shape(detail)))
+    StructSourceShapeV1::try_new(
+        fields,
+        crate::NominalCLayoutPolicyV1::from_source_contract(declaration.attributes.c_layout),
+    )
+    .map(NominalSourceShapeV1::Struct)
+    .map_err(|detail| source_error(owner, NominalSourceProjectionError::Shape(detail)))
 }
 
 pub(super) fn enum_shape(

@@ -325,18 +325,22 @@ impl NominalRepresentationSupportV1 {
         &self.shape
     }
 
-    /// Public source field and variant sequences remain owned by the frozen
-    /// lookup interface. Layout support must reproduce them exactly.
+    /// Layout support must reproduce the public source field/variant sequences
+    /// and the declared CLayout policy exactly.
     pub fn validate_public_source_shape(
         &self,
         source: &NominalSourceShapeV1,
     ) -> Result<(), NominalRepresentationBuildError> {
         let agrees = match (&self.shape, source) {
             (
-                NominalRepresentationShapeV1::Struct { fields, .. },
+                NominalRepresentationShapeV1::Struct {
+                    fields,
+                    c_layout_policy,
+                },
                 NominalSourceShapeV1::Struct(source),
             ) => {
-                fields.len() == source.fields().len()
+                *c_layout_policy == source.c_layout_policy()
+                    && fields.len() == source.fields().len()
                     && fields.iter().zip(source.fields()).all(|(field, source)| {
                         field.field() == source.field() && field.value_type() == source.value_type()
                     })
@@ -369,6 +373,7 @@ impl NominalRepresentationSupportV1 {
                 match (representation.family().target(), source) {
                     (IntrinsicTypeTarget::Struct, NominalSourceShapeV1::Struct(source)) => {
                         source.fields().is_empty()
+                            && source.c_layout_policy() == NominalCLayoutPolicyV1::Ordinary
                     }
                     (IntrinsicTypeTarget::Class, NominalSourceShapeV1::Class) => true,
                     _ => false,

@@ -11,6 +11,8 @@ use crate::{
 pub(in crate::cross_cone_type_semantics::representation) mod support;
 use support::{Fixture, source_key, unit};
 
+mod source_policy;
+
 fn round_trip(
     fixture: &mut Fixture,
     shape: NominalRepresentationShapeV1,
@@ -48,6 +50,7 @@ fn struct_support_preserves_declaration_order_and_matches_public_shape() {
                         StructSourceFieldV1::new(field.field(), field.value_type().clone())
                     })
                     .collect(),
+                crate::NominalCLayoutPolicyV1::Ordinary,
             )
             .unwrap(),
         )

@@ -14,6 +14,7 @@ pub(super) fn structure(
                 .iter()
                 .map(|field| StructSourceFieldV1::new(field.field(), field.value_type().clone()))
                 .collect(),
+            crate::NominalCLayoutPolicyV1::Ordinary,
         )
         .unwrap(),
     );

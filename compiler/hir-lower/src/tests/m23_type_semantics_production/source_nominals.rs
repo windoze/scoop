@@ -7,6 +7,7 @@ use hir::{
 use scoop_identity::{DeclarationName, SignatureTypeKey, SourceDeclarationKey};
 use scoop_wire::{decode_canonical, encode};
 
+mod policy;
 mod rejection;
 mod render;
 mod roots;

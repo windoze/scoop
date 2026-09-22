@@ -97,7 +97,11 @@ fn nominal(declaration: crate::SourceNominalId) -> crate::NominalInterfaceRecord
         crate::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         crate::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         crate::NominalSourceShapeV1::Struct(
-            crate::StructSourceShapeV1::try_new(Vec::new()).unwrap(),
+            crate::StructSourceShapeV1::try_new(
+                Vec::new(),
+                crate::NominalCLayoutPolicyV1::Ordinary,
+            )
+            .unwrap(),
         ),
     )
     .unwrap()

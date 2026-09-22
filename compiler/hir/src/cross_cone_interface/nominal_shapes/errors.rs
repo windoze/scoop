@@ -26,6 +26,7 @@ impl std::error::Error for EnumSourceVariantBuildError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeBuildError {
     TooManyStructFields,
+    EmptyCLayout,
     DuplicateStructField(PersistentFieldId),
     TooManyEnumVariants,
     DuplicateEnumVariant(PersistentEnumVariantId),
@@ -34,6 +35,9 @@ pub enum NominalSourceShapeBuildError {
 impl fmt::Display for NominalSourceShapeBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::EmptyCLayout => {
+                formatter.write_str("CLayout struct must declare at least one field")
+            }
             Self::TooManyStructFields => formatter.write_str("struct field count exceeds u32"),
             Self::DuplicateStructField(field) => {
                 write!(formatter, "duplicate struct field identity {field}")
@@ -118,6 +122,7 @@ impl<E: std::error::Error + 'static> std::error::Error for EnumSourceVariantReso
 #[derive(Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeResolutionError<E> {
     TooManyStructFields,
+    EmptyCLayout,
     StructField {
         index: usize,
         error: StructSourceFieldResolutionError<E>,
@@ -141,6 +146,9 @@ pub enum NominalSourceShapeResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for NominalSourceShapeResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::EmptyCLayout => {
+                formatter.write_str("CLayout struct must declare at least one field")
+            }
             Self::TooManyStructFields => formatter.write_str("struct field count exceeds u32"),
             Self::StructField { index, error } => {
                 write!(formatter, "invalid struct field {index}: {error}")

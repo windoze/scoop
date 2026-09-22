@@ -104,10 +104,10 @@ impl Fixture {
             .unwrap(),
             CanonicalPersistentIdsV1::try_new(vec![self.nested_binding.id()]).unwrap(),
             NominalSourceShapeV1::Struct(
-                StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-                    self.field.id(),
-                    binder(0),
-                )])
+                StructSourceShapeV1::try_new(
+                    vec![StructSourceFieldV1::new(self.field.id(), binder(0))],
+                    crate::NominalCLayoutPolicyV1::Ordinary,
+                )
                 .unwrap(),
             ),
         )

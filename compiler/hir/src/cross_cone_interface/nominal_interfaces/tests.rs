@@ -206,7 +206,9 @@ fn minimal_record(
 }
 
 fn empty_struct_shape() -> NominalSourceShapeV1 {
-    NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap())
+    NominalSourceShapeV1::Struct(
+        StructSourceShapeV1::try_new(Vec::new(), crate::NominalCLayoutPolicyV1::Ordinary).unwrap(),
+    )
 }
 
 fn decode_record(value: &NominalInterfaceRecordV1) -> DecodedNominalInterfaceRecordV1 {

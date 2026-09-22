@@ -643,6 +643,8 @@ canonical Scoop 参数与返回值的 direct/indirect/ZST 分类由 LIR 的共�
 
 native-boundary foundation reader 对本地与外来 owner 统一解析同一 identity graph 中的 canonical 声明 key，并按实际声明 kind、参数个数、binder 和字段/variant owner 重建记录；仅登记外来 typed id 而缺失 canonical 声明不能替代此校验。字段与 variant 完整性使用当前 artifact 加已验证依赖闭包中的共有 canonical records，既不将依赖记录登记为本地定义，也不以零字段、Reference 或 CORE 来源授予额外资格。重复、缺失、错误 owner、错误 kind 和错误参数数量由共有规则拒绝；查询与完整性检查沿用当前 artifact 的资源预算。
 
+共有 public nominal source shape 必须保留 struct 声明的 `@CLayout` 策略，不能从字段列表或 provider 身份推断。M23-6 将 `org.scoop-lang.hir/cross-cone-interface/1` 升级为 `/2`：struct shape 的 tag 仍为 3，field 1 仍为源码序字段列表，新增必需 field 2 保存与 type-semantics representation 共用的 `NominalCLayoutPolicyV1`（Ordinary 或完整 aligned/packed contract）；其他 shape tag 不改义。nominal source contract 与 nested source support 使用同一 constituent。producer 从 sealed HIR 的实际属性投影，reader 对 public source shape 与独立 representation 同时核对字段及 policy；intrinsic struct 的 source shape 必须为空字段且为 Ordinary。旧 capability 或缺少 policy 的旧 struct payload 拒绝，artifact/cache 必须重建；profile descriptor/fingerprint、Compile/Link inventory 与 HIR contribution 同步更新。native-boundary witness、exact identity 及 runtime C ABI 的既有 bytes 不变。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

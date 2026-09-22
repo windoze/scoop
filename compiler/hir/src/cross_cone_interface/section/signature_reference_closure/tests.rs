@@ -507,10 +507,13 @@ fn nominal_interfaces(
         CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-                field,
-                signature(struct_field_type),
-            )])
+            StructSourceShapeV1::try_new(
+                vec![StructSourceFieldV1::new(
+                    field,
+                    signature(struct_field_type),
+                )],
+                crate::NominalCLayoutPolicyV1::Ordinary,
+            )
             .unwrap(),
         ),
     )

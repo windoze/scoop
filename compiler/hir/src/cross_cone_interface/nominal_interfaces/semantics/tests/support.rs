@@ -164,10 +164,13 @@ impl Fixture {
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             NominalSourceShapeV1::Struct(
-                StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-                    self.struct_field,
-                    SignatureTypeKey::Nominal(self.base_class),
-                )])
+                StructSourceShapeV1::try_new(
+                    vec![StructSourceFieldV1::new(
+                        self.struct_field,
+                        SignatureTypeKey::Nominal(self.base_class),
+                    )],
+                    crate::NominalCLayoutPolicyV1::Ordinary,
+                )
                 .unwrap(),
             ),
         )

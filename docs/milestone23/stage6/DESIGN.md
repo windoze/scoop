@@ -144,6 +144,8 @@ ordinary callable 的 canonical ABI 校验对 core 与普通 provider 无差别�
 
 native-boundary reader 在同一 validated identity graph 中解析本地与外来声明，统一重建 owner、kind、参数个数、binder 及成员关系；不保留 external-core 的零字段/Reference 特许恢复分支。完整性查询共享当前和依赖图的 canonical field、variant 与 variant-field records，依赖 key 以共享引用读取，不加入本地定义 inventory。缺少 canonical 声明或遗漏实际成员必须失败，闭包查询使用调用方预算。generic 声明的结构解析不授予 generic application 执行或 ODR 物化能力；profile 的既有 gate 继续检查。producer 的外来类型输入、typed 表示与实际依赖 metadata 的连接仍须按清理设计完成。
 
+共有 struct source shape 在 `cross-cone-interface/2` 中精确为 `{ 0: 3, 1: source-order fields, 2: NominalCLayoutPolicyV1 }`；policy 使用 type-semantics 的既有闭合编码，由实际 HIR `@CLayout` 属性投影。公开 source shape、nominal source contract 与 nested source support 共享该结构，representation join 必须同时比较字段与 policy；intrinsic struct 仅接受空字段 Ordinary。旧 `/1` section 及旧两字段 struct shape 直接拒绝并重建产物，profile fingerprint、inventory 和 HIR fingerprint 随之更新，不回改 native-boundary witness 或 C ABI。本次扩展只补齐声明事实，不以 source shape 授予 layout、scan 或物化能力。
+
 输入链扩展为：
 
 ```text
@@ -179,7 +181,7 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/1
 | `org.scoop-lang.lir/cross-cone-layout-link-closure/1` | LIR | Link | Code + LinkValidationOnly |
 | `org.scoop-lang.lir/strong-production/2` | LIR | Compile、Link | Lir + Code + RuntimeImage |
 
-`cross-cone-type-semantics/1` 同时承载 type facts 与独立 inheritance surface；它不修改 `cross-cone-interface/1` 的 public-only record。`cross-cone-type-source-authority/1` 保存从同一次 sealed Export/LocalConcrete HIR 与实际 committed-use trace 独立投影的 source authority，只供 reader 重放前一 section，不能作为普通 lookup、layout 或 materialization API。前四条 Compile section 的完整 canonical inner bytes分别进入对应 layer contribution；两个 HIR section都进入 HIR contribution。新增Link-only section仅以 semantic physical-import projection进入Code，member/range/patch信息只作LinkValidationOnly；strong-production/2沿用强定义section自己的三个sink。
+`cross-cone-type-semantics/1` 同时承载 type facts 与独立 inheritance surface；它复用 public-only record 的声明职责；为完整保留 struct CLayout policy，共有接口按本节规则升级为 `cross-cone-interface/2`。`cross-cone-type-source-authority/1` 保存从同一次 sealed Export/LocalConcrete HIR 与实际 committed-use trace 独立投影的 source authority，只供 reader 重放前一 section，不能作为普通 lookup、layout 或 materialization API。前四条 Compile section 的完整 canonical inner bytes分别进入对应 layer contribution；两个 HIR section都进入 HIR contribution。新增Link-only section仅以 semantic physical-import projection进入Code，member/range/patch信息只作LinkValidationOnly；strong-production/2沿用强定义section自己的三个sink。
 
 所有 source Cone、trusted core、single-file 与 cache 产物都写新 profile、五个新增section及strong-production/2，空集合也必须显式编码。旧 profile 可以被 Graph view 识别并报告，但不能成为本阶段 completed dependency；core receipt、compiler compatibility 与 cache key 绑定新 profile fingerprint，全部重建，不做内存升级。section自身major与outer schema是两个版本维度；本次strong-production/2不表示进入M24的outer schema2或runtime release ABI。
 

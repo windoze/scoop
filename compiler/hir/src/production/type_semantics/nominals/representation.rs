@@ -132,11 +132,9 @@ pub(super) fn shape(
                         })?,
                     );
                 }
-                let policy = export.structs[id]
-                    .attributes
-                    .c_layout
-                    .map(|contract| NominalCLayoutPolicyV1::CLayout { contract })
-                    .unwrap_or(NominalCLayoutPolicyV1::Ordinary);
+                let policy = NominalCLayoutPolicyV1::from_source_contract(
+                    export.structs[id].attributes.c_layout,
+                );
                 Ok(NominalRepresentationShapeV1::Struct {
                     fields: projected,
                     c_layout_policy: policy,

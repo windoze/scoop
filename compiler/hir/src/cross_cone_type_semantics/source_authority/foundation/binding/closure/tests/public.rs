@@ -21,7 +21,9 @@ fn table(owner: PersistentTypeId, shape: NominalSourceShapeV1) -> CanonicalNomin
 fn public_join_requires_source_root_and_equal_value_shape() {
     let root = Artifact::new("value", SourceNominalKind::Struct, None).load(None);
     let bound = root.bind();
-    let shape = NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(vec![]).unwrap());
+    let shape = NominalSourceShapeV1::Struct(
+        StructSourceShapeV1::try_new(vec![], crate::NominalCLayoutPolicyV1::Ordinary).unwrap(),
+    );
     let public = table(root.owner, shape.clone());
     super::super::provider::validate_public(&bound, &public, &mut meter()).unwrap();
     let foreign = Artifact::new("foreign", SourceNominalKind::Struct, None).load(None);
@@ -38,10 +40,13 @@ fn public_join_requires_source_root_and_equal_value_shape() {
     .unwrap();
     let field = PersistentFieldId::from_key(&key).unwrap();
     let changed = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            field,
-            SignatureTypeKey::Nominal(root.owner),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(
+                field,
+                SignatureTypeKey::Nominal(root.owner),
+            )],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     assert!(

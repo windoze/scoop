@@ -499,7 +499,13 @@ fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-            NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap()),
+            NominalSourceShapeV1::Struct(
+                StructSourceShapeV1::try_new(
+                    Vec::new(),
+                    scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                )
+                .unwrap(),
+            ),
         )
         .unwrap(),
     ]);
@@ -884,10 +890,13 @@ fn nominal_surface(
         .unwrap(),
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-                field.id(),
-                SignatureTypeKey::Nominal(nominal.id()),
-            )])
+            StructSourceShapeV1::try_new(
+                vec![StructSourceFieldV1::new(
+                    field.id(),
+                    SignatureTypeKey::Nominal(nominal.id()),
+                )],
+                scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+            )
             .unwrap(),
         ),
     )

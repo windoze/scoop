@@ -182,8 +182,11 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
         match &source.public {
             Some(NominalSourceShapeV1::Struct(shape)) => {
                 source.public = Some(NominalSourceShapeV1::Struct(
-                    StructSourceShapeV1::try_new(shape.fields().iter().rev().cloned().collect())
-                        .unwrap(),
+                    StructSourceShapeV1::try_new(
+                        shape.fields().iter().rev().cloned().collect(),
+                        crate::NominalCLayoutPolicyV1::Ordinary,
+                    )
+                    .unwrap(),
                 ))
             }
             Some(NominalSourceShapeV1::Enum(shape)) => {
@@ -194,7 +197,8 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
             }
             None => {
                 source.public = Some(NominalSourceShapeV1::Struct(
-                    StructSourceShapeV1::try_new(vec![]).unwrap(),
+                    StructSourceShapeV1::try_new(vec![], crate::NominalCLayoutPolicyV1::Ordinary)
+                        .unwrap(),
                 ))
             }
             _ => unreachable!(),
@@ -212,15 +216,45 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
         unreachable!()
     };
     source.public = Some(NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            public.fields()[0].field(),
-            SignatureTypeKey::RawPointer(Box::new(unit())),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(
+                public.fields()[0].field(),
+                SignatureTypeKey::RawPointer(Box::new(unit())),
+            )],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     ));
     mismatch(
         &table,
         &changed,
+        NominalRepresentationSourceMismatchV1::PublicValueShape,
+    );
+}
+
+#[test]
+fn independent_public_source_policy_must_agree_in_the_metered_reader() {
+    let (mut fixture, owner) = fixtures::structure(unit(), 1);
+    let table = fixture.table();
+    let source = fixture.sources.get_mut(&owner).unwrap();
+    let Some(NominalSourceShapeV1::Struct(public)) = &source.public else {
+        unreachable!()
+    };
+    source.public = Some(NominalSourceShapeV1::Struct(
+        StructSourceShapeV1::try_new(
+            public.fields().to_vec(),
+            NominalCLayoutPolicyV1::CLayout {
+                contract: HirCLayoutContract {
+                    aligned: HirCLayoutValue::A8,
+                    packed: HirCLayoutValue::A1,
+                },
+            },
+        )
+        .unwrap(),
+    ));
+    mismatch(
+        &table,
+        &fixture,
         NominalRepresentationSourceMismatchV1::PublicValueShape,
     );
 }

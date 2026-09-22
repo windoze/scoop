@@ -1,5 +1,5 @@
 //! Closed source representation policy. These bytes are specific to the
-//! general type-semantics section, not the native-boundary witness.
+//! shared source shape and type-semantics sections, not the native-boundary witness.
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
@@ -16,6 +16,15 @@ mod tests;
 pub enum NominalCLayoutPolicyV1 {
     Ordinary,
     CLayout { contract: HirCLayoutContract },
+}
+
+impl NominalCLayoutPolicyV1 {
+    pub const fn from_source_contract(contract: Option<HirCLayoutContract>) -> Self {
+        match contract {
+            None => Self::Ordinary,
+            Some(contract) => Self::CLayout { contract },
+        }
+    }
 }
 
 impl WireEncode for NominalCLayoutPolicyV1 {

@@ -289,7 +289,13 @@ impl CallableSourceSurface {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-            NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap()),
+            NominalSourceShapeV1::Struct(
+                StructSourceShapeV1::try_new(
+                    Vec::new(),
+                    scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                )
+                .unwrap(),
+            ),
         )
         .unwrap();
         let callable_interface = CallableInterfaceRecordV1::try_new(

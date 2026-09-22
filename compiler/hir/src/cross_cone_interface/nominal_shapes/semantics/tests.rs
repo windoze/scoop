@@ -18,10 +18,10 @@ fn validates_owned_source_shapes_selectors_and_field_types() {
     let binders = binders();
 
     let structure = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            fixture.struct_field,
-            binder(0),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(fixture.struct_field, binder(0))],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     assert_eq!(
@@ -105,10 +105,13 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
     let fixture = Fixture::new();
 
     let structure = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            fixture.foreign_struct_field,
-            binder(0),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(
+                fixture.foreign_struct_field,
+                binder(0),
+            )],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     let mut struct_authority = fixture.authority();
@@ -256,10 +259,10 @@ fn rejects_variant_field_owner_and_selector_mismatches() {
 fn rejects_out_of_scope_and_unresolved_field_types() {
     let fixture = Fixture::new();
     let out_of_scope = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            fixture.struct_field,
-            binder(1),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(fixture.struct_field, binder(1))],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     let mut scope_authority = fixture.authority();
@@ -287,10 +290,13 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
     let missing = nominal("Missing", SourceNominalKind::Class, 0);
     let missing_id = PersistentTypeId::from_source_declaration(&missing).unwrap();
     let unresolved = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            fixture.struct_field,
-            SignatureTypeKey::Nominal(missing_id),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(
+                fixture.struct_field,
+                SignatureTypeKey::Nominal(missing_id),
+            )],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     let mut reference_authority = fixture.authority();
@@ -314,10 +320,10 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
 fn rejects_missing_kind_specific_identity_authority() {
     let fixture = Fixture::new();
     let shape = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(vec![StructSourceFieldV1::new(
-            fixture.struct_field,
-            binder(0),
-        )])
+        StructSourceShapeV1::try_new(
+            vec![StructSourceFieldV1::new(fixture.struct_field, binder(0))],
+            crate::NominalCLayoutPolicyV1::Ordinary,
+        )
         .unwrap(),
     );
     let mut authority = fixture.authority();

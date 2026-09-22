@@ -11,15 +11,24 @@ pub(in super::super) fn public_value(
     meter.charge_work(1, path)?;
     match (actual, expected) {
         (
-            NominalRepresentationShapeV1::Struct { fields, .. },
+            NominalRepresentationShapeV1::Struct {
+                fields,
+                c_layout_policy,
+            },
             NominalSourceShapeV1::Struct(source),
-        ) => types::fields(
-            fields.iter().map(|f| (f.field(), f.value_type())),
-            source.fields().iter().map(|f| (f.field(), f.value_type())),
-            4,
-            meter,
-            path,
-        ),
+        ) => {
+            meter.charge_work(3, path)?;
+            if *c_layout_policy != source.c_layout_policy() {
+                return Ok(false);
+            }
+            types::fields(
+                fields.iter().map(|f| (f.field(), f.value_type())),
+                source.fields().iter().map(|f| (f.field(), f.value_type())),
+                4,
+                meter,
+                path,
+            )
+        }
         (NominalRepresentationShapeV1::Enum { variants }, NominalSourceShapeV1::Enum(source)) => {
             source::sequence(variants.len(), meter, path)?;
             source::sequence(source.variants().len(), meter, path)?;

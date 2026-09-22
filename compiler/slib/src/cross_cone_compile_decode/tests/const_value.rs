@@ -230,7 +230,13 @@ impl ConstSurface {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-            NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap()),
+            NominalSourceShapeV1::Struct(
+                StructSourceShapeV1::try_new(
+                    Vec::new(),
+                    scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                )
+                .unwrap(),
+            ),
         )
         .unwrap();
         let property_interface = PropertyInterfaceRecordV1::try_new(

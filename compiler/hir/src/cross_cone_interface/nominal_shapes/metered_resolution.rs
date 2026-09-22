@@ -11,7 +11,7 @@ impl DecodedNominalSourceShapeV1 {
         let path = WirePath::root();
         meter.charge_nodes(1, &path).map_err(Error::Resource)?;
         match &self {
-            Self::Struct(fields) => {
+            Self::Struct { fields, .. } => {
                 meter
                     .charge_collection_slots((fields.len() as u64).saturating_mul(2), &path)
                     .map_err(Error::Resource)?;

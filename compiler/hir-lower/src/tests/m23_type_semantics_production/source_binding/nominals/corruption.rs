@@ -70,8 +70,13 @@ fn nominal_binding_rejects_omitted_fields_variants_and_variant_fields() {
         let Shape::Struct(shape) = pair.source_shape() else {
             panic!("struct")
         };
-        let missing =
-            Shape::Struct(hir::StructSourceShapeV1::try_new(shape.fields()[1..].to_vec()).unwrap());
+        let missing = Shape::Struct(
+            hir::StructSourceShapeV1::try_new(
+                shape.fields()[1..].to_vec(),
+                hir::NominalCLayoutPolicyV1::Ordinary,
+            )
+            .unwrap(),
+        );
         let record = rebuild(
             pair,
             pair.constructors().clone(),

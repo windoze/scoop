@@ -8,10 +8,12 @@ use scoop_identity::{
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{PublicNominalKindV1, SignatureTypeReferenceResolver};
+use crate::NominalCLayoutPolicyV1;
 
 mod errors;
 mod metered_resolution;
 mod semantics;
+mod wire;
 
 pub use errors::{
     EnumSourceFieldResolutionError, EnumSourceVariantBuildError, EnumSourceVariantResolutionError,
@@ -102,10 +104,17 @@ impl WireDecode for DecodedStructSourceFieldV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructSourceShapeV1 {
     fields: Vec<StructSourceFieldV1>,
+    c_layout_policy: NominalCLayoutPolicyV1,
 }
 
 impl StructSourceShapeV1 {
-    pub fn try_new(fields: Vec<StructSourceFieldV1>) -> Result<Self, NominalSourceShapeBuildError> {
+    pub fn try_new(
+        fields: Vec<StructSourceFieldV1>,
+        c_layout_policy: NominalCLayoutPolicyV1,
+    ) -> Result<Self, NominalSourceShapeBuildError> {
+        if fields.is_empty() && matches!(c_layout_policy, NominalCLayoutPolicyV1::CLayout { .. }) {
+            return Err(NominalSourceShapeBuildError::EmptyCLayout);
+        }
         u32::try_from(fields.len())
             .map_err(|_| NominalSourceShapeBuildError::TooManyStructFields)?;
         let mut ids = BTreeSet::new();
@@ -116,7 +125,14 @@ impl StructSourceShapeV1 {
                 ));
             }
         }
-        Ok(Self { fields })
+        Ok(Self {
+            fields,
+            c_layout_policy,
+        })
+    }
+
+    pub const fn c_layout_policy(&self) -> NominalCLayoutPolicyV1 {
+        self.c_layout_policy
     }
 
     pub fn fields(&self) -> &[StructSourceFieldV1] {
@@ -409,38 +425,14 @@ impl NominalSourceShapeV1 {
     }
 }
 
-impl WireEncode for NominalSourceShapeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Class => encode_empty_sum(encoder, 1),
-            Self::Interface => encode_empty_sum(encoder, 2),
-            Self::Struct(shape) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 3)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, &shape.fields)
-            }
-            Self::Enum(shape) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 4)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, &shape.variants)
-            }
-            Self::Object(shape) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 5)?;
-                encoder.field(1)?;
-                shape.value.encode(encoder)
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedNominalSourceShapeV1 {
     Class,
     Interface,
-    Struct(Vec<DecodedStructSourceFieldV1>),
+    Struct {
+        fields: Vec<DecodedStructSourceFieldV1>,
+        c_layout_policy: NominalCLayoutPolicyV1,
+    },
     Enum(Vec<DecodedEnumSourceVariantV1>),
     Object(DecodedPersistentId<PersistentObjectValueId>),
 }
@@ -456,9 +448,11 @@ impl DecodedNominalSourceShapeV1 {
         match self {
             Self::Class => Ok(NominalSourceShapeV1::Class),
             Self::Interface => Ok(NominalSourceShapeV1::Interface),
-            Self::Struct(fields) => {
-                resolve_struct_shape(fields, resolver).map(NominalSourceShapeV1::Struct)
-            }
+            Self::Struct {
+                fields,
+                c_layout_policy,
+            } => resolve_struct_shape(fields, c_layout_policy, resolver)
+                .map(NominalSourceShapeV1::Struct),
             Self::Enum(variants) => {
                 resolve_enum_shape(variants, resolver).map(NominalSourceShapeV1::Enum)
             }
@@ -467,75 +461,6 @@ impl DecodedNominalSourceShapeV1 {
                 .map(ObjectSourceShapeV1::new)
                 .map(NominalSourceShapeV1::Object)
                 .map_err(NominalSourceShapeResolutionError::ObjectValue),
-        }
-    }
-}
-
-impl WireEncode for DecodedNominalSourceShapeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Class => encode_empty_sum(encoder, 1),
-            Self::Interface => encode_empty_sum(encoder, 2),
-            Self::Struct(fields) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 3)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, fields)
-            }
-            Self::Enum(variants) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 4)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, variants)
-            }
-            Self::Object(value) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 5)?;
-                encoder.field(1)?;
-                value.encode(encoder)
-            }
-        }
-    }
-}
-
-impl WireDecode for DecodedNominalSourceShapeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        match tag {
-            1 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Class)
-            }
-            2 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Interface)
-            }
-            3 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, |decoder| {
-                        decoder
-                            .decode_array(|decoder, _| DecodedStructSourceFieldV1::decode(decoder))
-                    })
-                    .map(Self::Struct)
-            }
-            4 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, |decoder| {
-                        decoder
-                            .decode_array(|decoder, _| DecodedEnumSourceVariantV1::decode(decoder))
-                    })
-                    .map(Self::Enum)
-            }
-            5 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, DecodedPersistentId::decode)
-                    .map(Self::Object)
-            }
-            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
 }
@@ -560,11 +485,15 @@ impl<R, E> NominalSourceShapeResolver<E> for R where
 
 fn resolve_struct_shape<R, E>(
     decoded: Vec<DecodedStructSourceFieldV1>,
+    c_layout_policy: NominalCLayoutPolicyV1,
     resolver: &mut R,
 ) -> Result<StructSourceShapeV1, NominalSourceShapeResolutionError<E>>
 where
     R: NominalSourceShapeResolver<E>,
 {
+    if decoded.is_empty() && matches!(c_layout_policy, NominalCLayoutPolicyV1::CLayout { .. }) {
+        return Err(NominalSourceShapeResolutionError::EmptyCLayout);
+    }
     u32::try_from(decoded.len())
         .map_err(|_| NominalSourceShapeResolutionError::TooManyStructFields)?;
     let mut fields = Vec::with_capacity(decoded.len());
@@ -581,7 +510,10 @@ where
         }
         fields.push(field);
     }
-    Ok(StructSourceShapeV1 { fields })
+    Ok(StructSourceShapeV1 {
+        fields,
+        c_layout_policy,
+    })
 }
 
 fn resolve_enum_shape<R, E>(

@@ -400,7 +400,13 @@ impl AliasSurface {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-            NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(Vec::new()).unwrap()),
+            NominalSourceShapeV1::Struct(
+                StructSourceShapeV1::try_new(
+                    Vec::new(),
+                    scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                )
+                .unwrap(),
+            ),
         )
         .unwrap();
         let definition_source = ExportDefinitionSourceV1::new(interface_origin.clone());
