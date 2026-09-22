@@ -17,7 +17,7 @@ impl WireEncode for Records<'_> {
 
 #[test]
 fn source_callable_wire_has_four_required_fields_and_preserves_all_roles() {
-    with_source(CALLABLES, |output, _| {
+    with_hir_source(CALLABLES, |output, _| {
         let table = table(output);
         for record in table.records() {
             let expected = [
@@ -62,7 +62,7 @@ fn source_callable_wire_has_four_required_fields_and_preserves_all_roles() {
 
 #[test]
 fn source_callable_reader_rejects_duplicate_and_unsorted_declarations_without_repair() {
-    with_source(CALLABLES, |output, _| {
+    with_hir_source(CALLABLES, |output, _| {
         let table = table(output);
         let first = table.records()[0].clone();
         let duplicate = vec![first.clone(), first];
@@ -91,7 +91,7 @@ fn source_callable_reader_rejects_duplicate_and_unsorted_declarations_without_re
 
 #[test]
 fn source_callable_reader_rejects_an_unpublished_typed_declaration() {
-    with_source(CALLABLES, |output, _| {
+    with_hir_source(CALLABLES, |output, _| {
         use scoop_identity::*;
         let unknown =
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(

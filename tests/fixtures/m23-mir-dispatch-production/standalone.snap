@@ -1,0 +1,31 @@
+Again
+  vtable
+    0 abstract Again.first
+    1 direct Base.second
+    2 abstract Again.$get$copy
+Base
+  vtable
+    0 direct Base.first
+    1 direct Base.second
+    2 direct Base.$get$copy
+Child
+  vtable
+    0 direct Child.first
+    1 direct Base.second
+    2 direct Child.$get$copy
+Inherited
+  vtable
+    0 abstract Again.first
+    1 direct Base.second
+    2 abstract Again.$get$copy
+Token
+Unique
+  vtable
+    0 direct Unique.first
+    1 direct Base.second
+    2 direct Unique.$get$copy
+Unique backing
+  vtable
+    0 direct Unique.first
+    1 direct Base.second
+    2 direct Unique.$get$copy

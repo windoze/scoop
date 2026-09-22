@@ -15,9 +15,11 @@ const CALLABLES: &str = include_str!(concat!(
     "/../../tests/fixtures/m23-type-source-dispatch/callables.scoop"
 ));
 
+// Source metadata covers suspend declarations without producing coroutine bodies.
+
 #[test]
 fn source_callable_contracts_preserve_signature_effects_modality_and_accessor_origins() {
-    with_source(CALLABLES, |output, _| {
+    with_hir_source(CALLABLES, |output, _| {
         let table = table(output);
         verify_concrete(output, &table);
         assert_eq!(
@@ -34,7 +36,7 @@ fn source_callable_contracts_preserve_signature_effects_modality_and_accessor_or
 #[test]
 fn source_contracts_cover_exactly_slot_roots_and_selected_targets() {
     for source in [VIRTUAL, INTERFACES, CALLABLES] {
-        with_source(source, |output, _| {
+        with_hir_source(source, |output, _| {
             let table = table(output);
             verify_concrete(output, &table);
             let mut expected = std::collections::BTreeSet::new();
@@ -96,7 +98,7 @@ fn source_contracts_cover_exactly_slot_roots_and_selected_targets() {
 
 #[test]
 fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budget() {
-    let original = with_source(CALLABLES, |output, _| {
+    let original = with_hir_source(CALLABLES, |output, _| {
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,
@@ -118,12 +120,12 @@ fn source_contracts_ignore_unrelated_arenas_and_reject_exhausted_projection_budg
     });
     assert_eq!(
         encode(&original).unwrap(),
-        with_source(CALLABLES, |output, _| encode(&table(output)).unwrap())
+        with_hir_source(CALLABLES, |output, _| encode(&table(output)).unwrap())
     );
     let shifted = format!("fun unrelated(): Int = 0\n{CALLABLES}");
     // Access source spans intentionally change when source text moves. Compare
     // signatures and declaration identities, while retaining the new origins.
-    with_source(&shifted, |output, _| {
+    with_hir_source(&shifted, |output, _| {
         let shifted = table(output);
         assert_eq!(original.records().len(), shifted.records().len());
         for (a, b) in original.records().iter().zip(shifted.records()) {

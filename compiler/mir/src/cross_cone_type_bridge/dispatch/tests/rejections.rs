@@ -1,6 +1,27 @@
 use super::*;
 
 #[test]
+fn interface_providers_preserve_the_relative_order_of_retained_parent_slots() {
+    let fixture = Fixture::new();
+    for owner in [LEFT, DIAMOND] {
+        let mut records = fixture.table().records;
+        let record = records
+            .iter_mut()
+            .find(|record| record.owner() == fixture.exact(owner))
+            .unwrap();
+        let entries = &mut record.itables[0].entries;
+        entries.reverse();
+        for (position, entry) in entries.iter_mut().enumerate() {
+            entry.position = MirDispatchPositionV1::new(position as u32);
+        }
+        assert!(matches!(
+            CanonicalMirDispatchSchemasV1::try_new(fixture.authority(), records, &mut meter()),
+            Err(MirDispatchSchemaError::InterfaceOrder { .. })
+        ));
+    }
+}
+
+#[test]
 fn direct_receiver_tags_cannot_hide_wrong_or_unrelated_receiver() {
     let fixture = Fixture::new();
     let mut derived = fixture.record(DERIVED);

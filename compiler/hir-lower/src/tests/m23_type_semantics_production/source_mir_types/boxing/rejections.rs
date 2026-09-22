@@ -11,6 +11,12 @@ pub(super) fn check(
             .entries()
             .iter()
             .map(|binding| {
+                if matches!(
+                    binding.lowering_role(),
+                    scoop_mir::MirCallableLoweringRoleV1::PureVirtualTrap { .. }
+                ) {
+                    return binding.clone();
+                }
                 scoop_mir::ParamFreeMirCallableBindingV1::try_new(
                     scoop_mir::MirCallableBridgeAuthority {
                         identities: graph,

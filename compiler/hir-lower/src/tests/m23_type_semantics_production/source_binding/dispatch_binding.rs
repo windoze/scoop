@@ -1,4 +1,4 @@
-use super::super::source_dispatch::{INTERFACES, VIRTUAL, with_source};
+use super::super::source_dispatch::{INTERFACES, VIRTUAL, with_hir_source, with_source};
 use super::*;
 use hir::{InheritanceDispatchBindingError as Error, InheritanceSlotSchemaSemanticAuthority};
 
@@ -75,7 +75,7 @@ impl Sources {
 #[test]
 fn byte_restored_dispatch_sources_replay_against_their_own_foundation() {
     for source in [VIRTUAL, INTERFACES, CALLABLES, SELECTIONS] {
-        with_source(source, |output, _| {
+        with_hir_source(source, |output, _| {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();

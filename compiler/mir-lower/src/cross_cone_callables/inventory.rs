@@ -1,7 +1,6 @@
 use super::*;
 
 pub(super) fn collect(
-    export: &hir::ExportHir,
     public: &hir::CrossConeHirInterfaceSectionV1,
     source: &hir::CrossConeTypeSemanticsProductionV1,
     meter: &mut BudgetMeter,
@@ -32,7 +31,6 @@ pub(super) fn collect(
                 &mut required,
                 declaration,
                 SourceContract::new(record.effects(), record.modality()),
-                export,
                 meter,
             )?;
         }
@@ -51,7 +49,6 @@ pub(super) fn collect(
                 &mut required,
                 declaration,
                 SourceContract::new(payload.effects(), payload.modality()),
-                export,
                 meter,
             )?;
         }
@@ -72,7 +69,6 @@ pub(super) fn collect(
             &mut required,
             declaration,
             SourceContract::new(record.signature().effects(), record.modality()),
-            export,
             meter,
         )?;
     }
@@ -93,18 +89,12 @@ pub(super) fn insert(
     required: &mut BTreeMap<Declaration, SourceContract>,
     declaration: Declaration,
     contract: SourceContract,
-    export: &hir::ExportHir,
     meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     work(
         u64::from(required.len().checked_ilog2().unwrap_or(0)) + 2,
         meter,
     )?;
-    if contract.modality == hir::CallableModalityV1::Abstract
-        && interface_slot(export, declaration, meter)?
-    {
-        return Ok(());
-    }
     match required.entry(declaration) {
         std::collections::btree_map::Entry::Occupied(existing) => {
             if *existing.get() != contract {
@@ -121,38 +111,6 @@ pub(super) fn insert(
         }
     }
     Ok(())
-}
-
-fn interface_slot(
-    export: &hir::ExportHir,
-    declaration: Declaration,
-    meter: &mut BudgetMeter,
-) -> Result<bool, Error> {
-    work(export.functions.len() as u64, meter)?;
-    for (id, function) in export.functions.iter() {
-        let actual = match &export.function_identities[id] {
-            hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(record)) => {
-                Declaration::Function(record.id())
-            }
-            hir::HirFunctionIdentity::PropertyAccessor(
-                hir::HirPropertyAccessorFunction::Getter(id),
-            ) => Declaration::PropertyAccessor(export.property_accessor_identities[*id].id()),
-            hir::HirFunctionIdentity::PropertyAccessor(
-                hir::HirPropertyAccessorFunction::Setter(id),
-            ) => Declaration::PropertyAccessor(export.property_accessor_identities[*id].id()),
-            _ => continue,
-        };
-        if actual == declaration {
-            let method = function
-                .method
-                .ok_or(Error::InvalidSourceRole(declaration))?;
-            return Ok(matches!(
-                export.types[method.owner],
-                hir::Type::Interface(..) | hir::Type::Any
-            ));
-        }
-    }
-    Err(Error::MissingSourceContract(declaration))
 }
 
 fn signature_cost(

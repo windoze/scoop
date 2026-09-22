@@ -47,9 +47,9 @@ impl Lowerer {
         // `BodyLowerer::lower_call`). HIR has already closed and instantiated
         // every generic dependency before this stage starts.
         // Member functions are declared too (hir-lower keeps them out of
-        // `top_level`). Abstract interface slots become signature-only
-        // shells; default bodies and reachable private interface helpers are
-        // emitted as ordinary functions with their typed interface owner.
+        // `top_level`). Closed abstract interface declarations emit the same
+        // fatal bodies as abstract class methods. Generic interface shells
+        // retain their separate application materialization path.
         let mut user_functions = Vec::new();
         for &hir_id in &module.top_level {
             let function = &module.functions[hir_id];
@@ -89,7 +89,9 @@ impl Lowerer {
             };
             let implementation =
                 module.interfaces[interface].methods[slot.into_raw() as usize].implementation;
-            let mir_id = if implementation == hir::InterfaceMemberImplementation::Body {
+            let mir_id = if implementation == hir::InterfaceMemberImplementation::Body
+                || module.interfaces[interface].type_arguments.is_empty()
+            {
                 let id = self.declare_function(module, hir_id);
                 user_functions.push((hir_id, id));
                 id

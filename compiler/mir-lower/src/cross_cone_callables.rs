@@ -16,7 +16,7 @@ mod roles;
 
 /// Produces ordinary source bodies, accessors and actual class trap bodies.
 /// Constructors and generated adaptors are separate constituents of the same
-/// final callable table; signature-only interface slots have no body binding.
+/// final callable table; abstract declarations retain fatal trap bindings.
 pub fn lower_source_callable_bindings(
     output: &hir::DependencyHirOutput,
     public: &hir::CrossConeHirInterfaceSectionV1,
@@ -26,7 +26,7 @@ pub fn lower_source_callable_bindings(
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
-    let mut required = inventory::collect(output.output().export.module(), public, source, meter)?;
+    let mut required = inventory::collect(public, source, meter)?;
     accessors::project(
         output.output().export.module(),
         source,

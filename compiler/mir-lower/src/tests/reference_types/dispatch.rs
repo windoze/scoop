@@ -9,9 +9,7 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     let class_ty = h.class_ty(class);
     let class_describe = empty_method(&mut h, "C", "describe", class_ty);
     let _class_label = empty_method(&mut h, "C", "label", class_ty);
-    // Interface method shells, as hir-lower materializes them.
-    let _iface_describe = empty_method(&mut h, "Describable", "describe", iface_ty);
-    let iface_label = empty_method(&mut h, "Describable", "label", iface_ty);
+    let iface_label = h.interface_methods[h.interfaces[iface].methods[1]].function;
     // A value type method.
     let int = h.int;
     let s = h.strukt("S", &[("x", int)]);

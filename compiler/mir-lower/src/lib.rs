@@ -112,9 +112,11 @@ mod cross_cone_bridge;
 mod cross_cone_callables;
 pub use cross_cone_callables::{SourceMirCallableProductionError, lower_source_callable_bindings};
 mod cross_cone_constructors;
+mod cross_cone_dispatch;
 pub use cross_cone_constructors::{
     SourceMirConstructorProductionError, lower_constructor_bindings,
 };
+pub use cross_cone_dispatch::{SourceMirDispatchProductionError, lower_dispatch_schemas};
 mod cross_cone_types;
 pub use cross_cone_types::{
     SourceMirTypeProductionError, lower_source_type_exports, lower_type_exports,

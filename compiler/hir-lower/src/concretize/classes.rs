@@ -497,11 +497,10 @@ impl Concretizer<'_> {
                                 concrete::InterfaceImplementationTarget::Method(function)
                             }
                             export::InterfaceImplementationTarget::Subclass => {
-                                let source = self.source.interface_methods[method.member].function;
-                                let declaration = self.request_method(
-                                    source,
-                                    concrete::MethodOwner::Interface(interface),
-                                    MethodRequest::Plain,
+                                let declaration = self.request_abstract_interface_member(
+                                    implementation.interface,
+                                    method.member,
+                                    substitution,
                                 );
                                 concrete::InterfaceImplementationTarget::Abstract { declaration }
                             }

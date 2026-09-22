@@ -7,7 +7,9 @@ Base.$set$slot: accessor receiver=true parameters=1 Managed
 Base.hidden: ordinary receiver=true parameters=1 Managed
 Base.pass: ordinary receiver=true parameters=1 Managed
 Base.reach: ordinary receiver=true parameters=1 Managed
+Contract.$get$token: trap receiver=true parameters=0 Managed
 Contract.echo: ordinary receiver=true parameters=1 Managed
+Contract.get: trap receiver=true parameters=1 Managed
 Impl.$get$token: accessor receiver=true parameters=0 Managed
 Impl.get: ordinary receiver=true parameters=1 Managed
 Impl.pass: ordinary receiver=true parameters=1 Managed

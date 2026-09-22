@@ -20,7 +20,8 @@ public class Impl: Base(), Contract {
     public override fun get(value: Token): Token = value
     public override val token: Token = Token()
 }
-public abstract class Partial: Contract
+public interface SubContract: Contract {}
+public abstract class Partial: SubContract
 public abstract class Abstract {
     public abstract fun run(value: Token): Token
 }

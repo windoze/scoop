@@ -56,7 +56,7 @@ pub(super) fn project(
             },
             modality: modality(export, function),
         };
-        inventory::insert(required, key, contract, export, meter)?;
+        inventory::insert(required, key, contract, meter)?;
     }
     if let Some(missing) = extra.first() {
         return Err(Error::MissingSourceContract(Declaration::PropertyAccessor(

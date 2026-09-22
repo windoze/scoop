@@ -125,6 +125,8 @@ pub(super) fn combined(
         "Base.hidden",
         "Base.$set$slot",
         "Contract.echo",
+        "Contract.get",
+        "Contract.$get$token",
         "Abstract.run",
         "Again.pass",
         "Again.$get$abstractValue",
@@ -138,8 +140,6 @@ pub(super) fn combined(
     }
     assert!(!dump.contains("Base.secret:"));
     assert!(!dump.contains("Registry.$get$direct:"));
-    assert!(!dump.contains("Contract.get:"));
-    assert!(!dump.contains("Contract.$get$token:"));
     let secret = input
         .module()
         .functions

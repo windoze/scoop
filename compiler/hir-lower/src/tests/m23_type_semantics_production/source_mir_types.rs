@@ -8,6 +8,7 @@ mod boxing;
 mod callables;
 mod constructors;
 mod dependencies;
+mod dispatch;
 mod identities;
 mod objects;
 mod shape_support;

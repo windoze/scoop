@@ -176,25 +176,9 @@ fn interface_calls_annotate_the_overloads_own_slot() {
     let (int, string) = (h.int, h.string);
     let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
     let multi_ty = h.interface_ty(multi);
-    // Interface method shells, as hir-lower materializes them
-    // (params include `this`).
-    let shell = |h: &mut Harness, ty: hir::TypeId| {
-        let mut locals = Arena::new();
-        let this = locals.alloc(local("this", multi_ty));
-        let v = locals.alloc(local("v", ty));
-        h.method_fn(
-            "Multi.m",
-            multi_ty,
-            vec![param("this", multi_ty, this), param("v", ty, v)],
-            int,
-            hir::Body {
-                locals,
-                statements: Vec::new(),
-            },
-        )
-    };
-    let m_int = shell(&mut h, int);
-    let m_string = shell(&mut h, string);
+    // Calls reference the original typed declarations, including their receiver.
+    let m_int = h.interface_methods[h.interfaces[multi].methods[0]].function;
+    let m_string = h.interface_methods[h.interfaces[multi].methods[1]].function;
     let m_int = h.method_application(m_int);
     let m_string = h.method_application(m_string);
     let method_call =

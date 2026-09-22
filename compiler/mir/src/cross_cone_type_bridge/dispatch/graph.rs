@@ -54,6 +54,30 @@ impl MirDispatchSchemaAuthority<'_> {
         receiver: PersistentExactTypeId,
         meter: &mut BudgetMeter,
     ) -> Result<Vec<PersistentExactTypeId>, MirDispatchSchemaError> {
+        let source = self.type_export(receiver)?;
+        let backing = self.type_export(owner)?;
+        if let (
+            MirTypeOriginV1::SourceNominal(nominal),
+            MirTypeRepresentationV1::Object { backing: expected },
+            MirTypeOriginV1::GeneratedNominal {
+                role: GeneratedNominalKey::ObjectBackingClass { object },
+                ..
+            },
+            MirTypeRepresentationV1::ObjectBacking { .. },
+        ) = (
+            source.origin(),
+            source.representation(),
+            backing.origin(),
+            backing.representation(),
+        ) && nominal == object
+            && *expected == owner
+        {
+            // Two exact views of the same object are not inheritance edges.
+            meter.charge_work(1, &WirePath::root())?;
+            let mut path = reserve(2, meter)?;
+            path.extend([owner, receiver]);
+            return Ok(path);
+        }
         let (nodes, indexes) = self.ancestry(owner, meter)?;
         let mut index = *indexes
             .get(&receiver)
@@ -241,6 +265,12 @@ impl MirDispatchSchemaAuthority<'_> {
     ) -> Result<(), MirDispatchSchemaError> {
         let mut inherited = HashSet::new();
         meter.try_reserve_set_slots(&mut inherited, own.entries().len(), &WirePath::root())?;
+        let mut positions = HashMap::new();
+        meter.try_reserve_map_slots(&mut positions, own.entries().len(), &WirePath::root())?;
+        for (position, entry) in own.entries().iter().enumerate() {
+            meter.charge_work(1, &WirePath::root())?;
+            positions.insert(entry.slot(), position);
+        }
         for interface in &self
             .type_export(record.owner())?
             .base_and_interfaces()
@@ -258,13 +288,13 @@ impl MirDispatchSchemaAuthority<'_> {
             let mut cursor = 0;
             for entry in parent.entries() {
                 meter.charge_work(1, &WirePath::root())?;
-                while cursor < own.entries().len() && own.entries()[cursor].slot() != entry.slot() {
-                    meter.charge_work(1, &WirePath::root())?;
-                    cursor += 1;
-                }
-                if cursor == own.entries().len()
+                let Some(&position) = positions.get(&entry.slot()) else {
+                    // HIR owns the complete typed override suppression proof.
+                    continue;
+                };
+                if position < cursor
                     || !super::validation::same_non_receiver(
-                        own.entries()[cursor].signature(),
+                        own.entries()[position].signature(),
                         entry.signature(),
                     )
                 {
@@ -274,7 +304,7 @@ impl MirDispatchSchemaAuthority<'_> {
                     });
                 }
                 inherited.insert(entry.slot());
-                cursor += 1;
+                cursor = position + 1;
             }
         }
         if own

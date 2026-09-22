@@ -23,7 +23,7 @@ impl<I: PersistentId, K> PersistentKeyResolver<I, K> for NoQueries {
 
 #[test]
 fn source_callable_resolution_accounts_for_nested_access_before_querying_identities() {
-    with_source(CALLABLES, |output, _| {
+    with_hir_source(CALLABLES, |output, _| {
         let bytes = encode(&table(output)).unwrap();
         for limits in [
             DecodeLimits {

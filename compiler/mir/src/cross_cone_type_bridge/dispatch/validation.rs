@@ -130,11 +130,10 @@ impl MirDispatchSchemaAuthority<'_> {
         match entry.implementation() {
             MirDispatchImplementationV1::AbstractObligation {
                 declaration: supplied,
-                trap_target,
                 receiver,
+                ..
             } => {
                 if supplied != declaration
-                    || trap_target != declaration_target(declaration)
                     || *target.lowering_role()
                         != (MirCallableLoweringRoleV1::PureVirtualTrap { slot: entry.slot() })
                 {

@@ -1,0 +1,155 @@
+Base
+  vtable
+    0 direct Base.run
+    1 direct Base.$get$token
+  itable Root
+    0 direct Base.run
+    1 default Root.echo
+    2 direct Base.$get$token
+Choice
+  itable Default
+    0 adjust thunk<Choice> Default.token()
+Default
+  itable Default
+    0 default Default.token
+Derived
+  vtable
+    0 direct Base.run
+    1 direct Base.$get$token
+  itable Right
+    0 direct Base.run
+    1 default Left.echo
+    2 direct Base.$get$token
+  itable Left
+    0 direct Base.run
+    1 direct Base.$get$token
+    2 default Left.echo
+  itable Root
+    0 direct Base.run
+    1 default Left.echo
+    2 direct Base.$get$token
+  itable Diamond
+    0 direct Base.run
+    1 direct Base.$get$token
+    2 default Left.echo
+Diamond
+  itable Diamond
+    0 abstract Root.run
+    1 abstract Root.$get$token
+    2 default Left.echo
+Left
+  itable Left
+    0 abstract Root.run
+    1 abstract Root.$get$token
+    2 default Left.echo
+Mutable
+  itable Mutable
+    0 abstract Mutable.$get$value
+    1 abstract Mutable.$set$value
+OtherSingleton
+  vtable
+    0 direct Base.run
+    1 direct Base.$get$token
+  itable Root
+    0 direct Base.run
+    1 default Root.echo
+    2 direct Base.$get$token
+OtherSingleton backing
+  vtable
+    0 direct Base.run
+    1 direct Base.$get$token
+  itable Root
+    0 direct Base.run
+    1 default Root.echo
+    2 direct Base.$get$token
+Pending
+  vtable
+  itable Right
+    0 abstract Root.run
+    1 default Left.echo
+    2 abstract Root.$get$token
+  itable Left
+    0 abstract Root.run
+    1 abstract Root.$get$token
+    2 default Left.echo
+  itable Root
+    0 abstract Root.run
+    1 default Left.echo
+    2 abstract Root.$get$token
+  itable Diamond
+    0 abstract Root.run
+    1 abstract Root.$get$token
+    2 default Left.echo
+PendingMutable
+  vtable
+  itable Mutable
+    0 abstract Mutable.$get$value
+    1 abstract Mutable.$set$value
+Right
+  itable Right
+    0 abstract Root.run
+    1 default Root.echo
+    2 abstract Root.$get$token
+Root
+  itable Root
+    0 abstract Root.run
+    1 default Root.echo
+    2 abstract Root.$get$token
+Singleton
+  vtable
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+  itable Right
+    0 direct Singleton.run
+    1 default Left.echo
+    2 direct Singleton.$get$token
+  itable Left
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+    2 default Left.echo
+  itable Root
+    0 direct Singleton.run
+    1 default Left.echo
+    2 direct Singleton.$get$token
+  itable Diamond
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+    2 default Left.echo
+Singleton backing
+  vtable
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+  itable Right
+    0 direct Singleton.run
+    1 default Left.echo
+    2 direct Singleton.$get$token
+  itable Left
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+    2 default Left.echo
+  itable Root
+    0 direct Singleton.run
+    1 default Left.echo
+    2 direct Singleton.$get$token
+  itable Diamond
+    0 direct Singleton.run
+    1 direct Singleton.$get$token
+    2 default Left.echo
+Token
+Value
+  itable Right
+    0 adjust thunk<Value> Right.run(Token)
+    1 adjust thunk<Value> Right.echo(Token)
+    2 adjust thunk<Value> Right.$get$token()
+  itable Left
+    0 adjust thunk<Value> Left.run(Token)
+    1 adjust thunk<Value> Left.$get$token()
+    2 adjust thunk<Value> Left.echo(Token)
+  itable Root
+    0 adjust thunk<Value> Root.run(Token)
+    1 adjust thunk<Value> Root.echo(Token)
+    2 adjust thunk<Value> Root.$get$token()
+  itable Diamond
+    0 adjust thunk<Value> Diamond.run(Token)
+    1 adjust thunk<Value> Diamond.$get$token()
+    2 adjust thunk<Value> Diamond.echo(Token)

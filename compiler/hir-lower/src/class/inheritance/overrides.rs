@@ -214,7 +214,7 @@ impl Lowerer {
             );
             return;
         }
-        if matches!(owner, Owner::Class(_)) {
+        if matches!(owner, Owner::Class(_) | Owner::Object(_)) {
             let inherited_family = overrides.as_ref().and_then(|(candidate, _)| {
                 matches!(self.function_owner.get(candidate), Some(Owner::Class(_))).then(|| {
                     let method = self.functions[*candidate]

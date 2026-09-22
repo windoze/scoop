@@ -153,3 +153,15 @@ BoxingAdjust 现在必需保存同次 lowering 选定的目标 FunctionId，与�
 独立 ZST 与组合 fixture 覆盖 value method/getter、private payload、含引用 struct、enum、接口默认实现、菱形继承、被覆盖及无人使用的默认 body、object 排除。逐项核对真实 MIR 正文中的 direct-call 目标、itable 位置和签名；两份 golden、整表 wire 往返及前置无关声明后的字节稳定性通过。缺失目标 binding、类型、无效目标 arena 位置、目标 GC 与实际 body 不一致、零复制预算及共享 work 耗尽均拒绝。源码 fixture 遵循现有接口实现 effect 一致规则。生产模块 102/90 行，新增测试模块 137/112/123 行。
 
 derived equality、dispatch 表及其余实际 callable 组合、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍待接通，整个 M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 24,254 个文件、26.2 GiB，target 已清理。
+
+2026-09-22：MIR dispatch schema 实际生产批次通过 workspace fmt、clippy（含 all-targets）、3 项新增真实源码测试、23 项 dispatch 组成表测试及全部 5,673 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+lower_dispatch_schemas 将同次 HIR 完整槽序和实现选择连接到 sealed MIR 的实际 vtable、itable 与 boxing adjust，逐项核对目标 Strong identity、receiver、参数、结果及 GC effect。object 与 backing 各自导出 schema 并共享实际表；依赖通过共有 callable/type/schema 索引借用。缺失本地类型、body、目标或依赖整体失败，查询、复制及 canonical 化共享预算，没有新增来源授权结构。入口与三个生产子模块分别为 119、122、102、121 行。
+
+非泛型 abstract interface 声明现在使用原声明 owner 物化真实 fatal trap，继承 conformance 复用同一声明，避免为子接口生成第二份同身份函数。abstract class 再次抽象化保留根 slot，使用实际 derived trap。interface provider 核验保留的共同父槽签名与相对顺序，typed override 抑制后的完整序列仍由 HIR join 验证。object 的方法和 accessor override 已补入共有 virtual family 更新，修复 itable 已更新而 vtable 仍调用 base body 的缺陷；backing→source object receiver 只接受相同 typed object/backing 关系，不进入继承图。
+
+真实 core 发布暴露了原 callable fingerprint 遗漏 trap C 字符串的问题。共有 ObjectDefinition 计算现在纳入当前 body 已验证的 AddressTakenConstant atoms、完整 bytes 和正规化重定位；仅允许指向自身关联 atom，原 runtime-scan 顺序及无常量的固定向量保持不变。原 767 行文件按主流程、runtime scan、constant 和错误类型拆为 438、242、67、114 行。真实 core 双视图发布、source/cache 重建和普通依赖进程测试均通过。
+
+独立与组合 fixture 覆盖 virtual prefix、final override、再次抽象化、默认实现抑制、菱形继承、value/enum 装箱、getter/setter、object/backing 及不同 singleton receiver 隔离；两份 golden、wire 往返、前置无关声明后的字节稳定性及共享预算耗尽均通过。仅检查 HIR source metadata 的旧测试直接使用 HIR fixture，保留 suspend 声明合同覆盖；真实 MIR 测试直接引用原接口 typed declaration，移除手工重复声明。suspend 执行所需 generic coroutine 协议仍遵守相邻 ODR 阶段的边界。
+
+derived equality 与其余实际 callable 组合、完整 MIR type bridge 组装、LIR layout/ABI、driver layout-strong 发布、一般跨 Cone nominal 消费及剩余 ZST 矩阵仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 43,048 个文件、43.5 GiB，target 已清理。

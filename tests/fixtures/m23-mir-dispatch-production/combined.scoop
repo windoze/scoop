@@ -1,0 +1,38 @@
+public struct Token() {}
+public interface Root {
+    public fun run(value: Token): Token
+    public val token: Token
+    public fun echo(value: Token): Token = value
+}
+public interface Left: Root {
+    public override fun echo(value: Token): Token = value
+}
+public interface Right: Root {}
+public interface Diamond: Left, Right {}
+public struct Value(): Diamond {
+    public final override fun run(value: Token): Token = value
+    public final override val token: Token get() = Token()
+}
+public interface Default {
+    public fun token(): Token = Token()
+}
+public enum Choice: Default { One }
+public open class Base: Root {
+    public override fun run(value: Token): Token = value
+    public override val token: Token get() = Token()
+}
+public class Derived: Base(), Diamond
+public abstract class Pending: Diamond
+public object Singleton: Base(), Diamond {
+    public override fun run(value: Token): Token = value
+    public override val token: Token get() = Token()
+}
+
+public object OtherSingleton: Base()
+
+public fun throughBase(value: Base): Token = value.run(Token())
+public interface Mutable {
+    public var value: Token
+}
+public abstract class PendingMutable: Mutable
+private class Hidden: Base()
