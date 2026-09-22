@@ -21,6 +21,9 @@ impl CanonicalParamFreeMirTypeExportsV1 {
     pub fn records(&self) -> &[ParamFreeMirTypeExportV1] {
         &self.records
     }
+    pub fn into_records(self) -> Vec<ParamFreeMirTypeExportV1> {
+        self.records
+    }
     pub fn get(&self, exact: PersistentExactTypeId) -> Option<&ParamFreeMirTypeExportV1> {
         self.records
             .binary_search_by_key(&exact, ParamFreeMirTypeExportV1::exact)

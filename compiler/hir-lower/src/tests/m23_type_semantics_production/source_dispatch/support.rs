@@ -95,7 +95,9 @@ pub(super) fn project(
     .unwrap()
 }
 
-pub(super) fn owners(output: &hir::DependencyHirOutput) -> BTreeMap<String, PersistentExactTypeId> {
+pub(in crate::tests::m23_type_semantics_production) fn owners(
+    output: &hir::DependencyHirOutput,
+) -> BTreeMap<String, PersistentExactTypeId> {
     let export = output.output().export.module();
     let mut result = BTreeMap::new();
     let mut add = |name: &str, ty: hir::TypeId| {

@@ -7,7 +7,9 @@ mod replay;
 mod selections;
 mod support;
 use support::*;
-pub(super) use support::{with_hir_source, with_hir_source_at, with_hir_sources, with_source};
+pub(super) use support::{
+    owners, with_hir_source, with_hir_source_at, with_hir_sources, with_source,
+};
 
 pub(super) const VIRTUAL: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

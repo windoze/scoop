@@ -109,6 +109,10 @@ mod context;
 mod coroutine;
 mod coroutine_registry;
 mod cross_cone_bridge;
+mod cross_cone_types;
+pub use cross_cone_types::{
+    SourceMirTypeProductionError, lower_source_type_exports, lower_type_exports,
+};
 mod current;
 mod dispatch;
 mod globals;
