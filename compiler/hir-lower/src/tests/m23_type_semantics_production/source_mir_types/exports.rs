@@ -8,6 +8,7 @@ use scoop_mir_lower::{
 mod assertions;
 mod initialization;
 mod rejections;
+mod source_projection;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())

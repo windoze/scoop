@@ -47,6 +47,16 @@ fn actual_mir_export_assembly_preserves_explicit_initialization_edges_and_checks
             let uses =
                 mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![record], &mut meter())
                     .unwrap();
+            let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+                input,
+                MirTypeBridgeDependencyTablesV1 {
+                    types: &[dependencies],
+                    callables: &[],
+                    dispatch: &[],
+                },
+                uses.clone(),
+                &mut meter(),
+            );
             let result = lower_type_bridge_exports(
                 input,
                 MirTypeBridgeDependencyTablesV1 {
@@ -58,10 +68,40 @@ fn actual_mir_export_assembly_preserves_explicit_initialization_edges_and_checks
                 &mut meter(),
             );
             if emitted {
-                assert_eq!(result.unwrap().initialization_uses().records(), &[record]);
+                let candidate = result.unwrap();
+                let source = source.unwrap();
+                assert_eq!(candidate.initialization_uses().records(), &[record]);
+                candidate
+                    .validate_sources(input.mir.module().cone, &graph, &source, &mut meter())
+                    .unwrap();
+                let stripped = mir::MirTypeBridgeExportConstituentsV1::new(
+                    candidate.types().clone(),
+                    candidate.callables().clone(),
+                    candidate.dispatch().clone(),
+                    candidate.objects().clone(),
+                    candidate.shapes().clone(),
+                    mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter())
+                        .unwrap(),
+                );
+                assert!(matches!(
+                    stripped.validate_sources(
+                        input.mir.module().cone,
+                        &graph,
+                        &source,
+                        &mut meter()
+                    ),
+                    Err(mir::MirTypeBridgeSourceJoinError::Record(
+                        mir::MirTypeBridgeSourceRecordV1::InitializationUses
+                    ))
+                ));
             } else {
                 assert!(
                     matches!(result, Err(Error::MissingInitializationUnit(actual)) if actual == local_unit)
+                );
+                assert!(
+                    matches!(source, Err(scoop_mir_lower::MirTypeBridgeSourceProjectionError::Production(
+                    Error::MissingInitializationUnit(actual)
+                )) if actual == local_unit)
                 );
             }
         }

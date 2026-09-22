@@ -10,9 +10,11 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 mod callables;
 mod error;
 mod inputs;
+mod source;
 use MirTypeBridgeExportProductionError as Error;
 pub use error::MirTypeBridgeExportProductionError;
 pub use inputs::{MirTypeBridgeDependencyTablesV1, MirTypeBridgeExportInputV1};
+pub use source::{MirTypeBridgeSourceProjectionError, MirTypeBridgeSourceProjectionV1};
 
 /// Produces all six local export tables. Dependency tables remain borrowed;
 /// the enclosing section still owns source and committed-use closure replay.

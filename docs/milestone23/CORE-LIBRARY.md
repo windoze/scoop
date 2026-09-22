@@ -320,3 +320,10 @@ LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；�
 每批代码变更先执行 cargo fmt --all 与 cargo clippy --workspace --all-targets，定向来源根和真实源码导出测试通过。重建配套 scoopc 后完整 workspace 37 组、5,790 项全部通过，0 failed、0 ignored，包含 core 修改与重建、缓存、跨 Cone 调用和 Compile/Link 双 view。新增生产模块为 38～106 行，测试按职责拆分。确认构建测试会话全部退出后 cargo clean 删除 2,788 个文件、6.4 GiB。
 
 本批完成私有类型导出边界。新 layout profile 正式发布、一般跨 Cone nominal/member/dispatch 的实际消费及其余完成门继续推进，M23-6 保持进行中。
+
+
+2026-09-23：MIR source-join 接入独立的实际来源投影。适配器只接收同次 sealed HIR/MIR、借用依赖表与显式已提交 initialization-use，构造接口不接收待验证 candidate。完整 type/callable/dispatch/object 预期与 inventory 复用实际生产器投影，有限 shape roots 独立取 LocalConcrete 源码物化计划并核对；查询返回完整 typed 合同，不按名称、CORE 或布局猜测。投影与共有 validate_sources 沿用同一预算，不增加新的终端来源资格。
+
+复用独立和组合源码 fixture 验证真实六表候选与独立来源相等；删除任一 type/callable/dispatch/object/shape 支持表均拒绝。同 identity、相同 facts 下调换 struct 字段顺序仍被完整 record 比较拒绝，非空初始化关系完整保留，删除关系或引用未物化 local unit 失败。共享预算耗尽与错误 source 查询覆盖。现有六表 golden 和编解码回归保持。
+
+每批变更先 cargo fmt --all 与 cargo clippy --workspace --all-targets，随后 scoop-hir-lower、scoop-mir、scoop-mir-lower 共 2,129 项测试通过，0 failed、0 ignored。新增生产模块 54～70 行，测试模块 44～120 行；关闭增量缓存与 debug 信息后 target 当前约 2.5 GiB。本批完成实际 export source-join；HIR committed-use 来源、七字段 section 的正式生产、reader 来源重建、完整 layout profile 发布与一般跨 Cone 类型消费仍需继续，M23-6 未完成。
