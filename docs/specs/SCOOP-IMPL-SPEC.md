@@ -641,6 +641,8 @@ typed id按实体类别隔离：type、function type、generic function、fully 
 
 canonical Scoop 参数与返回值的 direct/indirect/ZST 分类由 LIR 的共有目标规则完成，native-boundary 与 exact-layout 重放调用相同入口。旧 callable bridge 使用当前 callable 所属 artifact 的 identity 图，并借用其实际可达依赖的 native-boundary source witnesses；同一 owner 的重复 witness 必须逐项相同，不能由 core 身份选择第二套类型表。layout profile 在本地与依赖的完整 layout/ABI section 校验后，按每个 exact type 的 ManagedValue layout 重放普通 callable ABI；缺失、重复或 target/role 不匹配的布局整体失败，不回退到 core witness。ABI expectation 与实际记录的比较仍包含完整 logical signature、GC effect、参数次序与返回方式，全部查询和复制计入当前 artifact 的连续预算。
 
+native-boundary foundation reader 对本地与外来 owner 统一解析同一 identity graph 中的 canonical 声明 key，并按实际声明 kind、参数个数、binder 和字段/variant owner 重建记录；仅登记外来 typed id 而缺失 canonical 声明不能替代此校验。字段与 variant 完整性使用当前 artifact 加已验证依赖闭包中的共有 canonical records，既不将依赖记录登记为本地定义，也不以零字段、Reference 或 CORE 来源授予额外资格。重复、缺失、错误 owner、错误 kind 和错误参数数量由共有规则拒绝；查询与完整性检查沿用当前 artifact 的资源预算。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

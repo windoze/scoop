@@ -22,6 +22,8 @@ use crate::{
     SourceNominalKind,
 };
 
+mod records;
+
 fn source_type_record() -> CborIdentityRecord<PersistentTypeId, SourceDeclarationKey> {
     let cone = ConeCoordinate::reserved_core().identity().unwrap();
     let site = SourceDeclarationSite::new(

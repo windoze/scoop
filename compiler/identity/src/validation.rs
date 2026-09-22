@@ -27,6 +27,7 @@ use crate::{
 };
 
 mod decoded;
+mod records;
 pub use decoded::DecodedIdentityKey;
 
 mod semantic;
@@ -1515,69 +1516,6 @@ impl ValidatedIdentityGraph {
     {
         self.canonical_key(id)
             .map(|key| CborIdentityRecord::from_verified_shared(id, key))
-    }
-
-    /// Reconstructs the canonical records introduced by one layer and key
-    /// family, sorted by raw persistent id.
-    pub fn records<I, K>(
-        &self,
-        layer: IdentityLayer,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<Vec<CborIdentityRecord<I, K>>, IdentityValidationError>
-    where
-        I: PersistentId + 'static,
-        K: CborIdentityKey<I> + Send + Sync + 'static,
-    {
-        let record_count = self
-            .candidates
-            .iter()
-            .filter(|(node, candidate)| {
-                node.kind == I::KIND
-                    && candidate.layer == Some(layer)
-                    && self
-                        .canonical_keys
-                        .contains_key(&CanonicalKeySlot::new::<I, K>(node.bytes))
-            })
-            .count();
-        let record_count = u64::try_from(record_count).map_err(|_| {
-            IdentityValidationError::Resource(WireError::new(
-                WireErrorKind::IntegerOutOfRange,
-                path.clone(),
-                None,
-            ))
-        })?;
-        let mut records = Vec::new();
-        meter
-            .try_reserve_exact(&mut records, record_count, COLLECTION_ELEMENT_BYTES, path)
-            .map_err(IdentityValidationError::Resource)?;
-        for (node, candidate) in &self.candidates {
-            if node.kind != I::KIND || candidate.layer != Some(layer) {
-                continue;
-            }
-            let slot = CanonicalKeySlot::new::<I, K>(node.bytes);
-            let Some(key) = self.canonical_keys.get(&slot).cloned() else {
-                continue;
-            };
-            let Ok(key) = key.into_any().downcast::<K>() else {
-                return Err(IdentityValidationError::InvalidRecord {
-                    kind: I::KIND,
-                    id: node.bytes,
-                    reason: "validated identity has the wrong concrete key type".to_owned(),
-                });
-            };
-            let Some(id) = candidate.trusted_id.downcast_ref::<I>().copied() else {
-                return Err(IdentityValidationError::InvalidRecord {
-                    kind: I::KIND,
-                    id: node.bytes,
-                    reason: "validated identity has the wrong concrete id type".to_owned(),
-                });
-            };
-            let record = CborIdentityRecord::from_verified_shared(id, key);
-            records.push(record);
-        }
-        records.sort_by_key(CborIdentityRecord::id);
-        Ok(records)
     }
 
     /// Reconstructs runtime-encoded records introduced by one layer and key

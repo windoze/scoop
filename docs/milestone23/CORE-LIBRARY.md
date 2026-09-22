@@ -181,3 +181,11 @@ lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生
 新增七项独立/组合/negative 测试覆盖 receiver、Unit、scalar、managed reference、非零与零尺寸 aggregate、tagged/niche enum、混合 provider 的同名类型、缺失/重复/wrong-role layout、冲突 witness、相同错误 ABI 在 core 和普通 provider 中被拒绝，以及共享预算耗尽。真实 core 新增两个普通导出函数，golden 核对 ABI；普通 consumer 嵌套调用 Unit 函数，并消费 Unit/Int/String 混合参数函数。wire 格式、persistent identity 与 runtime C ABI 不变。共有分类、依赖类型收集和布局 ABI 查询分别为 42、67、102 行，新增测试和辅助模块均不超过 117 行。
 
 本批完成两处 ABI 重放豁免清理；native-boundary 专用外来类型入口与固定 core 身份识别、protocol 来源资格、String/初始化角色外层、Link 专用闭包，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal 实际消费、双 view 发布和剩余 ZST 矩阵仍需继续完成。确认全部构建测试进程退出后 cargo clean 移除 27,902 个文件、29.4 GiB，target 已清理。
+
+2026-09-22：native-boundary reader 共有声明解析批次通过 workspace fmt、clippy（含 all-targets）、HIR/identity 的 1,461 项定向测试及全部 5,685 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+删除 resolve_with_external_core、from_external_core_source 及其专用错误分支。foundation reader 对本地和外来 owner 调用同一 canonical 声明解析，保留 kind、参数个数、binder、字段及 variant owner 验证；只有外来 id 而没有实际声明 key 的记录被拒绝。字段/variant 完整性改用同一已验证 identity graph 中当前与依赖的 canonical records，缺失依赖成员不能以空形状通过。新增共有 closure_records 查询复用原记录重建实现，共享 canonical key，不将依赖重新登记为本地定义；扫描、排序与输出分配使用调用方预算。
+
+五项新测试替换两项旧 core 特许路径测试，覆盖 core/普通 provider、core/普通 consumer、非空 struct 与 enum、generic 声明的结构往返、缺失 canonical key、遗漏字段/variant、依赖重复折叠、key 共享、本地 inventory 不变及连续预算耗尽。现有 source-kind/参数/成员负例与真实 core 修改重建、ABI 混合参数消费、缓存及双 view 回归全部通过；wire 格式、persistent identity、runtime ABI 及 ODR gate 不变，generic 结构解析不授予 application 执行能力。记录查询独立为 122 行，reader 组合入口为 28 行，native-boundary 主体与 decoder 分别缩短至 566/513 行，新增测试辅助模块不超过 184 行。
+
+本批完成 reader 的 external-core 特殊恢复清理。TrustedCore/ImportedCoreNativeBoundaryTypes producer 输入、后端 CoreNativeBoundaryNominal 识别、其余 protocol/String/初始化/Link 清理，以及 M23-6 原有完整生产与消费验收仍继续推进。确认全部构建测试进程退出后 cargo clean 移除 21,494 个文件、23.1 GiB，target 已清理。

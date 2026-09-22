@@ -1,9 +1,8 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeCoordinate, ConeIdentity, DeclarationScope,
     DefinitionOrigin, DefinitionOriginRecord, DefinitionOriginSubject, DefinitionOwnerChain,
-    ExactTypeKey, NormalizedSourcePath, PackagePath, PendingIdentityValidation,
-    PersistentExactTypeId, SourceContextKey, SourceDeclarationKey, SourceDeclarationSite,
-    SourceIdentity, SourceNominalKind, SourceSpan,
+    ExactTypeKey, NormalizedSourcePath, PackagePath, PendingIdentityValidation, SourceContextKey,
+    SourceDeclarationKey, SourceDeclarationSite, SourceIdentity, SourceNominalKind, SourceSpan,
 };
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
@@ -11,6 +10,7 @@ use super::*;
 use crate::{NativeBoundaryCLayoutPolicy, NativeBoundaryNominalShape};
 
 mod external_types;
+mod native_boundary;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())

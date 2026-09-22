@@ -341,25 +341,12 @@ fn validate_foundation(
         .map_err(HirFoundationValidationError::Resource)?;
     for (index, boundary) in native_boundary_types.into_iter().enumerate() {
         boundary_types.push(
-            boundary
-                .resolve_with_external_core(
-                    identities,
-                    &external_source_types,
-                    &external_generic_types,
-                )
-                .map_err(|error| HirFoundationValidationError::NativeBoundaryType {
-                    index,
-                    error,
-                })?,
+            boundary.resolve(identities).map_err(|error| {
+                HirFoundationValidationError::NativeBoundaryType { index, error }
+            })?,
         );
     }
-    native_boundary::validate_shape_coverage(
-        &fields,
-        &enum_variants,
-        &enum_variant_fields,
-        &boundary_types,
-        meter,
-    )?;
+    native_boundary::validate_graph_shape_coverage(identities, &boundary_types, meter)?;
 
     let mut canonical = CanonicalHirFoundation::empty();
     macro_rules! set {

@@ -12,6 +12,9 @@ use crate::{
     NativeBoundaryNominalOwner, NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
 };
 
+mod graph;
+pub(super) use graph::validate_graph_shape_coverage;
+
 type FieldRecord = CborIdentityRecord<PersistentFieldId, FieldIdentityKey>;
 type VariantRecord = CborIdentityRecord<PersistentEnumVariantId, EnumVariantIdentityKey>;
 type VariantFieldRecord = CborIdentityRecord<PersistentEnumVariantFieldId, EnumVariantFieldKey>;
