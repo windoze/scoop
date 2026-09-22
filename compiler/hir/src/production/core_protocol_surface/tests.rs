@@ -333,3 +333,5 @@ fn option_protocol_rejects_incomplete_some_and_nonempty_none_shapes() {
         );
     }
 }
+
+mod providers;

@@ -1,0 +1,111 @@
+use super::*;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ProtocolEntryKind {
+    Type,
+    GenericType,
+    Callable,
+    EnumVariant,
+    EnumVariantField,
+    DispatchSlot,
+    ExactType,
+}
+
+pub(super) const FUNDAMENTAL_LAYOUT: [ProtocolEntryKind; FUNDAMENTAL_TYPE_COUNT] = [
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+];
+pub(super) const OPTION_LAYOUT: [ProtocolEntryKind; OPTION_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::EnumVariantField,
+    ProtocolEntryKind::EnumVariant,
+];
+pub(super) const ITERATION_LAYOUT: [ProtocolEntryKind; ITERATION_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::DispatchSlot,
+];
+pub(super) const EXCEPTION_LAYOUT: [ProtocolEntryKind; EXCEPTION_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+];
+pub(super) const COROUTINE_LAYOUT: [ProtocolEntryKind; COROUTINE_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::DispatchSlot,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::DispatchSlot,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::DispatchSlot,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::DispatchSlot,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+];
+pub(super) const FFI_LAYOUT: [ProtocolEntryKind; FFI_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+];
+pub(super) const FOREIGN_CALLBACK_LAYOUT: [ProtocolEntryKind; FOREIGN_CALLBACK_PROTOCOL_COUNT] = [
+    ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::EnumVariant,
+    ProtocolEntryKind::ExactType,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+];
+pub(super) const SOURCE_LOCATION_LAYOUT: [ProtocolEntryKind; SOURCE_LOCATION_PROTOCOL_COUNT] =
+    [ProtocolEntryKind::Type, ProtocolEntryKind::Callable];

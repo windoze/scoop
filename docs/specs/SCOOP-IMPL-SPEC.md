@@ -647,6 +647,8 @@ native-boundary foundation reader 对本地与外来 owner 统一解析同一 id
 
 native-boundary producer 的外来类型输入统一为当前构建的 `ImportedSemanticWorld`，不再由 compiler protocol 输入附带 core 类型名单。对每个已持有的 nominal owner，先在共有依赖闭包定位实际持有 canonical 声明的 provider，再用该 provider 的 source shape 与 canonical 字段/variant key 构造 source witness；Reference 只能由实际 class/interface/object 声明 kind 得出。若非公开声明已存在于 provider 的已验证 native witness 闭包，可复用该记录，但不扩展公共查找；两份表示同时存在时须一致。缺少 owner 或 value shape 必须报闭包缺失，不能猜测 CLayout。当前与外来记录统一继续遍历全部 struct 字段、enum variant payload 和嵌套 signature type，按 owner 去重并规范排序，只保留本次 extern/callback 根所需的传递闭包。direct 与 support provider 的 typed 查询规则相同，不生成本地声明或新的授权载体；generic 声明的结构闭合不放宽 ODR/执行 gate，通用 layout/scan 仍由 M23-6 type/layout section 提供。
 
+compiler protocol constituent 的 producer 与 reader 不将 `ConeIdentity::CORE` 作为声明资格：callable、nominal、enum variant/payload 和 imported protocol id 均解析已有 canonical 声明，使用共有 definition-origin 与 typed identity 约束。callable 保留完整 source signature、owner/own binder 组、constructor result 和 generated-adapter source 校验；protocol product 保留封闭角色、effect、type/member 关系、签名与完整 operation 集合校验。enum member 必须关联实际源码 enum owner，不能接受 generated member 或缺少 owner 的记录。Unit 的语言内建身份规则保持不变。此 constituent 清理不扩大前端 intrinsic 声明权限、不引入公开名称，不改变旧字段或 tag 的编码；Core/NotCore 外层和重复 operation 投影仍按本节共有引用迁移要求后续退役。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

@@ -312,7 +312,6 @@ fn require_constructor_callables<const N: usize>(
 
 #[derive(Debug)]
 pub enum CoreCompilerProtocolSurfaceBuildError {
-    NotCore(scoop_identity::ConeIdentity),
     Callable(CoreProtocolCallableBuildError),
     GeneratedProtocolNominal,
     ProtocolNominalKindMismatch,

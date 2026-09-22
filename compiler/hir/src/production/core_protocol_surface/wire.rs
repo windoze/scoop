@@ -1,8 +1,13 @@
+mod error;
+mod layout;
+use layout::*;
+mod references;
 mod relations;
 
-use relations::validate_foundation_relations;
+pub use error::CoreCompilerProtocolSurfaceValidationError;
+use references::validate_entry;
 
-use std::fmt;
+use relations::validate_foundation_relations;
 
 use scoop_identity::{
     CoreBuiltinNominal, DecodedPersistentId, DefinitionOriginSubject, DefinitionOwnerAtom,
@@ -16,116 +21,6 @@ use super::*;
 use crate::{
     CanonicalHirFoundation, CoreProtocolCallableDefinitionV1, CoreProtocolCallableValidationError,
 };
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ProtocolEntryKind {
-    Type,
-    GenericType,
-    Callable,
-    EnumVariant,
-    EnumVariantField,
-    DispatchSlot,
-    ExactType,
-}
-
-const FUNDAMENTAL_LAYOUT: [ProtocolEntryKind; FUNDAMENTAL_TYPE_COUNT] = [
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-];
-const OPTION_LAYOUT: [ProtocolEntryKind; OPTION_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::EnumVariantField,
-    ProtocolEntryKind::EnumVariant,
-];
-const ITERATION_LAYOUT: [ProtocolEntryKind; ITERATION_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-];
-const EXCEPTION_LAYOUT: [ProtocolEntryKind; EXCEPTION_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-];
-const COROUTINE_LAYOUT: [ProtocolEntryKind; COROUTINE_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::DispatchSlot,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-];
-const FFI_LAYOUT: [ProtocolEntryKind; FFI_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-];
-const FOREIGN_CALLBACK_LAYOUT: [ProtocolEntryKind; FOREIGN_CALLBACK_PROTOCOL_COUNT] = [
-    ProtocolEntryKind::GenericType,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::Type,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::EnumVariant,
-    ProtocolEntryKind::ExactType,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-    ProtocolEntryKind::Callable,
-];
-const SOURCE_LOCATION_LAYOUT: [ProtocolEntryKind; SOURCE_LOCATION_PROTOCOL_COUNT] =
-    [ProtocolEntryKind::Type, ProtocolEntryKind::Callable];
 
 impl WireEncode for CoreProtocolNominalV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
@@ -592,79 +487,6 @@ fn validate_product<const N: usize>(
     })
 }
 
-fn validate_entry(
-    decoded: DecodedCoreProtocolEntryV1,
-    foundation: &CanonicalHirFoundation,
-) -> Result<CoreProtocolEntryV1, CoreCompilerProtocolSurfaceValidationError> {
-    match decoded {
-        DecodedCoreProtocolEntryV1::Nominal(DecodedCoreProtocolNominalV1::Type(id)) => {
-            let (id, source) = foundation.source_type_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownType(*id.as_array()),
-            )?;
-            require_core_source(source)?;
-            if id != CoreBuiltinNominal::Unit.identity_record().id() {
-                require_origin(foundation, DefinitionOriginSubject::Type(id))?;
-            }
-            Ok(CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(
-                id,
-            )))
-        }
-        DecodedCoreProtocolEntryV1::Nominal(DecodedCoreProtocolNominalV1::GenericType(id)) => {
-            let (id, source) = foundation.generic_type_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownGenericType(*id.as_array()),
-            )?;
-            require_core_source(source)?;
-            require_origin(foundation, DefinitionOriginSubject::GenericType(id))?;
-            Ok(CoreProtocolEntryV1::Nominal(
-                CoreProtocolNominalV1::GenericType(id),
-            ))
-        }
-        DecodedCoreProtocolEntryV1::Callable(callable) => callable
-            .validate_against(foundation)
-            .map(CoreProtocolEntryV1::Callable)
-            .map_err(CoreCompilerProtocolSurfaceValidationError::Callable),
-        DecodedCoreProtocolEntryV1::EnumVariant(id) => {
-            let (id, key) = foundation.enum_variant_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownEnumVariant(*id.as_array()),
-            )?;
-            require_core_nominal_owner(foundation, key.source_owner())?;
-            require_origin(foundation, DefinitionOriginSubject::EnumVariant(id))?;
-            Ok(CoreProtocolEntryV1::EnumVariant(id))
-        }
-        DecodedCoreProtocolEntryV1::EnumVariantField(id) => {
-            let (id, key) = foundation
-                .enum_variant_field_by_bytes(id.as_array())
-                .ok_or(
-                    CoreCompilerProtocolSurfaceValidationError::UnknownEnumVariantField(
-                        *id.as_array(),
-                    ),
-                )?;
-            let (_, variant) = foundation
-                .enum_variant_by_bytes(key.variant().as_array())
-                .ok_or(
-                    CoreCompilerProtocolSurfaceValidationError::UnknownEnumVariant(
-                        *key.variant().as_array(),
-                    ),
-                )?;
-            require_core_nominal_owner(foundation, variant.source_owner())?;
-            require_origin(foundation, DefinitionOriginSubject::EnumVariantField(id))?;
-            Ok(CoreProtocolEntryV1::EnumVariantField(id))
-        }
-        DecodedCoreProtocolEntryV1::DispatchSlot(id) => {
-            let (id, _) = foundation.dispatch_slot_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownDispatchSlot(*id.as_array()),
-            )?;
-            Ok(CoreProtocolEntryV1::DispatchSlot(id))
-        }
-        DecodedCoreProtocolEntryV1::ExactType(id) => {
-            let (id, _) = foundation.exact_type_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownExactType(*id.as_array()),
-            )?;
-            Ok(CoreProtocolEntryV1::ExactType(id))
-        }
-    }
-}
-
 fn validate_operations(
     decoded: DecodedCoreCompilerOperationProtocolV1,
     foundation: &CanonicalHirFoundation,
@@ -721,101 +543,6 @@ fn entry_kind(entry: &DecodedCoreProtocolEntryV1) -> ProtocolEntryKind {
         DecodedCoreProtocolEntryV1::ExactType(_) => ProtocolEntryKind::ExactType,
     }
 }
-
-fn require_core_source(
-    source: &scoop_identity::SourceDeclarationKey,
-) -> Result<(), CoreCompilerProtocolSurfaceValidationError> {
-    if source.origin() == scoop_identity::ConeIdentity::CORE {
-        Ok(())
-    } else {
-        Err(CoreCompilerProtocolSurfaceValidationError::NonCoreSource)
-    }
-}
-
-fn require_core_nominal_owner(
-    foundation: &CanonicalHirFoundation,
-    owner: Option<NominalDeclarationOwner>,
-) -> Result<(), CoreCompilerProtocolSurfaceValidationError> {
-    match owner.ok_or(CoreCompilerProtocolSurfaceValidationError::GeneratedEnumMember)? {
-        NominalDeclarationOwner::Concrete(id) => {
-            let (_, source) = foundation.source_type_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownType(*id.as_array()),
-            )?;
-            require_core_source(source)
-        }
-        NominalDeclarationOwner::GenericTemplate(id) => {
-            let (_, source) = foundation.generic_type_by_bytes(id.as_array()).ok_or(
-                CoreCompilerProtocolSurfaceValidationError::UnknownGenericType(*id.as_array()),
-            )?;
-            require_core_source(source)
-        }
-    }
-}
-
-fn require_origin(
-    foundation: &CanonicalHirFoundation,
-    subject: DefinitionOriginSubject,
-) -> Result<(), CoreCompilerProtocolSurfaceValidationError> {
-    if foundation.definition_origin(subject).is_some() {
-        Ok(())
-    } else {
-        Err(CoreCompilerProtocolSurfaceValidationError::MissingDefinitionOrigin(subject))
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum CoreCompilerProtocolSurfaceValidationError {
-    RoleKindMismatch {
-        index: usize,
-    },
-    UnknownType([u8; 32]),
-    UnknownGenericType([u8; 32]),
-    UnknownEnumVariant([u8; 32]),
-    UnknownEnumVariantField([u8; 32]),
-    UnknownDispatchSlot([u8; 32]),
-    UnknownExactType([u8; 32]),
-    NonCoreSource,
-    GeneratedEnumMember,
-    MissingDefinitionOrigin(DefinitionOriginSubject),
-    NominalRoleMismatch {
-        product: CoreProtocolProductKindV1,
-        index: usize,
-    },
-    OptionOwnerMismatch,
-    OptionPayloadMismatch,
-    OptionVariantFieldCount {
-        variant: PersistentEnumVariantId,
-        expected: usize,
-        actual: usize,
-    },
-    CallbackVariantOwnerMismatch {
-        index: usize,
-    },
-    CallbackFailureTypeMismatch,
-    InterfaceDispatchMismatch {
-        product: CoreProtocolProductKindV1,
-        callable_index: usize,
-        slot_index: usize,
-    },
-    RoleCallableOwnerMismatch {
-        product: CoreProtocolProductKindV1,
-        index: usize,
-    },
-    OperationOwnerMismatch(IntrinsicFunctionKind),
-    Callable(CoreProtocolCallableValidationError),
-    Relation(CoreCompilerProtocolSurfaceRelationError),
-}
-
-impl fmt::Display for CoreCompilerProtocolSurfaceValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid core compiler protocol surface: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for CoreCompilerProtocolSurfaceValidationError {}
 
 fn encode_value_sum(
     encoder: &mut Encoder,

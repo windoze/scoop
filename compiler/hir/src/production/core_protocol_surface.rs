@@ -1,4 +1,4 @@
-//! Closed compiler-protocol authority projected by the trusted core Cone.
+//! Complete typed declaration roles required by compiler protocols.
 
 use scoop_identity::{
     CoreBuiltinNominal, PersistentDispatchSlotId, PersistentEnumVariantFieldId,
@@ -89,7 +89,7 @@ protocol_product!(
 protocol_product!(CoreSourceLocationProtocolV1, SOURCE_LOCATION_PROTOCOL_COUNT);
 
 /// One total mapping from a closed intrinsic semantic role to the source
-/// callable and complete signature that implements it in trusted core.
+/// callable and complete signature that implements it.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct CoreCompilerOperationV1 {
     kind: IntrinsicFunctionKind,
@@ -117,7 +117,7 @@ impl CoreCompilerOperationProtocolV1 {
     }
 }
 
-/// The complete compiler-facing semantic authority of trusted core. Every
+/// Complete typed declaration references for compiler protocols. Every
 /// constituent is a closed product and the nine products are validated as
 /// one artifact-bound value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,9 +138,6 @@ impl CoreCompilerProtocolSurfaceV1 {
         export: &ExportHir,
         protocols: &crate::DefinedCoreProtocols,
     ) -> Result<Self, CoreCompilerProtocolSurfaceBuildError> {
-        if export.cone != scoop_identity::ConeIdentity::CORE {
-            return Err(CoreCompilerProtocolSurfaceBuildError::NotCore(export.cone));
-        }
         let fundamental_types = CoreFundamentalTypeProtocolV1(product([
             concrete(CoreProtocolNominalV1::Type(
                 CoreBuiltinNominal::Unit.identity_record().id(),
@@ -393,7 +390,7 @@ impl CoreCompilerProtocolSurfaceV1 {
         concrete_entry(self.fundamental_types.entries(), index)
     }
 
-    /// Returns the trusted generic `Array` declaration carried by the fixed
+    /// Returns the actual generic `Array` declaration carried by the fixed
     /// fundamental-type protocol product.
     pub fn array_source_type(&self) -> PersistentGenericTypeId {
         generic_entry(self.fundamental_types.entries(), 11)

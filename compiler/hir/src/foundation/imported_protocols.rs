@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Imported nominal identity in the HIR semantic session that owns the
-/// trusted core artifact.
+/// dependency artifact.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedCoreProtocolNominal {
     Type(ImportedHirId<PersistentTypeId>),
@@ -429,9 +429,9 @@ impl ImportedCoreSourceLocationProtocol {
     }
 }
 
-/// Complete imported compiler-protocol authority. Every persistent subject
+/// Complete imported compiler-protocol references. Every persistent subject
 /// has already been resolved into the exact HIR identity session owned by the
-/// trusted artifact; no declaration is copied into the current Cone arenas.
+/// dependency artifact; no declaration is copied into the current Cone arenas.
 #[derive(Clone, Debug)]
 pub struct ImportedCoreProtocols {
     fundamental_types: ImportedCoreFundamentalTypeProtocol,
@@ -447,14 +447,8 @@ pub struct ImportedCoreProtocols {
 impl ImportedCoreProtocols {
     fn import(
         foundation: &ImportedHirFoundation,
-        interface: &CoreHirInterfaceV1,
+        protocols: &crate::CoreCompilerProtocolSurfaceV1,
     ) -> Result<Self, CoreProtocolImportError> {
-        if foundation.origin() != scoop_identity::ConeIdentity::CORE {
-            return Err(CoreProtocolImportError::FoundationNotCore(
-                foundation.origin(),
-            ));
-        }
-        let protocols = interface.compiler_protocols();
         Ok(Self {
             fundamental_types: ImportedCoreFundamentalTypeProtocol(import_product(
                 foundation,
@@ -553,7 +547,7 @@ impl ImportedHirFoundation {
         &self,
         interface: &CoreHirInterfaceV1,
     ) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
-        let protocols = ImportedCoreProtocols::import(self, interface)?;
+        let protocols = ImportedCoreProtocols::import(self, interface.compiler_protocols())?;
         Ok(ImportedCoreInputs { protocols })
     }
 }
@@ -730,7 +724,6 @@ pub enum CoreProtocolIdentityKind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreProtocolImportError {
-    FoundationNotCore(scoop_identity::ConeIdentity),
     MissingIdentity {
         kind: CoreProtocolIdentityKind,
         identity: [u8; 32],
@@ -739,8 +732,14 @@ pub enum CoreProtocolImportError {
 
 impl fmt::Display for CoreProtocolImportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot import trusted core protocols: {self:?}")
+        write!(
+            formatter,
+            "cannot resolve compiler protocol identities: {self:?}"
+        )
     }
 }
 
 impl std::error::Error for CoreProtocolImportError {}
+
+#[cfg(test)]
+mod tests;

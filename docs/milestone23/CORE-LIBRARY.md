@@ -199,3 +199,11 @@ lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生
 独立与组合源码 fixture 覆盖窄整数、全部八种整数、Boolean/String/Unit、本地 CLayout、嵌套 struct/enum 和未使用类型排除；共有查询覆盖 core 与普通 provider、direct/support 混合闭包、泛型 binder、私有引用声明、typed 私有 witness、canonical 成员缺失或错 owner、source kind/binder 错误、shape 冲突及缺失传递 provider。两份 golden 与 wire 往返通过，provider 顺序扰动不改变输出 bytes。生产查询与 shape 投影各 68 行，闭包遍历独立为 22 行；新增测试按生产、闭包、拒绝与 fixture 支持拆分。native witness wire、persistent identity、runtime C ABI 和 ODR gate 不变。
 
 本批完成 producer 的 core 专用外来类型入口清理。后端 CoreNativeBoundaryNominal 固定身份识别、protocol/String/初始化/Link 清理，以及 M23-6 原有完整 MIR/LIR 生产、双 view 发布、跨 Cone nominal 消费和剩余 ZST 矩阵仍待完成，目标保持进行中。确认全部构建测试进程退出后 cargo clean 删除 24,903 个文件、30.4 GiB，target 已清理。
+
+2026-09-22：compiler protocol constituent 来源资格清理批次通过 workspace fmt、clippy（含 all-targets）、29 项 protocol 定向测试及全部 5,708 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程及实际 core 修改、重建、缓存、双 view 发布和普通依赖消费回归。
+
+删除 protocol callable 与 product producer 的 CORE gate、reader 的 require_core_source/require_core_nominal_owner 与 NonCoreDefinition、导入的 FoundationNotCore 判定及对应错误分支。实际调用链继续解析同一 foundation 的 canonical 声明和 definition origin，完整检查 signature、owner/own binder、constructor result、generated adapter source、enum kind/member owner、role effect、operation 覆盖和协议间关系；Unit 保留既有语言内建身份。ImportedCoreProtocols 直接借用已验证的协议组成表，逐项解析当前共有 semantic session 的 typed id，不重新投影专用来源凭证。旧 Core/NotCore 外层和重复 operation 表仍待后续迁移，本批不将删除 constituent gate 等同于整个 protocol 清理完成。
+
+共有 metadata fixture 现在按真实 library coordinate 构造 provider。六项新增测试及原有 callable 测试的双 provider 组合覆盖普通/core product 往返、definition origin 缺失、错误 enum owner、generated member、constructor 与生成 adapter 的 source/result、缺失 adapter source、错误 operation result、另一 provider 的同名目标替换及共有导入 id 保持。错误由现有 typed 关系和缺失 identity 诊断拒绝，不借名称补目标；原 wire/profile golden 不变，前端 intrinsic 使用边界、runtime ABI 和 ODR gate 不变。
+
+原 994 行 callable 模块按数据/wire、生产、验证、错误拆为 208/363/323/98 行；原 849 行 product wire 拆出角色布局、引用验证与错误，主体缩短至 576 行。原 876 行测试构造按入口、identity builder、product 和 operation 分离；新增测试模块分别为 77/99/110/49 行。后端固定 core 身份分类、protocol 外层与重复投影、String/初始化/Link 共有消费及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal 与 ZST 验收仍继续推进。确认全部构建测试进程退出后 cargo clean 删除 20,977 个文件、23.4 GiB，target 已清理。
