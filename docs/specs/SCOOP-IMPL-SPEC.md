@@ -271,6 +271,8 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 
 enum 的 variant 与 payload field 在 LocalConcrete HIR 和 MIR 实体中必须直接携带非可选的 `PersistentEnumVariantId` 与 `PersistentEnumVariantFieldId`，与 struct field 的持久身份采用相同的保留规则。源码成员身份从 Export HIR 的 typed member relation 复制，泛型具体化只替换字段类型，不改变声明成员身份；协程生成的 enum 从既有 `CoroutineStepIdentity` / `CoroutineSlotIdentity` 取得成员身份，并在协议校验中核对实际 variant 与字段。跨层引用仍使用各层独立的 checked local reference，后续 type bridge / layout 投影通过该引用读取持久身份，不得按名称、显示字符串或 arena 编号重建。
 
+M23-6 的有限形状类型导出直接消费 sealed strong MIR 的 source shape-support 计划与实际 generated materialization。计划条目同时保存源码声明与已验证的 nominal/exact/物理类型 root，后续阶段不得重新按声明哈希查找物化目标：每个计划内的源码 exact root 输出对应 `BoxedValue`（仅值类型）、`CoroutineStep` 和 `CoroutineSlot` 的完整 MIR type record。生成角色与 exact identity 取物化关系，box payload 取既有 typed box identity 与实际字段类型，enum variant/field 取实际定义中的持久身份；GC facts、接口集合与字段顺序来自同一 MIR。结果经过共有 type bridge identity/representation 校验并按 exact id 规范排序；未被该计划要求的执行环境和辅助形状不混入有限支持导出。遍历、排序、分配和复制共同计入调用方预算，失败不返回部分表。此入口生产完整类型桥接中的有限支持组成表，不单独授予 artifact 或导入能力。
+
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：

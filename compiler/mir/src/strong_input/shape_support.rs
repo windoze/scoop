@@ -4,22 +4,39 @@ use scoop_identity::{ExactTypeKey, GeneratedNominalKey};
 
 use super::*;
 
+/// A source demand inseparably bound to its actual nominal materialization.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StrongSourceShapeSupportRoot {
+    declaration: SourceDeclarationKey,
+    shape: StrongSourceNominalShapeRoot,
+}
+
+impl StrongSourceShapeSupportRoot {
+    pub const fn declaration(&self) -> &SourceDeclarationKey {
+        &self.declaration
+    }
+    pub const fn shape(&self) -> &StrongSourceNominalShapeRoot {
+        &self.shape
+    }
+}
+
 pub(super) fn validate(
     sources: Vec<SourceDeclarationKey>,
     module: &Module,
     shapes: &[StrongSourceNominalShapeRoot],
-) -> Result<Vec<SourceDeclarationKey>, SingleConeStrongMirInputError> {
+) -> Result<Vec<StrongSourceShapeSupportRoot>, SingleConeStrongMirInputError> {
     use SingleConeStrongMirInputError as Error;
 
     let mut previous = None;
-    for (index, declaration) in sources.iter().enumerate() {
+    let mut roots = Vec::with_capacity(sources.len());
+    for (index, declaration) in sources.into_iter().enumerate() {
         if declaration.origin() != module.cone
             || !declaration.declaration_kind().is_nominal()
             || declaration.duplicate_signature().type_parameter_count() != 0
         {
             return Err(Error::InvalidShapeSupportSource { index });
         }
-        let source = PersistentTypeId::from_source_declaration(declaration)
+        let source = PersistentTypeId::from_source_declaration(&declaration)
             .map_err(|error| Error::ShapeSupportSourceIdentity { index, error })?;
         if let Some(previous) = previous
             && previous >= source
@@ -60,6 +77,10 @@ pub(super) fn validate(
         {
             return Err(Error::MissingBoxedValue(exact));
         }
+        roots.push(StrongSourceShapeSupportRoot {
+            declaration,
+            shape: shape.clone(),
+        });
     }
-    Ok(sources)
+    Ok(roots)
 }

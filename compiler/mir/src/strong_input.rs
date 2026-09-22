@@ -25,6 +25,7 @@ pub use initialization::{
 mod external;
 mod shape_support;
 pub(crate) use external::validate_external_callables;
+pub use shape_support::StrongSourceShapeSupportRoot;
 
 /// One local function selected as a mandatory strong materialization root.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -141,7 +142,7 @@ pub struct SingleConeStrongMaterializationPlan {
     external_callable_roots: Vec<StrongExternalCallableRoot>,
     source_nominal_shapes: Vec<StrongSourceNominalShapeRoot>,
     generated_nominal_shapes: Vec<StrongGeneratedNominalShapeRoot>,
-    shape_support_sources: Vec<SourceDeclarationKey>,
+    shape_support: Vec<StrongSourceShapeSupportRoot>,
     extern_functions: Vec<ExternFunctionId>,
     globals: Vec<GlobalId>,
     initialization_units: Vec<InitializationUnitId>,
@@ -183,8 +184,8 @@ impl SingleConeStrongMaterializationPlan {
             .find(|root| root.location() == location)
     }
 
-    pub fn shape_support_sources(&self) -> &[SourceDeclarationKey] {
-        &self.shape_support_sources
+    pub fn shape_support(&self) -> &[StrongSourceShapeSupportRoot] {
+        &self.shape_support
     }
 
     pub fn extern_functions(&self) -> &[ExternFunctionId] {
@@ -293,14 +294,14 @@ impl SingleConeStrongMirInput {
         }
         generated_nominal_shapes.sort_unstable_by_key(|root| root.exact());
 
-        let shape_support_sources =
+        let shape_support =
             shape_support::validate(shape_support_sources, &module, &source_nominal_shapes)?;
         let materialization = SingleConeStrongMaterializationPlan {
             callable_roots,
             external_callable_roots,
             source_nominal_shapes,
             generated_nominal_shapes,
-            shape_support_sources,
+            shape_support,
             extern_functions: module.extern_functions.iter().map(|(id, _)| id).collect(),
             globals: module.globals.iter().map(|(id, _)| id).collect(),
             initialization_units: initialization_roots

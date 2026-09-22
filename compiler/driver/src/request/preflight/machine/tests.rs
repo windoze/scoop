@@ -1,6 +1,7 @@
 use super::*;
 use scoop_identity::{ConeIdentity, CoreBuiltinNominal, SignatureTypeKey};
 
+mod finite_types;
 mod provider;
 mod selection;
 mod sources;

@@ -446,7 +446,12 @@ pub fn lower(
     };
     lir::SingleConeStrongLirOutput::try_new(
         module,
-        input.materialization().shape_support_sources().to_vec(),
+        input
+            .materialization()
+            .shape_support()
+            .iter()
+            .map(|root| root.declaration().clone())
+            .collect(),
         core_lir_bridge,
     )
     .map_err(StrongLirLoweringError::Output)

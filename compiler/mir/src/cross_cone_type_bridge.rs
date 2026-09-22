@@ -15,6 +15,7 @@ use scoop_wire::{
 mod callables;
 mod dispatch;
 mod facts;
+mod finite_production;
 mod lookup;
 mod objects;
 mod origin;

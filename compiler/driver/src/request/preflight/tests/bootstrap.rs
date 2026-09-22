@@ -227,7 +227,12 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         real_mir.mir().top_level.len()
     );
     assert_eq!(
-        real_mir.materialization_plan().shape_support_sources(),
+        real_mir
+            .materialization_plan()
+            .shape_support()
+            .iter()
+            .map(|root| root.declaration().clone())
+            .collect::<Vec<_>>(),
         shape_plan
             .roots()
             .iter()

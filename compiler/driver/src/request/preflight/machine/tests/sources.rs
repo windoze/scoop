@@ -5,6 +5,22 @@ use scoop_ast::{
 use scoop_identity::{ConeIdentity, NormalizedSourcePath, SourceIdentity};
 
 pub(super) fn core_sources() -> CurrentConeParsedSources {
+    let fixtures = crate::workspace_root().join("tests/fixtures/core-library");
+    let additional = ["dependency-calls", "dependency-locals"].map(|name| {
+        (
+            format!("src/user-{name}.scoop"),
+            std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap(),
+        )
+    });
+    core_sources_with(
+        &additional
+            .iter()
+            .map(|(path, text)| (path.as_str(), text.as_str()))
+            .collect::<Vec<_>>(),
+    )
+}
+
+pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParsedSources {
     let root = crate::workspace_root().join("sysroot/lib/scoop.core/src");
     let mut sources = std::fs::read_dir(root)
         .unwrap()
@@ -20,13 +36,11 @@ pub(super) fn core_sources() -> CurrentConeParsedSources {
             )
         })
         .collect::<Vec<_>>();
-    let fixtures = crate::workspace_root().join("tests/fixtures/core-library");
-    for name in ["dependency-calls", "dependency-locals"] {
-        sources.push((
-            format!("src/user-{name}.scoop"),
-            std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap(),
-        ));
-    }
+    sources.extend(
+        additional
+            .iter()
+            .map(|(path, text)| (path.to_string(), text.to_string())),
+    );
     sources.sort_by(|left, right| left.0.cmp(&right.0));
     let mut parsed = Vec::new();
     let mut texts = Vec::new();
