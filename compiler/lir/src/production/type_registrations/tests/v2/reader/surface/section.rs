@@ -2,9 +2,8 @@
 
 use super::*;
 use crate::{
-    CoreLirBridgeBranchV1, DecodedStrongProductionSectionV2, EntryProductionSourceV1,
-    ReplayedStrongProductionSectionV2, StrongProductionSectionV2,
-    StrongProductionSectionValidationError as SectionError,
+    DecodedStrongProductionSectionV2, EntryProductionSourceV1, ReplayedStrongProductionSectionV2,
+    StrongProductionSectionV2, StrongProductionSectionValidationError as SectionError,
 };
 use scoop_identity::ConeCoordinate;
 
@@ -27,7 +26,7 @@ fn section(fixture: &Fixture) -> StrongProductionSectionV2 {
         surface(fixture, true),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap()
 }
@@ -48,7 +47,7 @@ fn replay_section(
         fixture.digests.clone(),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
         definitions,
         &StrongInitializationDefinitionCatalogV2::new(
             ConeIdentity::SINGLE_FILE,
@@ -103,7 +102,10 @@ fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
         replayed.generated_bridge_plan(),
         original.generated_bridge_plan()
     );
-    assert_eq!(replayed.core_lir_bridge(), original.core_lir_bridge());
+    assert_eq!(
+        replayed.initialization_cycle_abi(),
+        original.initialization_cycle_abi()
+    );
 }
 
 #[test]

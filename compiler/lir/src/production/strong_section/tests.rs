@@ -35,11 +35,12 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     let encoded = encode(&section).unwrap();
     assert_eq!(encoded[0], 0xaa);
+    assert_initialization_field(&encoded);
 
     let decoded: DecodedStrongProductionSectionV1 =
         decode_canonical(&encoded, DecodeLimits::default()).unwrap();
@@ -65,6 +66,41 @@ fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
     for bytes in [vec![0xa9], vec![0xab]] {
         assert!(
             decode_canonical::<DecodedStrongProductionSectionV1>(&bytes, DecodeLimits::default())
+                .is_err()
+        );
+    }
+}
+
+fn assert_initialization_field(encoded: &[u8]) {
+    assert!(encoded.ends_with(&[11, 0x80]));
+    for payload in [&[10, 0x80][..], &[10, 0xa1, 0, 1][..]] {
+        let mut retired = encoded[..encoded.len() - 2].to_vec();
+        retired.extend_from_slice(payload);
+        let v1 =
+            decode_canonical::<DecodedStrongProductionSectionV1>(&retired, DecodeLimits::default())
+                .unwrap_err();
+        let v2 =
+            decode_canonical::<DecodedStrongProductionSectionV2>(&retired, DecodeLimits::default())
+                .unwrap_err();
+        for error in [v1, v2] {
+            assert_eq!(
+                error.kind(),
+                &scoop_wire::WireErrorKind::UnexpectedField {
+                    expected: 11,
+                    actual: 10,
+                }
+            );
+        }
+    }
+    for payload in [&[11, 0xa1, 0, 1][..], &[11, 0x82][..]] {
+        let mut invalid = encoded[..encoded.len() - 2].to_vec();
+        invalid.extend_from_slice(payload);
+        assert!(
+            decode_canonical::<DecodedStrongProductionSectionV1>(&invalid, DecodeLimits::default())
+                .is_err()
+        );
+        assert!(
+            decode_canonical::<DecodedStrongProductionSectionV2>(&invalid, DecodeLimits::default())
                 .is_err()
         );
     }

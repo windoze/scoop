@@ -16,10 +16,20 @@ use crate::{OdrFreeLirFoundation, StrongObjectSymbolSurfaceV1};
 mod descriptors;
 
 #[test]
-fn selected_callable_keeps_imported_body_and_definition_authority() {
+fn selected_callable_keeps_actual_provider_body_and_definition_authority() {
+    let ordinary = scoop_identity::ConeCoordinate::new("tests", "initialization", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for provider in [ConeIdentity::CORE, ordinary] {
+        check_selected_callable(provider);
+    }
+}
+
+fn check_selected_callable(provider: ConeIdentity) {
     let declaration = SourceDeclarationKey::function(
         SourceDeclarationSite::new(
-            ConeIdentity::CORE,
+            provider,
             PackagePath::root(),
             DefinitionOwnerChain::top_level(),
             DeclarationScope::ConeWide,
@@ -42,7 +52,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     let unit = unit_record.id();
     let definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
-            ConeIdentity::CORE,
+            provider,
             StrongDefinitionEntity::callable_body(body.id()),
             StrongDefinitionRole::CallableBody,
         )
@@ -51,7 +61,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     .unwrap();
     let type_descriptor_definition = CborIdentityRecord::from_key(
         ObjectDefinitionPlanKey::strong(
-            ConeIdentity::CORE,
+            provider,
             StrongDefinitionEntity::exact_type(unit),
             StrongDefinitionRole::TypeDescriptor,
         )
@@ -99,12 +109,11 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     canonical.set_symbol_requests(
         PersistentSymbolRequestTable::new(vec![expected_symbol, string_symbol]).unwrap(),
     );
-    let strong_foundation =
-        OdrFreeLirFoundation::try_new(ConeIdentity::CORE, canonical.clone()).unwrap();
+    let strong_foundation = OdrFreeLirFoundation::try_new(provider, canonical.clone()).unwrap();
     let definitions =
         StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&strong_foundation).unwrap();
-    let foundation = imported_foundation(canonical.clone(), function, &unit_record);
-    let other_foundation = imported_foundation(canonical, function, &unit_record);
+    let foundation = imported_foundation(provider, canonical.clone(), function, &unit_record);
+    let other_foundation = imported_foundation(provider, canonical.clone(), function, &unit_record);
     let signature = ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit);
     let abi_signature = CanonicalScoopAbiFunctionSignature::new(
         signature.clone(),
@@ -113,22 +122,20 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
         CanonicalGcEffect::NoGc,
     )
     .unwrap();
-    let core_bridge = crate::CoreLirBridgeV1::new(
-        crate::CallableAbiRecordV1::new(
-            scoop_identity::ConeIdentity::CORE,
-            target,
-            abi_signature,
-            crate::CallingConvention::Cdecl,
-            crate::ExternalCallableRootPlan::NoGc,
-        )
-        .unwrap(),
-    );
+    let abi = crate::CallableAbiRecordV1::new(
+        provider,
+        target,
+        abi_signature,
+        crate::CallingConvention::Cdecl,
+        crate::ExternalCallableRootPlan::NoGc,
+    )
+    .unwrap();
 
     let selected = foundation
-        .project_initialization_cycle_thrower(&core_bridge, &definitions, target, signature.clone())
+        .project_initialization_cycle_thrower(&abi, &definitions, target, signature.clone())
         .unwrap();
     let foreign = other_foundation
-        .project_initialization_cycle_thrower(&core_bridge, &definitions, target, signature.clone())
+        .project_initialization_cycle_thrower(&abi, &definitions, target, signature.clone())
         .unwrap();
 
     assert_eq!(selected, foreign);
@@ -136,6 +143,82 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
     assert_eq!(selected.bridge().abi_signature().signature(), &signature);
     assert_eq!(selected.bridge().expected_symbol(), expected_symbol);
     assert_eq!(selected.bridge().required_definition(), definition.id());
+    let other_provider = if provider == ConeIdentity::CORE {
+        ConeIdentity::SINGLE_FILE
+    } else {
+        ConeIdentity::CORE
+    };
+    let wrong_provider = crate::CallableAbiRecordV1::new(
+        other_provider,
+        target,
+        abi.abi_signature().clone(),
+        abi.calling_convention(),
+        abi.root_plan(),
+    )
+    .unwrap();
+    assert!(matches!(
+        foundation.project_initialization_cycle_thrower(
+            &wrong_provider,
+            &definitions,
+            target,
+            signature.clone()
+        ),
+        Err(ImportedLirCallableProjectionError::Callable(
+            crate::CallableAbiValidationError::ContractMismatch
+        )),
+    ));
+    let wrong_signature = ExactCallableSignature::new(Effect::Suspend, None, Vec::new(), unit);
+    assert!(matches!(
+        foundation.project_initialization_cycle_thrower(
+            &abi,
+            &definitions,
+            target,
+            wrong_signature
+        ),
+        Err(ImportedLirCallableProjectionError::SignatureMismatch(
+            CoreImportedCallableKind::InitializationCycleThrower
+        )),
+    ));
+    let empty = imported_foundation(
+        provider,
+        CanonicalLirFoundation::empty(),
+        function,
+        &unit_record,
+    );
+    assert!(matches!(
+        empty.project_initialization_cycle_thrower(&abi, &definitions, target, signature.clone()),
+        Err(ImportedLirCallableProjectionError::MissingBody(actual)) if actual == body.id(),
+    ));
+    canonical.set_definition_plans(Vec::new()).unwrap();
+    canonical.set_definition_atoms(Vec::new()).unwrap();
+    let without_definition = imported_foundation(provider, canonical, function, &unit_record);
+    assert!(matches!(
+        without_definition.project_initialization_cycle_thrower(
+            &abi, &definitions, target, signature.clone()),
+        Err(ImportedLirCallableProjectionError::MissingDefinition(actual)) if actual == definition.id(),
+    ));
+    assert!(matches!(
+        crate::SelectedExternalLirSet::empty(provider).with_initialization_cycle(selected.clone()),
+        Err(crate::SelectedExternalLirSetBuildError::SelectedCurrentProvider { provider: actual })
+            if actual == provider,
+    ));
+    let duplicate_role = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
+        .with_initialization_cycle(selected.clone())
+        .unwrap();
+    assert!(matches!(
+        duplicate_role.with_initialization_cycle(selected.clone()),
+        Err(crate::SelectedExternalLirSetBuildError::DuplicateInitializationCycle),
+    ));
+    let duplicate_target = crate::SelectedExternalLirSet::try_from_callables(
+        ConeIdentity::SINGLE_FILE,
+        vec![selected.clone()],
+    )
+    .unwrap();
+    assert!(matches!(
+        duplicate_target.with_initialization_cycle(selected.clone()),
+        Err(crate::SelectedExternalLirSetBuildError::DuplicateCallable { provider: actual, .. })
+            if actual == provider,
+    ));
     let selected_set = crate::SelectedExternalLirSet::empty(ConeIdentity::SINGLE_FILE)
         .with_initialization_cycle(selected)
         .unwrap();
@@ -151,6 +234,7 @@ fn selected_callable_keeps_imported_body_and_definition_authority() {
 }
 
 fn imported_foundation(
+    provider: ConeIdentity,
     canonical: super::super::CanonicalLirFoundation,
     function: PersistentFunctionId,
     exact: &CborIdentityRecord<PersistentExactTypeId, ExactTypeKey>,
@@ -161,7 +245,7 @@ fn imported_foundation(
     )
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(provider).unwrap();
     pending.register_authority(function).unwrap();
     pending
         .register_authority(
@@ -187,7 +271,7 @@ fn imported_foundation(
     let mut session = SemanticIdentitySession::new();
     let (_, _, imported) = session
         .import(
-            ConeIdentity::CORE,
+            provider,
             SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
             &identities,
         )

@@ -133,9 +133,7 @@ fn exercise_dependency_production(provider: Provider) {
     )
     .unwrap();
 
-    let output =
-        SingleConeStrongLirOutput::try_new(consumer, Vec::new(), CoreLirBridgeBranchV1::NotCore)
-            .unwrap();
+    let output = SingleConeStrongLirOutput::try_new(consumer, Vec::new(), None).unwrap();
     let pending = output
         .build_production_section_v2(
             consumer_coordinate.clone(),
@@ -213,7 +211,7 @@ fn exercise_dependency_production(provider: Provider) {
             section.digest_finalization_plan().clone(),
             EntryProductionSourceV1::Library,
             &[],
-            CoreLirBridgeBranchV1::NotCore,
+            None,
             &StrongTypeReferenceDefinitionsV2::new(
                 output.foundation().producer(),
                 &definitions,

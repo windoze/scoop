@@ -120,7 +120,7 @@ where
         digests,
         entry,
         shape_sources,
-        core_bridge,
+        initialization_abi,
         type_definitions,
         initialization_definitions,
     ) = strong.into_parts();
@@ -134,7 +134,7 @@ where
             digests,
             entry,
             &shape_sources,
-            core_bridge,
+            initialization_abi,
             &type_definitions,
             &initialization_definitions,
             front.meter,

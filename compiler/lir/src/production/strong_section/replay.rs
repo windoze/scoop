@@ -11,7 +11,7 @@ pub use view::ReplayedStrongProductionSectionV2;
 
 impl DecodedStrongProductionSectionV2 {
     /// Replays the whole section using independently reconstructed digest and
-    /// core-bridge plans. Their identities and foundation relations remain
+    /// initialization ABI records. Their identities and foundation relations remain
     /// checked by the existing strong plan constructors. The result must be
     /// joined with the complete layout/ABI source and selected closure before
     /// it becomes a production section; this API publishes no such authority.
@@ -25,7 +25,7 @@ impl DecodedStrongProductionSectionV2 {
         expected_digests: StrongDigestFinalizationPlanV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        expected_core_bridge: CoreLirBridgeBranchV1,
+        expected_initialization_abi: Option<Box<CallableAbiRecordV1>>,
         type_definitions: &crate::StrongTypeReferenceDefinitionsV2,
         initialization_definitions: &crate::StrongInitializationDefinitionCatalogV2,
         meter: &mut BudgetMeter,
@@ -35,7 +35,7 @@ impl DecodedStrongProductionSectionV2 {
             foundation,
             &expected_digests,
             shape_sources,
-            &expected_core_bridge,
+            expected_initialization_abi.as_deref(),
             meter,
         )?;
         let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
@@ -59,7 +59,7 @@ impl DecodedStrongProductionSectionV2 {
             registrations.surface,
             entry_source,
             shape_sources,
-            expected_core_bridge,
+            expected_initialization_abi,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
         if actual != encode_canonical_temporary_with_meter(&section, meter, &path)? {

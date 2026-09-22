@@ -8,9 +8,9 @@ use crate::*;
 pub(super) fn provider_protocol(
     module: &mut Module,
     exact: PersistentExactTypeId,
-) -> CoreLirBridgeBranchV1 {
+) -> Option<Box<CallableAbiRecordV1>> {
     if module.cone != ConeIdentity::CORE {
-        return CoreLirBridgeBranchV1::NotCore;
+        return None;
     }
     let protocol = function(module.cone, "initializationCycle");
     module.functions.push(local_function(protocol));
@@ -27,7 +27,7 @@ pub(super) fn provider_protocol(
         scoop_identity::GcEffect::Managed,
     )
     .unwrap();
-    CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(
+    Some(Box::new(
         CallableAbiRecordV1::new(
             scoop_identity::ConeIdentity::CORE,
             StrongCallableDefinitionOwner::Function(protocol),

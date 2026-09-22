@@ -74,18 +74,12 @@ impl ImportedLirFoundation {
     /// Projects the compiler service through its typed bridge and common strong definition.
     pub fn project_initialization_cycle_thrower(
         &self,
-        core_bridge: &crate::CoreLirBridgeV1,
+        bridge: &crate::CallableAbiRecordV1,
         definitions: &crate::StrongObjectSymbolSurfaceV1,
         target: StrongCallableDefinitionOwner,
         signature: ExactCallableSignature,
     ) -> Result<crate::SelectedDependencyLirCallableV1, ImportedLirCallableProjectionError> {
         let kind = CoreImportedCallableKind::InitializationCycleThrower;
-        if self.origin() != ConeIdentity::CORE {
-            return Err(ImportedLirCallableProjectionError::FoundationNotCore(
-                self.origin(),
-            ));
-        }
-        let bridge = core_bridge.initialization_cycle_thrower();
         if bridge.target() != target {
             return Err(ImportedLirCallableProjectionError::TargetMismatch(kind));
         }
@@ -161,7 +155,6 @@ impl WireEncode for ImportedLirFoundation {
 #[derive(Debug)]
 pub enum ImportedLirCallableProjectionError {
     Record(crate::ParamFreeLirCallableBuildError),
-    FoundationNotCore(ConeIdentity),
     TargetMismatch(CoreImportedCallableKind),
     SignatureMismatch(CoreImportedCallableKind),
     Callable(crate::CallableAbiValidationError),

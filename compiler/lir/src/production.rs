@@ -12,8 +12,8 @@ pub use digest_projection::*;
 mod external_bridges;
 pub use external_bridges::*;
 
-mod core_bridge;
-pub use core_bridge::*;
+mod initialization_abi;
+pub(crate) use initialization_abi::*;
 
 mod native_requirements;
 pub use native_requirements::*;

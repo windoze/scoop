@@ -153,7 +153,7 @@ pub(super) fn replay_provider_production(
             .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     replay(&old, coordinate, &provider.foundation, section)
@@ -176,7 +176,7 @@ fn replay(
         old.digest_finalization_plan().clone(),
         EntryProductionSourceV1::Library,
         &[],
-        old.core_lir_bridge().clone(),
+        old.initialization_cycle_abi().cloned().map(Box::new),
         &StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
         &StrongInitializationDefinitionCatalogV2::new(producer, &[], &mut meter()).unwrap(),
         &mut meter(),

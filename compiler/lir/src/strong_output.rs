@@ -6,7 +6,7 @@ use scoop_identity::{ConeCoordinate, SourceDeclarationKey};
 use scoop_wire::BudgetMeter;
 
 use crate::{
-    CoreLirBridgeBranchV1, CoreLirBridgeBuildError, EntryProductionSourceV1, Module,
+    CallableAbiRecordV1, CallableAbiValidationError, EntryProductionSourceV1, Module,
     OdrFreeLirFoundation, OdrFreeLirFoundationProjectionError, StrongDigestProjectionError,
     StrongExternalLirBridgeBuildError, StrongExternalLirBridgeSurfaceV1,
     StrongProductionSectionBuildError, StrongProductionSectionV1, StrongProductionSectionV2,
@@ -28,7 +28,7 @@ pub struct SingleConeStrongLirOutput {
     module: Module,
     foundation: OdrFreeLirFoundation,
     shape_support: StrongLirShapeSupportPlan,
-    core_lir_bridge: CoreLirBridgeBranchV1,
+    initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
 }
 
 /// A freshly projected V2 section awaiting the complete local and selected
@@ -58,24 +58,24 @@ impl SingleConeStrongLirOutput {
     pub fn try_new(
         module: Module,
         shape_sources: Vec<SourceDeclarationKey>,
-        core_lir_bridge: CoreLirBridgeBranchV1,
+        initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
     ) -> Result<Self, SingleConeStrongLirOutputError> {
         let foundation = OdrFreeLirFoundation::from_module(&module)
             .map_err(SingleConeStrongLirOutputError::Foundation)?;
         let shape_support = StrongLirShapeSupportPlan::from_module(&module, shape_sources)
             .map_err(SingleConeStrongLirOutputError::ShapeSupport)?;
-        core_lir_bridge
-            .validate_against(
-                &foundation,
-                &crate::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
-                    .map_err(SingleConeStrongLirOutputError::CoreLirDefinitions)?,
-            )
-            .map_err(SingleConeStrongLirOutputError::CoreLirBridge)?;
+        crate::validate_initialization_abi(
+            initialization_cycle_abi.as_deref(),
+            &foundation,
+            &crate::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation)
+                .map_err(SingleConeStrongLirOutputError::CallableDefinitions)?,
+        )
+        .map_err(SingleConeStrongLirOutputError::InitializationAbi)?;
         Ok(Self {
             module,
             foundation,
             shape_support,
-            core_lir_bridge,
+            initialization_cycle_abi,
         })
     }
 
@@ -91,8 +91,8 @@ impl SingleConeStrongLirOutput {
         &self.shape_support
     }
 
-    pub const fn core_lir_bridge(&self) -> &CoreLirBridgeBranchV1 {
-        &self.core_lir_bridge
+    pub fn initialization_cycle_abi(&self) -> Option<&CallableAbiRecordV1> {
+        self.initialization_cycle_abi.as_deref()
     }
 
     /// Builds the complete member-independent production section from this
@@ -121,12 +121,12 @@ impl SingleConeStrongLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
-            self.core_lir_bridge.clone(),
+            self.initialization_cycle_abi.clone(),
         )
         .map_err(StrongProductionWriterError::Section)
     }
 
-    /// Projects `strong-production/2` from the final LIR graph. The returned
+    /// Projects `strong-production/4` from the final LIR graph. The returned
     /// pending section supplies local registration inputs to the layout/ABI
     /// producer and becomes publishable only after `validate_layout_abi`.
     pub fn build_production_section_v2(
@@ -164,7 +164,7 @@ impl SingleConeStrongLirOutput {
             registrations,
             entry_source,
             &self.shape_support.source_declarations(),
-            self.core_lir_bridge.clone(),
+            self.initialization_cycle_abi.clone(),
         )
         .map(|section| PendingStrongProductionSectionV2 { section })
         .map_err(StrongProductionWriterError::Section)
@@ -179,8 +179,8 @@ impl SingleConeStrongLirOutput {
 pub enum SingleConeStrongLirOutputError {
     Foundation(OdrFreeLirFoundationProjectionError),
     ShapeSupport(StrongLirShapeSupportError),
-    CoreLirDefinitions(crate::StrongObjectSymbolSurfaceBuildError),
-    CoreLirBridge(CoreLirBridgeBuildError),
+    CallableDefinitions(crate::StrongObjectSymbolSurfaceBuildError),
+    InitializationAbi(CallableAbiValidationError),
 }
 
 impl fmt::Display for SingleConeStrongLirOutputError {
@@ -188,8 +188,8 @@ impl fmt::Display for SingleConeStrongLirOutputError {
         match self {
             Self::Foundation(source) => source.fmt(formatter),
             Self::ShapeSupport(source) => source.fmt(formatter),
-            Self::CoreLirDefinitions(source) => source.fmt(formatter),
-            Self::CoreLirBridge(source) => source.fmt(formatter),
+            Self::CallableDefinitions(source) => source.fmt(formatter),
+            Self::InitializationAbi(source) => source.fmt(formatter),
         }
     }
 }
@@ -199,8 +199,8 @@ impl std::error::Error for SingleConeStrongLirOutputError {
         Some(match self {
             Self::Foundation(source) => source,
             Self::ShapeSupport(source) => source,
-            Self::CoreLirDefinitions(source) => source,
-            Self::CoreLirBridge(source) => source,
+            Self::CallableDefinitions(source) => source,
+            Self::InitializationAbi(source) => source,
         })
     }
 }

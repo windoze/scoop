@@ -56,8 +56,7 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
             .compile()
             .production()
             .lir_strong()
-            .core_lir_bridge()
-            .core()
+            .initialization_cycle_abi()
             .expect("a validated trusted core artifact has a core LIR bridge");
         let definitions = self
             .compile()

@@ -68,8 +68,7 @@ fn core_and_ordinary_plans_preserve_the_actual_definition_provider() {
 
 fn assert_shape_link_partition_allows(fixture: &Fixture, closure: &ParamFreeShapeSupportClosureV1) {
     use crate::{
-        CoreLirBridgeBranchV1, CrossConeLirBridgeSectionV1,
-        ExternalStrongShapeSubjectV1 as Subject, ShapeLinkProviderV1,
+        CrossConeLirBridgeSectionV1, ExternalStrongShapeSubjectV1 as Subject, ShapeLinkProviderV1,
     };
     let ordinary =
         CrossConeLirBridgeSectionV1::try_new(&fixture.foundation, Vec::new(), Vec::new()).unwrap();
@@ -98,7 +97,7 @@ fn assert_shape_link_partition_allows(fixture: &Fixture, closure: &ParamFreeShap
     for subject in subjects {
         ShapeLinkProviderV1::reject_legacy_subject(
             &ordinary,
-            &CoreLirBridgeBranchV1::NotCore,
+            None,
             subject,
             &mut BudgetMeter::new(DecodeLimits::default()),
         )

@@ -4,7 +4,7 @@ use scoop_mir as mir;
 use scoop_wire::{BudgetMeter, WirePath};
 
 /// Projects every checked MIR initialization use into the typed LIR input for
-/// `strong-production/2`. Multiple causes may point at the same dependency;
+/// `strong-production/4`. Multiple causes may point at the same dependency;
 /// each cause crosses this validation boundary before the Strong writer
 /// canonicalizes the wire-level dependency set.
 pub fn project_external_initialization_uses_v2(

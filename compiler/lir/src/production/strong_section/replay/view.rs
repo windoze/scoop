@@ -75,7 +75,7 @@ impl ReplayedStrongProductionSectionV2 {
         self.section.generated_bridge_plan()
     }
 
-    pub fn core_lir_bridge(&self) -> &CoreLirBridgeBranchV1 {
-        self.section.core_lir_bridge()
+    pub fn initialization_cycle_abi(&self) -> Option<&CallableAbiRecordV1> {
+        self.section.initialization_cycle_abi()
     }
 }

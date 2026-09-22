@@ -399,7 +399,8 @@ pub fn lower(
         .map(|function| safepoints::complete_function(&context, function, &structs, &enums))
         .collect::<StorageResult<Vec<_>>>()?;
 
-    let core_lir_bridge = callable_abi::lower_initialization_abi(input, &functions, &enums)?;
+    let initialization_cycle_abi =
+        callable_abi::lower_initialization_abi(input, &functions, &enums)?;
 
     let layouts = layouts(
         &context,
@@ -452,7 +453,7 @@ pub fn lower(
             .iter()
             .map(|root| root.declaration().clone())
             .collect(),
-        core_lir_bridge,
+        initialization_cycle_abi,
     )
     .map_err(StrongLirLoweringError::Output)
 }

@@ -106,7 +106,7 @@ fn replay(fixture: &ProviderFixture) -> ReplayedStrongProductionSectionV2 {
         fixture.source.digests.clone(),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
         &StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
         &StrongInitializationDefinitionCatalogV2::new(producer, &[], &mut meter()).unwrap(),
         &mut meter(),

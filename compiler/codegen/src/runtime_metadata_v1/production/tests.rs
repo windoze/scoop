@@ -240,7 +240,7 @@ fn production() -> (
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     (
@@ -310,7 +310,7 @@ fn production_v2() -> (
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        scoop_lir::CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     (

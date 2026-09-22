@@ -1,4 +1,4 @@
-//! Writer projection for `strong-production/2` descriptor semantics.
+//! Writer projection for `strong-production/4` descriptor semantics.
 
 use std::collections::{BTreeMap, BTreeSet};
 

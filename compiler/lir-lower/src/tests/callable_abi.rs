@@ -42,11 +42,7 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
     assert_eq!(layout.canonical_signature(), record.abi_signature());
     assert_eq!(layout.definition().symbol(), record.expected_symbol());
 
-    let cycle = output
-        .core_lir_bridge()
-        .core()
-        .unwrap()
-        .initialization_cycle_thrower();
+    let cycle = output.initialization_cycle_abi().unwrap();
     let materialized = LocalCallableMaterialization::resolve(
         &input,
         &output.module().functions,
@@ -63,7 +59,7 @@ fn ordinary_initialization_and_layout_publication_share_the_materialized_abi() {
 #[test]
 fn ordinary_and_layout_publication_reject_a_missing_materialized_body_with_the_same_target() {
     let (input, output, target, signature) = exact_callable_abi::fixture();
-    let cycle = output.core_lir_bridge().clone();
+    let cycle = output.initialization_cycle_abi().cloned().map(Box::new);
     let mut module = output.into_module();
     let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target)).unwrap();
     module
@@ -89,11 +85,7 @@ fn both_publication_roles_reject_physical_gc_and_argument_drift() {
         for gc_drift in [false, true] {
             let (input, output, ordinary_target, ordinary_signature) =
                 exact_callable_abi::fixture();
-            let cycle = output
-                .core_lir_bridge()
-                .core()
-                .unwrap()
-                .initialization_cycle_thrower();
+            let cycle = output.initialization_cycle_abi().unwrap();
             let (target, signature) = if initialization {
                 (cycle.target(), cycle.abi_signature().signature().clone())
             } else {

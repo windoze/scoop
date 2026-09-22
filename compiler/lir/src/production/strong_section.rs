@@ -6,8 +6,8 @@ use scoop_identity::{ConeCoordinate, SourceDeclarationKey, ValidatedIdentityGrap
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
-    CoreLirBridgeBranchV1, CoreLirBridgeBuildError, CoreLirBridgeValidationError,
-    DecodedConeImagePlanV1, DecodedCoreLirBridgeBranchV1, DecodedEntryProductionPlanV1,
+    CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
+    DecodedCallableAbiRecordV1, DecodedConeImagePlanV1, DecodedEntryProductionPlanV1,
     DecodedGeneratedBridgePlanSetV1, DecodedParamFreeShapeSupportPlanSetV1,
     DecodedStrongDigestFinalizationPlanV1, DecodedStrongExternalLirBridgeSurfaceV1,
     DecodedStrongObjectDefinitionPlanSurfaceV1, DecodedStrongObjectSymbolSurfaceV1,
@@ -47,7 +47,7 @@ pub struct StrongProductionSection<D, C, I> {
     entry_plan: EntryProductionPlanV1,
     shape_support_plan: ParamFreeShapeSupportPlanSetV1,
     generated_bridge_plan: GeneratedBridgePlanSetV1,
-    core_lir_bridge: CoreLirBridgeBranchV1,
+    initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
 }
 
 impl StrongProductionSectionV1 {
@@ -60,7 +60,7 @@ impl StrongProductionSectionV1 {
         registration_production: StrongRegistrationProductionSurfaceV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        core_lir_bridge: CoreLirBridgeBranchV1,
+        initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -70,7 +70,7 @@ impl StrongProductionSectionV1 {
             registration_production,
             entry_source,
             shape_sources,
-            core_lir_bridge,
+            initialization_cycle_abi,
         )
     }
 }
@@ -85,7 +85,7 @@ impl StrongProductionSectionV2 {
         registration_production: crate::StrongRegistrationProductionSurfaceV2,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        core_lir_bridge: CoreLirBridgeBranchV1,
+        initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
@@ -95,7 +95,7 @@ impl StrongProductionSectionV2 {
             registration_production,
             entry_source,
             shape_sources,
-            core_lir_bridge,
+            initialization_cycle_abi,
         )
     }
 }
@@ -110,7 +110,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         registration_production: crate::StrongRegistrationProductionSurface<D, C, I>,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
-        core_lir_bridge: CoreLirBridgeBranchV1,
+        initialization_cycle_abi: Option<Box<CallableAbiRecordV1>>,
     ) -> Result<Self, StrongProductionSectionBuildError> {
         if external_bridges.producer() != foundation.producer() {
             return Err(StrongProductionSectionBuildError::ExternalBridgeProducer);
@@ -124,9 +124,12 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         let object_definition_plans =
             StrongObjectDefinitionPlanSurfaceV1::from_odr_free_foundation(foundation)
                 .map_err(StrongProductionSectionBuildError::ObjectDefinitions)?;
-        core_lir_bridge
-            .validate_against(foundation, &canonical_definitions)
-            .map_err(StrongProductionSectionBuildError::CoreLirBridge)?;
+        crate::validate_initialization_abi(
+            initialization_cycle_abi.as_deref(),
+            foundation,
+            &canonical_definitions,
+        )
+        .map_err(StrongProductionSectionBuildError::InitializationAbi)?;
         let image_plan = ConeImagePlanV1::new(
             coordinate,
             foundation,
@@ -159,7 +162,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
             entry_plan,
             shape_support_plan,
             generated_bridge_plan,
-            core_lir_bridge,
+            initialization_cycle_abi,
         })
     }
 
@@ -201,8 +204,8 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         &self.generated_bridge_plan
     }
 
-    pub const fn core_lir_bridge(&self) -> &CoreLirBridgeBranchV1 {
-        &self.core_lir_bridge
+    pub fn initialization_cycle_abi(&self) -> Option<&CallableAbiRecordV1> {
+        self.initialization_cycle_abi.as_deref()
     }
 }
 
@@ -229,8 +232,8 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
         self.shape_support_plan.encode(encoder)?;
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
-        encoder.field(10)?;
-        self.core_lir_bridge.encode(encoder)
+        encoder.field(11)?;
+        crate::encode_initialization_abi(self.initialization_cycle_abi.as_deref(), encoder)
     }
 }
 
@@ -269,16 +272,14 @@ impl DecodedStrongProductionSectionV1 {
                 expected_external_bridges,
             )
             .map_err(StrongProductionSectionValidationError::Registrations)?;
-        let core_lir_bridge = self
-            .core_lir_bridge
-            .validate(
-                foundation,
-                &StrongObjectSymbolSurfaceV1::from_odr_free_foundation(foundation)
-                    .map_err(StrongProductionSectionBuildError::CanonicalDefinitions)
-                    .map_err(StrongProductionSectionValidationError::Expected)?,
-                identities,
-            )
-            .map_err(StrongProductionSectionValidationError::CoreLirBridge)?;
+        let initialization_cycle_abi = self
+            .initialization_cycle_abi
+            .map(|abi| {
+                abi.validate(foundation.producer(), identities)
+                    .map(Box::new)
+            })
+            .transpose()
+            .map_err(StrongProductionSectionValidationError::InitializationAbi)?;
         let expected = StrongProductionSectionV1::new(
             coordinate,
             foundation,
@@ -287,7 +288,7 @@ impl DecodedStrongProductionSectionV1 {
             registration_production,
             entry_source,
             shape_sources,
-            core_lir_bridge,
+            initialization_cycle_abi,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
         let expected_bytes =
@@ -309,7 +310,7 @@ pub enum StrongProductionSectionBuildError {
     Entry(EntryProductionPlanBuildError),
     ShapeSupport(ParamFreeShapeSupportBuildError),
     GeneratedBridges(GeneratedBridgePlanBuildError),
-    CoreLirBridge(CoreLirBridgeBuildError),
+    InitializationAbi(CallableAbiValidationError),
 }
 
 impl fmt::Display for StrongProductionSectionBuildError {
@@ -326,7 +327,7 @@ pub enum StrongProductionSectionValidationError {
     Resource(WireError),
     DigestPlan(StrongDigestPlanValidationError),
     Registrations(StrongRegistrationProductionValidationError),
-    CoreLirBridge(CoreLirBridgeValidationError),
+    InitializationAbi(CallableAbiDecodeError),
     Expected(StrongProductionSectionBuildError),
     SectionMismatch,
 }

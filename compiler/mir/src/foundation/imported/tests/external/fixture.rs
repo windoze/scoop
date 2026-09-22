@@ -10,10 +10,14 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub(super) fn new() -> Self {
+        Self::at(ConeIdentity::CORE)
+    }
+
+    pub(super) fn at(provider: ConeIdentity) -> Self {
         let function = |name| {
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
                 SourceDeclarationSite::new(
-                    ConeIdentity::CORE,
+                    provider,
                     PackagePath::root(),
                     DefinitionOwnerChain::top_level(),
                     DeclarationScope::ConeWide,
@@ -44,7 +48,7 @@ impl Fixture {
             )])
             .unwrap();
         let production = CoreBootstrapBridgeSectionV1::try_new(
-            ConeIdentity::CORE,
+            provider,
             EntryMirBridgeBranchV1::Library,
             StrongCallableBridgeSurfaceV1::try_new(vec![StrongCallableBridgeV1::new(
                 owner,
@@ -56,7 +60,7 @@ impl Fixture {
         )
         .unwrap();
         Self {
-            foundation: imported_foundation(canonical),
+            foundation: imported_foundation(provider, canonical),
             production,
             cycle,
             ordinary,
@@ -81,7 +85,7 @@ impl Fixture {
             ConeIdentity::SINGLE_FILE,
             vec![
                 SelectedDependencyMirCallableV1::try_new(
-                    ConeIdentity::CORE,
+                    self.foundation.origin(),
                     declaration,
                     StrongCallableDefinitionOwner::Function(function),
                     self.signature.clone(),
@@ -94,7 +98,7 @@ impl Fixture {
         .unwrap();
         let protocol = dependencies.initialization_cycle().unwrap();
         let selected = dependencies
-            .callable_for(ConeIdentity::CORE, declaration)
+            .callable_for(self.foundation.origin(), declaration)
             .unwrap();
         let mut module =
             ordinary_module(dependencies.callable_use(selected, GcEffect::NoGc).unwrap());
@@ -161,7 +165,7 @@ fn projection_uses_the_role_of_the_requested_strong_record() {
         strong,
     )
     .unwrap();
-    let imported = imported_foundation(canonical);
+    let imported = imported_foundation(fixture.foundation.origin(), canonical);
     assert_eq!(
         imported.project_initialization_cycle_thrower(
             &production,
@@ -180,4 +184,58 @@ fn projection_uses_the_role_of_the_requested_strong_record() {
             .unwrap(),
         fixture.cycle_record()
     );
+}
+
+#[test]
+fn initialization_projection_requires_the_exact_provider_target_and_signature() {
+    let ordinary = scoop_identity::ConeCoordinate::new("tests", "initialization", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for (provider, other) in [
+        (ConeIdentity::CORE, ordinary),
+        (ordinary, ConeIdentity::CORE),
+    ] {
+        let fixture = Fixture::at(provider);
+        let other = Fixture::at(other);
+        assert_ne!(fixture.cycle, other.cycle);
+        assert_eq!(fixture.cycle_record().provider(), provider);
+        assert_eq!(
+            fixture.foundation.project_initialization_cycle_thrower(
+                &fixture.production,
+                other.cycle,
+                fixture.signature.clone()
+            ),
+            Err(ImportedMirCallableProjectionError::MissingStrongSignature(
+                other.cycle
+            )),
+        );
+        let wrong_signature = ExactCallableSignature::new(
+            Effect::Suspend,
+            None,
+            Vec::new(),
+            crate::core_unit_exact_type(),
+        );
+        assert_eq!(
+            fixture.foundation.project_initialization_cycle_thrower(
+                &fixture.production,
+                fixture.cycle,
+                wrong_signature
+            ),
+            Err(ImportedMirCallableProjectionError::StrongSignatureMismatch(
+                fixture.cycle
+            )),
+        );
+        let empty = imported_foundation(provider, CanonicalMirFoundation::empty());
+        assert_eq!(
+            empty.project_initialization_cycle_thrower(
+                &fixture.production,
+                fixture.cycle,
+                fixture.signature.clone()
+            ),
+            Err(ImportedMirCallableProjectionError::MissingStrongSignature(
+                fixture.cycle
+            )),
+        );
+    }
 }

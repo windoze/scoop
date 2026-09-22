@@ -3,8 +3,7 @@
 use super::*;
 use crate::{
     CallableAbiBuildError, CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
-    CoreLirBridgeBranchV1, CoreLirBridgeV1, DecodedCallableAbiRecordV1,
-    DecodedCoreLirBridgeBranchV1, DecodedStrongExternalLirBridgeSurfaceV1,
+    DecodedCallableAbiRecordV1, DecodedStrongExternalLirBridgeSurfaceV1,
     StrongExternalLirBridgeBuildError, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
     StrongObjectSymbolSurfaceV1,
 };
@@ -110,7 +109,7 @@ fn shared_abi_rejects_suspend_and_declaration_target_mismatch() {
 }
 
 #[test]
-fn ordinary_and_initialization_role_wrappers_round_trip_the_same_abi_payload() {
+fn ordinary_and_initialization_role_round_trip_the_same_abi_payload() {
     let fixture = Fixture::for_producer(ConeIdentity::CORE, "initializationService");
     let export = fixture.export();
     let record = export.callable_abi().clone();
@@ -124,21 +123,15 @@ fn ordinary_and_initialization_role_wrappers_round_trip_the_same_abi_payload() {
         .unwrap();
     assert_eq!(ordinary.exports()[0].callable_abi(), &record);
 
-    let branch = CoreLirBridgeBranchV1::Core(CoreLirBridgeV1::new(record.clone()));
     let definitions =
         StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&fixture.foundation).unwrap();
-    let decoded: DecodedCoreLirBridgeBranchV1 =
-        decode_canonical(&encode(&branch).unwrap(), DecodeLimits::default()).unwrap();
-    assert_eq!(
-        decoded
-            .validate(
-                &fixture.foundation,
-                &definitions,
-                &mut fixture.identities(&[])
-            )
-            .unwrap(),
-        branch
-    );
+    let decoded = decode_record(&encode(&record).unwrap());
+    let initialization = decoded
+        .validate(fixture.producer, &mut fixture.identities(&[]))
+        .unwrap();
+    crate::validate_initialization_abi(Some(&initialization), &fixture.foundation, &definitions)
+        .unwrap();
+    assert_eq!(initialization, record);
 
     let external = StrongExternalLirBridgeSurfaceV1::try_new(
         ConeIdentity::SINGLE_FILE,

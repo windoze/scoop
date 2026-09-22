@@ -70,7 +70,7 @@ impl ImportedMirFoundation {
         self.identities.get(id).map(ImportedMirId)
     }
 
-    /// Projects the required core-internal initialization cycle service. Its
+    /// Projects the required initialization cycle service from its provider. Its
     /// typed role is disjoint from public prelude bindings.
     pub fn project_initialization_cycle_thrower(
         &self,
@@ -78,11 +78,6 @@ impl ImportedMirFoundation {
         definition: PersistentFunctionId,
         signature: ExactCallableSignature,
     ) -> Result<crate::SelectedDependencyMirCallableV1, ImportedMirCallableProjectionError> {
-        if self.origin() != ConeIdentity::CORE {
-            return Err(ImportedMirCallableProjectionError::FoundationNotCore(
-                self.origin(),
-            ));
-        }
         let implementation = CallableOwner::Function(definition);
         let bridge = production
             .strong_callable_bridges()
@@ -155,7 +150,6 @@ impl WireEncode for ImportedMirFoundation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedMirCallableProjectionError {
     CallableShape(crate::ParamFreeMirCallableBuildError),
-    FoundationNotCore(ConeIdentity),
     InitializationCycleRoleMismatch(PersistentFunctionId),
     MissingStrongSignature(PersistentFunctionId),
     StrongSignatureMismatch(PersistentFunctionId),

@@ -117,7 +117,7 @@ impl Provider {
             StrongRegistrationProductionSurfaceV1::empty(TARGET, &foundation, &digests).unwrap(),
             EntryProductionSourceV1::Library,
             &[],
-            CoreLirBridgeBranchV1::NotCore,
+            None,
         )
         .unwrap();
         let raw: DecodedStrongProductionSectionV2 =
@@ -131,7 +131,7 @@ impl Provider {
                 digests,
                 EntryProductionSourceV1::Library,
                 &[],
-                CoreLirBridgeBranchV1::NotCore,
+                None,
                 &StrongTypeReferenceDefinitionsV2::new(provider, &[], &mut meter()).unwrap(),
                 &StrongInitializationDefinitionCatalogV2::new(provider, &[], &mut meter()).unwrap(),
                 &mut meter(),

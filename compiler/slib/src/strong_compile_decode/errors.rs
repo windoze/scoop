@@ -82,7 +82,7 @@ impl std::error::Error for StrongProfileLocalProductionError {
 pub enum StrongProfileLirProductionError {
     ShapeSources(PublicNominalShapeProjectionError),
     Production(StrongProductionSectionValidationError),
-    CoreRelation(StrongProfileCoreLirRelationError),
+    InitializationAbiRelation(StrongProfileInitializationAbiRelationError),
 }
 
 impl fmt::Display for StrongProfileLirProductionError {
@@ -96,29 +96,29 @@ impl std::error::Error for StrongProfileLirProductionError {
         Some(match self {
             Self::ShapeSources(error) => error,
             Self::Production(error) => error,
-            Self::CoreRelation(error) => error,
+            Self::InitializationAbiRelation(error) => error,
         })
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum StrongProfileCoreLirRelationError {
-    BranchMismatch,
+pub enum StrongProfileInitializationAbiRelationError {
+    PresenceMismatch,
     InvalidInitializationCycleOwner,
     InitializationCycleMismatch,
     InitializationCycleSignatureMismatch,
 }
 
-impl fmt::Display for StrongProfileCoreLirRelationError {
+impl fmt::Display for StrongProfileInitializationAbiRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "invalid MIR-to-LIR core bridge relation: {self:?}"
+            "invalid MIR-to-LIR initialization ABI relation: {self:?}"
         )
     }
 }
 
-impl std::error::Error for StrongProfileCoreLirRelationError {}
+impl std::error::Error for StrongProfileInitializationAbiRelationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongProfileRelationError {

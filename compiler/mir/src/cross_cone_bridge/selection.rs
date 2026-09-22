@@ -212,7 +212,6 @@ impl SelectedExternalMirSet {
             return Err(SelectedExternalMirSetBuildError::DuplicateInitializationCycle);
         }
         if record.signature().receiver().is_present()
-            || record.provider() != ConeIdentity::CORE
             || !matches!(
                 record.declaration(),
                 DependencyCallableDeclarationId::Function(_)
@@ -256,9 +255,8 @@ impl fmt::Display for SelectedExternalMirSetBuildError {
             Self::DuplicateInitializationCycle => {
                 formatter.write_str("MIR selection contains duplicate initialization services")
             }
-            Self::InvalidInitializationCycle => formatter.write_str(
-                "MIR initialization service must name a core function without a receiver",
-            ),
+            Self::InvalidInitializationCycle => formatter
+                .write_str("MIR initialization service must name a function without a receiver"),
             Self::TooManyCallables { count } => write!(
                 formatter,
                 "external MIR selection contains {count} callables, exceeding the u32 id domain"

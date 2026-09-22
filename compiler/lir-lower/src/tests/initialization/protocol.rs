@@ -50,10 +50,9 @@ fn core_lowering_publishes_initialization_protocol_abi() {
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
-    let lir::CoreLirBridgeBranchV1::Core(core) = output.core_lir_bridge() else {
-        panic!("core lowering must publish the core LIR branch")
+    let Some(callable) = output.initialization_cycle_abi() else {
+        panic!("the initialization role must publish its LIR ABI")
     };
-    let callable = core.initialization_cycle_thrower();
     assert_eq!(callable.abi_signature().signature(), &exact);
     assert_eq!(
         callable.root_plan(),

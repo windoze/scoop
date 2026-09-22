@@ -1,8 +1,8 @@
 use scoop_identity::ConeCoordinate;
 use scoop_lir::{
-    CanonicalNativeExternalRequirementSurfaceV1, CoreLirBridgeBranchV1, EntryProductionSourceV1,
-    LirTargetProfile, OdrFreeLirFoundation, StrongProductionSectionV2,
-    StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
+    CanonicalNativeExternalRequirementSurfaceV1, EntryProductionSourceV1, LirTargetProfile,
+    OdrFreeLirFoundation, StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2,
+    ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -48,7 +48,7 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
         .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap()
     .validate_layout_abi(&layout, &mut meter())

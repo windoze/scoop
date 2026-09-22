@@ -83,14 +83,17 @@ fn ordinary_module(callable: crate::ExternalCallableUse) -> Module {
     }
 }
 
-fn imported_foundation(canonical: CanonicalMirFoundation) -> ImportedMirFoundation {
+fn imported_foundation(
+    provider: ConeIdentity,
+    canonical: CanonicalMirFoundation,
+) -> ImportedMirFoundation {
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(provider).unwrap();
     let identities = pending.finish().unwrap();
     let mut session = SemanticIdentitySession::new();
     let (_, imported, _) = session
         .import(
-            ConeIdentity::CORE,
+            provider,
             SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
             &identities,
         )

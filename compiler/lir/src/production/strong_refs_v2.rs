@@ -1,4 +1,4 @@
-//! Versioned references owned by `strong-production/2`.
+//! Versioned references owned by `strong-production/4`.
 //!
 //! Resolving identities only authenticates their canonical keys. The complete
 //! production reader must additionally join dependency references to the same

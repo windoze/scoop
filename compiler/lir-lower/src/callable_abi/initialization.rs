@@ -4,13 +4,13 @@ pub(crate) fn lower_initialization_abi(
     input: &mir::SingleConeStrongMirInput,
     functions: &[lir::Function],
     enums: &lir::EnumDefs,
-) -> Result<lir::CoreLirBridgeBranchV1, crate::StrongLirLoweringError> {
+) -> Result<Option<Box<lir::CallableAbiRecordV1>>, crate::StrongLirLoweringError> {
     let Some(cycle) = input
         .production()
         .strong_callable_bridges()
         .initialization_cycle()
     else {
-        return Ok(lir::CoreLirBridgeBranchV1::NotCore);
+        return Ok(None);
     };
     let scoop_identity::CallableOwner::Function(function) = cycle.implementation() else {
         return Err(
@@ -28,7 +28,5 @@ pub(crate) fn lower_initialization_abi(
     let record = LocalCallableMaterialization::resolve(input, functions, target, cycle.signature())
         .and_then(|body| body.abi_record(enums))
         .map_err(crate::StrongLirLoweringError::CallableAbi)?;
-    Ok(lir::CoreLirBridgeBranchV1::Core(lir::CoreLirBridgeV1::new(
-        record,
-    )))
+    Ok(Some(Box::new(record)))
 }

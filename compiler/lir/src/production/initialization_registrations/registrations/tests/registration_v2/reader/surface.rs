@@ -82,7 +82,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             original,
             crate::EntryProductionSourceV1::Library,
             &[],
-            crate::CoreLirBridgeBranchV1::NotCore,
+            None,
         )
         .unwrap();
         let decoded: crate::DecodedStrongProductionSectionV2 =
@@ -96,7 +96,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 fixture.digests.clone(),
                 crate::EntryProductionSourceV1::Library,
                 &[],
-                crate::CoreLirBridgeBranchV1::NotCore,
+                None,
                 &crate::StrongTypeReferenceDefinitionsV2::new(producer, &[], &mut meter()).unwrap(),
                 &Catalog::new(producer, &[definition(&provider)], &mut meter()).unwrap(),
                 &mut meter(),

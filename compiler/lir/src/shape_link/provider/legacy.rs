@@ -8,7 +8,7 @@ impl ShapeLinkProviderV1<'_> {
     ) -> Result<(), ShapeLinkError> {
         Self::reject_legacy_subject(
             self.parts.ordinary,
-            self.parts.production.core(),
+            self.parts.production.initialization_abi(),
             subject,
             meter,
         )
@@ -16,7 +16,7 @@ impl ShapeLinkProviderV1<'_> {
 
     pub(crate) fn reject_legacy_subject(
         ordinary: &CrossConeLirBridgeSectionV1,
-        core: &CoreLirBridgeBranchV1,
+        initialization_abi: Option<&CallableAbiRecordV1>,
         subject: ExternalStrongShapeSubjectV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), ShapeLinkError> {
@@ -30,9 +30,9 @@ impl ShapeLinkProviderV1<'_> {
             {
                 return Err(ShapeLinkError::LegacyPartition(subject));
             }
-            if let Some(core) = core.core() {
+            if let Some(abi) = initialization_abi {
                 meter.charge_work(1, &path)?;
-                if core.initialization_cycle_thrower().target() == target {
+                if abi.target() == target {
                     return Err(ShapeLinkError::LegacyPartition(subject));
                 }
             }

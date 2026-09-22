@@ -197,7 +197,7 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
     );
     let definitions =
         lir::StrongObjectSymbolSurfaceV1::from_odr_free_foundation(core_lir.foundation()).unwrap();
-    let core_bridge = core_lir.core_lir_bridge().core().unwrap();
+    let core_bridge = core_lir.initialization_cycle_abi().unwrap();
     let lir_callable = imported_lir
         .project_initialization_cycle_thrower(
             core_bridge,

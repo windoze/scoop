@@ -139,17 +139,15 @@ impl SelectedExternalLirSet {
         if self.initialization_cycle().is_some() {
             return Err(SelectedExternalLirSetBuildError::DuplicateInitializationCycle);
         }
-        if record.provider() != ConeIdentity::CORE
-            || !matches!(
-                record.bridge().declaration(),
-                DependencyCallableDeclarationId::Function(_)
-            )
-            || record
-                .bridge()
-                .abi_signature()
-                .signature()
-                .receiver()
-                .is_present()
+        if !matches!(
+            record.bridge().declaration(),
+            DependencyCallableDeclarationId::Function(_)
+        ) || record
+            .bridge()
+            .abi_signature()
+            .signature()
+            .receiver()
+            .is_present()
         {
             return Err(SelectedExternalLirSetBuildError::InvalidInitializationCycle);
         }
@@ -189,9 +187,8 @@ impl fmt::Display for SelectedExternalLirSetBuildError {
             Self::DuplicateInitializationCycle => {
                 formatter.write_str("LIR selection contains duplicate initialization services")
             }
-            Self::InvalidInitializationCycle => formatter.write_str(
-                "LIR initialization service must name a core function without a receiver",
-            ),
+            Self::InvalidInitializationCycle => formatter
+                .write_str("LIR initialization service must name a function without a receiver"),
             Self::TooManyCallables { count } => write!(
                 formatter,
                 "external LIR selection contains {count} callables, exceeding the u32 id domain"

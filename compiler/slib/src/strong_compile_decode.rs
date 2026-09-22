@@ -15,7 +15,7 @@ use scoop_identity::{
     ValidatedIdentityGraph,
 };
 use scoop_lir::{
-    CoreLirBridgeBranchV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
+    CallableAbiRecordV1, DecodedLirFoundation, DecodedStrongProductionSectionV1,
     EntryProductionSourceV1, ImportedLirFoundation, LirFoundationValidationError,
     OdrFreeLirFoundation, OdrFreeLirFoundationError, StrongExternalLirBridgeReconstructionError,
     StrongExternalLirBridgeSurfaceV1, StrongProductionSectionV1,
@@ -818,7 +818,7 @@ mod validation;
 
 pub use errors::{
     SingleConeCompileSectionDecodeError, StrongCompileArtifactValidationError,
-    StrongProfileCoreLirRelationError, StrongProfileFoundationError,
+    StrongProfileFoundationError, StrongProfileInitializationAbiRelationError,
     StrongProfileLirProductionError, StrongProfileLocalProductionError,
     StrongProfileProductionError, StrongProfileRelationError,
 };

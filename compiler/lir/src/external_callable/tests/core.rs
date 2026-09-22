@@ -10,9 +10,19 @@ use scoop_identity::{
 use crate::{AbiReturn, CallingConvention, GcEffect, ScoopAbiSignature};
 
 #[test]
-fn callable_binds_target_symbol_definition_and_root_protocol() {
+fn callable_binds_actual_provider_target_symbol_definition_and_root_protocol() {
+    let ordinary = scoop_identity::ConeCoordinate::new("tests", "initialization", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for provider in [ConeIdentity::CORE, ordinary] {
+        check_callable(provider);
+    }
+}
+
+fn check_callable(provider: ConeIdentity) {
     let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
-        core_site(),
+        site(provider),
         CanonicalIdentifier::new("println").unwrap(),
         0,
         None,
@@ -21,6 +31,7 @@ fn callable_binds_target_symbol_definition_and_root_protocol() {
     .unwrap();
     let target = StrongCallableDefinitionOwner::Function(function);
     let unit = exact_type("Unit", SourceNominalKind::Object);
+    assert_ne!(provider, ConeIdentity::SINGLE_FILE);
     let canonical_signature = CanonicalScoopAbiFunctionSignature::new(
         ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
         Vec::new(),
@@ -29,7 +40,7 @@ fn callable_binds_target_symbol_definition_and_root_protocol() {
     )
     .unwrap();
     let selected = crate::SelectedDependencyLirCallableV1::new(
-        ConeIdentity::CORE,
+        provider,
         scoop_identity::DependencyCallableDeclarationId::Function(function),
         target,
         canonical_signature,
@@ -59,7 +70,7 @@ fn callable_binds_target_symbol_definition_and_root_protocol() {
     );
     let expected = ObjectDefinitionPlanId::from_key(
         &ObjectDefinitionPlanKey::strong(
-            ConeIdentity::CORE,
+            provider,
             StrongDefinitionEntity::callable_body(callable.body()),
             StrongDefinitionRole::CallableBody,
         )
@@ -78,7 +89,7 @@ fn callable_binds_target_symbol_definition_and_root_protocol() {
 
 fn exact_type(name: &str, kind: SourceNominalKind) -> PersistentExactTypeId {
     let source = SourceDeclarationKey::nominal(
-        core_site(),
+        site(ConeIdentity::CORE),
         CanonicalIdentifier::new(name).unwrap(),
         kind,
         0,
@@ -87,9 +98,9 @@ fn exact_type(name: &str, kind: SourceNominalKind) -> PersistentExactTypeId {
     PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(ty)).unwrap()
 }
 
-fn core_site() -> SourceDeclarationSite {
+fn site(provider: ConeIdentity) -> SourceDeclarationSite {
     SourceDeclarationSite::new(
-        ConeIdentity::CORE,
+        provider,
         PackagePath::root(),
         DefinitionOwnerChain::top_level(),
         DeclarationScope::ConeWide,

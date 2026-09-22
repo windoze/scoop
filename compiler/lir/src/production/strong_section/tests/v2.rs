@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn version_two_retains_ten_fields_and_all_unchanged_branch_bytes() {
+fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
     let coordinate = ConeCoordinate::new("test", "strong-section", "0.0.0").unwrap();
     let (foundation, digests) = fixture(&coordinate);
     let producer = foundation.producer();
@@ -39,7 +39,7 @@ fn version_two_retains_ten_fields_and_all_unchanged_branch_bytes() {
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     let old = StrongProductionSectionV1::new(
@@ -50,11 +50,12 @@ fn version_two_retains_ten_fields_and_all_unchanged_branch_bytes() {
         StrongRegistrationProductionSurfaceV1::empty(target, &foundation, &digests).unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap();
     let bytes = encode(&current).unwrap();
     assert_eq!(bytes[0], 0xaa);
+    assert_initialization_field(&bytes);
     assert_eq!(bytes, encode(&old).unwrap());
     let decoded: DecodedStrongProductionSectionV2 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();

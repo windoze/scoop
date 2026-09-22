@@ -3,7 +3,7 @@
 //! This catalog proves that an id names a complete Strong unit definition. The
 //! artifact reader must build it from the selected dependency closure and join
 //! every foreign edge to its committed initialization-use relation before
-//! publishing a `strong-production/2` view.
+//! publishing a `strong-production/4` view.
 
 use scoop_identity::{ConeIdentity, PersistentInitializationUnitId};
 

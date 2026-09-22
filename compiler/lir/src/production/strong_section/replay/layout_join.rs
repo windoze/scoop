@@ -155,8 +155,8 @@ impl ValidatedStrongProductionSectionV2 {
         self.replayed.generated_bridge_plan()
     }
 
-    pub fn core_lir_bridge(&self) -> &crate::CoreLirBridgeBranchV1 {
-        self.replayed.core_lir_bridge()
+    pub fn initialization_cycle_abi(&self) -> Option<&crate::CallableAbiRecordV1> {
+        self.replayed.initialization_cycle_abi()
     }
 }
 

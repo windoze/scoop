@@ -62,7 +62,7 @@ impl ProviderFixture {
             registrations,
             EntryProductionSourceV1::Library,
             &[],
-            CoreLirBridgeBranchV1::NotCore,
+            None,
         )
         .unwrap();
         let layouts = CanonicalExactLayoutExportsV1::try_new(

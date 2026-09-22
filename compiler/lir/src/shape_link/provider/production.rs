@@ -37,10 +37,10 @@ impl<'a> ShapeLinkProductionV1<'a> {
             Self::Reader(section) => section.initialization_registrations(),
         }
     }
-    pub(super) fn core(self) -> &'a CoreLirBridgeBranchV1 {
+    pub(super) fn initialization_abi(self) -> Option<&'a CallableAbiRecordV1> {
         match self {
-            Self::Producer(section) => section.core_lir_bridge(),
-            Self::Reader(section) => section.core_lir_bridge(),
+            Self::Producer(section) => section.initialization_cycle_abi(),
+            Self::Reader(section) => section.initialization_cycle_abi(),
         }
     }
 }

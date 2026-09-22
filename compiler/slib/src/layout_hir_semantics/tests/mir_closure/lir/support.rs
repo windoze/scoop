@@ -177,7 +177,7 @@ impl LayoutLirSourceAuthorityFactoryV1 for RecordingLirFactory {
             production.digest_finalization_plan().clone(),
             EntryProductionSourceV1::Library,
             Vec::new(),
-            production.core_lir_bridge().clone(),
+            production.initialization_cycle_abi().cloned().map(Box::new),
             StrongTypeReferenceDefinitionsV2::new(context.provider(), &[], &mut meter).unwrap(),
             StrongInitializationDefinitionCatalogV2::new(context.provider(), &[], &mut meter)
                 .unwrap(),

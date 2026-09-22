@@ -75,12 +75,8 @@ fn assert_validation_error<T>(
 
 fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
     let expected = resolve_function_markers(&module, expected);
-    let input = scoop_lir::SingleConeStrongLirOutput::try_new(
-        module,
-        Vec::new(),
-        scoop_lir::CoreLirBridgeBranchV1::NotCore,
-    )
-    .expect("malformed validation fixture still has a complete strong foundation");
+    let input = scoop_lir::SingleConeStrongLirOutput::try_new(module, Vec::new(), None)
+        .expect("malformed validation fixture still has a complete strong foundation");
     let module = input.module();
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(

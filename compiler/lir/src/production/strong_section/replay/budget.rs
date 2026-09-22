@@ -6,7 +6,7 @@ pub(super) fn charge_replay(
     foundation: &OdrFreeLirFoundation,
     digests: &StrongDigestFinalizationPlanV1,
     sources: &[SourceDeclarationKey],
-    core_bridge: &CoreLirBridgeBranchV1,
+    initialization_abi: Option<&CallableAbiRecordV1>,
     meter: &mut BudgetMeter,
 ) -> Result<(), WireError> {
     let path = WirePath::root();
@@ -50,11 +50,11 @@ pub(super) fn charge_replay(
     meter.charge_stable_kahn(nodes, edges, &path)?;
     for source in sources {
         // Source keys may contain owned declaration names. Charge canonical
-        // hashing and copies before the core support closure uses them.
+        // hashing and copies before the shape support closure uses them.
         let bytes = encode_canonical_temporary_with_meter(source, meter, &path)?;
         meter.charge_sha256(bytes.len() as u64, &path)?;
     }
-    if let CoreLirBridgeBranchV1::Core(_) = core_bridge {
+    if initialization_abi.is_some() {
         let count = 1_u64;
         meter.charge_collection_slots(count.saturating_mul(4), &path)?;
         meter.charge_work(

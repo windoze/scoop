@@ -10,8 +10,18 @@ mod validation;
 use fixture::{Fixture, seal};
 
 #[test]
-fn mixed_core_calls_share_one_arena_and_preserve_selection_and_effect() {
-    let fixture = Fixture::new();
+fn mixed_calls_preserve_both_roles_for_core_and_ordinary_providers() {
+    let ordinary = scoop_identity::ConeCoordinate::new("tests", "initialization", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for provider in [ConeIdentity::CORE, ordinary] {
+        check_mixed_calls(provider);
+    }
+}
+
+fn check_mixed_calls(provider: ConeIdentity) {
+    let fixture = Fixture::at(provider);
     let (module, dependencies) = fixture.mixed();
     drop(fixture);
     assert_eq!(module.meta.external_callables.len(), 2);
@@ -46,7 +56,8 @@ fn mixed_core_calls_share_one_arena_and_preserve_selection_and_effect() {
     let roots = input.materialization().external_callable_roots();
     assert_eq!(roots[1].callable(), protocol);
     assert_eq!(roots[0].callable(), ordinary);
-    assert_eq!(roots[0].provider(), ConeIdentity::CORE);
+    assert_eq!(roots[0].provider(), provider);
+    assert_eq!(roots[1].provider(), provider);
     assert_eq!(roots[0].gc_effect(), GcEffect::NoGc);
 }
 

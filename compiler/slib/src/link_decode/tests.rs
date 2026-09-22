@@ -1120,7 +1120,7 @@ pub(crate) fn strong_production_fixture(
         ConeIdentity::CORE,
         "the link fixture models an ordinary Cone, not the core protocol surface"
     );
-    let core_lir_bridge = scoop_lir::CoreLirBridgeBranchV1::NotCore;
+    let initialization_cycle_abi = None;
     let production = StrongProductionSectionV1::new(
         coordinate,
         &foundation,
@@ -1129,7 +1129,7 @@ pub(crate) fn strong_production_fixture(
         registrations,
         EntryProductionSourceV1::Library,
         &[],
-        core_lir_bridge,
+        initialization_cycle_abi,
     )
     .unwrap();
     (canonical, production)

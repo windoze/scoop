@@ -5,11 +5,10 @@ use scoop_identity::{
     SourceDeclarationSite, StrongCallableDefinitionOwner,
 };
 use scoop_lir::{
-    CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, CoreLirBridgeBranchV1,
-    CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1, EntryProductionSourceV1,
-    ExternalCallableRootPlan, LirTargetProfile, OdrFreeLirFoundation,
-    SelectedDependencyLirCallableV1, StrongProductionSectionV2,
-    StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
+    CallingConvention, CanonicalNativeExternalRequirementSurfaceV1, CrossConeLayoutAbiSectionV1,
+    CrossConeLirBridgeSectionV1, EntryProductionSourceV1, ExternalCallableRootPlan,
+    LirTargetProfile, OdrFreeLirFoundation, SelectedDependencyLirCallableV1,
+    StrongProductionSectionV2, StrongRegistrationProductionSurfaceV2, ValidatedLirTargetSelection,
 };
 
 use super::*;
@@ -84,7 +83,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         .unwrap(),
         EntryProductionSourceV1::Library,
         &[],
-        CoreLirBridgeBranchV1::NotCore,
+        None,
     )
     .unwrap()
     .validate_layout_abi(&layout, &mut meter())

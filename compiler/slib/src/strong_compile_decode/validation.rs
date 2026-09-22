@@ -117,37 +117,42 @@ pub(crate) fn validate_strong_profile_lir_production(
             identities,
         )
         .map_err(StrongProfileLirProductionError::Production)?;
-    validate_core_lir_relation(
+    validate_initialization_abi_relation(
         front.mir_production.strong_callable_bridges(),
-        lir.core_lir_bridge(),
+        lir.initialization_cycle_abi(),
     )
-    .map_err(StrongProfileLirProductionError::CoreRelation)?;
+    .map_err(StrongProfileLirProductionError::InitializationAbiRelation)?;
     Ok(lir)
 }
 
-fn validate_core_lir_relation(
+fn validate_initialization_abi_relation(
     strong: &scoop_mir::StrongCallableBridgeSurfaceV1,
-    lir: &CoreLirBridgeBranchV1,
-) -> Result<(), StrongProfileCoreLirRelationError> {
+    lir: Option<&CallableAbiRecordV1>,
+) -> Result<(), StrongProfileInitializationAbiRelationError> {
     let cycle = strong.initialization_cycle();
-    let (Some(cycle), CoreLirBridgeBranchV1::Core(lir)) = (cycle, lir) else {
+    let (Some(cycle), Some(lir)) = (cycle, lir) else {
         return match (cycle, lir) {
-            (None, CoreLirBridgeBranchV1::NotCore) => Ok(()),
-            _ => Err(StrongProfileCoreLirRelationError::BranchMismatch),
+            (None, None) => Ok(()),
+            _ => Err(StrongProfileInitializationAbiRelationError::PresenceMismatch),
         };
     };
     let cycle_target = match cycle.implementation() {
         scoop_identity::CallableOwner::Function(id) => {
             scoop_identity::StrongCallableDefinitionOwner::Function(id)
         }
-        _ => return Err(StrongProfileCoreLirRelationError::InvalidInitializationCycleOwner),
+        _ => {
+            return Err(
+                StrongProfileInitializationAbiRelationError::InvalidInitializationCycleOwner,
+            );
+        }
     };
-    let lir_cycle = lir.initialization_cycle_thrower();
-    if lir_cycle.target() != cycle_target {
-        return Err(StrongProfileCoreLirRelationError::InitializationCycleMismatch);
+    if lir.target() != cycle_target {
+        return Err(StrongProfileInitializationAbiRelationError::InitializationCycleMismatch);
     }
-    if lir_cycle.abi_signature().signature() != cycle.signature() {
-        return Err(StrongProfileCoreLirRelationError::InitializationCycleSignatureMismatch);
+    if lir.abi_signature().signature() != cycle.signature() {
+        return Err(
+            StrongProfileInitializationAbiRelationError::InitializationCycleSignatureMismatch,
+        );
     }
     Ok(())
 }
@@ -280,3 +285,6 @@ fn validate_strong_profile_foundations_with_source_authority(
             .map_err(StrongProfileFoundationError::LirOdr)?,
     })
 }
+
+#[cfg(test)]
+mod initialization_abi_tests;

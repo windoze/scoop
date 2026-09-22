@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, ValidatedIdentityGraph};
 use scoop_lir::{
-    CoreLirBridgeBranchV1, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
+    CallableAbiRecordV1, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     EntryProductionSourceV1, ExternalShapeLinkImportV1, LayoutAbiExportConstituentsV1,
     LayoutAbiSectionSourceAuthorityV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
     StrongExternalLirBridgeSurfaceV1, StrongInitializationDefinitionCatalogV2,
@@ -19,7 +19,7 @@ pub struct LayoutLirStrongReplayAuthorityV2 {
     digests: StrongDigestFinalizationPlanV1,
     entry: EntryProductionSourceV1,
     shape_sources: Vec<SourceDeclarationKey>,
-    core_bridge: CoreLirBridgeBranchV1,
+    initialization_abi: Option<Box<CallableAbiRecordV1>>,
     type_definitions: StrongTypeReferenceDefinitionsV2,
     initialization_definitions: StrongInitializationDefinitionCatalogV2,
 }
@@ -31,7 +31,7 @@ impl LayoutLirStrongReplayAuthorityV2 {
         digests: StrongDigestFinalizationPlanV1,
         entry: EntryProductionSourceV1,
         shape_sources: Vec<SourceDeclarationKey>,
-        core_bridge: CoreLirBridgeBranchV1,
+        initialization_abi: Option<Box<CallableAbiRecordV1>>,
         type_definitions: StrongTypeReferenceDefinitionsV2,
         initialization_definitions: StrongInitializationDefinitionCatalogV2,
     ) -> Self {
@@ -40,7 +40,7 @@ impl LayoutLirStrongReplayAuthorityV2 {
             digests,
             entry,
             shape_sources,
-            core_bridge,
+            initialization_abi,
             type_definitions,
             initialization_definitions,
         }
@@ -53,7 +53,7 @@ impl LayoutLirStrongReplayAuthorityV2 {
         StrongDigestFinalizationPlanV1,
         EntryProductionSourceV1,
         Vec<SourceDeclarationKey>,
-        CoreLirBridgeBranchV1,
+        Option<Box<CallableAbiRecordV1>>,
         StrongTypeReferenceDefinitionsV2,
         StrongInitializationDefinitionCatalogV2,
     ) {
@@ -62,7 +62,7 @@ impl LayoutLirStrongReplayAuthorityV2 {
             self.digests,
             self.entry,
             self.shape_sources,
-            self.core_bridge,
+            self.initialization_abi,
             self.type_definitions,
             self.initialization_definitions,
         )

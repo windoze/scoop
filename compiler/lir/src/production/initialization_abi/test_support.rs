@@ -4,7 +4,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
-pub(crate) fn core_lir_cycle_thrower_for_test() -> CallableAbiRecordV1 {
+pub(crate) fn initialization_cycle_abi_for_test() -> CallableAbiRecordV1 {
     let declaration = scoop_identity::SourceDeclarationKey::function(
         scoop_identity::SourceDeclarationSite::new(
             ConeIdentity::CORE,

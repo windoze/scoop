@@ -237,3 +237,11 @@ HIR 删除 CoreHirInterfaceBranchV1 和 Core/NotCore 资格分支，以 Compiler
 String capability 删除固定 CORE、名称、包、owner 链与 scope 检查，保留非泛型 class、source/exact nominal 关系及与 compiler protocol 的 String 身份一致性；新负例验证两份记录各自有效但指向不同 class 时仍失败。MIR 删除按 CORE 判定初始化角色必须存在、禁止出现或必须搭配 library 的分支，实际角色由相邻 HIR 定义核对。角色唯一性、source function、完整 strong signature 覆盖与重放、ordinary effect、String 参数与 Unit 返回、main/entry 归属和实际实现检查继续执行，旧角色字段、persistent identity、String 表示和 runtime C ABI 不变。
 
 String 的测试按职责拆到独立模块；相关 HIR section、String capability 和 MIR production 主文件分别为 348、298、451 行。全部构建与测试结束后 cargo clean 删除 40,949 个文件、41.8 GiB。本批完成 HIR/MIR 外层清理，LIR 初始化桥、String descriptor/registration、Link 的 core 独立闭包、native 后端固定身份重建，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布与 ZST 验收仍须继续完成。
+
+2026-09-22：初始化服务 LIR 共有 ABI 与导入选择清理通过 workspace fmt、clippy（含 all-targets，无警告）及配套 scoopc 的全部 5,738 项 workspace 回归（37 组，零失败、零忽略）。测试含真实 core 修改与重建、公共缓存、任意输出路径消费、Compile/Link 双 view，以及普通 provider 的初始化 callable 投影、选择、物化和混合调用。
+
+删除 CoreLirBridgeV1、CoreLirBridgeBranchV1、对应 decoder 和来源资格错误，LIR 直接发布完整 CallableAbiRecordV1。strong production 两种 schema 均退役 field 10 和旧 Core/NotCore 包装，field 11 使用严格 0/1 array；strong-production capability 从 /1、/2 升级为 /3、/4，三个 profile 的 descriptor、fingerprint、Compile/Link inventory、producer/reader 与规范引用同步。旧字段、旧 sum、多份 ABI、旧版本及 optional 交叉版本混入均拒绝。
+
+MIR/LIR 的 ImportedFoundation 投影和 SelectedExternal 集合不再追加 CORE provider 条件，ShapeLink 按实际 provider 核对 ABI definition，并按 typed target 保持用途互斥。普通与 CORE provider 的实际 body、symbol、definition、canonical ABI、effect 和 root plan 检查保持；负例覆盖错误 provider、同名异源 target、缺 body/definition、错签名、重复角色/目标、self-import，以及相邻 MIR/LIR 角色有无和完整逻辑签名不一致。
+
+新的初始化 ABI 编解码模块为 56 行，测试和导入投影验证按职责保留独立模块。全部构建测试会话结束后 cargo clean 删除 26,562 个文件、26.9 GiB。本批完成初始化 ABI 发布与导入选择清理；String descriptor/registration、旧 external bridge 中的固定 CORE provider、Link 独立 core owner/requirement 通道、native 后端固定身份识别，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布与 ZST 验收仍须继续完成。
