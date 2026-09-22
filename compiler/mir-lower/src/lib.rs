@@ -114,11 +114,16 @@ pub use cross_cone_callables::{SourceMirCallableProductionError, lower_source_ca
 mod cross_cone_constructors;
 mod cross_cone_dispatch;
 mod cross_cone_equality;
+mod cross_cone_exports;
 pub use cross_cone_constructors::{
     SourceMirConstructorProductionError, lower_constructor_bindings,
 };
 pub use cross_cone_dispatch::{SourceMirDispatchProductionError, lower_dispatch_schemas};
 pub use cross_cone_equality::{SourceMirEqualityProductionError, lower_derived_equality_bindings};
+pub use cross_cone_exports::{
+    MirTypeBridgeDependencyTablesV1, MirTypeBridgeExportInputV1,
+    MirTypeBridgeExportProductionError, lower_type_bridge_exports,
+};
 mod cross_cone_types;
 pub use cross_cone_types::{
     SourceMirTypeProductionError, lower_source_type_exports, lower_type_exports,

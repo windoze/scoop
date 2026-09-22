@@ -1,0 +1,6 @@
+types=4 callables=4 dispatch=1 objects=0 shapes=1 initialization_uses=0 ordinary=1
+type Token: ZeroSizedValue/GcFree vslots=0 itables=0
+callable Token.equals: derived-equality receiver=true parameters=1 Managed
+callable ctor.Token.$c0: primary-value-constructor receiver=false parameters=0 NoGc
+callable pass: ordinary receiver=false parameters=1 Managed
+callable same: ordinary receiver=false parameters=2 Managed

@@ -4,6 +4,8 @@ core 是可由用户修改、扩展和重建的普通 library Cone。 core源码
 
 版本：0.8（草案）
 
+M23-6 的 MIR export 由同一 `mir-lower` 入口完整组装六张组成表；所有局部生产和依赖索引共用预算，当前 Cone 与实际 Strong root 一致，外来定义只借用。普通 callable、constructor、object 初始化、boxing adjust 与 derived equality 合入一个完整 callable 表后再生产 dispatch。旧 callable bridge 的实际 typed implementation 经完整签名核对后只保留原归属，不能重复进入新表，也不按 CORE 或名称划分。已提交的 initialization-use 显式输入并核对实际 local unit；完整 source/selected 与 artifact 闭包继续由 stage6 第 5.1 节规定的通用入口验证，不增设来源授权框架。
+
 配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
 
 ## 1. 总体技术路线

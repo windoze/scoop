@@ -75,6 +75,9 @@ impl CanonicalMirCallableBindingsV1 {
     pub fn entries(&self) -> &[ParamFreeMirCallableBindingV1] {
         &self.entries
     }
+    pub fn into_entries(self) -> Vec<ParamFreeMirCallableBindingV1> {
+        self.entries
+    }
     pub fn get(
         &self,
         implementation: StrongCallableDefinitionOwner,

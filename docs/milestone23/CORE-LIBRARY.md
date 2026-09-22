@@ -293,3 +293,10 @@ HIR identity-foundation 升为 /3，native field 33 退役、field 34 保存四�
 独立与组合源码 fixture、精确位置 negative fixture、HIR/MIR/LIR golden、typed wire 往返及错字段/variant/表示闭包负例通过。先 cargo fmt --all 与 cargo clippy --workspace --all-targets（无警告），相关 IR 的 3,876 项测试通过；重建配套 scoopc 并启用真实子进程后，完整 workspace 37 组中 5,780 项通过，唯一旧 cache receipt 固定向量按新 bytes 更新后定向复验通过，总计覆盖 5,781 项、0 ignored。driver 的 43 项包含真实 core 修改、双 view 发布与跨 Cone 调用回归。新生产逻辑按投影、wire、concretize 和 MIR 校验职责分拆。全部构建和测试进程退出后 cargo clean 删除 39,322 个文件、41.9 GiB。
 
 本批完成 native 固定身份分类迁移。M23-6 的新 layout profile 正式生产、跨 Cone nominal/member/dispatch 实际消费及其余完成门继续推进。
+
+
+2026-09-23：完整 MIR export 组装入口已接通既有实际生产器。source/有限 helper type、普通 callable/constructor、object 初始化 callable、boxing adjust、derived equality、dispatch 和 shape-support 按同一次 sealed HIR/MIR 输入组成六张完整表。依赖 type/callable/schema 使用共有只读索引；本地表不复制外来定义。旧 callable bridge 中的实际 typed implementation 逐项核对完整 exact signature 后只保留旧归属；不从 CORE、名称或 ABI 形状推断。显式 initialization-use 继续核对实际 local unit 物化 root 和 typed provider，所有投影、索引、合并和检查共享预算。未新增来源授权结构，七字段 section 的 source/selected 闭包仍由已有通用入口承担。
+
+独立与组合 fixture 覆盖 ZST/nested value、primary/secondary constructor、protected constructor/member、继承、interface default、abstract trap、boxing adjust、derived equality、object/backing/ensure 和普通窄 callable 共存。两份 golden 锁定完整组成关系；六张表分别编解码往返，前置无关 private declaration 后字节不变。缺失/重复依赖、错误 Cone、旧 callable 导出缺项、未物化 local initialization unit 与共享预算耗尽均拒绝；非空 initialization-use 原样保留，借用依赖不进入本地 export。
+
+cargo fmt --all 与 cargo clippy --workspace --all-targets 通过；scoop-hir-lower、scoop-mir、scoop-mir-lower 共 2,123 项测试通过、0 失败、0 忽略。本批统一关闭增量缓存和 debug 信息以控制 target 增长。完整 layout profile 正式生产、终端依赖消费闭包、一般跨 Cone nominal/member/dispatch 及其余 M23-6 完成门继续推进，本项组装完成不代表整个阶段完成。

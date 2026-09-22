@@ -1,0 +1,31 @@
+public struct Token() {}
+public struct Pair(val left: Token, val right: Token) {
+    @NoGC public constructor(): this(Token(), Token()) {}
+}
+public interface Contract {
+    public fun run(value: Token): Token
+    public val token: Token
+    public fun echo(value: Token): Token = value
+}
+public struct Value(): Contract {
+    public final override fun run(value: Token): Token = value
+    public final override val token: Token get() = Token()
+}
+public open class Base protected constructor(val stored: Token): Contract {
+    public constructor(): this(Token()) {}
+    public override fun run(value: Token): Token = value
+    public override val token: Token get() = stored
+    protected open fun protectedRun(value: Token): Token = value
+}
+public class Derived public constructor(value: Token = Token()): Base(value)
+public abstract class Pending: Contract
+public object Registry: Base(Token()) {
+    public override fun run(value: Token): Token = value
+}
+public enum Choice { Empty, Full(Pair) }
+public fun same(left: Choice, right: Choice): Boolean = left == right
+public fun throughBase(value: Base): Token = value.run(Token())
+public fun ready(): Boolean = true
+private struct Hidden() {}
+private object HiddenRegistry {}
+private fun hiddenReady(): Boolean = true

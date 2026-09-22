@@ -12,7 +12,7 @@ pub(super) fn check(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
         ))
     ));
-    let boolean = support::boolean(input, graph);
+    let boolean = dependencies::boolean(input, graph);
     let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean], &mut meter()).unwrap();
     let empty = CanonicalParamFreeMirTypeExportsV1::default();
     assert!(

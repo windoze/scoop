@@ -1,0 +1,36 @@
+types=32 callables=26 dispatch=10 objects=1 shapes=9 initialization_uses=0 ordinary=1
+type Base: Reference/ContainsManagedReferences vslots=3 itables=1
+type Choice: NonZeroValue/GcFree vslots=0 itables=0
+type Contract: Reference/ContainsManagedReferences vslots=0 itables=1
+type Derived: Reference/ContainsManagedReferences vslots=3 itables=1
+type Pair: ZeroSizedValue/GcFree vslots=0 itables=0
+type Pending: Reference/ContainsManagedReferences vslots=0 itables=1
+type Registry: Reference/ContainsManagedReferences vslots=3 itables=1
+type Token: ZeroSizedValue/GcFree vslots=0 itables=0
+type Value: ZeroSizedValue/GcFree vslots=0 itables=1
+callable $init$body$0: object-initializer receiver=false parameters=0 Managed
+callable $init$ensure$0: object-ensure receiver=false parameters=0 Managed
+callable Base.$get$token: accessor receiver=true parameters=0 Managed
+callable Base.protectedRun: ordinary receiver=true parameters=1 Managed
+callable Base.run: ordinary receiver=true parameters=1 Managed
+callable Choice.equals: derived-equality receiver=true parameters=1 Managed
+callable Contract.$get$token: trap receiver=true parameters=0 Managed
+callable Contract.echo: ordinary receiver=true parameters=1 Managed
+callable Contract.run: trap receiver=true parameters=1 Managed
+callable Pair.equals: derived-equality receiver=true parameters=1 Managed
+callable Registry.run: ordinary receiver=true parameters=1 Managed
+callable Token.equals: derived-equality receiver=true parameters=1 Managed
+callable Value.$get$token: accessor receiver=true parameters=0 Managed
+callable Value.run: ordinary receiver=true parameters=1 Managed
+callable ctor.Pair.$c1: primary-value-constructor receiver=false parameters=2 NoGc
+callable ctor.Pair.$c2: value-constructor receiver=false parameters=0 NoGc
+callable ctor.Token.$c0: primary-value-constructor receiver=false parameters=0 NoGc
+callable ctor.Value.$c3: primary-value-constructor receiver=false parameters=0 NoGc
+callable init.Base.$c0: class-initializer receiver=true parameters=1 Managed
+callable init.Base.$c1: class-initializer receiver=true parameters=0 Managed
+callable init.Derived.$c2: class-initializer receiver=true parameters=1 Managed
+callable same: ordinary receiver=false parameters=2 Managed
+callable throughBase: ordinary receiver=false parameters=1 Managed
+callable thunk<Value> Contract.$get$token(): boxing-adjust receiver=true parameters=0 Managed
+callable thunk<Value> Contract.echo(Token): boxing-adjust receiver=true parameters=1 Managed
+callable thunk<Value> Contract.run(Token): boxing-adjust receiver=true parameters=1 Managed

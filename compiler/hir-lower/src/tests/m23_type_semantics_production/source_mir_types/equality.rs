@@ -6,7 +6,6 @@ use scoop_mir_lower::{SourceMirEqualityProductionError as Error, lower_derived_e
 
 mod assertions;
 mod rejections;
-mod support;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
@@ -24,7 +23,7 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
     for name in ["standalone", "combined"] {
         let (directory, source) = fixture(name);
         let (bytes, dump) = with_production(&source, |output, input, _, graph, types| {
-            let boolean = support::boolean(input, graph);
+            let boolean = dependencies::boolean(input, graph);
             let index =
                 MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean], &mut meter()).unwrap();
             let bindings =
@@ -62,7 +61,7 @@ fn actual_derived_equality_bindings_cover_nested_values_enum_and_explicit_overlo
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
             |output, input, _, graph, types| {
-                let boolean = support::boolean(input, graph);
+                let boolean = dependencies::boolean(input, graph);
                 let index =
                     MirTypeBridgeTypeIndexV1::try_new(&[types, &boolean], &mut meter()).unwrap();
                 let bindings = lower_derived_equality_bindings(

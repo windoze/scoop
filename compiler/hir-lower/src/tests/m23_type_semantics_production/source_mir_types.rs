@@ -10,6 +10,7 @@ mod constructors;
 mod dependencies;
 mod dispatch;
 mod equality;
+mod exports;
 mod identities;
 mod objects;
 mod shape_support;
