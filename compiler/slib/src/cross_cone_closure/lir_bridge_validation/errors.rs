@@ -13,7 +13,6 @@ pub enum CrossConeClosureLirBridgeError {
         identity: ConeIdentity,
         source: Box<CrossConeLirFrontValidationError>,
     },
-    MissingTrustedCore,
     AbiReplay {
         identity: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
@@ -37,9 +36,6 @@ impl fmt::Display for CrossConeClosureLirBridgeError {
                     formatter,
                     "invalid LIR bridge payload for {identity}: {source}"
                 )
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("cross-Cone LIR bridge closure has no trusted-core provider")
             }
             Self::AbiReplay {
                 identity,
@@ -65,13 +61,14 @@ impl std::error::Error for CrossConeClosureLirBridgeError {
             Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::AbiReplay { source, .. } => Some(source.as_ref()),
             Self::Relation { source, .. } => Some(source.as_ref()),
-            Self::Allocation { .. } | Self::MissingTrustedCore => None,
+            Self::Allocation { .. } => None,
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeLirClosureRelationError {
+    Resource(scoop_wire::WireError),
     MissingLirExport {
         declaration: DependencyCallableDeclarationId,
     },

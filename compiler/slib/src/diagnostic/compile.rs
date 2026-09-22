@@ -75,6 +75,17 @@ impl SlibDiagnostic for NativeBoundaryCompileError {
         match self {
             Self::Identity(error) => error.diagnostic(),
             Self::Resource(error) => error.diagnostic(),
+            Self::Encoding(_) => {
+                SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(30))
+            }
+            Self::ConflictingExactType { exact } => identity_diagnostic(
+                SlibErrorCode::BridgeMismatch,
+                "exact-type",
+                exact.as_array(),
+            ),
+            Self::ConflictingTypeWitness { owner } => {
+                native_owner_diagnostic(SlibErrorCode::BridgeMismatch, *owner)
+            }
             Self::MissingCallableApplication { application } => identity_diagnostic(
                 SlibErrorCode::ReferenceMissing,
                 "callable-application",

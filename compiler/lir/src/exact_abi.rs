@@ -17,6 +17,20 @@ use crate::{
 
 mod replay;
 pub use replay::ExactCallableAbiError;
+mod canonical;
+pub use canonical::{canonical_scoop_abi_argument, canonical_scoop_abi_value_return};
+
+/// Replays a complete signature from checked layouts without requiring a local
+/// body definition. Ordinary bridges and full callable exports share this path.
+pub fn replay_canonical_scoop_abi_from_layouts(
+    target: LirTargetProfile,
+    signature: ExactCallableSignature,
+    protocol: ExactCallableProtocolV1,
+    layouts: CallableAbiLayoutInputsV1<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<CanonicalScoopAbiFunctionSignature, ExactCallableAbiError> {
+    replay::signature(target, signature, protocol, layouts, meter).map(|(signature, _)| signature)
+}
 
 mod physical;
 pub use physical::ExactCallablePhysicalAbiError;

@@ -173,3 +173,11 @@ lower_derived_equality_bindings 遍历同次 LocalConcrete 已请求的完整生
 独立和组合 fixture 覆盖空 struct、嵌套字段、enum、自定义 equals、不同参数 overload、非可比较字段及私有类型。两份 golden 锁定实际 MIR 调用关系，wire 往返、前置无关声明后的字节稳定性、缺失 Boolean 类型或实际 Strong root、零复制预算和共享 work 耗尽均通过验证。测试复用已有完整依赖图导入流程，补全 Boolean 的 nominal key；依赖类型仍只是组成表 fixture，不表示 full core 已通过新 profile。生产三个模块分别 61、66、37 行，新增测试模块均不超过 102 行。
 
 其余实际 callable 组合、完整 MIR type bridge 组装、LIR layout/ABI、driver layout-strong 发布、一般跨 Cone nominal 消费、剩余 ZST 矩阵与 core 专用资格清理仍需继续完成，M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 22,653 个文件、24.4 GiB，target 已清理。
+
+2026-09-22：canonical ABI 共有重放批次通过 workspace fmt、clippy（含 all-targets）及全部 5,682 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。随后补充普通 consumer 的真实 Unit/Int/String 调用组合，再次通过 fmt、lint 与完整 core 修改重建/消费集成测试。
+
+旧 callable bridge 删除 current == CORE 豁免，按每个实际 callable 所属 artifact 的 identity 图和可达依赖 witness 重放；同一 owner 的重复 witness 必须完整一致。layout profile 删除 core foundation 回退，在完整本地与依赖 layout section 校验后，查询每个 exact type 唯一的 ManagedValue layout。两条路径使用 LIR 共有的 direct/indirect/ZST 分类，并保留完整 logical signature、GC effect、参数顺序与返回方式比较；查询、重复记录比较和签名复制使用当前 artifact 的连续预算。
+
+新增七项独立/组合/negative 测试覆盖 receiver、Unit、scalar、managed reference、非零与零尺寸 aggregate、tagged/niche enum、混合 provider 的同名类型、缺失/重复/wrong-role layout、冲突 witness、相同错误 ABI 在 core 和普通 provider 中被拒绝，以及共享预算耗尽。真实 core 新增两个普通导出函数，golden 核对 ABI；普通 consumer 嵌套调用 Unit 函数，并消费 Unit/Int/String 混合参数函数。wire 格式、persistent identity 与 runtime C ABI 不变。共有分类、依赖类型收集和布局 ABI 查询分别为 42、67、102 行，新增测试和辅助模块均不超过 117 行。
+
+本批完成两处 ABI 重放豁免清理；native-boundary 专用外来类型入口与固定 core 身份识别、protocol 来源资格、String/初始化角色外层、Link 专用闭包，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal 实际消费、双 view 发布和剩余 ZST 矩阵仍需继续完成。确认全部构建测试进程退出后 cargo clean 移除 27,902 个文件、29.4 GiB，target 已清理。

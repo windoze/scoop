@@ -1,6 +1,5 @@
 //! Owned LIR candidates kept outside the HIR/MIR proof arenas.
 
-use scoop_hir::OdrFreeHirFoundation;
 use scoop_identity::{ConeCoordinate, ValidatedIdentityGraph};
 use scoop_lir::{
     DecodedCrossConeLayoutAbiSectionV1, DecodedCrossConeLirBridgeSectionV1,
@@ -20,7 +19,6 @@ pub(crate) struct DecodedCrossConeLayoutLirCandidates {
 pub(crate) struct PreparedCrossConeLayoutLirValidation<'a> {
     pub(crate) coordinate: ConeCoordinate,
     pub(crate) identities: &'a mut ValidatedIdentityGraph,
-    pub(crate) hir_foundation: &'a OdrFreeHirFoundation,
     pub(crate) foundation: &'a OdrFreeLirFoundation,
     pub(crate) meter: &'a mut BudgetMeter,
     pub(crate) candidates: DecodedCrossConeLayoutLirCandidates,

@@ -5,6 +5,7 @@ use super::*;
 use crate::exact_layout::tests::{Bound, exact, field, integer, managed, meter, source, unit};
 use crate::*;
 
+mod common;
 mod fixtures;
 mod physical;
 mod reader;

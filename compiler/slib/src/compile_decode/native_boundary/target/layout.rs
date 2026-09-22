@@ -217,15 +217,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         exact: PersistentExactTypeId,
     ) -> Result<ScoopAbiArgument, NativeBoundaryCompileError> {
         let storage = self.scoop_storage(exact)?;
-        if storage.byte_size() == 0 {
-            ScoopAbiArgument::elided_zst(storage)
-        } else if storage.shape() == ScoopAbiValueShape::Scalar {
-            ScoopAbiArgument::direct(storage)
-        } else {
-            ScoopAbiArgument::indirect(storage)
-        }
-        .map_err(NativeBoundaryTargetError::ScoopAbi)
-        .map_err(Into::into)
+        scoop_lir::canonical_scoop_abi_argument(self.target, storage)
+            .map_err(NativeBoundaryTargetError::ScoopAbi)
+            .map_err(Into::into)
     }
 
     pub(super) fn scoop_return(
@@ -233,15 +227,9 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         exact: PersistentExactTypeId,
     ) -> Result<ScoopAbiReturn, NativeBoundaryCompileError> {
         let storage = self.scoop_storage(exact)?;
-        if storage.byte_size() == 0 {
-            ScoopAbiReturn::elided_zst(storage)
-        } else if storage.shape() == ScoopAbiValueShape::Scalar {
-            ScoopAbiReturn::direct(storage)
-        } else {
-            ScoopAbiReturn::indirect(storage)
-        }
-        .map_err(NativeBoundaryTargetError::ScoopAbi)
-        .map_err(Into::into)
+        scoop_lir::canonical_scoop_abi_value_return(self.target, storage)
+            .map_err(NativeBoundaryTargetError::ScoopAbi)
+            .map_err(Into::into)
     }
 
     fn scoop_storage(

@@ -25,13 +25,13 @@ pub use commit::{
 };
 pub(crate) use commit::{charge_identity_import, commit_identity_graph, semantic_identity_import};
 mod native_boundary;
+pub(crate) use native_boundary::{
+    AbiReplayDependency, NativeBoundaryFoundationView, replay_canonical_scoop_abi,
+    validate_native_boundary_parts,
+};
 pub use native_boundary::{
     NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations,
     NativeBoundaryTargetError, NativeBoundaryValidatedFoundations,
-};
-pub(crate) use native_boundary::{
-    NativeBoundaryFoundationView, replay_canonical_scoop_abi, replay_canonical_scoop_abi_parts,
-    validate_native_boundary_parts,
 };
 
 /// Canonically decoded foundation payloads whose artifact, profile inventory,

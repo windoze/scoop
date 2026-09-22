@@ -22,8 +22,6 @@ where
 {
     let parts = mir.into_lir_parts();
     let fronts = ordinary::validate(
-        parts.current,
-        parts.target,
         validations,
         &parts.providers,
         &parts.positions,
@@ -171,6 +169,7 @@ where
             provider: front.provider,
             source: Box::new(source),
         })?;
+    super::abi::validate(&front.abi_expectations, &layout, &transitive, front.meter)?;
     let strong = replayed
         .validate_layout_abi(&layout, front.meter)
         .map_err(

@@ -28,6 +28,11 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     )
     .unwrap();
     std::fs::write(
+        source.join("src/user_abi.scoop"),
+        include_str!("../../../../../../tests/fixtures/core-library/abi.scoop"),
+    )
+    .unwrap();
+    std::fs::write(
         source.join("src/user_aliases.scoop"),
         include_str!("../../../../../../tests/fixtures/core-library/type-aliases.scoop"),
     )
@@ -69,6 +74,18 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
         &target,
         &call_source,
         &workspace.path().join("calls.slib"),
+        &artifact,
+    );
+    let abi_source = workspace.path().join("abi-calls.scoop");
+    std::fs::write(
+        &abi_source,
+        include_str!("../../../../../../tests/fixtures/core-library/abi-consumer.scoop"),
+    )
+    .unwrap();
+    build_consumer(
+        &target,
+        &abi_source,
+        &workspace.path().join("abi-calls.slib"),
         &artifact,
     );
     aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);

@@ -11,6 +11,7 @@ use crate::{
     LayoutMirSourceAuthorityFactoryV1,
 };
 
+mod abi;
 mod ordinary;
 mod replay;
 

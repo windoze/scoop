@@ -6,10 +6,7 @@ use scoop_lir::{
     StrongProductionSectionValidationError,
 };
 
-use crate::{
-    CrossConeLayoutMirSemanticClosureError, CrossConeLirClosureRelationError,
-    NativeBoundaryCompileError,
-};
+use crate::{CrossConeLayoutMirSemanticClosureError, CrossConeLirClosureRelationError};
 
 pub type CrossConeLayoutLirSemanticClosureResult<T, HE, ME, LE> =
     Result<T, CrossConeLayoutLirSemanticClosureError<HE, ME, LE>>;
@@ -41,11 +38,10 @@ pub enum CrossConeLayoutLirSemanticClosureError<HE, ME, LE> {
         provider: ConeIdentity,
         source: Box<CrossConeLirClosureRelationError>,
     },
-    MissingTrustedCore,
     AbiReplay {
         provider: ConeIdentity,
         declaration: DependencyCallableDeclarationId,
-        source: Box<NativeBoundaryCompileError>,
+        source: Box<scoop_lir::ExactCallableAbiError>,
     },
     SourceAuthority {
         provider: ConeIdentity,
@@ -110,9 +106,6 @@ impl<HE: fmt::Display, ME: fmt::Display + fmt::Debug, LE: fmt::Display + fmt::De
                     "invalid MIR/LIR relation for {provider}: {source}"
                 )
             }
-            Self::MissingTrustedCore => {
-                formatter.write_str("layout-profile LIR closure has no trusted-core provider")
-            }
             Self::AbiReplay {
                 provider,
                 declaration,
@@ -171,7 +164,6 @@ where
             | Self::AuthorityProvider { .. }
             | Self::Allocation { .. }
             | Self::DependencyAllocation { .. }
-            | Self::MissingTrustedCore
             | Self::SourceProvider { .. } => None,
         }
     }

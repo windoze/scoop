@@ -19,56 +19,58 @@ use crate::{
 };
 
 pub(super) fn validate_lir_bridge_relations(
-    current: ConeIdentity,
     artifacts: &mut [LirBridgeValidatedCrossConeHirFrontSections<'_>],
     positions: &BTreeMap<ConeIdentity, usize>,
     dependency_positions: &[Vec<usize>],
 ) -> Result<(), CrossConeClosureLirBridgeError> {
-    let export_count = artifacts
-        .iter()
-        .map(|artifact| artifact.lir_cross_cone_bridge().exports().len())
-        .try_fold(0_usize, usize::checked_add)
-        .ok_or(CrossConeClosureLirBridgeError::Allocation {
-            requested_slots: usize::MAX,
-        })?;
     let mut abi_expectations = Vec::new();
-    abi_expectations
-        .try_reserve_exact(export_count)
-        .map_err(|_| CrossConeClosureLirBridgeError::Allocation {
-            requested_slots: export_count,
-        })?;
-    for artifact in artifacts.iter() {
-        validate_local_projection(
-            artifact.identity(),
-            artifact.hir_interface(),
-            artifact.mir_cross_cone_bridge(),
-            artifact.lir_cross_cone_bridge(),
-            &mut abi_expectations,
-        )
-        .map_err(|source| relation(artifact, source))?;
+    for artifact in artifacts.iter_mut() {
+        artifact
+            .append_abi_expectations(&mut abi_expectations)
+            .map_err(|source| relation(artifact, source))?;
     }
-    if current != ConeIdentity::CORE {
-        let core_position = positions
-            .get(&ConeIdentity::CORE)
+    for expectation in abi_expectations {
+        let position = positions
+            .get(&expectation.artifact)
             .copied()
-            .ok_or(CrossConeClosureLirBridgeError::MissingTrustedCore)?;
-        for expectation in abi_expectations {
-            let expected = artifacts[core_position]
-                .replay_canonical_scoop_abi(&expectation.signature, expectation.gc_effect)
-                .map_err(|source| CrossConeClosureLirBridgeError::AbiReplay {
-                    identity: expectation.artifact,
+            .ok_or_else(|| CrossConeClosureLirBridgeError::Relation {
+                identity: expectation.artifact,
+                source: Box::new(CrossConeLirClosureRelationError::MissingProvider {
+                    provider: expectation.artifact,
                     declaration: expectation.declaration,
-                    source: Box::new(source),
-                })?;
-            if expected != expectation.actual {
-                return Err(CrossConeClosureLirBridgeError::Relation {
-                    identity: expectation.artifact,
-                    source: Box::new(CrossConeLirClosureRelationError::NonCanonicalExportAbi {
-                        declaration: expectation.declaration,
-                    }),
-                });
+                }),
+            })?;
+        let reachable = transitive_dependency_positions(position, dependency_positions);
+        let (before, remaining) = artifacts.split_at_mut(position);
+        let (artifact, after) = remaining.split_first_mut().ok_or_else(|| {
+            CrossConeClosureLirBridgeError::Relation {
+                identity: expectation.artifact,
+                source: Box::new(CrossConeLirClosureRelationError::MissingProvider {
+                    provider: expectation.artifact,
+                    declaration: expectation.declaration,
+                }),
             }
-        }
+        })?;
+        let dependencies = reachable.iter().map(|dependency| {
+            if *dependency < position {
+                before[*dependency].abi_replay_types()
+            } else {
+                after[*dependency - position - 1].abi_replay_types()
+            }
+        });
+        let expected = artifact
+            .replay_canonical_scoop_abi(dependencies, &expectation.signature, expectation.gc_effect)
+            .map_err(|source| CrossConeClosureLirBridgeError::AbiReplay {
+                identity: expectation.artifact,
+                declaration: expectation.declaration,
+                source: Box::new(source),
+            })?;
+        expectation.check_canonical(&expected).map_err(|source| {
+            CrossConeClosureLirBridgeError::Relation {
+                identity: expectation.artifact,
+                source: Box::new(source),
+            }
+        })?;
     }
 
     for (position, artifact) in artifacts.iter().enumerate() {
@@ -87,6 +89,7 @@ pub(crate) fn validate_local_projection(
     mir: &CrossConeMirBridgeSectionV1,
     lir: &CrossConeLirBridgeSectionV1,
     abi_expectations: &mut Vec<AbiExpectation>,
+    meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<(), CrossConeLirClosureRelationError> {
     for expected in mir.exports() {
         let declaration = expected.declaration();
@@ -118,6 +121,27 @@ pub(crate) fn validate_local_projection(
                 CrossConeLirClosureRelationError::ExportCallingConventionMismatch { declaration },
             );
         }
+        let parameters = expected.signature().parameters().len() as u64;
+        let arguments = actual.abi_signature().arguments().len() as u64;
+        let path = scoop_wire::WirePath::root();
+        meter
+            .charge_work(2 * parameters + arguments + 1, &path)
+            .map_err(CrossConeLirClosureRelationError::Resource)?;
+        meter
+            .charge_collection_slots(2 * parameters + arguments, &path)
+            .map_err(CrossConeLirClosureRelationError::Resource)?;
+        meter
+            .charge_owned_bytes(
+                std::mem::size_of::<AbiExpectation>() as u64
+                    + 2 * parameters
+                        * std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64
+                    + arguments * std::mem::size_of::<scoop_identity::ScoopAbiArgument>() as u64,
+                &path,
+            )
+            .map_err(CrossConeLirClosureRelationError::Resource)?;
+        meter
+            .try_reserve_collection_slots(abi_expectations, 1, &path)
+            .map_err(CrossConeLirClosureRelationError::Resource)?;
         abi_expectations.push(AbiExpectation {
             artifact,
             declaration,
@@ -175,6 +199,20 @@ pub(crate) struct AbiExpectation {
     pub(crate) signature: ExactCallableSignature,
     pub(crate) gc_effect: GcEffect,
     pub(crate) actual: CanonicalScoopAbiFunctionSignature,
+}
+
+impl AbiExpectation {
+    pub(crate) fn check_canonical(
+        &self,
+        expected: &CanonicalScoopAbiFunctionSignature,
+    ) -> Result<(), CrossConeLirClosureRelationError> {
+        if expected != &self.actual {
+            return Err(CrossConeLirClosureRelationError::NonCanonicalExportAbi {
+                declaration: self.declaration,
+            });
+        }
+        Ok(())
+    }
 }
 
 fn validate_terminal_provider(

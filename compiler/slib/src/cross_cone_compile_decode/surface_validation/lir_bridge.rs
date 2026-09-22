@@ -137,8 +137,9 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         &self.lir_cross_cone_bridge
     }
 
-    pub(crate) fn replay_canonical_scoop_abi(
+    pub(crate) fn replay_canonical_scoop_abi<'a>(
         &mut self,
+        dependencies: impl ExactSizeIterator<Item = crate::AbiReplayDependency<'a>>,
         signature: &ExactCallableSignature,
         gc_effect: GcEffect,
     ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
@@ -146,8 +147,30 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
             &mut self.graph,
             &self.identities,
             &self.foundations.hir,
+            dependencies,
             signature,
             gc_effect,
+        )
+    }
+
+    pub(crate) fn abi_replay_types(&self) -> crate::AbiReplayDependency<'_> {
+        crate::AbiReplayDependency {
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+        }
+    }
+
+    pub(crate) fn append_abi_expectations(
+        &mut self,
+        expectations: &mut Vec<crate::AbiExpectation>,
+    ) -> Result<(), crate::CrossConeLirClosureRelationError> {
+        crate::validate_local_projection(
+            self.graph.identity(),
+            &self.hir_interface,
+            &self.mir_cross_cone_bridge,
+            &self.lir_cross_cone_bridge,
+            expectations,
+            self.graph.envelope.meter_mut(),
         )
     }
 

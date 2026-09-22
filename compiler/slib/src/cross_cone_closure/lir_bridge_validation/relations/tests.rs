@@ -75,6 +75,7 @@ fn exact_lir_export_projection_records_an_abi_replay_obligation() {
         &fixture.mir,
         &lir,
         &mut expectations,
+        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .unwrap();
 
@@ -102,6 +103,10 @@ impl Fixture {
             .unwrap()
             .identity()
             .unwrap();
+        Self::for_provider(artifact, gc_effect)
+    }
+
+    fn for_provider(artifact: ConeIdentity, gc_effect: GcEffect) -> Self {
         let function = function(artifact);
         let declaration = DependencyCallableDeclarationId::Function(function);
         let target = StrongCallableDefinitionOwner::Function(function);
@@ -191,6 +196,61 @@ impl Fixture {
     }
 }
 
+#[test]
+fn core_and_ordinary_providers_reject_the_same_noncanonical_abi_and_budget() {
+    for provider in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
+        let fixture = Fixture::for_provider(provider, GcEffect::Managed);
+        let lir = fixture.lir_bridge(GcEffect::Managed);
+        let mut expectations = Vec::new();
+        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+        validate_local_projection(
+            provider,
+            &fixture.interface,
+            &fixture.mir,
+            &lir,
+            &mut expectations,
+            &mut meter,
+        )
+        .unwrap();
+        let expected = fixture.abi(GcEffect::Managed);
+        expectations[0].check_canonical(&expected).unwrap();
+        let unit_value = scoop_identity::CanonicalScoopStorage::new(
+            fixture.signature.result(),
+            0,
+            std::num::NonZeroU64::MIN,
+            scoop_identity::ScoopAbiValueShape::Aggregate,
+        );
+        expectations[0].actual = CanonicalScoopAbiFunctionSignature::new(
+            fixture.signature.clone(),
+            vec![],
+            ScoopAbiReturn::elided_zst(unit_value).unwrap(),
+            GcEffect::Managed,
+        )
+        .unwrap();
+        assert_eq!(
+            expectations[0].check_canonical(&expected),
+            Err(CrossConeLirClosureRelationError::NonCanonicalExportAbi {
+                declaration: fixture.declaration
+            })
+        );
+        let mut limited = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
+            owned_bytes: 0,
+            ..scoop_wire::DecodeLimits::default()
+        });
+        assert!(matches!(
+            validate_local_projection(
+                provider,
+                &fixture.interface,
+                &fixture.mir,
+                &lir,
+                &mut Vec::new(),
+                &mut limited
+            ),
+            Err(CrossConeLirClosureRelationError::Resource(_))
+        ));
+    }
+}
+
 fn validate(
     fixture: &Fixture,
     lir: &CrossConeLirBridgeSectionV1,
@@ -202,6 +262,7 @@ fn validate(
         &fixture.mir,
         lir,
         &mut expectations,
+        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
 }
 

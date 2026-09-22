@@ -258,7 +258,6 @@ where
     lir_validations.push(PreparedCrossConeLayoutLirValidation {
         coordinate,
         identities,
-        hir_foundation,
         foundation: lir_foundation,
         meter,
         candidates: lir_candidates,

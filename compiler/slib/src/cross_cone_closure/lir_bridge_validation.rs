@@ -118,7 +118,7 @@ impl<'input> MirBridgeValidatedCrossConeHirClosure<'input> {
             })?);
         }
 
-        validate_lir_bridge_relations(current, &mut validated, &positions, &dependency_positions)?;
+        validate_lir_bridge_relations(&mut validated, &positions, &dependency_positions)?;
 
         Ok(LirBridgeValidatedCrossConeHirClosure {
             current,

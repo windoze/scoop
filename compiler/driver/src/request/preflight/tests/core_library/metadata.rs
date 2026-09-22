@@ -6,9 +6,12 @@ use scoop_identity::{
     SignatureTypeKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
 };
 
+mod abi;
+
 pub(super) fn assert_ordinary_interfaces(
     production: &scoop_slib::ValidatedCrossConeSemanticsProduction,
 ) {
+    abi::assert_abis(production);
     let interface = production.hir_interface();
     for kind in scoop_hir::intrinsic_function_kinds()
         .into_iter()

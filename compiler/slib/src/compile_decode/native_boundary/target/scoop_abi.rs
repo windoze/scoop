@@ -14,8 +14,13 @@ use scoop_wire::{BudgetMeter, WirePath};
 use super::{NativeBoundaryNormalizer, metered_vec};
 use crate::{
     NativeBoundaryCompileError, NativeBoundaryTargetError, ValidatedGraphArtifact,
-    compile_decode::native_boundary::{index_records, records_by_id},
+    compile_decode::native_boundary::records_by_id,
 };
+
+mod dependencies;
+pub(crate) use dependencies::AbiReplayDependency;
+#[cfg(test)]
+mod tests;
 
 pub(super) fn exact_type_records(
     graph: &ValidatedIdentityGraph,
@@ -50,20 +55,27 @@ pub(super) fn exact_type_records(
     )
 }
 
-pub(crate) fn replay_canonical_scoop_abi(
+pub(crate) fn replay_canonical_scoop_abi<'a>(
     artifact: &mut ValidatedGraphArtifact<'_>,
     identities: &ValidatedIdentityGraph,
     hir_foundation: &OdrFreeHirFoundation,
+    dependencies: impl ExactSizeIterator<Item = AbiReplayDependency<'a>>,
     signature: &ExactCallableSignature,
     gc_effect: GcEffect,
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
     let target = artifact.target_selection().target();
     let meter = artifact.envelope.meter_mut();
+    let mut sources = Vec::new();
+    meter
+        .try_reserve_collection_slots(&mut sources, dependencies.len(), &WirePath::root())
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    sources.extend(dependencies);
     replay_canonical_scoop_abi_parts(
         target,
         meter,
         identities,
         hir_foundation,
+        &sources,
         signature,
         gc_effect,
     )
@@ -74,15 +86,17 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
     meter: &mut BudgetMeter,
     identities: &ValidatedIdentityGraph,
     hir_foundation: &OdrFreeHirFoundation,
+    dependencies: &[AbiReplayDependency<'_>],
     signature: &ExactCallableSignature,
     gc_effect: GcEffect,
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-    let exact_types = exact_type_records(identities, meter)?;
-    let definitions = index_records(
-        hir_foundation.native_boundary_types(),
-        scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
+    let types = dependencies::collect(
+        AbiReplayDependency {
+            identities,
+            foundation: hir_foundation,
+        },
+        dependencies,
         meter,
-        &WirePath::root().field(30),
     )?;
     let callable_applications =
         HashMap::<PersistentCallableApplicationId, Arc<CallableApplicationKey>>::new();
@@ -91,10 +105,10 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
     let mut normalizer = NativeBoundaryNormalizer::new(
         target,
         meter,
-        &exact_types,
+        &types.exact,
         &callable_applications,
         &initialization_units,
-        &definitions,
+        &types.definitions,
     );
 
     let argument_count =
@@ -113,6 +127,19 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
     } else {
         normalizer.scoop_return(signature.result())?
     };
+    let parameters = signature.parameters().len() as u64;
+    let path = WirePath::root().field(3);
+    normalizer
+        .meter
+        .charge_collection_slots(parameters, &path)
+        .map_err(NativeBoundaryCompileError::Resource)?;
+    normalizer
+        .meter
+        .charge_owned_bytes(
+            parameters.saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
+            &path,
+        )
+        .map_err(NativeBoundaryCompileError::Resource)?;
     CanonicalScoopAbiFunctionSignature::new(signature.clone(), arguments, result, gc_effect)
         .map_err(NativeBoundaryTargetError::ScoopAbi)
         .map_err(Into::into)

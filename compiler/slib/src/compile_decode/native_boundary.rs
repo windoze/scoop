@@ -25,8 +25,8 @@ use super::StructurallyValidatedFoundations;
 use crate::ValidatedGraphArtifact;
 
 mod target;
+pub(crate) use target::{AbiReplayDependency, replay_canonical_scoop_abi};
 pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
-pub(crate) use target::{replay_canonical_scoop_abi, replay_canonical_scoop_abi_parts};
 
 /// Structurally valid foundations whose native-boundary source witnesses are
 /// exactly the transitive nominal closure required by externs and callbacks.
@@ -719,6 +719,13 @@ fn collect_exact_type(
 pub enum NativeBoundaryCompileError {
     Identity(IdentityValidationError),
     Resource(WireError),
+    Encoding(scoop_wire::cbor::EncodeError),
+    ConflictingExactType {
+        exact: PersistentExactTypeId,
+    },
+    ConflictingTypeWitness {
+        owner: NativeBoundaryNominalOwner,
+    },
     MissingCallableApplication {
         application: PersistentCallableApplicationId,
     },
@@ -742,6 +749,13 @@ impl fmt::Display for NativeBoundaryCompileError {
         match self {
             Self::Identity(error) => error.fmt(formatter),
             Self::Resource(error) => error.fmt(formatter),
+            Self::Encoding(error) => error.fmt(formatter),
+            Self::ConflictingExactType { exact } => {
+                write!(formatter, "conflicting ABI exact type {exact}")
+            }
+            Self::ConflictingTypeWitness { owner } => {
+                write!(formatter, "conflicting ABI source witness for {owner:?}")
+            }
             Self::MissingCallableApplication { application } => write!(
                 formatter,
                 "native boundary references missing callable application {application}"
@@ -774,6 +788,7 @@ impl std::error::Error for NativeBoundaryCompileError {
         match self {
             Self::Identity(error) => Some(error),
             Self::Resource(error) => Some(error),
+            Self::Encoding(error) => Some(error),
             Self::Target(error) => Some(error),
             _ => None,
         }

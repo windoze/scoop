@@ -1,6 +1,6 @@
 use scoop_identity::{
     CallableBodyKey, CanonicalScoopStorage, PersistentExactTypeId, RepresentationRole,
-    ScoopAbiArgument, ScoopAbiReturn, ScoopAbiValueShape,
+    ScoopAbiReturn, ScoopAbiValueShape,
 };
 
 use super::*;
@@ -15,8 +15,50 @@ pub(super) fn callable(
     foundation: &OdrFreeLirFoundation,
     meter: &mut BudgetMeter,
 ) -> Result<ExactCallableAbiExportV1, ExactCallableAbiError> {
+    let (signature, layouts) =
+        self::signature(target_profile, signature, protocol, layouts, meter)?;
+    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
+    meter.charge_work(foundation.callable_bodies().len() as u64, &WirePath::root())?;
+    if !foundation
+        .callable_bodies()
+        .iter()
+        .any(|record| record.id() == body)
+    {
+        return Err(ExactCallableAbiError::MissingCallableBody);
+    }
+    let physical = StrongShapeDefinitionRefV1::from_foundation(
+        ExternalStrongShapeSubjectV1::Callable(target),
+        foundation,
+        meter,
+    )?;
+    let definition = StrongShapeDefinitionV1::from_callable_definition(target, physical)?
+        .ok_or(ExactCallableAbiError::DefinitionSubject)?;
+    Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
+        target,
+        target_profile,
+        signature,
+        protocol,
+        layouts,
+        physical,
+        definition,
+    })))
+}
+
+pub(super) fn signature(
+    target_profile: LirTargetProfile,
+    signature: ExactCallableSignature,
+    protocol: ExactCallableProtocolV1,
+    layouts: CallableAbiLayoutInputsV1<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<
+    (
+        CanonicalScoopAbiFunctionSignature,
+        CallableAbiLayoutDependenciesV1,
+    ),
+    ExactCallableAbiError,
+> {
     let path = WirePath::root();
-    meter.charge_work(layouts.parameters.len() as u64, &path)?;
+    meter.charge_work(layouts.parameters.len() as u64 + 2, &path)?;
     if layouts.parameters.len() != signature.parameters().len() {
         return Err(ExactCallableAbiError::ParameterCount);
     }
@@ -44,15 +86,10 @@ pub(super) fn callable(
         .into_iter()
         .chain(parameters.iter().map(AsRef::as_ref))
     {
-        let storage = storage(value);
-        arguments.push(if storage.byte_size() == 0 {
-            ScoopAbiArgument::elided_zst(storage)
-        } else {
-            match passing(target_profile, storage.shape()) {
-                crate::ScoopAbiPassing::Direct => ScoopAbiArgument::direct(storage),
-                crate::ScoopAbiPassing::Indirect => ScoopAbiArgument::indirect(storage),
-            }
-        }?);
+        arguments.push(canonical_scoop_abi_argument(
+            target_profile,
+            storage(value),
+        )?);
     }
     let result_passing = if matches!(
         result.representation().kind(),
@@ -60,15 +97,7 @@ pub(super) fn callable(
     ) {
         ScoopAbiReturn::unit_void()
     } else {
-        let storage = storage(&result);
-        if storage.byte_size() == 0 {
-            ScoopAbiReturn::elided_zst(storage)?
-        } else {
-            match passing(target_profile, storage.shape()) {
-                crate::ScoopAbiPassing::Direct => ScoopAbiReturn::direct(storage)?,
-                crate::ScoopAbiPassing::Indirect => ScoopAbiReturn::indirect(storage)?,
-            }
-        }
+        canonical_scoop_abi_value_return(target_profile, storage(&result))?
     };
     let signature = CanonicalScoopAbiFunctionSignature::new(
         signature,
@@ -76,35 +105,14 @@ pub(super) fn callable(
         result_passing,
         protocol.gc_effect(),
     )?;
-    let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))?;
-    meter.charge_work(foundation.callable_bodies().len() as u64, &path)?;
-    if !foundation
-        .callable_bodies()
-        .iter()
-        .any(|record| record.id() == body)
-    {
-        return Err(ExactCallableAbiError::MissingCallableBody);
-    }
-    let physical = StrongShapeDefinitionRefV1::from_foundation(
-        ExternalStrongShapeSubjectV1::Callable(target),
-        foundation,
-        meter,
-    )?;
-    let definition = StrongShapeDefinitionV1::from_callable_definition(target, physical)?
-        .ok_or(ExactCallableAbiError::DefinitionSubject)?;
-    Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
-        target,
-        target_profile,
+    Ok((
         signature,
-        protocol,
-        layouts: CallableAbiLayoutDependenciesV1 {
+        CallableAbiLayoutDependenciesV1 {
             receiver,
             parameters,
             result,
         },
-        physical,
-        definition,
-    })))
+    ))
 }
 
 fn value(
@@ -145,15 +153,10 @@ fn storage(value: &ExactValueLayoutV1) -> CanonicalScoopStorage {
     )
 }
 
-fn passing(target: LirTargetProfile, shape: ScoopAbiValueShape) -> crate::ScoopAbiPassing {
-    target.classify_scoop_abi_value(match shape {
-        ScoopAbiValueShape::Scalar => crate::ScoopAbiValueShape::Scalar,
-        ScoopAbiValueShape::Aggregate => crate::ScoopAbiValueShape::Aggregate,
-    })
-}
-
 #[derive(Debug)]
 pub enum ExactCallableAbiError {
+    MissingValueLayout { exact: PersistentExactTypeId },
+    DuplicateValueLayout { exact: PersistentExactTypeId },
     ParameterCount,
     Receiver,
     CountOverflow,
