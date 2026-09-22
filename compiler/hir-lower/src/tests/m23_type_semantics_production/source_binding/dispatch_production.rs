@@ -11,7 +11,7 @@ const VIRTUAL: &str = include_str!(concat!(
 #[test]
 fn produced_dispatch_contracts_roundtrip_and_validate_against_source_choices() {
     for source in [VIRTUAL, INTERFACES] {
-        with_hir_source(source, |output, core| {
+        with_hir_source(source, |output, _| {
             let production =
                 produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
             let mut fixture = Fixture::from_output(output);
@@ -49,10 +49,8 @@ fn produced_dispatch_contracts_roundtrip_and_validate_against_source_choices() {
             }
             let foundation = fixture.bind().unwrap();
             let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-            let slots = dispatch
-                .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
-                .unwrap();
+
+            let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
             for (owner, record) in &restored {
                 slots
                     .validate_contract(*owner, record, &mut meter())
@@ -152,17 +150,15 @@ fn produced_dispatch_is_deterministic_and_obeys_resource_limits() {
 
 #[test]
 fn produced_contracts_reject_a_different_reachable_default_and_narrowed_domain() {
-    with_hir_source(INTERFACES, |output, core| {
+    with_hir_source(INTERFACES, |output, _| {
         let production =
             produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let slots = dispatch
-            .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
-            .unwrap();
+
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         let mut checked = 0;
         for nominal in production.section().inheritance().records() {
             for record in nominal.slots().records() {

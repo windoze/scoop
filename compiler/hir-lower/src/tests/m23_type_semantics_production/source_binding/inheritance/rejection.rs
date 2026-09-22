@@ -4,21 +4,20 @@ mod ownership;
 
 #[test]
 fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let core = inputs.protocols().fundamental_types();
+
         let dispatch = sources
             .properties
             .dispatch
             .bind(&foundation, &mut meter())
             .unwrap();
-        let slots = dispatch.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         let properties = sources.properties.bind(&foundation, &mut meter()).unwrap();
         let protected = properties
-            .bind_protected_callable_sources(&sources.callables, core, &mut meter())
+            .bind_protected_callable_sources(&sources.callables, &mut meter())
             .unwrap();
         let nominals = foundation
             .bind_nominal_sources(&sources.nominals, &mut meter())
@@ -66,18 +65,18 @@ fn inheritance_sources_require_equal_inventories_and_nominal_modalities() {
         changed.nominals =
             hir::CanonicalNominalSourceContractsV1::try_new(records, &mut meter()).unwrap();
         assert!(
-            matches!(changed.with_bound(&foundation, core, &mut meter(), |_, _| ()), Err(Error::Modality(actual)) if actual == owner)
+            matches!(changed.with_bound(&foundation, &mut meter(), |_, _| ()), Err(Error::Modality(actual)) if actual == owner)
         );
     });
 }
 
 #[test]
 fn inheritance_source_composition_shares_constructor_replay_budgets() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,
@@ -100,12 +99,7 @@ fn inheritance_source_composition_shares_constructor_replay_budgets() {
                 ..DecodeLimits::default()
             },
         ] {
-            let result = sources.with_bound(
-                &foundation,
-                inputs.protocols().fundamental_types(),
-                &mut BudgetMeter::new(limits),
-                |_, _| (),
-            );
+            let result = sources.with_bound(&foundation, &mut BudgetMeter::new(limits), |_, _| ());
             assert!(
                 matches!(result, Err(Error::Resource(_))),
                 "limits {limits:?}: {result:?}"

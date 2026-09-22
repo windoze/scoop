@@ -30,7 +30,7 @@ impl TypeDeclarationSourceAuthorityV1 {
             &e.dispatch_callables,
             meter,
         )?;
-        let slots = dispatch.bind_slot_sources(core, meter)?;
+        let slots = dispatch.bind_slot_sources(meter)?;
         let mut sources = parameters.bind_dispatch_sources(&slots, meter)?;
         let required = sources.required_protected_declarations()?;
         meter.charge_work(

@@ -65,7 +65,7 @@ impl Sources {
         core: &hir::ImportedCoreFundamentalTypeProtocol,
         meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritanceParameterProtocolsV1<'a>, Error> {
-        let protected = self.protected(foundation, core);
+        let protected = self.protected(foundation);
         let constructors = foundation
             .bind_inheritance_constructor_sources(
                 &self.properties.dispatch.inventory,
@@ -78,12 +78,11 @@ impl Sources {
     fn protected<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        core: &hir::ImportedCoreFundamentalTypeProtocol,
     ) -> hir::BoundInheritanceProtectedCallableSourcesV1<'a, 'f> {
         self.properties
             .bind(foundation, &mut meter())
             .unwrap()
-            .bind_protected_callable_sources(&self.callables, core, &mut meter())
+            .bind_protected_callable_sources(&self.callables, &mut meter())
             .unwrap()
     }
     fn replace(&mut self, record: Record) {

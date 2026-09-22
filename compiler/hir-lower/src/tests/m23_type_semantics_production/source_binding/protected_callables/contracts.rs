@@ -29,11 +29,11 @@ fn changed_signature(
 
 #[test]
 fn protected_origins_must_match_the_exact_typed_foundation_subject() {
-    with_source(DIRECT, |output, core| {
+    with_source(DIRECT, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         for record in sources.callables.records() {
             let old = record.declaration_access();
             let other = fixture
@@ -71,21 +71,19 @@ fn protected_origins_must_match_the_exact_typed_foundation_subject() {
                 }
                 _ => panic!("protected callable"),
             };
-            assert!(
-                matches!(forged.bind(&foundation, inputs.protocols().fundamental_types(),
-                &mut meter()), Err(Error::DefinitionOrigin(actual)) if actual == expected)
-            );
+            assert!(matches!(forged.bind(&foundation,
+                &mut meter()), Err(Error::DefinitionOrigin(actual)) if actual == expected));
         }
     });
 }
 
 #[test]
 fn protected_sources_cannot_truncate_nested_lexical_owners() {
-    with_source(DIRECT, |output, core| {
+    with_source(DIRECT, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         let mut checked = 0;
         for record in sources
             .callables
@@ -110,13 +108,7 @@ fn protected_sources_cannot_truncate_nested_lexical_owners() {
                 )
                 .unwrap(),
             );
-            let error = forged
-                .bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter(),
-                )
-                .unwrap_err();
+            let error = forged.bind(&foundation, &mut meter()).unwrap_err();
             match (record.declaration(), error) {
                 (CallableTemplateOrigin::Accessor(id), Error::AccessorAccess(actual)) => {
                     assert_eq!(id, actual)

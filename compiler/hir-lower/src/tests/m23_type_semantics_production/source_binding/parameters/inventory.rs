@@ -54,7 +54,7 @@ fn parameter_sources_cannot_mix_distinct_bound_foundations() {
         let other = fixture.bind().unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
-        let protected = sources.protected(&foundation, core);
+        let protected = sources.protected(&foundation);
         let constructors = other
             .bind_inheritance_constructor_sources(
                 &sources.properties.dispatch.inventory,
@@ -82,7 +82,7 @@ fn constructor_and_protected_source_inventories_must_agree() {
         let foundation = fixture.bind().unwrap();
         let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = inputs.protocols().fundamental_types();
-        let protected = sources.protected(&foundation, core);
+        let protected = sources.protected(&foundation);
         let mut records = sources.properties.dispatch.inventory.records().to_vec();
         let owner = records
             .iter_mut()

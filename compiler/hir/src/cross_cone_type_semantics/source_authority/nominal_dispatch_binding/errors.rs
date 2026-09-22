@@ -13,7 +13,7 @@ pub enum NominalDispatchBindingError {
         error: Box<InheritanceSlotContractSemanticError<TypeFoundationBindingError>>,
     },
     FoundationMismatch,
-    CoreUnit,
+    UnitType,
     Inventory {
         owner: PersistentExactTypeId,
         field: &'static str,
@@ -71,7 +71,7 @@ impl fmt::Display for NominalDispatchBindingError {
             Self::FoundationMismatch => {
                 f.write_str("dispatch and nominal sources require the same bound foundation")
             }
-            Self::CoreUnit => f.write_str("dispatch and nominal sources disagree on core Unit"),
+            Self::UnitType => f.write_str("dispatch sources require the language Unit exact type"),
             Self::ProtectedOwner => f.write_str("protected source has no unique nominal owner"),
             Self::Inventory { owner, field } => write!(
                 f,

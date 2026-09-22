@@ -52,7 +52,7 @@ fn dispatch_join_rejects_constructor_and_protected_inventory_omissions() {
                 hir::CanonicalSourceInheritanceInventoriesV1::try_new(records, &mut meter())
                     .unwrap();
             let bound = forged.bind(&foundation, &mut meter()).unwrap();
-            let slots = bound.bind_slot_sources(core, &mut meter()).unwrap();
+            let slots = bound.bind_slot_sources(&mut meter()).unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
                 assert!(matches!(parameters.bind_dispatch_sources(&slots, &mut meter()),
@@ -68,7 +68,7 @@ fn dispatch_join_rejects_another_binding_of_the_same_artifact() {
         let foundation = fixture.bind().unwrap();
         let another = fixture.bind().unwrap();
         let bound = dispatch.bind(&another, &mut meter()).unwrap();
-        let slots = bound.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = bound.bind_slot_sources(&mut meter()).unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
                 .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())

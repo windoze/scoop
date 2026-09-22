@@ -2,15 +2,13 @@ use super::*;
 
 #[test]
 fn another_applicable_base_implementation_cannot_replace_the_sealed_override_choice() {
-    with_hir_source(VIRTUAL, |output, core| {
+    with_hir_source(VIRTUAL, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let slots = dispatch
-            .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
-            .unwrap();
+
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         let mut checked = 0;
         for selection in sources.selections.records() {
             let record = candidate(&slots, *selection);
@@ -43,15 +41,13 @@ fn another_applicable_base_implementation_cannot_replace_the_sealed_override_cho
 
 #[test]
 fn matching_candidate_root_and_target_effects_cannot_override_source_contracts() {
-    with_hir_source(CALLABLES, |output, core| {
+    with_hir_source(CALLABLES, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
         let dispatch = sources.bind(&foundation, &mut meter()).unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-        let slots = dispatch
-            .bind_slot_sources(inputs.protocols().fundamental_types(), &mut meter())
-            .unwrap();
+
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         for selection in sources.selections.records() {
             let record = candidate(&slots, *selection);
             let rewrite = |signature: &hir::InheritanceCallableSignatureV1| {

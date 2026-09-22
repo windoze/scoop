@@ -2,11 +2,11 @@ use super::*;
 
 #[test]
 fn protected_parameters_and_generic_binders_must_match_source_keys() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         let record = sources
             .callables
             .records()
@@ -41,14 +41,7 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
                 hir::CanonicalSourceParameterShapesV1::try_new(parameters).unwrap(),
                 old.result().clone(),
             ));
-            let Error::Semantic(error) = forged
-                .bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter(),
-                )
-                .unwrap_err()
-            else {
+            let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
                 panic!("source signature mismatch")
             };
             assert!(matches!(
@@ -65,14 +58,7 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
             old.parameters().clone(),
             SignatureTypeKey::Binder { depth: 1, index: 0 },
         ));
-        let Error::Semantic(error) = forged
-            .bind(
-                &foundation,
-                inputs.protocols().fundamental_types(),
-                &mut meter(),
-            )
-            .unwrap_err()
-        else {
+        let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
             panic!("out-of-scope source binder")
         };
         assert!(matches!(
@@ -83,12 +69,12 @@ fn protected_parameters_and_generic_binders_must_match_source_keys() {
 }
 
 #[test]
-fn accessors_replay_property_value_types_and_the_imported_core_unit_role() {
-    with_source(DIRECT, |output, core| {
+fn accessors_replay_property_value_types_and_the_language_unit_identity() {
+    with_source(DIRECT, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         let mut checked = 0;
         for record in sources.callables.records() {
             let CallableTemplateOrigin::Accessor(id) = record.declaration() else {
@@ -98,7 +84,9 @@ fn accessors_replay_property_value_types_and_the_imported_core_unit_role() {
             let role = foundation.accessor_key(id).unwrap().role();
             let wrong_result = match role {
                 scoop_identity::AccessorRole::Getter => SignatureTypeKey::Nominal(
-                    inputs.protocols().fundamental_types().unit().persistent(),
+                    scoop_identity::CoreBuiltinNominal::Unit
+                        .identity_record()
+                        .id(),
                 ),
                 scoop_identity::AccessorRole::Setter => {
                     old.parameters().parameters()[0].value_type().clone()
@@ -112,14 +100,7 @@ fn accessors_replay_property_value_types_and_the_imported_core_unit_role() {
                 old.parameters().clone(),
                 wrong_result,
             ));
-            let Error::Semantic(error) = forged
-                .bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter(),
-                )
-                .unwrap_err()
-            else {
+            let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err() else {
                 panic!("wrong accessor result")
             };
             assert!(matches!(
@@ -142,13 +123,7 @@ fn accessors_replay_property_value_types_and_the_imported_core_unit_role() {
                     parameters,
                     old.result().clone(),
                 ));
-                let Error::Semantic(error) = forged
-                    .bind(
-                        &foundation,
-                        inputs.protocols().fundamental_types(),
-                        &mut meter(),
-                    )
-                    .unwrap_err()
+                let Error::Semantic(error) = forged.bind(&foundation, &mut meter()).unwrap_err()
                 else {
                     panic!("wrong setter parameter")
                 };

@@ -2,10 +2,10 @@ use super::*;
 
 #[test]
 fn callable_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
-    with_source(DIRECT, |output, core| {
+    with_source(DIRECT, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         for generic in [false, true] {
             let mut canonical = fixture.foundation.as_canonical().clone();
             if generic {
@@ -21,13 +21,7 @@ fn callable_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
             assert!(matches!(
                 (
                     generic,
-                    sources
-                        .bind(
-                            &foundation,
-                            inputs.protocols().fundamental_types(),
-                            &mut meter()
-                        )
-                        .unwrap_err()
+                    sources.bind(&foundation, &mut meter()).unwrap_err()
                 ),
                 (
                     true,
@@ -43,11 +37,11 @@ fn callable_keys_must_be_owned_even_when_the_shared_graph_resolves_them() {
 
 #[test]
 fn protected_callable_inventory_rejects_missing_and_extra_real_declarations() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         let unused = output
             .output()
             .export
@@ -98,11 +92,7 @@ fn protected_callable_inventory_rejects_missing_and_extra_real_declarations() {
             }
             forged.callables = Table::try_new(records, &mut meter()).unwrap();
             assert!(matches!(
-                forged.bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter()
-                ),
+                forged.bind(&foundation, &mut meter()),
                 Err(Error::Inventory)
             ));
         }
@@ -125,11 +115,11 @@ fn replace_members(
 
 #[test]
 fn protected_methods_cannot_move_or_repeat_between_inventory_owners() {
-    with_source(DIRECT, |output, core| {
+    with_source(DIRECT, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         let inventory = &sources.properties.dispatch.inventory;
         let (index, declaration) = inventory.records().iter().enumerate().find_map(|(index, owner)| {
             owner.protected_members().values().iter().find(|member| matches!(member,
@@ -159,10 +149,11 @@ fn protected_methods_cannot_move_or_repeat_between_inventory_owners() {
             forged.properties.dispatch.inventory =
                 hir::CanonicalSourceInheritanceInventoriesV1::try_new(owners, &mut meter())
                     .unwrap();
-            assert!(matches!((duplicate, forged.bind(&foundation,
-                inputs.protocols().fundamental_types(), &mut meter()).unwrap_err()),
+            assert!(
+                matches!((duplicate, forged.bind(&foundation, &mut meter()).unwrap_err()),
                 (false, Error::Owner(actual)) | (true, Error::RepeatedOwner(actual))
-                    if actual == callable.declaration()));
+                    if actual == callable.declaration())
+            );
         }
     });
 }

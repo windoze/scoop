@@ -13,58 +13,53 @@ const NESTED: &str = include_str!(concat!(
 #[test]
 fn nested_inheritance_closure_replays_all_bound_sources_after_byte_restoration() {
     for input in [ROOTS, NESTED] {
-        with_source(input, |output, core| {
+        with_source(input, |output, _| {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
             sources
-                .with_bound(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter(),
-                    |bound, graph| {
-                        let entries = fixture.source.entries();
-                        assert_eq!(
-                            bound.required_inheritance_owners().unwrap().values(),
-                            entries
-                                .local_inheritance_edges
-                                .records()
-                                .iter()
-                                .map(|edge| edge.owner())
-                                .collect::<Vec<_>>()
-                        );
-                        for record in sources.constructors.records() {
-                            record.validate_source(graph, bound, &mut meter()).unwrap();
+                .with_bound(&foundation, &mut meter(), |bound, graph| {
+                    let entries = fixture.source.entries();
+                    assert_eq!(
+                        bound.required_inheritance_owners().unwrap().values(),
+                        entries
+                            .local_inheritance_edges
+                            .records()
+                            .iter()
+                            .map(|edge| edge.owner())
+                            .collect::<Vec<_>>()
+                    );
+                    for record in sources.constructors.records() {
+                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                    }
+                    for record in sources.callables.records() {
+                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                    }
+                    for nominal in sources.nominals.records() {
+                        if let hir::SourceNominalId::Concrete(owner) = nominal.owner() {
+                            let exact =
+                                PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
+                                    .unwrap();
+                            assert!(
+                                output
+                                    .output()
+                                    .local
+                                    .module()
+                                    .exact_type_identities
+                                    .type_for_identity(exact)
+                                    .is_some()
+                            );
+                            assert!(
+                                bound
+                                    .required_inheritance_owners()
+                                    .unwrap()
+                                    .values()
+                                    .contains(&exact)
+                            );
                         }
-                        for record in sources.callables.records() {
-                            record.validate_source(graph, bound, &mut meter()).unwrap();
-                        }
-                        for nominal in sources.nominals.records() {
-                            if let hir::SourceNominalId::Concrete(owner) = nominal.owner() {
-                                let exact =
-                                    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
-                                        .unwrap();
-                                assert!(
-                                    output
-                                        .output()
-                                        .local
-                                        .module()
-                                        .exact_type_identities
-                                        .type_for_identity(exact)
-                                        .is_some()
-                                );
-                                assert!(
-                                    bound
-                                        .required_inheritance_owners()
-                                        .unwrap()
-                                        .values()
-                                        .contains(&exact)
-                                );
-                            }
-                        }
-                    },
-                )
+                    }
+                })
                 .unwrap();
             if input == NESTED {
                 assert_eq!(

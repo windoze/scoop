@@ -1,4 +1,4 @@
-//! Source slot replay using one artifact's dispatch and imported core roles.
+//! Source slot replay using one artifact's dispatch and the language Unit identity.
 
 use crate::*;
 use scoop_identity::{ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey};
@@ -20,14 +20,15 @@ pub struct BoundInheritanceSlotSourcesV1<'s, 'a, 'f> {
 impl<'a, 'f> BoundInheritanceDispatchSourcesV1<'a, 'f> {
     pub fn bind_slot_sources<'s>(
         &'s self,
-        core: &ImportedCoreFundamentalTypeProtocol,
         meter: &mut BudgetMeter,
     ) -> Result<BoundInheritanceSlotSourcesV1<'s, 'a, 'f>, Error> {
         let path = WirePath::root();
         meter.check_semantic_depth(1, &path)?;
         meter.charge_nodes(1, &path)?;
         meter.charge_work(2, &path)?;
-        let nominal = core.unit().persistent();
+        let nominal = scoop_identity::CoreBuiltinNominal::Unit
+            .identity_record()
+            .id();
         let expected = ExactTypeKey::Nominal(nominal);
         meter.charge_sha256(
             scoop_wire::encoded_length(&expected)

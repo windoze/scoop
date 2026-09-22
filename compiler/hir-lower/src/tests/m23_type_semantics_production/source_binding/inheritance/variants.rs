@@ -84,57 +84,52 @@ fn candidate(
 
 #[test]
 fn inheritance_sources_replay_real_generic_and_concrete_enum_constructors() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         sources
-            .with_bound(
-                &foundation,
-                inputs.protocols().fundamental_types(),
-                &mut meter(),
-                |bound, graph| {
-                    let mut count = 0;
-                    for source in sources.nominals.records() {
-                        let hir::NominalSourceShapeV1::Enum(shape) = source.source_shape() else {
-                            continue;
-                        };
-                        for variant in shape.variants() {
-                            let record = candidate(bound, source, variant);
-                            record.validate_source(graph, bound, &mut meter()).unwrap();
-                            count += 1;
-                            let other = shape
-                                .variants()
-                                .iter()
-                                .find(|other| other.variant() != variant.variant())
-                                .unwrap();
-                            let access = hir::DeclarationAccessSourceV1::try_new(
-                                hir::DeclaredVisibilityV1::Public,
-                                record.declaration_access().lexical_owners().to_vec(),
-                                bound
-                                    .source_enum_variant_origin(other.variant())
-                                    .unwrap()
-                                    .clone(),
-                            )
+            .with_bound(&foundation, &mut meter(), |bound, graph| {
+                let mut count = 0;
+                for source in sources.nominals.records() {
+                    let hir::NominalSourceShapeV1::Enum(shape) = source.source_shape() else {
+                        continue;
+                    };
+                    for variant in shape.variants() {
+                        let record = candidate(bound, source, variant);
+                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        count += 1;
+                        let other = shape
+                            .variants()
+                            .iter()
+                            .find(|other| other.variant() != variant.variant())
                             .unwrap();
-                            let wrong_origin = hir::NominalSupportCallableInterfaceV1::try_new(
-                                record.declaration(),
-                                access,
-                                record.payload().clone(),
-                            )
-                            .unwrap();
-                            assert!(matches!(
-                                wrong_origin.validate_source(graph, bound, &mut meter()),
-                                Err(hir::NominalSupportCallableSemanticError::Variant(
-                                    hir::NominalSupportVariantError::Access
-                                ))
-                            ));
-                        }
+                        let access = hir::DeclarationAccessSourceV1::try_new(
+                            hir::DeclaredVisibilityV1::Public,
+                            record.declaration_access().lexical_owners().to_vec(),
+                            bound
+                                .source_enum_variant_origin(other.variant())
+                                .unwrap()
+                                .clone(),
+                        )
+                        .unwrap();
+                        let wrong_origin = hir::NominalSupportCallableInterfaceV1::try_new(
+                            record.declaration(),
+                            access,
+                            record.payload().clone(),
+                        )
+                        .unwrap();
+                        assert!(matches!(
+                            wrong_origin.validate_source(graph, bound, &mut meter()),
+                            Err(hir::NominalSupportCallableSemanticError::Variant(
+                                hir::NominalSupportVariantError::Access
+                            ))
+                        ));
                     }
-                    assert_eq!(count, 8);
-                },
-            )
+                }
+                assert_eq!(count, 8);
+            })
             .unwrap();
     });
 }

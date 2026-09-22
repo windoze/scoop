@@ -5,7 +5,7 @@ fn dispatch_join_enforces_shared_resource_limits() {
     with_sources(SOURCE, |fixture, sources, dispatch, core| {
         let foundation = fixture.bind().unwrap();
         let bound = dispatch.bind(&foundation, &mut meter()).unwrap();
-        let slots = bound.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = bound.bind_slot_sources(&mut meter()).unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
                 .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())

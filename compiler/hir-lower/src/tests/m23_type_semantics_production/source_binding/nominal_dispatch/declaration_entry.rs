@@ -35,7 +35,7 @@ fn with_entry(
         let core = core.foundation.import_core_inputs(&core.interface).unwrap();
         let core = core.protocols().fundamental_types();
         let dispatch = dispatch.bind(&foundation, &mut meter()).unwrap();
-        let slots = dispatch.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         sources.with_bound(&foundation, core, |members, constructors| {
             let parameters = members
                 .bind_parameter_protocols(constructors, &sources.protocols, &mut meter())

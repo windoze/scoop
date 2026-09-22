@@ -7,7 +7,7 @@ fn dispatch_join_rejects_individually_bound_but_conflicting_effects_and_results(
     with_sources(SOURCE, |fixture, sources, dispatch, core| {
         let foundation = fixture.bind().unwrap();
         let bound = dispatch.bind(&foundation, &mut meter()).unwrap();
-        let slots = bound.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = bound.bind_slot_sources(&mut meter()).unwrap();
         let unit = slots.unit_exact_type().unwrap();
         let index = dispatch
             .callables
@@ -77,7 +77,7 @@ fn dispatch_join_rejects_individually_bound_but_conflicting_effects_and_results(
             forged.callables =
                 hir::CanonicalInheritanceSourceCallablesV1::try_new(records, &mut meter()).unwrap();
             let bound = forged.bind(&foundation, &mut meter()).unwrap();
-            let slots = bound.bind_slot_sources(core, &mut meter()).unwrap();
+            let slots = bound.bind_slot_sources(&mut meter()).unwrap();
             sources.with_bound(&foundation, core, |members, constructors| {
                 let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
                 let error = parameters.bind_dispatch_sources(&slots, &mut meter()).unwrap_err();

@@ -2,6 +2,8 @@
 
 2026-09-22 当前 nominal intrinsic 约定：共有 source shape 以新增 tag 6 保存完整 `NominalIntrinsicRepresentationV1`，public、source contract、nested support 与独立 representation 使用相同 family、声明 kind 和 binder 合同；不再将 intrinsic 退化为空 struct 或普通 class。`hir/cross-cone-interface` 升级为 `/3`，旧 major 拒绝并重建产物。公开常量与 vararg reader 沿自身完整 typed 类型引用查询实际 provider，核对 intrinsic kind 及元素类型关系，删除这些消费者的 trusted-core 查询；不以同名、同布局或全局候选扫描替换类型 id。最小 native source witness 保持既有 wire，完整规则见实现规范 2.11。
 
+2026-09-22 当前 Unit binding 约定：protected callable 与 dispatch slot 使用语言内建 Unit identity，删除仅为取 Unit 而传入的 imported core 协议；setter result、slot signature 和完整 exact key 的一致性检查保持。其他 intrinsic/source nominal 仍必须查询实际声明与 provider，不能套用 Unit 例外，见实现规范 2.11。
+
 2026-09-22 当前整数正规化约定：源码intrinsic调用完成共有成员候选及参数/effect检查后，HIR只保留封闭typed operation、conversion和操作数；导入声明不物化成本地函数，后续IR和default body不保留冗余callee。整数default wire删除该字段，旧格式要求重建；exact identity、witness及extern/callback bytes保持。导入成员复用共有源码调用探测与winner commit，完整规则见实现规范2.10。
 
 2026-09-22 当前intrinsic声明约定：共有CallableSourceEffectsV1直接保存Intrinsic(IntrinsicFunctionKind)，不以标志或core专用operation表补全kind，不携带provider授权或annotation字符串。closed-sum wire的field 0为实现tag，仅Intrinsic具有field 1=完整typed kind；旧unsigned leaf要求重建artifact/cache。整数kind的GC effect与Ordinary execution由builder和reader共同验证。常量及静态initializer从共有callable目录取得整数语义；method/infix同时按typed声明id读取canonical源码名称、source参数名和infix属性，解析结果不依赖本地FunctionId。删除ImportedCoreProtocols中的重复compiler-operation载体；源码名称只用于匹配，不用于反推kind，非const实例成员仍须接入普通跨Cone调用选择。完整规则见实现规范2.10。

@@ -20,7 +20,7 @@ fn restored_protocol_authority_replays_candidates_and_rejects_calling_and_origin
                 &mut meter(),
             )
             .unwrap();
-            let mut protected = sources.protected(&foundation, core);
+            let mut protected = sources.protected(&foundation);
             let mut authority = sources.bind(&foundation, core, &mut meter()).unwrap();
             let mut checked_count = 0;
             for record in sources.protocols.records().iter().filter(|r| {

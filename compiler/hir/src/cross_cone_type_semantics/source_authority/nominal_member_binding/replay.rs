@@ -29,7 +29,9 @@ impl ProtectedCallableSemanticAuthority<Error> for BoundNominalMemberSourcesV1<'
         }
     }
     fn unit_type(&self) -> Result<PersistentTypeId, Error> {
-        Ok(self.core.unit().persistent())
+        Ok(scoop_identity::CoreBuiltinNominal::Unit
+            .identity_record()
+            .id())
     }
 }
 impl ProtectedPropertySemanticAuthority<Error> for BoundNominalMemberSourcesV1<'_, '_, '_> {

@@ -28,14 +28,12 @@ pub struct BoundInheritanceProtectedCallableSourcesV1<'a, 'f> {
     properties: &'a CanonicalInheritanceSourcePropertiesV1,
     callables: &'a CanonicalInheritanceSourceProtectedCallablesV1,
     keys: BTreeMap<CallableTemplateOrigin, &'f SourceDeclarationKey>,
-    unit: PersistentTypeId,
 }
 
 impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
     pub fn bind_protected_callable_sources(
         &self,
         callables: &'a CanonicalInheritanceSourceProtectedCallablesV1,
-        core: &ImportedCoreFundamentalTypeProtocol,
         meter: &mut BudgetMeter,
     ) -> Result<
         BoundInheritanceProtectedCallableSourcesV1<'a, 'f>,
@@ -46,14 +44,12 @@ impl<'a, 'f> BoundInheritancePropertySourcesV1<'a, 'f> {
         meter.charge_nodes(1, &WirePath::root())?;
         inventory::validate(self, callables, meter)?;
         let keys = keys::bind(self, callables, meter)?;
-        let unit = core.unit().persistent();
         let mut bound = BoundInheritanceProtectedCallableSourcesV1 {
             foundation: self.foundation,
             inventory: self.inventory,
             properties: self.properties,
             callables,
             keys,
-            unit,
         };
         let entries = self.foundation.source().entries();
         let graph = CheckedNominalInheritanceGraphV1::validate_with_source_roots(

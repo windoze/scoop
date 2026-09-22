@@ -25,95 +25,88 @@ const COMBINED: &str = include_str!(concat!(
 #[test]
 fn restored_inheritance_sources_replay_constructors_and_all_query_roles() {
     for input in [SOURCE, COMBINED] {
-        with_source(input, |output, core| {
+        with_source(input, |output, _| {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
             sources
-                .with_bound(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut meter(),
-                    |bound, graph| {
-                        assert_eq!(bound.provider(), fixture.source.entries().provider);
-                        let inventory = &sources.properties.dispatch.inventory;
+                .with_bound(&foundation, &mut meter(), |bound, graph| {
+                    assert_eq!(bound.provider(), fixture.source.entries().provider);
+                    let inventory = &sources.properties.dispatch.inventory;
+                    assert_eq!(
+                        bound.required_inheritance_owners().unwrap(),
+                        inventory.owners()
+                    );
+                    for row in inventory.records() {
                         assert_eq!(
-                            bound.required_inheritance_owners().unwrap(),
-                            inventory.owners()
-                        );
-                        for row in inventory.records() {
-                            assert_eq!(
-                                bound
-                                    .required_inheritance_constructors(row.owner())
-                                    .unwrap(),
-                                row.constructors()
-                            );
-                            assert_eq!(
-                                bound
-                                    .required_inheritance_protected_members(row.owner())
-                                    .unwrap(),
-                                row.protected_members()
-                            );
-                            assert_eq!(bound.schemas(row.owner()).unwrap(), row.slot_schemas());
-                        }
-                        for record in sources.constructors.records() {
-                            assert_eq!(
-                                bound.constructor_source(record.declaration()).unwrap(),
-                                record
-                            );
-                            let key = bound
-                                .callable_source_key(CallableTemplateOrigin::Constructor(
-                                    record.declaration(),
-                                ))
-                                .unwrap();
-                            assert_eq!(
-                                scoop_identity::PersistentConstructorId::from_source_declaration(
-                                    key
-                                )
+                            bound
+                                .required_inheritance_constructors(row.owner())
                                 .unwrap(),
-                                record.declaration()
+                            row.constructors()
+                        );
+                        assert_eq!(
+                            bound
+                                .required_inheritance_protected_members(row.owner())
+                                .unwrap(),
+                            row.protected_members()
+                        );
+                        assert_eq!(bound.schemas(row.owner()).unwrap(), row.slot_schemas());
+                    }
+                    for record in sources.constructors.records() {
+                        assert_eq!(
+                            bound.constructor_source(record.declaration()).unwrap(),
+                            record
+                        );
+                        let key = bound
+                            .callable_source_key(CallableTemplateOrigin::Constructor(
+                                record.declaration(),
+                            ))
+                            .unwrap();
+                        assert_eq!(
+                            scoop_identity::PersistentConstructorId::from_source_declaration(key)
+                                .unwrap(),
+                            record.declaration()
+                        );
+                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                    }
+                    for record in sources.callables.records() {
+                        record.validate_source(graph, bound, &mut meter()).unwrap();
+                        if let CallableTemplateOrigin::Accessor(id) = record.declaration() {
+                            assert_eq!(
+                                bound.property_accessor_key(id).unwrap(),
+                                foundation.accessor_key(id).unwrap()
                             );
-                            record.validate_source(graph, bound, &mut meter()).unwrap();
                         }
-                        for record in sources.callables.records() {
-                            record.validate_source(graph, bound, &mut meter()).unwrap();
-                            if let CallableTemplateOrigin::Accessor(id) = record.declaration() {
+                    }
+                    for source in sources.nominals.records() {
+                        assert_eq!(
+                            bound.source_nominal_modality(source.owner()).unwrap(),
+                            source.modality()
+                        );
+                    }
+                    let dispatch = sources
+                        .properties
+                        .dispatch
+                        .bind(&foundation, &mut meter())
+                        .unwrap();
+                    for row in inventory.records() {
+                        for schema in row.slot_schemas().records() {
+                            for slot in schema.slots() {
                                 assert_eq!(
-                                    bound.property_accessor_key(id).unwrap(),
-                                    foundation.accessor_key(id).unwrap()
+                                    bound
+                                        .inheritance_slot_selection(row.owner(), *slot)
+                                        .unwrap(),
+                                    dispatch.selection(row.owner(), *slot).unwrap()
+                                );
+                                assert_eq!(
+                                    bound.dispatch_slot_key(*slot).unwrap(),
+                                    dispatch.dispatch_slot_key(*slot).unwrap()
                                 );
                             }
                         }
-                        for source in sources.nominals.records() {
-                            assert_eq!(
-                                bound.source_nominal_modality(source.owner()).unwrap(),
-                                source.modality()
-                            );
-                        }
-                        let dispatch = sources
-                            .properties
-                            .dispatch
-                            .bind(&foundation, &mut meter())
-                            .unwrap();
-                        for row in inventory.records() {
-                            for schema in row.slot_schemas().records() {
-                                for slot in schema.slots() {
-                                    assert_eq!(
-                                        bound
-                                            .inheritance_slot_selection(row.owner(), *slot)
-                                            .unwrap(),
-                                        dispatch.selection(row.owner(), *slot).unwrap()
-                                    );
-                                    assert_eq!(
-                                        bound.dispatch_slot_key(*slot).unwrap(),
-                                        dispatch.dispatch_slot_key(*slot).unwrap()
-                                    );
-                                }
-                            }
-                        }
-                    },
-                )
+                    }
+                })
                 .unwrap();
         });
     }

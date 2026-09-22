@@ -51,7 +51,6 @@ impl Sources {
     pub fn with_bound<R>(
         &self,
         foundation: &hir::BoundTypeFoundationSourcesV1<'_>,
-        core: &hir::ImportedCoreFundamentalTypeProtocol,
         budget: &mut BudgetMeter,
         run: impl FnOnce(
             &mut hir::BoundInheritanceSourcesV1<'_, '_, '_>,
@@ -63,10 +62,10 @@ impl Sources {
             .dispatch
             .bind(foundation, &mut meter())
             .unwrap();
-        let slots = dispatch.bind_slot_sources(core, &mut meter()).unwrap();
+        let slots = dispatch.bind_slot_sources(&mut meter()).unwrap();
         let properties = self.properties.bind(foundation, &mut meter()).unwrap();
         let protected = properties
-            .bind_protected_callable_sources(&self.callables, core, &mut meter())
+            .bind_protected_callable_sources(&self.callables, &mut meter())
             .unwrap();
         let constructors = foundation
             .bind_inheritance_constructor_sources(

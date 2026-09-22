@@ -34,7 +34,9 @@ impl ProtectedCallableSemanticAuthority<Error>
         }
     }
     fn unit_type(&self) -> Result<PersistentTypeId, Error> {
-        Ok(self.unit)
+        Ok(scoop_identity::CoreBuiltinNominal::Unit
+            .identity_record()
+            .id())
     }
 }
 

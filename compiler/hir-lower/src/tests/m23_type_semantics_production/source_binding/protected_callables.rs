@@ -42,13 +42,12 @@ impl Sources {
     fn bind<'a, 'f>(
         &'a self,
         foundation: &'a hir::BoundTypeFoundationSourcesV1<'f>,
-        core: &hir::ImportedCoreFundamentalTypeProtocol,
         meter: &mut BudgetMeter,
     ) -> Result<hir::BoundInheritanceProtectedCallableSourcesV1<'a, 'f>, Error> {
         self.properties
             .bind(foundation, &mut super::meter())
             .unwrap()
-            .bind_protected_callable_sources(&self.callables, core, meter)
+            .bind_protected_callable_sources(&self.callables, meter)
     }
     fn replace(&mut self, record: Record) {
         let declaration = record.declaration();
@@ -64,18 +63,19 @@ impl Sources {
 #[test]
 fn restored_protected_sources_bind_methods_generics_accessors_and_overrides() {
     for source in [SOURCE, DIRECT] {
-        with_source(source, |output, core| {
+        with_source(source, |output, _| {
             let mut fixture = Fixture::from_output(output);
             let sources = Sources::from_output(output, &mut fixture);
             let foundation = fixture.bind().unwrap();
-            let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-            let protocol = inputs.protocols().fundamental_types();
-            let bound = sources.bind(&foundation, protocol, &mut meter()).unwrap();
+
+            let bound = sources.bind(&foundation, &mut meter()).unwrap();
             assert_eq!(bound.provider(), fixture.source.entries().provider);
             assert_eq!(bound.table(), &sources.callables);
             assert_eq!(
                 hir::ProtectedCallableSemanticAuthority::unit_type(&bound).unwrap(),
-                protocol.unit().persistent()
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id()
             );
             for record in sources.callables.records() {
                 assert_eq!(bound.callable_source(record.declaration()).unwrap(), record);
@@ -110,11 +110,11 @@ fn restored_protected_sources_bind_methods_generics_accessors_and_overrides() {
 
 #[test]
 fn protected_binding_uses_shared_resource_limits_before_publication() {
-    with_source(SOURCE, |output, core| {
+    with_source(SOURCE, |output, _| {
         let mut fixture = Fixture::from_output(output);
         let sources = Sources::from_output(output, &mut fixture);
         let foundation = fixture.bind().unwrap();
-        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+
         for limits in [
             DecodeLimits {
                 validation_work_units: 0,
@@ -138,11 +138,7 @@ fn protected_binding_uses_shared_resource_limits_before_publication() {
             },
         ] {
             assert!(matches!(
-                sources.bind(
-                    &foundation,
-                    inputs.protocols().fundamental_types(),
-                    &mut BudgetMeter::new(limits)
-                ),
+                sources.bind(&foundation, &mut BudgetMeter::new(limits)),
                 Err(Error::Resource(_))
             ));
         }

@@ -54,9 +54,13 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
         if foundation
             .exact_type_key(unit)
             .map_err(NominalNestedBindingError::from)?
-            != &ExactTypeKey::Nominal(self.members().core.unit().persistent())
+            != &ExactTypeKey::Nominal(
+                scoop_identity::CoreBuiltinNominal::Unit
+                    .identity_record()
+                    .id(),
+            )
         {
-            return Err(Error::CoreUnit);
+            return Err(Error::UnitType);
         }
         let required = super::protected_declaration_binding::required_declarations(self, meter)?;
         let bound = BoundNominalDispatchSourcesV1 {
