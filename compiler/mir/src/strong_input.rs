@@ -25,7 +25,7 @@ pub use initialization::{
 mod external;
 mod shape_support;
 pub(crate) use external::validate_external_callables;
-pub use shape_support::StrongSourceShapeSupportRoot;
+pub use shape_support::{StrongBoxedShapeSupportRoot, StrongSourceShapeSupportRoot};
 
 /// One local function selected as a mandatory strong materialization root.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

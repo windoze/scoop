@@ -7,6 +7,7 @@ use super::*;
 use scoop_identity::{ConeIdentity, SourceDeclarationKey};
 
 mod model;
+mod production;
 mod table;
 mod validation;
 mod wire;

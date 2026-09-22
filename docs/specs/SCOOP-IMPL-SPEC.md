@@ -273,6 +273,8 @@ enum 的 variant 与 payload field 在 LocalConcrete HIR 和 MIR 实体中必须
 
 M23-6 的有限形状类型导出直接消费 sealed strong MIR 的 source shape-support 计划与实际 generated materialization。计划条目同时保存源码声明与已验证的 nominal/exact/物理类型 root，后续阶段不得重新按声明哈希查找物化目标：每个计划内的源码 exact root 输出对应 `BoxedValue`（仅值类型）、`CoroutineStep` 和 `CoroutineSlot` 的完整 MIR type record。生成角色与 exact identity 取物化关系，box payload 取既有 typed box identity 与实际字段类型，enum variant/field 取实际定义中的持久身份；GC facts、接口集合与字段顺序来自同一 MIR。结果经过共有 type bridge identity/representation 校验并按 exact id 规范排序；未被该计划要求的执行环境和辅助形状不混入有限支持导出。遍历、排序、分配和复制共同计入调用方预算，失败不返回部分表。此入口生产完整类型桥接中的有限支持组成表，不单独授予 artifact 或导入能力。
 
+strong MIR 的每个 source shape-support 条目还必须绑定已验证的有限 helper 物化 root：值类型保存必备 box，引用类型显式标记无需 box，所有条目都保存必备 step 与 slot；每个 helper root 保留实际 typed location、nominal 与 exact identity。sealer 在确认源码需求与物化关系时一次解析这些绑定，类型导出及语义支持关系生产直接消费该完整计划，不再分别搜索全部 generated 类型或重新派生 helper 身份。MIR shape-support 表由该计划与同次统一类型表生产，使用共有 source/role/GC/provider 验证，缺少源码类型或任一 helper 类型时拒绝，不回退生成局部定义。
+
 M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR type-semantics 与实际 MIR。源码 nominal/exact 对应关系取 MIR 已保存的 source exact registry；表示取实际 struct/enum/class 定义，class 声明字段的持久身份取 HIR 已解析表示，并跳过 MIR 的基类字段前缀。直接继承边及目标无关 ZST/GC facts 复用 HIR 结果，实际字段类型仍经 MIR exact registry 投影。object 同时产出源码类型与 HIR 所有的 backing 类型，两者引用同一实际 class 表示。所有 HIR 表示必须恰有实际 MIR 目标，缺项或形状不匹配返回错误；不按名称补身份、不为缺失类型构造占位表示。源码表与有限辅助类型表可移动合并到同一 canonical 类型表，保持共有预算与重复 exact 拒绝。泛型继承等 ODR 闭包继续在 HIR 候选阶段拒绝，core 使用相同条件。
 
 ### 2.4 LIR

@@ -107,3 +107,11 @@ mir-lower 从同次 HIR type-semantics 与 sealed strong MIR 生产普通 source
 独立及组合源码 fixture 覆盖空 struct、嵌套 ZST、CLayout、多字段 enum、String、class 继承、interface 与 object；逐项核对源码字段/variant 身份和 exact 类型，两份 golden 锁定表示，完整类型表经过编码和回读。前置无关 private 声明不改变字节，错误来源对应关系、缺失 identity、零复制预算及累计 work 耗尽均拒绝。真实 core 的范围类型所需 generic interface 继续按 M23-7 ODR 条件拒绝，未放宽门禁。新增实现与测试模块均少于 200 行。
 
 本批完成 MIR 类型组成表的实际生产；callable、dispatch、object-value、shape-support 关系表及 LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍需继续接通，整个 M23-6 尚未完成。全部构建与测试进程退出后执行 cargo clean，移除 30,729 个文件、30.5 GiB，target 已清理。
+
+2026-09-22：MIR 有限支持关系生产批次通过 workspace fmt、clippy（含 all-targets）、2 项新增真实源码测试、3 项既有真实 core 有限类型测试及全部 5,659 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+strong source shape-support 计划现在同时绑定源码 root 与完整 box/step/slot helper root，保存实际 typed location、nominal 和 exact identity；引用类型显式表示无需 box。sealer 在验证实际物化时完成绑定，有限类型导出不再搜索全部 generated 类型。CanonicalMirShapeSupportsV1 新增 from_strong_input，直接从同一计划与统一类型表产出共有支持关系，继续复用 source、role、GC、provider 与 canonical wire 验证，没有新增来源授权结构。
+
+独立 ZST fixture 与包含 String、struct/enum、class/interface/object、私有 box 的组合 fixture 均核对实际 MIR 位置与身份、完整 root 覆盖及 wire 回读；两份 golden 和前置无关 private 声明后的字节稳定性通过。缺失 source/box/step/slot 任一类型、缺失 identity、零复制预算与累计 work 耗尽均拒绝，空需求表有效。原有有限类型 golden 与编码保持不变。计划模块 136 行、类型导出 100 行、支持关系生产 46 行，新增测试模块 130/126 行。
+
+callable、dispatch 与 object-value 组成表的实际生产、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍待接通，整个 M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 24,831 个文件、24.8 GiB，target 已清理。

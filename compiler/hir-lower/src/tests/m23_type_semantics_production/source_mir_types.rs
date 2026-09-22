@@ -5,6 +5,7 @@ use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
 mod identities;
+mod shape_support;
 
 fn decoded<T: WireDecode>(value: &impl WireEncode) -> T {
     decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
