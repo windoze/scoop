@@ -78,7 +78,12 @@ fn produce(
     let parameters =
         CanonicalNominalSourceParameterProtocolsV1::from_export_hir(output, &required, meter)
             .map_err(Error::Sources)?;
-    let owners = local_owners(output.module(), &parameters, meter)?;
+    let owners = local_owners(
+        output.module(),
+        parameters.records().len(),
+        |owner| parameters.get(owner).is_some(),
+        meter,
+    )?;
     let mut records = Vec::new();
     for protocol in parameters.records() {
         meter.charge_work(1, &path).map_err(Error::Resource)?;
@@ -119,9 +124,10 @@ fn produce(
     })
 }
 
-fn local_owners(
+pub(super) fn local_owners(
     export: &ExportHir,
-    parameters: &CanonicalNominalSourceParameterProtocolsV1,
+    count: usize,
+    contains: impl Fn(CallableTemplateOrigin) -> bool,
     meter: &mut BudgetMeter,
 ) -> Result<HashMap<CallableTemplateOrigin, ExportParameterOwner>, Error> {
     let path = WirePath::root();
@@ -130,7 +136,7 @@ fn local_owners(
         .map_err(Error::Resource)?;
     meter
         .charge_owned_bytes(
-            (parameters.records().len() as u64)
+            (count as u64)
                 .saturating_mul(
                     std::mem::size_of::<(CallableTemplateOrigin, ExportParameterOwner)>() as u64,
                 ),
@@ -139,9 +145,9 @@ fn local_owners(
         .map_err(Error::Resource)?;
     let mut owners = HashMap::new();
     meter
-        .try_reserve_map_slots(&mut owners, parameters.records().len(), &path)
+        .try_reserve_map_slots(&mut owners, count, &path)
         .map_err(Error::Resource)?;
-    let probes = u64::from(parameters.records().len().max(1).ilog2()) + 1;
+    let probes = u64::from(count.max(1).ilog2()) + 1;
     for source in &export.source_parameter_interfaces {
         meter
             .charge_work(probes.saturating_mul(64), &path)
@@ -151,7 +157,7 @@ fn local_owners(
         else {
             continue;
         };
-        if parameters.get(declaration).is_none() {
+        if !contains(declaration) {
             continue;
         }
         if owners.insert(declaration, source.owner).is_some() {

@@ -1,0 +1,25 @@
+public struct DefaultValue(val field: Int = 2)
+public enum DefaultChoice { Empty, Item(val field: Int = 3) }
+public object DefaultMarker {}
+public val defaultSeed: Int = 7
+public fun defaultFirst(): Int = 1
+public open class DefaultBase protected constructor(seed: Int = 4) {
+    public fun read(): Int = 5
+    protected open fun inherited(seed: Int, value: Int = this.read() + seed): Int = value
+    protected fun combined(value: (Int, Int, DefaultMarker, Int) = (defaultFirst(), defaultSeed, DefaultMarker, DefaultValue(6).field)): (Int, Int, DefaultMarker, Int) = value
+    protected fun implicit(value: Int = this.read()): Int = value
+    protected fun explicit(other: DefaultBase, value: Int = other.read()): Int = value
+    protected fun variant(value: DefaultChoice = DefaultChoice.Item()): DefaultChoice = value
+    protected fun callback(seed: Int, value: () -> Int = { seed }): () -> Int = value
+    protected fun repeated(seed: Int, value: (Int, Int) = (seed, seed)): (Int, Int) = value
+}
+public class DefaultChild: DefaultBase() {
+    protected final override fun inherited(seed: Int, value: Int): Int = value
+}
+public class DefaultMulti {
+    protected interface Left { public fun pick(value: Int = 1): Int }
+    protected interface Right { public fun pick(value: Int): Int }
+    protected class Both: Left, Right {
+        public override fun pick(value: Int): Int = value
+    }
+}

@@ -43,15 +43,5 @@ pub(super) fn project(
         owners,
         meter,
     )?;
-    for protocol in protocols.records() {
-        if protocol
-            .parameters()
-            .parameters()
-            .iter()
-            .any(|parameter| parameter.calling().template().is_some())
-        {
-            return Err(Error::DefaultTemplateAuthorityRequired(protocol.owner()));
-        }
-    }
     Ok((declarations, protocols))
 }

@@ -179,20 +179,28 @@ fn protected_type_section_is_stable_across_unrelated_arena_allocation() {
 }
 
 #[test]
-fn protected_type_production_preserves_the_default_body_requirement() {
+fn protected_type_production_publishes_the_required_default_body() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/m23-type-protected-production/default.scoop"
     ));
     with_hir_source(source, |output, _| {
+        let production =
+            produce_cross_cone_type_semantics(output, &public_interface(output)).unwrap();
+        let defaults = production.section().protected_defaults().records();
+        assert_eq!(defaults.len(), 1);
         assert!(matches!(
-            produce_cross_cone_type_semantics(output, &public_interface(output)),
-            Err(
-                hir::CrossConeTypeSemanticsProductionError::DefaultTemplateAuthorityRequired(
-                    CallableTemplateOrigin::Constructor(_)
-                )
-            )
+            defaults[0].key().owner(),
+            CallableTemplateOrigin::Constructor(_)
         ));
+        assert_eq!(
+            defaults[0].definition_root().declaration(),
+            defaults[0].key().owner()
+        );
+        assert_eq!(
+            defaults[0].body().value().result_type(),
+            defaults[0].result()
+        );
     });
 }
 

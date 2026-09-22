@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId};
+use scoop_identity::PersistentExactTypeId;
 
 use crate::{
     CanonicalPersistentIdsV1, CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
@@ -18,6 +18,7 @@ mod nested_sources;
 mod protected_sources;
 pub use protected_sources::*;
 mod default_access_declarations;
+mod defaults;
 mod nominal_callables;
 mod nominal_constructors;
 mod nominal_parameters;
@@ -47,8 +48,8 @@ pub struct CrossConeTypeSemanticsProductionV1 {
 impl CrossConeTypeSemanticsProductionV1 {
     /// Projects the M23-6 HIR payload from the sealed Export/LocalConcrete
     /// pair and the M23-5 public interface produced from that same output.
-    /// Unsupported dispatch, protected/default constructor sources, and
-    /// generic materialization return typed capability errors before a
+    /// Members, slots and default bodies share the resolved source projection.
+    /// Generic materialization returns a typed capability error before a
     /// partial section can be observed. M23-5 narrow dependency selections
     /// remain in their existing partition and do not populate field 8.
     pub fn from_dependency_hir(
@@ -188,7 +189,6 @@ pub enum CrossConeTypeSemanticsProductionError {
     MissingLocalSupport(PersistentExactTypeId),
     GenericOdrRequired(PersistentExactTypeId),
     MissingConstructor(PersistentExactTypeId),
-    DefaultTemplateAuthorityRequired(CallableTemplateOrigin),
     InvalidSourceShape {
         declaration: SourceNominalId,
         reason: String,
@@ -255,10 +255,6 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
             Self::MissingConstructor(owner) => {
                 write!(f, "source constructor metadata for {owner} is missing")
             }
-            Self::DefaultTemplateAuthorityRequired(owner) => write!(
-                f,
-                "source-call interface {owner:?} requires M23-6 protected-default authority"
-            ),
             Self::InvalidSourceShape {
                 declaration,
                 reason,

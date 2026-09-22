@@ -128,13 +128,12 @@ pub(super) fn produce(
     )?;
     let (protected_declarations, protected_sources) =
         interfaces::project(output, &source_parameters, meter)?;
-    let protected_defaults =
-        CanonicalProtectedDefaultTemplatesV1::try_new(Vec::new()).map_err(|error| {
-            Error::InvalidTable {
-                table: "protected-default",
-                reason: error.to_string(),
-            }
-        })?;
+    let protected_defaults = CanonicalProtectedDefaultTemplatesV1::from_dependency_hir(
+        output,
+        &protected_sources,
+        &inheritance,
+        meter,
+    )?;
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
         .map_err(|error| Error::InvalidTable {
