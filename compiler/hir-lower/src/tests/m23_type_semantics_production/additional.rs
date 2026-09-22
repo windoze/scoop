@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn producer_rejects_unprojected_dispatch_instead_of_emitting_partial_tables() {
+fn producer_emits_complete_interface_slot_contracts() {
     let core = trusted_core();
     let mut source = file(vec![interface_decl(
         "WithSlot",
@@ -15,10 +15,19 @@ fn producer_rejects_unprojected_dispatch_instead_of_emitting_partial_tables() {
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
+    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
+    let slots = production.section().inheritance().records()[0]
+        .slots()
+        .records();
+    assert_eq!(slots.len(), 1);
     assert!(matches!(
-        produce_cross_cone_type_semantics(&output, &public),
-        Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedDispatch(_))
+        slots[0].implementation(),
+        hir::InheritanceSlotImplementationV1::InterfaceDefault(_)
     ));
+    assert_eq!(
+        slots[0].declaration(),
+        slots[0].implementation().target().unwrap().declaration()
+    );
 }
 
 #[test]

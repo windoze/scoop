@@ -64,10 +64,23 @@ fn independent_foundation_replays_nonempty_dispatch_and_accessor_sources() {
             ))
             .unwrap();
             assert!(graph.object_backing_relation(exact).is_some());
-            assert!(matches!(
-                produce_cross_cone_type_semantics(output, &public_interface(output)),
-                Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedDispatch(_))
-            ));
+            let production = produce_cross_cone_type_semantics(output, &public_interface(output));
+            if source == VIRTUAL {
+                assert!(matches!(
+                    production,
+                    Err(hir::CrossConeTypeSemanticsProductionError::UnsupportedProtectedMember(_))
+                ));
+            } else {
+                assert!(
+                    production
+                        .unwrap()
+                        .section()
+                        .inheritance()
+                        .records()
+                        .iter()
+                        .any(|record| !record.slots().records().is_empty())
+                );
+            }
         });
     }
 }

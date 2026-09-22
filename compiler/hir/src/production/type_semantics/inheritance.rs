@@ -9,7 +9,9 @@ mod edges;
 use edges::exact;
 pub(super) use edges::{project_edges, project_source_edges};
 mod schemas;
+mod slots;
 pub(super) use schemas::{interface_sources, slot_selections};
+pub(super) use slots::SlotContracts;
 mod source_callables;
 mod source_constructors;
 pub(in crate::production::type_semantics) mod source_inventory;
@@ -36,6 +38,7 @@ pub(super) fn produce(
     public_nominals: &CanonicalNominalInterfacesV1,
     public_callables: &CanonicalCallableInterfacesV1,
     public_sources: &CanonicalCallableSourceInterfacesV1,
+    slots: &SlotContracts<'_>,
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<InheritanceProjection, Error> {
     let mut records = Vec::with_capacity(nominals.len());
@@ -58,16 +61,12 @@ pub(super) fn produce(
             &mut origins,
         )?;
         let schemas = schemas::project(export, nominal, meter)?;
+        let contracts = slots.project(nominal.exact, &schemas, meter)?;
         let record = NominalInheritanceInterfaceV1::try_new(
             edge.clone(),
             domains,
             constructors,
-            CanonicalInheritanceSlotContractsV1::try_new(Vec::new()).map_err(|error| {
-                Error::InvalidInheritance {
-                    exact: nominal.exact,
-                    reason: error.to_string(),
-                }
-            })?,
+            contracts,
             CanonicalProtectedDeclarationRefsV1::try_new(Vec::new()).map_err(|error| {
                 Error::InvalidInheritance {
                     exact: nominal.exact,
@@ -103,32 +102,28 @@ pub(super) fn reject_unsupported_source_features(
     local: NominalLocalId,
     owner: SourceNominalId,
 ) -> Result<(), Error> {
-    let has_dispatch = match local {
+    let has_protected_member = match local {
         NominalLocalId::Struct(id) => {
-            methods_require_dispatch(export, &export.structs[id].methods)
-                || properties_require_dispatch(export, &export.structs[id].properties)
+            has_protected_methods(export, &export.structs[id].methods)
+                || has_protected_properties(export, &export.structs[id].properties)
         }
         NominalLocalId::Enum(id) => {
-            methods_require_dispatch(export, &export.enums[id].methods)
-                || properties_require_dispatch(export, &export.enums[id].properties)
+            has_protected_methods(export, &export.enums[id].methods)
+                || has_protected_properties(export, &export.enums[id].properties)
         }
         NominalLocalId::Class(id) => {
-            methods_require_dispatch(export, &export.classes[id].methods)
-                || properties_require_dispatch(export, &export.classes[id].properties)
+            has_protected_methods(export, &export.classes[id].methods)
+                || has_protected_properties(export, &export.classes[id].properties)
         }
-        NominalLocalId::Interface(id) => {
-            !export.interfaces[id].methods.is_empty()
-                || !export.interfaces[id].private_methods.is_empty()
-                || !export.interfaces[id].properties.is_empty()
-        }
+        NominalLocalId::Interface(_) => false,
         NominalLocalId::Object(id) => {
             let class = &export.classes[export.objects[id].backing_class];
-            methods_require_dispatch(export, &class.methods)
-                || properties_require_dispatch(export, &class.properties)
+            has_protected_methods(export, &class.methods)
+                || has_protected_properties(export, &class.properties)
         }
     };
-    if has_dispatch {
-        return Err(Error::UnsupportedDispatch(owner));
+    if has_protected_member {
+        return Err(Error::UnsupportedProtectedMember(owner));
     }
     if constructors::has_protected(export, local) {
         Err(Error::UnsupportedProtectedConstructor(owner))
@@ -137,34 +132,20 @@ pub(super) fn reject_unsupported_source_features(
     }
 }
 
-fn methods_require_dispatch(export: &ExportHir, methods: &[FunctionId]) -> bool {
+fn has_protected_methods(export: &ExportHir, methods: &[FunctionId]) -> bool {
     methods.iter().any(|id| {
         let function = &export.functions[*id];
         function.access.declared == DeclaredVisibility::Protected
-            || function
-                .method
-                .as_ref()
-                .is_some_and(|method| !matches!(method.dispatch, MethodDispatch::Direct))
     })
 }
 
-fn properties_require_dispatch(export: &ExportHir, properties: &[PropertyId]) -> bool {
+fn has_protected_properties(export: &ExportHir, properties: &[PropertyId]) -> bool {
     properties.iter().any(|id| {
         let property = &export.properties[*id];
         property.access.declared == DeclaredVisibility::Protected
-            || property.modifier != MethodModifier::Final
-            || property.is_override
-            || matches!(
-                export.property_getters[property.capability.getter()].implementation,
-                PropertyAccessorImplementation::AbstractSlot(_)
-            )
             || property.capability.setter().is_some_and(|setter| {
                 let setter = &export.property_setters[setter];
                 setter.access.declared == DeclaredVisibility::Protected
-                    || matches!(
-                        setter.implementation,
-                        PropertyAccessorImplementation::AbstractSlot(_)
-                    )
             })
     })
 }

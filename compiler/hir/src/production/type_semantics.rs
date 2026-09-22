@@ -187,7 +187,7 @@ pub enum CrossConeTypeSemanticsProductionError {
     MissingConcreteType(PersistentExactTypeId),
     MissingLocalSupport(PersistentExactTypeId),
     GenericOdrRequired(PersistentExactTypeId),
-    UnsupportedDispatch(SourceNominalId),
+    UnsupportedProtectedMember(SourceNominalId),
     UnsupportedProtectedNominal(SourceNominalId),
     UnsupportedProtectedConstructor(SourceNominalId),
     MissingConstructor(PersistentExactTypeId),
@@ -256,9 +256,9 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
                 f,
                 "exact type {exact} requires generic ODR materialization from M23-7"
             ),
-            Self::UnsupportedDispatch(owner) => write!(
+            Self::UnsupportedProtectedMember(owner) => write!(
                 f,
-                "nominal {owner:?} requires dispatch production not present in this HIR projection"
+                "nominal {owner:?} has a protected member that requires protected-source production"
             ),
             Self::UnsupportedProtectedNominal(owner) => write!(
                 f,

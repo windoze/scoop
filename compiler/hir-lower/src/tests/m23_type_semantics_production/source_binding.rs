@@ -14,6 +14,7 @@ mod default_type_binding;
 mod default_type_domain;
 mod dispatch;
 mod dispatch_binding;
+mod dispatch_production;
 mod inheritance;
 mod nominal_constructors;
 mod nominal_dispatch;

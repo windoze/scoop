@@ -559,6 +559,7 @@ program/image pointer链**不能**保活无符号`__LLVM_STACKMAPS,__llvm_stackm
 
 ### 2.9 虚/接口调用分派
 
+- M23-6 的 HIR type/inheritance producer 从同一份已解析成员与继承选择生成完整槽契约：每个 schema 中的 typed slot 恰有一个根声明、完整签名、访问域及 `Abstract | Concrete | InterfaceDefault` 实现。基类槽顺序、final override 和接口最具体实现选择复用普通 HIR 结果；getter/setter 保持不同声明角色，private interface helper 不进入槽表。槽根的访问域不随实现 owner 收窄。产出随后经过共有的声明、继承、签名和 metadata 回读验证，不另建 core 专用派发规则。
 - MIR 为每个具体类型建立 **vtable**（类层次分派）与 **itable**（接口分派）；标注 call kind 时，virtual / interface call 的 target 指向对应 table entry，direct call 指向具体函数符号。
 - 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。vtable从slot 0开始只包含真实virtual成员并允许为空；`Any`无成员，不预留equals/hash/toString前缀。`ToString`/`Hash`及interface operator equals走普通itable，open class equals走普通vtable。
 - **引用 receiver 的直接适配**：class override及interface default表项可直接引用声明owner不同的目标方法。跨Cone schema必须显式保存`Identity | ReferenceDispatch`适配种类；后者以该表的exact implementor为起点，在同一typed继承/接口/Object→backing图中分别证明slot receiver与target receiver可达，二者均须是引用类型。验证器重建最短路径，同长路径按完整exact-id序列的canonical bytes排序取最小者；wire不保存任意可选路径。参数、结果、execution及GC合同仍须逐项相等；这不是按LLVM pointer形状接受不同signature，也不允许把value receiver作为引用直接传入。所有需要payload读取、值copy或其他实际变换的情况仍使用既有typed adjust thunk。

@@ -93,7 +93,7 @@ pub(super) fn required(
     Ok(declarations)
 }
 
-fn identity(export: &ExportHir, function: FunctionId) -> Option<Declaration> {
+pub(super) fn identity(export: &ExportHir, function: FunctionId) -> Option<Declaration> {
     match &export.function_identities[function] {
         HirFunctionIdentity::Source(HirSourceFunctionIdentity::Plain(record)) => {
             Some(Declaration::Function(record.id()))

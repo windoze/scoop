@@ -119,15 +119,24 @@ pub(super) fn produce(
     let source_properties =
         inheritance::source_properties(export, &inheritance_inventory, &slot_selections, meter)?;
     let source_parameters = inheritance::source_parameters(export, &inheritance_inventory, meter)?;
+    let slots =
+        inheritance::SlotContracts::new(export, &source_callables, &slot_selections, meter)?;
     let (inheritance, protected_sources, constructor_origins) = inheritance::produce(
         export,
         &concrete,
         &projected_public,
         &public_callables,
         &public_sources,
+        &slots,
         meter,
     )?;
     definition_sources.extend(constructor_origins);
+    definition_sources.extend(
+        source_callables
+            .records()
+            .iter()
+            .map(|source| source.declaration_access().definition_origin().clone()),
+    );
 
     let representation_support = CanonicalNominalRepresentationSupportV1::try_new(representations)
         .map_err(|error| Error::InvalidTable {
