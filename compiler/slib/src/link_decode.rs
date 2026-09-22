@@ -33,17 +33,17 @@ use crate::{
     CBridgeTargetSupportRequirementValidationError, CanonicalDefinedLinkSymbolOwnerSetV1,
     CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintError,
     CodeLinkObjectMemberValidationError, ConeImageValidationError, ConeKind, ConeSourceForm,
-    CoreStrongRequirementValidationError, CrossConeLinkClosureSectionV1,
-    CrossConeLinkClosureSectionValidationError, CrossConeStrongRequirementValidationError,
-    CurrentConeUndefinedRequirementValidationError, DecodedCrossConeLinkClosureSectionV1,
-    DecodedLinkIdentityClosureSectionV1, DecodedMetadataEnvelope,
-    DecodedSingleConeProductionManifestV1, DefinedLinkSymbolOwnerBuildError,
-    DigestPatchSiteValidationError, EntryPatchError, EntryProductionValidationError,
-    FinalObjectNormalizationError, FinalizedUndefinedSymbolRequirementPartitionsV1,
-    GeneratedCBridgeObjectCandidateV1, GeneratedCBridgeSemanticValidationError,
-    LinkDigestPatchInputValidationError, LinkIdentityClosureSectionV1,
-    LinkIdentityClosureSectionValidationError, LinkObjectMaterializationValidationError,
-    LinkObjectProjectionValidationError, LinkSymbolProjectionValidationError, ManifestSection,
+    CrossConeLinkClosureSectionV1, CrossConeLinkClosureSectionValidationError,
+    CrossConeStrongRequirementValidationError, CurrentConeUndefinedRequirementValidationError,
+    DecodedCrossConeLinkClosureSectionV1, DecodedLinkIdentityClosureSectionV1,
+    DecodedMetadataEnvelope, DecodedSingleConeProductionManifestV1,
+    DefinedLinkSymbolOwnerBuildError, DigestPatchSiteValidationError, EntryPatchError,
+    EntryProductionValidationError, FinalObjectNormalizationError,
+    FinalizedUndefinedSymbolRequirementPartitionsV1, GeneratedCBridgeObjectCandidateV1,
+    GeneratedCBridgeSemanticValidationError, LinkDigestPatchInputValidationError,
+    LinkIdentityClosureSectionV1, LinkIdentityClosureSectionValidationError,
+    LinkObjectMaterializationValidationError, LinkObjectProjectionValidationError,
+    LinkSymbolProjectionValidationError, ManifestSection,
     MaterializationCheckedLinkIdentityClosureSectionV1, MetadataLocation, MetadataReadError,
     ObjectProjectionCheckedLinkIdentityClosureSectionV1, PlannedStrongObjectSymbolSetV1,
     ProductionCodeProjectionError, RuntimeAndEhRequirementValidationError,
@@ -104,7 +104,7 @@ mod object_validation;
 pub fn validate_single_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedSingleConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     graph
@@ -128,7 +128,7 @@ pub fn validate_single_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
         .fingerprint_registration_leaves()
         .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
-        .validate_link_symbol_requirements(core_owners, c_bridge_profile)
+        .validate_link_symbol_requirements(dependency_owners, c_bridge_profile)
         .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
         .fingerprint_registration_dependencies()
         .map_err(|error| {
@@ -145,7 +145,7 @@ pub fn validate_single_cone_strong_link_artifact<'input>(
 /// identity graph before replaying every remaining Link proof.
 pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedSingleConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     let mut front = graph
@@ -173,7 +173,7 @@ pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::RegistrationObjects(Box::new(error)))?
         .fingerprint_registration_leaves()
         .map_err(|error| StrongLinkArtifactValidationError::RegistrationLeaves(Box::new(error)))?
-        .validate_link_symbol_requirements(core_owners, c_bridge_profile)
+        .validate_link_symbol_requirements(dependency_owners, c_bridge_profile)
         .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
         .fingerprint_registration_dependencies()
         .map_err(|error| {
@@ -640,7 +640,6 @@ pub enum StrongLinkSymbolRequirementError {
     DefinedSymbols(DefinedLinkSymbolOwnerBuildError),
     CurrentCone(CurrentConeUndefinedRequirementValidationError),
     NativeSurface(CanonicalNativeExternalRequirementBuildError),
-    Core(CoreStrongRequirementValidationError),
     CrossCone(CrossConeStrongRequirementValidationError),
     SourceExternal(SourceExternalRequirementValidationError),
     RuntimeAndEh(RuntimeAndEhRequirementValidationError),
@@ -664,7 +663,6 @@ impl std::error::Error for StrongLinkSymbolRequirementError {
             Self::DefinedSymbols(error) => error,
             Self::CurrentCone(error) => error,
             Self::NativeSurface(error) => error,
-            Self::Core(error) => error,
             Self::CrossCone(error) => error,
             Self::SourceExternal(error) => error,
             Self::RuntimeAndEh(error) => error,

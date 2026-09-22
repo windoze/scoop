@@ -10,7 +10,7 @@ use scoop_lir::{
 };
 
 use super::{
-    CanonicalUndefinedRelocationUseV1, CoreStrongRequirementUseV1,
+    CanonicalUndefinedRelocationUseV1, DependencyStrongRequirementUseV1,
     GeneratedBridgeRelocationSemanticV1, RelocationTargetSlotV1, RuntimeAbiRequirementUseV1,
     SourceExternalRequirementUseV1, StrongRelocationBindingV1, TargetEhRequirementUseV1,
     VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
@@ -68,15 +68,15 @@ impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
     pub const fn strong_closure(&self) -> &VerifiedCurrentConeStrongRelocationClosureV1 {
         self.runtime_and_eh
             .source_closure()
-            .core_closure()
+            .cross_cone_closure()
             .strong_closure()
     }
 
-    pub fn core_requirements(&self) -> &[CoreStrongRequirementUseV1] {
+    pub fn external_requirements(&self) -> &[DependencyStrongRequirementUseV1] {
         self.runtime_and_eh
             .source_closure()
-            .core_closure()
-            .core_requirements()
+            .cross_cone_closure()
+            .external_requirements()
     }
 
     pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
@@ -113,7 +113,7 @@ pub fn verify_c_bridge_target_support_requirements_v1(
 > {
     let strong = runtime_and_eh
         .source_closure()
-        .core_closure()
+        .cross_cone_closure()
         .strong_closure();
     if strong
         != bridge_semantics

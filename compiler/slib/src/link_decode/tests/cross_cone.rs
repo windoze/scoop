@@ -15,7 +15,7 @@ fn cross_cone_graph_validates_the_complete_final_link_view() {
     let (bytes, lir_bridge) = complete_cross_cone_artifact();
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
 
     open_graph(&bytes)
         .decode_cross_cone_hir_front_sections()
@@ -24,7 +24,7 @@ fn cross_cone_graph_validates_the_complete_final_link_view() {
         open_graph(&bytes),
         &external,
         &lir_bridge,
-        &core_owners,
+        &dependency_owners,
         &c_bridge_profile(),
     )
     .unwrap();
@@ -63,14 +63,14 @@ fn cross_cone_link_reader_rejects_the_legacy_profile() {
         CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
 
     assert!(matches!(
         validate_cross_cone_strong_link_artifact(
             open_graph(&bytes),
             &external,
             &lir_bridge,
-            &core_owners,
+            &dependency_owners,
             &c_bridge_profile(),
         ),
         Err(StrongLinkArtifactValidationError::Decode(error))

@@ -7,9 +7,8 @@ use scoop_lir::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::link_object::cross_cone_link_closure::preserve_without_cross_cone_requirements_v1;
 use crate::link_object::layout_link_closure::tests::fixture::{empty_section, meter};
-use crate::link_object::native_requirements::tests::core_closure;
+use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
@@ -18,8 +17,8 @@ use crate::{
     DecodedSingleConeProductionManifestV1, DependencyRecord, HirFingerprint, LirFingerprint,
     MirFingerprint, SingleConeProductionManifestValidationError,
     finalize_layout_partitioned_undefined_symbol_requirements_v1,
-    seal_builtin_object_external_requirements_v1, verify_core_strong_requirements_v1,
-    verify_current_cone_undefined_requirements_v1, verify_external_shape_requirements_v1,
+    seal_builtin_object_external_requirements_v1, verify_current_cone_undefined_requirements_v1,
+    verify_dependency_strong_requirements_v1, verify_external_shape_requirements_v1,
     verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
 };
@@ -174,16 +173,14 @@ fn legacy_closure(
 ) -> crate::VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "layoutCodeCoreOwner");
-    let seed = core_closure(producer, verified_member_without_relocations(&object));
-    preserve_without_cross_cone_requirements_v1(
-        verify_core_strong_requirements_v1(
-            LirTargetProfile::DARWIN_AARCH64,
-            strong,
-            scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
-            seed.core_owners().clone(),
-        )
-        .unwrap(),
+    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
+    verify_dependency_strong_requirements_v1(
+        LirTargetProfile::DARWIN_AARCH64,
+        strong,
+        scoop_lir::StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
+        seed.dependency_owners(),
     )
+    .unwrap()
 }
 
 fn cone() -> ConeRecord {

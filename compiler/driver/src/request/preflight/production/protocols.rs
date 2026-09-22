@@ -1,5 +1,4 @@
 use super::*;
-use std::borrow::Cow;
 
 impl ValidatedCompilerProtocols<'_> {
     pub(super) fn hir_input(
@@ -13,17 +12,6 @@ impl ValidatedCompilerProtocols<'_> {
                 .import_core_inputs()
                 .map(Into::into)
                 .map_err(CurrentConeHirStageError::CoreInterface),
-        }
-    }
-
-    pub(super) fn defined_symbols(
-        &self,
-    ) -> Cow<'_, scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1> {
-        match self {
-            Self::CurrentDeclarations => {
-                Cow::Owned(scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap())
-            }
-            Self::Imported(core) => Cow::Borrowed(core.defined_symbols()),
         }
     }
 

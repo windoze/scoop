@@ -265,3 +265,13 @@ workspace fmt 与 all-targets Clippy 通过；定向 LIR/LIR-lower/SLIB 1,169 �
 - 已通过 cargo fmt --all、cargo clippy --workspace --all-targets、HIR/lowering/SLIB 定向回归及配套 scoopc 的完整 cargo test --workspace：37 组、5759 项通过，0 失败、0 忽略。完成后 cargo clean 清理 33260 个文件、35.2 GiB。
 
 本批完成 intrinsic 表示和对应 ABI 消费。Option、PinnedPtr/GcHandle 的固定身份路径、独立 core Link requirement/owner 分区及 M23-6 其余完成门继续实施，未据此把整个 M23-6 标记为完成。
+
+2026-09-23：共有 Link dependency requirement 与实际 provider
+
+删除独立 core requirement proof、core owner 参数及空 core owner 补位。String descriptor、初始化 callable、type-registration support 和 ordinary callable 在同一个分类步骤中使用实际 provider、规范化 symbol 与 typed owner 查询；所有依赖来自已验证 artifact owner 集合。保留 self-import、缺失或重复 provider、owner 漂移、symbol 重复、用途重复认领、未实际使用的 callable、relocation 互斥与联合覆盖检查；metadata-only descriptor 与 native/runtime/target 余集保持原有语义。driver、Compile/Link reader、artifact 重开与 fingerprint pipeline 已使用同一入口。
+
+最终 requirement 的 CoreStrong tag 2 退役，DependencyStrong tag 8 显式保存 provider/typed owner；对象 definition fingerprint 的独立扁平 target 域使用新 tag 13，保留已有 8～12 的含义。link-identity-closure 升级为 /2，三个生产 profile、fixed vectors、writer/reader 与旧版本拒绝同步；immortal registration 的验证和 fingerprint 保留实际 provider，runtime C ABI 不变。
+
+新增 CORE consumer 同时引用三个实际 provider 的 callable/descriptor/registration/ordinary-callable 组合、依赖枚举顺序稳定、错误 provider/owner、重复用途及最终 requirement/wire 的正反例。先执行 cargo fmt --all、cargo clippy --workspace --all-targets（无警告），SLIB 577 项测试通过，重建配套 scoopc 后完整 workspace 37 组、5764 项通过，0 failed、0 ignored。分类主体、依赖查询、错误及新增组合测试分别为 327、138、86、232 行。全部测试进程退出后 cargo clean 删除 22,535 个文件、23.7 GiB。
+
+本批完成共有 Link requirement 合并。native Option/PinnedPtr/GcHandle 固定身份路径、跨 Cone nominal/member/dispatch 的真实消费、新 layout profile 完整生产发布与其余 M23-6 完成门继续推进。

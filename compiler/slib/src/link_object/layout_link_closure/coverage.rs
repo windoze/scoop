@@ -68,7 +68,7 @@ where
         });
     }
     same_relocation_proof(
-        closure.legacy_closure().core_closure().strong_closure(),
+        closure.legacy_closure().strong_closure(),
         objects
             .final_objects()
             .entry()

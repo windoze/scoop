@@ -140,7 +140,7 @@ pub struct DualValidatedArtifactHandle {
     compile_certificate: CompileViewCertificateV1,
     link_certificate: LinkViewCertificateV1,
     limits: DecodeLimits,
-    core_owners: CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: Vec<CanonicalDefinedLinkSymbolOwnerSetV1>,
     c_bridge_profile: CBridgeToolchainProfileV1,
 }
 
@@ -149,7 +149,7 @@ impl DualValidatedArtifactHandle {
         snapshot: Arc<ArtifactSnapshot>,
         limits: DecodeLimits,
         target: ValidatedLirTargetSelection,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         c_bridge_profile: &CBridgeToolchainProfileV1,
         closure_meter: &mut SlibClosureDecodeMeterV1,
     ) -> Result<Self, DualValidatedArtifactError> {
@@ -171,7 +171,7 @@ impl DualValidatedArtifactHandle {
             snapshot.bytes(),
             limits,
             target,
-            core_owners,
+            dependency_owners,
             c_bridge_profile,
         )
         .map_err(DualValidatedArtifactError::Views)?;
@@ -220,7 +220,7 @@ impl DualValidatedArtifactHandle {
             compile_certificate,
             link_certificate,
             limits,
-            core_owners: core_owners.clone(),
+            dependency_owners: dependency_owners.to_vec(),
             c_bridge_profile: c_bridge_profile.clone(),
         })
     }
@@ -275,7 +275,7 @@ impl DualValidatedArtifactHandle {
         .map_err(DualValidatedArtifactReopenError::LinkGraph)?;
         let view = validate_self_describing_single_cone_strong_link_artifact(
             graph,
-            &self.core_owners,
+            &self.dependency_owners,
             &self.c_bridge_profile,
         )
         .map_err(|error| DualValidatedArtifactReopenError::Link(Box::new(error)))?;
@@ -468,7 +468,7 @@ mod tests {
             Arc::clone(&snapshot),
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            &CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
+            &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),
             &mut meter,
         )
@@ -501,7 +501,7 @@ mod tests {
             snapshot,
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            &CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
+            &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),
             &mut meter,
         )

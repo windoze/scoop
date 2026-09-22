@@ -11,9 +11,8 @@ use scoop_lir::{
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedCoreStrongRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedExternalShapeRequirementClosureV1,
-    preserve_without_cross_cone_requirements_v1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedDarwinArm64RelocationFormV1,
+    VerifiedExternalShapeRequirementClosureV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -46,11 +45,7 @@ impl VerifiedSourceExternalRequirementClosureV1 {
     }
 
     pub const fn target(&self) -> LirTargetProfile {
-        self.cross_cone_closure.core_closure().target()
-    }
-
-    pub const fn core_closure(&self) -> &VerifiedCoreStrongRequirementClosureV1 {
-        self.cross_cone_closure.core_closure()
+        self.cross_cone_closure.target()
     }
 
     pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
@@ -71,16 +66,6 @@ impl VerifiedSourceExternalRequirementClosureV1 {
 }
 
 pub fn verify_source_external_requirements_v1(
-    core_closure: VerifiedCoreStrongRequirementClosureV1,
-    native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
-) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
-    verify_source_external_requirements_after_cross_cone_v1(
-        preserve_without_cross_cone_requirements_v1(core_closure),
-        native_requirements,
-    )
-}
-
-pub fn verify_source_external_requirements_after_cross_cone_v1(
     cross_cone_closure: VerifiedCrossConeStrongRequirementClosureV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
 ) -> Result<VerifiedSourceExternalRequirementClosureV1, SourceExternalRequirementValidationError> {
@@ -121,9 +106,9 @@ fn verify_source_external_requirements_from_candidates_v1(
             native: native_requirements.producer(),
         });
     }
-    if cross_cone_closure.core_closure().target() != native_requirements.target() {
+    if cross_cone_closure.target() != native_requirements.target() {
         return Err(SourceExternalRequirementValidationError::TargetMismatch {
-            object: cross_cone_closure.core_closure().target(),
+            object: cross_cone_closure.target(),
             native: native_requirements.target(),
         });
     }

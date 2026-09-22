@@ -3,15 +3,14 @@ use scoop_lir::StrongExternalLirBridgeSurfaceV1;
 use scoop_wire::{BudgetMeter, DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::link_object::cross_cone_link_closure::preserve_without_cross_cone_requirements_v1;
-use crate::link_object::native_requirements::tests::core_closure;
+use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::{
     VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
-    verify_core_strong_requirements_v1,
+    verify_dependency_strong_requirements_v1,
 };
 
 pub(in crate::link_object) mod fixture;
@@ -25,16 +24,14 @@ fn legacy_for(
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "coreOwnerSeed");
-    let seed = core_closure(producer, verified_member_without_relocations(&object));
-    preserve_without_cross_cone_requirements_v1(
-        verify_core_strong_requirements_v1(
-            TARGET,
-            strong,
-            StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
-            seed.core_owners().clone(),
-        )
-        .unwrap(),
+    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
+    verify_dependency_strong_requirements_v1(
+        TARGET,
+        strong,
+        StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
+        seed.dependency_owners(),
     )
+    .unwrap()
 }
 
 fn single_legacy(
@@ -42,10 +39,7 @@ fn single_legacy(
     symbol: &[u8],
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let object = fixture_for_producer(producer, "layoutUse");
-    preserve_without_cross_cone_requirements_v1(core_closure(
-        producer,
-        verified_member_with_undefined(&object, symbol),
-    ))
+    dependency_closure(producer, verified_member_with_undefined(&object, symbol))
 }
 
 #[test]

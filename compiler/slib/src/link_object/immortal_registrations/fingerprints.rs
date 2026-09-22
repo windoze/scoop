@@ -159,8 +159,8 @@ fn registration_object_fingerprint(
         ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, .. } => {
             CanonicalObjectRelocationV1::unsigned64(
                 176,
-                FinalUndefinedSymbolRequirementV1::CoreStrong {
-                    core: provider,
+                FinalUndefinedSymbolRequirementV1::DependencyStrong {
+                    provider,
                     owner: type_owner,
                 },
             )

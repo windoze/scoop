@@ -3,9 +3,8 @@ use scoop_lir::*;
 use scoop_wire::encode_runtime;
 
 use super::*;
-use crate::link_object::cross_cone_link_closure::preserve_without_cross_cone_requirements_v1;
 use crate::link_object::native_requirements::tests::{
-    contract_record, core_closure, native_surface,
+    contract_record, dependency_closure, native_surface,
 };
 use crate::link_object::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
@@ -77,17 +76,17 @@ fn old_callable(consumer: ConeIdentity) -> OldCallable {
     }
 }
 
-fn core_for_strong(
+fn dependencies_for_strong(
     strong: VerifiedCurrentConeStrongRelocationClosureV1,
-) -> VerifiedCoreStrongRequirementClosureV1 {
+) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let producer = strong.producer();
     let object = fixture_for_producer(producer, "layoutPartitionCoreOwnerSeed");
-    let seed = core_closure(producer, verified_member_without_relocations(&object));
-    verify_core_strong_requirements_v1(
+    let seed = dependency_closure(producer, verified_member_without_relocations(&object));
+    verify_dependency_strong_requirements_v1(
         TARGET,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![]).unwrap(),
-        seed.core_owners().clone(),
+        seed.dependency_owners(),
     )
     .unwrap()
 }
@@ -117,9 +116,22 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
         empty_bridge_plan(consumer_id),
     )
     .unwrap();
-    let old =
-        verify_cross_cone_strong_requirements_v1(core_for_strong(strong.clone()), &callable.bridge)
+    let provider_object = fixture_for_producer(callable.provider, "oldCall");
+    let provider_strong = verify_current_cone_strong_relocation_closure_v1(vec![
+        verified_member_without_relocations(&provider_object),
+    ])
+    .unwrap();
+    let owners =
+        CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&provider_strong)
             .unwrap();
+    let old = verify_cross_cone_strong_requirements_v1(
+        TARGET,
+        strong.clone(),
+        StrongExternalLirBridgeSurfaceV1::try_new(consumer_id, vec![]).unwrap(),
+        &[owners],
+        &callable.bridge,
+    )
+    .unwrap();
     let shape =
         verify_external_shape_requirements_v1(&old, layout.selected(), &mut meter()).unwrap();
     let source = verify_source_external_requirements_after_external_shape_v1(
@@ -138,7 +150,7 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
     .unwrap();
 
     let native_collision = std::str::from_utf8(shape_symbol.strip_prefix(b"_").unwrap()).unwrap();
-    let source = verify_source_external_requirements_after_cross_cone_v1(
+    let source = verify_source_external_requirements_v1(
         old.clone(),
         native_surface(
             consumer_id,
@@ -220,13 +232,13 @@ fn layout_finalizer_proves_three_disjoint_partitions_and_supplies_tag_twelve() {
     );
 
     let wrong_object = fixture_for_producer(consumer_id, "wrongShapeProof");
-    let wrong_legacy = preserve_without_cross_cone_requirements_v1(core_for_strong(
+    let wrong_legacy = dependencies_for_strong(
         verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
             &wrong_object,
             &shape_symbol,
         )])
         .unwrap(),
-    ));
+    );
     let wrong_shape =
         verify_external_shape_requirements_v1(&wrong_legacy, layout.selected(), &mut meter())
             .unwrap();

@@ -56,7 +56,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
             let producer =
                 scoop_slib::ProducerRecord::new(concat!("scoopc/", env!("CARGO_PKG_VERSION")))
                     .map_err(CurrentConeProductionFailure::Producer)?;
-            let owners = protocols.defined_symbols();
+            let owners = self
+                .request
+                .dependencies()
+                .closure
+                .dependency_symbol_owners()
+                .cloned()
+                .collect::<Vec<_>>();
             let artifact = strong
                 .produce_artifact(
                     producer,

@@ -7,9 +7,8 @@ use super::super::generated_bridge_semantics::tests::{
 use super::super::runtime_requirements::tests::classify;
 use super::*;
 use crate::{
-    CanonicalDefinedLinkSymbolOwnerSetV1, verify_core_strong_requirements_v1,
-    verify_generated_c_bridge_semantics_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_v1,
+    verify_dependency_strong_requirements_v1, verify_generated_c_bridge_semantics_v1,
+    verify_runtime_and_eh_requirements_v1, verify_source_external_requirements_v1,
 };
 
 #[test]
@@ -115,13 +114,11 @@ fn runtime_closure(fixture: &SemanticFixture) -> VerifiedRuntimeAndEhRequirement
         .builtins()
         .strong_relocations()
         .clone();
-    let owners =
-        CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::CORE, Vec::new()).unwrap(),
-        owners,
+        &[],
     )
     .unwrap();
     let source =

@@ -1,5 +1,7 @@
 # M23-5 设计：多 Cone 名称语义
 
+2026-09-23 Link 迁移说明：本文的 core requirement 独立闭包、CoreStrong tag 2 与 link-identity-closure/1 是历史格式。M23-6 已迁入共有 provider/typed owner 分类，最终 requirement 使用 tag 8、对象指纹 target 使用 tag 13，当前 capability 为 /2；旧格式拒绝并重建，具体合同见实现规范 2.11 与 stage6 设计。其他原有 capability/subject 用途仍互斥且联合覆盖完整 relocation，不按 provider 名称分类。
+
 版本衔接：本设计中的 profile 清单记录 M23-5 冻结时的版本；M23-6 的 HIR identity-foundation 已升级为 `/2`，完整当前 inventory 与退役字段规则见 `../stage6/DESIGN.md`。
 
 2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI继续重放自己的layout/physical证明，但不再重复查找MIR/LIR函数；其resource meter在共有查找前按相同表长度计量，不免除预算。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。

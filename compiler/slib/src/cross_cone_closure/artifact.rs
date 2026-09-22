@@ -113,6 +113,12 @@ impl ValidatedCrossConeArtifactClosure<'_> {
         &self.semantic
     }
 
+    pub fn dependency_symbol_owners(
+        &self,
+    ) -> impl Iterator<Item = &CanonicalDefinedLinkSymbolOwnerSetV1> {
+        self.links.iter().map(|link| link.defined_symbols())
+    }
+
     pub fn artifact_count(&self) -> usize {
         self.publications.len()
     }
@@ -207,38 +213,22 @@ pub fn validate_cross_cone_artifact_closure<'input>(
     let mut links = Vec::with_capacity(bytes.len());
     let mut publications = Vec::with_capacity(bytes.len());
     let mut positions = BTreeMap::new();
-    let mut core_owners = None;
     for (position, (identity, bytes)) in identities.into_iter().zip(bytes).enumerate() {
-        let owners = if identity == ConeIdentity::CORE {
-            CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap()
-        } else {
-            core_owners
-                .clone()
-                .ok_or(CrossConeArtifactClosureValidationError::MissingTrustedCoreLink)?
-        };
         let (publication, link) = validate_link(
             &semantic,
             identity,
             bytes,
             limits,
             target,
-            &owners,
             &links,
             &positions,
             c_bridge_profile,
             slot_for(position, dependency_count),
         )?;
-        if identity == ConeIdentity::CORE {
-            core_owners = Some(link.defined_symbols().clone());
-        }
         positions.insert(identity, position);
         publications.push(publication);
         links.push(link);
     }
-    if current != ConeIdentity::CORE && core_owners.is_none() {
-        return Err(CrossConeArtifactClosureValidationError::MissingTrustedCoreLink);
-    }
-
     validate_terminal_definitions(&links, &positions)?;
     Ok(ValidatedCrossConeArtifactClosure {
         semantic,
@@ -324,7 +314,6 @@ fn validate_link<'input>(
     bytes: &'input [u8],
     limits: DecodeLimits,
     target: ValidatedLirTargetSelection,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
     validated_links: &[ValidatedCrossConeStrongLinkArtifact<'input>],
     validated_positions: &BTreeMap<ConeIdentity, usize>,
     c_bridge_profile: &CBridgeToolchainProfileV1,
@@ -373,11 +362,15 @@ fn validate_link<'input>(
         };
         authorities.push(link.identity_graph());
     }
+    let dependency_owners = validated_links
+        .iter()
+        .map(|link| link.defined_symbols().clone())
+        .collect::<Vec<_>>();
     let link = validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
         graph,
         authorities,
         compile.production().lir_cross_cone(),
-        core_owners,
+        &dependency_owners,
         c_bridge_profile,
     )
     .map_err(|source| CrossConeArtifactClosureValidationError::Link {

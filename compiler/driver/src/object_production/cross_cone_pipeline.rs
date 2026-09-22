@@ -22,11 +22,11 @@ use scoop_slib::{
     finalize_partitioned_undefined_symbol_requirements_v1, patch_entry_production_v1,
     patch_runtime_image_fingerprint_v1, patch_strong_registration_fingerprints_v1,
     seal_builtin_object_external_requirements_v1, verify_c_bridge_target_support_requirements_v1,
-    verify_code_link_object_members_v1, verify_cone_image_v1, verify_core_strong_requirements_v1,
+    verify_code_link_object_members_v1, verify_cone_image_v1,
     verify_cross_cone_production_code_projection_v1, verify_cross_cone_strong_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_entry_production_v1,
     verify_generated_c_bridge_semantics_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_after_cross_cone_v1,
+    verify_source_external_requirements_v1,
 };
 
 use super::{fingerprint_pipeline::final_link_object_members, *};
@@ -52,7 +52,7 @@ pub struct CrossConeLinkSymbolVerifiedObjectProductionV1 {
 impl RegistrationObjectLeafFingerprintedProductionV1 {
     pub fn verify_cross_cone_link_symbol_requirements(
         self,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         bridge: &CrossConeLirBridgeSectionV1,
     ) -> Result<CrossConeLinkSymbolVerifiedObjectProductionV1, BuiltinObjectProductionError> {
         let Self {
@@ -85,20 +85,17 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
                 &production.foundation,
             )
             .map_err(BuiltinObjectProductionError::NativeRequirementSurface)?;
-        let core = verify_core_strong_requirements_v1(
+        let cross_cone = verify_cross_cone_strong_requirements_v1(
             production.target(),
             strong_closure,
             production.production.external_bridges().clone(),
-            core_owners.clone(),
+            dependency_owners,
+            bridge,
         )
-        .map_err(BuiltinObjectProductionError::CoreRequirements)?;
-        let cross_cone = verify_cross_cone_strong_requirements_v1(core, bridge)
-            .map_err(BuiltinObjectProductionError::CrossConeRequirements)?;
-        let source = verify_source_external_requirements_after_cross_cone_v1(
-            cross_cone,
-            native_requirements.clone(),
-        )
-        .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
+        .map_err(BuiltinObjectProductionError::DependencyRequirements)?;
+        let source =
+            verify_source_external_requirements_v1(cross_cone, native_requirements.clone())
+                .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
         let runtime_and_eh =
             verify_runtime_and_eh_requirements_v1(source, production.target_selection)
                 .map_err(BuiltinObjectProductionError::RuntimeAndEhRequirements)?;

@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+2026-09-23 Link 迁移说明：本文的 core requirement 独立闭包、CoreStrong tag 2 与 link-identity-closure/1 是历史格式。M23-6 已迁入共有 provider/typed owner 分类，最终 requirement 使用 tag 8、对象指纹 target 使用 tag 13，当前 capability 为 /2；旧格式拒绝并重建，具体合同见实现规范 2.11 与 stage6 设计。其他原有 capability/subject 用途仍互斥且联合覆盖完整 relocation，不按 provider 名称分类。
+
 2026-09-22 当前整数正规化约定：源码intrinsic调用完成共有成员候选及参数/effect检查后，HIR只保留封闭typed operation、conversion和操作数；导入声明不物化成本地函数，后续IR和default body不保留冗余callee。整数default wire删除该字段，旧格式要求重建；exact identity、witness及extern/callback bytes保持。导入成员复用共有源码调用探测与winner commit，完整规则见实现规范2.10。
 
 2026-09-22 当前intrinsic声明约定：共有CallableSourceEffectsV1直接保存Intrinsic(IntrinsicFunctionKind)，不以标志或core专用operation表补全kind，不携带provider授权或annotation字符串。closed-sum wire的field 0为实现tag，仅Intrinsic具有field 1=完整typed kind；旧unsigned leaf要求重建artifact/cache。整数kind的GC effect与Ordinary execution由builder和reader共同验证。常量及静态initializer从共有callable目录取得整数语义；method/infix同时按typed声明id读取canonical源码名称、source参数名和infix属性，解析结果不依赖本地FunctionId。删除ImportedCoreProtocols中的重复compiler-operation载体；源码名称只用于匹配，不用于反推kind，非const实例成员仍须接入普通跨Cone调用选择。完整规则见实现规范2.10。

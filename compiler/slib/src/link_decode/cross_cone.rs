@@ -84,7 +84,7 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     let DecodedCrossConeLinkSections {
@@ -115,7 +115,7 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
         .validate_cross_cone_link_symbol_requirements(
             lir_cross_cone_bridge,
             cross_cone_link_closure,
-            core_owners,
+            dependency_owners,
             c_bridge_profile,
         )
         .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
@@ -132,14 +132,14 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
 pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
     graph: ValidatedGraphArtifact<'input>,
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
         graph,
         std::iter::empty(),
         lir_cross_cone_bridge,
-        core_owners,
+        dependency_owners,
         c_bridge_profile,
     )
 }
@@ -151,7 +151,7 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
     graph: ValidatedGraphArtifact<'input>,
     external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
     let DecodedCrossConeLinkSections {
@@ -186,7 +186,7 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
         .validate_cross_cone_link_symbol_requirements(
             lir_cross_cone_bridge,
             cross_cone_link_closure,
-            core_owners,
+            dependency_owners,
             c_bridge_profile,
         )
         .map_err(|error| StrongLinkArtifactValidationError::Symbols(Box::new(error)))?
@@ -206,7 +206,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
         self,
         lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
         cross_cone_link_closure: DecodedCrossConeLinkClosureSectionV1,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         c_bridge_profile: &CBridgeToolchainProfileV1,
     ) -> Result<CrossConeLinkSymbolCheckedSections<'input>, StrongLinkSymbolRequirementError> {
         let Self {
@@ -244,21 +244,17 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             &foundations.lir,
         )
         .map_err(StrongLinkSymbolRequirementError::NativeSurface)?;
-        let core = crate::verify_core_strong_requirements_v1(
+        let cross_cone = crate::verify_cross_cone_strong_requirements_v1(
             selection.target(),
             strong_closure,
             production.lir().external_bridges().clone(),
-            core_owners.clone(),
+            dependency_owners,
+            lir_cross_cone_bridge,
         )
-        .map_err(StrongLinkSymbolRequirementError::Core)?;
-        let cross_cone =
-            crate::verify_cross_cone_strong_requirements_v1(core, lir_cross_cone_bridge)
-                .map_err(StrongLinkSymbolRequirementError::CrossCone)?;
-        let source = crate::verify_source_external_requirements_after_cross_cone_v1(
-            cross_cone,
-            native_requirements.clone(),
-        )
-        .map_err(StrongLinkSymbolRequirementError::SourceExternal)?;
+        .map_err(StrongLinkSymbolRequirementError::CrossCone)?;
+        let source =
+            crate::verify_source_external_requirements_v1(cross_cone, native_requirements.clone())
+                .map_err(StrongLinkSymbolRequirementError::SourceExternal)?;
         let runtime_and_eh = crate::verify_runtime_and_eh_requirements_v1(source, selection)
             .map_err(StrongLinkSymbolRequirementError::RuntimeAndEh)?;
         let bridge_semantics = crate::verify_generated_c_bridge_semantics_v1(

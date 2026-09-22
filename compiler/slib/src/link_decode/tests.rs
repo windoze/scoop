@@ -187,9 +187,9 @@ fn strong_graph_decodes_all_link_sections_atomically() {
             .fingerprints()
             .is_empty()
     );
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
     let symbols = leaves
-        .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
+        .validate_link_symbol_requirements(&dependency_owners, &c_bridge_profile())
         .unwrap();
     assert_eq!(symbols.identity(), cone().identity());
     assert!(!symbols.defined_symbols().owners().is_empty());
@@ -225,11 +225,11 @@ fn strong_graph_validates_the_complete_final_link_view() {
     let bytes = complete_artifact(false);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
     let artifact = validate_single_cone_strong_link_artifact(
         open_graph(&bytes),
         &external,
-        &core_owners,
+        &dependency_owners,
         &c_bridge_profile(),
     )
     .unwrap();
@@ -264,7 +264,7 @@ fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
     let bytes = complete_artifact(true);
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -287,7 +287,7 @@ fn strong_graph_rejects_final_object_bytes_that_do_not_reconstruct() {
             .unwrap()
             .fingerprint_registration_leaves()
             .unwrap()
-            .validate_link_symbol_requirements(&core_owners, &c_bridge_profile())
+            .validate_link_symbol_requirements(&dependency_owners, &c_bridge_profile())
             .unwrap()
             .fingerprint_registration_dependencies()
             .unwrap()
@@ -418,7 +418,7 @@ fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
     );
     let external =
         StrongExternalLirBridgeSurfaceV1::try_new(cone().identity(), Vec::new()).unwrap();
-    let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+    let dependency_owners = Vec::new();
     assert!(matches!(
         open_graph(&bytes)
             .decode_single_cone_link_sections()
@@ -441,7 +441,7 @@ fn link_symbol_validation_rejects_a_stale_defined_owner_projection() {
             .unwrap()
             .fingerprint_registration_leaves()
             .unwrap()
-            .validate_link_symbol_requirements(&core_owners, &c_bridge_profile()),
+            .validate_link_symbol_requirements(&dependency_owners, &c_bridge_profile()),
         Err(StrongLinkSymbolRequirementError::ClosureProjection(
             LinkSymbolProjectionValidationError::DefinedSymbols(
                 crate::DefinedLinkSymbolOwnerValidationError::ProjectionMismatch
@@ -1582,11 +1582,11 @@ fn empty_undefined_requirements(
         foundation,
     )
     .unwrap();
-    let core = crate::verify_core_strong_requirements_v1(
+    let core = crate::verify_dependency_strong_requirements_v1(
         selection().target(),
         strong,
         production.external_bridges().clone(),
-        crate::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
+        &[],
     )
     .unwrap();
     let source = crate::verify_source_external_requirements_v1(core, native.clone()).unwrap();
@@ -1620,17 +1620,22 @@ fn empty_partitioned_undefined_requirements(
         foundation,
     )
     .unwrap();
-    let core = crate::verify_core_strong_requirements_v1(
+    let core = crate::verify_dependency_strong_requirements_v1(
         selection().target(),
         strong,
         production.external_bridges().clone(),
-        crate::CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
+        &[],
     )
     .unwrap();
-    let cross_cone = crate::verify_cross_cone_strong_requirements_v1(core, bridge).unwrap();
-    let source =
-        crate::verify_source_external_requirements_after_cross_cone_v1(cross_cone, native.clone())
-            .unwrap();
+    let cross_cone = crate::verify_cross_cone_strong_requirements_v1(
+        core.target(),
+        core.strong_closure().clone(),
+        core.external_bridges().clone(),
+        core.dependency_owners(),
+        bridge,
+    )
+    .unwrap();
+    let source = crate::verify_source_external_requirements_v1(cross_cone, native.clone()).unwrap();
     let runtime = crate::verify_runtime_and_eh_requirements_v1(source, selection()).unwrap();
     let bridge_semantics = crate::verify_generated_c_bridge_semantics_v1(
         patch_sites.clone(),

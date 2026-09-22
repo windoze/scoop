@@ -93,9 +93,7 @@ mod tests {
     use scoop_wire::DecodeLimits;
 
     use super::*;
-    use crate::{
-        CanonicalDefinedLinkSymbolOwnerSetV1, SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1,
-    };
+    use crate::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
 
     #[test]
     fn purpose_handles_retain_independent_typed_authority() {
@@ -108,7 +106,7 @@ mod tests {
                 snapshot,
                 DecodeLimits::default(),
                 ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-                &CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap(),
+                &Vec::new(),
                 &crate::link_decode::c_bridge_profile_for_test(),
                 &mut meter,
             )

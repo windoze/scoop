@@ -345,8 +345,8 @@ fn validate_external_descriptor_target(
     }
     if requirement_for(binding, requirements)
         != Some(CanonicalObjectDefinitionRequirementV1::Legacy(
-            FinalUndefinedSymbolRequirementV1::CoreStrong {
-                core: provider,
+            FinalUndefinedSymbolRequirementV1::DependencyStrong {
+                provider,
                 owner: expected_owner,
             },
         ))

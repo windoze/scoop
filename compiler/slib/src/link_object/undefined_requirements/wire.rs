@@ -26,11 +26,11 @@ impl WireEncode for FinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
-            Self::CoreStrong { core, owner } => {
+            Self::DependencyStrong { provider, owner } => {
                 encoder.map(3)?;
-                encode_tag(encoder, 2)?;
+                encode_tag(encoder, 8)?;
                 encoder.field(1)?;
-                core.encode(encoder)?;
+                provider.encode(encoder)?;
                 encoder.field(2)?;
                 owner.encode(encoder)
             }
@@ -101,8 +101,8 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     IntraConeStrong {
         owner: DecodedStrongDefinitionOwnerV1,
     },
-    CoreStrong {
-        core: DecodedPersistentId<ConeIdentity>,
+    DependencyStrong {
+        provider: DecodedPersistentId<ConeIdentity>,
         owner: DecodedStrongDefinitionOwnerV1,
     },
     GeneratedBridge {
@@ -127,11 +127,11 @@ impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::IntraConeStrong { owner } => encode_one_field_sum(encoder, 1, owner),
-            Self::CoreStrong { core, owner } => {
+            Self::DependencyStrong { provider, owner } => {
                 encoder.map(3)?;
-                encode_tag(encoder, 2)?;
+                encode_tag(encoder, 8)?;
                 encoder.field(1)?;
-                core.encode(encoder)?;
+                provider.encode(encoder)?;
                 encoder.field(2)?;
                 owner.encode(encoder)
             }
@@ -162,10 +162,10 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                     .field(1, DecodedStrongDefinitionOwnerV1::decode)
                     .map(|owner| Self::IntraConeStrong { owner })
             }
-            2 => {
+            8 => {
                 expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::CoreStrong {
-                    core: decoder.field(1, DecodedPersistentId::decode)?,
+                Ok(Self::DependencyStrong {
+                    provider: decoder.field(1, DecodedPersistentId::decode)?,
                     owner: decoder.field(2, DecodedStrongDefinitionOwnerV1::decode)?,
                 })
             }

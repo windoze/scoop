@@ -12,7 +12,7 @@ use scoop_lir::{
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
-use crate::link_object::native_requirements::tests::core_closure;
+use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::{
     verified_member_with_undefined, verified_member_without_relocations,
 };
@@ -24,12 +24,12 @@ use crate::link_object::{
     finalize_partitioned_undefined_symbol_requirements_v1,
     finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_after_cross_cone_v1,
-    without_generated_bridge_semantics_for_test,
+    verify_source_external_requirements_v1, without_generated_bridge_semantics_for_test,
 };
 
 struct CallableFixture {
     provider: ConeIdentity,
+    name: String,
     declaration: DependencyCallableDeclarationId,
     target: StrongCallableDefinitionOwner,
     abi: CanonicalScoopAbiFunctionSignature,
@@ -64,6 +64,7 @@ impl CallableFixture {
         .unwrap();
         Self {
             provider,
+            name: callable_name.to_owned(),
             declaration: DependencyCallableDeclarationId::Function(function),
             target: StrongCallableDefinitionOwner::Function(function),
             abi: CanonicalScoopAbiFunctionSignature::new(
@@ -79,6 +80,15 @@ impl CallableFixture {
             )
             .unwrap(),
         }
+    }
+
+    fn owners(&self) -> crate::CanonicalDefinedLinkSymbolOwnerSetV1 {
+        let fixture = fixture_for_producer(self.provider, &self.name);
+        let strong = crate::verify_current_cone_strong_relocation_closure_v1(vec![
+            verified_member_without_relocations(&fixture),
+        ])
+        .unwrap();
+        crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap()
     }
 
     fn selected(&self) -> SelectedDependencyLirCallableV1 {
@@ -101,6 +111,21 @@ fn bridge(
     let foundation =
         OdrFreeLirFoundation::try_new(consumer, CanonicalLirFoundation::empty()).unwrap();
     CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), selected).unwrap()
+}
+
+fn classify_callables(
+    base: VerifiedCrossConeStrongRequirementClosureV1,
+    bridge: &CrossConeLirBridgeSectionV1,
+    owners: &[crate::CanonicalDefinedLinkSymbolOwnerSetV1],
+) -> Result<VerifiedCrossConeStrongRequirementClosureV1, CrossConeStrongRequirementValidationError>
+{
+    verify_cross_cone_strong_requirements_v1(
+        base.target(),
+        base.strong_closure().clone(),
+        base.external_bridges().clone(),
+        owners,
+        bridge,
+    )
 }
 
 #[test]
@@ -161,8 +186,12 @@ fn classifier_claims_only_selected_dependency_relocations() {
     let object = fixture_for_producer(consumer, "dependencyCaller");
     let member = verified_member_with_undefined(&object, &physical_symbol);
 
-    let verified =
-        verify_cross_cone_strong_requirements_v1(core_closure(consumer, member), &lir).unwrap();
+    let verified = classify_callables(
+        dependency_closure(consumer, member),
+        &lir,
+        &[callable.owners()],
+    )
+    .unwrap();
 
     assert_eq!(verified.producer(), consumer);
     assert_eq!(verified.semantic_imports(), &semantic);
@@ -181,8 +210,7 @@ fn classifier_preserves_unmatched_candidates_and_rejects_unused_imports() {
     let object = fixture_for_producer(consumer, "unmatchedCaller");
     let member = verified_member_with_undefined(&object, b"_unrelated");
     let empty = bridge(consumer, Vec::new());
-    let verified =
-        verify_cross_cone_strong_requirements_v1(core_closure(consumer, member), &empty).unwrap();
+    let verified = classify_callables(dependency_closure(consumer, member), &empty, &[]).unwrap();
     assert!(verified.requirements().is_empty());
     assert_eq!(verified.remaining_external_candidates().len(), 1);
 
@@ -191,7 +219,11 @@ fn classifier_preserves_unmatched_candidates_and_rejects_unused_imports() {
     let object = fixture_for_producer(consumer, "noDependencyCall");
     let member = verified_member_without_relocations(&object);
     assert!(matches!(
-        verify_cross_cone_strong_requirements_v1(core_closure(consumer, member), &selected),
+        classify_callables(
+            dependency_closure(consumer, member),
+            &selected,
+            &[callable.owners()]
+        ),
         Err(CrossConeStrongRequirementValidationError::UnusedImport { .. })
     ));
 }
@@ -207,9 +239,10 @@ fn classifier_rejects_a_bridge_for_another_consumer() {
     let member = verified_member_without_relocations(&object);
 
     assert_eq!(
-        verify_cross_cone_strong_requirements_v1(
-            core_closure(consumer, member),
+        classify_callables(
+            dependency_closure(consumer, member),
             &bridge(other, Vec::new()),
+            &[],
         ),
         Err(
             CrossConeStrongRequirementValidationError::ConsumerMismatch {
@@ -233,13 +266,13 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
         .into_bytes();
     let object = fixture_for_producer(consumer, "partitionCaller");
     let member = verified_member_with_undefined(&object, &physical_symbol);
-    let core = core_closure(consumer, member);
+    let core = dependency_closure(consumer, member);
     let strong = core.strong_closure().clone();
     let current =
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(consumer))
             .unwrap();
-    let cross = verify_cross_cone_strong_requirements_v1(core, &lir).unwrap();
-    let source = verify_source_external_requirements_after_cross_cone_v1(
+    let cross = classify_callables(core, &lir, &[callable.owners()]).unwrap();
+    let source = verify_source_external_requirements_v1(
         cross,
         crate::link_object::native_requirements::tests::native_surface(
             consumer,

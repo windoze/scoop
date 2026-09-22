@@ -1,7 +1,7 @@
 use scoop_identity::ConeIdentity;
 use scoop_lir::{RuntimeAbiSymbolV1, TargetEhSupportV1, ValidatedLirTargetSelection};
 
-use super::super::native_requirements::tests::{core_closure, native_surface};
+use super::super::native_requirements::tests::{dependency_closure, native_surface};
 use super::super::strong_relocation_closure::tests::verified_member_with_undefined_form;
 use super::super::symbol_verification::tests::fixture_for_producer;
 use super::*;
@@ -108,7 +108,7 @@ fn classify_with_form(
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");
     let member = verified_member_with_undefined_form(&object, symbol, form);
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(producer, Vec::new(), Vec::new());
     let source = verify_source_external_requirements_v1(core, native).unwrap();
     verify_runtime_and_eh_requirements_v1(

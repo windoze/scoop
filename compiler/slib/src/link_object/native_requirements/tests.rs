@@ -18,14 +18,16 @@ use super::super::strong_relocation_closure::tests::{
 };
 use super::super::symbol_verification::tests::fixture_for_producer;
 use super::*;
-use crate::{verify_core_strong_requirements_v1, verify_current_cone_strong_relocation_closure_v1};
+use crate::{
+    verify_current_cone_strong_relocation_closure_v1, verify_dependency_strong_requirements_v1,
+};
 
 #[test]
 fn resolves_source_extern_uses_and_preserves_unclassified_externals() {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "nativeConsumer");
     let member = verified_member_with_undefined(&object, b"_native");
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(
         producer,
         vec![contract_record(
@@ -58,7 +60,7 @@ fn resolves_source_extern_uses_and_preserves_unclassified_externals() {
 
     let object = fixture_for_producer(producer, "runtimeConsumer");
     let member = verified_member_with_undefined(&object, b"_runtime_symbol");
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(producer, Vec::new(), Vec::new());
     let verified = verify_source_external_requirements_v1(core, native).unwrap();
     assert!(verified.source_external_requirements().is_empty());
@@ -86,7 +88,7 @@ fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
         VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
     );
     let verified = verify_source_external_requirements_v1(
-        core_closure(producer, member),
+        dependency_closure(producer, member),
         native_surface(producer, vec![tls_record], Vec::new()),
     )
     .unwrap();
@@ -105,7 +107,7 @@ fn admits_tlvp_relocations_only_for_typed_tls_contracts() {
     );
     assert_eq!(
         verify_source_external_requirements_v1(
-            core_closure(producer, member),
+            dependency_closure(producer, member),
             native_surface(producer, vec![data_record], Vec::new()),
         ),
         Err(
@@ -126,7 +128,7 @@ fn carries_the_exact_library_requirement_into_each_use() {
     .unwrap();
     let object = fixture_for_producer(producer, "libraryConsumer");
     let member = verified_member_with_undefined(&object, b"_library_symbol");
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(
         producer,
         vec![contract_record(
@@ -154,7 +156,7 @@ fn retains_declared_contracts_that_have_no_object_use() {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "unusedNativeDeclaration");
     let member = verified_member_without_relocations(&object);
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(
         producer,
         vec![contract_record(
@@ -177,7 +179,7 @@ fn rejects_a_native_surface_from_another_producer() {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "producerMismatch");
     let member = verified_member_without_relocations(&object);
-    let core = core_closure(producer, member);
+    let core = dependency_closure(producer, member);
     let native = native_surface(ConeIdentity::CORE, Vec::new(), Vec::new());
 
     assert_eq!(
@@ -189,30 +191,14 @@ fn rejects_a_native_surface_from_another_producer() {
     );
 }
 
-pub(in crate::link_object) fn core_closure(
+pub(in crate::link_object) fn dependency_closure(
     producer: ConeIdentity,
     member: crate::VerifiedMemberObjectRelocationIndexV1,
-) -> VerifiedCoreStrongRequirementClosureV1 {
+) -> VerifiedCrossConeStrongRequirementClosureV1 {
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
     let bridges = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
-    let core_fixture =
-        super::super::symbol_verification::tests::fixture_named("nativeRequirementCoreOwner");
-    let core_strong = verify_current_cone_strong_relocation_closure_v1(vec![
-        super::super::strong_relocation_closure::tests::verified_member_without_relocations(
-            &core_fixture,
-        ),
-    ])
-    .unwrap();
-    let core_owners =
-        crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&core_strong)
-            .unwrap();
-    verify_core_strong_requirements_v1(
-        LirTargetProfile::DARWIN_AARCH64,
-        strong,
-        bridges,
-        core_owners,
-    )
-    .unwrap()
+    verify_dependency_strong_requirements_v1(LirTargetProfile::DARWIN_AARCH64, strong, bridges, &[])
+        .unwrap()
 }
 
 pub(in crate::link_object) fn native_surface(

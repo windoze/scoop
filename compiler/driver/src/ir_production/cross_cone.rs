@@ -76,7 +76,7 @@ impl CrossConeStrongIrProductionV1 {
         direct_dependencies: Vec<DependencyRecord>,
         temporary_parent: &Path,
         target: &scoop_toolchain::ResolvedTargetProfile,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<AssembledCrossConeArtifactProductionV1, CrossConeStrongIrArtifactProductionError>
     {
         let Self {
@@ -116,8 +116,10 @@ impl CrossConeStrongIrProductionV1 {
                 .and_then(|production| production.verify_registration_objects())
                 .and_then(|production| production.fingerprint_registration_object_leaves())
                 .and_then(|production| {
-                    production
-                        .verify_cross_cone_link_symbol_requirements(core_owners, &lir_cross_cone)
+                    production.verify_cross_cone_link_symbol_requirements(
+                        dependency_owners,
+                        &lir_cross_cone,
+                    )
                 })
                 .and_then(|production| production.fingerprint_registration_dependencies())
                 .and_then(|production| production.finalize_strong_objects())

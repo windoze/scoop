@@ -26,9 +26,9 @@ use super::super::symbol_verification::tests::{
 use super::*;
 use crate::{
     CanonicalDefinedLinkSymbolOwnerSetV1, seal_builtin_object_external_requirements_v1,
-    verify_core_strong_requirements_v1, verify_current_cone_strong_relocation_closure_v1,
-    verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_v1,
+    verify_current_cone_strong_relocation_closure_v1,
+    verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
+    verify_runtime_and_eh_requirements_v1, verify_source_external_requirements_v1,
 };
 
 #[test]
@@ -51,6 +51,42 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
         eh.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::TargetEhSupport { .. }
     ));
+}
+
+#[test]
+fn dependency_requirement_retires_the_core_tag_and_preserves_the_provider() {
+    let provider = scoop_identity::ConeCoordinate::new("test", "requirement-provider", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let owner = StrongDefinitionOwnerV1::new(
+        scoop_identity::StrongDefinitionEntity::exact_type(core_exact_type("WireTarget")),
+        scoop_identity::StrongDefinitionRole::TypeDescriptor,
+    )
+    .unwrap();
+    let requirement = FinalUndefinedSymbolRequirementV1::DependencyStrong { provider, owner };
+    let mut bytes = encode(&requirement).unwrap();
+    assert_eq!(&bytes[..4], &[0xa3, 0, 8, 1]);
+    let decoded = decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
+        &bytes,
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(encode(&decoded).unwrap(), bytes);
+    bytes[2] = 2;
+    assert!(matches!(
+        decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(
+            &bytes,
+            DecodeLimits::default(),
+        ),
+        Err(error) if matches!(error.kind(), scoop_wire::WireErrorKind::UnknownTag { tag: 2 })
+    ));
+    let runtime_bytes = scoop_wire::encode_runtime(
+        &crate::link_object::CanonicalObjectDefinitionRequirementV1::Legacy(requirement),
+    )
+    .unwrap();
+    assert_eq!(&runtime_bytes[..4], &13_u32.to_le_bytes());
+    assert_eq!(&runtime_bytes[4..36], provider.as_array());
 }
 
 #[test]
@@ -159,11 +195,11 @@ fn finalizes_core_and_source_external_requirements() {
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let bridges = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         bridges,
-        core_owner_set(core_target),
+        &[core_owner_set(core_target)],
     )
     .unwrap();
     let source = verify_source_external_requirements_v1(
@@ -182,8 +218,8 @@ fn finalizes_core_and_source_external_requirements() {
     assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
-        FinalUndefinedSymbolRequirementV1::CoreStrong {
-            core: ConeIdentity::CORE,
+        FinalUndefinedSymbolRequirementV1::DependencyStrong {
+            provider: ConeIdentity::CORE,
             ..
         }
     ));
@@ -198,11 +234,11 @@ fn finalizes_core_and_source_external_requirements() {
     let current =
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-        core_owner_set(core_exact_type("UnrelatedCoreType")),
+        &[core_owner_set(core_exact_type("UnrelatedCoreType"))],
     )
     .unwrap();
     let native = native_surface(
@@ -304,7 +340,7 @@ fn final_from_external(
     let producer = external.producer();
     let strong = external
         .source_closure()
-        .core_closure()
+        .cross_cone_closure()
         .strong_closure()
         .clone();
     let current =
@@ -316,13 +352,11 @@ pub(in crate::link_object) fn sealed_without_externals(
     strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
 ) -> SealedBuiltinObjectExternalRequirementClosureV1 {
     let producer = strong.producer();
-    let core_owners =
-        CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong).unwrap();
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-        core_owners,
+        &[],
     )
     .unwrap();
     let source = verify_source_external_requirements_v1(
@@ -345,11 +379,11 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
     let current =
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-        core_owner_set(core_exact_type("CallableFingerprintCoreAuthority")),
+        &[],
     )
     .unwrap();
     let source = verify_source_external_requirements_v1(
@@ -376,11 +410,11 @@ pub(in crate::link_object) fn core_type_final_requirements_for_strong(
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
         ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
-    let core = verify_core_strong_requirements_v1(
+    let core = verify_dependency_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,
         strong,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap(),
-        core_owner_set(target),
+        &[core_owner_set(target)],
     )
     .unwrap();
     let source = verify_source_external_requirements_v1(

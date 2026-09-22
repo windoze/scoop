@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-23 当前 Link requirement 约定：所有外来 strong 选择在共有步骤中按实际 provider/symbol/typed owner 解析，取消 core proof 与独立 core owner 参数。已有 verified dependency owner 集合同时服务外部 callable、descriptor、registration support 和普通 callable，按实际 capability/subject 保持用途互斥与 relocation 完整覆盖。最终 requirement 的旧 CoreStrong tag 2 退役，tag 8 保存 provider/typed strong owner，object-definition fingerprint 的扁平 target sum 使用独立 tag 13；link-identity-closure 升级为 /2，旧版本/tag 拒绝，profile、Code fingerprint、writer/reader 和固定向量同步。完整合同见实现规范 2.11。
+
 2026-09-22 当前 native intrinsic 表示约定：NativeBoundaryNominalShape 使用新 tag 4 保存完整共有 NominalIntrinsicRepresentationV1，生产与依赖投影不再丢弃 family。HIR identity-foundation 升级为 /2，旧 field 30 退役，field 33 保存完整 native 类型表；三十二字段集合为 1～29、31～33，旧字段/版本及 optional 混入拒绝。标量 canonical ABI 重放按实际 typed 声明的 intrinsic family 计算，不再重建 Integer/Boolean 的 CORE 身份，Unit 保持语言内建 identity；其余 Option 与 GC handle 固定身份分支继续迁移。具体表示、覆盖与版本合同见实现规范 2.11。
 
 2026-09-22 当前外部引用约定：String 和初始化 callable 使用共有 typed provider/definition 记录，禁止从 CORE 常量恢复 provider。strong production 的旧 field 1 退役，field 12 保存共有外部引用；旧 callable tag 1 退役，tag 3 直接保存完整 SelectedDependencyLirCallableV1，TypeDescriptor tag 2 保留已有含 provider 的载体。两种 TD/dispatch schema 统一使用显式 provider 的 DependencyExternal，CoreExternal tag 不复用；immortal registration 使用新的 tag 3 provider/exact 引用。strong-production /3、/4 升级为 /5、/6，cross-cone-layout-abi 与 cross-cone-layout-link-closure 升级为 /2。旧格式和 optional 版本混入均拒绝；local/runtime/absent、String 表示、runtime C ABI 和用途分区保持，详细编码与验证见实现规范 2.11、2.12。
@@ -1065,7 +1067,7 @@ ExternalShapeLinkImportV1 {
 | 9 | InitializationCell | `PersistentInitializationUnitId` |
 | 10 | InitializationDescriptor | `PersistentInitializationUnitId` |
 
-每项wire是 `{ 0: tag, 1: payload }`，定义和symbol role从variant唯一派生。7～10只可由provider已导出的object-value/initialization support relation选择；不得通过它们枚举私有storage，也不能引用任意其他unit的cell/failure root。ordinary property access依然只使用accessor，不以此公开backing storage。来源为已存在旧core bridge的subject按3.2留在旧分区，不能重复登记。foreign immortal不是本sum的variant，其现有String/constant路径遵守9.3。
+每项wire是 `{ 0: tag, 1: payload }`，定义和symbol role从variant唯一派生。7～10只可由provider已导出的object-value/initialization support relation选择；不得通过它们枚举私有storage，也不能引用任意其他unit的cell/failure root。ordinary property access依然只使用accessor，不以此公开backing storage。已经由 strong production 外部引用或 ordinary callable selection 记录的 subject，按实际 capability/subject 从共有依赖索引验证，不能在 layout 接口重复认领。foreign immortal不是本sum的variant，其现有String/constant路径遵守9.3。
 
 `ShapeLinkContractV1`精确分为七个variant：`CallableAbi { canonical_signature, calling_convention, protocol }`、`Layout { record }`、`Scan { layout, role, canonical_scan }`、`Type { descriptor_projection }`、`Dispatch { table_projection }`、`StaticStorage { storage_projection }`、`Initialization { unit_projection }`，tag按此顺序为1～7。subject1～5分别只能匹配contract1～5；subject6复用Type、7/8复用StaticStorage、9/10复用Initialization。
 
@@ -1077,7 +1079,7 @@ Layout/Type/Dispatch分别复用6.1/7.1的canonical semantic record，去掉defi
 
 requirements沿用M23-5 canonical relocation-use结构和排序，并引用本section import index；每个physical import至少一个use，每个actual relocation恰有一项。object coverage绑定全部最终LinkObject成员集合及canonical use set，digest使用 `DomainSeparatedCborHash("scoop-cross-cone-layout-object-coverage-v1", { verified_link_objects, relocation_uses })`，仅作LinkValidationOnly。
 
-本section的三字段编号依次为semantic_imports、requirements、object_coverage。每个requirement为`{1:canonical_relocation_use,2:import_index_u32}`，严格按既有`(member, containing_atom, offset_within_atom, target_slot)`排序且唯一；只从已经完成core和旧callable分类的remainder中按target规范化后的expected symbol匹配，已属于旧分区的symbol不得再认领。未匹配的native/runtime候选留给后续既有分类，不得丢弃。coverage为`{1:verified_link_objects,2:relocation_use_set_digest}`，其hash preimage为`{1:verified_link_objects,2:canonical_relocation_uses}`，uses保留完整十字段而不含import index。最终对象证明必须与分类输入的同一verified relocation closure逐成员内容和完整binding join，不能仅以producer或member id相等替代。reader在共享预算内先同Compile完整physical-import表重放，再同独立重建的requirements、全部最终objects和coverage digest精确比较；raw wire本身不授予分类或对象覆盖资格。
+本section的三字段编号依次为semantic_imports、requirements、object_coverage。每个requirement为`{1:canonical_relocation_use,2:import_index_u32}`，严格按既有`(member, containing_atom, offset_within_atom, target_slot)`排序且唯一；只从共有 strong dependency 分类后的 remainder 中按 target 规范化后的 expected symbol 匹配，已由其他 capability/subject 认领的 symbol 不得再次认领。未匹配的native/runtime候选留给后续既有分类，不得丢弃。coverage为`{1:verified_link_objects,2:relocation_use_set_digest}`，其hash preimage为`{1:verified_link_objects,2:canonical_relocation_uses}`，uses保留完整十字段而不含import index。最终对象证明必须与分类输入的同一verified relocation closure逐成员内容和完整binding join，不能仅以producer或member id相等替代。reader在共享预算内先同Compile完整physical-import表重放，再同独立重建的requirements、全部最终objects和coverage digest精确比较；raw wire本身不授予分类或对象覆盖资格。
 
 ### 11.3 三路 relocation分区
 

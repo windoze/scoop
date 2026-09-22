@@ -88,7 +88,7 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
 
     pub fn verify_link_symbol_requirements(
         self,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     ) -> Result<LinkSymbolVerifiedObjectProductionV1, BuiltinObjectProductionError> {
         let Self {
             production,
@@ -120,15 +120,16 @@ impl RegistrationObjectLeafFingerprintedProductionV1 {
                 &production.foundation,
             )
             .map_err(BuiltinObjectProductionError::NativeRequirementSurface)?;
-        let core = verify_core_strong_requirements_v1(
+        let dependencies = verify_dependency_strong_requirements_v1(
             production.target(),
             strong_closure,
             production.production.external_bridges().clone(),
-            core_owners.clone(),
+            dependency_owners,
         )
-        .map_err(BuiltinObjectProductionError::CoreRequirements)?;
-        let source = verify_source_external_requirements_v1(core, native_requirements.clone())
-            .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
+        .map_err(BuiltinObjectProductionError::DependencyRequirements)?;
+        let source =
+            verify_source_external_requirements_v1(dependencies, native_requirements.clone())
+                .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
         let runtime_and_eh =
             verify_runtime_and_eh_requirements_v1(source, production.target_selection)
                 .map_err(BuiltinObjectProductionError::RuntimeAndEhRequirements)?;

@@ -55,7 +55,7 @@ fn encodes_a_core_type_registration_as_a_core_requirement() {
 
     assert_eq!(
         fingerprints.fingerprints()[0].fingerprint().to_string(),
-        "a5fedbd301dbb190d45c5de31768a9cf3c179b9f47aa81cc131e8c0ea74731a8"
+        "3105450097f215c3b15eda9e83401288666df92d62bd0bd92b628a4fb49717d5"
     );
 }
 

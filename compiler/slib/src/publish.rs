@@ -242,7 +242,7 @@ pub fn validate_publishable_single_cone_artifact(
     limits: DecodeLimits,
     target_selection: ValidatedLirTargetSelection,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
     let compile_graph = DecodedSlibEnvelope::open(final_bytes, limits, target_selection)
@@ -264,7 +264,7 @@ pub fn validate_publishable_single_cone_artifact(
     let link = validate_single_cone_strong_link_artifact(
         link_graph,
         expected_external_bridges,
-        core_owners,
+        dependency_owners,
         c_bridge_profile,
     )
     .map_err(|error| PublishableArtifactValidationError::Link(Box::new(error)))?;
@@ -281,14 +281,14 @@ pub fn validate_self_describing_publishable_single_cone_artifact(
     final_bytes: &[u8],
     limits: DecodeLimits,
     target_selection: ValidatedLirTargetSelection,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishableSingleConeArtifact, PublishableArtifactValidationError> {
     let (compile, link) = validate_self_describing_single_cone_strong_views(
         final_bytes,
         limits,
         target_selection,
-        core_owners,
+        dependency_owners,
         c_bridge_profile,
     )?;
 
@@ -300,7 +300,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
     final_bytes: &'input [u8],
     limits: DecodeLimits,
     target_selection: ValidatedLirTargetSelection,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<
     (
@@ -324,7 +324,7 @@ pub(crate) fn validate_self_describing_single_cone_strong_views<'input>(
         .map_err(|error| PublishableArtifactValidationError::LinkGraph(Box::new(error)))?;
     let link = validate_self_describing_single_cone_strong_link_artifact(
         link_graph,
-        core_owners,
+        dependency_owners,
         c_bridge_profile,
     )
     .map_err(|error| PublishableArtifactValidationError::Link(Box::new(error)))?;
@@ -345,7 +345,7 @@ pub fn publish_single_cone_artifact(
     limits: DecodeLimits,
     target_selection: ValidatedLirTargetSelection,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
-    core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
 ) -> Result<PublishedSingleConeArtifact, SingleConeArtifactPublishError> {
     let parent = destination
@@ -403,7 +403,7 @@ pub fn publish_single_cone_artifact(
         limits,
         target_selection,
         expected_external_bridges,
-        core_owners,
+        dependency_owners,
         c_bridge_profile,
     )
     .map_err(|source| SingleConeArtifactPublishError::Validation(Box::new(source)))?;
@@ -596,13 +596,13 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let dependency_owners = Vec::new();
         let publishable = validate_publishable_single_cone_artifact(
             &bytes,
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
-            &core_owners,
+            &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
         )
         .unwrap();
@@ -619,13 +619,13 @@ mod tests {
     #[test]
     fn published_bytes_reconstruct_external_bridge_authority_from_both_views() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let dependency_owners = Vec::new();
 
         let publishable = validate_self_describing_publishable_single_cone_artifact(
             &bytes,
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
-            &core_owners,
+            &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
         )
         .unwrap();
@@ -648,13 +648,13 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let dependency_owners = Vec::new();
         let error = validate_publishable_single_cone_artifact(
             &bytes,
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
-            &core_owners,
+            &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
         )
         .unwrap_err();
@@ -673,7 +673,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let dependency_owners = Vec::new();
 
         let published = publish_single_cone_artifact(
             &bytes,
@@ -681,7 +681,7 @@ mod tests {
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
-            &core_owners,
+            &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
         )
         .unwrap();
@@ -703,7 +703,7 @@ mod tests {
             Vec::new(),
         )
         .unwrap();
-        let core_owners = CanonicalDefinedLinkSymbolOwnerSetV1::empty_core_bootstrap();
+        let dependency_owners = Vec::new();
 
         let error = publish_single_cone_artifact(
             &bytes,
@@ -711,7 +711,7 @@ mod tests {
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &external,
-            &core_owners,
+            &dependency_owners,
             &crate::link_decode::c_bridge_profile_for_test(),
         )
         .unwrap_err();

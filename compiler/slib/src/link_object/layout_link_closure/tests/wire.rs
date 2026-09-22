@@ -1,10 +1,9 @@
 use super::*;
-use crate::link_object::cross_cone_link_closure::preserve_without_cross_cone_requirements_v1;
 use crate::link_object::layout_link_closure::{
     tests::fixture::{Provider, TARGET, meter},
     verify_external_shape_requirements_v1,
 };
-use crate::link_object::native_requirements::tests::core_closure;
+use crate::link_object::native_requirements::tests::dependency_closure;
 use crate::link_object::strong_relocation_closure::tests::verified_member_with_undefined;
 use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
@@ -19,10 +18,10 @@ fn layout_link_reader_replays_nonempty_uses_without_promoting_wire_fields() {
         .native_symbol_normalization()
         .compiler_generated_object_symbol(import.expected_symbol().symbol().as_str());
     let object = fixture_for_producer(consumer.provider(), "wireUse");
-    let legacy = preserve_without_cross_cone_requirements_v1(core_closure(
+    let legacy = dependency_closure(
         consumer.provider(),
         verified_member_with_undefined(&object, symbol.as_bytes()),
-    ));
+    );
     let verified =
         verify_external_shape_requirements_v1(&legacy, consumer.selected(), &mut meter()).unwrap();
     let bytes = encode(&verified.requirements()[0]).unwrap();

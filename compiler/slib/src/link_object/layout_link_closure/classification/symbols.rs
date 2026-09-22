@@ -87,7 +87,7 @@ impl ImportSymbolIndex {
                 return Err(LayoutLinkClosureError::OldPartition { import_index });
             }
         }
-        for requirement in legacy.core_closure().core_requirements() {
+        for requirement in legacy.external_requirements() {
             if let Some(import_index) = self.find(requirement.use_site().symbol(), meter)? {
                 return Err(LayoutLinkClosureError::OldPartition { import_index });
             }
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn layout_link_rejects_symbols_already_owned_by_the_ordinary_callable_partition() {
-        use crate::link_object::native_requirements::tests::core_closure;
+        use crate::link_object::native_requirements::tests::dependency_closure;
         use crate::link_object::strong_relocation_closure::tests::verified_member_with_undefined;
         use crate::link_object::symbol_verification::tests::fixture_for_producer;
         use crate::link_object::verify_cross_cone_strong_requirements_v1;
@@ -207,8 +207,23 @@ mod tests {
         let request = imports.imports()[0].expected_symbol();
         let name = normalized(request, TARGET, &mut meter()).unwrap();
         let object = fixture_for_producer(consumer, "oldCall");
-        let core = core_closure(consumer, verified_member_with_undefined(&object, &name));
-        let legacy = verify_cross_cone_strong_requirements_v1(core, &bridge).unwrap();
+        let core = dependency_closure(consumer, verified_member_with_undefined(&object, &name));
+        let provider_object = fixture_for_producer(provider, "entry");
+        let provider_strong = crate::verify_current_cone_strong_relocation_closure_v1(vec![
+            crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations(&provider_object),
+        ]).unwrap();
+        let owners = crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
+            &provider_strong,
+        )
+        .unwrap();
+        let legacy = verify_cross_cone_strong_requirements_v1(
+            core.target(),
+            core.strong_closure().clone(),
+            core.external_bridges().clone(),
+            &[owners],
+            &bridge,
+        )
+        .unwrap();
         assert_eq!(legacy.requirements().len(), 1);
         let attempted =
             ImportSymbolIndex::from_requests([request].into_iter(), TARGET, &mut meter()).unwrap();

@@ -85,7 +85,7 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
 
     pub fn validate_link_symbol_requirements(
         self,
-        core_owners: &CanonicalDefinedLinkSymbolOwnerSetV1,
+        dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         c_bridge_profile: &CBridgeToolchainProfileV1,
     ) -> Result<LinkSymbolCheckedSingleConeLinkSections<'input>, StrongLinkSymbolRequirementError>
     {
@@ -124,16 +124,18 @@ impl<'input> RegistrationLeafFingerprintedSingleConeLinkSections<'input> {
             &foundations.lir,
         )
         .map_err(StrongLinkSymbolRequirementError::NativeSurface)?;
-        let core = crate::verify_core_strong_requirements_v1(
+        let dependencies = crate::verify_dependency_strong_requirements_v1(
             selection.target(),
             strong_closure,
             production.lir().external_bridges().clone(),
-            core_owners.clone(),
+            dependency_owners,
         )
-        .map_err(StrongLinkSymbolRequirementError::Core)?;
-        let source =
-            crate::verify_source_external_requirements_v1(core, native_requirements.clone())
-                .map_err(StrongLinkSymbolRequirementError::SourceExternal)?;
+        .map_err(StrongLinkSymbolRequirementError::CrossCone)?;
+        let source = crate::verify_source_external_requirements_v1(
+            dependencies,
+            native_requirements.clone(),
+        )
+        .map_err(StrongLinkSymbolRequirementError::SourceExternal)?;
         let runtime_and_eh = crate::verify_runtime_and_eh_requirements_v1(source, selection)
             .map_err(StrongLinkSymbolRequirementError::RuntimeAndEh)?;
         let bridge_semantics = crate::verify_generated_c_bridge_semantics_v1(

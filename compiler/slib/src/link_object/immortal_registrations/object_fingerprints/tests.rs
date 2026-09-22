@@ -51,7 +51,7 @@ fn hashes_a_core_descriptor_as_a_typed_core_requirement() {
             .iter()
             .all(|requirement| matches!(
                 requirement.requirement(),
-                FinalUndefinedSymbolRequirementV1::CoreStrong { .. }
+                FinalUndefinedSymbolRequirementV1::DependencyStrong { .. }
             ))
     );
     let registration_objects = registration_objects(&fixture, &objects);
@@ -65,7 +65,7 @@ fn hashes_a_core_descriptor_as_a_typed_core_requirement() {
 
     assert_eq!(
         fingerprints.fingerprints()[0].fingerprint().to_string(),
-        "0fe4c76fea582c8a541ec45b0d82360a1b8249d289f9c32b9c53deddb6b9999c"
+        "205b457b65b13ea6997bc6e12db265b54026e62ffa32cb9b9ba51ef676f83878"
     );
 }
 

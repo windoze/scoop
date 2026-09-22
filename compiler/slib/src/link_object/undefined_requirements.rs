@@ -33,8 +33,8 @@ pub enum FinalUndefinedSymbolRequirementV1 {
     IntraConeStrong {
         owner: StrongDefinitionOwnerV1,
     },
-    CoreStrong {
-        core: ConeIdentity,
+    DependencyStrong {
+        provider: ConeIdentity,
         owner: StrongDefinitionOwnerV1,
     },
     GeneratedBridge {
@@ -177,11 +177,11 @@ pub(super) fn finalize_partitioned_undefined_symbol_requirements_with_additional
     }
 
     let verified_external = external.verified();
-    for item in verified_external.core_requirements() {
+    for item in verified_external.external_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
-            requirement: FinalUndefinedSymbolRequirementV1::CoreStrong {
-                core: ConeIdentity::CORE,
+            requirement: FinalUndefinedSymbolRequirementV1::DependencyStrong {
+                provider: item.provider(),
                 owner: item.owner(),
             },
         });
