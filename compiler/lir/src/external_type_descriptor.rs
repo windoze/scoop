@@ -1,11 +1,17 @@
-use scoop_wire::HashError;
-use std::fmt;
-
 use scoop_identity::{
-    ConeIdentity, LinkageClass, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, LinkageClass, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
+
+mod errors;
+pub use errors::*;
+mod validation;
+mod wire;
+pub use wire::DecodedExternalTypeDescriptor;
+
+#[cfg(test)]
+mod tests;
 
 /// A descriptor imported from its actual provider. Foundation and layout/ABI
 /// selections retain the same complete physical definition contract.
@@ -66,28 +72,5 @@ impl ExternalTypeDescriptor {
 
     pub const fn required_definition(self) -> ObjectDefinitionPlanId {
         self.required_definition
-    }
-}
-
-#[derive(Debug)]
-pub enum ExternalTypeDescriptorBuildError {
-    Identity(HashError),
-    Symbol(PersistentSymbolError),
-    Definition(ObjectDefinitionIdentityError),
-}
-
-impl fmt::Display for ExternalTypeDescriptorBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "cannot derive external TypeDescriptor: {self:?}")
-    }
-}
-
-impl std::error::Error for ExternalTypeDescriptorBuildError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Identity(error) => Some(error),
-            Self::Symbol(error) => Some(error),
-            Self::Definition(error) => Some(error),
-        }
     }
 }

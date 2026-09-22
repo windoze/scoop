@@ -3,8 +3,7 @@ use std::fmt;
 use scoop_identity::{
     ConeIdentity, CoreImportedCallableKind, ExactCallableSignature, ImportedIdentityId,
     ImportedIdentityMap, LirIdentityLayer, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentId, StrongCallableDefinitionOwner, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    PersistentExactTypeId, PersistentId, StrongCallableDefinitionOwner,
 };
 use scoop_wire::WireEncode;
 
@@ -139,26 +138,13 @@ impl ImportedLirFoundation {
         }
         let descriptor = crate::ExternalTypeDescriptor::new(self.origin(), target)
             .map_err(ImportedLirTypeDescriptorProjectionError::Contract)?;
-        let expected_symbol = descriptor.expected_symbol();
         let required_definition = descriptor.required_definition();
-        let required_definition = self.identity(required_definition).ok_or(
+        self.identity(required_definition).ok_or(
             ImportedLirTypeDescriptorProjectionError::MissingDefinition(required_definition),
         )?;
-        let plan = definitions.plan(required_definition.persistent()).ok_or(
-            ImportedLirTypeDescriptorProjectionError::MissingDefinition(
-                required_definition.persistent(),
-            ),
-        )?;
-        if plan.owner() != StrongDefinitionEntity::exact_type(target)
-            || plan.definition_role() != StrongDefinitionRole::TypeDescriptor
-            || plan.primary_symbol() != expected_symbol
-        {
-            return Err(
-                ImportedLirTypeDescriptorProjectionError::DefinitionMismatch(
-                    required_definition.persistent(),
-                ),
-            );
-        }
+        descriptor
+            .validate_definition(definitions)
+            .map_err(ImportedLirTypeDescriptorProjectionError::Definition)?;
         Ok(descriptor)
     }
 }
@@ -188,7 +174,7 @@ pub enum ImportedLirTypeDescriptorProjectionError {
     MissingExactType(PersistentExactTypeId),
     Contract(crate::ExternalTypeDescriptorBuildError),
     MissingDefinition(ObjectDefinitionPlanId),
-    DefinitionMismatch(ObjectDefinitionPlanId),
+    Definition(crate::ExternalTypeDescriptorValidationError),
 }
 
 impl fmt::Display for ImportedLirTypeDescriptorProjectionError {
@@ -204,6 +190,7 @@ impl std::error::Error for ImportedLirTypeDescriptorProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Contract(error) => Some(error),
+            Self::Definition(error) => Some(error),
             _ => None,
         }
     }

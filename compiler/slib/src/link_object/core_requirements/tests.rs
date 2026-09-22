@@ -6,9 +6,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, LirTargetProfile,
-    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
-    StrongExternalTypeDescriptorBridgeV1,
+    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, ExternalTypeDescriptor,
+    LirTargetProfile, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
 };
 
 use super::super::strong_relocation_closure::tests::{
@@ -28,7 +27,7 @@ fn resolves_core_bridges_against_the_actual_core_owner() {
     let source = fixture_for_producer(producer, "coreConsumer");
     let target = core_exact_type("String");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let expected_name = bridge_name(&bridge);
     let member = verified_member_with_undefined(&source, &expected_name);
@@ -72,7 +71,7 @@ fn resolves_the_type_registration_support_of_a_core_descriptor_bridge() {
     let producer = ConeIdentity::SINGLE_FILE;
     let target = core_exact_type("SupportedString");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let descriptor_source = fixture_for_producer(producer, "coreDescriptorConsumer");
     let registration_source = fixture_for_producer(producer, "coreRegistrationConsumer");
@@ -116,7 +115,7 @@ fn rejects_a_core_descriptor_bridge_without_its_registration_support_owner() {
     let producer = ConeIdentity::SINGLE_FILE;
     let target = core_exact_type("MissingRegistrationSupport");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let source = fixture_for_producer(producer, "missingRegistrationSupportConsumer");
     let strong =
@@ -178,7 +177,7 @@ fn permits_metadata_only_descriptor_authorities() {
     let strong = verify_current_cone_strong_relocation_closure_v1(vec![member]).unwrap();
     let target = core_exact_type("Unit");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let surface = StrongExternalLirBridgeSurfaceV1::try_new(producer, vec![bridge]).unwrap();
     let verified = verify_core_strong_requirements_v1(
@@ -261,7 +260,7 @@ fn rejects_missing_or_non_core_owner_authority() {
     let source = fixture_for_producer(producer, "missingCoreOwner");
     let target = core_exact_type("Required");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let expected_name = bridge_name(&bridge);
     let strong =

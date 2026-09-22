@@ -186,7 +186,7 @@ fn string_type_registration(
             ))
         }
         TypeDescriptorRef::External(_) => {
-            let descriptor = crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+            let descriptor = crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
                 .map_err(StrongImmortalObjectSemanticPlanBuildError::ExternalBridge)?
                 .ok_or(StrongImmortalObjectSemanticPlanBuildError::MissingStringTypeDescriptor)?;
             Ok(ImmortalObjectTypeRegistrationRefV1::CoreExternal(

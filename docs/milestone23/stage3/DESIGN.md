@@ -1,5 +1,7 @@
 # M23-3 设计：single-Cone artifact 与 core 分离
 
+2026-09-22 当前外部描述符约定：String的旧外部描述符桥不再复制target/symbol/definition；它直接保存与通用layout选择、foundation投影和LIR arena相同的完整ExternalTypeDescriptor。共有wire为四字段closed product：1=provider、2=target、3=expected_symbol、4=required_definition；旧隐含CORE的三字段格式拒绝，artifact/cache须重建。reader在共有identity graph中解析provider和exact target，由实际provider重新推导symbol/definition并逐字核对完整record，definition的owner/role/primary symbol使用同一关系校验。String协议外层继续从well-known明确引用选择记录并验证所需CORE provider；不能把其他外部描述符按provider归入String角色。不再保留StrongExternalTypeDescriptorBridgeV1、core专用TD identity helper或CoreExternalBuildError。
+
 2026-09-22 当前callable生产约定：LIR初始化服务、普通调用桥和通用layout/ABI发布共用实际callable关联：从typed StrongCallableDefinitionOwner取得同一MIR strong记录、实际物化root与对应LIR body，并核对exact签名。普通调用与初始化调用使用同一canonical ABI投影，统一检查GC effect、calling convention及逻辑参数数量，再构造完整CallableAbiRecordV1；初始化角色额外限定function、ordinary、无receiver。通用layout/ABI继续重放自己的layout/physical证明，但不再重复查找MIR/LIR函数；其resource meter在共有查找前按相同表长度计量，不免除预算。投影失败返回携带typed target的共有错误，不按core名称或symbol字符串补目标。此批合并生产实现，不改变角色外层wire和public可见性。
 
 2026-09-22 当前LIR清理约定：初始化发布、外部调用与普通依赖共用CallableAbiRecordV1及ExternalCallableRootPlan；普通调用桥wire为declaration与完整ABI record组成的两字段product，旧七字段格式拒绝。provider显式输入共有identity/definition推导，初始化外层角色仍明确保存。
@@ -1175,8 +1177,8 @@ target的closed sum tag按`Function=1`、`Constructor=2`、`PropertyAccessor=3`�
  `CallableBody` definition plan从target和显式provider唯一重算；这个旧初始化分区的provider明确为CORE，builder拒绝其他provider的record，普通调用桥传入其实际provider。canonical ABI完整绑定exact signature、
 direct/indirect/ZST传递、storage size/alignment/shape与GC effect；它必须与codegen消费的物理
 `ScoopAbiSignature`逐argument/result相符，并与root-plan effect相符。type descriptor payload固定为
-`1=target: PersistentExactTypeId`、`2=expected_symbol: PersistentSymbolRequest`、
-`3=required_definition: ObjectDefinitionPlanId`，后两项同样从target唯一重算。untrusted reader必须与
+`1=provider: ConeIdentity`、`2=target: PersistentExactTypeId`、`3=expected_symbol: PersistentSymbolRequest`、
+`4=required_definition: ObjectDefinitionPlanId`，使用共有ExternalTypeDescriptor codec；symbol和definition由实际provider/target唯一重算，旧三字段格式拒绝。untrusted reader必须与
 HIR/MIR/LIR及trusted-core artifact重建出的完整typed surface逐byte匹配，不能排序、补字段或直接把
 decoded identity cast为已验证记录。
 

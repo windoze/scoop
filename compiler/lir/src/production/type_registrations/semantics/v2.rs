@@ -34,7 +34,7 @@ impl StrongTypeDescriptorSemanticPlanSetV2 {
                 },
             );
         }
-        crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+        crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
             .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         let mut canonical = BTreeMap::new();
         for (_, descriptor) in module.meta.type_descriptors.iter() {
@@ -171,7 +171,7 @@ fn descriptor_ref(
             }
             let descriptor = module.meta.external_type_descriptors[id];
             if reference == module.meta.well_known_type_descriptors.string {
-                crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+                crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
                     .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
                 StrongTypeDescriptorRefV2::CoreExternal(descriptor.target())
             } else {

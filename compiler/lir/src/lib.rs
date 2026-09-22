@@ -38,8 +38,7 @@ pub use externs::*;
 mod calls;
 pub use calls::*;
 
-mod core_external;
-pub use core_external::*;
+pub use scoop_identity::ConeIdentity;
 
 mod callable_abi;
 pub use callable_abi::*;

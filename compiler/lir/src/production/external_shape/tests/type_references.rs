@@ -256,7 +256,7 @@ fn old_core_descriptor_cannot_be_reencoded_as_general_dependency() {
     let core = StrongExternalLirBridgeSurfaceV1::try_new(
         producer,
         vec![crate::StrongExternalLirBridgeV1::TypeDescriptor(
-            crate::StrongExternalTypeDescriptorBridgeV1::new(exact).unwrap(),
+            crate::ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, exact).unwrap(),
         )],
     )
     .unwrap();

@@ -31,7 +31,7 @@ impl StrongTypeDescriptorSemanticPlanSetV1 {
     pub fn from_module(
         module: &Module,
     ) -> Result<Self, StrongTypeDescriptorSemanticPlanBuildError> {
-        crate::StrongExternalTypeDescriptorBridgeV1::runtime_string(module)
+        crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
             .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
         Self::from_components(
             module.cone,

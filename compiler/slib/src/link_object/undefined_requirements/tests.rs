@@ -5,9 +5,8 @@ use scoop_identity::{
 };
 use scoop_lir::{
     CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
-    GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
-    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
-    StrongExternalTypeDescriptorBridgeV1, ValidatedLirTargetSelection,
+    ExternalTypeDescriptor, GeneratedBridgePlanSetV1, LirTargetProfile, OdrFreeLirFoundation,
+    StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1, ValidatedLirTargetSelection,
 };
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
@@ -146,7 +145,7 @@ fn finalizes_core_and_source_external_requirements() {
     let producer = ConeIdentity::SINGLE_FILE;
     let core_target = core_exact_type("FinalCoreType");
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(core_target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, core_target).unwrap(),
     );
     let bridge_name = normalized_bridge_name(&bridge);
     let source = fixture_for_producer(producer, "finalCoreConsumer");
@@ -375,7 +374,7 @@ pub(in crate::link_object) fn core_type_final_requirements_for_strong(
         verify_current_cone_undefined_requirements_v1(strong.clone(), empty_bridge_plan(producer))
             .unwrap();
     let bridge = StrongExternalLirBridgeV1::TypeDescriptor(
-        StrongExternalTypeDescriptorBridgeV1::new(target).unwrap(),
+        ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, target).unwrap(),
     );
     let core = verify_core_strong_requirements_v1(
         LirTargetProfile::DARWIN_AARCH64,

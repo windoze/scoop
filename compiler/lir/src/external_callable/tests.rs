@@ -1,3 +1,5 @@
+mod core;
+
 use scoop_identity::{
     CanonicalIdentifier, CanonicalScoopAbiFunctionSignature, ConeCoordinate, ConeIdentity,
     DeclarationScope, DefinitionOwnerChain, DependencyCallableDeclarationId, Effect,

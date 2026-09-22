@@ -2,96 +2,25 @@ use std::fmt;
 
 use crate::{
     CallableAbiBuildError, CallableAbiDecodeError, CallableAbiRecordV1, CallableAbiValidationError,
-    CoreExternalBuildError, DecodedCallableAbiRecordV1, ExternalTypeDescriptor, Module,
-    core_type_descriptor_link_contract,
+    DecodedCallableAbiRecordV1, DecodedExternalTypeDescriptor, ExternalTypeDescriptor,
+    ExternalTypeDescriptorDecodeError, ExternalTypeDescriptorValidationError, Module,
 };
-use scoop_identity::{
-    DecodedPersistentId, DecodedPersistentSymbolRequest, IdentityReferenceError,
-    ObjectDefinitionPlanId, PersistentExactTypeId, PersistentIdResolver, PersistentSymbolRequest,
-    ValidatedIdentityGraph,
-};
+use scoop_identity::ValidatedIdentityGraph;
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StrongExternalTypeDescriptorBridgeV1 {
-    target: PersistentExactTypeId,
-    expected_symbol: PersistentSymbolRequest,
-    required_definition: ObjectDefinitionPlanId,
-}
-
-impl StrongExternalTypeDescriptorBridgeV1 {
-    pub fn new(target: PersistentExactTypeId) -> Result<Self, CoreExternalBuildError> {
-        let (expected_symbol, required_definition) = core_type_descriptor_link_contract(target)?;
-        Ok(Self {
-            target,
-            expected_symbol,
-            required_definition,
-        })
-    }
-
-    fn from_lir(value: &ExternalTypeDescriptor) -> Result<Self, StrongExternalLirBridgeBuildError> {
-        let bridge =
-            Self::new(value.target()).map_err(StrongExternalLirBridgeBuildError::Contract)?;
-        if value.provider() != scoop_identity::ConeIdentity::CORE
-            || value.expected_symbol() != bridge.expected_symbol()
-            || value.required_definition() != bridge.required_definition()
-        {
-            return Err(StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor);
-        }
-        Ok(bridge)
-    }
-
-    pub(crate) fn runtime_string(
-        module: &Module,
-    ) -> Result<Option<Self>, StrongExternalLirBridgeBuildError> {
-        match module.meta.well_known_type_descriptors.string {
-            crate::TypeDescriptorRef::Local(_) => Ok(None),
-            crate::TypeDescriptorRef::External(id) => {
-                if id.into_raw().into_u32() as usize >= module.meta.external_type_descriptors.len()
-                {
-                    return Err(StrongExternalLirBridgeBuildError::MissingRuntimeStringDescriptor);
-                }
-                Self::from_lir(&module.meta.external_type_descriptors[id]).map(Some)
-            }
-        }
-    }
-
-    pub const fn target(&self) -> PersistentExactTypeId {
-        self.target
-    }
-
-    pub const fn expected_symbol(&self) -> PersistentSymbolRequest {
-        self.expected_symbol
-    }
-
-    pub const fn required_definition(&self) -> ObjectDefinitionPlanId {
-        self.required_definition
-    }
-}
-
-impl WireEncode for StrongExternalTypeDescriptorBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.target.encode(encoder)?;
-        encoder.field(2)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(3)?;
-        self.required_definition.encode(encoder)
-    }
-}
+mod runtime_string;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongExternalLirBridgeV1 {
     Callable(CallableAbiRecordV1),
-    TypeDescriptor(StrongExternalTypeDescriptorBridgeV1),
+    TypeDescriptor(ExternalTypeDescriptor),
 }
 
 impl StrongExternalLirBridgeV1 {
     fn sort_key(&self) -> (u8, [u8; 32]) {
         match self {
             Self::Callable(bridge) => (1, *bridge.expected_symbol().key().owner_bytes()),
-            Self::TypeDescriptor(bridge) => (2, *bridge.target.as_array()),
+            Self::TypeDescriptor(bridge) => (2, *bridge.target().as_array()),
         }
     }
 }
@@ -137,7 +66,7 @@ impl StrongExternalLirBridgeSurfaceV1 {
                     .map_err(StrongExternalLirBridgeBuildError::Callable)?,
             ));
         }
-        if let Some(descriptor) = StrongExternalTypeDescriptorBridgeV1::runtime_string(module)? {
+        if let Some(descriptor) = Self::runtime_string(module)? {
             bridges.push(StrongExternalLirBridgeV1::TypeDescriptor(descriptor));
         }
         Self::try_new(module.cone, bridges)
@@ -151,10 +80,15 @@ impl StrongExternalLirBridgeSurfaceV1 {
             return Err(StrongExternalLirBridgeBuildError::CoreBootstrapImport);
         }
         for bridge in &bridges {
-            if let StrongExternalLirBridgeV1::Callable(callable) = bridge {
-                callable
-                    .link_contract(scoop_identity::ConeIdentity::CORE)
-                    .map_err(StrongExternalLirBridgeBuildError::CallableContract)?;
+            match bridge {
+                StrongExternalLirBridgeV1::Callable(callable) => {
+                    callable
+                        .link_contract(scoop_identity::ConeIdentity::CORE)
+                        .map_err(StrongExternalLirBridgeBuildError::CallableContract)?;
+                }
+                StrongExternalLirBridgeV1::TypeDescriptor(descriptor) => {
+                    Self::validate_runtime_string(*descriptor)?;
+                }
             }
         }
         bridges.sort_unstable_by_key(StrongExternalLirBridgeV1::sort_key);
@@ -189,39 +123,9 @@ impl WireEncode for StrongExternalLirBridgeSurfaceV1 {
 }
 
 #[derive(Clone, Debug)]
-struct DecodedStrongExternalTypeDescriptorBridgeV1 {
-    target: DecodedPersistentId<PersistentExactTypeId>,
-    expected_symbol: DecodedPersistentSymbolRequest,
-    required_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
-}
-
-impl WireEncode for DecodedStrongExternalTypeDescriptorBridgeV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.target.encode(encoder)?;
-        encoder.field(2)?;
-        self.expected_symbol.encode(encoder)?;
-        encoder.field(3)?;
-        self.required_definition.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStrongExternalTypeDescriptorBridgeV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
-        Ok(Self {
-            target: decoder.field(1, DecodedPersistentId::decode)?,
-            expected_symbol: decoder.field(2, DecodedPersistentSymbolRequest::decode)?,
-            required_definition: decoder.field(3, DecodedPersistentId::decode)?,
-        })
-    }
-}
-
-#[derive(Clone, Debug)]
 enum DecodedStrongExternalLirBridgeV1 {
     Callable(DecodedCallableAbiRecordV1),
-    TypeDescriptor(DecodedStrongExternalTypeDescriptorBridgeV1),
+    TypeDescriptor(DecodedExternalTypeDescriptor),
 }
 
 impl WireEncode for DecodedStrongExternalLirBridgeV1 {
@@ -266,7 +170,7 @@ impl WireDecode for DecodedStrongExternalLirBridgeV1 {
                 .field(1, DecodedCallableAbiRecordV1::decode)
                 .map(Self::Callable),
             2 => decoder
-                .field(1, DecodedStrongExternalTypeDescriptorBridgeV1::decode)
+                .field(1, DecodedExternalTypeDescriptor::decode)
                 .map(Self::TypeDescriptor),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
@@ -304,13 +208,11 @@ impl DecodedStrongExternalLirBridgeSurfaceV1 {
                     )
                 }
                 DecodedStrongExternalLirBridgeV1::TypeDescriptor(bridge) => {
-                    let target = <ValidatedIdentityGraph as PersistentIdResolver<
-                        PersistentExactTypeId,
-                    >>::resolve(identities, bridge.target)
-                    .map_err(StrongExternalLirBridgeReconstructionError::Identity)?;
                     StrongExternalLirBridgeV1::TypeDescriptor(
-                        StrongExternalTypeDescriptorBridgeV1::new(target)
-                            .map_err(StrongExternalLirBridgeReconstructionError::Contract)?,
+                        bridge
+                            .clone()
+                            .validate(identities)
+                            .map_err(StrongExternalLirBridgeReconstructionError::TypeDescriptor)?,
                     )
                 }
             });
@@ -358,7 +260,7 @@ impl WireDecode for DecodedStrongExternalLirBridgeSurfaceV1 {
 pub enum StrongExternalLirBridgeBuildError {
     Callable(CallableAbiBuildError),
     CallableContract(CallableAbiValidationError),
-    Contract(CoreExternalBuildError),
+    TypeDescriptor(ExternalTypeDescriptorValidationError),
     CoreBootstrapImport,
     MissingRuntimeStringDescriptor,
     InvalidRuntimeStringDescriptor,
@@ -377,7 +279,7 @@ impl fmt::Display for StrongExternalLirBridgeBuildError {
 impl std::error::Error for StrongExternalLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Contract(error) => Some(error),
+            Self::TypeDescriptor(error) => Some(error),
             Self::Callable(error) => Some(error),
             Self::CallableContract(error) => Some(error),
             Self::CoreBootstrapImport
@@ -396,9 +298,8 @@ pub enum StrongExternalLirBridgeValidationError {
 
 #[derive(Debug)]
 pub enum StrongExternalLirBridgeReconstructionError {
-    Identity(IdentityReferenceError),
     Callable(CallableAbiDecodeError),
-    Contract(CoreExternalBuildError),
+    TypeDescriptor(ExternalTypeDescriptorDecodeError),
     Surface(StrongExternalLirBridgeBuildError),
 }
 
@@ -414,9 +315,8 @@ impl fmt::Display for StrongExternalLirBridgeReconstructionError {
 impl std::error::Error for StrongExternalLirBridgeReconstructionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::Identity(error) => error,
             Self::Callable(error) => error,
-            Self::Contract(error) => error,
+            Self::TypeDescriptor(error) => error,
             Self::Surface(error) => error,
         })
     }

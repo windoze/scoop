@@ -150,6 +150,9 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         )
         .unwrap();
     assert_eq!(production.external_bridges().bridges().len(), 2);
+    assert!(production.external_bridges().bridges().contains(
+        &lir::StrongExternalLirBridgeV1::TypeDescriptor(runtime_string)
+    ));
     assert_eq!(
         production
             .external_bridges()
@@ -158,18 +161,5 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
             .filter(|bridge| matches!(bridge, lir::StrongExternalLirBridgeV1::Callable(_)))
             .count(),
         1
-    );
-    assert!(
-        production
-            .external_bridges()
-            .bridges()
-            .iter()
-            .any(|bridge| {
-                matches!(
-                    bridge,
-                    lir::StrongExternalLirBridgeV1::TypeDescriptor(descriptor)
-                        if descriptor.target() == string_exact
-                )
-            })
     );
 }

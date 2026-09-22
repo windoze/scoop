@@ -28,6 +28,7 @@ fn descriptor_projection_retains_the_actual_provider_and_selected_definition() {
             descriptor,
             ExternalTypeDescriptor::new(provider, exact).unwrap()
         );
+        descriptor.validate_definition(&definitions).unwrap();
 
         let missing = exact_type(provider, "Missing");
         assert!(matches!(
@@ -38,9 +39,19 @@ fn descriptor_projection_retains_the_actual_provider_and_selected_definition() {
 
         let other = ConeIdentity::SINGLE_FILE;
         let (_, foreign_definitions) = fixture(other, exact);
+        assert_eq!(
+            descriptor.validate_definition(&foreign_definitions),
+            Err(
+                crate::ExternalTypeDescriptorValidationError::MissingDefinition(
+                    descriptor.required_definition()
+                )
+            )
+        );
         assert!(matches!(
             foundation.project_type_descriptor(&foreign_definitions, exact),
-            Err(ImportedLirTypeDescriptorProjectionError::MissingDefinition(found))
+            Err(ImportedLirTypeDescriptorProjectionError::Definition(
+                crate::ExternalTypeDescriptorValidationError::MissingDefinition(found)
+            ))
                 if found == descriptor.required_definition()
         ));
         let foreign = ExternalTypeDescriptor::new(other, exact).unwrap();
