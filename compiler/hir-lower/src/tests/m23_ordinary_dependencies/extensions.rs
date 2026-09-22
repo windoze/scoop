@@ -57,20 +57,27 @@ fn dependency_extension_operator_is_visible_from_every_scope_layer() {
                 ty_named("Int"),
                 "plus",
                 Vec::new(),
-                vec![("other", ty_named("Int"))],
+                vec![("other", ty_named("Boolean"))],
                 Some(ty_named("Int")),
                 this_expr(),
             )),
-            &["Int"],
+            &["Int", "Boolean"],
             fingerprint,
         );
         let mut consumer = file(vec![fun_expr(
-            "consumer",
+            "fallback",
+            Vec::new(),
+            Vec::new(),
+            Some(ty_named("Int")),
+            binary(scoop_ast::BinOp::Add, int_lit(1), bool_lit(true)),
+        )]);
+        consumer.declarations.push(fun_expr(
+            "member",
             Vec::new(),
             Vec::new(),
             Some(ty_named("Int")),
             binary(scoop_ast::BinOp::Add, int_lit(1), int_lit(2)),
-        )]);
+        ));
         match scope {
             ExtensionScope::Exact => {
                 let mut import = exact_import(&["dependency", "api", "plus"]);
@@ -95,6 +102,7 @@ fn dependency_extension_operator_is_visible_from_every_scope_layer() {
             assert_eq!(output.imported_dependencies().callable_count(), 1);
             let dump = scoop_hir::dump(&output.output().export);
             assert_eq!(dump.matches("ImportedDependencyCall").count(), 1, "{dump}");
+            assert!(dump.contains("IntegerOperation int.add <no-gc>"), "{dump}");
         });
     }
 }

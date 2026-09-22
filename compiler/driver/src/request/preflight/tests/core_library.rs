@@ -4,6 +4,7 @@ use crate::{HostArtifactLocator, normalize_direct_build_request};
 mod aliases;
 mod calls;
 mod intrinsics;
+mod member_calls;
 mod metadata;
 
 const EXTENSION: &str =
@@ -72,6 +73,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);
     calls::assert_initialization_and_dependency_calls(&target, workspace.path(), &artifact);
     intrinsics::assert_shared_intrinsic_constants(&target, workspace.path(), &artifact);
+    member_calls::assert_member_calls(&target, workspace.path(), &artifact);
     intrinsics::assert_normalized_integer_defaults(&target, workspace.path(), &artifact);
     intrinsics::assert_integer_exception_requires_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);

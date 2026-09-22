@@ -1,5 +1,6 @@
 //! Candidate-local probing and winner-only commit for ordinary dependencies.
 
+use hir::ImportedCallableSource;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
@@ -7,16 +8,18 @@ use super::*;
 use crate::call_resolution::specificity::DeclarationForwardingView;
 
 mod arguments;
+mod candidate;
 mod commit;
 mod defaults;
 mod probe;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
+use candidate::ImportedCallableCandidate;
 use defaults::ImportedDefaultPlan;
 
 pub(crate) struct ImportedDependencyCallProbe {
     state: Box<Lowerer>,
-    candidate: hir::ImportedDependencyCallableCandidate,
+    candidate: ImportedCallableCandidate,
     receiver: Option<hir::Expr>,
     source_args: Vec<hir::Expr>,
     argument_sinks: Vec<Vec<hir::Statement>>,

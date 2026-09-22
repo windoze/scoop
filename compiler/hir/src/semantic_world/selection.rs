@@ -12,11 +12,13 @@ use crate::DefaultCallableDeclarationV1;
 mod catalog;
 mod error;
 mod intrinsics;
+mod members;
 mod model;
 mod properties;
 mod routes;
 pub use error::*;
 pub use intrinsics::ImportedIntrinsicCallable;
+pub use members::*;
 pub use model::*;
 
 use catalog::DependencyCatalog;

@@ -170,7 +170,7 @@ impl Lowerer {
     }
 }
 
-const fn imported_delegate_operator(
+pub(super) const fn imported_delegate_operator(
     operator: hir::PropertyDelegateOperatorKind,
 ) -> hir::PropertyDelegateOperatorV1 {
     match operator {

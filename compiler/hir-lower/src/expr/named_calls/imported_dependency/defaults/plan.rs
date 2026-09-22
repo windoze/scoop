@@ -38,7 +38,7 @@ impl ImportedDefaultPlan {
 impl Lowerer {
     pub(in super::super) fn prepare_imported_defaults(
         &mut self,
-        candidate: &hir::ImportedDependencyCallableCandidate,
+        candidate: &dyn hir::ImportedCallableSource,
         arguments: &ImportedArgumentMap,
     ) -> Result<ImportedDefaultPlan, ImportedDefaultPlanError> {
         let mut plan = ImportedDefaultPlan::empty();

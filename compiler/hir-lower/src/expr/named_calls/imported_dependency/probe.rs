@@ -1,10 +1,13 @@
+use hir::ImportedCallableSource;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use super::{ImportedArgumentMap, ImportedDependencyCallProbe};
+use super::{ImportedArgumentMap, ImportedCallableCandidate, ImportedDependencyCallProbe};
 use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
 use crate::expr::CallSite;
+
+mod receiver;
 
 enum ImportedDependencyCallReceiver {
     Implicit,
@@ -76,6 +79,45 @@ impl Lowerer {
                 return Err(Box::new(state));
             }
         };
+        self.probe_imported_callable_candidate(
+            ImportedCallableCandidate::Binding(Box::new(candidate)),
+            name,
+            call,
+            expected,
+            receiver_source,
+            operator_set,
+        )
+    }
+
+    pub(in crate::expr) fn probe_imported_member_callable(
+        &self,
+        candidate: hir::ImportedMemberCallableCandidate,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        expected: Option<hir::TypeId>,
+        operator_set: bool,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        self.probe_imported_callable_candidate(
+            ImportedCallableCandidate::Member(Box::new(candidate)),
+            name,
+            call,
+            expected,
+            ImportedDependencyCallReceiver::Explicit(receiver),
+            operator_set,
+        )
+    }
+
+    fn probe_imported_callable_candidate(
+        &self,
+        candidate: ImportedCallableCandidate,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        expected: Option<hir::TypeId>,
+        receiver_source: ImportedDependencyCallReceiver,
+        operator_set: bool,
+    ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
+        let mut state = self.clone();
         let interface = candidate.interface();
         let expected_type_arguments = interface.type_parameters().binders().len();
         if call.type_args.len() != expected_type_arguments {
@@ -111,67 +153,32 @@ impl Lowerer {
             }
         };
 
-        let receiver = match interface.owner() {
-            hir::PublicDeclarationOwnerV1::TopLevel => match receiver_source {
-                ImportedDependencyCallReceiver::Implicit => None,
-                ImportedDependencyCallReceiver::Explicit(_) => {
-                    state.error(
-                        name.span,
-                        format!("dependency function `{}` is not an extension", name.text),
+        let receiver = state.imported_callable_receiver(
+            &candidate,
+            name,
+            call,
+            receiver_source,
+            argument_map.has_vararg(),
+        )?;
+        if matches!(candidate, ImportedCallableCandidate::Member(_)) {
+            for signature in interface
+                .parameters()
+                .parameters()
+                .iter()
+                .map(|parameter| parameter.value_type())
+                .chain(std::iter::once(interface.result()))
+            {
+                if state.imported_signature_type(signature).is_err() {
+                    state.imported_dependency_capability_error(
+                        &candidate,
+                        argument_map.has_vararg(),
+                        "dependency member signature",
+                        call.span,
                     );
                     return Err(Box::new(state));
-                }
-            },
-            hir::PublicDeclarationOwnerV1::Extension => {
-                let Some(receiver_signature) = interface.receiver() else {
-                    state.error(
-                        name.span,
-                        format!(
-                            "invalid imported dependency extension `{}`: receiver type is missing",
-                            name.text
-                        ),
-                    );
-                    return Err(Box::new(state));
-                };
-                let receiver_type = state.imported_signature_type(receiver_signature).ok();
-                let receiver = match receiver_source {
-                    ImportedDependencyCallReceiver::Implicit => {
-                        let Some(receiver) = state.lower_current_this(name.span) else {
-                            return Err(Box::new(state));
-                        };
-                        receiver
-                    }
-                    ImportedDependencyCallReceiver::Explicit(receiver) => receiver,
-                };
-                if let Some(receiver_type) = receiver_type {
-                    if !state.is_subtype(receiver.ty, receiver_type) {
-                        state.error(
-                            name.span,
-                            format!(
-                                "dependency extension `{}` expects receiver {}, found {}",
-                                name.text,
-                                state.type_name(receiver_type),
-                                state.type_name(receiver.ty),
-                            ),
-                        );
-                        return Err(Box::new(state));
-                    }
-                    Some(state.adapt_to(receiver, receiver_type))
-                } else {
-                    Some(receiver)
                 }
             }
-            hir::PublicDeclarationOwnerV1::Nominal(_) => {
-                if matches!(receiver_source, ImportedDependencyCallReceiver::Explicit(_)) {
-                    state.error(
-                        name.span,
-                        format!("dependency function `{}` is not an extension", name.text),
-                    );
-                    return Err(Box::new(state));
-                }
-                None
-            }
-        };
+        }
         let parameter_types = interface
             .parameters()
             .parameters()
@@ -185,7 +192,7 @@ impl Lowerer {
         let result_type = state
             .imported_signature_type(interface.result())
             .unwrap_or(state.any);
-        if candidate.capability().is_some()
+        if candidate.executable()
             && let Some(expected) = expected
             && !state.is_subtype(result_type, expected)
         {
@@ -245,7 +252,7 @@ impl Lowerer {
         }
         forwarding_parameters.extend(source_parameter_types);
 
-        if candidate.capability().is_none() {
+        if !candidate.executable() {
             state.imported_dependency_capability_error(
                 &candidate,
                 argument_map.has_vararg(),

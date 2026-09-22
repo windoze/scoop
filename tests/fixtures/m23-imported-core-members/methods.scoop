@@ -1,0 +1,12 @@
+fun compare(value: Int): Long = value.compareTo(other = 3)
+fun convert(value: Long): Int = value.toInt32()
+fun shift(value: UInt): UInt = value shl 2L
+fun combined(value: Int): Long = (value + 2).inc().compareTo(7)
+fun inferred(): Long = 7.compareTo(3)
+fun narrow(): Int8 = 120.plus(10)
+fun negate(value: Boolean): Boolean = value.not()
+fun equality(value: Int): Boolean = value.equals(other = 3)
+fun concatenate(value: String): String = value.plus("!")
+fun order(value: String): Long = value.compareTo("z")
+@NoGC
+fun pure(value: Int): Int = value.inc()

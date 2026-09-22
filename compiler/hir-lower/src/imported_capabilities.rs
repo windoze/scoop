@@ -38,11 +38,18 @@ impl ImportedCapabilityRequirement {
 }
 
 pub(crate) fn callable_requirement(
-    candidate: &hir::ImportedDependencyCallableCandidate,
+    candidate: &dyn hir::ImportedCallableSource,
     has_vararg: bool,
 ) -> ImportedCapabilityRequirement {
     let interface = candidate.interface();
-    if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
+    if matches!(
+        interface.effects().implementation(),
+        hir::CallableImplementationV1::Intrinsic(hir::IntrinsicFunctionKind::Integer(
+            hir::IntegerIntrinsicKind::ManagedOperation { .. }
+        ))
+    ) {
+        ImportedCapabilityRequirement::Layout
+    } else if matches!(interface.owner(), hir::PublicDeclarationOwnerV1::Nominal(_))
         || interface.access() == hir::PublicLookupAccessV1::PublicSlot
     {
         ImportedCapabilityRequirement::Dispatch
@@ -65,7 +72,7 @@ pub(crate) fn callable_requirement(
 impl Lowerer {
     pub(crate) fn imported_dependency_capability_error(
         &mut self,
-        candidate: &hir::ImportedDependencyCallableCandidate,
+        candidate: &dyn hir::ImportedCallableSource,
         has_vararg: bool,
         subject: &str,
         span: scoop_ast::Span,

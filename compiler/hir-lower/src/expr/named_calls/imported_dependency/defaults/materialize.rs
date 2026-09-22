@@ -12,7 +12,7 @@ use crate::expr::imported_origins::ImportedDefinitionOriginError;
 mod statements;
 
 struct ImportedDefaultContext<'a> {
-    owner: &'a hir::ImportedDependencyCallableCandidate,
+    owner: &'a dyn hir::ImportedCallableSource,
     prepared: &'a PreparedImportedDefault,
     locals: BTreeMap<LocalValueSelector, hir::Expr>,
     loop_targets: Vec<hir::LoopId>,
@@ -22,7 +22,7 @@ struct ImportedDefaultContext<'a> {
 impl Lowerer {
     pub(in super::super) fn materialize_imported_default(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         prepared: &PreparedImportedDefault,
         receiver: Option<&hir::Expr>,
         value_parameters: &[hir::Expr],

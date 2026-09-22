@@ -13,7 +13,7 @@ mod statements;
 impl Lowerer {
     pub(super) fn prepare_imported_default(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: hir::ExportDefaultTemplateV1,
     ) -> Result<PreparedImportedDefault, ImportedDefaultPlanError> {
         if !template.type_parameters().is_empty() {
@@ -53,7 +53,7 @@ impl Lowerer {
 
     fn preflight_imported_default_expression(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: &hir::ExportDefaultTemplateV1,
         expression: &hir::DefaultExpressionV1,
         locals: &BTreeSet<LocalValueSelector>,
@@ -180,7 +180,7 @@ impl Lowerer {
 
     fn preflight_imported_default_expressions(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: &hir::ExportDefaultTemplateV1,
         expressions: &[hir::DefaultExpressionV1],
         locals: &BTreeSet<LocalValueSelector>,

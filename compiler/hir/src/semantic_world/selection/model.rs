@@ -36,7 +36,7 @@ pub(super) struct ImportedDependencyDefinitionSources {
 }
 
 impl ImportedDependencyDefinitionSources {
-    fn resolve(
+    pub(super) fn resolve(
         &self,
         source: &crate::ExportDefinitionSourceV1,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {

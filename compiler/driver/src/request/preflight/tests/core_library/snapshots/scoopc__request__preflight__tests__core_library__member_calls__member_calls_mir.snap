@@ -1,0 +1,332 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/member_calls.rs
+expression: dump.text()
+---
+Module
+  fun compare @fn0(value: Int) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun convert @fn1(value: Long) -> Int
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      return
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+  fun shift @fn2(value: UInt) -> UInt
+    bb0 entry
+      val $dependency.receiver: UInt
+        Type UInt
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.count: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type UInt
+        IntegerShift left value=UInt count=UInt
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          IntegerConversion Long -> UInt
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+  fun combined @fn3(value: Int) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun inferred @fn4() -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun narrow @fn5() -> Int8
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=120 bits=0x78
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=10 bits=0x0a
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun negate @fn6(value: Boolean) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+  fun equality @fn7(value: Int) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun concatenate @fn8(value: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun order @fn9(value: String) -> Long
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Long = @scoop_rt_string_compare direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type Long
+        Local $call.1
+  fun pure @fn10(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      return
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+  fun $extension.compareTo @fn11(this: Int, other: Int) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=99 bits=0x0000000000000063
+  fun combined @fn12(value: Int8) -> Long
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        Local value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=2 bits=0x02
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerUnary increment kind=Int8
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=7 bits=0x07
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerCompareTo operands=Int8 result=Long
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun aliasLiteral @fn13() -> Int8
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=120 bits=0x78
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=10 bits=0x0a
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Int8
+        IntegerBinary add kind=Int8
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun main @fn14() -> Unit
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val compared: Long
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        Local compared
+      val converted: Int
+        Type Int
+        IntegerConversion Long -> Int
+          Type Long
+          Local $dependency.receiver
+      val $dependency.receiver: Int
+        Type Int
+        Local converted
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.count: Long
+        Type Long
+        Local $dependency.argument.0
+      val shifted: Int
+        Type Int
+        IntegerShift left value=Int count=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerConversion Long -> Int
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.parameter.count
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+      call $argument.0: Int8 = @fn13 direct
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call nested: Long = @fn12 direct
+        Type Int8
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        Local shifted
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call normal: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  str @str0 "!"
+  str @str1 "z"
+  output executable @fn14

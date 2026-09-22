@@ -11,7 +11,7 @@ impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn preflight_imported_default_statements(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: &hir::ExportDefaultTemplateV1,
         statements: &[hir::DefaultStatementV1],
         locals: &BTreeSet<LocalValueSelector>,
@@ -32,7 +32,7 @@ impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     fn preflight_imported_default_statement(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: &hir::ExportDefaultTemplateV1,
         statement: &hir::DefaultStatementV1,
         locals: &BTreeSet<LocalValueSelector>,
@@ -176,7 +176,7 @@ impl Lowerer {
     #[allow(clippy::too_many_arguments)]
     fn preflight_imported_default_when(
         &mut self,
-        owner: &hir::ImportedDependencyCallableCandidate,
+        owner: &dyn hir::ImportedCallableSource,
         template: &hir::ExportDefaultTemplateV1,
         value: &hir::DefaultWhenV1,
         locals: &BTreeSet<LocalValueSelector>,

@@ -1,3 +1,5 @@
+use super::candidate::{ImportedCallableCandidate, NormalizedImportedIntrinsic};
+use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
 use super::ImportedDependencyCallProbe;
@@ -112,11 +114,54 @@ impl Lowerer {
             ));
         }
 
+        if let Some(intrinsic) = candidate.normalized_intrinsic() {
+            let receiver = receiver.expect("a resolved imported intrinsic member has a receiver");
+            let kind = match intrinsic {
+                NormalizedImportedIntrinsic::Integer(kind) => {
+                    return Some(self.normalize_integer_method_call(
+                        kind,
+                        receiver,
+                        &parameter_values,
+                        result_type,
+                        call_span,
+                    ));
+                }
+                NormalizedImportedIntrinsic::Unary(kind) => {
+                    assert!(
+                        parameter_values.is_empty(),
+                        "a validated unary intrinsic has no value parameters"
+                    );
+                    hir::ExprKind::PrimitiveUnary {
+                        kind,
+                        operand: Box::new(receiver),
+                    }
+                }
+                NormalizedImportedIntrinsic::Binary(kind) => {
+                    let [argument] = parameter_values.as_slice() else {
+                        unreachable!("a validated binary intrinsic has one value parameter")
+                    };
+                    hir::ExprKind::PrimitiveBinary {
+                        kind,
+                        lhs: Box::new(receiver),
+                        rhs: Box::new(argument.clone()),
+                    }
+                }
+            };
+            return Some(hir::Expr {
+                kind,
+                ty: result_type,
+                span: call_span,
+                origin: self.expression_origin(call_span),
+            });
+        }
+        let ImportedCallableCandidate::Binding(candidate) = candidate else {
+            unreachable!("a successful member probe has a complete frontend normalization")
+        };
         let mut args = Vec::with_capacity(parameter_values.len() + usize::from(receiver.is_some()));
         args.extend(receiver);
         args.extend(parameter_values);
 
-        let callee = match self.select_imported_dependency_callable_use(candidate) {
+        let callee = match self.select_imported_dependency_callable_use(*candidate) {
             Ok(callee) => callee,
             Err(error) => {
                 self.error(

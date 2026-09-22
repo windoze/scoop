@@ -90,6 +90,28 @@ impl Lowerer {
             }
         }
 
+        match self.probe_imported_member_partition(
+            receiver.clone(),
+            name,
+            call,
+            expected,
+            direct_required,
+        ) {
+            PropertyExtensionInvokeOutcome::Resolved(layer) => {
+                return Some(self.commit_expr_layer(layer, sink));
+            }
+            PropertyExtensionInvokeOutcome::Blocked => return None,
+            PropertyExtensionInvokeOutcome::Failed(failure) => {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+            PropertyExtensionInvokeOutcome::NoApplicable(failure) => {
+                if let Some(failure) = failure {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
         if let Some(property) = &property {
             match property.state.probe_property_member_invoke_partition(
                 property.expression.clone(),

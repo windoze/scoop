@@ -1,0 +1,11 @@
+typealias Small = Int8
+fun Int.compareTo(other: Int): Long = 99L
+fun combined(value: Small): Long = (value + 2).inc().compareTo(7)
+fun aliasLiteral(): Small = 120.plus(10)
+fun main() {
+    val compared = 7.compareTo(other = 3)
+    val converted = compared.toInt32()
+    val shifted = converted shl 2L
+    val nested = combined(aliasLiteral())
+    val normal = userCoreOffset(shifted)
+}

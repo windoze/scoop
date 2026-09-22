@@ -128,6 +128,7 @@ pub enum ImportedDependencyCandidateError {
     ForeignWorld,
     ForeignProjection,
     MissingCallable(CallableTemplateOrigin),
+    MissingCallableSource(CallableTemplateOrigin),
     MissingConstant(PersistentPropertyId),
     MissingProperty(PropertyOwner),
     MissingTypeAlias(scoop_identity::PersistentTypeAliasId),
@@ -174,6 +175,10 @@ impl fmt::Display for ImportedDependencyCandidateError {
             Self::ForeignProjection => {
                 formatter.write_str("imported property belongs to another dependency projection")
             }
+            Self::MissingCallableSource(declaration) => write!(
+                formatter,
+                "imported callable {declaration:?} has no source interface"
+            ),
             Self::MissingCallable(declaration) => write!(
                 formatter,
                 "imported callable {declaration:?} is absent from the dependency selection catalog"
