@@ -255,9 +255,11 @@ fn resolve_descriptor_ref(
                     StrongTypeDescriptorSemanticPlanBuildError::DependencyDescriptorInV1(index),
                 );
             }
-            Ok(StrongTypeDescriptorRefV1::CoreExternal(
-                inputs.external_descriptors[id].target(),
-            ))
+            let descriptor = inputs.external_descriptors[id];
+            Ok(StrongTypeDescriptorRefV1::DependencyExternal {
+                provider: descriptor.provider(),
+                exact: descriptor.target(),
+            })
         }
     }
 }
@@ -299,9 +301,10 @@ fn resolve_slots(
                         },
                     );
                 }
-                Ok(StrongTypeDispatchCallableRefV1::CoreExternal(
-                    callable.body(),
-                ))
+                Ok(StrongTypeDispatchCallableRefV1::DependencyExternal {
+                    provider: callable.provider(),
+                    body: callable.body(),
+                })
             }
             CallableRef::Runtime(function) => {
                 Ok(StrongTypeDispatchCallableRefV1::Runtime(function))

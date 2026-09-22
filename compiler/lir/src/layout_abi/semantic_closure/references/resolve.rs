@@ -72,7 +72,6 @@ pub(super) fn descriptor_ref(
 ) -> Result<(), LayoutAbiSemanticClosureError> {
     let (provider, exact) = match reference {
         crate::StrongTypeDescriptorRefV2::Local(exact) => (current, exact),
-        crate::StrongTypeDescriptorRefV2::CoreExternal(exact) => (ConeIdentity::CORE, exact),
         crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
             (provider, exact)
         }

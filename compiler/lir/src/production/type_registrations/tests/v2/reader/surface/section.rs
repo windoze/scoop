@@ -65,13 +65,9 @@ fn ten_field_section_replays_foreign_parent_interface_and_dispatch() {
     let original = section(&fixture);
     let bytes = encode(&original).unwrap();
     assert_eq!(bytes[0], 0xaa);
-    assert!(
-        decode_canonical::<crate::DecodedStrongProductionSectionV1>(
-            &bytes,
-            DecodeLimits::default()
-        )
-        .is_err()
-    );
+    let shared: crate::DecodedStrongProductionSectionV1 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    assert_eq!(encode(&shared).unwrap(), bytes);
     let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
     let replayed = replay_section(&fixture, &bytes, &definitions, &mut meter()).unwrap();
     assert_eq!(replayed.external_bridges(), original.external_bridges());

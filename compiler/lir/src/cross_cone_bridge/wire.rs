@@ -12,7 +12,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct DecodedParamFreeLirCallableExportV1 {
     declaration: DecodedDependencyCallableDeclarationId,
     callable: DecodedCallableAbiRecordV1,
@@ -57,14 +57,14 @@ impl WireDecode for DecodedParamFreeLirCallableExportV1 {
     }
 }
 
-#[derive(Debug)]
-struct DecodedSelectedDependencyLirCallableV1 {
+#[derive(Clone, Debug)]
+pub(crate) struct DecodedSelectedDependencyLirCallableV1 {
     provider: DecodedPersistentId<scoop_identity::ConeIdentity>,
     bridge: DecodedParamFreeLirCallableExportV1,
 }
 
 impl DecodedSelectedDependencyLirCallableV1 {
-    fn reconstruct(
+    pub(crate) fn reconstruct(
         self,
         identities: &mut ValidatedIdentityGraph,
     ) -> Result<SelectedDependencyLirCallableV1, SelectedDependencyLirCallableResolutionError> {

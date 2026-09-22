@@ -271,7 +271,7 @@ fn type_registration_support(
 
 fn expected_symbol(bridge: &StrongExternalLirBridgeV1) -> scoop_identity::PersistentSymbolRequest {
     match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => bridge.expected_symbol(),
+        StrongExternalLirBridgeV1::Callable(bridge) => bridge.bridge().expected_symbol(),
         StrongExternalLirBridgeV1::TypeDescriptor(bridge) => bridge.expected_symbol(),
     }
 }
@@ -281,7 +281,7 @@ fn expected_owner(
 ) -> Result<StrongDefinitionOwnerV1, CoreStrongRequirementValidationError> {
     let (entity, role) = match bridge {
         StrongExternalLirBridgeV1::Callable(bridge) => {
-            let target = bridge.target();
+            let target = bridge.bridge().target();
             let body = PersistentCallableBodyId::from_key(&CallableBodyKey::strong(target))
                 .map_err(
                     |_| CoreStrongRequirementValidationError::InvalidCallableOwner { target },

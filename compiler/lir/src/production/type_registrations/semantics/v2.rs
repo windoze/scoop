@@ -173,7 +173,10 @@ fn descriptor_ref(
             if reference == module.meta.well_known_type_descriptors.string {
                 crate::StrongExternalLirBridgeSurfaceV1::runtime_string(module)
                     .map_err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge)?;
-                StrongTypeDescriptorRefV2::CoreExternal(descriptor.target())
+                StrongTypeDescriptorRefV2::DependencyExternal {
+                    provider: descriptor.provider(),
+                    exact: descriptor.target(),
+                }
             } else {
                 validate_descriptor_selection(selected, descriptor, meter)?;
                 StrongTypeDescriptorRefV2::DependencyExternal {
@@ -221,7 +224,10 @@ fn slots(
                     let callable = &module.meta.external_callables[id];
                     match callable.origin() {
                         crate::ExternalCallableOrigin::InitializationCycle => {
-                            StrongTypeDispatchCallableRefV2::CoreExternal(callable.body())
+                            StrongTypeDispatchCallableRefV2::DependencyExternal {
+                                provider: callable.provider(),
+                                body: callable.body(),
+                            }
                         }
                         crate::ExternalCallableOrigin::Legacy(_)
                         | crate::ExternalCallableOrigin::LayoutV1 => {

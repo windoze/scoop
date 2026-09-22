@@ -6,8 +6,8 @@ use scoop_identity::{
     StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
-    CallableAbiRecordV1, CallingConvention, ExternalCallableRootPlan, ExternalTypeDescriptor,
-    LirTargetProfile, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    CallingConvention, ExternalCallableRootPlan, ExternalTypeDescriptor, LirTargetProfile,
+    SelectedDependencyLirCallableV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
 };
 
 use super::super::strong_relocation_closure::tests::{
@@ -236,9 +236,10 @@ fn rejects_unused_callable_bridges_and_cross_producer_surfaces() {
 fn core_callable_bridge(name: &str) -> StrongExternalLirBridgeV1 {
     let target = StrongCallableDefinitionOwner::Function(core_function(name));
     let unit = core_exact_type("Unit");
-    StrongExternalLirBridgeV1::Callable(
-        CallableAbiRecordV1::new(
+    StrongExternalLirBridgeV1::Callable(Box::new(
+        SelectedDependencyLirCallableV1::new(
             scoop_identity::ConeIdentity::CORE,
+            scoop_identity::DependencyCallableDeclarationId::Function(core_function(name)),
             target,
             CanonicalScoopAbiFunctionSignature::new(
                 ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit),
@@ -251,7 +252,7 @@ fn core_callable_bridge(name: &str) -> StrongExternalLirBridgeV1 {
             ExternalCallableRootPlan::ManagedStatepoint,
         )
         .unwrap(),
-    )
+    ))
 }
 
 #[test]
@@ -315,7 +316,7 @@ fn rejects_missing_or_non_core_owner_authority() {
 
 fn bridge_name(bridge: &StrongExternalLirBridgeV1) -> Vec<u8> {
     let request = match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => bridge.expected_symbol(),
+        StrongExternalLirBridgeV1::Callable(bridge) => bridge.bridge().expected_symbol(),
         StrongExternalLirBridgeV1::TypeDescriptor(bridge) => bridge.expected_symbol(),
     };
     LirTargetProfile::DARWIN_AARCH64

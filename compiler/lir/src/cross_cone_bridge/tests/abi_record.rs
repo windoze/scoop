@@ -110,7 +110,15 @@ fn shared_abi_rejects_suspend_and_declaration_target_mismatch() {
 
 #[test]
 fn ordinary_and_initialization_role_round_trip_the_same_abi_payload() {
-    let fixture = Fixture::for_producer(ConeIdentity::CORE, "initializationService");
+    for fixture in [
+        Fixture::for_producer(ConeIdentity::CORE, "initializationService"),
+        Fixture::new("initializationService"),
+    ] {
+        assert_shared_abi_round_trip(fixture);
+    }
+}
+
+fn assert_shared_abi_round_trip(fixture: Fixture) {
     let export = fixture.export();
     let record = export.callable_abi().clone();
     let section =
@@ -135,7 +143,12 @@ fn ordinary_and_initialization_role_round_trip_the_same_abi_payload() {
 
     let external = StrongExternalLirBridgeSurfaceV1::try_new(
         ConeIdentity::SINGLE_FILE,
-        vec![StrongExternalLirBridgeV1::Callable(record)],
+        vec![StrongExternalLirBridgeV1::Callable(Box::new(
+            SelectedDependencyLirCallableV1 {
+                provider: fixture.producer,
+                bridge: export,
+            },
+        ))],
     )
     .unwrap();
     let decoded: DecodedStrongExternalLirBridgeSurfaceV1 =
@@ -155,9 +168,12 @@ fn initialization_external_wrapper_rejects_an_abi_record_for_another_provider() 
     assert!(matches!(
         StrongExternalLirBridgeSurfaceV1::try_new(
             ConeIdentity::SINGLE_FILE,
-            vec![StrongExternalLirBridgeV1::Callable(
-                fixture.export().callable_abi().clone()
-            )]
+            vec![StrongExternalLirBridgeV1::Callable(Box::new(
+                SelectedDependencyLirCallableV1 {
+                    provider: ConeIdentity::CORE,
+                    bridge: fixture.export()
+                }
+            ))]
         ),
         Err(StrongExternalLirBridgeBuildError::CallableContract(
             CallableAbiValidationError::ContractMismatch

@@ -12,7 +12,8 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CanonicalLirFoundation, DigestNodeV1, Global, ImmortalObjectIdentity, MaterializationRoot,
+    CanonicalLirFoundation, DigestNodeV1, Global, GlobalInit, ImmortalObjectIdentity,
+    LirTargetProfile, MaterializationRoot, PointerKind, RefScan,
 };
 
 #[test]
@@ -36,7 +37,10 @@ fn semantic_plans_are_sorted_and_bind_utf8_object_extent() {
         ConeIdentity::SINGLE_FILE,
         LirTargetProfile::DARWIN_AARCH64,
         &globals,
-        ImmortalObjectTypeRegistrationRefV1::CoreExternal(string_type),
+        ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+            provider: ConeIdentity::CORE,
+            exact: string_type,
+        },
     )
     .unwrap();
 
@@ -72,7 +76,10 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
             &globals,
-            ImmortalObjectTypeRegistrationRefV1::CoreExternal(string_type),
+            ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                provider: ConeIdentity::CORE,
+                exact: string_type
+            },
         ),
         Err(StrongImmortalObjectSemanticPlanBuildError::DuplicateObject(
             _
@@ -88,7 +95,10 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
             &wrong_address,
-            ImmortalObjectTypeRegistrationRefV1::CoreExternal(string_type),
+            ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                provider: ConeIdentity::CORE,
+                exact: string_type
+            },
         ),
         Err(StrongImmortalObjectSemanticPlanBuildError::AddressKind { .. })
     ));
@@ -102,7 +112,10 @@ fn semantic_plans_reject_duplicate_identity_and_invalid_global_shape() {
             ConeIdentity::SINGLE_FILE,
             LirTargetProfile::DARWIN_AARCH64,
             &wrong_scan,
-            ImmortalObjectTypeRegistrationRefV1::CoreExternal(string_type),
+            ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                provider: ConeIdentity::CORE,
+                exact: string_type
+            },
         ),
         Err(StrongImmortalObjectSemanticPlanBuildError::Scan { .. })
     ));
@@ -340,23 +353,28 @@ impl Fixture {
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
         let mut objects = artifacts
             .iter()
-            .map(|artifacts| StrongImmortalObjectSemanticPlanV1 {
-                object: artifacts.object.id(),
-                symbol: symbol(PersistentSymbolKey::ImmortalObject(artifacts.object.id())),
-                object_size: 32,
-                required_alignment: 8,
-                type_registration: if options.claim_local_string_type {
-                    ImmortalObjectTypeRegistrationRefV1::Local(string_type)
-                } else {
-                    ImmortalObjectTypeRegistrationRefV1::CoreExternal(string_type)
-                },
+            .map(|artifacts| {
+                StrongImmortalObjectSemanticPlanV1::from_artifact(
+                    artifacts.object.id(),
+                    symbol(PersistentSymbolKey::ImmortalObject(artifacts.object.id())),
+                    32,
+                    8,
+                    if options.claim_local_string_type {
+                        ImmortalObjectTypeRegistrationRefV1::Local(string_type)
+                    } else {
+                        ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                            provider: ConeIdentity::CORE,
+                            exact: string_type,
+                        }
+                    },
+                )
             })
             .collect::<Vec<_>>();
         objects.sort_unstable_by_key(|object| object.object());
-        let semantics = StrongImmortalObjectSemanticPlanSetV1 {
-            producer: ConeIdentity::SINGLE_FILE,
+        let semantics = StrongImmortalObjectSemanticPlanSetV1::from_artifact(
+            ConeIdentity::SINGLE_FILE,
             objects,
-        };
+        );
         Self {
             foundation,
             identities,
@@ -595,4 +613,44 @@ fn source_site() -> SourceDeclarationSite {
         DeclarationScope::ConeWide,
     )
     .unwrap()
+}
+
+#[test]
+fn external_type_registrations_accept_ordinary_providers_and_reject_self_imports() {
+    let ordinary = scoop_identity::ConeCoordinate::new("test", "string-provider", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    for provider in [ordinary, ConeIdentity::SINGLE_FILE] {
+        let mut fixture = Fixture::new(Options::default());
+        let objects = fixture
+            .semantics
+            .objects()
+            .iter()
+            .map(|object| {
+                StrongImmortalObjectSemanticPlanV1::from_artifact(
+                    object.object(),
+                    object.symbol(),
+                    object.object_size(),
+                    object.required_alignment(),
+                    ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                        provider,
+                        exact: object.type_registration(),
+                    },
+                )
+            })
+            .collect();
+        fixture.semantics = StrongImmortalObjectSemanticPlanSetV1::from_artifact(
+            ConeIdentity::SINGLE_FILE,
+            objects,
+        );
+        if provider == ConeIdentity::SINGLE_FILE {
+            assert!(
+                matches!(fixture.build(), Err(StrongImmortalObjectRegistrationPlanBuildError::SelfImport { provider: actual, .. }) if actual == provider)
+            );
+        } else {
+            let plan = fixture.build().unwrap();
+            assert!(plan.registrations().iter().all(|object| matches!(object.semantic().type_registration_ref(), ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider: actual, .. } if actual == provider)));
+        }
+    }
 }

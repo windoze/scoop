@@ -7,6 +7,10 @@ pub(super) struct ImportedInitialization {
 }
 
 pub(super) fn imported_initialization() -> ImportedInitialization {
+    imported_initialization_from(ConeIdentity::CORE)
+}
+
+pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedInitialization {
     let mut core_builder = Builder::new();
     let mut core_locals = Arena::new();
     let core_parameter = core_locals.alloc(local("value", mir::Type::String));
@@ -22,7 +26,7 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
         Vec::new(),
     );
     let mut core_module = core_builder.finish(core_function);
-    core_module.cone = ConeIdentity::CORE;
+    core_module.cone = provider;
     core_module.output = mir::MirOutput::Library;
     let mir::CallableSignatureSubject::Strong(implementation) = core_module
         .meta
@@ -44,7 +48,7 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
         .signature()
         .clone();
     let core_production = mir::CoreBootstrapBridgeSectionV1::try_new(
-        ConeIdentity::CORE,
+        provider,
         mir::EntryMirBridgeBranchV1::Library,
         strong.with_initialization_cycle(definition).unwrap(),
     )
@@ -60,18 +64,18 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
     let core_lir = crate::lower(
         &core_input,
         crate::RuntimeStringDescriptor::Local,
-        &lir::SelectedExternalLirSet::empty(ConeIdentity::CORE),
+        &lir::SelectedExternalLirSet::empty(provider),
         lir::LirTargetProfile::DARWIN_AARCH64,
     )
     .unwrap();
 
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(provider).unwrap();
     let identities = pending.finish().unwrap();
     let mut session = SemanticIdentitySession::new();
     let (_, imported_mir_identities, _) = session
         .import(
-            ConeIdentity::CORE,
+            provider,
             SemanticOriginFingerprint::new([1; 32], [2; 32], [3; 32]),
             &identities,
         )
@@ -137,7 +141,7 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
     )
     .unwrap();
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
+    pending.register_authority(provider).unwrap();
     pending.register_authority(definition).unwrap();
     let decoded_exact_types = core_input
         .module()
@@ -185,7 +189,7 @@ pub(super) fn imported_initialization() -> ImportedInitialization {
     let mut session = SemanticIdentitySession::new();
     let (_, _, imported_lir_identities) = session
         .import(
-            ConeIdentity::CORE,
+            provider,
             SemanticOriginFingerprint::new([4; 32], [5; 32], [6; 32]),
             &identities,
         )

@@ -100,24 +100,6 @@ impl CanonicalObjectRelocationV1 {
         )
     }
 
-    pub(in crate::link_object) fn core_type_descriptor(
-        offset_within_atom: u64,
-        exact_type: PersistentExactTypeId,
-    ) -> Self {
-        let owner = StrongDefinitionOwnerV1::new(
-            StrongDefinitionEntity::exact_type(exact_type),
-            StrongDefinitionRole::TypeDescriptor,
-        )
-        .expect("type descriptors are valid strong definition owners");
-        Self::unsigned64(
-            offset_within_atom,
-            FinalUndefinedSymbolRequirementV1::CoreStrong {
-                core: scoop_identity::ConeIdentity::CORE,
-                owner,
-            },
-        )
-    }
-
     pub(in crate::link_object) fn dependency_type_descriptor(
         offset_within_atom: u64,
         provider: scoop_identity::ConeIdentity,

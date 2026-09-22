@@ -12,6 +12,11 @@ impl StrongExternalLirBridgeSurfaceV1 {
                     return Err(StrongExternalLirBridgeBuildError::MissingRuntimeStringDescriptor);
                 }
                 let descriptor = module.meta.external_type_descriptors[id];
+                if descriptor.provider() == module.cone {
+                    return Err(StrongExternalLirBridgeBuildError::SelfImport {
+                        provider: module.cone,
+                    });
+                }
                 Self::validate_runtime_string(descriptor)?;
                 Ok(Some(descriptor))
             }
@@ -21,9 +26,6 @@ impl StrongExternalLirBridgeSurfaceV1 {
     pub(super) fn validate_runtime_string(
         descriptor: ExternalTypeDescriptor,
     ) -> Result<(), StrongExternalLirBridgeBuildError> {
-        if descriptor.provider() != scoop_identity::ConeIdentity::CORE {
-            return Err(StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor);
-        }
         descriptor
             .validate_contract()
             .map_err(StrongExternalLirBridgeBuildError::TypeDescriptor)

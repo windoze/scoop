@@ -34,11 +34,10 @@ fn round_trip<T: WireDecode + WireEncode>(bytes: &[u8]) {
 }
 
 #[test]
-fn descriptor_references_preserve_legacy_payloads_and_add_provider_bytes() {
+fn descriptor_references_retain_local_encoding_and_require_external_provider() {
     let exact = exact();
     for (reference, tag, provider) in [
         (StrongTypeDescriptorRefV2::Local(exact), 1, None),
-        (StrongTypeDescriptorRefV2::CoreExternal(exact), 2, None),
         (
             StrongTypeDescriptorRefV2::DependencyExternal {
                 provider: ConeIdentity::CORE,
@@ -66,11 +65,6 @@ fn optional_absent_keeps_its_explicit_zero_marker() {
     for (reference, tag, provider) in [
         (OptionalStrongTypeDescriptorRefV2::Local(exact), 2, None),
         (
-            OptionalStrongTypeDescriptorRefV2::CoreExternal(exact),
-            3,
-            None,
-        ),
-        (
             OptionalStrongTypeDescriptorRefV2::DependencyExternal {
                 provider: ConeIdentity::CORE,
                 exact,
@@ -87,7 +81,7 @@ fn optional_absent_keeps_its_explicit_zero_marker() {
 
 #[test]
 fn dispatch_retains_body_kind_and_runtime_encoding() {
-    for (tag, provider) in [(1, None), (2, None), (4, Some([0x11; 32]))] {
+    for (tag, provider) in [(1, None), (4, Some([0x11; 32]))] {
         round_trip::<DecodedStrongTypeDispatchCallableRefV2>(&reference_bytes(
             tag, provider, [0x22; 32],
         ));
@@ -157,4 +151,27 @@ fn unknown_provider_is_not_promoted_by_identity_resolution() {
     let decoded: DecodedStrongTypeDescriptorRefV2 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(decoded.resolve(&mut Reject), Err("provider absent"));
+}
+
+#[test]
+fn retired_core_reference_tags_are_rejected() {
+    let retired = reference_bytes(2, None, *exact().as_array());
+    assert!(
+        decode_canonical::<DecodedStrongTypeDescriptorRefV2>(&retired, DecodeLimits::default())
+            .is_err()
+    );
+    assert!(
+        decode_canonical::<DecodedStrongTypeDispatchCallableRefV2>(
+            &retired,
+            DecodeLimits::default()
+        )
+        .is_err()
+    );
+    assert!(
+        decode_canonical::<DecodedOptionalStrongTypeDescriptorRefV2>(
+            &reference_bytes(3, None, *exact().as_array()),
+            DecodeLimits::default()
+        )
+        .is_err()
+    );
 }

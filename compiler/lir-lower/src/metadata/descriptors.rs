@@ -286,13 +286,5 @@ pub(crate) fn type_descriptors(
         .ok_or(StrongLirLoweringError::MissingRuntimeStringDescriptor {
             producer: module.cone,
         })?;
-    if matches!(
-        (module.cone == lir::ConeIdentity::CORE, string),
-        (true, lir::TypeDescriptorRef::External(_)) | (false, lir::TypeDescriptorRef::Local(_))
-    ) {
-        return Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership {
-            producer: module.cone,
-        });
-    }
     Ok((descriptors, refs, lir::WellKnownTypeDescriptors { string }))
 }

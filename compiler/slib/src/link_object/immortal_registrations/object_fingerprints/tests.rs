@@ -38,7 +38,7 @@ fn hashes_the_exact_string_object_and_descriptor_relocation() {
 
 #[test]
 fn hashes_a_core_descriptor_as_a_typed_core_requirement() {
-    let fixture = Fixture::new(Corruption::CoreExternalImmortalTypeRegistration);
+    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

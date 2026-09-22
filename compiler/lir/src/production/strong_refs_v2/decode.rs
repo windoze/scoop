@@ -6,7 +6,6 @@ use super::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedStrongTypeDescriptorRefV2 {
     Local(DecodedPersistentId<PersistentExactTypeId>),
-    CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
     DependencyExternal {
         provider: DecodedPersistentId<ConeIdentity>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
@@ -21,9 +20,6 @@ impl DecodedStrongTypeDescriptorRefV2 {
     {
         Ok(match self {
             Self::Local(exact) => StrongTypeDescriptorRefV2::Local(resolver.resolve(exact)?),
-            Self::CoreExternal(exact) => {
-                StrongTypeDescriptorRefV2::CoreExternal(resolver.resolve(exact)?)
-            }
             Self::DependencyExternal { provider, exact } => {
                 StrongTypeDescriptorRefV2::DependencyExternal {
                     provider: resolver.resolve(provider)?,
@@ -38,7 +34,6 @@ impl WireEncode for DecodedStrongTypeDescriptorRefV2 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Local(exact) => value(e, 1, exact),
-            Self::CoreExternal(exact) => value(e, 2, exact),
             Self::DependencyExternal { provider, exact } => dependency(e, 3, provider, exact),
         }
     }
@@ -49,14 +44,9 @@ impl WireDecode for DecodedStrongTypeDescriptorRefV2 {
         let fields = d.map()?;
         let kind = d.field(0, Decoder::unsigned)?;
         match kind {
-            1 | 2 => {
+            1 => {
                 require_fields(d, fields, 2)?;
-                let exact = d.field(1, DecodedPersistentId::decode)?;
-                Ok(if kind == 1 {
-                    Self::Local(exact)
-                } else {
-                    Self::CoreExternal(exact)
-                })
+                Ok(Self::Local(d.field(1, DecodedPersistentId::decode)?))
             }
             3 => {
                 require_fields(d, fields, 3)?;
@@ -74,7 +64,6 @@ impl WireDecode for DecodedStrongTypeDescriptorRefV2 {
 pub enum DecodedOptionalStrongTypeDescriptorRefV2 {
     Absent,
     Local(DecodedPersistentId<PersistentExactTypeId>),
-    CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
     DependencyExternal {
         provider: DecodedPersistentId<ConeIdentity>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
@@ -92,9 +81,6 @@ impl DecodedOptionalStrongTypeDescriptorRefV2 {
             Self::Local(exact) => {
                 OptionalStrongTypeDescriptorRefV2::Local(resolver.resolve(exact)?)
             }
-            Self::CoreExternal(exact) => {
-                OptionalStrongTypeDescriptorRefV2::CoreExternal(resolver.resolve(exact)?)
-            }
             Self::DependencyExternal { provider, exact } => {
                 OptionalStrongTypeDescriptorRefV2::DependencyExternal {
                     provider: resolver.resolve(provider)?,
@@ -110,7 +96,6 @@ impl WireEncode for DecodedOptionalStrongTypeDescriptorRefV2 {
         match self {
             Self::Absent => OptionalStrongTypeDescriptorRefV2::Absent.encode(e),
             Self::Local(exact) => value(e, 2, exact),
-            Self::CoreExternal(exact) => value(e, 3, exact),
             Self::DependencyExternal { provider, exact } => dependency(e, 4, provider, exact),
         }
     }
@@ -130,14 +115,9 @@ impl WireDecode for DecodedOptionalStrongTypeDescriptorRefV2 {
                     Err(error(d, WireErrorKind::UnknownTag { tag: marker }))
                 }
             }
-            2 | 3 => {
+            2 => {
                 require_fields(d, fields, 2)?;
-                let exact = d.field(1, DecodedPersistentId::decode)?;
-                Ok(if kind == 2 {
-                    Self::Local(exact)
-                } else {
-                    Self::CoreExternal(exact)
-                })
+                Ok(Self::Local(d.field(1, DecodedPersistentId::decode)?))
             }
             4 => {
                 require_fields(d, fields, 3)?;
@@ -154,7 +134,6 @@ impl WireDecode for DecodedOptionalStrongTypeDescriptorRefV2 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DecodedStrongTypeDispatchCallableRefV2 {
     Local(DecodedPersistentId<PersistentCallableBodyId>),
-    CoreExternal(DecodedPersistentId<PersistentCallableBodyId>),
     Runtime(RuntimeFunction),
     DependencyExternal {
         provider: DecodedPersistentId<ConeIdentity>,
@@ -170,9 +149,6 @@ impl DecodedStrongTypeDispatchCallableRefV2 {
     {
         Ok(match self {
             Self::Local(body) => StrongTypeDispatchCallableRefV2::Local(resolver.resolve(body)?),
-            Self::CoreExternal(body) => {
-                StrongTypeDispatchCallableRefV2::CoreExternal(resolver.resolve(body)?)
-            }
             Self::Runtime(function) => StrongTypeDispatchCallableRefV2::Runtime(function),
             Self::DependencyExternal { provider, body } => {
                 StrongTypeDispatchCallableRefV2::DependencyExternal {
@@ -188,7 +164,6 @@ impl WireEncode for DecodedStrongTypeDispatchCallableRefV2 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Local(body) => value(e, 1, body),
-            Self::CoreExternal(body) => value(e, 2, body),
             Self::Runtime(function) => runtime(e, *function),
             Self::DependencyExternal { provider, body } => dependency(e, 4, provider, body),
         }
@@ -200,14 +175,9 @@ impl WireDecode for DecodedStrongTypeDispatchCallableRefV2 {
         let fields = d.map()?;
         let kind = d.field(0, Decoder::unsigned)?;
         match kind {
-            1 | 2 => {
+            1 => {
                 require_fields(d, fields, 2)?;
-                let body = d.field(1, DecodedPersistentId::decode)?;
-                Ok(if kind == 1 {
-                    Self::Local(body)
-                } else {
-                    Self::CoreExternal(body)
-                })
+                Ok(Self::Local(d.field(1, DecodedPersistentId::decode)?))
             }
             3 => {
                 require_fields(d, fields, 2)?;

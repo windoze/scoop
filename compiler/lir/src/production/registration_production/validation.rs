@@ -27,10 +27,10 @@ use super::{
 };
 use crate::{
     ArrayElementStorageV1, BackendScalarKind, ImmortalObjectTypeRegistrationRefV1,
-    LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan, RuntimeFunction,
+    LirTargetProfile, NonEmptyRefScan, OdrFreeLirFoundation, PointerKind, RefScan,
     StaticImmortalRelocationPlanV1, StaticStorageScanKindV1, StrongCallableRuntimeScanAtomV1,
     StrongCallableRuntimeScanPlanSetV1, StrongCallableRuntimeScanPlanV1,
-    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
+    StrongDigestFinalizationPlanV1, StrongExternalLirBridgeSurfaceV1,
     StrongImmortalObjectSemanticPlanSetV1, StrongImmortalObjectSemanticPlanV1,
     StrongInitializationSchedulePlanV1, StrongInitializationUnitSemanticPlanSetV1,
     StrongRegistrationIdentitySurfaceV1, StrongRegistrationIdentityValidationError,

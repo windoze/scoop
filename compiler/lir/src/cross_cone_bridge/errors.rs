@@ -8,7 +8,7 @@ use scoop_identity::{
 
 use crate::StrongObjectSymbolSurfaceBuildError;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ParamFreeLirCallableBuildError {
     TargetMismatch {
         declaration: DependencyCallableDeclarationId,

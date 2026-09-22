@@ -73,23 +73,20 @@ pub(super) fn validate_immortal_objects(
                 )?;
                 ImmortalObjectTypeRegistrationRefV1::Local(exact_type)
             }
-            DecodedImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => {
-                let exact_type = resolve_known(
-                    exact_type,
-                    external_bridges
-                        .bridges()
-                        .iter()
-                        .filter_map(|bridge| match bridge {
-                            StrongExternalLirBridgeV1::TypeDescriptor(bridge) => {
-                                Some(bridge.target())
-                            }
-                            StrongExternalLirBridgeV1::Callable(_) => None,
-                        }),
-                    RegistrationProductionTableV1::ImmortalObject,
-                    index,
-                    "core_type_registration",
-                )?;
-                ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type)
+            DecodedImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact } => {
+                let descriptor = external_bridges
+                    .resolve_descriptor_reference(provider, exact)
+                    .ok_or_else(|| {
+                        semantic_error(
+                            RegistrationProductionTableV1::ImmortalObject,
+                            index,
+                            "external_type_registration",
+                        )
+                    })?;
+                ImmortalObjectTypeRegistrationRefV1::DependencyExternal {
+                    provider: descriptor.provider(),
+                    exact: descriptor.target(),
+                }
             }
         };
         let symbol = PersistentSymbolRequest::new(

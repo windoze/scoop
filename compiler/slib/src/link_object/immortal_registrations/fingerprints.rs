@@ -1,8 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DigestNodeId, PersistentExactTypeId, PersistentImmortalObjectId,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DigestNodeId, PersistentExactTypeId, PersistentImmortalObjectId, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::ImmortalObjectTypeRegistrationRefV1;
 use scoop_wire::{HashError, domain_separated_runtime_hash};
@@ -156,11 +156,11 @@ fn registration_object_fingerprint(
             176,
             FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner: type_owner },
         ),
-        ImmortalObjectTypeRegistrationRefV1::CoreExternal(_) => {
+        ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, .. } => {
             CanonicalObjectRelocationV1::unsigned64(
                 176,
                 FinalUndefinedSymbolRequirementV1::CoreStrong {
-                    core: ConeIdentity::CORE,
+                    core: provider,
                     owner: type_owner,
                 },
             )

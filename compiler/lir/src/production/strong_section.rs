@@ -214,8 +214,6 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
-        encoder.field(1)?;
-        self.external_bridges.encode(encoder)?;
         encoder.field(2)?;
         self.canonical_definitions.encode(encoder)?;
         encoder.field(3)?;
@@ -233,7 +231,9 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(11)?;
-        crate::encode_initialization_abi(self.initialization_cycle_abi.as_deref(), encoder)
+        crate::encode_initialization_abi(self.initialization_cycle_abi.as_deref(), encoder)?;
+        encoder.field(12)?;
+        self.external_bridges.encode(encoder)
     }
 }
 

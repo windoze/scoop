@@ -136,11 +136,15 @@ fn encode_type_registration_ref(
     encoder: &mut Encoder,
     registration: ImmortalObjectTypeRegistrationRefV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    let (tag, exact_type) = match registration {
-        ImmortalObjectTypeRegistrationRefV1::Local(exact_type) => (1, exact_type),
-        ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => (2, exact_type),
-    };
-    encode_value_sum(encoder, tag, &exact_type)
+    match registration {
+        ImmortalObjectTypeRegistrationRefV1::Local(exact) => {
+            crate::StrongTypeDescriptorRefV2::Local(exact)
+        }
+        ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, exact } => {
+            crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
+        }
+    }
+    .encode(encoder)
 }
 
 pub(super) fn encode_ref_scan(

@@ -1111,20 +1111,19 @@ fn metadata(corruption: Corruption) -> LirMeta {
         itables: Vec::new(),
     });
     let mut external_type_descriptors = Arena::new();
-    let well_known_string =
-        if matches!(corruption, Corruption::CoreExternalImmortalTypeRegistration) {
-            TypeDescriptorRef::External(
-                external_type_descriptors.alloc(
-                    ExternalTypeDescriptor::new(
-                        scoop_identity::ConeIdentity::CORE,
-                        exact_type("CoreString"),
-                    )
-                    .unwrap(),
-                ),
-            )
-        } else {
-            TypeDescriptorRef::Local(string_descriptor)
-        };
+    let well_known_string = if matches!(corruption, Corruption::ExternalImmortalTypeRegistration) {
+        TypeDescriptorRef::External(
+            external_type_descriptors.alloc(
+                ExternalTypeDescriptor::new(
+                    scoop_identity::ConeIdentity::CORE,
+                    exact_type("CoreString"),
+                )
+                .unwrap(),
+            ),
+        )
+    } else {
+        TypeDescriptorRef::Local(string_descriptor)
+    };
     LirMeta {
         exact_types: Vec::new(),
         target_profile: LirTargetProfile::DARWIN_AARCH64,

@@ -105,3 +105,94 @@ fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
         Err(crate::StrongLirLoweringError::RuntimeStringDescriptorOwnership { .. })
     ));
 }
+
+#[test]
+fn an_ordinary_provider_supplies_string_and_initialization_through_shared_records() {
+    let provider = scoop_identity::ConeCoordinate::new("test", "services", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let fixture = fixture::imported_initialization_from(provider);
+    let selected = lir::SelectedExternalLirSet::empty(fixture.input.module().cone)
+        .with_initialization_cycle(fixture.callable.clone())
+        .unwrap();
+    let output = lower_selected(&fixture, &selected).unwrap();
+    let module = output.module();
+    let lir::TypeDescriptorRef::External(id) = module.meta.well_known_type_descriptors.string
+    else {
+        panic!("the selected String descriptor is external");
+    };
+    assert_eq!(
+        module.meta.external_type_descriptors[id],
+        fixture.runtime_string
+    );
+    assert_eq!(fixture.runtime_string.provider(), provider);
+    assert_eq!(
+        module
+            .meta
+            .external_callables
+            .iter()
+            .next()
+            .unwrap()
+            .1
+            .provider(),
+        provider
+    );
+    let production = output
+        .build_production_section(
+            scoop_identity::ConeCoordinate::reserved_single_file(),
+            lir::EntryProductionSourceV1::Library,
+        )
+        .unwrap();
+    assert_eq!(production.external_bridges().bridges().len(), 2);
+    assert!(
+        production
+            .external_bridges()
+            .bridges()
+            .iter()
+            .all(|reference| reference.provider() == provider)
+    );
+}
+
+#[test]
+fn unused_mir_string_does_not_need_a_materialized_type_entry() {
+    let mut builder = Builder::new();
+    let entry = builder.user_fn("main", Arena::new(), Vec::new());
+    let mut module = builder.finish(entry);
+    let string = module
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .unwrap()
+        .identity_record()
+        .id();
+    module.classes = Arena::new();
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(
+        module
+            .meta
+            .source_exact_types
+            .iter()
+            .filter(|identity| identity.ty() != &mir::Type::String)
+            .cloned()
+            .collect(),
+    )
+    .unwrap();
+    let input = crate::tests::seal_strong_input(module);
+    let descriptor = lir::ExternalTypeDescriptor::new(ConeIdentity::CORE, string).unwrap();
+    let output = crate::lower(
+        &input,
+        crate::RuntimeStringDescriptor::External(descriptor),
+        &lir::SelectedExternalLirSet::empty(input.module().cone),
+        lir::LirTargetProfile::DARWIN_AARCH64,
+    )
+    .unwrap();
+    let lir::TypeDescriptorRef::External(id) =
+        output.module().meta.well_known_type_descriptors.string
+    else {
+        panic!("the runtime role retains the selected external descriptor");
+    };
+    assert_eq!(
+        output.module().meta.external_type_descriptors[id],
+        descriptor
+    );
+}

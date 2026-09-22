@@ -19,6 +19,7 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
         .materialize(cycle_signature())
         .unwrap();
     let protocol_body = callable.body();
+    let protocol_provider = callable.provider();
     let protocol_id = module.meta.external_callables.alloc(callable);
     let other = ConeCoordinate::new("test", "helper", "1.0.0")
         .unwrap()
@@ -32,14 +33,17 @@ fn mixed_external_callables_project_only_the_explicit_initialization_protocol() 
     let bridges = StrongExternalLirBridgeSurfaceV1::from_module(&module).unwrap();
     assert!(
         matches!(bridges.bridges(), [StrongExternalLirBridgeV1::Callable(found)]
-        if found.target() == protocol.target() && found.required_definition() == protocol.required_definition())
+        if found.provider() == protocol_provider && found.bridge().target() == protocol.target() && found.bridge().required_definition() == protocol.required_definition())
     );
 
     set_dispatch(&mut module, protocol_id);
     let semantic = StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap();
     assert_eq!(
         semantic.descriptors()[0].vtable().slots(),
-        &[StrongTypeDispatchCallableRefV1::CoreExternal(protocol_body)]
+        &[StrongTypeDispatchCallableRefV1::DependencyExternal {
+            provider: protocol_provider,
+            body: protocol_body
+        }]
     );
 
     set_dispatch(&mut module, ordinary_id);

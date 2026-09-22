@@ -118,11 +118,9 @@ pub enum StrongTypeReferenceResolutionErrorV2 {
     UnexpectedSubject(ExternalStrongShapeSubjectV1),
     DuplicateDefinition(PersistentSymbolKey),
     UnknownLocalDescriptor(DecodedPersistentId<PersistentExactTypeId>),
-    UnknownCoreDescriptor(DecodedPersistentId<PersistentExactTypeId>),
     UnknownLocalCallable(DecodedPersistentId<PersistentCallableBodyId>),
-    UnknownCoreCallable(DecodedPersistentId<PersistentCallableBodyId>),
-    CoreDescriptorPartition(PersistentExactTypeId),
-    CoreCallablePartition(PersistentCallableBodyId),
+    ConflictingDescriptorSources(PersistentExactTypeId),
+    ConflictingCallableSources(PersistentCallableBodyId),
     LocalDescriptorPartition(PersistentExactTypeId),
     LocalCallablePartition(PersistentCallableBodyId),
     UnknownDependencyDescriptor {

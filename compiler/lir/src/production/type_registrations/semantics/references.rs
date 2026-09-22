@@ -1,17 +1,23 @@
 use crate::RuntimeFunction;
-use scoop_identity::{PersistentCallableBodyId, PersistentExactTypeId};
+use scoop_identity::{ConeIdentity, PersistentCallableBodyId, PersistentExactTypeId};
 
 /// Typed origin of a descriptor pointer stored inside a local TypeDescriptor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongTypeDescriptorRefV1 {
     Local(PersistentExactTypeId),
-    CoreExternal(PersistentExactTypeId),
+    DependencyExternal {
+        provider: ConeIdentity,
+        exact: PersistentExactTypeId,
+    },
 }
 
 impl StrongTypeDescriptorRefV1 {
     pub const fn exact_type(self) -> PersistentExactTypeId {
         match self {
-            Self::Local(exact_type) | Self::CoreExternal(exact_type) => exact_type,
+            Self::Local(exact_type)
+            | Self::DependencyExternal {
+                exact: exact_type, ..
+            } => exact_type,
         }
     }
 }
@@ -20,7 +26,10 @@ impl StrongTypeDescriptorRefV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongTypeDispatchCallableRefV1 {
     Local(PersistentCallableBodyId),
-    CoreExternal(PersistentCallableBodyId),
+    DependencyExternal {
+        provider: ConeIdentity,
+        body: PersistentCallableBodyId,
+    },
     Runtime(RuntimeFunction),
 }
 
@@ -53,7 +62,9 @@ impl StrongDescriptorReference for StrongTypeDescriptorRefV1 {
         match reference {
             None => Optional::Absent,
             Some(Self::Local(exact)) => Optional::Local(exact),
-            Some(Self::CoreExternal(exact)) => Optional::CoreExternal(exact),
+            Some(Self::DependencyExternal { provider, exact }) => {
+                Optional::DependencyExternal { provider, exact }
+            }
         }
         .encode(encoder)
     }
@@ -73,7 +84,6 @@ impl StrongDescriptorReference for crate::StrongTypeDescriptorRefV2 {
         match reference {
             None => Optional::Absent,
             Some(Self::Local(exact)) => Optional::Local(exact),
-            Some(Self::CoreExternal(exact)) => Optional::CoreExternal(exact),
             Some(Self::DependencyExternal { provider, exact }) => {
                 Optional::DependencyExternal { provider, exact }
             }
@@ -90,7 +100,10 @@ impl scoop_wire::WireEncode for StrongTypeDescriptorRefV1 {
         use crate::StrongTypeDescriptorRefV2 as Ref;
         match self {
             Self::Local(exact) => Ref::Local(*exact),
-            Self::CoreExternal(exact) => Ref::CoreExternal(*exact),
+            Self::DependencyExternal { provider, exact } => Ref::DependencyExternal {
+                provider: *provider,
+                exact: *exact,
+            },
         }
         .encode(encoder)
     }
@@ -104,7 +117,10 @@ impl scoop_wire::WireEncode for StrongTypeDispatchCallableRefV1 {
         use crate::StrongTypeDispatchCallableRefV2 as Ref;
         match self {
             Self::Local(body) => Ref::Local(*body),
-            Self::CoreExternal(body) => Ref::CoreExternal(*body),
+            Self::DependencyExternal { provider, body } => Ref::DependencyExternal {
+                provider: *provider,
+                body: *body,
+            },
             Self::Runtime(function) => Ref::Runtime(*function),
         }
         .encode(encoder)

@@ -19,7 +19,6 @@ mod tests;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongTypeDescriptorRefV2 {
     Local(PersistentExactTypeId),
-    CoreExternal(PersistentExactTypeId),
     DependencyExternal {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
@@ -29,9 +28,7 @@ pub enum StrongTypeDescriptorRefV2 {
 impl StrongTypeDescriptorRefV2 {
     pub const fn exact_type(self) -> PersistentExactTypeId {
         match self {
-            Self::Local(exact)
-            | Self::CoreExternal(exact)
-            | Self::DependencyExternal { exact, .. } => exact,
+            Self::Local(exact) | Self::DependencyExternal { exact, .. } => exact,
         }
     }
 }
@@ -40,7 +37,6 @@ impl WireEncode for StrongTypeDescriptorRefV2 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Local(exact) => value(e, 1, exact),
-            Self::CoreExternal(exact) => value(e, 2, exact),
             Self::DependencyExternal { provider, exact } => dependency(e, 3, provider, exact),
         }
     }
@@ -50,7 +46,6 @@ impl WireEncode for StrongTypeDescriptorRefV2 {
 pub enum OptionalStrongTypeDescriptorRefV2 {
     Absent,
     Local(PersistentExactTypeId),
-    CoreExternal(PersistentExactTypeId),
     DependencyExternal {
         provider: ConeIdentity,
         exact: PersistentExactTypeId,
@@ -66,7 +61,6 @@ impl WireEncode for OptionalStrongTypeDescriptorRefV2 {
                 e.unsigned(0)
             }
             Self::Local(exact) => value(e, 2, exact),
-            Self::CoreExternal(exact) => value(e, 3, exact),
             Self::DependencyExternal { provider, exact } => dependency(e, 4, provider, exact),
         }
     }
@@ -75,7 +69,6 @@ impl WireEncode for OptionalStrongTypeDescriptorRefV2 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StrongTypeDispatchCallableRefV2 {
     Local(PersistentCallableBodyId),
-    CoreExternal(PersistentCallableBodyId),
     Runtime(RuntimeFunction),
     DependencyExternal {
         provider: ConeIdentity,
@@ -87,7 +80,6 @@ impl WireEncode for StrongTypeDispatchCallableRefV2 {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
             Self::Local(body) => value(e, 1, body),
-            Self::CoreExternal(body) => value(e, 2, body),
             Self::Runtime(function) => runtime(e, *function),
             Self::DependencyExternal { provider, body } => dependency(e, 4, provider, body),
         }

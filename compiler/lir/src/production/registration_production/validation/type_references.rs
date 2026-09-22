@@ -19,9 +19,9 @@ pub(super) fn validate_optional_type_descriptor_ref(
             field,
         )
         .map(Some),
-        DecodedOptionalStrongTypeDescriptorRefV1::CoreExternal(exact_type) => {
+        DecodedOptionalStrongTypeDescriptorRefV1::DependencyExternal { provider, exact } => {
             resolve_type_descriptor_ref(
-                DecodedStrongTypeDescriptorRefV1::CoreExternal(exact_type),
+                DecodedStrongTypeDescriptorRefV1::DependencyExternal { provider, exact },
                 identities,
                 external_bridges,
                 index,
@@ -51,20 +51,15 @@ fn resolve_type_descriptor_ref(
             field,
         )
         .map(StrongTypeDescriptorRefV1::Local),
-        DecodedStrongTypeDescriptorRefV1::CoreExternal(exact_type) => resolve_known(
-            exact_type,
+        DecodedStrongTypeDescriptorRefV1::DependencyExternal { provider, exact } => {
             external_bridges
-                .bridges()
-                .iter()
-                .filter_map(|bridge| match bridge {
-                    StrongExternalLirBridgeV1::TypeDescriptor(bridge) => Some(bridge.target()),
-                    StrongExternalLirBridgeV1::Callable(_) => None,
-                }),
-            RegistrationProductionTableV1::Type,
-            index,
-            field,
-        )
-        .map(StrongTypeDescriptorRefV1::CoreExternal),
+                .resolve_descriptor_reference(provider, exact)
+                .map(|descriptor| StrongTypeDescriptorRefV1::DependencyExternal {
+                    provider: descriptor.provider(),
+                    exact: descriptor.target(),
+                })
+                .ok_or_else(|| semantic_error(RegistrationProductionTableV1::Type, index, field))
+        }
     }
 }
 
@@ -106,35 +101,25 @@ fn validate_type_dispatch_slots(
                 "local_dispatch_callable",
             )
             .map(StrongTypeDispatchCallableRefV1::Local),
-            DecodedStrongTypeDispatchCallableRefV1::CoreExternal(body) => resolve_known(
-                body,
+            DecodedStrongTypeDispatchCallableRefV1::DependencyExternal { provider, body } => {
                 external_bridges
-                    .bridges()
-                    .iter()
-                    .filter_map(|bridge| match bridge {
-                        StrongExternalLirBridgeV1::Callable(bridge) => {
-                            match bridge.expected_symbol().key() {
-                                PersistentSymbolKey::CallableBody(body) => Some(body),
-                                _ => None,
-                            }
-                        }
-                        StrongExternalLirBridgeV1::TypeDescriptor(_) => None,
-                    }),
-                RegistrationProductionTableV1::Type,
-                index,
-                "core_dispatch_callable",
-            )
-            .map(StrongTypeDispatchCallableRefV1::CoreExternal),
-            DecodedStrongTypeDispatchCallableRefV1::Runtime(function) => {
-                RuntimeFunction::from_wire_tags(function.family, function.function)
-                    .map(StrongTypeDispatchCallableRefV1::Runtime)
+                    .resolve_callable_reference(provider, body)
+                    .map(
+                        |(provider, body)| StrongTypeDispatchCallableRefV1::DependencyExternal {
+                            provider,
+                            body,
+                        },
+                    )
                     .ok_or_else(|| {
                         semantic_error(
                             RegistrationProductionTableV1::Type,
                             index,
-                            "runtime_dispatch_callable",
+                            "external_dispatch_callable",
                         )
                     })
+            }
+            DecodedStrongTypeDispatchCallableRefV1::Runtime(function) => {
+                Ok(StrongTypeDispatchCallableRefV1::Runtime(function))
             }
         })
         .collect()

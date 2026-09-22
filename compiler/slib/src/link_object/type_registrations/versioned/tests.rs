@@ -16,29 +16,21 @@ fn bytes(reference: impl LinkDescriptorReference) -> Vec<u8> {
 }
 
 #[test]
-fn old_descriptor_references_and_relocations_keep_their_bytes() {
+fn local_descriptor_references_and_relocations_keep_their_bytes() {
     let exact = exact();
-    for (old, new, tag) in [
-        (
-            StrongTypeDescriptorRefV1::Local(exact),
-            StrongTypeDescriptorRefV2::Local(exact),
-            1u32,
-        ),
-        (
-            StrongTypeDescriptorRefV1::CoreExternal(exact),
-            StrongTypeDescriptorRefV2::CoreExternal(exact),
-            2,
-        ),
-    ] {
-        let mut expected = tag.to_le_bytes().to_vec();
-        expected.extend_from_slice(exact.as_array());
-        assert_eq!(bytes(old), expected);
-        assert_eq!(bytes(new), expected);
-        assert_eq!(
-            encode_runtime(&old.canonical_relocation(80)).unwrap(),
-            encode_runtime(&new.canonical_relocation(80)).unwrap(),
-        );
-    }
+    let (old, new, tag) = (
+        StrongTypeDescriptorRefV1::Local(exact),
+        StrongTypeDescriptorRefV2::Local(exact),
+        1u32,
+    );
+    let mut expected = tag.to_le_bytes().to_vec();
+    expected.extend_from_slice(exact.as_array());
+    assert_eq!(bytes(old), expected);
+    assert_eq!(bytes(new), expected);
+    assert_eq!(
+        encode_runtime(&old.canonical_relocation(80)).unwrap(),
+        encode_runtime(&new.canonical_relocation(80)).unwrap(),
+    );
 }
 
 #[test]
@@ -58,12 +50,11 @@ fn dependency_descriptor_semantics_and_relocations_retain_provider_and_exact_typ
         target.extend_from_slice(&4u32.to_le_bytes()); // TypeDescriptor shape subject.
         target.extend_from_slice(exact.as_array());
         assert_eq!(&actual[actual.len() - target.len()..], target);
-        assert_ne!(
+        let legacy = StrongTypeDescriptorRefV1::DependencyExternal { provider, exact };
+        assert_eq!(bytes(legacy), expected);
+        assert_eq!(
             actual,
-            encode_runtime(
-                &StrongTypeDescriptorRefV2::CoreExternal(exact).canonical_relocation(80)
-            )
-            .unwrap(),
+            encode_runtime(&legacy.canonical_relocation(80)).unwrap()
         );
         encoded.push(actual);
     }
@@ -71,34 +62,26 @@ fn dependency_descriptor_semantics_and_relocations_retain_provider_and_exact_typ
 }
 
 #[test]
-fn dispatch_fingerprint_encoding_preserves_old_tags_and_binds_new_provider() {
+fn dispatch_fingerprint_encoding_preserves_local_tags_and_binds_external_provider() {
     use crate::link_object::stackmap_normalization::verification::tests::support::{
         Corruption, semantic,
     };
     let body = semantic::inputs(Corruption::None).module.functions[0]
         .callable_body
         .id();
-    for (old, current, tag) in [
-        (
-            StrongTypeDispatchCallableRefV1::Local(body),
-            StrongTypeDispatchCallableRefV2::Local(body),
-            1u32,
-        ),
-        (
-            StrongTypeDispatchCallableRefV1::CoreExternal(body),
-            StrongTypeDispatchCallableRefV2::CoreExternal(body),
-            2,
-        ),
-    ] {
-        let mut expected = tag.to_le_bytes().to_vec();
-        expected.extend_from_slice(body.as_array());
-        let mut old_bytes = RuntimeEncoder::new();
-        let mut current_bytes = RuntimeEncoder::new();
-        old.runtime_encode(&mut old_bytes).unwrap();
-        current.runtime_encode(&mut current_bytes).unwrap();
-        assert_eq!(old_bytes.into_bytes(), expected);
-        assert_eq!(current_bytes.into_bytes(), expected);
-    }
+    let (old, current, tag) = (
+        StrongTypeDispatchCallableRefV1::Local(body),
+        StrongTypeDispatchCallableRefV2::Local(body),
+        1u32,
+    );
+    let mut expected = tag.to_le_bytes().to_vec();
+    expected.extend_from_slice(body.as_array());
+    let mut old_bytes = RuntimeEncoder::new();
+    let mut current_bytes = RuntimeEncoder::new();
+    old.runtime_encode(&mut old_bytes).unwrap();
+    current.runtime_encode(&mut current_bytes).unwrap();
+    assert_eq!(old_bytes.into_bytes(), expected);
+    assert_eq!(current_bytes.into_bytes(), expected);
     for provider in [ConeIdentity::CORE, ConeIdentity::SINGLE_FILE] {
         let mut encoder = RuntimeEncoder::new();
         StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body }
@@ -108,5 +91,10 @@ fn dispatch_fingerprint_encoding_preserves_old_tags_and_binds_new_provider() {
         expected.extend_from_slice(provider.as_array());
         expected.extend_from_slice(body.as_array());
         assert_eq!(encoder.into_bytes(), expected);
+        let mut legacy_encoder = RuntimeEncoder::new();
+        StrongTypeDispatchCallableRefV1::DependencyExternal { provider, body }
+            .runtime_encode(&mut legacy_encoder)
+            .unwrap();
+        assert_eq!(legacy_encoder.into_bytes(), expected);
     }
 }

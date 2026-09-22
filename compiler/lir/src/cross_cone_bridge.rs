@@ -18,6 +18,7 @@ mod wire;
 pub use errors::*;
 pub use selection::*;
 pub use wire::DecodedCrossConeLirBridgeSectionV1;
+pub(crate) use wire::DecodedSelectedDependencyLirCallableV1;
 
 /// Canonical LIR contract exported by a terminal provider.
 #[derive(Clone, Debug, Eq, PartialEq)]

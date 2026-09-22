@@ -52,7 +52,7 @@ pub(crate) enum Corruption {
     StaticEncodedEmptyInitialState,
     StaticEncodedZeroFillSection,
     StaticSentinelCollision,
-    CoreExternalImmortalTypeRegistration,
+    ExternalImmortalTypeRegistration,
     WritableRegistrationSection,
     RelocatedRegistration,
 }
@@ -183,7 +183,7 @@ impl Fixture {
                         self.builtins.strong_relocations().clone(),
                     )
             }
-            scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(exact_type) => {
+            scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { exact: exact_type, .. } => {
                 crate::link_object::undefined_requirements::tests::
                     core_type_final_requirements_for_strong(
                         self.builtins.strong_relocations().clone(),

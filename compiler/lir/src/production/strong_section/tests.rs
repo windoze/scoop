@@ -72,10 +72,27 @@ fn strong_section_reader_rejects_old_or_extended_top_level_shapes() {
 }
 
 fn assert_initialization_field(encoded: &[u8]) {
-    assert!(encoded.ends_with(&[11, 0x80]));
+    assert!(encoded.ends_with(&[11, 0x80, 12, 0x80]));
+    let mut retired = vec![0xaa, 1, 0x80];
+    retired.extend_from_slice(&encoded[1..encoded.len() - 2]);
+    for error in [
+        decode_canonical::<DecodedStrongProductionSectionV1>(&retired, DecodeLimits::default())
+            .unwrap_err(),
+        decode_canonical::<DecodedStrongProductionSectionV2>(&retired, DecodeLimits::default())
+            .unwrap_err(),
+    ] {
+        assert_eq!(
+            error.kind(),
+            &scoop_wire::WireErrorKind::UnexpectedField {
+                expected: 2,
+                actual: 1,
+            }
+        );
+    }
     for payload in [&[10, 0x80][..], &[10, 0xa1, 0, 1][..]] {
-        let mut retired = encoded[..encoded.len() - 2].to_vec();
+        let mut retired = encoded[..encoded.len() - 4].to_vec();
         retired.extend_from_slice(payload);
+        retired.extend_from_slice(&[12, 0x80]);
         let v1 =
             decode_canonical::<DecodedStrongProductionSectionV1>(&retired, DecodeLimits::default())
                 .unwrap_err();
@@ -93,8 +110,9 @@ fn assert_initialization_field(encoded: &[u8]) {
         }
     }
     for payload in [&[11, 0xa1, 0, 1][..], &[11, 0x82][..]] {
-        let mut invalid = encoded[..encoded.len() - 2].to_vec();
+        let mut invalid = encoded[..encoded.len() - 4].to_vec();
         invalid.extend_from_slice(payload);
+        invalid.extend_from_slice(&[12, 0x80]);
         assert!(
             decode_canonical::<DecodedStrongProductionSectionV1>(&invalid, DecodeLimits::default())
                 .is_err()

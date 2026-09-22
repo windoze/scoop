@@ -34,8 +34,6 @@ impl<R> DecodedStrongProductionSection<R> {
 impl<R: WireEncode> WireEncode for DecodedStrongProductionSection<R> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
-        encoder.field(1)?;
-        self.external_bridges.encode(encoder)?;
         encoder.field(2)?;
         self.canonical_definitions.encode(encoder)?;
         encoder.field(3)?;
@@ -53,7 +51,9 @@ impl<R: WireEncode> WireEncode for DecodedStrongProductionSection<R> {
         encoder.field(9)?;
         self.generated_bridge_plan.encode(encoder)?;
         encoder.field(11)?;
-        crate::encode_initialization_abi(self.initialization_cycle_abi.as_deref(), encoder)
+        crate::encode_initialization_abi(self.initialization_cycle_abi.as_deref(), encoder)?;
+        encoder.field(12)?;
+        self.external_bridges.encode(encoder)
     }
 }
 
@@ -61,7 +61,6 @@ impl<R: WireDecode> WireDecode for DecodedStrongProductionSection<R> {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
         decoder.expect_map(10)?;
         Ok(Self {
-            external_bridges: decoder.field(1, DecodedStrongExternalLirBridgeSurfaceV1::decode)?,
             canonical_definitions: decoder.field(2, DecodedStrongObjectSymbolSurfaceV1::decode)?,
             object_definition_plans: decoder
                 .field(3, DecodedStrongObjectDefinitionPlanSurfaceV1::decode)?,
@@ -73,6 +72,7 @@ impl<R: WireDecode> WireDecode for DecodedStrongProductionSection<R> {
             shape_support_plan: decoder.field(8, DecodedParamFreeShapeSupportPlanSetV1::decode)?,
             generated_bridge_plan: decoder.field(9, DecodedGeneratedBridgePlanSetV1::decode)?,
             initialization_cycle_abi: decoder.field(11, crate::decode_initialization_abi)?,
+            external_bridges: decoder.field(12, DecodedStrongExternalLirBridgeSurfaceV1::decode)?,
         })
     }
 }

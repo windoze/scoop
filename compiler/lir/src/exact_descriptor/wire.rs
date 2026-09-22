@@ -64,9 +64,6 @@ fn optional_descriptor(
     match value {
         None => Optional::Absent,
         Some(crate::StrongTypeDescriptorRefV2::Local(exact)) => Optional::Local(exact),
-        Some(crate::StrongTypeDescriptorRefV2::CoreExternal(exact)) => {
-            Optional::CoreExternal(exact)
-        }
         Some(crate::StrongTypeDescriptorRefV2::DependencyExternal { provider, exact }) => {
             Optional::DependencyExternal { provider, exact }
         }

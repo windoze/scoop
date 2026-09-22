@@ -155,9 +155,10 @@ fn replay_rejects_position_duplicate_slot_physical_target_and_budget() {
     ));
 
     let mut wrong = |_, _: &mut BudgetMeter| {
-        Ok(Some(StrongTypeDispatchCallableRefV2::CoreExternal(
-            fixture.abi.definition().semantic_id(),
-        )))
+        Ok(Some(StrongTypeDispatchCallableRefV2::DependencyExternal {
+            provider: scoop_identity::ConeIdentity::CORE,
+            body: fixture.abi.definition().semantic_id(),
+        }))
     };
     assert!(matches!(
         ExactDispatchExportV1::replay(

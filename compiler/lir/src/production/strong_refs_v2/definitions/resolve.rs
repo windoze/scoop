@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
-    OdrFreeLirFoundation, StrongExternalLirBridgeSurfaceV1, StrongExternalLirBridgeV1,
-    StrongRegistrationIdentitySurfaceV1,
+    OdrFreeLirFoundation, StrongExternalLirBridgeSurfaceV1, StrongRegistrationIdentitySurfaceV1,
 };
 
 type Error = StrongTypeReferenceResolutionErrorV2;
@@ -12,11 +11,11 @@ impl StrongTypeReferenceDefinitionsV2 {
         decoded: DecodedStrongTypeDescriptorRefV2,
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
-        core: &StrongExternalLirBridgeSurfaceV1,
+        external: &StrongExternalLirBridgeSurfaceV1,
         meter: &mut BudgetMeter,
     ) -> Result<StrongTypeDescriptorRefV2, Error> {
         self.check_producer(foundation.producer())?;
-        self.check_producer(core.producer())?;
+        self.check_producer(external.producer())?;
         let path = WirePath::root();
         match decoded {
             DecodedStrongTypeDescriptorRefV2::Local(exact) => {
@@ -35,12 +34,6 @@ impl StrongTypeReferenceDefinitionsV2 {
                 .map_err(Error::LocalDefinition)?;
                 Ok(StrongTypeDescriptorRefV2::Local(exact))
             }
-            DecodedStrongTypeDescriptorRefV2::CoreExternal(exact) => {
-                meter.charge_work(core.bridges().len() as u64, &path)?;
-                core_descriptor(core, exact)
-                    .map(StrongTypeDescriptorRefV2::CoreExternal)
-                    .ok_or(Error::UnknownCoreDescriptor(exact))
-            }
             DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
                 meter.charge_work(foundation.definition_plans().len() as u64, &path)?;
                 for definition in foundation.definition_plans() {
@@ -51,27 +44,31 @@ impl StrongTypeReferenceDefinitionsV2 {
                         return Err(Error::LocalDescriptorPartition(candidate));
                     }
                 }
-                meter.charge_work(core.bridges().len() as u64, &path)?;
-                if let Some(exact) = core_descriptor(core, exact) {
-                    return Err(Error::CoreDescriptorPartition(exact));
-                }
+                meter.charge_work(external.bridges().len() as u64, &path)?;
+                let service = external
+                    .resolve_descriptor_reference(provider, exact)
+                    .map(|descriptor| (descriptor.provider(), descriptor.target()));
                 meter.charge_work(self.descriptors.len() as u64, &path)?;
-                self.descriptors
-                    .iter()
-                    .find_map(|definition| {
-                        let ExternalStrongShapeSubjectV1::TypeDescriptor(candidate) =
-                            definition.subject()
-                        else {
-                            return None;
-                        };
-                        (definition.provider().as_array() == provider.as_array()
-                            && candidate.as_array() == exact.as_array())
-                        .then_some(StrongTypeDescriptorRefV2::DependencyExternal {
-                            provider: definition.provider(),
-                            exact: candidate,
-                        })
-                    })
-                    .ok_or(Error::UnknownDependencyDescriptor { provider, exact })
+                let layout = self.descriptors.iter().find_map(|definition| {
+                    let ExternalStrongShapeSubjectV1::TypeDescriptor(candidate) =
+                        definition.subject()
+                    else {
+                        return None;
+                    };
+                    (definition.provider().as_array() == provider.as_array()
+                        && candidate.as_array() == exact.as_array())
+                    .then_some((definition.provider(), candidate))
+                });
+                let (provider, exact) = match (service, layout) {
+                    (Some((_, exact)), Some(_)) => {
+                        return Err(Error::ConflictingDescriptorSources(exact));
+                    }
+                    (Some(reference), None) | (None, Some(reference)) => reference,
+                    (None, None) => {
+                        return Err(Error::UnknownDependencyDescriptor { provider, exact });
+                    }
+                };
+                Ok(StrongTypeDescriptorRefV2::DependencyExternal { provider, exact })
             }
         }
     }
@@ -81,25 +78,21 @@ impl StrongTypeReferenceDefinitionsV2 {
         decoded: DecodedOptionalStrongTypeDescriptorRefV2,
         foundation: &OdrFreeLirFoundation,
         registrations: &StrongRegistrationIdentitySurfaceV1,
-        core: &StrongExternalLirBridgeSurfaceV1,
+        external: &StrongExternalLirBridgeSurfaceV1,
         meter: &mut BudgetMeter,
     ) -> Result<Option<StrongTypeDescriptorRefV2>, Error> {
-        // Even an absent reference must not move a catalog between consumers.
         self.check_producer(foundation.producer())?;
-        self.check_producer(core.producer())?;
+        self.check_producer(external.producer())?;
         let descriptor = match decoded {
             DecodedOptionalStrongTypeDescriptorRefV2::Absent => return Ok(None),
             DecodedOptionalStrongTypeDescriptorRefV2::Local(exact) => {
                 DecodedStrongTypeDescriptorRefV2::Local(exact)
             }
-            DecodedOptionalStrongTypeDescriptorRefV2::CoreExternal(exact) => {
-                DecodedStrongTypeDescriptorRefV2::CoreExternal(exact)
-            }
             DecodedOptionalStrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
                 DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
             }
         };
-        self.resolve_descriptor(descriptor, foundation, registrations, core, meter)
+        self.resolve_descriptor(descriptor, foundation, registrations, external, meter)
             .map(Some)
     }
 
@@ -107,11 +100,11 @@ impl StrongTypeReferenceDefinitionsV2 {
         &self,
         decoded: DecodedStrongTypeDispatchCallableRefV2,
         foundation: &OdrFreeLirFoundation,
-        core: &StrongExternalLirBridgeSurfaceV1,
+        external: &StrongExternalLirBridgeSurfaceV1,
         meter: &mut BudgetMeter,
     ) -> Result<StrongTypeDispatchCallableRefV2, Error> {
         self.check_producer(foundation.producer())?;
-        self.check_producer(core.producer())?;
+        self.check_producer(external.producer())?;
         let path = WirePath::root();
         match decoded {
             DecodedStrongTypeDispatchCallableRefV2::Local(body) => {
@@ -121,15 +114,7 @@ impl StrongTypeReferenceDefinitionsV2 {
                     .iter()
                     .find(|record| record.id().as_array() == body.as_array())
                     .ok_or(Error::UnknownLocalCallable(body))?;
-                // The complete local callable-registration table checks this
-                // body's definition; dependency bodies use the catalog proof.
                 Ok(StrongTypeDispatchCallableRefV2::Local(record.id()))
-            }
-            DecodedStrongTypeDispatchCallableRefV2::CoreExternal(body) => {
-                meter.charge_work(core.bridges().len() as u64, &path)?;
-                core_callable(core, body)
-                    .map(StrongTypeDispatchCallableRefV2::CoreExternal)
-                    .ok_or(Error::UnknownCoreCallable(body))
             }
             DecodedStrongTypeDispatchCallableRefV2::Runtime(function) => {
                 Ok(StrongTypeDispatchCallableRefV2::Runtime(function))
@@ -144,59 +129,29 @@ impl StrongTypeReferenceDefinitionsV2 {
                         return Err(Error::LocalCallablePartition(candidate));
                     }
                 }
-                meter.charge_work(core.bridges().len() as u64, &path)?;
-                if let Some(body) = core_callable(core, body) {
-                    return Err(Error::CoreCallablePartition(body));
-                }
+                meter.charge_work(external.bridges().len() as u64, &path)?;
+                let service = external.resolve_callable_reference(provider, body);
                 meter.charge_work(self.callables.len() as u64, &path)?;
-                self.callables
-                    .iter()
-                    .find_map(|definition| {
-                        let PersistentSymbolKey::CallableBody(candidate) =
-                            definition.symbol().key()
-                        else {
-                            return None;
-                        };
-                        (definition.provider().as_array() == provider.as_array()
-                            && candidate.as_array() == body.as_array())
-                        .then_some(StrongTypeDispatchCallableRefV2::DependencyExternal {
-                            provider: definition.provider(),
-                            body: candidate,
-                        })
-                    })
-                    .ok_or(Error::UnknownDependencyCallable { provider, body })
+                let layout = self.callables.iter().find_map(|definition| {
+                    let PersistentSymbolKey::CallableBody(candidate) = definition.symbol().key()
+                    else {
+                        return None;
+                    };
+                    (definition.provider().as_array() == provider.as_array()
+                        && candidate.as_array() == body.as_array())
+                    .then_some((definition.provider(), candidate))
+                });
+                let (provider, body) = match (service, layout) {
+                    (Some((_, body)), Some(_)) => {
+                        return Err(Error::ConflictingCallableSources(body));
+                    }
+                    (Some(reference), None) | (None, Some(reference)) => reference,
+                    (None, None) => {
+                        return Err(Error::UnknownDependencyCallable { provider, body });
+                    }
+                };
+                Ok(StrongTypeDispatchCallableRefV2::DependencyExternal { provider, body })
             }
         }
     }
-}
-
-fn core_descriptor(
-    core: &StrongExternalLirBridgeSurfaceV1,
-    exact: DecodedPersistentId<PersistentExactTypeId>,
-) -> Option<PersistentExactTypeId> {
-    core.bridges().iter().find_map(|bridge| match bridge {
-        StrongExternalLirBridgeV1::TypeDescriptor(bridge)
-            if bridge.target().as_array() == exact.as_array() =>
-        {
-            Some(bridge.target())
-        }
-        _ => None,
-    })
-}
-
-fn core_callable(
-    core: &StrongExternalLirBridgeSurfaceV1,
-    body: DecodedPersistentId<PersistentCallableBodyId>,
-) -> Option<PersistentCallableBodyId> {
-    core.bridges().iter().find_map(|bridge| match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => match bridge.expected_symbol().key() {
-            PersistentSymbolKey::CallableBody(candidate)
-                if candidate.as_array() == body.as_array() =>
-            {
-                Some(candidate)
-            }
-            _ => None,
-        },
-        StrongExternalLirBridgeV1::TypeDescriptor(_) => None,
-    })
 }

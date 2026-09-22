@@ -37,14 +37,9 @@ fn dependency_parent_interface_and_dispatch_survive_the_registration_wire() {
         let decoded: DecodedStrongTypeRegistrationPlanV2 =
             decode_canonical(&bytes, DecodeLimits::default()).unwrap();
         assert_eq!(encode(&decoded).unwrap(), bytes);
-        assert!(
-            decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(
-                &bytes,
-                DecodeLimits::default()
-            )
-            .is_err(),
-            "the old reader must reject the new relation tags"
-        );
+        let shared: DecodedStrongTypeRegistrationPlanV1 =
+            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        assert_eq!(encode(&shared).unwrap(), bytes);
         assert!(
             matches!(plan.semantic().parent(), Some(Descriptor::DependencyExternal { provider, .. })
             if provider == ConeIdentity::CORE)
@@ -228,12 +223,18 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
+    let shared: crate::DecodedStrongRegistrationProductionSurfaceV1 =
+        decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+    assert_eq!(encode(&shared).unwrap(), bytes);
     assert!(
-        decode_canonical::<crate::DecodedStrongRegistrationProductionSurfaceV1>(
-            &bytes,
-            DecodeLimits::default()
-        )
-        .is_err()
+        shared
+            .validate(
+                crate::LirTargetProfile::DARWIN_AARCH64,
+                &fixture.foundation,
+                &fixture.digests,
+                &crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
+            )
+            .is_err()
     );
     for field_count in [0xa7, 0xa9] {
         let mut malformed = bytes.clone();

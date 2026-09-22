@@ -220,7 +220,7 @@ pub(super) fn verify_type_registration_relocation(
                 return type_relocation_error(plan.object(), kind);
             }
         }
-        ImmortalObjectTypeRegistrationRefV1::CoreExternal(_) => {
+        ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. } => {
             if !matches!(
                 binding.resolution(),
                 StrongRelocationResolutionV1::ExternalCandidate { .. }

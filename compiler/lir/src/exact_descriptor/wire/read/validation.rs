@@ -139,10 +139,6 @@ fn optional_ref_matches(
         (
             DecodedOptionalStrongTypeDescriptorRefV2::Local(actual),
             Some(StrongTypeDescriptorRefV2::Local(expected)),
-        )
-        | (
-            DecodedOptionalStrongTypeDescriptorRefV2::CoreExternal(actual),
-            Some(StrongTypeDescriptorRefV2::CoreExternal(expected)),
         ) => actual.verify(expected).is_ok(),
         (
             DecodedOptionalStrongTypeDescriptorRefV2::DependencyExternal {
@@ -169,10 +165,6 @@ fn ref_matches(
         (
             DecodedStrongTypeDescriptorRefV2::Local(actual),
             StrongTypeDescriptorRefV2::Local(expected),
-        )
-        | (
-            DecodedStrongTypeDescriptorRefV2::CoreExternal(actual),
-            StrongTypeDescriptorRefV2::CoreExternal(expected),
         ) => actual.verify(expected).is_ok(),
         (
             DecodedStrongTypeDescriptorRefV2::DependencyExternal {

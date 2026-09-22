@@ -31,7 +31,10 @@ fn only_the_explicit_runtime_string_enters_the_legacy_descriptor_partition() {
     let v1 = StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap();
     assert_eq!(
         v1.descriptors()[0].parent(),
-        Some(StrongTypeDescriptorRefV1::CoreExternal(string.target()))
+        Some(StrongTypeDescriptorRefV1::DependencyExternal {
+            provider: string.provider(),
+            exact: string.target()
+        })
     );
     let empty =
         StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter()).unwrap();
@@ -39,7 +42,10 @@ fn only_the_explicit_runtime_string_enters_the_legacy_descriptor_partition() {
         StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()).unwrap();
     assert_eq!(
         v2.descriptors()[0].parent(),
-        Some(StrongTypeDescriptorRefV2::CoreExternal(string.target()))
+        Some(StrongTypeDescriptorRefV2::DependencyExternal {
+            provider: string.provider(),
+            exact: string.target()
+        })
     );
 
     module
@@ -83,31 +89,20 @@ fn every_ordinary_descriptor_requires_a_committed_layout_selection() {
 }
 
 #[test]
-fn a_foreign_runtime_string_role_is_rejected_even_without_descriptor_edges() {
+fn an_ordinary_runtime_string_role_preserves_its_provider_without_descriptor_edges() {
     let mut module = consumer_module(&ConeCoordinate::reserved_single_file());
-    let foreign = module
-        .meta
-        .external_type_descriptors
-        .alloc(descriptor(ordinary_provider(), "String"));
+    let string = descriptor(ordinary_provider(), "String");
+    let foreign = module.meta.external_type_descriptors.alloc(string);
     module.meta.well_known_type_descriptors.string = TypeDescriptorRef::External(foreign);
-    assert!(matches!(
-        StrongExternalLirBridgeSurfaceV1::from_module(&module),
-        Err(StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor)
-    ));
-    assert!(matches!(
-        StrongTypeDescriptorSemanticPlanSetV1::from_module(&module),
-        Err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge(
-            StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor
-        ))
-    ));
+    let surface = StrongExternalLirBridgeSurfaceV1::from_module(&module).unwrap();
+    assert_eq!(
+        surface.bridges(),
+        &[StrongExternalLirBridgeV1::TypeDescriptor(string)]
+    );
+    StrongTypeDescriptorSemanticPlanSetV1::from_module(&module).unwrap();
     let empty =
         StrongProductionDependencySelectionV2::empty(module.cone, TARGET, &mut meter()).unwrap();
-    assert!(matches!(
-        StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()),
-        Err(StrongTypeDescriptorSemanticPlanBuildError::ExternalBridge(
-            StrongExternalLirBridgeBuildError::InvalidRuntimeStringDescriptor
-        ))
-    ));
+    StrongTypeDescriptorSemanticPlanSetV2::from_module(&module, &empty, &mut meter()).unwrap();
 }
 
 fn descriptor(provider: ConeIdentity, name: &str) -> ExternalTypeDescriptor {

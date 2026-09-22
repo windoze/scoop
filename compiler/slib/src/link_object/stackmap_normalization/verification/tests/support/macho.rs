@@ -79,7 +79,7 @@ pub(crate) fn object_bytes(
         | Corruption::StaticEncodedEmptyInitialState
         | Corruption::StaticEncodedZeroFillSection
         | Corruption::StaticSentinelCollision
-        | Corruption::CoreExternalImmortalTypeRegistration
+        | Corruption::ExternalImmortalTypeRegistration
         | Corruption::WritableRegistrationSection
         | Corruption::RelocatedRegistration => [0xa9bf_7bfd, 0x9100_03fd, 0x9400_0000, 0x9400_0000],
     };
@@ -249,7 +249,7 @@ fn macho_object(
         .find(|registration| {
             matches!(
                 registration.semantic().type_registration_ref(),
-                scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
+                scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             )
         })
         .map(|registration| registration.type_registration());
@@ -796,7 +796,7 @@ fn macho_object(
                     .unwrap()
             } else if matches!(
                 registration.semantic().type_registration_ref(),
-                scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
+                scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
                 symbols.symbols().len()
             } else {
@@ -862,7 +862,7 @@ fn macho_object(
 
             let type_target = if matches!(
                 registration.semantic().type_registration_ref(),
-                scoop_lir::ImmortalObjectTypeRegistrationRefV1::CoreExternal(_)
+                scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
                 symbols.symbols().len() + 1
             } else if matches!(

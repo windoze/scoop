@@ -245,3 +245,13 @@ String 的测试按职责拆到独立模块；相关 HIR section、String capabi
 MIR/LIR 的 ImportedFoundation 投影和 SelectedExternal 集合不再追加 CORE provider 条件，ShapeLink 按实际 provider 核对 ABI definition，并按 typed target 保持用途互斥。普通与 CORE provider 的实际 body、symbol、definition、canonical ABI、effect 和 root plan 检查保持；负例覆盖错误 provider、同名异源 target、缺 body/definition、错签名、重复角色/目标、self-import，以及相邻 MIR/LIR 角色有无和完整逻辑签名不一致。
 
 新的初始化 ABI 编解码模块为 56 行，测试和导入投影验证按职责保留独立模块。全部构建测试会话结束后 cargo clean 删除 26,562 个文件、26.9 GiB。本批完成初始化 ABI 发布与导入选择清理；String descriptor/registration、旧 external bridge 中的固定 CORE provider、Link 独立 core owner/requirement 通道、native 后端固定身份识别，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布与 ZST 验收仍须继续完成。
+
+2026-09-22：String 与初始化服务的共有外部引用及 registration 编码已完成本批实现和验收。
+
+外部 callable 表直接复用完整 SelectedDependencyLirCallableV1 与普通依赖解码器，provider、声明和完整 ABI 一同保存；String 继续复用 ExternalTypeDescriptor。删除 CORE consumer 空表限制与 String lowering 的固定来源分支，按实际 provider 检查 self-import 和合同。TD、可选 TD、dispatch callable 及 immortal type registration 均删除 CoreExternal，并显式保存 provider 与 exact/body。两个生产 schema 共用引用 codec；reader 同时核对 provider、typed target、已选择的 definition 及用途分区，服务与 layout 的重复来源仍拒绝。未使用 String 的 MIR 无需物化对应类型条目；LIR 保留完整运行时描述符，MIR 实际使用 String 时继续核对 exact identity。
+
+strong production 的旧 field 1 退役，field 12 保存共有外部引用表；callable tag 1 退役，tag 3 保存完整共有记录。TD、optional TD、dispatch 和 immortal 的旧 core tag 均拒绝且不复用。strong-production capability 升级至 /5、/6，cross-cone-layout-abi 与 cross-cone-layout-link-closure 升级至 /2；三个生产 profile 的 registry、inventory、descriptor、fingerprint、Compile/Link reader、固定向量及文档引用同步。初始化 field 11 的 0/1 array、local/runtime/absent 编码和 runtime C ABI 保持。
+
+workspace fmt 与 all-targets Clippy 通过；定向 LIR/LIR-lower/SLIB 1,169 项通过，补齐未使用 String 的边界后 lowering 131 项通过；最终全部 5,744 项 workspace 测试通过（37 组，零失败、零忽略），启用配套 scoopc 真实进程，覆盖 core 修改、无 sysroot 构建、source/prebuilt 切换、缓存、跨 Cone 调用与独立 Compile/Link 发布。普通 provider 的完整 String/初始化服务组合、provider 与 definition 漂移、self-import、同一 target 的不同 provider、重复证明、旧字段/tag/版本与 optional 混入均有验证。共有外部表主体 136 行，wire/错误/引用查询分别独立；immortal 模块从 750 行左右拆为登记 515 行与语义 266 行。全部构建测试会话结束后 cargo clean 删除 23,950 个文件、21.5 GiB。
+
+本批完成 LIR 外部引用与 registration 编码迁移；Link 独立 core owner/requirement 通道仍须并入共有实际 provider 索引，native 后端固定身份分类，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布和剩余 ZST 验收继续推进。

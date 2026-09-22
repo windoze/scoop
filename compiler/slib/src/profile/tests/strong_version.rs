@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn shared_initialization_abi_retires_both_core_branch_formats_in_every_view() {
+fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every_view() {
     for (current, profiles, rejected) in [
         (
             lir_strong_production_capability(),
@@ -9,17 +9,27 @@ fn shared_initialization_abi_retires_both_core_branch_formats_in_every_view() {
                 ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
                 ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ][..],
-            [1, 2, 4],
+            &[1, 2, 3, 4, 6][..],
         ),
         (
             lir_strong_production_v2_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
-            [1, 2, 3],
+            &[1, 2, 3, 4, 5][..],
+        ),
+        (
+            lir_cross_cone_layout_abi_capability(),
+            &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
+            &[1][..],
+        ),
+        (
+            lir_cross_cone_layout_link_closure_capability(),
+            &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG][..],
+            &[1][..],
         ),
     ] {
-        for version in rejected {
+        for &version in rejected {
             let old = CapabilityId::new(current.namespace(), current.name(), version).unwrap();
-            if version <= 2 {
+            if version <= 4 {
                 assert!(CapabilityContractRegistry::contract(&old).is_none());
             }
             for profile in profiles {

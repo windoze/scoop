@@ -205,16 +205,6 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
         ),
         Err(Error::UnknownLocalDescriptor(_))
     ));
-    assert!(matches!(
-        catalog.resolve_descriptor(
-            decoded(&StrongTypeDescriptorRefV2::CoreExternal(exact)),
-            &consumer,
-            &registrations,
-            &core,
-            &mut meter()
-        ),
-        Err(Error::UnknownCoreDescriptor(_))
-    ));
     let PersistentSymbolKey::CallableBody(body) = definitions[0].symbol().key() else {
         panic!("body fixture");
     };
@@ -238,7 +228,7 @@ fn reader_rejects_provider_relabeling_and_local_or_core_fallbacks() {
 }
 
 #[test]
-fn old_core_descriptor_cannot_be_reencoded_as_general_dependency() {
+fn descriptor_sources_bind_the_requested_provider_and_reject_duplicate_proofs() {
     let producer = scoop_identity::ConeCoordinate::new("test", "reference-consumer", "1.0.0")
         .unwrap()
         .identity()
@@ -253,33 +243,46 @@ fn old_core_descriptor_cannot_be_reencoded_as_general_dependency() {
     let catalog =
         StrongTypeReferenceDefinitionsV2::new(producer, &[definition], &mut meter()).unwrap();
     let (consumer, registrations, _) = consumer_at(producer);
-    let core = StrongExternalLirBridgeSurfaceV1::try_new(
-        producer,
-        vec![crate::StrongExternalLirBridgeV1::TypeDescriptor(
-            crate::ExternalTypeDescriptor::new(scoop_identity::ConeIdentity::CORE, exact).unwrap(),
-        )],
-    )
-    .unwrap();
-    let old = StrongTypeDescriptorRefV2::CoreExternal(exact);
-    assert_eq!(
-        catalog
-            .resolve_descriptor(
-                decoded(&old),
-                &consumer,
-                &registrations,
-                &core,
-                &mut meter()
-            )
-            .unwrap(),
-        old
-    );
-    let changed = StrongTypeDescriptorRefV2::DependencyExternal {
-        provider: ConeIdentity::SINGLE_FILE,
-        exact,
-    };
-    assert!(
-        matches!(catalog.resolve_descriptor(decoded(&changed), &consumer, &registrations, &core, &mut meter()), Err(Error::CoreDescriptorPartition(actual)) if actual == exact)
-    );
+    for provider in [ConeIdentity::CORE, definition.provider()] {
+        let external = StrongExternalLirBridgeSurfaceV1::try_new(
+            producer,
+            vec![crate::StrongExternalLirBridgeV1::TypeDescriptor(
+                crate::ExternalTypeDescriptor::new(provider, exact).unwrap(),
+            )],
+        )
+        .unwrap();
+        let reference = StrongTypeDescriptorRefV2::DependencyExternal { provider, exact };
+        let result = catalog.resolve_descriptor(
+            decoded(&reference),
+            &consumer,
+            &registrations,
+            &external,
+            &mut meter(),
+        );
+        if provider == definition.provider() {
+            assert!(
+                matches!(result, Err(Error::ConflictingDescriptorSources(actual)) if actual == exact)
+            );
+        } else {
+            assert_eq!(result.unwrap(), reference);
+            let layout_reference = StrongTypeDescriptorRefV2::DependencyExternal {
+                provider: definition.provider(),
+                exact,
+            };
+            assert_eq!(
+                catalog
+                    .resolve_descriptor(
+                        decoded(&layout_reference),
+                        &consumer,
+                        &registrations,
+                        &external,
+                        &mut meter(),
+                    )
+                    .unwrap(),
+                layout_reference
+            );
+        }
+    }
 }
 
 #[test]

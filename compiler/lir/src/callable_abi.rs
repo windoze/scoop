@@ -1,6 +1,6 @@
 //! Complete canonical ABI data shared by callable publication and selection.
 
-use crate::{CallingConvention, ExternalCallable, ExternalCallableRootPlan};
+use crate::{CallingConvention, ExternalCallableRootPlan};
 use scoop_identity::{
     CallableBodyKey, CanonicalScoopAbiFunctionSignature, ConeIdentity, LinkageClass,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentCallableBodyId, PersistentSymbolKey,
@@ -55,16 +55,6 @@ impl CallableAbiRecordV1 {
             root_plan,
             required_definition,
         })
-    }
-
-    pub(crate) fn from_lir(value: &ExternalCallable) -> Result<Self, CallableAbiBuildError> {
-        Self::new(
-            value.provider(),
-            value.target(),
-            value.canonical_signature().clone(),
-            value.calling_convention(),
-            value.root_plan(),
-        )
     }
 
     pub const fn target(&self) -> StrongCallableDefinitionOwner {

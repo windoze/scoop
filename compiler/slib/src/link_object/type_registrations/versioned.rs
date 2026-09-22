@@ -25,33 +25,23 @@ pub(in crate::link_object) trait LinkDescriptorReference:
 
 impl LinkDescriptorReference for StrongTypeDescriptorRefV1 {
     fn kind(self) -> DescriptorReferenceKind {
-        match self {
-            Self::Local(exact) => DescriptorReferenceKind::Local(exact),
-            Self::CoreExternal(exact) => DescriptorReferenceKind::External(exact),
-        }
+        current_descriptor(self).kind()
     }
 
     fn canonical_relocation(self, offset: u64) -> CanonicalObjectRelocationV1 {
-        match self {
-            Self::Local(exact) => {
-                CanonicalObjectRelocationV1::intra_cone_type_descriptor(offset, exact)
-            }
-            Self::CoreExternal(exact) => {
-                CanonicalObjectRelocationV1::core_type_descriptor(offset, exact)
-            }
-        }
+        current_descriptor(self).canonical_relocation(offset)
     }
 
     fn runtime_encode(self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        match self {
-            Self::Local(exact) => {
-                encoder.u32(1)?;
-                encoder.fixed(exact.as_array())
-            }
-            Self::CoreExternal(exact) => {
-                encoder.u32(2)?;
-                encoder.fixed(exact.as_array())
-            }
+        current_descriptor(self).runtime_encode(encoder)
+    }
+}
+
+fn current_descriptor(reference: StrongTypeDescriptorRefV1) -> StrongTypeDescriptorRefV2 {
+    match reference {
+        StrongTypeDescriptorRefV1::Local(exact) => StrongTypeDescriptorRefV2::Local(exact),
+        StrongTypeDescriptorRefV1::DependencyExternal { provider, exact } => {
+            StrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
         }
     }
 }
@@ -60,9 +50,7 @@ impl LinkDescriptorReference for StrongTypeDescriptorRefV2 {
     fn kind(self) -> DescriptorReferenceKind {
         match self {
             Self::Local(exact) => DescriptorReferenceKind::Local(exact),
-            Self::CoreExternal(exact) | Self::DependencyExternal { exact, .. } => {
-                DescriptorReferenceKind::External(exact)
-            }
+            Self::DependencyExternal { exact, .. } => DescriptorReferenceKind::External(exact),
         }
     }
 
@@ -70,9 +58,6 @@ impl LinkDescriptorReference for StrongTypeDescriptorRefV2 {
         match self {
             Self::Local(exact) => {
                 CanonicalObjectRelocationV1::intra_cone_type_descriptor(offset, exact)
-            }
-            Self::CoreExternal(exact) => {
-                CanonicalObjectRelocationV1::core_type_descriptor(offset, exact)
             }
             Self::DependencyExternal { provider, exact } => {
                 CanonicalObjectRelocationV1::dependency_type_descriptor(offset, provider, exact)
@@ -84,10 +69,6 @@ impl LinkDescriptorReference for StrongTypeDescriptorRefV2 {
         match self {
             Self::Local(exact) => {
                 encoder.u32(1)?;
-                encoder.fixed(exact.as_array())
-            }
-            Self::CoreExternal(exact) => {
-                encoder.u32(2)?;
                 encoder.fixed(exact.as_array())
             }
             Self::DependencyExternal { provider, exact } => {
@@ -111,8 +92,10 @@ impl LinkDispatchCallableReference for StrongTypeDispatchCallableRefV1 {
             encoder,
             match self {
                 Self::Local(body) => DispatchReferenceKind::Local(body),
-                Self::CoreExternal(body) => DispatchReferenceKind::CoreExternal(body),
                 Self::Runtime(function) => DispatchReferenceKind::Runtime(function),
+                Self::DependencyExternal { provider, body } => {
+                    DispatchReferenceKind::DependencyExternal { provider, body }
+                }
             },
         )
     }
@@ -124,7 +107,6 @@ impl LinkDispatchCallableReference for StrongTypeDispatchCallableRefV2 {
             encoder,
             match self {
                 Self::Local(body) => DispatchReferenceKind::Local(body),
-                Self::CoreExternal(body) => DispatchReferenceKind::CoreExternal(body),
                 Self::Runtime(function) => DispatchReferenceKind::Runtime(function),
                 Self::DependencyExternal { provider, body } => {
                     DispatchReferenceKind::DependencyExternal { provider, body }
@@ -136,7 +118,6 @@ impl LinkDispatchCallableReference for StrongTypeDispatchCallableRefV2 {
 
 enum DispatchReferenceKind {
     Local(PersistentCallableBodyId),
-    CoreExternal(PersistentCallableBodyId),
     Runtime(RuntimeFunction),
     DependencyExternal {
         provider: ConeIdentity,
@@ -151,10 +132,6 @@ fn encode_dispatch(
     match reference {
         DispatchReferenceKind::Local(body) => {
             encoder.u32(1)?;
-            encoder.fixed(body.as_array())
-        }
-        DispatchReferenceKind::CoreExternal(body) => {
-            encoder.u32(2)?;
             encoder.fixed(body.as_array())
         }
         DispatchReferenceKind::Runtime(function) => {

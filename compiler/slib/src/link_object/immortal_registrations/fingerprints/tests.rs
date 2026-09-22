@@ -37,7 +37,7 @@ fn computes_the_two_relocation_registration_object_leaf() {
 
 #[test]
 fn encodes_a_core_type_registration_as_a_core_requirement() {
-    let fixture = Fixture::new(Corruption::CoreExternalImmortalTypeRegistration);
+    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

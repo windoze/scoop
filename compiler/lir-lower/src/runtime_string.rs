@@ -19,15 +19,9 @@ pub(super) fn lower_runtime_string(
 > {
     let producer = input.module().cone;
     match descriptor {
-        RuntimeStringDescriptor::Local if producer == lir::ConeIdentity::CORE => {
-            Ok((Arena::new(), None))
-        }
-        RuntimeStringDescriptor::Local => {
-            Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership { producer })
-        }
+        RuntimeStringDescriptor::Local => Ok((Arena::new(), None)),
         RuntimeStringDescriptor::External(descriptor) => {
-            if descriptor.provider() == producer || descriptor.provider() != lir::ConeIdentity::CORE
-            {
+            if descriptor.provider() == producer {
                 return Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership { producer });
             }
             if let Some(identity) = input

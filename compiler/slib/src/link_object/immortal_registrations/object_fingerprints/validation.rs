@@ -217,8 +217,8 @@ fn validate_descriptor_relocation(
         ImmortalObjectTypeRegistrationRefV1::Local(_) => {
             validate_local_descriptor_target(builtins, requirements, plan, binding, owner)
         }
-        ImmortalObjectTypeRegistrationRefV1::CoreExternal(_) => {
-            validate_core_descriptor_target(requirements, plan, binding, owner)
+        ImmortalObjectTypeRegistrationRefV1::DependencyExternal { provider, .. } => {
+            validate_external_descriptor_target(requirements, plan, binding, owner, provider)
         }
     }
 }
@@ -311,11 +311,12 @@ fn validate_local_descriptor_target(
     }
 }
 
-fn validate_core_descriptor_target(
+fn validate_external_descriptor_target(
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
     plan: StrongImmortalObjectRegistrationPlanV1,
     binding: &StrongRelocationBindingV1,
     expected_owner: StrongDefinitionOwnerV1,
+    provider: scoop_identity::ConeIdentity,
 ) -> Result<(), StrongImmortalObjectDefinitionFingerprintError> {
     use ImmortalObjectRegistrationRelocationFailureV1 as Failure;
 
@@ -345,7 +346,7 @@ fn validate_core_descriptor_target(
     if requirement_for(binding, requirements)
         != Some(CanonicalObjectDefinitionRequirementV1::Legacy(
             FinalUndefinedSymbolRequirementV1::CoreStrong {
-                core: scoop_identity::ConeIdentity::CORE,
+                core: provider,
                 owner: expected_owner,
             },
         ))

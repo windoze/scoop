@@ -5,28 +5,34 @@ use super::*;
 #[derive(Debug)]
 pub(in crate::production::registration_production) enum DecodedImmortalObjectTypeRegistrationRefV1 {
     Local(DecodedPersistentId<PersistentExactTypeId>),
-    CoreExternal(DecodedPersistentId<PersistentExactTypeId>),
+    DependencyExternal {
+        provider: DecodedPersistentId<scoop_identity::ConeIdentity>,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
 }
 
 impl WireEncode for DecodedImmortalObjectTypeRegistrationRefV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Local(exact_type) => encode_value_sum(encoder, 1, exact_type),
-            Self::CoreExternal(exact_type) => encode_value_sum(encoder, 2, exact_type),
+        match *self {
+            Self::Local(exact) => crate::DecodedStrongTypeDescriptorRefV2::Local(exact),
+            Self::DependencyExternal { provider, exact } => {
+                crate::DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact }
+            }
         }
+        .encode(encoder)
     }
 }
 
 impl WireDecode for DecodedImmortalObjectTypeRegistrationRefV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        let exact_type = decoder.field(1, DecodedPersistentId::decode)?;
-        match tag {
-            1 => Ok(Self::Local(exact_type)),
-            2 => Ok(Self::CoreExternal(exact_type)),
-            _ => Err(unknown_tag(decoder, tag)),
-        }
+        Ok(
+            match crate::DecodedStrongTypeDescriptorRefV2::decode(decoder)? {
+                crate::DecodedStrongTypeDescriptorRefV2::Local(exact) => Self::Local(exact),
+                crate::DecodedStrongTypeDescriptorRefV2::DependencyExternal { provider, exact } => {
+                    Self::DependencyExternal { provider, exact }
+                }
+            },
+        )
     }
 }
 
@@ -93,5 +99,39 @@ impl WireDecode for DecodedStrongImmortalObjectRegistrationPlanV1 {
             registration_fingerprint_node: decoder.field(14, DecodedPersistentId::decode)?,
             registration_definition_patch: decoder.field(15, DecodedPersistentId::decode)?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scoop_wire::{DecodeLimits, decode_canonical, encode};
+
+    #[test]
+    fn external_registration_wire_requires_provider_and_retires_the_core_tag() {
+        let mut bytes = vec![0xa3, 0, 3, 1, 0x58, 0x20];
+        bytes.extend_from_slice(&[0x11; 32]);
+        bytes.extend_from_slice(&[2, 0x58, 0x20]);
+        bytes.extend_from_slice(&[0x22; 32]);
+        let decoded: DecodedImmortalObjectTypeRegistrationRefV1 =
+            decode_canonical(&bytes, DecodeLimits::default()).unwrap();
+        assert_eq!(encode(&decoded).unwrap(), bytes);
+        let mut retired = vec![0xa2, 0, 2, 1, 0x58, 0x20];
+        retired.extend_from_slice(&[0x22; 32]);
+        assert!(
+            decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(
+                &retired,
+                DecodeLimits::default(),
+            )
+            .is_err()
+        );
+        retired[2] = 3;
+        assert!(
+            decode_canonical::<DecodedImmortalObjectTypeRegistrationRefV1>(
+                &retired,
+                DecodeLimits::default(),
+            )
+            .is_err()
+        );
     }
 }

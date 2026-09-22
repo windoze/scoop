@@ -122,7 +122,7 @@ fn rejects_type_relocation_to_the_immortal_object() {
 
 #[test]
 fn accepts_the_exact_core_external_type_registration() {
-    let fixture = Fixture::new(Corruption::CoreExternalImmortalTypeRegistration);
+    let fixture = Fixture::new(Corruption::ExternalImmortalTypeRegistration);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
         &fixture.object_bytes,

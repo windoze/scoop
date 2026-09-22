@@ -444,7 +444,7 @@ fn core_exact_type(name: &str) -> PersistentExactTypeId {
 
 fn normalized_bridge_name(bridge: &StrongExternalLirBridgeV1) -> Vec<u8> {
     let request = match bridge {
-        StrongExternalLirBridgeV1::Callable(bridge) => bridge.expected_symbol(),
+        StrongExternalLirBridgeV1::Callable(bridge) => bridge.bridge().expected_symbol(),
         StrongExternalLirBridgeV1::TypeDescriptor(bridge) => bridge.expected_symbol(),
     };
     LirTargetProfile::DARWIN_AARCH64
