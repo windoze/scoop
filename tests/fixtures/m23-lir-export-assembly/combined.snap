@@ -1,0 +1,133 @@
+layouts=62 descriptors=31 dispatch=36 callables=26 shapes=9
+callable $init$body$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
+callable $init$ensure$0: OrdinaryManaged receiver=false args=[] result=UnitVoid
+callable Base.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
+callable Base.protectedRun: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable Base.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable Choice.equals: OrdinaryManaged receiver=true args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
+callable Contract.$get$token: OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
+callable Contract.echo: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable Contract.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable Pair.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
+callable Registry.run: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable Token.equals: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Direct(1)
+callable Value.$get$token: OrdinaryManaged receiver=true args=["Zst(0)"] result=Zst(0)
+callable Value.run: OrdinaryManaged receiver=true args=["Zst(0)", "Zst(0)"] result=Zst(0)
+callable ctor.Pair.$c1: OrdinaryNoGc receiver=false args=["Zst(0)", "Zst(0)"] result=Zst(0)
+callable ctor.Pair.$c2: OrdinaryNoGc receiver=false args=[] result=Zst(0)
+callable ctor.Token.$c0: OrdinaryNoGc receiver=false args=[] result=Zst(0)
+callable ctor.Value.$c3: OrdinaryNoGc receiver=false args=[] result=Zst(0)
+callable init.Base.$c0: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable init.Base.$c1: OrdinaryManaged receiver=true args=["Direct(8)"] result=UnitVoid
+callable init.Derived.$c2: OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=UnitVoid
+callable same: OrdinaryManaged receiver=false args=["Indirect(8)", "Indirect(8)"] result=Direct(1)
+callable throughBase: OrdinaryManaged receiver=false args=["Direct(8)"] result=Zst(0)
+callable thunk<Value> Contract.$get$token(): OrdinaryManaged receiver=true args=["Direct(8)"] result=Zst(0)
+callable thunk<Value> Contract.echo(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+callable thunk<Value> Contract.run(Token): OrdinaryManaged receiver=true args=["Direct(8)", "Zst(0)"] result=Zst(0)
+descriptor g(r=00000005;i=579bd5c849fe7f1ca097c7d8e500ba4401ec423b841f6eb293b54daf975220b8): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000005;i=5c0e790317a8b197b6e61fe8664a34c8c1aa0898257cfa51665822f30979bec2): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000005;i=83f31769a7293b0826e14ad3a0c580b2e1b456397a3fec0deac9169b1f0b1c6a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000005;i=90106eadf553191b55b5306021a566bf841321de6b7c3e876cc6bdea7a8ad280): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000005;i=a9acf5fe65b180df89cb2cc4bc81f81a118183c0c26f33f21abfea217dc3d724): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000005;i=bd2d28cc9eaac214027205c8db89026f2caf8afe0cdd1d7f3325e1fa48fe093d): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000005;i=caf8d07b72f6ac5c23d864c598731299cb9c285b7752aea23b4f4ebf48205122): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000005;i=d8c47989fe46537831a92362d045602d3e252125b4e4d6ed196ba90b2912286c): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000005;i=f699e33c363f663c92c72e2073d5c1c5c4e89e1444fb09005a8d58d50beb3cb1): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000006;i=543f2c0e9b479bb40fa77b3a63902725730e206eb459e865a2aaee2580315d54): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000006;i=5bcc37edfe2867c20f8038a237665fd7b611ce5af28f3023028417b8d68f911a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000006;i=74a9a35d0be01d64e2471db1c7ebd745fa6538bc7dc2c7730efc7579d9a825ff): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=1
+descriptor g(r=00000006;i=e40ae64cc8594c8dec95474e1921b616719f3d6a8dcd9f96a2483299ec519d01): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=24cc82c29cef7ac771dc90d8422622c8665694f85fde942348b80cd6d0f3e39f): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000007;i=585fd48e03ed3e104e518e89a0554b82dc2061702663a5b2f089fb626266a522): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=7b12b2bb1db0a98c09a0aa1972905a47eed32ae4b2f774d199bd71cd530c1b82): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000007;i=b2393977671fe1da92567ec0803cc87916fb271a40548b1b0cddd3247eca6ca8): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000007;i=bb746f1db259cc7f9cb589d69942c2e780284620253682317e8ad23cafca09c2): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=c2d63148e901949d9c02d4100e7c53d2fe26460e0b39fb253be80fd249dd9ca0): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 32, instance_alignment: 8, inline_offset: 16, inline_size: 16, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=c9217b90374fa23d6db94515a99a8beef2929b3f551682bb13d483bd2ed32880): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor g(r=00000007;i=d866bad8c6c063bba954579a9462629e6245baae30b64eb13fd51221f534826d): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor g(r=00000007;i=de2e0a3fc094de06ca276686672c866210d9ec45d2053a4253638de7c8b91a1a): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: References([16]), inline_scan: References([0]) } scan=References([16]) vslots=0 itables=0
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base): TypeInstanceShapeV1 { instance_kind: FixedObject, inline_storage_kind: None, minimum_size: 16, instance_alignment: 8, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=3 itables=1
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived): TypeInstanceShapeV1 { instance_kind: FixedObject, inline_storage_kind: None, minimum_size: 16, instance_alignment: 8, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=3 itables=1
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending): TypeInstanceShapeV1 { instance_kind: FixedObject, inline_storage_kind: None, minimum_size: 16, instance_alignment: 8, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=1
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: Inline, minimum_size: 24, instance_alignment: 8, inline_offset: 16, inline_size: 8, inline_stride: 0, inline_alignment: 8, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract): TypeInstanceShapeV1 { instance_kind: AbstractRef, inline_storage_kind: None, minimum_size: 0, instance_alignment: 0, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry): TypeInstanceShapeV1 { instance_kind: FixedObject, inline_storage_kind: None, minimum_size: 16, instance_alignment: 8, inline_offset: 0, inline_size: 0, inline_stride: 0, inline_alignment: 0, object_scan: None, inline_scan: None } scan=None vslots=3 itables=1
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+descriptor n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value): TypeInstanceShapeV1 { instance_kind: BoxedValue, inline_storage_kind: ZeroSized, minimum_size: 16, instance_alignment: 8, inline_offset: 16, inline_size: 0, inline_stride: 0, inline_alignment: 1, object_scan: None, inline_scan: None } scan=None vslots=0 itables=0
+dispatch g(r=00000005;i=579bd5c849fe7f1ca097c7d8e500ba4401ec423b841f6eb293b54daf975220b8) [Vtable]: []
+dispatch g(r=00000005;i=5c0e790317a8b197b6e61fe8664a34c8c1aa0898257cfa51665822f30979bec2) [Vtable]: []
+dispatch g(r=00000005;i=83f31769a7293b0826e14ad3a0c580b2e1b456397a3fec0deac9169b1f0b1c6a) [Vtable]: []
+dispatch g(r=00000005;i=90106eadf553191b55b5306021a566bf841321de6b7c3e876cc6bdea7a8ad280) [Vtable]: []
+dispatch g(r=00000005;i=a9acf5fe65b180df89cb2cc4bc81f81a118183c0c26f33f21abfea217dc3d724) [Vtable]: []
+dispatch g(r=00000005;i=bd2d28cc9eaac214027205c8db89026f2caf8afe0cdd1d7f3325e1fa48fe093d) [Vtable]: []
+dispatch g(r=00000005;i=caf8d07b72f6ac5c23d864c598731299cb9c285b7752aea23b4f4ebf48205122) [Vtable]: []
+dispatch g(r=00000005;i=d8c47989fe46537831a92362d045602d3e252125b4e4d6ed196ba90b2912286c) [Vtable]: []
+dispatch g(r=00000005;i=f699e33c363f663c92c72e2073d5c1c5c4e89e1444fb09005a8d58d50beb3cb1) [Vtable]: []
+dispatch g(r=00000006;i=543f2c0e9b479bb40fa77b3a63902725730e206eb459e865a2aaee2580315d54) [Vtable]: []
+dispatch g(r=00000006;i=5bcc37edfe2867c20f8038a237665fd7b611ce5af28f3023028417b8d68f911a) [Vtable]: []
+dispatch g(r=00000006;i=74a9a35d0be01d64e2471db1c7ebd745fa6538bc7dc2c7730efc7579d9a825ff) [Itable { interface_exact: PersistentExactTypeId([128, 42, 109, 117, 183, 7, 146, 193, 240, 137, 119, 13, 70, 235, 237, 109, 96, 247, 185, 247, 128, 131, 154, 235, 201, 170, 4, 252, 58, 202, 112, 129]) }]: [(0, "thunk<Value> Contract.run(Token)", Identity), (1, "thunk<Value> Contract.echo(Token)", Identity), (2, "thunk<Value> Contract.$get$token()", Identity)]
+dispatch g(r=00000006;i=74a9a35d0be01d64e2471db1c7ebd745fa6538bc7dc2c7730efc7579d9a825ff) [Vtable]: []
+dispatch g(r=00000006;i=e40ae64cc8594c8dec95474e1921b616719f3d6a8dcd9f96a2483299ec519d01) [Vtable]: []
+dispatch g(r=00000007;i=24cc82c29cef7ac771dc90d8422622c8665694f85fde942348b80cd6d0f3e39f) [Vtable]: []
+dispatch g(r=00000007;i=585fd48e03ed3e104e518e89a0554b82dc2061702663a5b2f089fb626266a522) [Vtable]: []
+dispatch g(r=00000007;i=7b12b2bb1db0a98c09a0aa1972905a47eed32ae4b2f774d199bd71cd530c1b82) [Vtable]: []
+dispatch g(r=00000007;i=b2393977671fe1da92567ec0803cc87916fb271a40548b1b0cddd3247eca6ca8) [Vtable]: []
+dispatch g(r=00000007;i=bb746f1db259cc7f9cb589d69942c2e780284620253682317e8ad23cafca09c2) [Vtable]: []
+dispatch g(r=00000007;i=c2d63148e901949d9c02d4100e7c53d2fe26460e0b39fb253be80fd249dd9ca0) [Vtable]: []
+dispatch g(r=00000007;i=c9217b90374fa23d6db94515a99a8beef2929b3f551682bb13d483bd2ed32880) [Vtable]: []
+dispatch g(r=00000007;i=d866bad8c6c063bba954579a9462629e6245baae30b64eb13fd51221f534826d) [Vtable]: []
+dispatch g(r=00000007;i=de2e0a3fc094de06ca276686672c866210d9ec45d2053a4253638de7c8b91a1a) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base) [Itable { interface_exact: PersistentExactTypeId([128, 42, 109, 117, 183, 7, 146, 193, 240, 137, 119, 13, 70, 235, 237, 109, 96, 247, 185, 247, 128, 131, 154, 235, 201, 170, 4, 252, 58, 202, 112, 129]) }]: [(0, "Base.run", ReferenceDispatch), (1, "Contract.echo", Identity), (2, "Base.$get$token", ReferenceDispatch)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Base) [Vtable]: [(0, "Base.run", Identity), (1, "Base.protectedRun", Identity), (2, "Base.$get$token", Identity)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived) [Itable { interface_exact: PersistentExactTypeId([128, 42, 109, 117, 183, 7, 146, 193, 240, 137, 119, 13, 70, 235, 237, 109, 96, 247, 185, 247, 128, 131, 154, 235, 201, 170, 4, 252, 58, 202, 112, 129]) }]: [(0, "Base.run", ReferenceDispatch), (1, "Contract.echo", Identity), (2, "Base.$get$token", ReferenceDispatch)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Derived) [Vtable]: [(0, "Base.run", Identity), (1, "Base.protectedRun", Identity), (2, "Base.$get$token", Identity)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending) [Itable { interface_exact: PersistentExactTypeId([128, 42, 109, 117, 183, 7, 146, 193, 240, 137, 119, 13, 70, 235, 237, 109, 96, 247, 185, 247, 128, 131, 154, 235, 201, 170, 4, 252, 58, 202, 112, 129]) }]: [(0, "Contract.run", Identity), (1, "Contract.echo", Identity), (2, "Contract.$get$token", Identity)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=C;x=Pending) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=E;x=Choice) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=I;x=Contract) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry) [Itable { interface_exact: PersistentExactTypeId([128, 42, 109, 117, 183, 7, 146, 193, 240, 137, 119, 13, 70, 235, 237, 109, 96, 247, 185, 247, 128, 131, 154, 235, 201, 170, 4, 252, 58, 202, 112, 129]) }]: [(0, "Registry.run", ReferenceDispatch), (1, "Contract.echo", Identity), (2, "Base.$get$token", ReferenceDispatch)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=O;x=Registry) [Vtable]: [(0, "Registry.run", ReferenceDispatch), (1, "Base.protectedRun", Identity), (2, "Base.$get$token", Identity)]
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Pair) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Token) [Vtable]: []
+dispatch n(c=dev.example%3Alayout-library%3A0.1.0;p=;o=-;k=S;x=Value) [Vtable]: []
+layout Base [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout Base value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Choice [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout Contract value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout CoroutineSlot<Base> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<Choice> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineSlot<Contract> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<Derived> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<Pair> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineSlot<Pending> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<Registry> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineSlot<Token> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineSlot<Value> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineStep<Base> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<Choice> [ManagedValue]: size=16 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineStep<Contract> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<Derived> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<Pair> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineStep<Pending> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<Registry> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: References([0]) }
+layout CoroutineStep<Token> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout CoroutineStep<Value> [ManagedValue]: size=8 align=8 fields=[] scan=Enum { scan: None }
+layout Derived [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout Derived value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Pair [ManagedValue]: size=0 align=1 fields=[(0, 1), (0, 1)] scan=Plain { scan: None }
+layout Pending [ManagedObject]: size=16 align=8 fields=[] scan=Plain { scan: None }
+layout Pending value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Registry [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout Registry value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout Token [ManagedValue]: size=0 align=1 fields=[] scan=Plain { scan: None }
+layout Value [ManagedValue]: size=0 align=1 fields=[] scan=Plain { scan: None }
+layout box<Choice> [ManagedObject]: size=24 align=8 fields=[(16, 8)] scan=Plain { scan: None }
+layout box<Choice> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout box<Pair> [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout box<Pair> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout box<Token> [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout box<Token> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }
+layout box<Value> [ManagedObject]: size=16 align=8 fields=[(0, 1)] scan=Plain { scan: None }
+layout box<Value> value [ManagedValue]: size=8 align=8 fields=[] scan=Plain { scan: References([0]) }

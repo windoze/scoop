@@ -12,7 +12,7 @@ fn strong_callable_owner_becomes_the_exact_cone_body_identity() {
         panic!("sealed strong input excludes ODR callable subjects")
     };
 
-    let body = crate::callable_body_identity(owner);
+    let body = crate::lowering::callable_body_identity(owner);
     assert_eq!(body, expected_callable_body(subject));
     assert_eq!(
         body.symbol_request().linkage(),
@@ -147,19 +147,20 @@ fn lowers_hello_world() {
         1
     );
 
-    // Ordinary Cones import the runtime String descriptor and never duplicate
-    // its layout or local TypeDescriptor definition.
-    let lir::TypeDescriptorRef::External(string_descriptor) =
+    // This fixture defines its String role in the current provider.
+    let lir::TypeDescriptorRef::Local(string_descriptor) =
         module.meta.well_known_type_descriptors.string
     else {
-        panic!("ordinary String authority must be core-external")
+        panic!("the locally defined String retains its descriptor")
     };
     assert_eq!(
-        module.meta.external_type_descriptors[string_descriptor].target(),
+        module.meta.type_descriptors[string_descriptor]
+            .identity
+            .exact_type(),
         string_exact_type
     );
-    assert_eq!(module.meta.external_type_descriptors.len(), 1);
-    assert!(layout_values(&module).all(|layout| !matches!(
+    assert!(module.meta.external_type_descriptors.is_empty());
+    assert!(layout_values(&module).any(|layout| matches!(
         layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     )));
@@ -167,7 +168,7 @@ fn lowers_hello_world() {
         descriptor_values(&module)
             .filter(|descriptor| descriptor.identity.exact_type() == string_exact_type)
             .count(),
-        0
+        1
     );
     for representation in lir::IntegerKind::ALL
         .map(lir::IntrinsicTypeRepresentation::Integer)
@@ -215,7 +216,6 @@ Module
     global_store global2, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
   td td1 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
@@ -225,6 +225,7 @@ Module
   td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
   layout Int size=4 align=4 refs=[]
@@ -234,7 +235,7 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Unit size=0 align=1 refs=[]
+  layout String value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
@@ -272,10 +273,7 @@ fn strong_writer_projects_the_complete_executable_production_section() {
         section.entry_plan(),
         lir::EntryProductionPlanV1::Executable(_)
     ));
-    assert!(matches!(
-        section.external_bridges().bridges(),
-        [lir::StrongExternalLirBridgeV1::TypeDescriptor(_)]
-    ));
+    assert!(section.external_bridges().bridges().is_empty());
 }
 
 #[test]

@@ -11,6 +11,7 @@ pub(super) struct Fixture {
     pub output: lir::SingleConeStrongLirOutput,
     pub graph: ValidatedIdentityGraph,
     pub types: mir::CanonicalParamFreeMirTypeExportsV1,
+    dependencies: lir::CanonicalExactLayoutExportsV1,
 }
 impl Fixture {
     pub fn new(mut builder: Builder) -> Self {
@@ -82,11 +83,20 @@ impl Fixture {
                 .unwrap()
             })
             .collect();
+        let (_, provider, _, _) = crate::tests::exact_callable_abi::fixture();
+        let dependencies = lir::CanonicalExactLayoutExportsV1::try_new(
+            provider.module().meta.target_profile,
+            provider.foundation(),
+            vec![crate::tests::exact_callable_abi::unit_layout(&provider)],
+            &mut meter(),
+        )
+        .unwrap();
         Self {
             input,
             output,
             graph,
             types: mir::CanonicalParamFreeMirTypeExportsV1::try_new(types).unwrap(),
+            dependencies,
         }
     }
     pub fn replay(&self) -> Result<lir::CanonicalExactLayoutExportsV1, ExactLayoutLoweringError> {
@@ -95,7 +105,7 @@ impl Fixture {
             &self.output,
             &self.types,
             &self.graph,
-            &[],
+            &[&self.dependencies],
             &mut meter(),
         )
     }

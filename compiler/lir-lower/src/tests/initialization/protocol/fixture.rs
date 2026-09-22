@@ -25,8 +25,7 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
         core_locals,
         Vec::new(),
     );
-    let mut core_module = core_builder.finish(core_function);
-    core_module.cone = provider;
+    let mut core_module = core_builder.finish_with_types(core_function, provider, vec![]);
     core_module.output = mir::MirOutput::Library;
     let mir::CallableSignatureSubject::Strong(implementation) = core_module
         .meta
@@ -100,7 +99,18 @@ pub(super) fn imported_initialization_from(provider: ConeIdentity) -> ImportedIn
         caller_locals,
         Vec::new(),
     );
-    let mut ordinary_module = ordinary_builder.finish(caller);
+    let imported_string = core_input
+        .module()
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .unwrap()
+        .clone();
+    let mut ordinary_module = ordinary_builder.finish_with_types(
+        caller,
+        ConeIdentity::SINGLE_FILE,
+        vec![imported_string],
+    );
     ordinary_module.output = mir::MirOutput::Library;
     let imported_use = ordinary_module.meta.external_callables.alloc(
         selected_mir

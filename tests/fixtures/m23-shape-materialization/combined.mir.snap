@@ -72,12 +72,12 @@ Module
         StructInit Hidden
           Type Int
           Local value
-  fun thunk<Combined> Marker.$get$tag() @fn4(this: Any) -> Int
+  fun thunk<Combined> Marker.$get$tag() @fn4(this: Marker) -> Int
     bb0 entry
       call $call.1: Int = @fn0 direct
         Type Marker
         Retype Marker
-          Type Any
+          Type Marker
           Local this
       return
         Type Int

@@ -80,12 +80,12 @@ impl Lowerer {
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
             name: "this".to_string(),
-            ty: mir::Type::Any,
+            ty: mir::Type::Interface(iface),
             mutable: false,
         });
         let mut params = vec![mir::Param {
             name: "this".to_string(),
-            ty: mir::Type::Any,
+            ty: mir::Type::Interface(iface),
             local: this,
         }];
         let mut args = Vec::new();
@@ -195,7 +195,10 @@ impl Lowerer {
         let receiver = if receiver_ty == *payload {
             smir::Expr::new(
                 payload.clone(),
-                smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
+                smir::ExprKind::Unbox(Box::new(smir::Expr::local(
+                    this,
+                    mir::Type::Interface(iface),
+                ))),
             )
         } else {
             assert!(
@@ -205,7 +208,7 @@ impl Lowerer {
             smir::Expr::new(
                 receiver_ty.clone(),
                 smir::ExprKind::Retype {
-                    operand: Box::new(smir::Expr::local(this, mir::Type::Any)),
+                    operand: Box::new(smir::Expr::local(this, mir::Type::Interface(iface))),
                     ty: Box::new(receiver_ty),
                 },
             )

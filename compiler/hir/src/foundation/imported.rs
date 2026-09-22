@@ -1,6 +1,6 @@
 use scoop_identity::{
     ConeIdentity, ExportBindingKey, HirIdentityLayer, ImportedIdentityId, ImportedIdentityMap,
-    PersistentExportBindingId, PersistentId,
+    PersistentExportBindingId, PersistentGenericTypeId, PersistentId, PersistentTypeId,
 };
 use scoop_wire::WireEncode;
 
@@ -20,6 +20,32 @@ impl<I: PersistentId> ImportedHirId<I> {
 
     pub const fn session_index(self) -> u32 {
         self.0.into_u32()
+    }
+}
+
+/// A source nominal reference together with its actual defining Cone. The
+/// provider comes from the validated source key, not the importing artifact.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ImportedHirNominal<I: PersistentId> {
+    identity: ImportedHirId<I>,
+    provider: ConeIdentity,
+}
+
+impl<I: PersistentId> ImportedHirNominal<I> {
+    pub const fn identity(self) -> ImportedHirId<I> {
+        self.identity
+    }
+
+    pub const fn persistent(self) -> I {
+        self.identity.persistent()
+    }
+
+    pub const fn session_index(self) -> u32 {
+        self.identity.session_index()
+    }
+
+    pub const fn provider(self) -> ConeIdentity {
+        self.provider
     }
 }
 
@@ -67,6 +93,28 @@ impl ImportedHirFoundation {
 
     pub fn identity<I: PersistentId + 'static>(&self, id: I) -> Option<ImportedHirId<I>> {
         self.identities.get(id).map(ImportedHirId)
+    }
+
+    pub fn source_nominal(
+        &self,
+        id: PersistentTypeId,
+    ) -> Option<ImportedHirNominal<PersistentTypeId>> {
+        let (_, source) = self.canonical.source_type_by_bytes(id.as_array())?;
+        Some(ImportedHirNominal {
+            identity: self.identity(id)?,
+            provider: source.origin(),
+        })
+    }
+
+    pub fn generic_nominal(
+        &self,
+        id: PersistentGenericTypeId,
+    ) -> Option<ImportedHirNominal<PersistentGenericTypeId>> {
+        let (_, source) = self.canonical.generic_type_by_bytes(id.as_array())?;
+        Some(ImportedHirNominal {
+            identity: self.identity(id)?,
+            provider: source.origin(),
+        })
     }
 
     pub(crate) const fn canonical_for_semantic_authority(&self) -> &CanonicalHirFoundation {

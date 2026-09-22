@@ -222,8 +222,7 @@ Module
     global_store global0, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td1 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
@@ -234,6 +233,7 @@ Module
   td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td11 PinnedPtr<String> @scoop$1$td$f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 type-id=13273347026211627739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
   layout Int size=4 align=4 refs=[]
@@ -245,7 +245,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout PinnedPtr<String> size=8 align=8 refs=[]
   layout GcHandle<String> size=8 align=8 refs=[]
-  layout Unit size=0 align=1 refs=[]
+  layout String value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

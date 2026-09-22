@@ -34,7 +34,7 @@ mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
 mod type_source_keys;
-pub use imported::{ImportedHirFoundation, ImportedHirId};
+pub use imported::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 pub use imported_protocols::{
     CoreProtocolIdentityKind, CoreProtocolImportError, ImportedCoreCoroutineProtocol,
     ImportedCoreExceptionProtocol, ImportedCoreFfiProtocol, ImportedCoreForeignCallbackProtocol,

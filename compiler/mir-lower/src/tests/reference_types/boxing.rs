@@ -192,7 +192,7 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     // tail-calls the value method.
     let thunk = &module.functions[thunk_id];
     assert_eq!(thunk.params.len(), 1);
-    assert_eq!(thunk.params[0].ty, mir::Type::Any);
+    assert_eq!(thunk.params[0].ty, mir::Type::Interface(record.interface));
     assert_eq!(thunk.params[0].name, "this");
     let (call, _) = statement_call(&entry_statements(&thunk.body)[0]);
     assert!(matches!(call.target.kind, mir::CallKind::Direct));
@@ -203,6 +203,18 @@ fn boxed_interface_implementations_dispatch_through_adjust_thunks() {
     assert_eq!(call.args.len(), 1);
     assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
             if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));
+
+    let mut erased = module;
+    erased.functions[thunk_id].params[0].ty = mir::Type::Any;
+    assert!(matches!(
+        erased.validate(),
+        Err(mir::MirValidationError {
+            kind: mir::MirValidationErrorKind::InvalidBoxingAdjust {
+                reason: "the adjust receiver does not retain its interface type",
+            },
+            ..
+        })
+    ));
 }
 
 #[test]

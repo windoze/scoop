@@ -228,19 +228,20 @@ fn try_lower(
 fn test_runtime_string_descriptor(
     input: &mir::SingleConeStrongMirInput,
 ) -> super::RuntimeStringDescriptor {
-    if input.module().cone == ConeIdentity::CORE {
+    let string = input
+        .module()
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .expect("the MIR fixture supplies the String declaration");
+    let mir::SourceExactTypeOwner::Cone(provider) = string.owner() else {
+        panic!("String has a nominal provider")
+    };
+    if provider == input.module().cone {
         super::RuntimeStringDescriptor::Local
     } else {
-        let string = input
-            .module()
-            .meta
-            .source_exact_types
-            .get(&mir::Type::String)
-            .expect("the MIR fixture supplies the core String exact type")
-            .identity_record()
-            .id();
         super::RuntimeStringDescriptor::External(
-            lir::ExternalTypeDescriptor::new(ConeIdentity::CORE, string).unwrap(),
+            lir::ExternalTypeDescriptor::new(provider, string.identity_record().id()).unwrap(),
         )
     }
 }
@@ -296,8 +297,12 @@ fn mark_test_nominal_application(module: &mut mir::Module, ty: mir::Type) {
     .unwrap();
     let specialization =
         CborIdentityRecord::from_key(SpecializationKey::Nominal { origin, arguments }).unwrap();
-    let replacement =
-        mir::SourceExactTypeIdentity::checked(ty.clone(), exact, Some(specialization)).unwrap();
+    let replacement = mir::SourceExactTypeIdentity::checked(
+        ty.clone(),
+        exact,
+        mir::SourceExactTypeOrigin::NominalApplication(specialization),
+    )
+    .unwrap();
     let entries = module
         .meta
         .source_exact_types
@@ -352,7 +357,7 @@ fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::Callab
     let mir::CallableSignatureSubject::Strong(owner) = subject else {
         panic!("strong test subject cannot use ODR ownership")
     };
-    crate::callable_body_identity(owner)
+    crate::lowering::callable_body_identity(owner)
 }
 
 fn callback_application()
@@ -429,8 +434,14 @@ fn register_boxed_source_nominal(
         .filter(|entry| entry.ty() != &mir::Type::Class(class) && entry.ty() != &payload)
         .cloned()
         .collect::<Vec<_>>();
-    exact_types
-        .push(mir::SourceExactTypeIdentity::checked(payload.clone(), exact.clone(), None).unwrap());
+    exact_types.push(
+        mir::SourceExactTypeIdentity::checked(
+            payload.clone(),
+            exact.clone(),
+            mir::SourceExactTypeOrigin::Nominal(module.cone),
+        )
+        .unwrap(),
+    );
     module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
     module
         .meta
@@ -565,7 +576,7 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
         .source_exact_types
         .iter()
         .filter(|identity| {
-            identity.owner() == mir::SourceExactTypeOwner::ConeOwned
+            identity.owner() == mir::SourceExactTypeOwner::Cone(source.cone)
                 && matches!(identity.identity_record().key(), ExactTypeKey::Nominal(_))
         })
         .map(|identity| identity.identity_record().clone())
@@ -578,14 +589,6 @@ fn strong_lowering_retains_complete_materialized_exact_type_records() {
                 .map(|identity| identity.exact_record().clone()),
         )
         .collect::<Vec<_>>();
-    let string_exact = source
-        .meta
-        .source_exact_types
-        .get(&mir::Type::String)
-        .unwrap()
-        .identity_record()
-        .id();
-    expected.retain(|record| record.id() != string_exact);
     expected.sort_unstable_by_key(|record| record.id());
 
     let input = seal_strong_input(source);

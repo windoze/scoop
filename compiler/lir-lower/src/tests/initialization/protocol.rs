@@ -6,8 +6,7 @@ fn core_lowering_publishes_initialization_protocol_abi() {
     let function = builder.user_fn("exported", Arena::new(), Vec::new());
     let cycle_function =
         builder.user_fn("__scoopThrowInitializationCycle", Arena::new(), Vec::new());
-    let mut module = builder.finish(function);
-    module.cone = scoop_identity::ConeIdentity::CORE;
+    let mut module = builder.finish_with_types(function, ConeIdentity::CORE, vec![]);
     module.output = mir::MirOutput::Library;
     let mir::CallableSignatureSubject::Strong(cycle_implementation) = module
         .meta
@@ -80,24 +79,15 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
         .with_initialization_cycle(lir_callable)
         .unwrap();
 
-    let local = crate::lower(
-        &ordinary_input,
-        crate::RuntimeStringDescriptor::Local,
-        &selected_lir,
-        lir::LirTargetProfile::DARWIN_AARCH64,
-    )
-    .unwrap();
-    let lir::TypeDescriptorRef::Local(id) = local.module().meta.well_known_type_descriptors.string
-    else {
-        panic!("a locally defined String must retain its local descriptor");
-    };
-    assert_eq!(
-        local.module().meta.type_descriptors[id]
-            .identity
-            .exact_type(),
-        string_exact
-    );
-    assert!(local.module().meta.external_type_descriptors.is_empty());
+    assert!(matches!(
+        crate::lower(
+            &ordinary_input,
+            crate::RuntimeStringDescriptor::Local,
+            &selected_lir,
+            lir::LirTargetProfile::DARWIN_AARCH64,
+        ),
+        Err(StrongLirLoweringError::MissingRuntimeStringDescriptor { .. })
+    ));
     let output = crate::lower(
         &ordinary_input,
         crate::RuntimeStringDescriptor::External(runtime_string),

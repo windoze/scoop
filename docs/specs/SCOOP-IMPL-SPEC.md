@@ -8,6 +8,8 @@ M23-6 的 MIR export 由同一 `mir-lower` 入口完整组装六张组成表；�
 
 配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
 
+M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export 组成表和实际 Strong V2 registration，统一生产 layout、descriptor、dispatch、callable ABI 与有限 shape-support 五表。布局覆盖实际发射的本地根，descriptor 逐项对应实际 registration；callable 使用 MIR lowered signature 查询唯一的 ManagedValue layout，保留 receiver、重复参数和 Unit result 的逻辑位置。dispatch 从实际 LIR table 读取物理 callable，按 MIR schema 的声明序 slot 重放；BoxedValue 通过明确 payload 关系使用源码 value schema，step/slot 的无成员关系只允许实际空表。依赖表只借用，不能复制成局部定义；错误 provider、target、缺失或重复关系直接失败，所有查询与构造共用预算。完整 selected-use、source 与最终 artifact 闭包仍须单独闭合，此组装不新增来源授权体系，也不放开 ODR。
+
 ## 1. 总体技术路线
 
 - 编译器实现语言为 **Rust**，LLVM 绑定使用 **inkwell**（feature `llvm22-1`）；个别 inkwell 未覆盖的 LLVM 子系统（statepoint / stackmap 等）可降落到 `llvm-sys`；
@@ -287,6 +289,8 @@ LocalConcrete HIR 与 MIR 的 singleton value 必须直接保存 Export HIR 已�
 
 非泛型接口的全部成员声明必须进入 LocalConcrete，即使同一 Cone 的全部具体实现均选择子接口 override，或者当前没有实现者。默认成员物化正文，abstract 成员经共有抽象方法 lowering 物化 fatal trap；物化使用原声明自身的 interface owner 与已有 method request，不按某个具体实现的 itable 重新选 root。继承后的 abstract conformance 也引用原声明 owner，不以当前子接口创建第二份同身份函数。generic 接口保持按实际 application 的独立物化规则。
 
+装箱 thunk 的实际 MIR receiver/local 及正文操作保留对应的 interface type，与持久 lowered signature 的 exact receiver 一致；不能先擦成 Any，再在 ABI 导出时把两种 nominal 当作相等。共有 MIR 验证检查该 receiver 关系，LIR 继续将接口引用降低为同一 managed pointer。
+
 装箱分派的 MIR 关系必须同时保存实际 thunk、itable 位置与同次 lowering 已选定的目标 function；目标从 typed HIR conformance 直接传入，不能在导出时扫描函数名或猜测正文。callable binding 生产按本地导出 payload 选择已有 BoxingAdjust，复用 sealed strong 根、实际 thunk 签名/GC effect 和目标的共有 callable binding；semantic signature 属于目标，lowered signature 属于 interface thunk，包含采用 interface default 的同一 box 重解释。缺失目标 binding、类型或实际 strong 根时整体失败，private 非导出 payload 的 thunk 不混入表。生成身份与 slot 格式保持不变，查询、分配、复制及排序使用同一预算。
 
 derived equality 的 MIR binding 直接遍历同次 LocalConcrete 已请求的完整生成函数，以既有 `GeneratedCallableKey::DerivedEquality { exact_owner }` 连接本地导出类型和 sealed MIR 的实际 Strong body。source exact signature 复用共有 LocalConcrete 投影，receiver 与唯一参数均为 owner、结果为真实 Boolean；semantic GC effect 来自 LocalConcrete，lowered GC effect 来自实际 MIR，二者必须一致。仅为当前本地类型表内的已有生成 body 生产 binding，不按函数名查找、不把显式 equals 当作派生体，也不为未请求的条件派生候选或不在本地导出范围的 owner 虚构 body。生成身份、typed signature、实际 materialization 不一致或缺少必需类型时整体失败，遍历、查询、签名复制与排序共用预算；generic/structural ODR 资格仍由完整 profile 的既有规则决定。
@@ -295,7 +299,11 @@ MIR dispatch schema 生产接收同次 HIR 的完整 slot 序列及实现选择�
 
 abstract trap 的 C 字符串沿既有 `CallableCStringIdentity` 作为当前 body 的 `AddressTakenConstant` associated atom 发射。共有 callable ObjectDefinition fingerprint 必须同时接收当前 definition 已验证的 runtime-scan 与 address-taken constant ranges，允许 body 只引用自己的这些 atom，并把 constant 的完整 bytes、typed role 及正规化重定位纳入同一 fingerprint；不能忽略常量、只散列 body，或接受其他 body 的本地符号。既有 runtime-scan atom 顺序保持，constant 按 atom id 排序追加；没有 constant 的既有 fingerprint bytes 不变。该修复适用于普通、跨 Cone 和 layout-strong 共有 object 路径，不新增身份或 wire tag。
 
+LocalConcrete → MIR 的 source exact relation 同时保留完整物化归属：非泛型 nominal 携带实际声明的 provider，nominal application 携带匹配的 specialization record，结构类型采用独立分支。导入 nominal 的 provider 从已验证 HIR 声明取得；compiler protocol 的 nominal 引用也保存同一真实 provider，不能把协议发布方或当前 Cone 当作定义方。Strong 计划只选 provider 等于当前 Cone 的 nominal 根；外部 nominal 可参与签名及物理计算，但不得在 consumer 取得同身份的本地布局或 descriptor 定义。Unit/Any 的 provider 来自其语言内建声明 key；object 使用已有源码 object 与 backing 的 typed 关系。归属分支必须与 exact key 相符，不能用缺省 ConeOwned 或可缺失的 specialization 补齐。String descriptor 的依赖引用还须与该 source exact 保存的实际 provider 一致，不能只比较 exact id 或排除当前 Cone。
+
 ### 2.4 LIR
+
+layout profile 的 LIR 生产入口在封存输出前，从已验证 HIR/MIR identity graph 与实际 Cone coordinate 生成每个已发射 descriptor 的 canonical exact type diagnostic name。该名称直接进入实际 LIR、registration、object bytes 与 layout export；导出阶段重放并逐字比较，不修改已封存输出，也不从 arena 的显示名称接受候选值。名称生成、复制及重放共用调用方预算，缺失声明、生成关系或 coordinate 时整体失败。
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：
 

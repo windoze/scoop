@@ -300,3 +300,13 @@ HIR identity-foundation 升为 /3，native field 33 退役、field 34 保存四�
 独立与组合 fixture 覆盖 ZST/nested value、primary/secondary constructor、protected constructor/member、继承、interface default、abstract trap、boxing adjust、derived equality、object/backing/ensure 和普通窄 callable 共存。两份 golden 锁定完整组成关系；六张表分别编解码往返，前置无关 private declaration 后字节不变。缺失/重复依赖、错误 Cone、旧 callable 导出缺项、未物化 local initialization unit 与共享预算耗尽均拒绝；非空 initialization-use 原样保留，借用依赖不进入本地 export。
 
 cargo fmt --all 与 cargo clippy --workspace --all-targets 通过；scoop-hir-lower、scoop-mir、scoop-mir-lower 共 2,123 项测试通过、0 失败、0 忽略。本批统一关闭增量缓存和 debug 信息以控制 target 增长。完整 layout profile 正式生产、终端依赖消费闭包、一般跨 Cone nominal/member/dispatch 及其余 M23-6 完成门继续推进，本项组装完成不代表整个阶段完成。
+
+2026-09-23：LIR 五表组装从同次 sealed MIR/LIR 与实际 Strong V2 registration 重放 layout、descriptor、dispatch、callable ABI 和有限 shape-support。callable 保留 receiver、重复参数及 Unit result，dispatch 逐项连接真实物理表与 MIR schema；BoxedValue 沿 payload 关系读取源码 schema，有限 step/slot helper 验证实际空表。依赖按实际 provider/target 查询，投影和检查共享预算。layout profile 在封存 LIR 前生成 canonical descriptor diagnostic name，后续 registration、导出与 object 使用同一实际名称。
+
+修复 LocalConcrete → MIR 把所有非泛型 nominal 当作当前 Cone 的问题：source exact 使用完整 origin 分支保存真实 provider、application specialization 或 structural 归属；导入协议的 nominal provider 来自声明 key。外部 Unit、Boolean、整数等不再由 consumer 重发 TD/layout。String descriptor 同时核对 exact identity 与实际 provider。BoxingAdjust 的 receiver/local/正文保留实际 interface 类型，MIR 验证拒绝 Any 擦除；持久身份和 runtime C ABI 不变。
+
+新增真实 core 依赖下的独立、组合源码 fixture 与两份导出 golden，覆盖 ZST、嵌套 value、重复参数、构造、继承、protected、interface default、abstract trap、boxing adjust、object 和派生相等性；缺失或重复依赖、缺 MIR type、缺 coordinate、错误 String provider 和共享预算耗尽均拒绝，前置无关 private function 不改变五表 bytes。修正旧测试的 nominal provider 构造及 consumer 重复定义快照。新生产模块最长 349 行，LIR 入口和测试 builder 按职责拆分。
+
+每批变更先执行 cargo fmt --all 与 cargo clippy --workspace --all-targets；定向 MIR/MIR-lower、LIR-lower 及实际源码导出测试通过。更新并核对受归属修复影响的 golden 后，重建配套 scoopc，完整 workspace 37 组、5,786 项全部通过，0 failed、0 ignored，含真实 core 修改、缓存、任意输出路径消费与 Compile/Link 双 view 回归。确认本任务构建测试会话结束后 cargo clean 删除 2,871 个文件、6.5 GiB。
+
+本批完成五表投影入口。无关私有 nominal 的本地物理定义与跨 Cone 导出边界、新 layout profile 正式发布、一般跨 Cone nominal/member/dispatch 消费以及其余完成门继续推进，M23-6 保持进行中。

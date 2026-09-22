@@ -89,12 +89,4 @@ Module
     global_store global0, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td1 UInt @scoop$1$td$367cdc1b9d3473b13b5c6899599b78242f1b792cba303a368ac54036094a7bae type-id=14089014658882359790 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 Int @scoop$1$td$5b4173e766beb9d8c1e802e267bb093ec7780edec9b83c1a9ba4061ba886f531 type-id=4986955097735443455 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 Long @scoop$1$td$a59017f773268e386e576434f94511a79faddb4a722e31a34cb642a96251f9ed type-id=7382459301215428111 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Unit size=0 align=1 refs=[]
-  layout UInt size=4 align=4 refs=[]
-  layout Int size=4 align=4 refs=[]
-  layout Long size=8 align=8 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

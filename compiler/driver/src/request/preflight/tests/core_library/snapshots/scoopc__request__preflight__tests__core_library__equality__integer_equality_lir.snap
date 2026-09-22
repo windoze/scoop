@@ -380,24 +380,4 @@ Module
     global_store global0, t2
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 UInt16 @scoop$1$td$0445e5f4bbb11eed5d663f5fa4ee55d5d321d82934dca01fe344df1bdff37757 type-id=13891992471428350427 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 ULong @scoop$1$td$076a8f187b1752b413103955d7e5efe56d10f4fc45cd6440a1ae643c7c14692e type-id=17194293419319547573 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td3 UInt @scoop$1$td$367cdc1b9d3473b13b5c6899599b78242f1b792cba303a368ac54036094a7bae type-id=14089014658882359790 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 Int8 @scoop$1$td$475bd248ab69b6b8f0090fd925e99e5c3e3720b2f760da21986fdfa795add108 type-id=6179687941337516219 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 Boolean @scoop$1$td$50a2d6fa49609beae380c24f224c39175705702808dff6c99bd9bccacd4dbdd3 type-id=2389484034085038618 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td6 Int @scoop$1$td$5b4173e766beb9d8c1e802e267bb093ec7780edec9b83c1a9ba4061ba886f531 type-id=4986955097735443455 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td7 Int16 @scoop$1$td$7dc08ae77e03fcb8384d3cec0c32fc9c176b403ee3732c8d0b5034dc2c5b219d type-id=18424194957196496099 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td8 Long @scoop$1$td$a59017f773268e386e576434f94511a79faddb4a722e31a34cb642a96251f9ed type-id=7382459301215428111 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td9 UInt8 @scoop$1$td$f0574a055673bc2399758b159531ecbdf9542027d2fecb9cfe1858f1190d2e00 type-id=13068572654511589772 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout UInt16 size=2 align=2 refs=[]
-  layout ULong size=8 align=8 refs=[]
-  layout Unit size=0 align=1 refs=[]
-  layout UInt size=4 align=4 refs=[]
-  layout Int8 size=1 align=1 refs=[]
-  layout Boolean size=1 align=1 refs=[]
-  layout Int size=4 align=4 refs=[]
-  layout Int16 size=2 align=2 refs=[]
-  layout Long size=8 align=8 refs=[]
-  layout UInt8 size=1 align=1 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

@@ -267,7 +267,7 @@ impl SingleConeStrongMirInput {
                 let ExactTypeKey::Nominal(source) = identity.identity_record().key() else {
                     return None;
                 };
-                (identity.owner() == SourceExactTypeOwner::ConeOwned).then(|| {
+                (identity.owner() == SourceExactTypeOwner::Cone(module.cone)).then(|| {
                     StrongSourceNominalShapeRoot {
                         ty: identity.ty().clone(),
                         source: *source,

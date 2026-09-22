@@ -137,8 +137,4 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 Unit @scoop$1$td$1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc type-id=15768153469707105389 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
-  td td1 Int @scoop$1$td$5b4173e766beb9d8c1e802e267bb093ec7780edec9b83c1a9ba4061ba886f531 type-id=4986955097735443455 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout Unit size=0 align=1 refs=[]
-  layout Int size=4 align=4 refs=[]
   output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

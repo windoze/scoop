@@ -918,6 +918,12 @@ owner严格由 `ExactOwnerRoot(subject)`决定：source nominal回定义Cone，a
 
 ### 8.1 canonical contract
 
+layout profile 的 LIR 在封存前使用已验证 HIR/MIR identity graph 与 Cone coordinates，为全部实际 descriptor 生成 canonical diagnostic name；registration、导出表与 object bytes 消费同一实际名称。导出重放只能比较，不能在 producer 已封存后改名或接受 arena 显示名。查询与名称分配使用同一预算，关系或 coordinate 缺失即失败。
+
+source exact 在 LocalConcrete → MIR 转置时保留实际 nominal provider，application 则保留匹配的 specialization record，结构类型使用独立归属分支。协议导入的 nominal provider 同样来自其已验证声明 key，不由协议发布方、consumer 或 CORE 常量推断。只有 provider 为当前 Cone 的 nominal 才进入本地 Strong shape 根；外部值可用于表示计算和签名，但只能引用定义方的 layout/descriptor。此关系与 exact key 一起完整校验，不以非泛型 nominal 默认本地所有。
+
+LIR producer 从同一次 sealed MIR/LIR、完整 MIR export 组成表及实际 Strong V2 registration 组装五张 export 表。实际发射的 layout 与 descriptor 不因源码可见性被遗漏；callable 的 lowered signature 按 exact type 查询唯一的本地或依赖 ManagedValue layout，receiver、重复参数与 Unit result 均保留。dispatch 将实际 LIR table 的物理 callable 与 MIR 的声明序 schema 逐项 join；BoxedValue 沿 typed payload 关系使用源码 value schema，CoroutineStep/CoroutineSlot 的无成员关系只允许实际空表，不从任意空候选表补默认实现。依赖只借用，五表使用同一 target、provider 与预算；完整 section 的 source/selected-use 和最终产物验证继续执行，不以 export 组装代替发布闭包。
+
 `ExactCallableAbiExportV1` 保存 `{ target, canonical_signature, calling_convention, call_protocol, layout_dependencies, definition }`，按此顺序使用field1～6的product。target为既有`StrongCallableDefinitionOwner`，definition复用`StrongShapeDefinitionV1<PersistentCallableBodyId>`的三字段product；body id必须从`CallableBodyKey::strong(target)`重算，并与同provider的physical definition/唯一primary atom相等。calling_convention原样复用LIR的既有`Cdecl`编码。`call_protocol`是无payload的closed sum，tag1、2分别为`OrdinaryManaged/OrdinaryNoGc`，逐项匹配canonical signature的GcEffect。
 
 本Strong callable export的目标拥有Scoop body；既有`NativeSafe/NativeBorrowed`继续只由native contract与相应callsite承载，不能给本export伪造native分支或Strong extern definition。Scoop extern的NoGc不等于本表的OrdinaryNoGc，直接source extern production gate不变。
@@ -929,6 +935,8 @@ canonical signature原样复用M23-2的 `CanonicalScoopAbiFunctionSignature`：f
 当前Darwin/AArch64 classifier：scalar、qualified pointer、niche enum为Direct；非ZST tuple/ordinary struct/tagged enum/exception record为Indirect；ZST input为ElidedZst；Unit result为UnitVoid，其他ZST result为ElidedZst。不得按aggregate大小或system C classifier另选pass mode。
 
 ### 8.2 physical signature与调用
+
+BoxingAdjust 的 MIR receiver、对应 local 与正文必须保留实际接口类型，和既有 exact callable signature 逐项相同。不得通过 Any 擦除再豁免 nominal signature 校验；接口 receiver 的物理表示仍由共有 managed-reference ABI 处理。
 
 physical参数顺序只计算一次：若result indirect，首参数为result storage；随后按logical顺序跳过ZST、发出direct value或indirect pointer。每个indirect参数有fresh exact caller storage，callee遵循按值语义。
 

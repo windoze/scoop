@@ -116,6 +116,15 @@ fn test_exact_type(
         .unwrap()
 }
 
+fn test_exact_origin(ty: &Type) -> SourceExactTypeOrigin {
+    let provider = if matches!(ty, Type::Unit | Type::Any) {
+        scoop_identity::ConeIdentity::CORE
+    } else {
+        scoop_identity::ConeIdentity::SINGLE_FILE
+    };
+    SourceExactTypeOrigin::Nominal(provider)
+}
+
 fn install_generated_exact_types(module: &mut Module) {
     let mut entries = Vec::new();
     let mut register = |location, nominal, odr_member| {
@@ -228,7 +237,14 @@ fn register_test_function_type(module: &mut Module, id: FunctionTypeId) {
         .iter()
         .cloned()
         .collect::<Vec<_>>();
-    entries.push(SourceExactTypeIdentity::checked(Type::Function(id), record, None).unwrap());
+    entries.push(
+        SourceExactTypeIdentity::checked(
+            Type::Function(id),
+            record,
+            SourceExactTypeOrigin::Structural,
+        )
+        .unwrap(),
+    );
     module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
 }
 
@@ -408,7 +424,10 @@ pub(crate) fn register_test_exact_type(module: &mut Module, ty: &Type) {
         .iter()
         .cloned()
         .collect::<Vec<_>>();
-    entries.push(SourceExactTypeIdentity::checked(ty.clone(), test_exact_type(ty), None).unwrap());
+    entries.push(
+        SourceExactTypeIdentity::checked(ty.clone(), test_exact_type(ty), test_exact_origin(ty))
+            .unwrap(),
+    );
     module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
 }
 
@@ -420,8 +439,10 @@ fn replace_test_exact_type(module: &mut Module, old: &Type, new: &Type) {
         .filter(|identity| identity.ty() != old)
         .cloned()
         .collect::<Vec<_>>();
-    entries
-        .push(SourceExactTypeIdentity::checked(new.clone(), test_exact_type(new), None).unwrap());
+    entries.push(
+        SourceExactTypeIdentity::checked(new.clone(), test_exact_type(new), test_exact_origin(new))
+            .unwrap(),
+    );
     module.meta.source_exact_types = SourceExactTypeIdentities::checked(entries).unwrap();
 }
 

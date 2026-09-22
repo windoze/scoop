@@ -72,6 +72,16 @@ pub(super) fn validate_boxing_adjust_metadata(module: &Module) -> Result<(), Mir
                 "the physical itable slot or target is invalid for the adjust",
             );
         }
+        if module.functions[adjust.function()]
+            .params
+            .first()
+            .is_none_or(|receiver| receiver.ty != Type::Interface(adjust.interface()))
+        {
+            return invalid_adjust(
+                location,
+                "the adjust receiver does not retain its interface type",
+            );
+        }
         if !locations.insert((adjust.boxed(), adjust.interface(), adjust.slot())) {
             return invalid_adjust(location, "the same boxed itable slot has multiple adjusts");
         }

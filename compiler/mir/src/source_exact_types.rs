@@ -1,5 +1,6 @@
 use scoop_identity::{
-    CborIdentityRecord, ExactTypeKey, OdrGroupId, PersistentExactTypeId, SpecializationKey,
+    CborIdentityRecord, ConeIdentity, ExactTypeKey, OdrGroupId, PersistentExactTypeId,
+    SpecializationKey,
 };
 
 use crate::Type;
@@ -10,51 +11,63 @@ pub type SourceNominalSpecializationRecord = CborIdentityRecord<OdrGroupId, Spec
 /// The canonical materialization root class of a source exact type.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceExactTypeOwner {
-    ConeOwned,
+    Cone(ConeIdentity),
     NominalApplication(OdrGroupId),
     Structural,
 }
 
+/// Complete provenance for an exact source type. A nominal provider and an
+/// application specialization cannot be omitted or confused with each other.
+#[derive(Clone, Debug)]
+pub enum SourceExactTypeOrigin {
+    Nominal(ConeIdentity),
+    NominalApplication(SourceNominalSpecializationRecord),
+    Structural,
+}
+
 /// One exact LocalConcrete HIR type after structural transposition into MIR.
-///
-/// The persistent identity remains HIR-owned. MIR retains this relation so
-/// later transforms never reconstruct an exact source type from a display
-/// name, nominal arena id, or a transform-local cache.
+/// Its HIR-owned identity and materialization provenance travel together.
 #[derive(Clone, Debug)]
 pub struct SourceExactTypeIdentity {
     ty: Type,
     identity: SourceExactTypeRecord,
-    nominal_specialization: Option<SourceNominalSpecializationRecord>,
+    origin: SourceExactTypeOrigin,
 }
 
 impl SourceExactTypeIdentity {
     pub fn checked(
         ty: Type,
         identity: SourceExactTypeRecord,
-        nominal_specialization: Option<SourceNominalSpecializationRecord>,
+        origin: SourceExactTypeOrigin,
     ) -> Result<Self, SourceExactTypeIdentityError> {
-        match (identity.key(), nominal_specialization.as_ref()) {
-            (ExactTypeKey::NominalApplication { origin, arguments }, Some(specialization))
+        match (identity.key(), &origin) {
+            (ExactTypeKey::Nominal(_), SourceExactTypeOrigin::Nominal(_)) => {}
+            (
+                ExactTypeKey::NominalApplication { origin, arguments },
+                SourceExactTypeOrigin::NominalApplication(specialization),
+            ) => {
                 if specialization.key()
-                    == &(SpecializationKey::Nominal {
+                    != &(SpecializationKey::Nominal {
                         origin: *origin,
                         arguments: arguments.clone(),
-                    }) => {}
-            (ExactTypeKey::NominalApplication { .. }, None) => {
-                return Err(SourceExactTypeIdentityError::MissingNominalSpecialization);
+                    })
+                {
+                    return Err(SourceExactTypeIdentityError::InvalidNominalSpecialization);
+                }
             }
-            (ExactTypeKey::NominalApplication { .. }, Some(_)) => {
-                return Err(SourceExactTypeIdentityError::InvalidNominalSpecialization);
-            }
-            (_, Some(_)) => {
-                return Err(SourceExactTypeIdentityError::UnexpectedNominalSpecialization);
-            }
-            (_, None) => {}
+            (
+                ExactTypeKey::Tuple(_)
+                | ExactTypeKey::Function { .. }
+                | ExactTypeKey::RawPointer(_)
+                | ExactTypeKey::NativeFunctionPointer { .. },
+                SourceExactTypeOrigin::Structural,
+            ) => {}
+            _ => return Err(SourceExactTypeIdentityError::OriginKindMismatch),
         }
         Ok(Self {
             ty,
             identity,
-            nominal_specialization,
+            origin,
         })
     }
 
@@ -67,22 +80,19 @@ impl SourceExactTypeIdentity {
     }
 
     pub const fn nominal_specialization(&self) -> Option<&SourceNominalSpecializationRecord> {
-        self.nominal_specialization.as_ref()
+        match &self.origin {
+            SourceExactTypeOrigin::NominalApplication(record) => Some(record),
+            SourceExactTypeOrigin::Nominal(_) | SourceExactTypeOrigin::Structural => None,
+        }
     }
 
-    pub fn owner(&self) -> SourceExactTypeOwner {
-        match self.identity.key() {
-            ExactTypeKey::Nominal(_) => SourceExactTypeOwner::ConeOwned,
-            ExactTypeKey::NominalApplication { .. } => SourceExactTypeOwner::NominalApplication(
-                self.nominal_specialization
-                    .as_ref()
-                    .expect("a checked nominal application retains its ODR group")
-                    .id(),
-            ),
-            ExactTypeKey::Tuple(_)
-            | ExactTypeKey::Function { .. }
-            | ExactTypeKey::RawPointer(_)
-            | ExactTypeKey::NativeFunctionPointer { .. } => SourceExactTypeOwner::Structural,
+    pub const fn owner(&self) -> SourceExactTypeOwner {
+        match &self.origin {
+            SourceExactTypeOrigin::Nominal(provider) => SourceExactTypeOwner::Cone(*provider),
+            SourceExactTypeOrigin::NominalApplication(record) => {
+                SourceExactTypeOwner::NominalApplication(record.id())
+            }
+            SourceExactTypeOrigin::Structural => SourceExactTypeOwner::Structural,
         }
     }
 }
@@ -145,22 +155,19 @@ impl SourceExactTypeIdentities {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SourceExactTypeIdentityError {
-    MissingNominalSpecialization,
+    OriginKindMismatch,
     InvalidNominalSpecialization,
-    UnexpectedNominalSpecialization,
 }
 
 impl std::fmt::Display for SourceExactTypeIdentityError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MissingNominalSpecialization => {
-                formatter.write_str("nominal application is missing its specialization group")
+            Self::OriginKindMismatch => {
+                formatter.write_str("source exact provenance does not match its identity kind")
             }
             Self::InvalidNominalSpecialization => formatter.write_str(
                 "nominal specialization group does not match the exact type application",
             ),
-            Self::UnexpectedNominalSpecialization => formatter
-                .write_str("a non-application exact type cannot have a nominal specialization"),
         }
     }
 }
@@ -191,97 +198,4 @@ impl std::fmt::Display for SourceExactTypeRelationError {
 impl std::error::Error for SourceExactTypeRelationError {}
 
 #[cfg(test)]
-mod tests {
-    use scoop_identity::{
-        CanonicalIdentifier, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
-        DefinitionOwnerChain, NonEmptyVec, PackagePath, PersistentGenericTypeId,
-        SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    };
-
-    use super::*;
-
-    fn unit() -> SourceExactTypeRecord {
-        CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-            CoreBuiltinNominal::Unit.identity_record().id(),
-        ))
-        .unwrap()
-    }
-
-    fn application() -> (SourceExactTypeRecord, SourceNominalSpecializationRecord) {
-        let declaration = SourceDeclarationKey::nominal(
-            SourceDeclarationSite::new(
-                ConeIdentity::SINGLE_FILE,
-                PackagePath::root(),
-                DefinitionOwnerChain::top_level(),
-                DeclarationScope::ConeWide,
-            )
-            .unwrap(),
-            CanonicalIdentifier::new("Box").unwrap(),
-            SourceNominalKind::Class,
-            1,
-        );
-        let origin = PersistentGenericTypeId::from_source_declaration(&declaration).unwrap();
-        let arguments = NonEmptyVec::from_first(unit().id(), []);
-        let exact = CborIdentityRecord::from_key(ExactTypeKey::NominalApplication {
-            origin,
-            arguments: arguments.clone(),
-        })
-        .unwrap();
-        let specialization =
-            CborIdentityRecord::from_key(SpecializationKey::Nominal { origin, arguments }).unwrap();
-        (exact, specialization)
-    }
-
-    #[test]
-    fn nominal_application_keeps_its_exact_specialization_group() {
-        let (exact, specialization) = application();
-        let identity = SourceExactTypeIdentity::checked(
-            Type::Class(crate::ClassId::from_raw(3_u32.into())),
-            exact.clone(),
-            Some(specialization.clone()),
-        )
-        .unwrap();
-        let relation = SourceExactTypeIdentities::checked(vec![identity]).unwrap();
-
-        let found = relation.get_by_identity(exact.id()).unwrap();
-        assert_eq!(found.identity_record().id(), exact.id());
-        assert_eq!(
-            found.nominal_specialization().unwrap().id(),
-            specialization.id()
-        );
-    }
-
-    #[test]
-    fn nominal_application_requires_its_specialization_group() {
-        let (exact, _) = application();
-        assert_eq!(
-            SourceExactTypeIdentity::checked(Type::Unit, exact, None).unwrap_err(),
-            SourceExactTypeIdentityError::MissingNominalSpecialization
-        );
-    }
-
-    #[test]
-    fn relation_rejects_duplicate_mir_types_and_exact_identities() {
-        let exact = unit();
-        let first = SourceExactTypeIdentity::checked(Type::Unit, exact.clone(), None).unwrap();
-        let same_type = SourceExactTypeIdentity::checked(
-            Type::Unit,
-            CborIdentityRecord::from_key(ExactTypeKey::Nominal(
-                CoreBuiltinNominal::Any.identity_record().id(),
-            ))
-            .unwrap(),
-            None,
-        )
-        .unwrap();
-        assert_eq!(
-            SourceExactTypeIdentities::checked(vec![first.clone(), same_type]).unwrap_err(),
-            SourceExactTypeRelationError::DuplicateType { first: 0, index: 1 }
-        );
-
-        let same_identity = SourceExactTypeIdentity::checked(Type::Boolean, exact, None).unwrap();
-        assert_eq!(
-            SourceExactTypeIdentities::checked(vec![first, same_identity]).unwrap_err(),
-            SourceExactTypeRelationError::DuplicateIdentity { first: 0, index: 1 }
-        );
-    }
-}
+mod tests;

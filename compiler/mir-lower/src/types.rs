@@ -6,6 +6,8 @@ use la_arena::Arena;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
+mod source_origin;
+
 pub(super) fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
 }
@@ -63,12 +65,9 @@ impl SourceExactTypeRegistry {
         let identity = mir::SourceExactTypeIdentity::checked(
             lowered,
             module.exact_type_identities[source].clone(),
-            module
-                .exact_type_identities
-                .nominal_specialization(source)
-                .cloned(),
+            source_origin::lower(module, source),
         )
-        .expect("validated HIR exact types retain their specialization groups");
+        .expect("validated HIR exact types retain their complete provenance");
         self.entries.push((source, identity));
     }
 

@@ -9,7 +9,7 @@ use scoop_identity::{
     PersistentId, PersistentTypeId, SignatureCallableShape,
 };
 
-use super::{ImportedHirFoundation, ImportedHirId};
+use super::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 use crate::{
     COROUTINE_PROTOCOL_COUNT, CompilerProtocolDefinitionsV1, CoreProtocolCallableDefinitionV1,
     CoreProtocolCallableV1, CoreProtocolEntryV1, CoreProtocolNominalV1, EXCEPTION_PROTOCOL_COUNT,
@@ -21,8 +21,8 @@ use crate::{
 /// dependency artifact.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportedCoreProtocolNominal {
-    Type(ImportedHirId<PersistentTypeId>),
-    GenericType(ImportedHirId<PersistentGenericTypeId>),
+    Type(ImportedHirNominal<PersistentTypeId>),
+    GenericType(ImportedHirNominal<PersistentGenericTypeId>),
 }
 
 /// Imported callable declaration identity. The four source/generated domains
@@ -98,11 +98,11 @@ imported_protocol_product!(
 );
 
 impl ImportedCoreFundamentalTypeProtocol {
-    pub fn unit(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn unit(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }
 
-    pub fn integer(&self, kind: IntegerKind) -> ImportedHirId<PersistentTypeId> {
+    pub fn integer(&self, kind: IntegerKind) -> ImportedHirNominal<PersistentTypeId> {
         let index = IntegerKind::ALL
             .iter()
             .position(|candidate| *candidate == kind)
@@ -110,33 +110,33 @@ impl ImportedCoreFundamentalTypeProtocol {
         concrete_nominal(&self.0, index + 1)
     }
 
-    pub fn boolean(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn boolean(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 9)
     }
 
-    pub fn string(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn string(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 10)
     }
 
-    pub fn array(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn array(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 11)
     }
 
-    pub fn mutable_array(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn mutable_array(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 12)
     }
 
-    pub fn ptr(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn ptr(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 13)
     }
 
-    pub fn fun_ptr(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn fun_ptr(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 14)
     }
 }
 
 impl ImportedCoreOptionProtocol {
-    pub fn option(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn option(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)
     }
 
@@ -154,7 +154,7 @@ impl ImportedCoreOptionProtocol {
 }
 
 impl ImportedCoreIterationProtocol {
-    pub fn iterator(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn iterator(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)
     }
 
@@ -168,7 +168,7 @@ impl ImportedCoreIterationProtocol {
 }
 
 impl ImportedCoreExceptionProtocol {
-    pub fn throwable(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn throwable(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }
 
@@ -176,7 +176,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 1)
     }
 
-    pub fn unwrap_exception(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn unwrap_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 2)
     }
 
@@ -184,7 +184,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 3)
     }
 
-    pub fn class_cast_exception(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn class_cast_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 4)
     }
 
@@ -192,7 +192,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 5)
     }
 
-    pub fn arithmetic_exception(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn arithmetic_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 6)
     }
 
@@ -200,7 +200,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 7)
     }
 
-    pub fn index_out_of_bounds_exception(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn index_out_of_bounds_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 8)
     }
 
@@ -208,7 +208,7 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 9)
     }
 
-    pub fn illegal_state_exception(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn illegal_state_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 10)
     }
 
@@ -222,7 +222,7 @@ impl ImportedCoreExceptionProtocol {
 }
 
 impl ImportedCoreCoroutineProtocol {
-    pub fn continuation(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn continuation(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)
     }
 
@@ -244,7 +244,7 @@ impl ImportedCoreCoroutineProtocol {
         dispatch_slot(&self.0, 4)
     }
 
-    pub fn suspend_task(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn suspend_task(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 5)
     }
 
@@ -256,7 +256,7 @@ impl ImportedCoreCoroutineProtocol {
         dispatch_slot(&self.0, 7)
     }
 
-    pub fn suspend_registration(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn suspend_registration(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 8)
     }
 
@@ -280,19 +280,19 @@ impl ImportedCoreCoroutineProtocol {
 }
 
 impl ImportedCoreFfiProtocol {
-    pub fn ptr(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn ptr(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)
     }
 
-    pub fn fun_ptr(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn fun_ptr(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 1)
     }
 
-    pub fn pinned_ptr(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn pinned_ptr(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 2)
     }
 
-    pub fn gc_handle(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn gc_handle(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 3)
     }
 
@@ -358,11 +358,11 @@ impl ImportedCoreFfiProtocol {
 }
 
 impl ImportedCoreForeignCallbackProtocol {
-    pub fn callback(&self) -> ImportedHirId<PersistentGenericTypeId> {
+    pub fn callback(&self) -> ImportedHirNominal<PersistentGenericTypeId> {
         generic_nominal(&self.0, 0)
     }
 
-    pub fn mode(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn mode(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 1)
     }
 
@@ -374,7 +374,7 @@ impl ImportedCoreForeignCallbackProtocol {
         enum_variant(&self.0, 3)
     }
 
-    pub fn state(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn state(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 4)
     }
 
@@ -420,7 +420,7 @@ impl ImportedCoreForeignCallbackProtocol {
 }
 
 impl ImportedCoreSourceLocationProtocol {
-    pub fn location(&self) -> ImportedHirId<PersistentTypeId> {
+    pub fn location(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }
 
@@ -555,7 +555,7 @@ impl ImportedHirFoundation {
 fn concrete_nominal<const N: usize>(
     product: &ImportedCoreProtocolProduct<N>,
     index: usize,
-) -> ImportedHirId<PersistentTypeId> {
+) -> ImportedHirNominal<PersistentTypeId> {
     match product.entries[index] {
         ImportedCoreProtocolEntry::Nominal(ImportedCoreProtocolNominal::Type(id)) => id,
         _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
@@ -565,7 +565,7 @@ fn concrete_nominal<const N: usize>(
 fn generic_nominal<const N: usize>(
     product: &ImportedCoreProtocolProduct<N>,
     index: usize,
-) -> ImportedHirId<PersistentGenericTypeId> {
+) -> ImportedHirNominal<PersistentGenericTypeId> {
     match product.entries[index] {
         ImportedCoreProtocolEntry::Nominal(ImportedCoreProtocolNominal::GenericType(id)) => id,
         _ => unreachable!("an imported fixed protocol role retains its validated subject kind"),
@@ -642,12 +642,12 @@ fn import_entry(
 ) -> Result<ImportedCoreProtocolEntry, CoreProtocolImportError> {
     match entry {
         CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::Type(id)) => foundation
-            .identity(*id)
+            .source_nominal(*id)
             .map(ImportedCoreProtocolNominal::Type)
             .map(ImportedCoreProtocolEntry::Nominal)
             .ok_or_else(|| missing(CoreProtocolIdentityKind::Type, *id)),
         CoreProtocolEntryV1::Nominal(CoreProtocolNominalV1::GenericType(id)) => foundation
-            .identity(*id)
+            .generic_nominal(*id)
             .map(ImportedCoreProtocolNominal::GenericType)
             .map(ImportedCoreProtocolEntry::Nominal)
             .ok_or_else(|| missing(CoreProtocolIdentityKind::GenericType, *id)),

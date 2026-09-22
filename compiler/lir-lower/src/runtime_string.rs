@@ -29,12 +29,27 @@ pub(super) fn lower_runtime_string(
                 .meta
                 .source_exact_types
                 .get(&mir::Type::String)
-                && identity.identity_record().id() != descriptor.target()
             {
-                return Err(StrongLirLoweringError::RuntimeStringExactMismatch {
-                    mir: identity.identity_record().id(),
-                    lir: descriptor.target(),
-                });
+                if identity.identity_record().id() != descriptor.target() {
+                    return Err(StrongLirLoweringError::RuntimeStringExactMismatch {
+                        mir: identity.identity_record().id(),
+                        lir: descriptor.target(),
+                    });
+                }
+                if identity.owner() != mir::SourceExactTypeOwner::Cone(descriptor.provider()) {
+                    let expected = match identity.owner() {
+                        mir::SourceExactTypeOwner::Cone(provider) => provider,
+                        _ => {
+                            return Err(StrongLirLoweringError::RuntimeStringDescriptorOwnership {
+                                producer,
+                            });
+                        }
+                    };
+                    return Err(StrongLirLoweringError::RuntimeStringProviderMismatch {
+                        expected,
+                        actual: descriptor.provider(),
+                    });
+                }
             }
             let mut descriptors = Arena::new();
             let reference = lir::TypeDescriptorRef::External(descriptors.alloc(descriptor));

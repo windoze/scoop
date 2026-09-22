@@ -12,6 +12,7 @@ use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
 mod cross_cone;
+mod layout_exports;
 mod publication;
 mod shape_materialization;
 

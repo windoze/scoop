@@ -104,6 +104,16 @@ fn runtime_string_input_checks_the_actual_descriptor_and_provider() {
         ),
         Err(crate::StrongLirLoweringError::RuntimeStringDescriptorOwnership { .. })
     ));
+    let unrelated = scoop_identity::ConeCoordinate::new("test", "unrelated", "1.0.0")
+        .unwrap()
+        .identity()
+        .unwrap();
+    let wrong_provider =
+        lir::ExternalTypeDescriptor::new(unrelated, fixture.runtime_string.target()).unwrap();
+    assert!(matches!(
+        crate::lower(&fixture.input, crate::RuntimeStringDescriptor::External(wrong_provider), &selected, lir::LirTargetProfile::DARWIN_AARCH64),
+        Err(crate::StrongLirLoweringError::RuntimeStringProviderMismatch { expected: ConeIdentity::CORE, actual }) if actual == unrelated
+    ));
 }
 
 #[test]

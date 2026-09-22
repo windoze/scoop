@@ -12,7 +12,12 @@ pub(crate) use storage::StorageResult;
 #[derive(Debug)]
 pub enum StrongLirLoweringError {
     Capability(StrongLirCapabilityError),
+    Diagnostic(scoop_identity::ExactTypeDiagnosticError),
     StorageReplay(StorageLoweringError),
+    RuntimeStringProviderMismatch {
+        expected: scoop_identity::ConeIdentity,
+        actual: scoop_identity::ConeIdentity,
+    },
     RuntimeStringExactMismatch {
         mir: scoop_identity::PersistentExactTypeId,
         lir: scoop_identity::PersistentExactTypeId,
@@ -67,9 +72,14 @@ impl fmt::Display for StrongLirLoweringError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Capability(source) => source.fmt(formatter),
+            Self::Diagnostic(source) => source.fmt(formatter),
             Self::StorageReplay(source) => source.fmt(formatter),
             Self::ExternalCallable(source) => source.fmt(formatter),
             Self::CallableAbi(source) => source.fmt(formatter),
+            Self::RuntimeStringProviderMismatch { expected, actual } => write!(
+                formatter,
+                "runtime String provider mismatch: MIR requires {expected}, LIR provides {actual}"
+            ),
             Self::RuntimeStringExactMismatch { mir, lir } => write!(
                 formatter,
                 "runtime String exact type mismatch: MIR requires {mir}, LIR provides {lir}"
@@ -141,11 +151,13 @@ impl std::error::Error for StrongLirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Capability(source) => Some(source),
+            Self::Diagnostic(source) => Some(source),
             Self::StorageReplay(source) => Some(source),
             Self::ExternalCallable(source) => Some(source),
             Self::CallableAbi(source) => Some(source),
             Self::Output(source) => Some(source),
             Self::InvalidInitializationCallable(_)
+            | Self::RuntimeStringProviderMismatch { .. }
             | Self::RuntimeStringExactMismatch { .. }
             | Self::ForeignExternalLirSelection { .. }
             | Self::ExternalCallableCountMismatch { .. }

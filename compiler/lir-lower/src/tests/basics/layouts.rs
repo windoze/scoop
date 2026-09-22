@@ -133,17 +133,8 @@ fn unit_is_the_empty_aggregate() {
     assert!(elements.is_empty());
     assert_eq!(function.temps[*out].ty, lir::LirType::Aggregate(Vec::new()));
 
-    // Unit keeps its empty value representation while still owning the
-    // persistent ManagedValue layout required by strong production.
-    let unit = layout_values(&module)
-        .find(|layout| layout.name == "Unit")
-        .expect("Unit has a persistent value layout");
-    assert_eq!((unit.size, unit.align), (0, 1));
-    assert_eq!(plain_refs(unit), []);
-    assert_eq!(
-        unit.identity.layout_record().key().representation(),
-        scoop_identity::RepresentationRole::ManagedValue
-    );
+    // Local Unit values do not define their provider's persistent layout.
+    assert!(layout_values(&module).all(|layout| layout.name != "Unit"));
 }
 
 #[test]
@@ -283,18 +274,29 @@ fn layouts_mark_reference_fields_for_the_gc() {
             .unwrap_or_else(|| panic!("missing layout for {name}"))
     };
 
-    // The runtime String shape is imported from core. The remaining typed
-    // intrinsic layouts stay in declaration order with ordinary layouts.
+    // This fixture defines String locally. Intrinsic and ordinary layouts
+    // retain their declaration order and actual provider ownership.
     let names: Vec<&str> = layout_values(&module).map(|l| l.name.as_str()).collect();
-    assert!(layout_values(&module).all(|layout| !matches!(
+    assert!(layout_values(&module).any(|layout| matches!(
         layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
     )));
     assert_eq!(
         names,
         [
-            "S", "Outer", "Int8", "Int16", "Int", "Long", "UInt8", "UInt16", "UInt", "ULong",
-            "Boolean", "Unit"
+            "S",
+            "Outer",
+            "Int8",
+            "Int16",
+            "Int",
+            "Long",
+            "UInt8",
+            "UInt16",
+            "UInt",
+            "ULong",
+            "Boolean",
+            "String value",
+            "String"
         ]
     );
 

@@ -25,8 +25,14 @@ fn protocol_import_resolves_actual_provider_ids_in_the_shared_session() {
             expected
         );
         assert_eq!(
-            protocols.fundamental_types().boolean(),
+            protocols.fundamental_types().boolean().identity(),
             imported.identity(expected).unwrap()
+        );
+        assert_eq!(protocols.fundamental_types().boolean().provider(), origin);
+        assert_eq!(protocols.fundamental_types().array().provider(), origin);
+        assert_eq!(
+            protocols.fundamental_types().unit().provider(),
+            CoreBuiltinNominal::Unit.declaration_key().origin()
         );
     }
 }
