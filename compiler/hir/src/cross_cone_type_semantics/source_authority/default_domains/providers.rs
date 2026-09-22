@@ -51,21 +51,7 @@ impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultSourceAccessDomainV1, Error> {
-        let ids = self.current.foundation.identities;
-        meter.charge_edges(1, path)?;
-        meter.charge_work(
-            (u64::from(ids.identity_count().max(1).ilog2()) + 1) * 65,
-            path,
-        )?;
-        let key = match owner {
-            SourceNominalId::Concrete(id) => ids.canonical_key::<_, SourceDeclarationKey>(id),
-            SourceNominalId::GenericTemplate(id) => {
-                ids.canonical_key::<_, SourceDeclarationKey>(id)
-            }
-        }
-        .map_err(|error| Error::Identity(error.to_string()))?;
-        NominalRepresentationSupportV1::charge_source_key_resources(&key, meter, path)?;
-        let provider = self.provider(key.origin(), meter, path)?;
+        let provider = self.provider(self.nominal_provider(owner, meter, path)?, meter, path)?;
         let key = provider
             .source_key(subject(owner), meter)
             .map_err(Error::access)?;

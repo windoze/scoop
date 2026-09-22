@@ -14,6 +14,7 @@ use super::{
 use crate::{FunctionId, FunctionKind, LexicalDefinitionRoot, PropertyAccessorImplementation};
 
 mod claims;
+mod derived;
 mod topology;
 use claims::*;
 use topology::{resolve_definition_owner, resolve_lexical_parent};
@@ -172,9 +173,7 @@ fn validate_entry(
                 kind: ClaimKind::DerivedEquality,
                 ..
             }),
-        ) if is_derived => {
-            validate_derived_equality(inputs, function, applications, nominal_derived)
-        }
+        ) if is_derived => derived::validate(inputs, function, applications, nominal_derived),
         _ => Err(HirFunctionIdentityError::IdentityKind {
             function: raw_index(function),
         }),
@@ -247,47 +246,6 @@ fn validate_accessor(
             function: raw_index(function),
         })
     }
-}
-
-fn validate_derived_equality(
-    inputs: &HirFunctionIdentityInputs<'_>,
-    function: FunctionId,
-    identities: &[super::HirDerivedEqualityFunctionIdentity],
-    nominal_derived: bool,
-) -> Result<(), HirFunctionIdentityError> {
-    let expected = inputs
-        .derived_equality_applications
-        .iter()
-        .filter(|(_, application)| application.function == function)
-        .collect::<Vec<_>>();
-    if expected.is_empty() && !nominal_derived {
-        return Err(HirFunctionIdentityError::UnownedDerivedEqualityTemplate {
-            function: raw_index(function),
-        });
-    }
-    if identities.len() != expected.len() {
-        return Err(HirFunctionIdentityError::DerivedEqualityIdentity {
-            function: raw_index(function),
-        });
-    }
-    for (identity, (application, declaration)) in identities.iter().zip(expected) {
-        let exact_owner = inputs
-            .type_identities
-            .get(declaration.owner_ty)
-            .and_then(crate::HirTypeIdentity::exact)
-            .ok_or(HirFunctionIdentityError::OpenDerivedEqualityOwner {
-                application: raw_index(application),
-            })?
-            .id();
-        if identity.application() != application
-            || identity.record().key() != &(GeneratedCallableKey::DerivedEquality { exact_owner })
-        {
-            return Err(HirFunctionIdentityError::DerivedEqualityIdentity {
-                function: raw_index(function),
-            });
-        }
-    }
-    Ok(())
 }
 
 fn collect_unique_ids(

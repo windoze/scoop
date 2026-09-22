@@ -1,0 +1,28 @@
+public open class Base {
+    public fun read(): Int = 1
+    public open fun consume(value: Int = read()): Int = value
+}
+public class Child: Base() {
+    public override fun consume(value: Int): Int = value
+}
+public interface Reader {
+    public fun read(): Int
+}
+public struct Token<T>()
+public class Cases {
+    public fun <T: Base> classBound(source: T, value: Int = source.read()): Int = value
+    public fun <T: Reader> interfaceBound(source: T, value: Int = source.read()): Int = value
+    public fun <T: Base> boundReference(source: T, value: () -> Int = source::read): () -> Int = value
+    public fun <T> localGeneric(source: T, value: T = if (true) {
+        fun <U> leaf(value: U): U { return value }
+        leaf<T>(source)
+    } else { source }): T = value
+    public fun <T> equality(left: Token<T>, right: Token<T>, value: Boolean = left == right): Boolean = value
+}
+public open class Envelope<T> {
+    protected class Scope {
+        private fun target(): Int = 1
+        private fun direct(value: Int = target()): Int = value
+        private fun reference(value: () -> Int = this::target): () -> Int = value
+    }
+}

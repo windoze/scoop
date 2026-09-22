@@ -1,5 +1,6 @@
 use super::*;
 use source_dispatch::with_source;
+mod generic;
 mod structural;
 
 #[test]

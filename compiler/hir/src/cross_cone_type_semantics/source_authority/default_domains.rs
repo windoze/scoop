@@ -7,7 +7,10 @@ use scoop_identity::{
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 mod binding;
 pub use binding::*;
+mod callables;
+pub use callables::*;
 mod errors;
+mod keys;
 mod merge;
 mod providers;
 mod replay;

@@ -65,7 +65,7 @@ pub enum HirFunctionIdentityError {
     DerivedEqualityIdentity {
         function: u32,
     },
-    OpenDerivedEqualityOwner {
+    MissingDerivedEqualityOwnerType {
         application: u32,
     },
     UnownedDerivedEqualityTemplate {
@@ -130,9 +130,9 @@ impl fmt::Display for HirFunctionIdentityError {
                 formatter,
                 "function {function} has an invalid derived equality identity relation"
             ),
-            Self::OpenDerivedEqualityOwner { application } => write!(
+            Self::MissingDerivedEqualityOwnerType { application } => write!(
                 formatter,
-                "derived equality application {application} has an open owner type"
+                "derived equality application {application} has no owner type identity"
             ),
             Self::UnownedDerivedEqualityTemplate { function } => write!(
                 formatter,

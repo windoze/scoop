@@ -12,6 +12,7 @@ pub(in crate::tests::m23_type_semantics_production::source_binding) struct Artif
     pub required: BTreeSet<Subject>,
     pub ty: Type,
     pub defaults: hir::CanonicalDefaultSourceTemplatesV1,
+    pub contracts: super::super::super::nominal_parameters::support::Sources,
 }
 pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifacts(
     core: &TrustedCoreFixture,
@@ -138,12 +139,22 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
             .unwrap()
             .templates()
             .clone();
-    let identities = identity_closure(&output);
+    let mut fixture = Fixture {
+        source: source.clone(),
+        foundation: foundation.clone(),
+        identities: identity_closure(&output),
+    };
+    let contracts = super::super::super::nominal_parameters::support::Sources::from_output(
+        &output,
+        &mut fixture,
+    );
     let bound = source
-        .bind_to_foundation(&foundation, &identities, &mut meter())
+        .bind_to_foundation(&foundation, &fixture.identities, &mut meter())
         .unwrap();
     required
         .extend(super::super::super::default_value_domain::support::required(&bound, &defaults));
+    required
+        .extend(super::super::super::default_callable_domain::support::required(&bound, &defaults));
     let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
     Artifact {
         coordinate,
@@ -153,5 +164,6 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         required,
         ty,
         defaults,
+        contracts,
     }
 }

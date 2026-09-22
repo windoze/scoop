@@ -122,6 +122,7 @@ pub enum HirFunctionIdentity {
         role: InitializationCallableRole,
         record: HirGeneratedFunctionIdentity,
     },
+    /// Complete exact bindings; open source applications remain in the HIR arena.
     DerivedEquality(Vec<HirDerivedEqualityFunctionIdentity>),
 }
 

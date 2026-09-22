@@ -317,6 +317,8 @@ callable访问需求按真实artifact key分类：普通Function/GenericFunction
 
 默认值中的 DerivedEquality 访问域从源码语义取得：nominal 派生候选沿用实际 nominal 声明域，tuple/Unit 的结构候选按完整 operand source type 的域重放，tuple 保留全部元素类型的可见性约束。结构 helper 的 file-private 实现位置不进入 source witness；同一结构类型在其他文件或较早默认值中已有 helper 时，所得来源域必须相同。字段可比较性、signature、完整类型闭包和执行 gate 仍按各自规则验证。
 
+默认正文可保留 owner 尚含来源 type parameter 的派生 equality application。Export HIR 的完整 application arena 和显式 Open type identity 保留其 owner、参数及正文语义；函数身份中的派生记录只精确覆盖 Exact owner 的 application，Open 不伪造 exact id 或 generated callable。身份 validator 独立区分完整 source application 集合与其中的 exact 记录集合，任何缺失、多余或错误 exact binding 均拒绝；有 Open application 的结构 helper 仍须具备真实 application 所属关系。具体化后的执行入口继续要求对应 exact generated binding，M23-6 的 ODR gate 不因来源 metadata 被保留而放宽。
+
 组合type的访问需求按SignatureTypeKey结构前序遍历，保留每次出现及其完整wire path，不按相同identity合并。Nominal保留原typed id，NominalApplication同时借用完整实参数组并逐项递归；Tuple、普通/挂起Function递归全部元素、参数与结果。RawPointer与NativeFunctionPointer先报告独立wrapper需求，再遍历pointee或完整native参数/结果；后续来源绑定必须用已验证core角色取得实际Ptr/FunPtr声明，不能把wrapper当作Universal或只检查其内部类型。Binder保留depth/index需求，由原provider frame验证；Unit/Any仍以原Nominal报告，是否为compiler builtin须由真实canonical来源判断。遍历不复制类型树、不建立权限证明，callback沿用同一预算且失败立即停止；节点、边、表长、递归深度及查询工作均须受限。完整引用事务随后绑定这些需求的本Cone/依赖声明并重放域交集、arity和binder语义。
 
 type来源域查询显式接收当前已绑定声明表及按Cone严格递增的依赖表，拒绝重复、当前Cone冒充依赖及不同identity graph。每个source nominal先以同一graph的canonical key定位provider，再要求该provider的实际已绑定声明表命中对应typed subject，并核验nominal种类与自身arity；static nested外层qualifier不增加应用参数。Binder逐项核验调用方提供的原provider SignatureBinderScope，空frame不占depth。Unit/Any使用已解析的语言内置类型身份，不增加声明访问约束；其他nominal按普通声明可见性计算。Ptr/FunPtr直接使用前端或依赖导入得到的typed角色，不再次接收core artifact、验证core归属或重建角色绑定；其声明访问域与其他nominal共用查询。各组成域按原始约束取交集并canonical去重，generic subclass约束完整保留；不做继承归约，也不因已得Empty域而跳过后续来源查询。所有路由、key检查、scope检查、域复制、排序和交集共用预算，失败不交付结果。该查询只产生原始source域，完整事务仍须证明所提供scope与原声明关联、操作类型、receiver、profile和覆盖关系。
@@ -326,6 +328,10 @@ nominal default的type引用绑定只接收BoundNominalDefaultDeclarationsV1，�
 同一来源域注册表还按 typed canonical key 为 Constructor、Global、Singleton 和 Field 四类引用定位实际 provider，并在该 artifact 中重放目标身份与声明关系。struct 字段使用实际 struct 声明域，class/object backing 字段使用真实逻辑 property 域，variant 使用 enum 域，单例使用 source object 域；global 必须是实际 top-level property。source constructor 与零参 generated adapter 分别核对原 constructor 或其唯一 adapter key，再取得真实声明域。field/constructor 的 applied owner 与自身 arity 必须先通过既有来源检查；tuple 字段的声明访问域为 Universal，位置和类型合法性仍由操作类型验证负责。不能按 carrier Cone、名称、候选 witness 或所声称的 owner type 选择 provider，也不能只因 graph 中能解析 ID 就省略 artifact 内的目标记录。
 
 上述四类 occurrence 的批量绑定消费同一 BoundNominalDefaultDeclarationsV1，逐个比较独立重放的完整 target 域与来源 witness；错误保留完整 template key、引用种类和该类序号。重复引用仍逐次验证，空正文仍检查事务预算，当前声明表必须与原声明凭证共用 bound foundation。成功结果仅证明这四类的来源域相等，不替代 Type、Callable、receiver、操作类型、profile 或完整调用域 coverage；全部路由、查询、域生成和比较共享原预算，不交付部分结果。
+
+Callable occurrence 的来源域绑定复用同一声明凭证及 provider 注册表。普通 Function/GenericFunction 按真实 source key 路由，PropertyAccessor 沿实际 Property/ExtensionProperty owner key 路由，随后要求对应 artifact 的身份记录及访问声明均存在。Bound 和 FunctionAddress 使用其实际 callable 权限主体，不按 receiver 或载体来源推测。body-owned local function 须命中本正文已绑定的 typed descriptor；lambda、anonymous function 和 callable reference 还须按本次正文 attachment 选中准确的借用 descriptor，再核对 typed identity，不能只按重复 ID 选择一次展开的来源。前三类正文定义不增加额外声明访问域；callable reference 继续沿其 Named/Local/BoundMember/BoundExtension 实际目标重放，Local 的声明与 callee 必须相等，不能把生成 invoke 的身份当作底层目标权限。
+
+DerivedEquality 的 nominal 分支只接受实际 Struct/Enum 声明并核对自身 arity，使用原 nominal 声明域；全部应用实参数的访问由独立 Type occurrence 验证。Unit 使用语言内置身份，tuple 按完整 operand type 及原 provider binder scope 重放元素域；其他结构不能冒充派生相等候选。逐次将来源域与完整 witness 相等比较后交付 BoundNominalDefaultCallableDomainsV1，重复引用及空表沿用共享预算，错误保留 template key 与 callable 序号。该凭证只闭合 Callable 来源域；局部调用作用域、nested capture/ABI、receiver、操作类型、派生可比较性、profile 和完整调用域覆盖仍须分别验证。
 
 foundation投影对所有Cone共用入口，按实际typed声明归属处理本地和依赖类型；移除core专用来源入口及其CORE、Defined协议、shape-support授权检查。generic物化和ODR是独立的代码生成语义，不用于建立core信任链。
 

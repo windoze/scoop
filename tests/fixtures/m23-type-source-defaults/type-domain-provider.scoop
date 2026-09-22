@@ -4,9 +4,15 @@ private var seed: Int = 5
 private object Cache {}
 private class Cell(val value: Int)
 private struct Packet(val value: Int)
+private fun sourceCallable(): Int = 7
+private fun <T> sourceGeneric(value: T): T = value
+private val Int.sourceProperty: Int get() = this
 public class Samples {
     private fun global(value: Int = seed): Int = value
     private fun singleton(value: Cache = Cache): Cache = value
     private fun build(value: Cell = Cell(1)): Cell = value
     private fun read(source: Packet, value: Int = source.value): Int = value
+    private fun callable(value: Int = sourceCallable()): Int = value
+    private fun <T> generic(source: T, value: T = sourceGeneric<T>(source)): T = value
+    private fun accessor(source: Int, value: Int = source.sourceProperty): Int = value
 }

@@ -345,3 +345,11 @@ LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；�
 2026-09-23：修正 tuple/Unit 派生 equality 在默认参数中的来源访问域。collector 按完整 operand type 重放结构候选的可见性，保留 tuple 元素类型的全部约束；nominal 派生候选继续使用原声明域。结构 helper 的 file-private 实现域不再误拒绝合法 public 默认值，复用较早文件生成的 helper 不改变结果。
 
 独立及组合 fixture 覆盖 Unit、tuple、嵌套 tuple、派生 struct、继承默认值与构造器默认值，HIR 来源引用 golden 锁定 Universal 域并通过实际 MIR lowering。两种规范排序的多文件输入交换默认值与 helper 预热源码，结果相同；隐藏 tuple 元素的 negative fixture 仍在完整 equality 表达式位置报告准确的访问域错误。每批先 cargo fmt --all 与 cargo clippy --workspace --all-targets，完整 scoop-hir-lower/scoop-mir-lower 1,770 项测试通过，0 failed、0 ignored。生产修改集中在既有 collector 的派生来源分支，测试拆入独立子模块。Callable 来源域绑定及其余完整发布/消费门继续推进，M23-6 保持进行中。
+
+2026-09-23：默认 Callable 来源域绑定接入共有 DefaultSourceDomainsV1。普通 Function/GenericFunction 与 accessor 按真实 source/property key 定位 provider，再核对该 artifact 自有记录和完整声明访问域；Bound 与 FunctionAddress 使用实际 callable 主体。局部函数必须属于本默认正文，lambda、anonymous 和 callable reference 按准确的正文 attachment 连接已绑定 descriptor，再核验 identity；函数引用继续沿真实 Named/Local/BoundMember/BoundExtension 目标重放。每条 occurrence 独立比较完整 witness，返回凭证只证明 Callable 来源域相等，不替代 nested ABI、局部调用作用域、receiver、操作类型、profile 或调用域覆盖。
+
+派生 equality 的 nominal 域核对实际 Struct/Enum 与自身 arity，Unit/tuple 沿语言内置身份及完整 operand type 重放。组合 fixture 同时修复泛型默认来源被误要求 exact identity 的缺陷：Open application 及其显式参数继续完整保存在 HIR，派生函数的机器身份只精确覆盖 Exact application；validator 独立核对这两个集合。实际泛型默认值具体化通过 MIR lowering，删除 exact binding 或给 Open application 伪造机器 binding 均拒绝。此修复不放开 M23-6 的 ODR 发布或执行门。
+
+独立、组合与 golden 覆盖普通/泛型调用、getter/setter、局部函数、lambda、anonymous、各类函数引用、继承默认值、protected 嵌套域及三类 equality。三个独立 artifact 的同名 Function/GenericFunction/accessor 共九个目标按真实 provider 通过绑定，缺失 provider 拒绝；逐项 witness 篡改、不同 bound foundation、缺失访问声明、借用其他默认值的有效 nested identity、伪造 Local role、generated invoke 冒充底层目标及共享预算耗尽均拒绝。追加 fixture 验证同一 lambda/reference identity 的两次泛型展开具有不同函数类型和来源位置，逐次域检查全部通过。
+
+每批代码先 cargo fmt --all 与 cargo clippy --workspace --all-targets；重建配套 scoopc 后完整 workspace 37 组、5,813 项通过，0 failed、0 ignored。之后仅追加重复展开测试，再次格式化、完整 lint 和 Callable 定向八项测试全部通过。函数身份主模块从 700 余行拆为 458 行入口、246 行词法上下文及 30 行派生投影；新域逻辑按身份路由、嵌套来源、equality、绑定和错误分模块。确认所有构建和测试会话退出后 cargo clean 删除 2,767 个文件、5.9 GiB。完整 default authority、committed-use、正式 layout profile 发布与一般跨 Cone 类型消费继续推进，M23-6 未完成。

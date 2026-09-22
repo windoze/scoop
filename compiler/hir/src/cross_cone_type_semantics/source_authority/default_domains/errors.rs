@@ -11,6 +11,12 @@ pub enum DefaultSourceDomainError {
     IdentityGraph(ConeIdentity),
     MissingProvider(ConeIdentity),
     NominalKind(SourceNominalId),
+    EqualityShape,
+    EqualityKind(SourceNominalId),
+    NestedAttachment,
+    NestedOccurrence(DefaultNestedCallableIdentityV1),
+    CallableDescriptor(DefaultCallableDeclarationV1),
+    LocalReference(scoop_identity::CallableTemplateOrigin),
     Arity {
         owner: SourceNominalId,
         expected: u32,
@@ -75,6 +81,27 @@ impl std::fmt::Display for Error {
             Self::NominalKind(id) => {
                 write!(f, "default type source {id:?} is not a nominal declaration")
             }
+            Self::EqualityShape => {
+                f.write_str("default equality owner is not a nominal or structural equality source")
+            }
+            Self::EqualityKind(id) => {
+                write!(f, "default equality source {id:?} is not a struct or enum")
+            }
+            Self::NestedAttachment => {
+                f.write_str("default callable has no nested descriptor at its body attachment")
+            }
+            Self::NestedOccurrence(id) => write!(
+                f,
+                "default callable {id:?} has no matching bound source descriptor"
+            ),
+            Self::CallableDescriptor(id) => write!(
+                f,
+                "default callable {id:?} does not match its source descriptor"
+            ),
+            Self::LocalReference(id) => write!(
+                f,
+                "default local reference {id:?} differs from its actual callee"
+            ),
             Self::Arity {
                 owner,
                 expected,
