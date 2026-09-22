@@ -2,7 +2,10 @@ use hir::ImportedCallableSource;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
-use super::{ImportedArgumentMap, ImportedCallableCandidate, ImportedDependencyCallProbe};
+use super::{
+    ImportedCallableCandidate, ImportedDependencyCallProbe, ImportedMemberReceiver,
+    ImportedProbeCall,
+};
 use crate::Lowerer;
 use crate::call_resolution::arguments::ArgumentShapeFailure;
 use crate::expr::CallSite;
@@ -11,7 +14,7 @@ mod receiver;
 
 enum ImportedDependencyCallReceiver {
     Implicit,
-    Explicit(hir::Expr),
+    Explicit(ImportedMemberReceiver),
 }
 
 impl Lowerer {
@@ -49,7 +52,7 @@ impl Lowerer {
             name,
             call,
             expected,
-            ImportedDependencyCallReceiver::Explicit(receiver),
+            ImportedDependencyCallReceiver::Explicit(ImportedMemberReceiver::Value(receiver)),
             operator_set,
         )
     }
@@ -82,7 +85,7 @@ impl Lowerer {
         self.probe_imported_callable_candidate(
             ImportedCallableCandidate::Binding(Box::new(candidate)),
             name,
-            call,
+            call.into(),
             expected,
             receiver_source,
             operator_set,
@@ -92,9 +95,9 @@ impl Lowerer {
     pub(in crate::expr) fn probe_imported_member_callable(
         &self,
         candidate: hir::ImportedMemberCallableCandidate,
-        receiver: hir::Expr,
+        receiver: ImportedMemberReceiver,
         name: &ast::Ident,
-        call: CallSite<'_>,
+        call: ImportedProbeCall<'_>,
         expected: Option<hir::TypeId>,
         operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
@@ -112,7 +115,7 @@ impl Lowerer {
         &self,
         candidate: ImportedCallableCandidate,
         name: &ast::Ident,
-        call: CallSite<'_>,
+        call: ImportedProbeCall<'_>,
         expected: Option<hir::TypeId>,
         receiver_source: ImportedDependencyCallReceiver,
         operator_set: bool,
@@ -141,11 +144,10 @@ impl Lowerer {
             );
             return Err(Box::new(state));
         };
-        let argument_map = match if operator_set {
-            ImportedArgumentMap::source_operator_set(source.parameters().parameters(), call.args)
-        } else {
-            ImportedArgumentMap::source(source.parameters().parameters(), call.args)
-        } {
+        let argument_map = match call
+            .arguments
+            .map(source.parameters().parameters(), operator_set)
+        {
             Ok(map) => map,
             Err(error) => {
                 state.imported_dependency_shape_error(name, call, error);
@@ -156,7 +158,7 @@ impl Lowerer {
         let receiver = state.imported_callable_receiver(
             &candidate,
             name,
-            call,
+            call.span,
             receiver_source,
             argument_map.has_vararg(),
         )?;
@@ -208,14 +210,16 @@ impl Lowerer {
             return Err(Box::new(state));
         }
 
-        let mut source_args = Vec::with_capacity(call.args.len());
-        let mut argument_sinks = Vec::with_capacity(call.args.len());
-        let mut integer_arguments = Vec::with_capacity(call.args.len());
-        let mut source_parameter_types = Vec::with_capacity(call.args.len());
-        for (argument, signature) in call.args.iter().zip(argument_map.source_parameters()) {
+        let mut source_args = Vec::with_capacity(call.arguments.len());
+        let mut argument_sinks = Vec::with_capacity(call.arguments.len());
+        let mut integer_arguments = Vec::with_capacity(call.arguments.len());
+        let mut source_parameter_types = Vec::with_capacity(call.arguments.len());
+        for (index, signature) in argument_map.source_parameters().iter().enumerate() {
             let parameter = state.imported_signature_type(signature).ok();
             let mut argument_sink = Vec::new();
-            let Some(value) = state.lower_expr(&argument.expression, &mut argument_sink, parameter)
+            let Some(value) =
+                call.arguments
+                    .lower(index, &mut state, &mut argument_sink, parameter)
             else {
                 return Err(Box::new(state));
             };
@@ -223,7 +227,7 @@ impl Lowerer {
                 && !state.is_subtype(value.ty, parameter)
             {
                 state.error(
-                    argument.span,
+                    call.arguments.span(index),
                     format!(
                         "dependency function argument must be of type {}, found {}",
                         state.type_name(parameter),
@@ -252,7 +256,12 @@ impl Lowerer {
         }
         forwarding_parameters.extend(source_parameter_types);
 
-        if !candidate.executable() {
+        if !candidate.executable()
+            || (matches!(
+                receiver,
+                super::ImportedCallReceiver::Member(ImportedMemberReceiver::LiteralSubject(_))
+            ) && candidate.integer_equality_kind().is_none())
+        {
             state.imported_dependency_capability_error(
                 &candidate,
                 argument_map.has_vararg(),
@@ -290,7 +299,7 @@ impl Lowerer {
     fn imported_dependency_shape_error(
         &mut self,
         name: &ast::Ident,
-        call: CallSite<'_>,
+        call: ImportedProbeCall<'_>,
         error: ArgumentShapeFailure,
     ) {
         self.error(

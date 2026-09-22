@@ -21,14 +21,51 @@ pub(super) enum ImportedParameterInput {
     Vararg,
 }
 
+#[derive(Clone, Copy)]
+struct ArgumentShape<'a> {
+    name: Option<&'a str>,
+    spread: bool,
+}
+
 impl ImportedArgumentMap {
     pub(super) fn source(
         parameters: &[hir::CallableSourceParameterV1],
         arguments: &[ast::CallArgument],
     ) -> Result<Self, ArgumentShapeFailure> {
-        let positional_required_call = arguments
+        let arguments = arguments
             .iter()
-            .all(|argument| matches!(argument.name, ast::CallArgumentName::Positional))
+            .map(|argument| ArgumentShape {
+                name: match &argument.name {
+                    ast::CallArgumentName::Positional => None,
+                    ast::CallArgumentName::Named(name) => Some(name.text.as_str()),
+                },
+                spread: matches!(argument.spread, ast::SpreadSyntax::Spread(_)),
+            })
+            .collect::<Vec<_>>();
+        Self::map(parameters, &arguments)
+    }
+
+    pub(super) fn lowered(
+        parameters: &[hir::CallableSourceParameterV1],
+        count: usize,
+    ) -> Result<Self, ArgumentShapeFailure> {
+        Self::map(
+            parameters,
+            &vec![
+                ArgumentShape {
+                    name: None,
+                    spread: false
+                };
+                count
+            ],
+        )
+    }
+
+    fn map(
+        parameters: &[hir::CallableSourceParameterV1],
+        arguments: &[ArgumentShape<'_>],
+    ) -> Result<Self, ArgumentShapeFailure> {
+        let positional_required_call = arguments.iter().all(|argument| argument.name.is_none())
             && parameters.iter().all(|parameter| {
                 matches!(
                     parameter.calling(),
@@ -41,8 +78,8 @@ impl ImportedArgumentMap {
         let mut named_only = false;
 
         for (source_index, argument) in arguments.iter().enumerate() {
-            match &argument.name {
-                ast::CallArgumentName::Positional => {
+            match argument.name {
+                None => {
                     if named_only {
                         return Err(ArgumentShapeFailure::PositionalAfterNamed);
                     }
@@ -55,7 +92,7 @@ impl ImportedArgumentMap {
                     match parameter.calling() {
                         hir::CallableParameterCallingV1::Required
                         | hir::CallableParameterCallingV1::Default { .. } => {
-                            if matches!(argument.spread, ast::SpreadSyntax::Spread(_)) {
+                            if argument.spread {
                                 return Err(ArgumentShapeFailure::SpreadForRegular {
                                     name: parameter.name().as_str().to_owned(),
                                 });
@@ -68,19 +105,19 @@ impl ImportedArgumentMap {
                         | hir::CallableParameterCallingV1::VarargDefault { element_type, .. } => {
                             mapped[next] = Some(ImportedParameterInput::Vararg);
                             source_parameters[source_index] = Some(match argument.spread {
-                                ast::SpreadSyntax::Plain => element_type.clone(),
-                                ast::SpreadSyntax::Spread(_) => parameter.value_type().clone(),
+                                false => element_type.clone(),
+                                true => parameter.value_type().clone(),
                             });
                         }
                     }
                 }
-                ast::CallArgumentName::Named(name) => {
+                Some(name) => {
                     let Some(index) = parameters
                         .iter()
-                        .position(|parameter| parameter.name().as_str() == name.text)
+                        .position(|parameter| parameter.name().as_str() == name)
                     else {
                         return Err(ArgumentShapeFailure::UnknownName {
-                            name: name.text.clone(),
+                            name: name.to_owned(),
                         });
                     };
                     let parameter = &parameters[index];
@@ -92,7 +129,7 @@ impl ImportedArgumentMap {
                     match parameter.calling() {
                         hir::CallableParameterCallingV1::Required
                         | hir::CallableParameterCallingV1::Default { .. } => {
-                            if matches!(argument.spread, ast::SpreadSyntax::Spread(_)) {
+                            if argument.spread {
                                 return Err(ArgumentShapeFailure::SpreadForRegular {
                                     name: parameter.name().as_str().to_owned(),
                                 });

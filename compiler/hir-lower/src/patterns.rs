@@ -162,10 +162,8 @@ impl Lowerer {
                     };
                     debug_assert_eq!(op, ast::UnOp::Neg);
                     let operation = hir::NoGcIntegerOperation::UnaryMinus;
-                    let key = hir::IntrinsicFunctionKind::Integer(
-                        hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
-                    );
-                    if !self.intrinsic_functions.contains_key(&key) {
+                    let intrinsic = hir::IntegerIntrinsicKind::NoGcOperation { kind, operation };
+                    if !self.const_integer_operation_available(intrinsic) {
                         self.error(
                             *span,
                             format!(

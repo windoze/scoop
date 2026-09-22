@@ -5,6 +5,7 @@ mod explicit_calls;
 mod extension_calls;
 mod extensions;
 mod imported_calls;
+pub(in crate::expr) use imported_calls::ImportedMemberSelectionFailure;
 mod interface_super;
 mod pointers;
 mod primitives;

@@ -4,7 +4,7 @@ use scoop_hir as hir;
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(in crate::globals) fn const_integer_operation_available(
+    pub(crate) fn const_integer_operation_available(
         &self,
         kind: hir::IntegerIntrinsicKind,
     ) -> bool {

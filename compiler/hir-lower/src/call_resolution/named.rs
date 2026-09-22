@@ -105,6 +105,27 @@ impl Lowerer {
         arguments: &[ast::CallArgument],
         span: ast::Span,
     ) -> Option<usize> {
+        self.select_named_function_like_with_literals(name, layer, probes, Some(arguments), span)
+    }
+
+    pub(crate) fn select_lowered_named_function_like(
+        &mut self,
+        name: &str,
+        layer: &str,
+        probes: &[NamedFunctionLikeProbe],
+        span: ast::Span,
+    ) -> Option<usize> {
+        self.select_named_function_like_with_literals(name, layer, probes, None, span)
+    }
+
+    fn select_named_function_like_with_literals(
+        &mut self,
+        name: &str,
+        layer: &str,
+        probes: &[NamedFunctionLikeProbe],
+        arguments: Option<&[ast::CallArgument]>,
+        span: ast::Span,
+    ) -> Option<usize> {
         let mut forwards = vec![vec![false; probes.len()]; probes.len()];
         for (source, row) in forwards.iter_mut().enumerate() {
             for (target, value) in row.iter_mut().enumerate() {
@@ -147,7 +168,9 @@ impl Lowerer {
         pool.retain(|&candidate| {
             !ordinary.iter().any(|&other| {
                 other != candidate
-                    && literal_dominates(&probes[other], &probes[candidate], arguments)
+                    && arguments.is_some_and(|arguments| {
+                        literal_dominates(&probes[other], &probes[candidate], arguments)
+                    })
             })
         });
         if let [winner] = pool.as_slice() {

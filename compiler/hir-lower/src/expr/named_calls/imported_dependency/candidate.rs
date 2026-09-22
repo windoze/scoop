@@ -61,6 +61,16 @@ impl ImportedCallableCandidate {
         }
     }
 
+    pub(super) fn integer_equality_kind(&self) -> Option<hir::IntegerKind> {
+        match self.normalized_intrinsic()? {
+            NormalizedImportedIntrinsic::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
+                kind,
+                operation: hir::NoGcIntegerOperation::Equals,
+            }) => Some(kind),
+            _ => None,
+        }
+    }
+
     pub(super) fn executable(&self) -> bool {
         self.capability().is_some() || self.normalized_intrinsic().is_some()
     }

@@ -1,0 +1,4 @@
+fun bad(value: Int8): Int = when (value) {
+    128 -> 1
+    else -> 0
+}

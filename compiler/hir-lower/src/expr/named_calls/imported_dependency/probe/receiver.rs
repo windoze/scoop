@@ -1,5 +1,6 @@
-use super::{ImportedCallableCandidate, ImportedDependencyCallReceiver};
+use super::{ImportedCallableCandidate, ImportedDependencyCallReceiver, ImportedMemberReceiver};
 use crate::Lowerer;
+use crate::expr::named_calls::imported_dependency::inputs::ImportedCallReceiver;
 use hir::ImportedCallableSource;
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -9,14 +10,16 @@ impl Lowerer {
         &mut self,
         candidate: &ImportedCallableCandidate,
         name: &ast::Ident,
-        call: crate::expr::CallSite<'_>,
+        span: ast::Span,
         receiver_source: ImportedDependencyCallReceiver,
         has_vararg: bool,
-    ) -> Result<Option<hir::Expr>, Box<Lowerer>> {
+    ) -> Result<ImportedCallReceiver, Box<Lowerer>> {
         let interface = candidate.interface();
         let receiver = match interface.owner() {
             hir::PublicDeclarationOwnerV1::TopLevel => match receiver_source {
-                ImportedDependencyCallReceiver::Implicit => None,
+                ImportedDependencyCallReceiver::Implicit => {
+                    return Ok(ImportedCallReceiver::Absent);
+                }
                 ImportedDependencyCallReceiver::Explicit(_) => {
                     self.error(
                         name.span,
@@ -26,7 +29,7 @@ impl Lowerer {
                 }
             },
             hir::PublicDeclarationOwnerV1::Extension => {
-                let Some(receiver_signature) = interface.receiver() else {
+                let Some(signature) = interface.receiver() else {
                     self.error(
                         name.span,
                         format!(
@@ -36,32 +39,20 @@ impl Lowerer {
                     );
                     return Err(Box::new(self.clone()));
                 };
-                let receiver_type = self.imported_signature_type(receiver_signature).ok();
                 let receiver = match receiver_source {
                     ImportedDependencyCallReceiver::Implicit => {
                         let Some(receiver) = self.lower_current_this(name.span) else {
                             return Err(Box::new(self.clone()));
                         };
-                        receiver
+                        ImportedMemberReceiver::Value(receiver)
                     }
                     ImportedDependencyCallReceiver::Explicit(receiver) => receiver,
                 };
-                if let Some(receiver_type) = receiver_type {
-                    if !self.is_subtype(receiver.ty, receiver_type) {
-                        self.error(
-                            name.span,
-                            format!(
-                                "dependency extension `{}` expects receiver {}, found {}",
-                                name.text,
-                                self.type_name(receiver_type),
-                                self.type_name(receiver.ty),
-                            ),
-                        );
-                        return Err(Box::new(self.clone()));
+                match self.imported_signature_type(signature) {
+                    Ok(expected) => {
+                        self.adapt_imported_receiver(receiver, expected, name, "extension")?
                     }
-                    Some(self.adapt_to(receiver, receiver_type))
-                } else {
-                    Some(receiver)
+                    Err(_) => receiver,
                 }
             }
             hir::PublicDeclarationOwnerV1::Nominal(owner) => {
@@ -72,40 +63,57 @@ impl Lowerer {
                     );
                     return Err(Box::new(self.clone()));
                 };
-                let scoop_hir::SourceNominalId::Concrete(owner) = owner else {
+                let hir::SourceNominalId::Concrete(owner) = owner else {
                     self.imported_dependency_capability_error(
                         candidate,
                         has_vararg,
                         "dependency member",
-                        call.span,
+                        span,
                     );
                     return Err(Box::new(self.clone()));
                 };
                 let signature = scoop_identity::SignatureTypeKey::Nominal(owner);
-                let Ok(receiver_type) = self.imported_signature_type(&signature) else {
+                let Ok(expected) = self.imported_signature_type(&signature) else {
                     self.imported_dependency_capability_error(
                         candidate,
                         has_vararg,
                         "dependency member receiver",
-                        call.span,
+                        span,
                     );
                     return Err(Box::new(self.clone()));
                 };
-                if !self.is_subtype(receiver.ty, receiver_type) {
-                    self.error(
-                        name.span,
-                        format!(
-                            "dependency member `{}` expects receiver {}, found {}",
-                            name.text,
-                            self.type_name(receiver_type),
-                            self.type_name(receiver.ty)
-                        ),
-                    );
-                    return Err(Box::new(self.clone()));
-                }
-                Some(self.adapt_to(receiver, receiver_type))
+                self.adapt_imported_receiver(receiver, expected, name, "member")?
             }
         };
-        Ok(receiver)
+        Ok(ImportedCallReceiver::Member(receiver))
+    }
+
+    fn adapt_imported_receiver(
+        &mut self,
+        receiver: ImportedMemberReceiver,
+        expected: hir::TypeId,
+        name: &ast::Ident,
+        kind: &str,
+    ) -> Result<ImportedMemberReceiver, Box<Lowerer>> {
+        if !self.is_subtype(receiver.ty(), expected) {
+            self.error(
+                name.span,
+                format!(
+                    "dependency {kind} `{}` expects receiver {}, found {}",
+                    name.text,
+                    self.type_name(expected),
+                    self.type_name(receiver.ty())
+                ),
+            );
+            return Err(Box::new(self.clone()));
+        }
+        Ok(match receiver {
+            ImportedMemberReceiver::Value(value) => {
+                ImportedMemberReceiver::Value(self.adapt_to(value, expected))
+            }
+            ImportedMemberReceiver::LiteralSubject(_) => {
+                ImportedMemberReceiver::LiteralSubject(expected)
+            }
+        })
     }
 }

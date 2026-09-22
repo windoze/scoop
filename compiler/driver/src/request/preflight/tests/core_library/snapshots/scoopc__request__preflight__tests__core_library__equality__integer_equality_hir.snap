@@ -1,0 +1,316 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/equality.rs
+expression: dump.text()
+---
+Module
+  typealias Octet = UInt8
+  fun equalInt8(value: Int8): Boolean <no-gc cdecl>
+    val local1
+      Local value : Int8
+    val local2
+      IntegerLiteral 1 : Int8
+    val local3
+      Local $dependency.argument.0 : Int8
+    return
+      IntegerOperation int8.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int8
+        Local $dependency.parameter.other : Int8
+  fun equalInt16(value: Int16): Boolean <no-gc cdecl>
+    val local1
+      Local value : Int16
+    val local2
+      IntegerLiteral 1 : Int16
+    val local3
+      Local $dependency.argument.0 : Int16
+    return
+      IntegerOperation int16.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int16
+        Local $dependency.parameter.other : Int16
+  fun equalInt(value: Int): Boolean <no-gc cdecl>
+    val local1
+      Local value : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun equalLong(value: Long): Boolean <no-gc cdecl>
+    val local1
+      Local value : Long
+    val local2
+      IntegerLiteral 1 : Long
+    val local3
+      Local $dependency.argument.0 : Long
+    return
+      IntegerOperation long.equals <no-gc> : Boolean
+        Local $dependency.receiver : Long
+        Local $dependency.parameter.other : Long
+  fun equalUInt8(value: UInt8): Boolean <no-gc cdecl>
+    val local1
+      Local value : UInt8
+    val local2
+      IntegerLiteral 1u : UInt8
+    val local3
+      Local $dependency.argument.0 : UInt8
+    return
+      Unary Not : Boolean
+        IntegerOperation uint8.equals <no-gc> : Boolean
+          Local $dependency.receiver : UInt8
+          Local $dependency.parameter.other : UInt8
+  fun equalUInt16(value: UInt16): Boolean <no-gc cdecl>
+    val local1
+      Local value : UInt16
+    val local2
+      IntegerLiteral 1u : UInt16
+    val local3
+      Local $dependency.argument.0 : UInt16
+    return
+      Unary Not : Boolean
+        IntegerOperation uint16.equals <no-gc> : Boolean
+          Local $dependency.receiver : UInt16
+          Local $dependency.parameter.other : UInt16
+  fun equalUInt(value: UInt): Boolean <no-gc cdecl>
+    val local1
+      Local value : UInt
+    val local2
+      IntegerLiteral 1u : UInt
+    val local3
+      Local $dependency.argument.0 : UInt
+    return
+      Unary Not : Boolean
+        IntegerOperation uint.equals <no-gc> : Boolean
+          Local $dependency.receiver : UInt
+          Local $dependency.parameter.other : UInt
+  fun equalULong(value: ULong): Boolean <no-gc cdecl>
+    val local1
+      Local value : ULong
+    val local2
+      IntegerLiteral 1uL : ULong
+    val local3
+      Local $dependency.argument.0 : ULong
+    return
+      Unary Not : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
+          Local $dependency.receiver : ULong
+          Local $dependency.parameter.other : ULong
+  fun literalEquality(): Boolean
+    val local0
+      IntegerLiteral 7 : Int
+    val local1
+      IntegerLiteral 3 : Int
+    val local2
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun contextualLeft(value: Int8): Boolean
+    val local1
+      IntegerLiteral 1 : Int8
+    val local2
+      Local value : Int8
+    val local3
+      Local $dependency.argument.0 : Int8
+    return
+      IntegerOperation int8.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int8
+        Local $dependency.parameter.other : Int8
+  fun leftOperand(): Int
+    return
+      IntegerLiteral 1 : Int
+  fun middleOperand(): Int
+    return
+      IntegerLiteral 2 : Int
+  fun rightOperand(value: Int): Int
+    return
+      Local value : Int
+  fun singleEvaluation(): Boolean
+    val local2
+      Call leftOperand : Int
+    val local0
+      Call middleOperand : Int
+    val local1
+      Local $argument.0 : Int
+    val local3
+      Local $equality.lhs : Int
+    val local4
+      Call rightOperand : Int
+        Local $parameter.value : Int
+    val local5
+      Local $dependency.argument.0 : Int
+    return
+      IntegerOperation int.equals <no-gc> : Boolean
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+  fun patternInt8(value: Int8): Int
+    when
+      Local value : Int8
+      arm <lit IntegerLiteral(Signed8(128))>
+        assign $result.0
+          IntegerLiteral 1 : Int
+      else
+        assign $result.0
+          IntegerLiteral 0 : Int
+    return
+      Local $result.0 : Int
+  fun patternInt16(value: Int16): Int
+    when
+      Local value : Int16
+      arm <lit IntegerLiteral(Signed16(32767))>
+        assign $result.1
+          IntegerLiteral 1 : Int
+      else
+        assign $result.1
+          IntegerLiteral 0 : Int
+    return
+      Local $result.1 : Int
+  fun patternInt(value: Int): Int
+    when
+      Local value : Int
+      arm <lit IntegerLiteral(Signed32(2147483647)
+        assign $result.2
+          IntegerLiteral 1 : Int
+      else
+        assign $result.2
+          IntegerLiteral 0 : Int
+    return
+      Local $result.2 : Int
+  fun patternLong(value: Long): Int
+    when
+      Local value : Long
+      arm <lit IntegerLiteral(Signed64(92233720368
+        assign $result.3
+          IntegerLiteral 1 : Int
+      else
+        assign $result.3
+          IntegerLiteral 0 : Int
+    return
+      Local $result.3 : Int
+  fun patternUInt8(value: UInt8): Int
+    when
+      Local value : UInt8
+      arm <lit IntegerLiteral(Unsigned8(255))>
+        assign $result.4
+          IntegerLiteral 1 : Int
+      else
+        assign $result.4
+          IntegerLiteral 0 : Int
+    return
+      Local $result.4 : Int
+  fun patternUInt16(value: UInt16): Int
+    when
+      Local value : UInt16
+      arm <lit IntegerLiteral(Unsigned16(65535))>
+        assign $result.5
+          IntegerLiteral 1 : Int
+      else
+        assign $result.5
+          IntegerLiteral 0 : Int
+    return
+      Local $result.5 : Int
+  fun patternUInt(value: UInt): Int
+    when
+      Local value : UInt
+      arm <lit IntegerLiteral(Unsigned32(429496729
+        assign $result.6
+          IntegerLiteral 1 : Int
+      else
+        assign $result.6
+          IntegerLiteral 0 : Int
+    return
+      Local $result.6 : Int
+  fun patternULong(value: ULong): Int
+    when
+      Local value : ULong
+      arm <lit IntegerLiteral(Unsigned64(184467440
+        assign $result.7
+          IntegerLiteral 1 : Int
+      else
+        assign $result.7
+          IntegerLiteral 0 : Int
+    return
+      Local $result.7 : Int
+  fun combinedEquality(value: UInt8): Boolean <no-gc cdecl>
+    when
+      Local value : UInt8
+      arm <lit IntegerLiteral(Unsigned8(255))>
+        val local1
+          Local value : UInt8
+        val local2
+          IntegerLiteral 0u : UInt8
+        val local3
+          Local $dependency.argument.0 : UInt8
+        assign $result.8
+          Unary Not : Boolean
+            IntegerOperation uint8.equals <no-gc> : Boolean
+              Local $dependency.receiver : UInt8
+              Local $dependency.parameter.other : UInt8
+      else
+        val local4
+          Local value : UInt8
+        val local5
+          IntegerOperation uint8.inc <no-gc> : UInt8
+            Local $dependency.receiver : UInt8
+        val local6
+          IntegerLiteral 2u : UInt8
+        val local7
+          Local $dependency.argument.0 : UInt8
+        assign $result.8
+          IntegerOperation uint8.equals <no-gc> : Boolean
+            Local $dependency.receiver : UInt8
+            Local $dependency.parameter.other : UInt8
+    return
+      Local $result.8 : Boolean
+  fun nestedPattern(value: (Int, Int8)): Int
+    when
+      Local value : (Int, Int8)
+      arm (<lit IntegerLiteral(Signed32(1))>, <lit IntegerLiteral(Signed8(2))>)
+        assign $result.9
+          IntegerLiteral 1 : Int
+      else
+        assign $result.9
+          IntegerLiteral 0 : Int
+    return
+      Local $result.9 : Int
+  fun main(): Unit
+    val local0
+      IntegerLiteral 0 : Int
+    val local1
+      Local $dependency.argument.0 : Int
+    val local2
+      ImportedDependencyCall #0 : Int
+        Local $dependency.parameter.value : Int
+    val local3
+      Local $argument.0 : Int
+    val local4
+      Call equalInt : Boolean
+        Local $parameter.value : Int
+    val local5
+      IntegerLiteral 255u : UInt8
+    val local6
+      Local $argument.0 : UInt8
+    val local7
+      Call combinedEquality : Boolean
+        Local $parameter.value : UInt8
+    val local8
+      IntegerLiteral 127 : Int8
+    val local9
+      Local $argument.0 : Int8
+    val local10
+      Call patternInt8 : Int
+        Local $parameter.value : Int8
+    val local11
+      TupleLiteral : (Int, Int8)
+        IntegerLiteral 1 : Int
+        IntegerLiteral 2 : Int8
+    val local12
+      Local $argument.0 : (Int, Int8)
+    val local13
+      Call nestedPattern : Int
+        Local $parameter.value : (Int, Int8)
+    val local14
+      Call singleEvaluation : Boolean
+  output executable main

@@ -11,16 +11,22 @@ mod arguments;
 mod candidate;
 mod commit;
 mod defaults;
+mod inputs;
+mod pattern;
 mod probe;
 
 pub(in crate::expr) use arguments::ImportedArgumentMap;
 use candidate::ImportedCallableCandidate;
 use defaults::ImportedDefaultPlan;
+use inputs::ImportedCallReceiver;
+pub(in crate::expr) use inputs::{
+    ImportedCallArguments, ImportedMemberReceiver, ImportedProbeCall,
+};
 
 pub(crate) struct ImportedDependencyCallProbe {
     state: Box<Lowerer>,
     candidate: ImportedCallableCandidate,
-    receiver: Option<hir::Expr>,
+    receiver: ImportedCallReceiver,
     source_args: Vec<hir::Expr>,
     argument_sinks: Vec<Vec<hir::Statement>>,
     argument_map: ImportedArgumentMap,

@@ -2,8 +2,8 @@ use super::candidate::{ImportedCallableCandidate, NormalizedImportedIntrinsic};
 use hir::ImportedCallableSource;
 use scoop_hir as hir;
 
-use super::ImportedDependencyCallProbe;
 use super::arguments::ImportedParameterInput;
+use super::{ImportedCallReceiver, ImportedDependencyCallProbe, ImportedMemberReceiver};
 use crate::Lowerer;
 
 impl Lowerer {
@@ -30,6 +30,13 @@ impl Lowerer {
             self.require_unsafe_operation(call_span, "calling an unsafe dependency function");
         }
 
+        let receiver = match receiver {
+            ImportedCallReceiver::Absent => None,
+            ImportedCallReceiver::Member(ImportedMemberReceiver::Value(receiver)) => Some(receiver),
+            ImportedCallReceiver::Member(ImportedMemberReceiver::LiteralSubject(_)) => {
+                unreachable!("literal subjects commit through the pattern equality entry")
+            }
+        };
         let receiver = receiver.map(|receiver| {
             self.materialize_temporary(
                 "$dependency.receiver".to_string(),
