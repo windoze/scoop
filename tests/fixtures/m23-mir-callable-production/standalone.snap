@@ -1,0 +1,4 @@
+$extension.extra: ordinary receiver=true parameters=1 Managed
+Token.$get$copy: accessor receiver=true parameters=0 Managed
+Token.echo: ordinary receiver=true parameters=1 NoGc
+pass: ordinary receiver=false parameters=1 Managed

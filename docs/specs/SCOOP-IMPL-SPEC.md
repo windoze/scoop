@@ -281,6 +281,8 @@ M23-6 的普通源码 MIR 类型导出由 mir-lower 接收同次生产的 HIR ty
 
 LocalConcrete HIR 与 MIR 的 singleton value 必须直接保存 Export HIR 已建立的 `PersistentObjectValueId`，不能在下游按名字或 object arena 位置重建。MIR object-value 生产按本地类型表中的 object 表示选择实际 published-root 与 initialization unit，并从 sealed 初始化计划读取已绑定的 initializer/ensure callable、实际签名和 GC effect。两种 callable 及 object-value 表共同产出；其类型查询复用共有本地/依赖索引，不能把依赖类型复制为本地导出。每个本地 object 表示恰有一个实际 published-root 读计划，private 非导出 object 与 top-level property unit 不混入该表；缺失 object/backing/签名类型或 ensure binding 必须由共有验证拒绝。此生产不承诺分派、普通成员与构造器 binding 已完整。
 
+普通源码 callable 的 MIR binding 合并同次 HIR 公共 callable 接口、protected 成员及继承槽所需声明/实现，按已有 function/accessor 身份去重；重复声明的源码合同必须一致。实际参数、receiver 和结果复用 LocalConcrete → MIR 的共有 exact 签名投影，并与 sealed strong MIR 的实际 body、签名及 GC effect 连接。abstract interface 成员仅保留签名，不生成不存在的 callable body；abstract class 成员使用实际 trap body 与既有 typed slot；子类再次抽象化时保留基类 slot、使用子类声明的 body，并核对严格基类关系及除 receiver 外相同的签名。普通函数、extension、成员和 getter/setter 使用各自已有身份与角色，不按名称配对。accessor 必须沿用 Export HIR 的 Storage/Constant/Body/AbstractSlot 分类：直接存储与常量访问由已有属性计划表达，不虚构函数 body；public/protected 属性合同中的实际 getter/setter body 共同加入所需 callable 集合，包含单独受限的 setter。generic 模板、intrinsic 正规化操作、source extern 与构造器遵守各自的生产入口，不能伪装成普通 Scoop body。所需普通 body 或类型缺失时整体失败，完整输出与查询/复制/排序共用预算。
+
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：

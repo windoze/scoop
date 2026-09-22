@@ -109,6 +109,8 @@ mod context;
 mod coroutine;
 mod coroutine_registry;
 mod cross_cone_bridge;
+mod cross_cone_callables;
+pub use cross_cone_callables::{SourceMirCallableProductionError, lower_source_callable_bindings};
 mod cross_cone_constructors;
 pub use cross_cone_constructors::{
     SourceMirConstructorProductionError, lower_constructor_bindings,

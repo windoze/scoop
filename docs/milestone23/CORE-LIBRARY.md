@@ -133,3 +133,13 @@ lower_constructor_bindings 接收同次 HIR type-semantics、LocalConcrete 与 s
 独立 ZST 与组合 fixture 覆盖嵌套 ZST、含引用 struct、主次构造、@NoGC、protected 基类、默认参数调用本地构造、继承、private 构造及 object。两份 golden 锁定源码/实际签名与 GC effect，完整表 wire 往返及前置无关 private class 后的字节稳定性通过；缺少 Unit/owner 类型、LocalConcrete/MIR 物化、GC 不一致、错误主构造角色、零复制预算及累计 work 耗尽均拒绝。修复测试辅助代码将本地构造默认引用误判为 core 依赖的问题。生产模块 101/148 行，共有签名模块 221 行，新增测试模块 107/202/169 行。
 
 普通成员/accessor 与生成 adjust/dispatch callable、dispatch 表、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍需接通；构造组成表完成不代表完整 M23-6 完成。全部构建测试进程退出后 cargo clean 移除 23,983 个文件、25.4 GiB，target 已清理。
+
+2026-09-22：普通源码 callable MIR binding 实际生产批次通过 workspace fmt、clippy（含 all-targets）、3 项新增真实源码测试及全部 5,667 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+lower_source_callable_bindings 合并同次 HIR 公共 callable、protected 成员及继承槽所需声明/实现，按已有 function/accessor 身份去重，复用 LocalConcrete 的 exact 签名投影并连接 sealed MIR 的实际 body、签名与 GC effect。访问器沿用 Storage/Constant/Body/AbstractSlot 分类，直接存储与常量不虚构 body；属性合同中独立受限的实际 setter 共同进入导出。abstract interface 仅保留签名，abstract class 使用实际 trap；generic、intrinsic、extern 与构造遵循各自入口，未新增来源授权结构。
+
+真实再次抽象化源码揭示并修复旧 trap 规则：子类 abstract override 保留基类 slot，body 属于子类声明。共有验证核对源码 owner、abstract receiver、严格基类链及除 receiver 外相同的签名；无关 class body 或缺失基类类型被拒绝。实现规范与 stage6 设计同步，wire 与 exact identity 格式不变。
+
+独立与组合 fixture 覆盖普通/extension 函数、NoGC、public/protected/private 成员、自定义 getter/setter、直接存储、接口默认与抽象成员、class override、继承后再次抽象化及 object。两份 golden、整表 wire 往返及前置无关声明后的字节稳定性通过；缺失 LocalConcrete/MIR 物化、签名类型、源码结果或 GC 不一致、零复制预算和累计 work 耗尽均拒绝。生产入口及子模块分别 151/166/136/65/33 行，trap 验证模块 97 行，新增测试模块均不超过 163 行。
+
+生成 boxing/dispatch adjust 与 derived equality callable、dispatch 表、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 25,095 个文件、27.2 GiB，target 已清理。

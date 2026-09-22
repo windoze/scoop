@@ -1,0 +1,15 @@
+Abstract.run: trap receiver=true parameters=1 Managed
+Again.$get$abstractValue: trap receiver=true parameters=0 Managed
+Again.pass: trap receiver=true parameters=1 Managed
+Base.$get$abstractValue: accessor receiver=true parameters=0 Managed
+Base.$get$slot: accessor receiver=true parameters=0 Managed
+Base.$set$slot: accessor receiver=true parameters=1 Managed
+Base.hidden: ordinary receiver=true parameters=1 Managed
+Base.pass: ordinary receiver=true parameters=1 Managed
+Base.reach: ordinary receiver=true parameters=1 Managed
+Contract.echo: ordinary receiver=true parameters=1 Managed
+Impl.$get$token: accessor receiver=true parameters=0 Managed
+Impl.get: ordinary receiver=true parameters=1 Managed
+Impl.pass: ordinary receiver=true parameters=1 Managed
+Registry.$get$value: accessor receiver=true parameters=0 Managed
+Registry.$set$value: accessor receiver=true parameters=1 Managed

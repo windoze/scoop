@@ -24,6 +24,20 @@ impl DecodedParamFreeMirCallableBindingV1 {
         let semantic = self.semantic.resolve(graph, meter)?;
         let lowered = self.lowered.resolve(graph, meter)?;
         let role = self.role.resolve(graph)?;
+        if matches!(role, MirCallableLoweringRoleV1::PureVirtualTrap { .. }) {
+            meter
+                .charge_work(
+                    (types.record_count() as u64)
+                        .saturating_mul(
+                            u64::from(types.record_count().checked_ilog2().unwrap_or(0)) + 1,
+                        )
+                        .saturating_add(
+                            foundation.as_canonical().callable_signatures().len() as u64
+                        ),
+                    &WirePath::root(),
+                )
+                .map_err(MirCallableBridgeError::Resource)?;
+        }
         meter
             .charge_work(
                 8 * (semantic.exact().parameters().len() + lowered.exact().parameters().len())

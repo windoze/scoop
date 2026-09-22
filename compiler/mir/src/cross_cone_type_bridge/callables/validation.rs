@@ -5,6 +5,7 @@ use scoop_identity::{
 };
 
 mod generated;
+mod traps;
 
 #[derive(Debug)]
 pub enum MirCallableBridgeError {
@@ -208,11 +209,7 @@ impl MirCallableBridgeAuthority<'_> {
             }
             (_, MirCallableLoweringRoleV1::PureVirtualTrap { slot }) => {
                 self.same_signatures(binding)?;
-                let key = self.identities.canonical_key::<_, DispatchSlotKey>(slot)?;
-                if declaration_implementation(key.owner()) != binding.implementation {
-                    return Err(MirCallableBridgeError::InvalidTrapDeclaration);
-                }
-                Ok(())
+                self.validate_trap(binding, slot)
             }
             (MirCallableOriginV1::Generated { role, .. }, _) => {
                 self.validate_generated(binding, role)
