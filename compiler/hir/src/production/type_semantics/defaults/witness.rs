@@ -22,17 +22,14 @@ impl Publication {
     pub(super) fn new(
         export: &ExportHir,
         local: ExportParameterOwner,
+        source: &DefaultSourceTemplateV1,
         roots: &SlotMap,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let (owner, key) = super::super::nominal_parameters::owners::identity(export, local)
-            .ok_or_else(|| invalid("default publication has no source identity"))?;
-        resources::canonical(key.owners().owners().len(), meter)?;
-        let lexical = super::super::nominals::lexical_owners(key)?;
-        if lexical
-            .iter()
-            .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)))
-        {
+        let profile =
+            super::super::source_defaults::profile::from_source(export, local, source, meter)?;
+        let owner = source.key().owner();
+        if profile == ProtectedDefaultWitnessSourceProfileV1::GenericSourceMetadata {
             return Ok(Self::Generic { owner });
         }
         let lookup = match local {

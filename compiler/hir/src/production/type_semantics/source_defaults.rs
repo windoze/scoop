@@ -5,14 +5,16 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{BudgetMeter, WirePath};
 use std::collections::HashMap;
 mod errors;
+pub(super) mod profile;
 use NominalDefaultSourceProductionError as Error;
 pub use errors::NominalDefaultSourceProductionError;
 
-/// Complete source bodies and parameter facts; profiles and semantic replay are separate.
+/// Complete source bodies, parameter facts and profiles; semantic replay is separate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NominalDefaultSourceProductionV1 {
     parameters: CanonicalNominalSourceParameterProtocolsV1,
     templates: CanonicalDefaultSourceTemplatesV1,
+    profiles: CanonicalDefaultSourceProfilesV1,
 }
 impl NominalDefaultSourceProductionV1 {
     pub fn from_dependency_hir(
@@ -43,13 +45,17 @@ impl NominalDefaultSourceProductionV1 {
     pub const fn templates(&self) -> &CanonicalDefaultSourceTemplatesV1 {
         &self.templates
     }
+    pub const fn profiles(&self) -> &CanonicalDefaultSourceProfilesV1 {
+        &self.profiles
+    }
     pub fn into_parts(
         self,
     ) -> (
         CanonicalNominalSourceParameterProtocolsV1,
         CanonicalDefaultSourceTemplatesV1,
+        CanonicalDefaultSourceProfilesV1,
     ) {
-        (self.parameters, self.templates)
+        (self.parameters, self.templates, self.profiles)
     }
 }
 
@@ -85,6 +91,7 @@ fn produce(
         meter,
     )?;
     let mut records = Vec::new();
+    let mut profiles = Vec::new();
     for protocol in parameters.records() {
         meter.charge_work(1, &path).map_err(Error::Resource)?;
         let local = *owners
@@ -110,7 +117,17 @@ fn produce(
             meter
                 .try_reserve_collection_slots(&mut records, 1, &path)
                 .map_err(Error::Resource)?;
-            records.push(body(local, position, meter)?);
+            let source = body(local, position, meter)?;
+            let profile = profile::from_source(output.module(), local, &source, meter)
+                .map_err(Error::Sources)?;
+            meter
+                .charge_owned_bytes(std::mem::size_of::<DefaultSourceProfileV1>() as u64, &path)
+                .map_err(Error::Resource)?;
+            meter
+                .try_reserve_collection_slots(&mut profiles, 1, &path)
+                .map_err(Error::Resource)?;
+            profiles.push(DefaultSourceProfileV1::new(source.key(), profile));
+            records.push(source);
         }
     }
     let templates =
@@ -118,9 +135,15 @@ fn produce(
     templates
         .validate_parameter_coverage(&parameters, meter)
         .map_err(Error::Coverage)?;
+    let profiles =
+        CanonicalDefaultSourceProfilesV1::try_new(profiles, meter).map_err(Error::Profiles)?;
+    profiles
+        .validate_template_coverage(&templates, meter)
+        .map_err(Error::Profiles)?;
     Ok(NominalDefaultSourceProductionV1 {
         parameters,
         templates,
+        profiles,
     })
 }
 

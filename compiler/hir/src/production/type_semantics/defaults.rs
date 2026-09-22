@@ -33,7 +33,6 @@ impl CanonicalProtectedDefaultTemplatesV1 {
             let local = *owners
                 .get(&protocol.owner())
                 .ok_or_else(|| invalid("default protocol has no source declaration"))?;
-            let publication = witness::Publication::new(export, local, &slots, meter)?;
             for parameter in protocol.parameters().parameters() {
                 work(meter, 1)?;
                 let Some(key) = parameter.calling().template() else {
@@ -53,6 +52,7 @@ impl CanonicalProtectedDefaultTemplatesV1 {
                         "default body disagrees with its source parameter key",
                     ));
                 }
+                let publication = witness::Publication::new(export, local, &source, &slots, meter)?;
                 let references = references::project(&source, &publication, meter)?;
                 resources::push(
                     &mut templates,

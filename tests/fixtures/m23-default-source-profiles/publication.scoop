@@ -1,0 +1,14 @@
+public fun sharedDefault(): Int = 9
+public open class Plain {
+    protected fun <T> own(seed: T, value: Int = sharedDefault()): Int = value
+    protected open fun inherited(value: Int = sharedDefault()): Int = value
+}
+public class Child: Plain() {
+    protected override fun inherited(value: Int): Int = value
+}
+public class Generic<T> {
+    protected fun fromOwner(value: Int = sharedDefault()): Int = value
+    public open class Static {
+        protected fun fromStatic(value: Int = sharedDefault()): Int = value
+    }
+}

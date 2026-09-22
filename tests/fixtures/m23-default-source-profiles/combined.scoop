@@ -1,0 +1,16 @@
+public fun sharedDefault(): Int = 9
+public open class Envelope<T> {
+    public class PublicStatic {
+        public fun exposed(value: Int = sharedDefault()): Int = value
+    }
+    protected class ProtectedStatic {
+        public fun confined(value: Int = sharedDefault()): Int = value
+    }
+    public enum Choice<U> { Empty, Item(val first: U, val second: U = first) }
+}
+public open class Base {
+    public open fun inherited(value: Int = sharedDefault()): Int = value
+}
+public class Child: Base() {
+    public override fun inherited(value: Int): Int = value
+}

@@ -221,6 +221,8 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 - 装箱/拆箱的插入（spec 4.4.4 的 O(1) 规则）；
 - 以递归pattern matrix完成`when`穷尽性与稳定missing witness，并输出保持源码first-match/guard顺序的typed decision plan（spec第5章）。
 
+M23-6 的默认参数 profile 在完整 source 正文与参数表生产时按参数独立保留，精确覆盖无引用及有引用的所有默认值。分类读取实际直接 nominal owner、发布调用域及原始六类引用的调用/槽/目标域；static nested 不因外层 generic qualifier 自动变成 metadata，只有函数自身泛型仍按可证明的 ParamFree 域验证。generic nominal、generic enum variant 或仍含 generic subclass 约束的域保留 GenericSourceMetadata；两类都不绕过独立执行 gate。来源 profile 表按 stage6 §4.3 的完整 key 与封闭两分支编码，候选 witness 使用同一 source 分类；reader 必须在完整默认来源事务中核对，不能信任表中 tag 或从候选 witness 反推。
+
 ### 2.3 MIR
 
 只接收**本Cone**的`LocalConcreteHir`以及由HIR `CrossConeUseSet`选出的**上游Cone MIR meta**（见下）。其输入类型签名不得接受`ExportHir`或未筛选的`.slib`reader结果，负责：

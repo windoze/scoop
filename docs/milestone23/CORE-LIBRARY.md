@@ -327,3 +327,11 @@ LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；�
 复用独立和组合源码 fixture 验证真实六表候选与独立来源相等；删除任一 type/callable/dispatch/object/shape 支持表均拒绝。同 identity、相同 facts 下调换 struct 字段顺序仍被完整 record 比较拒绝，非空初始化关系完整保留，删除关系或引用未物化 local unit 失败。共享预算耗尽与错误 source 查询覆盖。现有六表 golden 和编解码回归保持。
 
 每批变更先 cargo fmt --all 与 cargo clippy --workspace --all-targets，随后 scoop-hir-lower、scoop-mir、scoop-mir-lower 共 2,129 项测试通过，0 failed、0 ignored。新增生产模块 54～70 行，测试模块 44～120 行；关闭增量缓存与 debug 信息后 target 当前约 2.5 GiB。本批完成实际 export source-join；HIR committed-use 来源、七字段 section 的正式生产、reader 来源重建、完整 layout profile 发布与一般跨 Cone 类型消费仍需继续，M23-6 未完成。
+
+2026-09-23：默认参数 access profile 从同次 sealed source 独立投影。完整 nominal 默认来源同时保留参数表、正文与逐参数 profile，包含没有任何引用的默认值；canonical profile 表通过完整 default key 精确闭合，reader 拒绝重复、乱序、未知 tag/identity、缺失或额外字段，并共享资源预算。来源表不直接实现 profile authority，后续完整默认来源事务仍须重放来源与访问语义。
+
+分类按实际直接 nominal owner、发布调用域及正文六类引用的调用/槽/目标域判断。只有函数自身 generic 时继续使用 ParamFree；public static nested 不因外层 generic qualifier 自动成为 metadata；generic enum variant 与仍含 generic subclass 约束的域保留 GenericSourceMetadata。候选 default witness 使用同一来源分类。完整 type-semantics 发布 fixture 验证静态嵌套 protected 成员、函数自身 generic 与继承 default 的实际 witness，并用 golden 锁定分类。独立及组合 source fixture 另覆盖 literal、generic enum、protected static nested 与继承正文；旧 public projection 测试辅助器补齐本地函数 typed identity，避免把本地引用误判为外来 CORE。
+
+组合 fixture 同时暴露现有完整发布边界：param-free static nested 若受 generic 外层 class 的 protected 域约束，继承域尚不能取得所需 concrete exact identity。该场景目前只完成 source profile 投影与编解码验证，未宣称完整发布成功；它与 core 的 generic 继承物化边界一起保留为后续完成项，没有伪造 exact、删减继承约束或放开执行 gate。
+
+每批代码先 cargo fmt --all 与 cargo clippy --workspace --all-targets，三个目标测试通过。重建配套 scoopc 后完整 workspace 37 组、5,796 项通过，0 failed、0 ignored。新增生产模块按 profile 分类、canonical 表与 wire 分开，原默认来源模块为 191 行；公共接口测试辅助器拆为独立模块。确认构建与测试退出后，cargo clean 删除 2,769 个文件、5.8 GiB。本批完成默认 source profile 生产；完整 default authority、HIR committed-use、正式 layout profile 发布和一般跨 Cone 类型消费继续推进，M23-6 保持进行中。
