@@ -4,6 +4,7 @@ use scoop_mir::{CanonicalParamFreeMirTypeExportsV1, MirTypeOriginV1};
 use scoop_wire::{WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
+mod boxing;
 mod callables;
 mod constructors;
 mod dependencies;

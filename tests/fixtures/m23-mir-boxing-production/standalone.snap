@@ -1,0 +1,2 @@
+thunk<Token> Contract.$get$token() => Token.$get$token (Managed -> Managed)
+thunk<Token> Contract.apply(Token) => Token.apply (Managed -> Managed)

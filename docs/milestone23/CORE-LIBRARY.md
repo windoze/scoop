@@ -143,3 +143,13 @@ lower_source_callable_bindings 合并同次 HIR 公共 callable、protected 成�
 独立与组合 fixture 覆盖普通/extension 函数、NoGC、public/protected/private 成员、自定义 getter/setter、直接存储、接口默认与抽象成员、class override、继承后再次抽象化及 object。两份 golden、整表 wire 往返及前置无关声明后的字节稳定性通过；缺失 LocalConcrete/MIR 物化、签名类型、源码结果或 GC 不一致、零复制预算和累计 work 耗尽均拒绝。生产入口及子模块分别 151/166/136/65/33 行，trap 验证模块 97 行，新增测试模块均不超过 163 行。
 
 生成 boxing/dispatch adjust 与 derived equality callable、dispatch 表、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 25,095 个文件、27.2 GiB，target 已清理。
+
+2026-09-22：装箱分派 callable 实际生产批次通过 workspace fmt、clippy（含 all-targets）、2 项新增真实源码测试及全部 5,669 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+BoxingAdjust 现在必需保存同次 lowering 选定的目标 FunctionId，与实际 thunk 及 itable 位置共同保留；目标直接来自 typed HIR conformance。CanonicalMirCallableBindingsV1::from_boxing_adjusts 按本地导出 payload 选择已有 thunk，连接 sealed strong 根、真实目标 body、共有 callable/type 表及实际签名和 GC effect。目标 semantic signature 与 thunk lowered signature 分别保存，支持值方法、getter 和采用 interface default 的同一 box 重解释；private 非导出 payload 的实际 thunk 不进入表。身份与 wire 格式不变，未新增来源授权结构。
+
+菱形继承组合暴露并修复未使用默认 body 的生产缺口：非泛型接口的默认声明均以自身 owner 进入 LocalConcrete，即使当前没有实现者，或全部具体实现都选择子接口 override；abstract slot 保持签名，generic 接口保持既有 application 规则。接口具体化从 nominal 模块拆出为 145 行独立模块，原模块缩短到 414 行。
+
+独立 ZST 与组合 fixture 覆盖 value method/getter、private payload、含引用 struct、enum、接口默认实现、菱形继承、被覆盖及无人使用的默认 body、object 排除。逐项核对真实 MIR 正文中的 direct-call 目标、itable 位置和签名；两份 golden、整表 wire 往返及前置无关声明后的字节稳定性通过。缺失目标 binding、类型、无效目标 arena 位置、目标 GC 与实际 body 不一致、零复制预算及共享 work 耗尽均拒绝。源码 fixture 遵循现有接口实现 effect 一致规则。生产模块 102/90 行，新增测试模块 137/112/123 行。
+
+derived equality、dispatch 表及其余实际 callable 组合、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍待接通，整个 M23-6 保持进行中。确认全部构建测试进程退出后 cargo clean 移除 24,254 个文件、26.2 GiB，target 已清理。

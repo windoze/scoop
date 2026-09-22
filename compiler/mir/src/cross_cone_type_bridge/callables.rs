@@ -8,6 +8,7 @@ use scoop_identity::{
     StrongCallableDefinitionOwner,
 };
 
+mod boxing;
 mod model;
 mod origin;
 mod roles;
@@ -17,6 +18,7 @@ mod tests;
 mod validation;
 mod wire;
 
+pub use boxing::MirBoxingCallableProductionError;
 pub use model::*;
 pub use origin::*;
 pub use roles::*;

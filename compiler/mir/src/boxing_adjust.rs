@@ -185,6 +185,7 @@ impl BoxingAdjustLocation {
 #[derive(Clone, Debug)]
 pub struct BoxingAdjust {
     location: BoxingAdjustLocation,
+    target: FunctionId,
     identity: BoxingAdjustIdentity,
 }
 
@@ -194,9 +195,11 @@ impl BoxingAdjust {
         classes: &Arena<ClassDef>,
         interfaces: &Arena<InterfaceDef>,
         location: BoxingAdjustLocation,
+        target: FunctionId,
         identity: BoxingAdjustIdentity,
     ) -> Option<Self> {
         arena_get(functions, location.function)?;
+        arena_get(functions, target)?;
         let interface_definition = arena_get(interfaces, location.interface)?;
         interface_definition.methods.get(location.slot as usize)?;
         let class = arena_get(classes, location.boxed)?;
@@ -210,7 +213,11 @@ impl BoxingAdjust {
         {
             return None;
         }
-        Some(Self { location, identity })
+        Some(Self {
+            location,
+            target,
+            identity,
+        })
     }
 
     pub const fn location(&self) -> BoxingAdjustLocation {
@@ -231,6 +238,11 @@ impl BoxingAdjust {
 
     pub const fn function(&self) -> FunctionId {
         self.location.function()
+    }
+
+    /// The concrete conformance target used when lowering the thunk body.
+    pub const fn target(&self) -> FunctionId {
+        self.target
     }
 
     pub const fn identity(&self) -> &BoxingAdjustIdentity {

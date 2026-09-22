@@ -283,6 +283,10 @@ LocalConcrete HIR 与 MIR 的 singleton value 必须直接保存 Export HIR 已�
 
 普通源码 callable 的 MIR binding 合并同次 HIR 公共 callable 接口、protected 成员及继承槽所需声明/实现，按已有 function/accessor 身份去重；重复声明的源码合同必须一致。实际参数、receiver 和结果复用 LocalConcrete → MIR 的共有 exact 签名投影，并与 sealed strong MIR 的实际 body、签名及 GC effect 连接。abstract interface 成员仅保留签名，不生成不存在的 callable body；abstract class 成员使用实际 trap body 与既有 typed slot；子类再次抽象化时保留基类 slot、使用子类声明的 body，并核对严格基类关系及除 receiver 外相同的签名。普通函数、extension、成员和 getter/setter 使用各自已有身份与角色，不按名称配对。accessor 必须沿用 Export HIR 的 Storage/Constant/Body/AbstractSlot 分类：直接存储与常量访问由已有属性计划表达，不虚构函数 body；public/protected 属性合同中的实际 getter/setter body 共同加入所需 callable 集合，包含单独受限的 setter。generic 模板、intrinsic 正规化操作、source extern 与构造器遵守各自的生产入口，不能伪装成普通 Scoop body。所需普通 body 或类型缺失时整体失败，完整输出与查询/复制/排序共用预算。
 
+非泛型接口声明的默认 body 与普通非泛型成员一样必须进入 LocalConcrete，即使同一 Cone 的全部具体实现均选择子接口 override，或者当前没有实现者。物化使用默认声明自身的 interface owner 与已有 method request，不按某个具体实现的 itable 重新选 root；abstract slot 仍只保留签名，generic 接口保持按实际 application 的独立物化规则。
+
+装箱分派的 MIR 关系必须同时保存实际 thunk、itable 位置与同次 lowering 已选定的目标 function；目标从 typed HIR conformance 直接传入，不能在导出时扫描函数名或猜测正文。callable binding 生产按本地导出 payload 选择已有 BoxingAdjust，复用 sealed strong 根、实际 thunk 签名/GC effect 和目标的共有 callable binding；semantic signature 属于目标，lowered signature 属于 interface thunk，包含采用 interface default 的同一 box 重解释。缺失目标 binding、类型或实际 strong 根时整体失败，private 非导出 payload 的 thunk 不混入表。生成身份与 slot 格式保持不变，查询、分配、复制及排序使用同一预算。
+
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output、由`scoopc`从显式上游`.slib`闭包投影的**上游 Cone LIR meta**与已验证`LirTargetProfile`投影（见下），负责：

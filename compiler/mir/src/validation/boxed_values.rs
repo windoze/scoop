@@ -62,13 +62,14 @@ pub(super) fn validate_boxing_adjust_metadata(module: &Module) -> Result<(), Mir
             &module.classes,
             &module.interfaces,
             adjust.location(),
+            adjust.target(),
             adjust.identity().clone(),
         )
         .is_none()
         {
             return invalid_adjust(
                 location,
-                "the physical itable slot does not match the adjust",
+                "the physical itable slot or target is invalid for the adjust",
             );
         }
         if !locations.insert((adjust.boxed(), adjust.interface(), adjust.slot())) {

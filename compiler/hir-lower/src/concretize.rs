@@ -19,6 +19,7 @@ mod closures;
 mod constructor_slots;
 mod constructor_work;
 mod functions;
+mod interfaces;
 mod nominals;
 mod types;
 

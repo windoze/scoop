@@ -24,16 +24,16 @@ impl Lowerer {
             let mut slots = Vec::new();
             let mut identities = Vec::new();
             for index in method_indices {
-                let (thunk, identity) =
+                let (thunk, target, identity) =
                     self.build_thunk(module, &payload, &payload_name, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
-                identities.push((index, thunk, identity));
+                identities.push((index, thunk, target, identity));
             }
             self.classes[class_id].itables.push(mir::ItableRecord {
                 interface: iface,
                 slots,
             });
-            for (slot, function, identity) in identities {
+            for (slot, function, target, identity) in identities {
                 self.boxing_adjusts.push(
                     mir::BoxingAdjust::checked(
                         &self.functions,
@@ -45,6 +45,7 @@ impl Lowerer {
                             u32::try_from(slot).expect("interface method indices fit in u32"),
                             function,
                         ),
+                        target,
                         identity,
                     )
                     .expect("a generated boxing adjust occupies its exact itable slot"),
@@ -68,7 +69,7 @@ impl Lowerer {
         payload_name: &str,
         iface: mir::InterfaceId,
         method_index: usize,
-    ) -> (mir::FunctionId, mir::BoxingAdjustIdentity) {
+    ) -> (mir::FunctionId, mir::FunctionId, mir::BoxingAdjustIdentity) {
         let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
         let types = Types {
@@ -324,7 +325,7 @@ impl Lowerer {
                 source_return: return_ty,
             });
         }
-        (id, identity)
+        (id, self.function_map[&implementation], identity)
     }
 
     pub(crate) fn value_interfaces(
