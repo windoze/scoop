@@ -24,6 +24,7 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for DefaultAut
     fn default_access_profile(
         &self,
         _key: ProtectedDefaultTemplateKeyV1,
+        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         Err("fixture has no default template")
     }

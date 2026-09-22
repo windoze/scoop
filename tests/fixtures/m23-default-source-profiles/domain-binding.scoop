@@ -1,0 +1,19 @@
+private var sharedValue: Int = 3
+private fun loadValue(): Int = 4
+public struct Packet(val field: Int)
+public object Store {}
+public open class Base {
+    protected open fun inherited(value: Int = 1): Int = value
+}
+public class Child: Base() {
+    public override fun inherited(value: Int): Int = value
+}
+public class Samples {
+    private fun callable(value: Int = loadValue()): Int = value
+    private fun global(value: Int = sharedValue): Int = value
+    public fun constructor(value: Packet = Packet(2)): Packet = value
+    public fun singleton(value: Store = Store): Store = value
+    public fun field(source: Packet, value: Int = source.field): Int = value
+    public fun tuple(source: (Unit, Int), value: Unit = source._1): Unit = value
+    public fun literal(value: Int = 1): Int = value
+}

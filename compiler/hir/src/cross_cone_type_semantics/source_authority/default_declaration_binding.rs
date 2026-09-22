@@ -29,6 +29,7 @@ pub struct BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
 pub struct DefaultSourceDeclaredContractV1<'s> {
     facts: DeclarationFacts<'s>,
     references: DefaultSourceReferenceClosureV1<'s>,
+    publishing_call_domain: DefaultSourceAccessDomainV1,
     direct_call_domain: DefaultSourceAccessDomainV1,
     provider_dispatch: DefaultSourceProviderDispatchV1,
 }
@@ -82,6 +83,8 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                 )?;
                 data_flow::validate(self, dependencies, template, meter, &path)?;
                 let references = template.bind_reference_occurrences(meter, &path)?;
+                let publishing_call_domain =
+                    direct_domain::source_domain(self, template.key().owner(), meter, &path)?;
                 let direct_call_domain =
                     direct_domain::validate(provider, template, &references, meter, &path)?;
                 let provider_dispatch = provider_slot::validate(
@@ -95,6 +98,7 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
                 Ok(DefaultSourceDeclaredContractV1 {
                     facts: contract,
                     references,
+                    publishing_call_domain,
                     direct_call_domain,
                     provider_dispatch,
                 })
@@ -134,6 +138,10 @@ impl<'d, 'p, 's, 'a, 'f> BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f> {
     }
 }
 impl<'s> DefaultSourceDeclaredContractV1<'s> {
+    /// Independently replayed publishing declaration, including inherited defaults.
+    pub const fn publishing_call_domain(&self) -> &DefaultSourceAccessDomainV1 {
+        &self.publishing_call_domain
+    }
     /// Original provider dispatch only; publishing root-slot coverage is separate.
     pub const fn provider_dispatch(&self) -> DefaultSourceProviderDispatchV1 {
         self.provider_dispatch

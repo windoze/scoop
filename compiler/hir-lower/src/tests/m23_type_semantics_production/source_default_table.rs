@@ -24,7 +24,7 @@ fn meter() -> BudgetMeter {
 fn bytes(value: &Table) -> Vec<u8> {
     encode(&value.index_locals(&mut meter()).unwrap()).unwrap()
 }
-fn declaration(
+pub(super) fn declaration(
     export: &hir::ExportHir,
     owner: hir::ExportParameterOwner,
 ) -> CallableTemplateOrigin {
@@ -62,7 +62,7 @@ fn function(export: &hir::ExportHir, name: &str) -> hir::ExportParameterOwner {
             .0,
     )
 }
-fn owner_name(export: &hir::ExportHir, owner: hir::ExportParameterOwner) -> String {
+pub(super) fn owner_name(export: &hir::ExportHir, owner: hir::ExportParameterOwner) -> String {
     match owner {
         hir::ExportParameterOwner::Function(id) => export.functions[id].name.clone(),
         hir::ExportParameterOwner::ClassConstructor(id) => format!(

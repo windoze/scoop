@@ -14,8 +14,31 @@ pub(super) fn validate(
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<DefaultSourceAccessDomainV1, Error> {
-    let foundation = provider.members().nominals.foundation;
     let owner = template.definition_root().declaration();
+    let expected = source_domain(provider, owner, meter, path)?;
+    let expected_bytes = scoop_wire::encoded_length(&expected).map_err(DomainError::Encoding)?;
+    for occurrence in references.occurrences() {
+        let actual = occurrence.source().witness().direct_call_domain();
+        let actual_bytes = scoop_wire::encoded_length(actual).map_err(DomainError::Encoding)?;
+        meter.charge_work(expected_bytes.saturating_add(actual_bytes), path)?;
+        if actual != &expected {
+            return Err(DomainError::Witness {
+                kind: occurrence.source().kind(),
+                index: occurrence.index(),
+            }
+            .into());
+        }
+    }
+    Ok(expected)
+}
+
+pub(super) fn source_domain(
+    provider: &BoundNominalParameterProtocolsV1<'_, '_, '_, '_>,
+    owner: CallableTemplateOrigin,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<DefaultSourceAccessDomainV1, Error> {
+    let foundation = provider.members().nominals.foundation;
     let access = match owner {
         CallableTemplateOrigin::Constructor(id) => {
             sources::query(provider.constructors().table().records().len(), meter, path)?;
@@ -46,19 +69,7 @@ pub(super) fn validate(
         }
         CallableTemplateOrigin::Accessor(_) => return Err(Error::Declaration(owner)),
     };
-    let expected = lookup_domain(access, foundation, meter, path).map_err(DomainError::from)?;
-    let expected_bytes = scoop_wire::encoded_length(&expected).map_err(DomainError::Encoding)?;
-    for occurrence in references.occurrences() {
-        let actual = occurrence.source().witness().direct_call_domain();
-        let actual_bytes = scoop_wire::encoded_length(actual).map_err(DomainError::Encoding)?;
-        meter.charge_work(expected_bytes.saturating_add(actual_bytes), path)?;
-        if actual != &expected {
-            return Err(DomainError::Witness {
-                kind: occurrence.source().kind(),
-                index: occurrence.index(),
-            }
-            .into());
-        }
-    }
-    Ok(expected)
+    lookup_domain(access, foundation, meter, path)
+        .map_err(DomainError::from)
+        .map_err(Error::from)
 }

@@ -166,6 +166,7 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<TestAuthorityError> for Empt
     fn default_access_profile(
         &self,
         _key: ProtectedDefaultTemplateKeyV1,
+        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, TestAuthorityError> {
         Err(TestAuthorityError::UnexpectedCall)
     }

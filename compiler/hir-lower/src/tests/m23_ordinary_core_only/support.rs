@@ -18,6 +18,7 @@ use super::super::{
 use crate::{CoreBootstrapSources, lower_core_bootstrap};
 
 pub(crate) struct TrustedCoreFixture {
+    pub(crate) source_output: scoop_hir::Output,
     pub(crate) foundation: scoop_hir::ImportedHirFoundation,
     pub(crate) source_foundation: scoop_hir::OdrFreeHirFoundation,
     general_interface: scoop_hir::CrossConeHirInterfaceSectionV1,
@@ -241,6 +242,7 @@ pub(super) fn trusted_core_from_source(
     )
     .unwrap();
     TrustedCoreFixture {
+        source_output: output,
         general_interface,
         aliases,
         foundation,

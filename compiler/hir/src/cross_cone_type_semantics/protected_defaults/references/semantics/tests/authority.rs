@@ -14,6 +14,7 @@ impl ProtectedDefaultSourceProfileSemanticAuthority<&'static str> for Authority 
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
+        _meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, &'static str> {
         if key != self.key {
             return Err("unknown source default");

@@ -74,7 +74,7 @@ impl<'a> ProtectedDefaultOwnerSourceV1<'a> {
             .iter()
             .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)));
         let profile = authority
-            .default_access_profile(key)
+            .default_access_profile(key, meter)
             .map_err(Error::Foundation)?;
         let valid = match profile {
             ProtectedDefaultWitnessSourceProfileV1::ParamFree => {

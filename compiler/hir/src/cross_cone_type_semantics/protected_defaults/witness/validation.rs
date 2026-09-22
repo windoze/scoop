@@ -23,6 +23,7 @@ pub trait ProtectedDefaultSourceProfileSemanticAuthority<E> {
     fn default_access_profile(
         &self,
         key: ProtectedDefaultTemplateKeyV1,
+        meter: &mut BudgetMeter,
     ) -> Result<ProtectedDefaultWitnessSourceProfileV1, E>;
 }
 
