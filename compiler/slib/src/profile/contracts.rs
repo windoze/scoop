@@ -126,7 +126,7 @@ impl CapabilityContractRegistry {
             capability.name(),
             capability.major_version(),
         ) {
-            ("org.scoop-lang.hir", "identity-foundation", 1) => (
+            ("org.scoop-lang.hir", "identity-foundation", 2) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,

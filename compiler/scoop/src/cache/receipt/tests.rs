@@ -94,7 +94,7 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
     assert!(usage.owned_bytes > 0);
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "7406e7747664d8a8b3d6d6e192bc5d18698a87f7d30befde291cd9fb95c1a874"
+        "5954dac0f91844f6c5d6cead8b3218cd4e7ac6e5b336c2eeee22c9e23364a4de"
     );
 }
 

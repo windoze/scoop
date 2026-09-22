@@ -21,7 +21,7 @@ fn native_boundary_producer_uses_shared_core_metadata_for_a_narrow_integer() {
                 hir::NativeBoundaryNominalOwner::Concrete(integer)
             );
             assert!(
-                matches!(records[0].shape(), hir::NativeBoundaryNominalShape::Struct { fields, c_layout: hir::NativeBoundaryCLayoutPolicy::NotCLayout } if fields.is_empty())
+                matches!(records[0].shape(), hir::NativeBoundaryNominalShape::Intrinsic(representation) if representation.family() == hir::IntrinsicTypeKind::Integer(hir::IntegerKind::SIGNED_8))
             );
         },
     );
@@ -80,6 +80,11 @@ fn native_boundary_producer_closes_local_struct_enum_and_all_imported_primitives
             let mut dump = records
                 .iter()
                 .map(|record| match record.shape() {
+                    hir::NativeBoundaryNominalShape::Intrinsic(representation) => format!(
+                        "{} intrinsic {}\n",
+                        names[&record.owner()],
+                        representation.family().name()
+                    ),
                     hir::NativeBoundaryNominalShape::Struct { c_layout, fields } => format!(
                         "{} struct {c_layout:?} fields={}\n",
                         names[&record.owner()],

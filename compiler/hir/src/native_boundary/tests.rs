@@ -524,3 +524,5 @@ fn replace_once(bytes: &mut [u8], from: &[u8; 32], to: &[u8; 32]) {
         .unwrap();
     bytes[position..position + to.len()].copy_from_slice(to);
 }
+
+mod intrinsics;

@@ -32,8 +32,12 @@ use super::{
 };
 use crate::ValidatedGraphArtifact;
 
+mod errors;
 mod layout;
+pub use errors::NativeBoundaryTargetError;
+mod physical;
 mod scoop_abi;
+use physical::*;
 
 use scoop_abi::exact_type_records;
 pub(crate) use scoop_abi::{AbiReplayDependency, replay_canonical_scoop_abi};
@@ -138,7 +142,7 @@ pub(super) fn validate_target_normalization(
         view.type_definitions,
         NativeBoundaryTypeDefinitionRecord::owner,
         meter,
-        &WirePath::root().field(30),
+        &WirePath::root().field(33),
     )?;
 
     let actual_contracts = index_records(
@@ -891,140 +895,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
-struct PhysicalType {
-    size: u64,
-    alignment: u64,
-    shape: ScoopAbiValueShape,
-    gc_free: bool,
-}
-
-fn scalar(layout: scoop_lir::ScalarLayout, gc_free: bool) -> PhysicalType {
-    PhysicalType {
-        size: layout.size_bytes(),
-        alignment: layout.alignment_bytes(),
-        shape: ScoopAbiValueShape::Scalar,
-        gc_free,
-    }
-}
-
-fn integer_scalar_kind(bit_width: scoop_identity::IntegerBitWidth) -> scoop_lir::BackendScalarKind {
-    match bit_width {
-        scoop_identity::IntegerBitWidth::Bits8 => scoop_lir::BackendScalarKind::I8,
-        scoop_identity::IntegerBitWidth::Bits16 => scoop_lir::BackendScalarKind::I16,
-        scoop_identity::IntegerBitWidth::Bits32 => scoop_lir::BackendScalarKind::I32,
-        scoop_identity::IntegerBitWidth::Bits64 => scoop_lir::BackendScalarKind::I64,
-    }
-}
-
-fn pointer(
-    target: scoop_lir::LirTargetProfile,
-    kind: scoop_lir::PointerKind,
-    gc_free: bool,
-) -> PhysicalType {
-    let layout = target.pointer_layout(kind);
-    PhysicalType {
-        size: layout.size_bytes(),
-        alignment: layout.alignment_bytes(),
-        shape: ScoopAbiValueShape::Scalar,
-        gc_free,
-    }
-}
-
-fn aggregate(
-    fields: &[PhysicalType],
-    shape: ScoopAbiValueShape,
-    exact: PersistentExactTypeId,
-) -> Result<PhysicalType, NativeBoundaryCompileError> {
-    aggregate_with_overrides(fields, None, None, shape, exact)
-}
-
-fn aggregate_with_policy(
-    fields: &[PhysicalType],
-    policy: NativeBoundaryCLayoutPolicy,
-    exact: PersistentExactTypeId,
-) -> Result<PhysicalType, NativeBoundaryCompileError> {
-    match policy {
-        NativeBoundaryCLayoutPolicy::NotCLayout => {
-            aggregate_with_overrides(fields, None, None, ScoopAbiValueShape::Aggregate, exact)
-        }
-        NativeBoundaryCLayoutPolicy::CLayout { aligned, packed } => aggregate_with_overrides(
-            fields,
-            override_bytes(aligned),
-            override_bytes(packed),
-            ScoopAbiValueShape::Aggregate,
-            exact,
-        ),
-    }
-}
-
-fn aggregate_with_overrides(
-    fields: &[PhysicalType],
-    aligned: Option<u64>,
-    packed: Option<u64>,
-    shape: ScoopAbiValueShape,
-    exact: PersistentExactTypeId,
-) -> Result<PhysicalType, NativeBoundaryCompileError> {
-    aggregate_values(fields.iter().copied(), aligned, packed, shape, exact)
-}
-
-fn aggregate_values(
-    fields: impl IntoIterator<Item = PhysicalType>,
-    aligned: Option<u64>,
-    packed: Option<u64>,
-    shape: ScoopAbiValueShape,
-    exact: PersistentExactTypeId,
-) -> Result<PhysicalType, NativeBoundaryCompileError> {
-    let mut size = 0_u64;
-    let mut alignment = aligned.unwrap_or(1);
-    let mut gc_free = true;
-    for field in fields {
-        let access_alignment = packed.map_or(field.alignment, |cap| field.alignment.min(cap));
-        size = align_up(size, access_alignment)?;
-        size = size
-            .checked_add(field.size)
-            .ok_or(NativeBoundaryTargetError::LayoutOverflow { exact })?;
-        alignment = alignment.max(access_alignment);
-        gc_free &= field.gc_free;
-    }
-    Ok(PhysicalType {
-        size: align_up(size, alignment)?,
-        alignment,
-        shape,
-        gc_free,
-    })
-}
-
-fn align_up(value: u64, alignment: u64) -> Result<u64, NativeBoundaryCompileError> {
-    let remainder = value % alignment;
-    if remainder == 0 {
-        Ok(value)
-    } else {
-        value
-            .checked_add(alignment - remainder)
-            .ok_or(NativeBoundaryTargetError::ArithmeticOverflow.into())
-    }
-}
-
-fn override_bytes(value: scoop_identity::CLayoutOverride) -> Option<u64> {
-    match value {
-        scoop_identity::CLayoutOverride::Natural => None,
-        scoop_identity::CLayoutOverride::Bytes(bytes) => Some(u64::from(bytes.get())),
-    }
-}
-
-fn core_integer(
-    key: &ExactTypeKey,
-) -> Option<(scoop_identity::Signedness, scoop_identity::IntegerBitWidth)> {
-    let ExactTypeKey::Nominal(owner) = key else {
-        return None;
-    };
-    CoreNativeBoundaryNominal::ALL
-        .into_iter()
-        .find(|role| role.concrete_id() == Some(*owner))
-        .and_then(CoreNativeBoundaryNominal::integer)
-}
-
 fn is_core_application(key: &ExactTypeKey, role: CoreNativeBoundaryNominal) -> bool {
     matches!(
         key,
@@ -1055,86 +925,5 @@ fn source_target(
         | SourceNativeExternalContract::MutableTls {
             symbol, library, ..
         } => (symbol, library),
-    }
-}
-
-#[derive(Debug)]
-pub enum NativeBoundaryTargetError {
-    InvalidSignatureShape,
-    MissingExactType {
-        exact: PersistentExactTypeId,
-    },
-    MissingCallbackApplication {
-        application: PersistentCallbackApplicationId,
-    },
-    MissingCallableApplication {
-        application: PersistentCallableApplicationId,
-    },
-    MissingCallbackRegistration {
-        registration: PersistentCallbackRegistrationId,
-    },
-    MissingInitializationUnit {
-        unit: PersistentInitializationUnitId,
-    },
-    BinderDepthOutOfRange {
-        depth: u32,
-    },
-    BinderIndexOutOfRange {
-        depth: u32,
-        index: u32,
-    },
-    ExpectedNominal {
-        exact: PersistentExactTypeId,
-    },
-    NotCAbiSafe {
-        exact: PersistentExactTypeId,
-    },
-    CLayoutCycle {
-        exact: PersistentExactTypeId,
-    },
-    ScoopLayoutCycle {
-        exact: PersistentExactTypeId,
-    },
-    CallableApplicationCycle {
-        application: PersistentCallableApplicationId,
-    },
-    LayoutOverflow {
-        exact: PersistentExactTypeId,
-    },
-    MissingComputedCLayout {
-        layout: CanonicalCAbiLayoutFingerprint,
-    },
-    ArithmeticOverflow,
-    NativeContractMismatch,
-    CallbackSignatureMismatch {
-        application: PersistentCallbackApplicationId,
-    },
-    ManagedCallbackSignatureMismatch {
-        application: PersistentCallbackApplicationId,
-    },
-    CAbiSignatureSetMismatch,
-    CAbiLayoutSetMismatch,
-    NativeRequirementSetMismatch,
-    NativeName(scoop_identity::CanonicalNativeNameError),
-    NativeSymbol(scoop_identity::NativeLinkSymbolError),
-    CanonicalCAbi(scoop_identity::CanonicalCAbiError),
-    ScoopAbi(scoop_identity::ScoopAbiError),
-    Hash(scoop_wire::HashError),
-}
-
-impl std::fmt::Display for NativeBoundaryTargetError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            formatter,
-            "native boundary target normalization failed: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for NativeBoundaryTargetError {}
-
-impl From<NativeBoundaryTargetError> for NativeBoundaryCompileError {
-    fn from(error: NativeBoundaryTargetError) -> Self {
-        Self::Target(error)
     }
 }

@@ -649,16 +649,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            fingerprints.hir().to_string(),
-            "1a7cb61cd83bc5d62f88280d22dd3d95b903c6cdad82377a9613dcc6df8872f9"
-        );
-        assert_eq!(
-            fingerprints.mir().to_string(),
-            "56bb9466f7112a21ff18d52257b67ae2946e160ea20984f22debcd5d4ca51857"
-        );
-        assert_eq!(
-            fingerprints.lir().to_string(),
-            "1146795f5298d4df3d1e887e8b181e2d9a1f6314ef96c560d88826cd76fc18dd"
+            [
+                fingerprints.hir().to_string(),
+                fingerprints.mir().to_string(),
+                fingerprints.lir().to_string()
+            ],
+            [
+                "0014fb746307c149f44cf3b9b5ea28ea4424b76b08e79b622a0be5d6f29877ae",
+                "56bb9466f7112a21ff18d52257b67ae2946e160ea20984f22debcd5d4ca51857",
+                "1146795f5298d4df3d1e887e8b181e2d9a1f6314ef96c560d88826cd76fc18dd",
+            ]
         );
     }
 

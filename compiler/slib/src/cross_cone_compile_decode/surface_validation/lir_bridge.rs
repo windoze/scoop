@@ -143,20 +143,21 @@ impl<'input> LirBridgeValidatedCrossConeHirFrontSections<'input> {
         signature: &ExactCallableSignature,
         gc_effect: GcEffect,
     ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-        replay_canonical_scoop_abi(
-            &mut self.graph,
-            &self.identities,
-            &self.foundations.hir,
-            dependencies,
-            signature,
-            gc_effect,
-        )
+        let current = crate::AbiReplayDependency {
+            identity: self.graph.identity(),
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+            nominals: self.hir_interface.nominal_interfaces(),
+        };
+        replay_canonical_scoop_abi(&mut self.graph, current, dependencies, signature, gc_effect)
     }
 
     pub(crate) fn abi_replay_types(&self) -> crate::AbiReplayDependency<'_> {
         crate::AbiReplayDependency {
+            identity: self.graph.identity(),
             identities: &self.identities,
             foundation: &self.foundations.hir,
+            nominals: self.hir_interface.nominal_interfaces(),
         }
     }
 

@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-22 当前 native intrinsic 表示约定：NativeBoundaryNominalShape 使用新 tag 4 保存完整共有 NominalIntrinsicRepresentationV1，生产与依赖投影不再丢弃 family。HIR identity-foundation 升级为 /2，旧 field 30 退役，field 33 保存完整 native 类型表；三十二字段集合为 1～29、31～33，旧字段/版本及 optional 混入拒绝。标量 canonical ABI 重放按实际 typed 声明的 intrinsic family 计算，不再重建 Integer/Boolean 的 CORE 身份，Unit 保持语言内建 identity；其余 Option 与 GC handle 固定身份分支继续迁移。具体表示、覆盖与版本合同见实现规范 2.11。
+
 2026-09-22 当前外部引用约定：String 和初始化 callable 使用共有 typed provider/definition 记录，禁止从 CORE 常量恢复 provider。strong production 的旧 field 1 退役，field 12 保存共有外部引用；旧 callable tag 1 退役，tag 3 直接保存完整 SelectedDependencyLirCallableV1，TypeDescriptor tag 2 保留已有含 provider 的载体。两种 TD/dispatch schema 统一使用显式 provider 的 DependencyExternal，CoreExternal tag 不复用；immortal registration 使用新的 tag 3 provider/exact 引用。strong-production /3、/4 升级为 /5、/6，cross-cone-layout-abi 与 cross-cone-layout-link-closure 升级为 /2。旧格式和 optional 版本混入均拒绝；local/runtime/absent、String 表示、runtime C ABI 和用途分区保持，详细编码与验证见实现规范 2.11、2.12。
 
 2026-09-22 初始化服务 ABI 迁移记录：LIR 删除 CoreLirBridge 及 Core/NotCore 外层，strong production 的旧 field 10 退役，新增 field 11 的 0/1 array，直接保存完整共有 CallableAbiRecordV1。strong-production 在该批从 `/1`、`/2` 分别升级为 `/3`、`/4`，随后按上面的外部引用约定继续升级为 `/5`、`/6`；后者保留 V2 layout reference schema；旧字段、旧 tag、旧版本和交叉 profile payload 均拒绝。MIR 实际角色决定 ABI 有无，MIR/LIR 导入投影和 callable 选择按所选实际 provider 验证 typed target、body、symbol、definition 和完整签名，不追加 CORE 来源条件；calling convention、GC effect、root plan、预算、registration 与用途分区保持。详见实现规范 2.12，runtime C ABI 与 String 表示不变。

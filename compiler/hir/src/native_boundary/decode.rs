@@ -16,6 +16,9 @@ use super::{
     encode_sequence, encode_tag, encode_two_value_sum, encode_value_sum,
 };
 
+mod shape;
+pub use shape::DecodedNativeBoundaryNominalShape;
+
 pub trait NativeBoundaryResolver<E>:
     PersistentIdResolver<PersistentTypeId, Error = E>
     + PersistentIdResolver<PersistentGenericTypeId, Error = E>
@@ -274,95 +277,6 @@ impl WireDecode for DecodedNativeBoundaryCLayoutPolicy {
                 Ok(Self::CLayout {
                     aligned: decoder.field(1, DecodedCLayoutOverride::decode)?,
                     packed: decoder.field(2, DecodedCLayoutOverride::decode)?,
-                })
-            }
-            tag => Err(unknown_tag(decoder, tag)),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DecodedNativeBoundaryNominalShape {
-    Reference,
-    Struct {
-        c_layout: DecodedNativeBoundaryCLayoutPolicy,
-        fields: Vec<DecodedNativeBoundaryFieldDefinition>,
-    },
-    Enum {
-        variants: Vec<DecodedNativeBoundaryVariantDefinition>,
-    },
-}
-
-impl DecodedNativeBoundaryNominalShape {
-    fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<NativeBoundaryNominalShape, NativeBoundaryResolutionError<E>>
-    where
-        R: NativeBoundaryResolver<E>,
-    {
-        match self {
-            Self::Reference => Ok(NativeBoundaryNominalShape::Reference),
-            Self::Struct { c_layout, fields } => Ok(NativeBoundaryNominalShape::Struct {
-                c_layout: c_layout.into(),
-                fields: resolve_sequence(fields, |field| field.resolve(resolver))?,
-            }),
-            Self::Enum { variants } => Ok(NativeBoundaryNominalShape::Enum {
-                variants: resolve_sequence(variants, |variant| variant.resolve(resolver))?,
-            }),
-        }
-    }
-}
-
-impl WireEncode for DecodedNativeBoundaryNominalShape {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Reference => encode_empty_sum(encoder, 1),
-            Self::Struct { c_layout, fields } => {
-                encoder.map(3)?;
-                encode_tag(encoder, 2)?;
-                encoder.field(1)?;
-                c_layout.encode(encoder)?;
-                encoder.field(2)?;
-                encode_sequence(encoder, fields)
-            }
-            Self::Enum { variants } => {
-                encoder.map(2)?;
-                encode_tag(encoder, 3)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, variants)
-            }
-        }
-    }
-}
-
-impl WireDecode for DecodedNativeBoundaryNominalShape {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        let (fields, tag) = decode_sum_header(decoder)?;
-        match tag {
-            1 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self::Reference)
-            }
-            2 => {
-                expect_sum_length(decoder, fields, 3)?;
-                Ok(Self::Struct {
-                    c_layout: decoder.field(1, DecodedNativeBoundaryCLayoutPolicy::decode)?,
-                    fields: decoder.field(2, |decoder| {
-                        decoder.decode_array(|decoder, _| {
-                            DecodedNativeBoundaryFieldDefinition::decode(decoder)
-                        })
-                    })?,
-                })
-            }
-            3 => {
-                expect_sum_length(decoder, fields, 2)?;
-                Ok(Self::Enum {
-                    variants: decoder.field(1, |decoder| {
-                        decoder.decode_array(|decoder, _| {
-                            DecodedNativeBoundaryVariantDefinition::decode(decoder)
-                        })
-                    })?,
                 })
             }
             tag => Err(unknown_tag(decoder, tag)),

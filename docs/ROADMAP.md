@@ -257,7 +257,7 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - collector只在逻辑死亡对象真正reclaim前同步claim并调用hook；不复制payload、不建立执行队列。moving只转移ready状态，from-space旧副本绝不触发；
 - best effort不保证GC时机、对象间顺序、执行线程或shutdown调用；但正常collection一旦决定回收ready对象，就必须在poison、复用或unmap其存储前尝试一次；
 - 显式`close`/`release`仍是主路径，并应先把owner字段置为inert state以避免后续hook重复释放。M24不新增公开arm/disarm API、full finalizer、对象复活、ByteBuffer或external-memory accounting。
-- `.slib` container仍为v1，但HIR/MIR/LIR outer schema必须同步升为2，foundation capability分别改为`org.scoop-lang.hir/identity-foundation/2`、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/2`，artifact profile改为`org.scoop-lang.slib-profile/identity-foundation/2`；callable body改用v2 key/domain但继续使用runtime metadata encoder ABI `RuntimeEncode`，旧v1 artifact整体重建，不能以outer schema升级代替capability/profile major升级。
+- `.slib` container仍为v1，但HIR/MIR/LIR outer schema必须同步升为2，foundation capability分别改为`org.scoop-lang.hir/identity-foundation/3`（承接 M23-6 的 `/2`）、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/2`，artifact profile改为`org.scoop-lang.slib-profile/identity-foundation/2`；callable body改用v2 key/domain但继续使用runtime metadata encoder ABI `RuntimeEncode`，旧v1 artifact整体重建，不能以outer schema升级代替capability/profile major升级。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 

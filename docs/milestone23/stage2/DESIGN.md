@@ -1665,7 +1665,7 @@ M23-2的三个identity foundation section都严格是Compile required且每层�
 
 同一种identity按“首次产生它的stage”只进入一个delta table。Compile validator先有界解码三层DTO，再按`(kind,id)`建立全artifact union graph并验证全部跨kind owner/edge；只有同kind table内部要求dependency-first，不靠不同table的field编号伪装拓扑。HIR key只能引用HIR本层或更早authority，MIR可引用HIR/MIR，LIR可引用三层，任何上层引用未来stage都拒绝。跨层重复`(kind,id)`即使key相同也拒绝，lowerer必须复用既有id而不是重发record；同id不同key仍是identity collision。这样每层IR自包含自己首次创建的persistent origin，又允许同层不同kind的合法互引由全图DAG/owner validation一次证明。
 
-`HirIdentityFoundationV1`（capability `org.scoop-lang.hir/identity-foundation/1`）：
+`HirIdentityFoundationV1`（本节记录 M23-2 的历史 capability `org.scoop-lang.hir/identity-foundation/1`；M23-6 已升级为 `/2`、退役 field 30 并以 field 33 保存完整 native intrinsic family，当前格式见 `../stage6/DESIGN.md`）：
 
 | field | table |
 | ---: | --- |

@@ -172,7 +172,9 @@ impl Fixture {
             NativeBoundaryNominalShape::Enum { .. } => {
                 NativeBoundaryNominalShape::Enum { variants: vec![] }
             }
-            NativeBoundaryNominalShape::Reference => panic!("fixture is a value type"),
+            NativeBoundaryNominalShape::Reference | NativeBoundaryNominalShape::Intrinsic(_) => {
+                panic!("fixture is a declared value type")
+            }
         };
         NativeBoundaryTypeDefinitionRecord::new(
             &self.declaration,

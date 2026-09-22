@@ -1,14 +1,14 @@
-Boolean struct NotCLayout fields=0
+Boolean intrinsic core_boolean
 Choice enum fields=[1, 1, 0]
-Int struct NotCLayout fields=0
-Int16 struct NotCLayout fields=0
-Int8 struct NotCLayout fields=0
-Long struct NotCLayout fields=0
+Int intrinsic core_int
+Int16 intrinsic core_int16
+Int8 intrinsic core_int8
+Long intrinsic core_long
 Packed struct CLayout { aligned: Bytes(Bytes8), packed: Bytes(Bytes1) } fields=2
-String reference
-UInt struct NotCLayout fields=0
-UInt16 struct NotCLayout fields=0
-UInt8 struct NotCLayout fields=0
-ULong struct NotCLayout fields=0
+String intrinsic core_string
+UInt intrinsic core_uint
+UInt16 intrinsic core_uint16
+UInt8 intrinsic core_uint8
+ULong intrinsic core_ulong
 Unit struct NotCLayout fields=0
 Wrapper struct NotCLayout fields=1

@@ -255,3 +255,13 @@ strong production 的旧 field 1 退役，field 12 保存共有外部引用表�
 workspace fmt 与 all-targets Clippy 通过；定向 LIR/LIR-lower/SLIB 1,169 项通过，补齐未使用 String 的边界后 lowering 131 项通过；最终全部 5,744 项 workspace 测试通过（37 组，零失败、零忽略），启用配套 scoopc 真实进程，覆盖 core 修改、无 sysroot 构建、source/prebuilt 切换、缓存、跨 Cone 调用与独立 Compile/Link 发布。普通 provider 的完整 String/初始化服务组合、provider 与 definition 漂移、self-import、同一 target 的不同 provider、重复证明、旧字段/tag/版本与 optional 混入均有验证。共有外部表主体 136 行，wire/错误/引用查询分别独立；immortal 模块从 750 行左右拆为登记 515 行与语义 266 行。全部构建测试会话结束后 cargo clean 删除 23,950 个文件、21.5 GiB。
 
 本批完成 LIR 外部引用与 registration 编码迁移；Link 独立 core owner/requirement 通道仍须并入共有实际 provider 索引，native 后端固定身份分类，以及 M23-6 原有完整 MIR/LIR 生产、跨 Cone nominal/member/dispatch 实际消费、双 view 发布和剩余 ZST 验收继续推进。
+
+2026-09-23：native intrinsic 表示与标量 ABI 重放
+
+- NativeBoundaryNominalShape 以新 tag 4 保存完整 NominalIntrinsicRepresentationV1；本地 struct/class 与依赖 source-shape 投影保留实际 family，构造和 reader 核对声明 kind、泛型参数数量、字段覆盖及实际 provider。
+- HIR identity-foundation 升为 /2，退役 native witness field 30 并以 field 33 保存记录；foundation、single-cone、cross-cone semantics、layout 四种 profile 的 inventory、固定向量与 fingerprint 同步，旧版本及 optional 混入均拒绝。历史阶段格式和 M24 后续 major 预留同步说明。
+- C ABI 的整数/Boolean 分类及 canonical Scoop ABI 的 intrinsic 布局通过实际 typed 声明记录计算；Unit 使用语言内建 identity。普通 callable 可从 provider 已验证的共有 nominal 表取得 intrinsic 表示，即使没有 extern 使用也能完成 ABI 重放；已有 native witness 与共有声明必须一致，错误 provider、表示冲突、缺失声明及预算耗尽均拒绝。Ptr/FunPtr 仍要求结构化 exact key。
+- 结构、错误、解码与物理布局计算按职责拆分；增加完整 family 往返、kind/arity、字段覆盖、普通 provider、缺失 witness、混合 provider ABI、旧字段/major 和持续预算验证，更新 native source golden 与缓存固定向量。
+- 已通过 cargo fmt --all、cargo clippy --workspace --all-targets、HIR/lowering/SLIB 定向回归及配套 scoopc 的完整 cargo test --workspace：37 组、5759 项通过，0 失败、0 忽略。完成后 cargo clean 清理 33260 个文件、35.2 GiB。
+
+本批完成 intrinsic 表示和对应 ABI 消费。Option、PinnedPtr/GcHandle 的固定身份路径、独立 core Link requirement/owner 分区及 M23-6 其余完成门继续实施，未据此把整个 M23-6 标记为完成。

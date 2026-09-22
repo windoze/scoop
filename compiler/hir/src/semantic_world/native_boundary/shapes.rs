@@ -10,13 +10,7 @@ pub(super) fn project(
 ) -> Result<Shape, Error> {
     let foundation = provider.foundation().canonical_for_semantic_authority();
     match source {
-        NominalSourceShapeV1::Intrinsic(representation) => match representation.family().target() {
-            crate::IntrinsicTypeTarget::Struct => Ok(Shape::Struct {
-                c_layout: crate::NativeBoundaryCLayoutPolicy::NotCLayout,
-                fields: Vec::new(),
-            }),
-            crate::IntrinsicTypeTarget::Class => Ok(Shape::Reference),
-        },
+        NominalSourceShapeV1::Intrinsic(representation) => Ok(Shape::Intrinsic(*representation)),
         NominalSourceShapeV1::Struct(source) => {
             let fields = source
                 .fields()

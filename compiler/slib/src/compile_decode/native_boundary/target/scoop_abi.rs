@@ -57,8 +57,7 @@ pub(super) fn exact_type_records(
 
 pub(crate) fn replay_canonical_scoop_abi<'a>(
     artifact: &mut ValidatedGraphArtifact<'_>,
-    identities: &ValidatedIdentityGraph,
-    hir_foundation: &OdrFreeHirFoundation,
+    current: AbiReplayDependency<'_>,
     dependencies: impl ExactSizeIterator<Item = AbiReplayDependency<'a>>,
     signature: &ExactCallableSignature,
     gc_effect: GcEffect,
@@ -70,34 +69,19 @@ pub(crate) fn replay_canonical_scoop_abi<'a>(
         .try_reserve_collection_slots(&mut sources, dependencies.len(), &WirePath::root())
         .map_err(NativeBoundaryCompileError::Resource)?;
     sources.extend(dependencies);
-    replay_canonical_scoop_abi_parts(
-        target,
-        meter,
-        identities,
-        hir_foundation,
-        &sources,
-        signature,
-        gc_effect,
-    )
+    replay_canonical_scoop_abi_parts(target, meter, current, &sources, signature, gc_effect)
 }
 
 pub(crate) fn replay_canonical_scoop_abi_parts(
     target: scoop_lir::LirTargetProfile,
     meter: &mut BudgetMeter,
-    identities: &ValidatedIdentityGraph,
-    hir_foundation: &OdrFreeHirFoundation,
+    current: AbiReplayDependency<'_>,
     dependencies: &[AbiReplayDependency<'_>],
     signature: &ExactCallableSignature,
     gc_effect: GcEffect,
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
-    let types = dependencies::collect(
-        AbiReplayDependency {
-            identities,
-            foundation: hir_foundation,
-        },
-        dependencies,
-        meter,
-    )?;
+    let types = dependencies::collect(current, dependencies, meter)?;
+    let definitions = types.definition_refs(meter)?;
     let callable_applications =
         HashMap::<PersistentCallableApplicationId, Arc<CallableApplicationKey>>::new();
     let initialization_units =
@@ -108,7 +92,7 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
         &types.exact,
         &callable_applications,
         &initialization_units,
-        &types.definitions,
+        &definitions,
     );
 
     let argument_count =

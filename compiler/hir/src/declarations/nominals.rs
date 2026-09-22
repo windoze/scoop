@@ -795,7 +795,7 @@ pub struct IntrinsicTypeDeclaration {
 }
 
 /// Closed semantic identity of every compiler-represented nominal type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntrinsicTypeKind {
     Integer(IntegerKind),
     Boolean,

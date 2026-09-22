@@ -1413,7 +1413,7 @@ MetadataSectionV1 {
 }
 ```
 
-HIR/MIR/LIR magic分别为`SCOOPHIR`、`SCOOPMIR`、`SCOOPLIR`，M23全部`outer_schema=1`。foundation capability精确为`org.scoop-lang.hir/identity-foundation/1`、`org.scoop-lang.mir/identity-foundation/1`与`org.scoop-lang.lir/identity-foundation/1`，三者都严格`required_for={Compile}`且每层恰好一条；artifact profile为`org.scoop-lang.slib-profile/identity-foundation/1`。该profile的Code/RuntimeImage unavailable、publication=`FoundationOnly`、Link forbidden，只能构造`ValidatedCompileArtifact<IdentityFoundationProfile>`，不能发布、链接或作为dependency。section按`CapabilitySortKey`严格递增；unknown optional完成outer/hash验证后才可跳过，unknown Compile-required在分配IR arena前失败。
+HIR/MIR/LIR magic分别为`SCOOPHIR`、`SCOOPMIR`、`SCOOPLIR`，M23全部`outer_schema=1`。foundation capability在 M23-6 精确为`org.scoop-lang.hir/identity-foundation/2`（原 `/1` native witness 格式退役，见 stage6 设计）、`org.scoop-lang.mir/identity-foundation/1`与`org.scoop-lang.lir/identity-foundation/1`，三者都严格`required_for={Compile}`且每层恰好一条；artifact profile为`org.scoop-lang.slib-profile/identity-foundation/1`。该profile的Code/RuntimeImage unavailable、publication=`FoundationOnly`、Link forbidden，只能构造`ValidatedCompileArtifact<IdentityFoundationProfile>`，不能发布、链接或作为dependency。section按`CapabilitySortKey`严格递增；unknown optional完成outer/hash验证后才可跳过，unknown Compile-required在分配IR arena前失败。
 
 三个inner payload都是Wire CBOR v1 closed product；同一种identity只在首次产生它的stage进入一张delta table，跨层重复`(kind,id)`即使key相同也拒绝。HIR foundation的field 1…30精确为：
 

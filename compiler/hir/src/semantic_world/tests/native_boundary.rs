@@ -157,7 +157,7 @@ fn native_producer_closes_mixed_direct_and_support_signature_dependencies() {
                             .map(|v| v.fields().len())
                             .collect::<Vec<_>>()
                     ),
-                    Shape::Reference => panic!("value fixture"),
+                    Shape::Reference | Shape::Intrinsic(_) => panic!("declared value fixture"),
                 }
             })
             .collect::<Vec<_>>();

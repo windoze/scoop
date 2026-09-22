@@ -24,7 +24,9 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 use super::StructurallyValidatedFoundations;
 use crate::ValidatedGraphArtifact;
 
+mod errors;
 mod target;
+pub use errors::NativeBoundaryCompileError;
 pub(crate) use target::{AbiReplayDependency, replay_canonical_scoop_abi};
 pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
 
@@ -173,7 +175,7 @@ fn validate_source_closure(
         view.type_definitions,
         scoop_hir::NativeBoundaryTypeDefinitionRecord::owner,
         meter,
-        &WirePath::root().field(30),
+        &WirePath::root().field(33),
     )?;
 
     let mut closure = SourceClosureState::new(meter);
@@ -216,13 +218,14 @@ fn validate_source_closure(
             continue;
         };
         match definition.shape() {
-            scoop_hir::NativeBoundaryNominalShape::Reference => {}
+            scoop_hir::NativeBoundaryNominalShape::Reference
+            | scoop_hir::NativeBoundaryNominalShape::Intrinsic(_) => continue,
             scoop_hir::NativeBoundaryNominalShape::Struct { fields, .. } => {
                 for field in fields {
                     collect_signature_type(
                         field.ty(),
                         &mut closure,
-                        &WirePath::root().field(30),
+                        &WirePath::root().field(33),
                         1,
                     )?;
                 }
@@ -233,7 +236,7 @@ fn validate_source_closure(
                         collect_signature_type(
                             field.ty(),
                             &mut closure,
-                            &WirePath::root().field(30),
+                            &WirePath::root().field(33),
                             1,
                         )?;
                     }
@@ -713,86 +716,6 @@ fn collect_exact_type(
     }
     state.cache_exact_height(exact, height, &path)?;
     Ok(height)
-}
-
-#[derive(Debug)]
-pub enum NativeBoundaryCompileError {
-    Identity(IdentityValidationError),
-    Resource(WireError),
-    Encoding(scoop_wire::cbor::EncodeError),
-    ConflictingExactType {
-        exact: PersistentExactTypeId,
-    },
-    ConflictingTypeWitness {
-        owner: NativeBoundaryNominalOwner,
-    },
-    MissingCallableApplication {
-        application: PersistentCallableApplicationId,
-    },
-    MissingInitializationUnit {
-        unit: PersistentInitializationUnitId,
-    },
-    MissingExactType {
-        exact: PersistentExactTypeId,
-    },
-    ClosureRequired {
-        owner: NativeBoundaryNominalOwner,
-    },
-    UnrelatedDefinition {
-        owner: NativeBoundaryNominalOwner,
-    },
-    Target(NativeBoundaryTargetError),
-}
-
-impl fmt::Display for NativeBoundaryCompileError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Identity(error) => error.fmt(formatter),
-            Self::Resource(error) => error.fmt(formatter),
-            Self::Encoding(error) => error.fmt(formatter),
-            Self::ConflictingExactType { exact } => {
-                write!(formatter, "conflicting ABI exact type {exact}")
-            }
-            Self::ConflictingTypeWitness { owner } => {
-                write!(formatter, "conflicting ABI source witness for {owner:?}")
-            }
-            Self::MissingCallableApplication { application } => write!(
-                formatter,
-                "native boundary references missing callable application {application}"
-            ),
-            Self::MissingInitializationUnit { unit } => write!(
-                formatter,
-                "native boundary references missing initialization application {unit}"
-            ),
-            Self::MissingExactType { exact } => {
-                write!(
-                    formatter,
-                    "native boundary references missing exact type {exact}"
-                )
-            }
-            Self::ClosureRequired { owner } => write!(
-                formatter,
-                "SLIB_CAPABILITY_NATIVE_BOUNDARY_CLOSURE_REQUIRED: no source witness for {owner:?}"
-            ),
-            Self::UnrelatedDefinition { owner } => write!(
-                formatter,
-                "native boundary contains unrelated source witness for {owner:?}"
-            ),
-            Self::Target(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for NativeBoundaryCompileError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Identity(error) => Some(error),
-            Self::Resource(error) => Some(error),
-            Self::Encoding(error) => Some(error),
-            Self::Target(error) => Some(error),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]

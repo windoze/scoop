@@ -4,11 +4,12 @@ use scoop_identity::CoreBuiltinNominal;
 use super::declarations::LocalNominalDeclaration;
 use super::{HirNativeBoundaryTypeDefinitionError, HirNativeBoundaryTypeDefinitionInputs};
 use crate::{
-    EnumVariantFieldRef, EnumVariantRef, HirNominalIdentity, HirSignatureBinder,
-    HirSignatureTypeMapper, HirSourceNominalIdentity, NativeBoundaryCLayoutPolicy,
-    NativeBoundaryFieldDefinition, NativeBoundaryNominalShape, NativeBoundaryTypeDefinitionRecord,
-    NativeBoundaryVariantDefinition, NativeBoundaryVariantFieldDefinition, StructFieldRef,
-    TypeParamDecl,
+    ClassRepresentation, EnumVariantFieldRef, EnumVariantRef, HirNominalIdentity,
+    HirSignatureBinder, HirSignatureTypeMapper, HirSourceNominalIdentity,
+    NativeBoundaryCLayoutPolicy, NativeBoundaryFieldDefinition, NativeBoundaryNominalShape,
+    NativeBoundaryTypeDefinitionRecord, NativeBoundaryVariantDefinition,
+    NativeBoundaryVariantFieldDefinition, NominalIntrinsicRepresentationV1, StructFieldRef,
+    StructRepresentation, TypeParamDecl,
 };
 
 pub(super) fn build(
@@ -21,6 +22,16 @@ pub(super) fn build(
         LocalNominalDeclaration::Struct(id) => {
             let structure = &inputs.structs[id];
             let source = source_nominal(&inputs.nominal_identities[id])?;
+            if let StructRepresentation::Intrinsic(intrinsic) = structure.representation {
+                return NativeBoundaryTypeDefinitionRecord::new(
+                    source.declaration(),
+                    &[checked_parameter_count(&structure.type_params)?],
+                    NativeBoundaryNominalShape::Intrinsic(NominalIntrinsicRepresentationV1::new(
+                        intrinsic.kind,
+                    )),
+                )
+                .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition);
+            }
             let binders = nominal_binders(&structure.type_params)?;
             let mut fields = Vec::with_capacity(structure.semantic_fields().len());
             for (index, field) in structure.semantic_fields().iter().enumerate() {
@@ -105,10 +116,22 @@ pub(super) fn build(
             )
             .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition)
         }
-        LocalNominalDeclaration::Class(id) => reference(
-            source_nominal(&inputs.nominal_identities[id])?,
-            &inputs.classes[id].type_params,
-        ),
+        LocalNominalDeclaration::Class(id) => {
+            let class = &inputs.classes[id];
+            let source = source_nominal(&inputs.nominal_identities[id])?;
+            let shape = match class.representation {
+                ClassRepresentation::Declared => NativeBoundaryNominalShape::Reference,
+                ClassRepresentation::Intrinsic(intrinsic) => NativeBoundaryNominalShape::Intrinsic(
+                    NominalIntrinsicRepresentationV1::new(intrinsic.kind),
+                ),
+            };
+            NativeBoundaryTypeDefinitionRecord::new(
+                source.declaration(),
+                &[checked_parameter_count(&class.type_params)?],
+                shape,
+            )
+            .map_err(HirNativeBoundaryTypeDefinitionError::InvalidDefinition)
+        }
         LocalNominalDeclaration::Interface(id) => reference(
             source_nominal(&inputs.nominal_identities[id])?,
             &inputs.interfaces[id].type_params,

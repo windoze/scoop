@@ -105,7 +105,7 @@ fn decode_alignment(decoder: &mut Decoder<'_, '_>) -> Result<HirCLayoutValue, Wi
 
 /// The semantic family belongs to its source nominal. It does not replace the
 /// exact application arguments of Array, MutableArray, Ptr, or FunPtr.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NominalIntrinsicRepresentationV1 {
     family: IntrinsicTypeKind,
 }

@@ -259,7 +259,8 @@ pub(super) fn collect_definition_types(
     required: &mut BTreeSet<NativeBoundaryNominalOwner>,
 ) {
     match definition.shape() {
-        crate::NativeBoundaryNominalShape::Reference => (),
+        crate::NativeBoundaryNominalShape::Reference
+        | crate::NativeBoundaryNominalShape::Intrinsic(_) => (),
         crate::NativeBoundaryNominalShape::Struct { fields, .. } => {
             for field in fields {
                 collect_signature_type(field.ty(), required);

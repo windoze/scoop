@@ -336,7 +336,7 @@ fn validate_foundation(
         .try_reserve_collection_slots(
             &mut boundary_types,
             native_boundary_types.len(),
-            &WirePath::root().field(30),
+            &WirePath::root().field(33),
         )
         .map_err(HirFoundationValidationError::Resource)?;
     for (index, boundary) in native_boundary_types.into_iter().enumerate() {
