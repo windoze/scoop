@@ -843,7 +843,7 @@ Module
     val local2
       Local $argument.0 : Int
     assign global attempts
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     throw

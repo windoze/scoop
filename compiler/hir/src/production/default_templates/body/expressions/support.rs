@@ -1,8 +1,8 @@
 //! Shared projections used by several expression families.
 
 use crate::{
-    DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultIntegerOperationV1,
-    DefaultMethodCalleeV1, DefaultPlaceV1, IntegerOperation, OptionalDefaultExpressionV1, Place,
+    DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultMethodCalleeV1, DefaultPlaceV1,
+    OptionalDefaultExpressionV1, Place,
 };
 
 use super::super::BodyProjection;
@@ -56,36 +56,6 @@ impl BodyProjection<'_, '_, '_> {
                     owner_type: self.type_key(application.owner_ty)?,
                 }
             }
-        })
-    }
-
-    pub(super) fn integer_operation(
-        &self,
-        operation: &crate::HirIntegerOperation,
-    ) -> Result<DefaultIntegerOperationV1, super::super::super::DefaultBodyProjectionError> {
-        Ok(match operation {
-            IntegerOperation::NoGc {
-                kind,
-                operation,
-                target,
-            } => DefaultIntegerOperationV1::NoGc {
-                kind: (*kind).into(),
-                operation: (*operation).into(),
-                target: self
-                    .entities
-                    .callable(crate::Callable::Function(target.function()), self.binders)?,
-            },
-            IntegerOperation::Managed {
-                kind,
-                operation,
-                target,
-            } => DefaultIntegerOperationV1::Managed {
-                kind: (*kind).into(),
-                operation: (*operation).into(),
-                target: self
-                    .entities
-                    .callable(crate::Callable::Function(target.function()), self.binders)?,
-            },
         })
     }
 

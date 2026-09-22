@@ -574,9 +574,7 @@ impl Lowerer {
         };
         let equality = if let Some(kind) = integer_kind {
             self.check_call_effects(hir::Callable::Function(function), span);
-            let target = hir::NoGcCallableRef::try_from_function(function, &self.functions)
-                .expect("core validation proves integer equals is a no-GC intrinsic");
-            hir::LiteralPatternEquality::Integer { kind, target }
+            hir::LiteralPatternEquality::Integer { kind }
         } else {
             let callable = self.materialize_resolved_callee(&resolved);
             self.check_call_effects(callable, span);

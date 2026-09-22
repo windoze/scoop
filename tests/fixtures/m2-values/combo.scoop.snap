@@ -898,7 +898,7 @@ Module
         val local17
           Local $argument.0 : Int
       Binary Lt : Boolean
-        IntegerOperation int.compare_to target=function137 <no-gc> : Long
+        IntegerOperation int.compare_to <no-gc> : Long
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Long
@@ -916,7 +916,7 @@ Module
       val local22
         Local $argument.0 : Int
       assign count
-        IntegerOperation int.add target=function132 <no-gc> : Int
+        IntegerOperation int.add <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
   output executable main

@@ -3,21 +3,11 @@ use crate::cross_cone_interface::default_templates::resolution_resources::resour
 
 resource_node!(DecodedDefaultIntegerOperationV1, node, children, {
     match node {
-        Self::NoGc {
-            kind,
-            operation,
-            target,
-        } => {
-            children.push(target)?;
+        Self::NoGc { kind, operation } => {
             children.push(operation)?;
             children.push(kind)?;
         }
-        Self::Managed {
-            kind,
-            operation,
-            target,
-        } => {
-            children.push(target)?;
+        Self::Managed { kind, operation } => {
             children.push(operation)?;
             children.push(kind)?;
         }

@@ -20,13 +20,8 @@ impl Concretizer<'_> {
             } => concrete::Pattern::Literal {
                 value: self.lower_expr(value, substitution, locals),
                 equality: match *equality {
-                    export::LiteralPatternEquality::Integer { kind, target } => {
-                        concrete::LiteralPatternEquality::Integer {
-                            kind,
-                            target: concrete::NoGcCallableRef::map_from_export(target, |source| {
-                                self.lower_integer_callable(kind, source)
-                            }),
-                        }
+                    export::LiteralPatternEquality::Integer { kind } => {
+                        concrete::LiteralPatternEquality::Integer { kind }
                     }
                     export::LiteralPatternEquality::Ordinary { equals } => {
                         concrete::LiteralPatternEquality::Ordinary {

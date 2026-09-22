@@ -53,7 +53,7 @@ where
                 };
                 self.expect_type(subject_type, &literal_type, subject_site)?;
                 self.expect_type(subject, subject_type, subject_site)?;
-                if let DefaultLiteralEqualityV1::Integer { kind, .. } = equality {
+                if let DefaultLiteralEqualityV1::Integer { kind } = equality {
                     let equality_type = self.core_type(
                         DefaultOperationCoreTypeV1::Integer(*kind),
                         Self::site(operation, DefaultOperationValueRoleV1::Callable),
@@ -63,6 +63,7 @@ where
                         subject_type,
                         Self::site(operation, DefaultOperationValueRoleV1::Callable),
                     )?;
+                    return Ok(());
                 }
                 self.validate_intrinsic(
                     DefaultOperationIntrinsicV1::LiteralEquality {

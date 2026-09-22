@@ -1,6 +1,6 @@
 use crate::{
     DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationV1,
+    DefaultExpressionV1, DefaultIntegerArgumentsV1,
 };
 
 use super::{BodyNode, BodyWalkMode, Validator, WorkItem};
@@ -329,32 +329,11 @@ where
                 self.push_child(pending, depth, BodyNode::Expression(rhs))?;
                 self.push_child(pending, depth, BodyNode::Expression(lhs))
             }
-            DefaultExpressionKindV1::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                self.push_child(pending, depth, BodyNode::IntegerArguments(arguments))?;
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::IntegerOperation {
-                        operation,
-                        definition_origin,
-                    },
-                )
+            DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
+                self.push_child(pending, depth, BodyNode::IntegerArguments(arguments))
             }
-            DefaultExpressionKindV1::IntegerConversion {
-                target, operand, ..
-            } => {
-                self.push_child(pending, depth, BodyNode::Expression(operand))?;
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::CallableRef {
-                        callable: target,
-                        definition_origin,
-                    },
-                )
+            DefaultExpressionKindV1::IntegerConversion { operand, .. } => {
+                self.push_child(pending, depth, BodyNode::Expression(operand))
             }
         }
     }
@@ -408,27 +387,6 @@ where
             assembly.element_type(),
             DefaultBodyProviderTypeSiteV1::ArrayAssemblyElement,
             definition_origin,
-        )
-    }
-
-    pub(super) fn process_integer_operation<'body>(
-        &mut self,
-        operation: &'body DefaultIntegerOperationV1,
-        definition_origin: &'body crate::ExportDefinitionSourceV1,
-        depth: u64,
-        pending: &mut Vec<WorkItem<'body>>,
-    ) -> Result<(), M::Error> {
-        let target = match operation {
-            DefaultIntegerOperationV1::NoGc { target, .. }
-            | DefaultIntegerOperationV1::Managed { target, .. } => target,
-        };
-        self.push_child(
-            pending,
-            depth,
-            BodyNode::CallableRef {
-                callable: target,
-                definition_origin,
-            },
         )
     }
 

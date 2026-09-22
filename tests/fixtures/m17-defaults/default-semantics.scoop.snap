@@ -967,7 +967,7 @@ Module
     val local4
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun empty<T>(values: Array<T0>): Array<T0>
@@ -1021,7 +1021,7 @@ Module
     val local6
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun main(): Unit

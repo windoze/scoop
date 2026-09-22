@@ -96,37 +96,28 @@ impl Lowerer {
             Kind::PrimitiveUnary { operand, .. } | Kind::Unary { operand, .. } => self
                 .preflight_imported_default_expression(owner, template, operand, locals, callables),
             Kind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                let target = match operation {
-                    hir::DefaultIntegerOperationV1::NoGc { target, .. }
-                    | hir::DefaultIntegerOperationV1::Managed { target, .. } => target,
-                };
-                self.prepare_imported_default_call(template, target, callables)?;
-                match arguments {
-                    hir::DefaultIntegerArgumentsV1::Unary(operand) => self
-                        .preflight_imported_default_expression(
-                            owner, template, operand, locals, callables,
-                        ),
-                    hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
-                        self.preflight_imported_default_expression(
-                            owner, template, lhs, locals, callables,
-                        )?;
-                        self.preflight_imported_default_expression(
-                            owner, template, rhs, locals, callables,
-                        )
-                    }
+                operation: hir::DefaultIntegerOperationV1::Managed { .. },
+                ..
+            } => Err(ImportedDefaultPlanError::Requires {
+                requirement: ImportedCapabilityRequirement::Layout,
+                operation: "dependency integer division exception construction",
+            }),
+            Kind::IntegerOperation { arguments, .. } => match arguments {
+                hir::DefaultIntegerArgumentsV1::Unary(operand) => self
+                    .preflight_imported_default_expression(
+                        owner, template, operand, locals, callables,
+                    ),
+                hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+                    self.preflight_imported_default_expression(
+                        owner, template, lhs, locals, callables,
+                    )?;
+                    self.preflight_imported_default_expression(
+                        owner, template, rhs, locals, callables,
+                    )
                 }
-            }
-            Kind::IntegerConversion {
-                target, operand, ..
-            } => {
-                self.prepare_imported_default_call(template, target, callables)?;
-                self.preflight_imported_default_expression(
-                    owner, template, operand, locals, callables,
-                )
-            }
+            },
+            Kind::IntegerConversion { operand, .. } => self
+                .preflight_imported_default_expression(owner, template, operand, locals, callables),
             Kind::MethodCall { .. } | Kind::DirectSuperMethodCall { .. } => {
                 Err(ImportedDefaultPlanError::Requires {
                     requirement: ImportedCapabilityRequirement::Dispatch,

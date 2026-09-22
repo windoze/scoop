@@ -1,0 +1,5 @@
+public fun userCoreIntegerDefault(value: Int = 7 + 2): Int = value
+public fun userCoreIntegerCombination(value: Long = (40 + 2).inc().compareTo(10)): Long = value
+public fun userCoreConvertedDefault(value: UInt = (3 shl 2L).toUInt32()): UInt = value
+public fun userCoreIntegerOperands(seed: Int, value: Int = seed.inc()): Int = value
+public fun userCoreManagedIntegerDefault(value: Int = 40 / 2): Int = value

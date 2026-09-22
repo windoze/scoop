@@ -67,7 +67,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | BodyNode::FieldUse { .. }
             | BodyNode::LiteralEquality { .. }
             | BodyNode::ArrayAssembly { .. }
-            | BodyNode::IntegerOperation { .. }
             | BodyNode::IntegerArguments(_) => self.current,
         };
         Ok(())

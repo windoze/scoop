@@ -4051,7 +4051,7 @@ Module
     val local107
       IntegerLiteral 1u : UInt
     val local109
-      IntegerOperation uint.unary_minus target=function255 <no-gc> : UInt
+      IntegerOperation uint.unary_minus <no-gc> : UInt
         Local $receiver : UInt
     val local110
       Local $argument.0 : UInt

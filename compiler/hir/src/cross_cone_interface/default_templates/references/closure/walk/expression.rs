@@ -1,6 +1,6 @@
 use crate::{
     DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1, DefaultExpressionKindV1,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationV1, DefaultPlaceV1,
+    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultPlaceV1,
 };
 
 use super::super::{
@@ -330,29 +330,11 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                 self.push_child(pending, depth, BodyNode::Expression(rhs))?;
                 self.push_child(pending, depth, BodyNode::Expression(lhs))
             }
-            DefaultExpressionKindV1::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                self.push_child(pending, depth, BodyNode::IntegerArguments(arguments))?;
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::IntegerOperation { operation, origin },
-                )
+            DefaultExpressionKindV1::IntegerOperation { arguments, .. } => {
+                self.push_child(pending, depth, BodyNode::IntegerArguments(arguments))
             }
-            DefaultExpressionKindV1::IntegerConversion {
-                target, operand, ..
-            } => {
-                self.push_child(pending, depth, BodyNode::Expression(operand))?;
-                self.push_child(
-                    pending,
-                    depth,
-                    BodyNode::CallableUse {
-                        callable: target,
-                        origin,
-                    },
-                )
+            DefaultExpressionKindV1::IntegerConversion { operand, .. } => {
+                self.push_child(pending, depth, BodyNode::Expression(operand))
             }
         }
     }
@@ -407,20 +389,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             origin,
             DefaultBodyProviderTypeSiteV1::ArrayAssemblyElement,
         )
-    }
-
-    pub(super) fn process_integer_operation(
-        &mut self,
-        operation: &'body DefaultIntegerOperationV1,
-        origin: &'body crate::ExportDefinitionSourceV1,
-        depth: u64,
-        pending: &mut Vec<ScheduledWork<'body>>,
-    ) -> Result<(), V::Error> {
-        let callable = match operation {
-            DefaultIntegerOperationV1::NoGc { target, .. }
-            | DefaultIntegerOperationV1::Managed { target, .. } => target,
-        };
-        self.push_child(pending, depth, BodyNode::CallableUse { callable, origin })
     }
 
     pub(super) fn process_integer_arguments(

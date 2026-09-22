@@ -114,29 +114,16 @@ impl Lowerer {
                     }
                 }
             }
-            ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                record(hir::Callable::Function(match operation {
-                    hir::IntegerOperation::NoGc { target, .. } => target.function(),
-                    hir::IntegerOperation::Managed { target, .. } => target.function(),
-                }));
-                match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => {
-                        self.collect_generic_calls_in_expr(operand, out);
-                    }
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                        self.collect_generic_calls_in_expr(lhs, out);
-                        self.collect_generic_calls_in_expr(rhs, out);
-                    }
+            ExprKind::IntegerOperation { arguments, .. } => match arguments {
+                hir::HirIntegerOperationArguments::Unary(operand) => {
+                    self.collect_generic_calls_in_expr(operand, out);
                 }
-            }
-            ExprKind::IntegerConversion {
-                conversion,
-                operand,
-            } => {
-                record(hir::Callable::Function(conversion.target.function()));
+                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    self.collect_generic_calls_in_expr(lhs, out);
+                    self.collect_generic_calls_in_expr(rhs, out);
+                }
+            },
+            ExprKind::IntegerConversion { operand, .. } => {
                 self.collect_generic_calls_in_expr(operand, out);
             }
             ExprKind::FunctionCoercion { source, .. }

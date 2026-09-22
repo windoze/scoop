@@ -11,25 +11,18 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultLiteralEqualityV1 {
-    Integer {
-        kind: DefaultIntegerKindV1,
-        target: DefaultCallableRefV1,
-    },
-    Ordinary {
-        target: DefaultCallableRefV1,
-    },
+    Integer { kind: DefaultIntegerKindV1 },
+    Ordinary { target: DefaultCallableRefV1 },
 }
 
 impl WireEncode for DefaultLiteralEqualityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::Integer { kind, target } => {
-                encoder.map(3)?;
+            Self::Integer { kind } => {
+                encoder.map(2)?;
                 encode_tag(encoder, 1)?;
                 encoder.field(1)?;
-                kind.encode(encoder)?;
-                encoder.field(2)?;
-                target.encode(encoder)
+                kind.encode(encoder)
             }
             Self::Ordinary { target } => {
                 encoder.map(2)?;
@@ -43,13 +36,8 @@ impl WireEncode for DefaultLiteralEqualityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedDefaultLiteralEqualityV1 {
-    Integer {
-        kind: DefaultIntegerKindV1,
-        target: DecodedDefaultCallableRefV1,
-    },
-    Ordinary {
-        target: DecodedDefaultCallableRefV1,
-    },
+    Integer { kind: DefaultIntegerKindV1 },
+    Ordinary { target: DecodedDefaultCallableRefV1 },
 }
 
 impl DecodedDefaultLiteralEqualityV1 {
@@ -61,12 +49,7 @@ impl DecodedDefaultLiteralEqualityV1 {
         R: DefaultCallableReferenceResolver<E>,
     {
         match self {
-            Self::Integer { kind, target } => Ok(DefaultLiteralEqualityV1::Integer {
-                kind,
-                target: target
-                    .resolve(resolver)
-                    .map_err(DefaultLiteralEqualityResolutionError::IntegerTarget)?,
-            }),
+            Self::Integer { kind } => Ok(DefaultLiteralEqualityV1::Integer { kind }),
             Self::Ordinary { target } => Ok(DefaultLiteralEqualityV1::Ordinary {
                 target: target
                     .resolve(resolver)
@@ -79,13 +62,11 @@ impl DecodedDefaultLiteralEqualityV1 {
 impl WireEncode for DecodedDefaultLiteralEqualityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::Integer { kind, target } => {
-                encoder.map(3)?;
+            Self::Integer { kind } => {
+                encoder.map(2)?;
                 encode_tag(encoder, 1)?;
                 encoder.field(1)?;
-                kind.encode(encoder)?;
-                encoder.field(2)?;
-                target.encode(encoder)
+                kind.encode(encoder)
             }
             Self::Ordinary { target } => {
                 encoder.map(2)?;
@@ -103,10 +84,9 @@ impl WireDecode for DecodedDefaultLiteralEqualityV1 {
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
             1 => {
-                expect_sum_length(decoder, fields, 3)?;
+                expect_sum_length(decoder, fields, 2)?;
                 Ok(Self::Integer {
                     kind: decoder.field(1, DefaultIntegerKindV1::decode)?,
-                    target: decoder.field(2, DecodedDefaultCallableRefV1::decode)?,
                 })
             }
             2 => {
@@ -122,19 +102,12 @@ impl WireDecode for DecodedDefaultLiteralEqualityV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DefaultLiteralEqualityResolutionError<E> {
-    IntegerTarget(DefaultCallableRefResolutionError<E>),
     OrdinaryTarget(DefaultCallableRefResolutionError<E>),
 }
 
 impl<E: fmt::Display> fmt::Display for DefaultLiteralEqualityResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::IntegerTarget(error) => {
-                write!(
-                    formatter,
-                    "invalid default integer equality target: {error}"
-                )
-            }
             Self::OrdinaryTarget(error) => {
                 write!(
                     formatter,

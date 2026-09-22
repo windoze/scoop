@@ -101,12 +101,9 @@ impl BodyProjection<'_, '_, '_> {
         equality: LiteralPatternEquality,
     ) -> Result<DefaultLiteralEqualityV1, super::super::DefaultBodyProjectionError> {
         Ok(match equality {
-            LiteralPatternEquality::Integer { kind, target } => DefaultLiteralEqualityV1::Integer {
-                kind: kind.into(),
-                target: self
-                    .entities
-                    .callable(crate::Callable::Function(target.function()), self.binders)?,
-            },
+            LiteralPatternEquality::Integer { kind } => {
+                DefaultLiteralEqualityV1::Integer { kind: kind.into() }
+            }
             LiteralPatternEquality::Ordinary { equals } => DefaultLiteralEqualityV1::Ordinary {
                 target: self.entities.callable(equals, self.binders)?,
             },

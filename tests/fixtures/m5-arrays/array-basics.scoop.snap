@@ -859,7 +859,7 @@ Module
         Local $receiver : Array<Int>
         Local $parameter.index : Long
     val local5
-      IntegerConversion Int -> Long target=function148 <no-gc> : Long
+      IntegerConversion Int -> Long <no-gc> : Long
         Local $receiver : Int
     val local6
       ArrayLen : Long
@@ -867,7 +867,7 @@ Module
     val local7
       Local $argument.0 : Long
     val local8
-      IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.add <no-gc> : Long
         Local $receiver : Long
         Local $parameter.other : Long
     val local9

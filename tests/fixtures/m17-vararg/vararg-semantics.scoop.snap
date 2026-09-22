@@ -1097,7 +1097,7 @@ Module
     val local2
       Local this : Int
     val local3
-      IntegerConversion Int -> Long target=function148 <no-gc> : Long
+      IntegerConversion Int -> Long <no-gc> : Long
         Local $receiver : Int
     val local4
       ArrayLen : Long
@@ -1105,7 +1105,7 @@ Module
     val local5
       Local $argument.0 : Long
     return
-      IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.add <no-gc> : Long
         Local $receiver : Long
         Local $parameter.other : Long
   fun localCount(): Long
@@ -1147,7 +1147,7 @@ Module
         val local6
           Local $argument.0 : Long
       Binary Lt : Boolean
-        IntegerOperation long.compare_to target=function169 <no-gc> : Long
+        IntegerOperation long.compare_to <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 0 : Long
@@ -1172,7 +1172,7 @@ Module
       val local14
         Local $argument.0 : Long
       assign index
-        IntegerOperation long.add target=function164 <no-gc> : Long
+        IntegerOperation long.add <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
   fun main(): Unit

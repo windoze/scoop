@@ -304,8 +304,8 @@ impl ManagedCallableRef {
     }
 }
 
-pub type HirIntegerOperation = IntegerOperation<NoGcCallableRef, ManagedCallableRef>;
-pub type HirIntegerConversion = IntegerConversion<NoGcCallableRef>;
+pub type HirIntegerOperation = IntegerOperation;
+pub type HirIntegerConversion = IntegerConversion;
 
 #[cfg(test)]
 mod tests {

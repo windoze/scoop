@@ -993,7 +993,6 @@ where
             crate::DefaultExpressionKindV1::IntegerConversion {
                 source_kind,
                 target_kind,
-                target,
                 operand,
             } => {
                 let source_type = self.integer_type(
@@ -1010,26 +1009,6 @@ where
                     operand.result_type(),
                     &source_type,
                     Self::site(operation, DefaultOperationValueRoleV1::Operand),
-                )?;
-                let shape = self.callable_shape(
-                    DefaultOperationEntityV1::Callable(target),
-                    operation,
-                    DefaultOperationValueRoleV1::Callable,
-                )?;
-                self.expect_integer_callable_shape(
-                    operation,
-                    &shape,
-                    &source_type,
-                    &[],
-                    &target_type,
-                )?;
-                self.validate_intrinsic(
-                    DefaultOperationIntrinsicV1::IntegerConversion {
-                        source: *source_kind,
-                        target: *target_kind,
-                        callable: target,
-                    },
-                    Self::site(operation, DefaultOperationValueRoleV1::Callable),
                 )?;
                 self.expect_result(expression, operation, &target_type, false)?;
                 self.push_expression(pending, operand, depth)
@@ -1671,12 +1650,20 @@ where
         arguments: &DefaultIntegerArgumentsV1,
     ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
         let operation = DefaultExpressionOperationV1::IntegerOperation;
-        let (kind, target, rhs, result) = match integer_operation {
+        let (kind, rhs, result) = match integer_operation {
             DefaultIntegerOperationV1::NoGc {
                 kind,
                 operation: intrinsic,
-                target,
             } => {
+                if !crate::NoGcIntegerOperation::from(*intrinsic).supports((*kind).into()) {
+                    return Err(ExportDefaultOperationTypingValidationError::Problem {
+                        site: Self::site(operation, DefaultOperationValueRoleV1::Operand),
+                        problem: DefaultOperationTypingProblemV1::InvalidIntegerOperation {
+                            kind: *kind,
+                            operation: *intrinsic,
+                        },
+                    });
+                }
                 let integer =
                     self.integer_type(*kind, operation, DefaultOperationValueRoleV1::Operand)?;
                 let (rhs, result) = match intrinsic {
@@ -1719,12 +1706,12 @@ where
                         integer.clone(),
                     ),
                 };
-                (*kind, target, rhs, result)
+                (*kind, rhs, result)
             }
-            DefaultIntegerOperationV1::Managed { kind, target, .. } => {
+            DefaultIntegerOperationV1::Managed { kind, .. } => {
                 let integer =
                     self.integer_type(*kind, operation, DefaultOperationValueRoleV1::Operand)?;
-                (*kind, target, Some(integer.clone()), integer)
+                (*kind, Some(integer.clone()), integer)
             }
         };
         let integer = self.integer_type(kind, operation, DefaultOperationValueRoleV1::Operand)?;
@@ -1767,61 +1754,7 @@ where
                 });
             }
         }
-        let shape = self.callable_shape(
-            DefaultOperationEntityV1::Callable(target),
-            operation,
-            DefaultOperationValueRoleV1::Callable,
-        )?;
-        let parameters = rhs.as_slice();
-        self.expect_integer_callable_shape(operation, &shape, &integer, parameters, &result)?;
-        self.validate_intrinsic(
-            DefaultOperationIntrinsicV1::IntegerOperation(integer_operation),
-            Self::site(operation, DefaultOperationValueRoleV1::Callable),
-        )?;
         self.expect_result(expression, operation, &result, false)
-    }
-
-    fn expect_integer_callable_shape(
-        &mut self,
-        operation: DefaultExpressionOperationV1,
-        shape: &DefaultCallableOperationShapeV1,
-        receiver: &SignatureTypeKey,
-        parameters: &[SignatureTypeKey],
-        result: &SignatureTypeKey,
-    ) -> Result<(), ExportDefaultOperationTypingValidationError<E>> {
-        self.ensure_no_captures(operation, shape)?;
-        self.ensure_callable_effect(
-            shape,
-            Self::site(operation, DefaultOperationValueRoleV1::Callable),
-        )?;
-        let actual_receiver = shape.receiver().ok_or_else(|| {
-            ExportDefaultOperationTypingValidationError::Problem {
-                site: Self::site(operation, DefaultOperationValueRoleV1::Receiver),
-                problem: DefaultOperationTypingProblemV1::MissingCallableReceiver,
-            }
-        })?;
-        self.expect_type(
-            actual_receiver,
-            receiver,
-            Self::site(operation, DefaultOperationValueRoleV1::Receiver),
-        )?;
-        self.expect_arity(
-            shape.parameters().len(),
-            parameters.len(),
-            Self::site(operation, DefaultOperationValueRoleV1::Callable),
-        )?;
-        for (index, (actual, expected)) in shape.parameters().iter().zip(parameters).enumerate() {
-            self.expect_type(
-                actual,
-                expected,
-                Self::site(operation, DefaultOperationValueRoleV1::Argument { index }),
-            )?;
-        }
-        self.expect_type(
-            shape.result(),
-            result,
-            Self::site(operation, DefaultOperationValueRoleV1::Result),
-        )
     }
 
     fn expect_binary_types(

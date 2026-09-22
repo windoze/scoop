@@ -1000,7 +1000,7 @@ Module
         val local6
           Local $argument.0 : Int
         assign $result.2
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
       arm variant1()

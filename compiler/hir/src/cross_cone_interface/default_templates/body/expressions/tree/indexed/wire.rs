@@ -190,16 +190,8 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             Self::IntegerConversion {
                 source_kind,
                 target_kind,
-                target,
                 operand,
-            } => encode_four(
-                encoder,
-                50,
-                source_kind,
-                target_kind,
-                *target,
-                operand.as_ref(),
-            ),
+            } => encode_three(encoder, 50, source_kind, target_kind, operand.as_ref()),
             Self::Binary { operator, lhs, rhs } => {
                 encode_three(encoder, 51, operator, lhs.as_ref(), rhs.as_ref())
             }

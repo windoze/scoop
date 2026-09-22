@@ -846,7 +846,7 @@ Module
         val local4
           Local $argument.0 : Int
       Binary Lt : Boolean
-        IntegerOperation int.compare_to target=function137 <no-gc> : Long
+        IntegerOperation int.compare_to <no-gc> : Long
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Long
@@ -857,7 +857,7 @@ Module
       val local7
         Local $argument.0 : Int
       assign n
-        IntegerOperation int.add target=function132 <no-gc> : Int
+        IntegerOperation int.add <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
       val local8
@@ -867,7 +867,7 @@ Module
       val local10
         Local $argument.0 : Int
       val local11
-        IntegerOperation int.div target=function135 <managed> : Int
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
       val local12
@@ -875,8 +875,8 @@ Module
       val local13
         Local $argument.0 : Int
       if
-        IntegerOperation int.equals target=function127 <no-gc> : Boolean
-          IntegerOperation int.mul target=function134 <no-gc> : Int
+        IntegerOperation int.equals <no-gc> : Boolean
+          IntegerOperation int.mul <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
           Local n : Int
@@ -887,7 +887,7 @@ Module
         val local16
           Local $argument.0 : Int
         assign sum
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
       else
@@ -898,7 +898,7 @@ Module
         val local19
           Local $argument.0 : Int
         assign sum
-          IntegerOperation int.sub target=function133 <no-gc> : Int
+          IntegerOperation int.sub <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
     val local20

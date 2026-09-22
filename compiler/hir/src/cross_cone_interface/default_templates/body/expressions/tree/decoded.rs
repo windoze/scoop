@@ -19,8 +19,7 @@ use crate::{
     DefaultConstructorRefResolutionError, DefaultConstructorReferenceResolver,
     DefaultEnumVariantFieldRefResolutionError, DefaultEnumVariantRefResolutionError,
     DefaultFieldRefResolutionError, DefaultFieldReferenceResolver,
-    DefaultForeignCallbackOperationV1, DefaultIntegerKindV1,
-    DefaultIntegerOperationResolutionError, DefaultLexicalCallableResolutionError,
+    DefaultForeignCallbackOperationV1, DefaultIntegerKindV1, DefaultLexicalCallableResolutionError,
     DefaultMethodCalleeResolutionError, DefaultNestedCallableReferenceResolver,
     DefaultPlaceResolutionError, DefaultPrimitiveBinaryKindV1, DefaultPrimitiveUnaryKindV1,
     DefaultStringOwnerResolutionError, DefaultUnaryOperatorV1,
@@ -182,7 +181,6 @@ enum DecodedDefaultExpressionKindV1 {
     IntegerConversion {
         source_kind: DefaultIntegerKindV1,
         target_kind: DefaultIntegerKindV1,
-        target: DecodedDefaultCallableRefV1,
         operand: Box<DecodedDefaultExpressionV1>,
     },
     Binary {
@@ -293,7 +291,6 @@ pub enum DefaultExpressionResolutionError<E, L> {
         field: u32,
         error: DefaultCallableRefResolutionError<E>,
     },
-    IntegerOperation(DefaultIntegerOperationResolutionError<E>),
     DefinitionOrigin(SourceOriginResolutionError<E>),
     Nested {
         variant_tag: u64,

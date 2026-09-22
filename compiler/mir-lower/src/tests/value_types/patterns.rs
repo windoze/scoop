@@ -1103,20 +1103,6 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
         let mut h = Harness::new();
         let ty = h.integer(source_kind);
         let literal = integer_lit(&h, source_kind, 1);
-        let equality_expr = integer_binary(
-            &mut h,
-            source_kind,
-            hir::NoGcIntegerOperation::Equals,
-            literal.clone(),
-            literal.clone(),
-        );
-        let hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc { target, .. },
-            ..
-        } = equality_expr.kind
-        else {
-            panic!("test harness constructs typed integer equals");
-        };
         let mut locals = Arena::new();
         let subject = locals.alloc(local("subject", ty));
         let main = h.user_fn(
@@ -1128,10 +1114,7 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
                     vec![arm(
                         hir::Pattern::Literal {
                             value: literal,
-                            equality: hir::LiteralPatternEquality::Integer {
-                                kind: source_kind,
-                                target,
-                            },
+                            equality: hir::LiteralPatternEquality::Integer { kind: source_kind },
                             subject_ty: ty,
                         },
                         None,

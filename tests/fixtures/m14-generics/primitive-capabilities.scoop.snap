@@ -865,7 +865,7 @@ Module
     val local9
       IntegerLiteral 42 : Int
     val local10
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         MethodCall Int.hash : Long
           Local $receiver : Int
         MethodCall Int.hash : Long
@@ -879,7 +879,7 @@ Module
     val local13
       SizeOf Int : ULong
     val local14
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         MethodCall ULong.hash : Long
           Local $receiver : ULong
         MethodCall ULong.hash : Long
@@ -893,7 +893,7 @@ Module
     val local17
       BoolLiteral true : Boolean
     val local18
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         MethodCall Boolean.hash : Long
           Local $receiver : Boolean
         MethodCall Boolean.hash : Long
@@ -915,7 +915,7 @@ Module
         Local $receiver : String
         Local $parameter.other : String
     val local25
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         MethodCall String.hash : Long
           Local $receiver : String
         MethodCall String.hash : Long

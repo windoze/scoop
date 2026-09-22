@@ -12,10 +12,7 @@ pub use callable_reference::{
     DefaultCallableReferenceResolutionError, DefaultCallableReferenceTargetV1,
     DefaultCallableReferenceV1, IndexedDefaultCallableReferenceV1,
 };
-pub use integer::{
-    DecodedDefaultIntegerOperationV1, DefaultIntegerOperationResolutionError,
-    DefaultIntegerOperationV1,
-};
+pub use integer::{DecodedDefaultIntegerOperationV1, DefaultIntegerOperationV1};
 pub use tree::{
     DecodedDefaultArrayAssemblyPartV1, DecodedDefaultArrayAssemblyV1, DecodedDefaultExpressionV1,
     DecodedDefaultIntegerArgumentsV1, DecodedOptionalDefaultExpressionV1,

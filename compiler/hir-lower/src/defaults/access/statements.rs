@@ -86,13 +86,9 @@ impl ReferenceCollector<'_> {
                 subject_ty,
                 ..
             } => {
-                let equals = match equality {
-                    hir::LiteralPatternEquality::Integer { target, .. } => {
-                        hir::Callable::Function(target.function())
-                    }
-                    hir::LiteralPatternEquality::Ordinary { equals } => *equals,
-                };
-                self.callable_use(equals, origin);
+                if let hir::LiteralPatternEquality::Ordinary { equals } = equality {
+                    self.callable_use(*equals, origin);
+                }
                 self.type_reference(*subject_ty, origin);
             }
             hir::Pattern::Variant {

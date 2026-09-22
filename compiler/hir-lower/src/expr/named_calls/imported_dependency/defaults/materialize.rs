@@ -136,28 +136,37 @@ impl Lowerer {
             Kind::IntegerOperation {
                 operation,
                 arguments,
-            } => {
-                let callee = match operation {
-                    hir::DefaultIntegerOperationV1::NoGc { target, .. }
-                    | hir::DefaultIntegerOperationV1::Managed { target, .. } => target,
-                };
-                let args = match arguments {
+            } => hir::ExprKind::IntegerOperation {
+                operation: (*operation).into(),
+                arguments: match arguments {
                     hir::DefaultIntegerArgumentsV1::Unary(operand) => {
-                        vec![self.materialize_imported_default_expression(operand, context)?]
+                        hir::HirIntegerOperationArguments::Unary(Box::new(
+                            self.materialize_imported_default_expression(operand, context)?,
+                        ))
                     }
-                    hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => vec![
-                        self.materialize_imported_default_expression(lhs, context)?,
-                        self.materialize_imported_default_expression(rhs, context)?,
-                    ],
-                };
-                self.imported_default_call_kind(callee, args, context)?
-            }
+                    hir::DefaultIntegerArgumentsV1::Binary { lhs, rhs } => {
+                        hir::HirIntegerOperationArguments::Binary {
+                            lhs: Box::new(
+                                self.materialize_imported_default_expression(lhs, context)?,
+                            ),
+                            rhs: Box::new(
+                                self.materialize_imported_default_expression(rhs, context)?,
+                            ),
+                        }
+                    }
+                },
+            },
             Kind::IntegerConversion {
-                target, operand, ..
-            } => {
-                let args = vec![self.materialize_imported_default_expression(operand, context)?];
-                self.imported_default_call_kind(target, args, context)?
-            }
+                source_kind,
+                target_kind,
+                operand,
+            } => hir::ExprKind::IntegerConversion {
+                conversion: hir::IntegerConversion {
+                    source: (*source_kind).into(),
+                    target_kind: (*target_kind).into(),
+                },
+                operand: Box::new(self.materialize_imported_default_expression(operand, context)?),
+            },
             Kind::Binary { operator, lhs, rhs } => hir::ExprKind::Binary {
                 op: (*operator).into(),
                 lhs: Box::new(self.materialize_imported_default_expression(lhs, context)?),

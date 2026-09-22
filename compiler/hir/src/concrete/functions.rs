@@ -121,42 +121,8 @@ pub enum FunctionKind {
     Extern(ExternFunctionId),
 }
 
-/// Local-concrete proof that a non-generic function has `@NoGC` effect.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NoGcCallableRef(FunctionId);
-
-impl NoGcCallableRef {
-    pub fn map_from_export(
-        source: crate::NoGcCallableRef,
-        map: impl FnOnce(crate::FunctionId) -> FunctionId,
-    ) -> Self {
-        Self(map(source.function()))
-    }
-
-    pub const fn function(self) -> FunctionId {
-        self.0
-    }
-}
-
-/// Local-concrete proof that a non-generic function has managed effect.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ManagedCallableRef(FunctionId);
-
-impl ManagedCallableRef {
-    pub fn map_from_export(
-        source: crate::ManagedCallableRef,
-        map: impl FnOnce(crate::FunctionId) -> FunctionId,
-    ) -> Self {
-        Self(map(source.function()))
-    }
-
-    pub const fn function(self) -> FunctionId {
-        self.0
-    }
-}
-
-pub type HirIntegerOperation = IntegerOperation<NoGcCallableRef, ManagedCallableRef>;
-pub type HirIntegerConversion = IntegerConversion<NoGcCallableRef>;
+pub type HirIntegerOperation = IntegerOperation;
+pub type HirIntegerConversion = IntegerConversion;
 
 #[derive(Debug, Clone)]
 pub struct Body {

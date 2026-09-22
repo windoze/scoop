@@ -1013,7 +1013,7 @@ Module
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun transform(value: NativePair): NativePair <no-gc cdecl>
@@ -1025,7 +1025,7 @@ Module
     val local3
       Local $argument.0 : Int
     val local7
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local4
@@ -1036,7 +1036,7 @@ Module
     val local6
       Local $argument.0 : Int
     val local8
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local9
@@ -1070,7 +1070,7 @@ Module
     val local5
       Local $argument.0 : Int
     val local7
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local8
@@ -1089,7 +1089,7 @@ Module
     val local12
       Local $argument.0 : ULong
     val local15
-      IntegerOperation ulong.add target=function289 <no-gc> : ULong
+      IntegerOperation ulong.add <no-gc> : ULong
         Local $receiver : ULong
         Local $parameter.other : ULong
     val local16
@@ -1161,7 +1161,7 @@ Module
     val local16
       Local $argument.1 : ULong
     val local17
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Call nativeAddUnsigned : ULong
           Local $parameter.left : ULong
           Local $parameter.right : ULong
@@ -1175,7 +1175,7 @@ Module
     val local20
       Local $argument.0 : ULong
     val local21
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Call nativeDefault : ULong
           Local $parameter.value : ULong
         SizeOf NativePair : ULong
@@ -1393,10 +1393,10 @@ Module
     val local98
       Local $argument.0 : ULong
     val local99
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         FieldAccess field 2 : ULong
           Local envelope : NativeEnvelope
-        IntegerOperation ulong.add target=function289 <no-gc> : ULong
+        IntegerOperation ulong.add <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
     val local100

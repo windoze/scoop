@@ -63,9 +63,9 @@ pub use expressions::{
     DefaultCallableReferenceResolutionError, DefaultCallableReferenceTargetV1,
     DefaultCallableReferenceV1, DefaultExpressionBuildError, DefaultExpressionIndexError,
     DefaultExpressionKindV1, DefaultExpressionReferenceResolver, DefaultExpressionResolutionError,
-    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationResolutionError,
-    DefaultIntegerOperationV1, DefaultStringOwnerResolutionError, DefaultStringOwnerV1,
-    IndexedDefaultCallableReferenceV1, IndexedDefaultExpressionV1, OptionalDefaultExpressionV1,
+    DefaultExpressionV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationV1,
+    DefaultStringOwnerResolutionError, DefaultStringOwnerV1, IndexedDefaultCallableReferenceV1,
+    IndexedDefaultExpressionV1, OptionalDefaultExpressionV1,
 };
 pub use nested::{
     DecodedDefaultAnonymousFunctionV1, DecodedDefaultCallableBodyTypeArgumentsV1,

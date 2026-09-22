@@ -169,7 +169,6 @@ enum IndexedDefaultExpressionKindV1<'a> {
     IntegerConversion {
         source_kind: DefaultIntegerKindV1,
         target_kind: DefaultIntegerKindV1,
-        target: &'a DefaultCallableRefV1,
         operand: Box<IndexedDefaultExpressionV1<'a>>,
     },
     Binary {
@@ -510,13 +509,11 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::IntegerConversion {
                 source_kind,
                 target_kind,
-                target,
                 operand,
             } => IndexedDefaultExpressionKindV1::IntegerConversion {
                 source_kind: *source_kind,
                 target_kind: *target_kind,
-                target,
-                operand: index_child(operand, resolver, 50, 4)?,
+                operand: index_child(operand, resolver, 50, 3)?,
             },
             DefaultExpressionKindV1::Binary { operator, lhs, rhs } => {
                 IndexedDefaultExpressionKindV1::Binary {

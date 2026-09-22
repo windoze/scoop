@@ -942,7 +942,7 @@ Module
     val local19
       Local pointer : Ptr<Int>
     val local20
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<Int>
         Local raw : ULong

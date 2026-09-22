@@ -1140,7 +1140,7 @@ Module
     val local3
       Local $argument.0 : UInt16
     return
-      IntegerOperation uint16.add target=function227 <no-gc> : UInt16
+      IntegerOperation uint16.add <no-gc> : UInt16
         Local $receiver : UInt16
         Local $parameter.other : UInt16
   fun roundTripWidths(value: FixedWidths): FixedWidths <no-gc cdecl>

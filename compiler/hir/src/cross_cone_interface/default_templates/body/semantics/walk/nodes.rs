@@ -132,10 +132,6 @@ pub(in super::super) enum BodyNode<'a> {
         assembly: &'a DefaultArrayAssemblyV1,
         definition_origin: &'a ExportDefinitionSourceV1,
     },
-    IntegerOperation {
-        operation: &'a DefaultIntegerOperationV1,
-        definition_origin: &'a ExportDefinitionSourceV1,
-    },
     IntegerArguments(&'a DefaultIntegerArgumentsV1),
     Binder {
         depth: u32,

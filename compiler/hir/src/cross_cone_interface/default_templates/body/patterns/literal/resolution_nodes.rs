@@ -3,8 +3,7 @@ use crate::cross_cone_interface::default_templates::resolution_resources::resour
 
 resource_node!(DecodedDefaultLiteralEqualityV1, node, children, {
     match node {
-        Self::Integer { kind, target } => {
-            children.push(target)?;
+        Self::Integer { kind } => {
             children.push(kind)?;
         }
         Self::Ordinary { target } => {

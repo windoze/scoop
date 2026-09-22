@@ -19,7 +19,6 @@ fn nested_pattern_canonicalizes_fields_and_round_trips_local_indices() {
         CanonicalConstValueV1::Integer(crate::CanonicalIntegerConstantV1::Signed32(7)),
         DefaultLiteralEqualityV1::Integer {
             kind: crate::DefaultIntegerKindV1::Signed32,
-            target: fixture.callable(),
         },
         binder(0),
     );

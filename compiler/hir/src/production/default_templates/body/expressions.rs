@@ -304,7 +304,7 @@ impl BodyProjection<'_, '_, '_> {
                 operation,
                 arguments,
             } => DefaultExpressionKindV1::IntegerOperation {
-                operation: self.integer_operation(operation)?,
+                operation: (*operation).into(),
                 arguments: match arguments {
                     HirIntegerOperationArguments::Unary(operand) => {
                         DefaultIntegerArgumentsV1::unary(self.expression(operand)?)
@@ -323,10 +323,6 @@ impl BodyProjection<'_, '_, '_> {
             } => DefaultExpressionKindV1::IntegerConversion {
                 source_kind: conversion.source.into(),
                 target_kind: conversion.target_kind.into(),
-                target: self.entities.callable(
-                    crate::Callable::Function(conversion.target.function()),
-                    self.binders,
-                )?,
                 operand: Box::new(self.expression(operand)?),
             },
             ExprKind::Binary { op, lhs, rhs } => DefaultExpressionKindV1::Binary {

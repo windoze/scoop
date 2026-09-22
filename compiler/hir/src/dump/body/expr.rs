@@ -409,25 +409,15 @@ pub(super) fn dump_expr(
             arguments,
         } => {
             match operation {
-                IntegerOperation::NoGc {
-                    kind,
-                    operation,
-                    target,
-                } => out.push_str(&format!(
-                    "{pad}IntegerOperation {}.{} target=function{} <no-gc> : {ty}\n",
+                IntegerOperation::NoGc { kind, operation } => out.push_str(&format!(
+                    "{pad}IntegerOperation {}.{} <no-gc> : {ty}\n",
                     kind.registry_key(),
-                    operation.registry_key(),
-                    target.function().into_raw()
+                    operation.registry_key()
                 )),
-                IntegerOperation::Managed {
-                    kind,
-                    operation,
-                    target,
-                } => out.push_str(&format!(
-                    "{pad}IntegerOperation {}.{} target=function{} <managed> : {ty}\n",
+                IntegerOperation::Managed { kind, operation } => out.push_str(&format!(
+                    "{pad}IntegerOperation {}.{} <managed> : {ty}\n",
                     kind.registry_key(),
-                    operation.registry_key(),
-                    target.function().into_raw()
+                    operation.registry_key()
                 )),
             }
             match arguments {
@@ -445,10 +435,9 @@ pub(super) fn dump_expr(
             operand,
         } => {
             out.push_str(&format!(
-                "{pad}IntegerConversion {} -> {} target=function{} <no-gc> : {ty}\n",
+                "{pad}IntegerConversion {} -> {} <no-gc> : {ty}\n",
                 conversion.source.canonical_name(),
-                conversion.target_kind.canonical_name(),
-                conversion.target.function().into_raw()
+                conversion.target_kind.canonical_name()
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }

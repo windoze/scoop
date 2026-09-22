@@ -1272,7 +1272,7 @@ Module
     val local3
       Local right : T0
     return
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         MethodCall bound T0 via Hash -> Hash.hash : Long
           Local $receiver : T0
         MethodCall bound T0 via Hash -> Hash.hash : Long

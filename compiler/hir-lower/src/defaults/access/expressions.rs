@@ -226,33 +226,14 @@ impl ReferenceCollector<'_> {
                 self.type_reference(function_type, origin);
                 self.expressions(args);
             }
-            hir::ExprKind::IntegerOperation {
-                operation,
-                arguments,
-            } => {
-                let function = match operation {
-                    hir::IntegerOperation::NoGc { target, .. } => target.function(),
-                    hir::IntegerOperation::Managed { target, .. } => target.function(),
-                };
-                self.callable_use(hir::Callable::Function(function), origin);
-                match arguments {
-                    hir::HirIntegerOperationArguments::Unary(operand) => self.expression(operand),
-                    hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
-                        self.expression(lhs);
-                        self.expression(rhs);
-                    }
+            hir::ExprKind::IntegerOperation { arguments, .. } => match arguments {
+                hir::HirIntegerOperationArguments::Unary(operand) => self.expression(operand),
+                hir::HirIntegerOperationArguments::Binary { lhs, rhs } => {
+                    self.expression(lhs);
+                    self.expression(rhs);
                 }
-            }
-            hir::ExprKind::IntegerConversion {
-                conversion,
-                operand,
-            } => {
-                self.callable_use(
-                    hir::Callable::Function(conversion.target.function()),
-                    origin,
-                );
-                self.expression(operand);
-            }
+            },
+            hir::ExprKind::IntegerConversion { operand, .. } => self.expression(operand),
         }
     }
 

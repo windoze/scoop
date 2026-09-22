@@ -395,8 +395,8 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
         let callable = match equality {
-            DefaultLiteralEqualityV1::Integer { target, .. }
-            | DefaultLiteralEqualityV1::Ordinary { target } => target,
+            DefaultLiteralEqualityV1::Integer { .. } => return Ok(()),
+            DefaultLiteralEqualityV1::Ordinary { target } => target,
         };
         self.push_child(pending, depth, BodyNode::CallableUse { callable, origin })
     }

@@ -30,6 +30,11 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
         include_str!("../../../../../../tests/fixtures/core-library/type-aliases.scoop"),
     )
     .unwrap();
+    std::fs::write(
+        source.join("src/user_integer_defaults.scoop"),
+        include_str!("../../../../../../tests/fixtures/core-library/integer-defaults.scoop"),
+    )
+    .unwrap();
     let artifact = workspace.path().join("user-library.slib");
     let first = build_core(&source, &artifact);
     let first_dependency = first.artifact().validation().dependency_record();
@@ -67,6 +72,8 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     aliases::assert_alias_stage_dumps(&target, workspace.path(), &artifact);
     calls::assert_initialization_and_dependency_calls(&target, workspace.path(), &artifact);
     intrinsics::assert_shared_intrinsic_constants(&target, workspace.path(), &artifact);
+    intrinsics::assert_normalized_integer_defaults(&target, workspace.path(), &artifact);
+    intrinsics::assert_integer_exception_requires_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().validation().direct_dependencies(),
@@ -260,6 +267,18 @@ fn build_consumer_emitting(
     core: &Path,
     emit: StageDumpPolicy,
 ) -> SingleConeProductionSuccess {
+    consumer_request(target, source, output, core, emit)
+        .build_and_publish(DecodeLimits::default())
+        .unwrap()
+}
+
+fn consumer_request(
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    source: &Path,
+    output: &Path,
+    core: &Path,
+    emit: StageDumpPolicy,
+) -> SingleConeBuildRequest {
     SingleConeBuildRequest::new(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
@@ -271,7 +290,5 @@ fn build_consumer_emitting(
         DiagnosticOutputPolicy::Human,
         emit,
     )
-    .unwrap()
-    .build_and_publish(DecodeLimits::default())
     .unwrap()
 }

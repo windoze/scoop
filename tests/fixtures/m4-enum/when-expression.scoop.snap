@@ -842,7 +842,7 @@ Module
           Local $argument.0 : Int
         if
           Binary Gt : Boolean
-            IntegerOperation int.compare_to target=function137 <no-gc> : Long
+            IntegerOperation int.compare_to <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
             IntegerLiteral 0 : Long

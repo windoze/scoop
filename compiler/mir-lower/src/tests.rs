@@ -596,42 +596,9 @@ fn integer_operation(
         hir::NoGcIntegerOperation::Equals => h.boolean,
         _ => owner,
     };
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerNoGc{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: result_ty,
-        attributes: hir::FunctionAttributes {
-            gc_effect: hir::GcEffect::NoGc,
-            ..hir::FunctionAttributes::default()
-        },
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
-                kind,
-                operation,
-            }),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries the matching no-GC integer intrinsic effect");
     expr(
         hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind,
-                operation,
-                target,
-            },
+            operation: hir::IntegerOperation::NoGc { kind, operation },
             arguments,
         },
         result_ty,
@@ -678,38 +645,9 @@ fn integer_div_rem(
     rhs: hir::Expr,
 ) -> hir::Expr {
     let owner = h.integer(kind);
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerManaged{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: owner,
-        attributes: hir::FunctionAttributes::default(),
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(
-                hir::IntegerIntrinsicKind::ManagedOperation { kind, operation },
-            ),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::ManagedCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries the matching managed integer intrinsic effect");
     expr(
         hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::Managed {
-                kind,
-                operation,
-                target,
-            },
+            operation: hir::IntegerOperation::Managed { kind, operation },
             arguments: hir::HirIntegerOperationArguments::Binary {
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
@@ -725,43 +663,12 @@ fn integer_conversion(
     target_kind: hir::IntegerKind,
     operand: hir::Expr,
 ) -> hir::Expr {
-    let owner = h.integer(source);
     let result_ty = h.integer(target_kind);
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerConversion{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: result_ty,
-        attributes: hir::FunctionAttributes {
-            gc_effect: hir::GcEffect::NoGc,
-            ..hir::FunctionAttributes::default()
-        },
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::Conversion {
-                source,
-                target_kind,
-            }),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries a no-GC integer conversion effect");
     expr(
         hir::ExprKind::IntegerConversion {
             conversion: hir::IntegerConversion {
                 source,
                 target_kind,
-                target,
             },
             operand: Box::new(operand),
         },

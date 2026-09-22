@@ -1174,7 +1174,7 @@ Module
     val local53
       Local $argument.1 : Ptr<Unit>
     val local54
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Call failStart : Int
           Local $parameter.callback : FunPtr<(Int, Ptr<Unit>) -> Int>
           Local $parameter.context : Ptr<Unit>
@@ -1267,7 +1267,7 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local87
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Call attachedThreadCount : Int
         IntegerLiteral 1 : Int
     val local88

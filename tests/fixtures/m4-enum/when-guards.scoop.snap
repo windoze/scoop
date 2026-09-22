@@ -876,7 +876,7 @@ Module
             Local $argument.0 : Int
         guard condition
           Binary Gt : Boolean
-            IntegerOperation int.compare_to target=function137 <no-gc> : Long
+            IntegerOperation int.compare_to <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
             IntegerLiteral 0 : Long
@@ -901,7 +901,7 @@ Module
         val local16
           Local $argument.0 : Int
         val local17
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
         val local18
@@ -947,7 +947,7 @@ Module
             Local $argument.0 : Int
         guard condition
           Binary Gt : Boolean
-            IntegerOperation int.compare_to target=function137 <no-gc> : Long
+            IntegerOperation int.compare_to <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
             IntegerLiteral 0 : Long

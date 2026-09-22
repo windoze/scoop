@@ -927,7 +927,7 @@ Module
       Local $argument.0 : Int
     return
       Binary Gt : Boolean
-        IntegerOperation int.compare_to target=function137 <no-gc> : Long
+        IntegerOperation int.compare_to <no-gc> : Long
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Long
@@ -958,7 +958,7 @@ Module
         val local9
           Local $argument.0 : Int
         assign $result.0
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
       arm variant0(0: variant1(), 1: _)

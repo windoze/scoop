@@ -975,7 +975,7 @@ Module
         val local7
           Local $argument.0 : Int
         assign $result.0
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
       arm variant0(0: struct(0: _, 1: struct(0: local9, 1: <lit BoolLiteral(true)>), 2: (_, _), 3: _), 1: local8)
@@ -986,7 +986,7 @@ Module
         val local12
           Local $argument.0 : Int
         assign $result.0
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
       arm variant1()

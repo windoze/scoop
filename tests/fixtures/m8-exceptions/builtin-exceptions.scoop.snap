@@ -913,7 +913,7 @@ Module
       val local24
         Local $argument.0 : Int
       val local25
-        IntegerOperation int.div target=function135 <managed> : Int
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
       val local26

@@ -217,14 +217,12 @@ fn every_expression_variant_keeps_its_frozen_wire_tag() {
             operation: DefaultIntegerOperationV1::NoGc {
                 kind: DefaultIntegerKindV1::Signed32,
                 operation: DefaultNoGcIntegerOperationV1::Add,
-                target: fixture.callable(),
             },
             arguments: DefaultIntegerArgumentsV1::binary(unit(&fixture), unit(&fixture)),
         },
         DefaultExpressionKindV1::IntegerConversion {
             source_kind: DefaultIntegerKindV1::Signed32,
             target_kind: DefaultIntegerKindV1::Unsigned64,
-            target: fixture.callable(),
             operand: Box::new(unit(&fixture)),
         },
         DefaultExpressionKindV1::Binary {

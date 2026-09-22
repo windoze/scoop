@@ -1019,7 +1019,7 @@ Module
     val local1
       Local i8 : Int8
     val local2
-      IntegerConversion Int8 -> Int8 target=function81 <no-gc> : Int8
+      IntegerConversion Int8 -> Int8 <no-gc> : Int8
         Local $receiver : Int8
     val local3
       Local $argument.0 : Int8
@@ -1028,7 +1028,7 @@ Module
     val local4
       Local i8 : Int8
     val local5
-      IntegerConversion Int8 -> Int16 target=function82 <no-gc> : Int16
+      IntegerConversion Int8 -> Int16 <no-gc> : Int16
         Local $receiver : Int8
     val local6
       Local $argument.0 : Int16
@@ -1037,7 +1037,7 @@ Module
     val local7
       Local i8 : Int8
     val local8
-      IntegerConversion Int8 -> Int target=function83 <no-gc> : Int
+      IntegerConversion Int8 -> Int <no-gc> : Int
         Local $receiver : Int8
     val local9
       Local $argument.0 : Int
@@ -1046,7 +1046,7 @@ Module
     val local10
       Local i8 : Int8
     val local11
-      IntegerConversion Int8 -> Long target=function84 <no-gc> : Long
+      IntegerConversion Int8 -> Long <no-gc> : Long
         Local $receiver : Int8
     val local12
       Local $argument.0 : Long
@@ -1055,7 +1055,7 @@ Module
     val local13
       Local i8 : Int8
     val local14
-      IntegerConversion Int8 -> UInt8 target=function85 <no-gc> : UInt8
+      IntegerConversion Int8 -> UInt8 <no-gc> : UInt8
         Local $receiver : Int8
     val local15
       Local $argument.0 : UInt8
@@ -1064,7 +1064,7 @@ Module
     val local16
       Local i8 : Int8
     val local17
-      IntegerConversion Int8 -> UInt16 target=function86 <no-gc> : UInt16
+      IntegerConversion Int8 -> UInt16 <no-gc> : UInt16
         Local $receiver : Int8
     val local18
       Local $argument.0 : UInt16
@@ -1073,7 +1073,7 @@ Module
     val local19
       Local i8 : Int8
     val local20
-      IntegerConversion Int8 -> UInt target=function87 <no-gc> : UInt
+      IntegerConversion Int8 -> UInt <no-gc> : UInt
         Local $receiver : Int8
     val local21
       Local $argument.0 : UInt
@@ -1082,7 +1082,7 @@ Module
     val local22
       Local i8 : Int8
     val local23
-      IntegerConversion Int8 -> ULong target=function88 <no-gc> : ULong
+      IntegerConversion Int8 -> ULong <no-gc> : ULong
         Local $receiver : Int8
     val local24
       Local $argument.0 : ULong
@@ -1093,7 +1093,7 @@ Module
     val local26
       Local i16 : Int16
     val local27
-      IntegerConversion Int16 -> Int8 target=function113 <no-gc> : Int8
+      IntegerConversion Int16 -> Int8 <no-gc> : Int8
         Local $receiver : Int16
     val local28
       Local $argument.0 : Int8
@@ -1102,7 +1102,7 @@ Module
     val local29
       Local i16 : Int16
     val local30
-      IntegerConversion Int16 -> Int16 target=function114 <no-gc> : Int16
+      IntegerConversion Int16 -> Int16 <no-gc> : Int16
         Local $receiver : Int16
     val local31
       Local $argument.0 : Int16
@@ -1111,7 +1111,7 @@ Module
     val local32
       Local i16 : Int16
     val local33
-      IntegerConversion Int16 -> Int target=function115 <no-gc> : Int
+      IntegerConversion Int16 -> Int <no-gc> : Int
         Local $receiver : Int16
     val local34
       Local $argument.0 : Int
@@ -1120,7 +1120,7 @@ Module
     val local35
       Local i16 : Int16
     val local36
-      IntegerConversion Int16 -> Long target=function116 <no-gc> : Long
+      IntegerConversion Int16 -> Long <no-gc> : Long
         Local $receiver : Int16
     val local37
       Local $argument.0 : Long
@@ -1129,7 +1129,7 @@ Module
     val local38
       Local i16 : Int16
     val local39
-      IntegerConversion Int16 -> UInt8 target=function117 <no-gc> : UInt8
+      IntegerConversion Int16 -> UInt8 <no-gc> : UInt8
         Local $receiver : Int16
     val local40
       Local $argument.0 : UInt8
@@ -1138,7 +1138,7 @@ Module
     val local41
       Local i16 : Int16
     val local42
-      IntegerConversion Int16 -> UInt16 target=function118 <no-gc> : UInt16
+      IntegerConversion Int16 -> UInt16 <no-gc> : UInt16
         Local $receiver : Int16
     val local43
       Local $argument.0 : UInt16
@@ -1147,7 +1147,7 @@ Module
     val local44
       Local i16 : Int16
     val local45
-      IntegerConversion Int16 -> UInt target=function119 <no-gc> : UInt
+      IntegerConversion Int16 -> UInt <no-gc> : UInt
         Local $receiver : Int16
     val local46
       Local $argument.0 : UInt
@@ -1156,7 +1156,7 @@ Module
     val local47
       Local i16 : Int16
     val local48
-      IntegerConversion Int16 -> ULong target=function120 <no-gc> : ULong
+      IntegerConversion Int16 -> ULong <no-gc> : ULong
         Local $receiver : Int16
     val local49
       Local $argument.0 : ULong
@@ -1167,7 +1167,7 @@ Module
     val local51
       Local i32 : Int
     val local52
-      IntegerConversion Int -> Int8 target=function145 <no-gc> : Int8
+      IntegerConversion Int -> Int8 <no-gc> : Int8
         Local $receiver : Int
     val local53
       Local $argument.0 : Int8
@@ -1176,7 +1176,7 @@ Module
     val local54
       Local i32 : Int
     val local55
-      IntegerConversion Int -> Int16 target=function146 <no-gc> : Int16
+      IntegerConversion Int -> Int16 <no-gc> : Int16
         Local $receiver : Int
     val local56
       Local $argument.0 : Int16
@@ -1185,7 +1185,7 @@ Module
     val local57
       Local i32 : Int
     val local58
-      IntegerConversion Int -> Int target=function147 <no-gc> : Int
+      IntegerConversion Int -> Int <no-gc> : Int
         Local $receiver : Int
     val local59
       Local $argument.0 : Int
@@ -1194,7 +1194,7 @@ Module
     val local60
       Local i32 : Int
     val local61
-      IntegerConversion Int -> Long target=function148 <no-gc> : Long
+      IntegerConversion Int -> Long <no-gc> : Long
         Local $receiver : Int
     val local62
       Local $argument.0 : Long
@@ -1203,7 +1203,7 @@ Module
     val local63
       Local i32 : Int
     val local64
-      IntegerConversion Int -> UInt8 target=function149 <no-gc> : UInt8
+      IntegerConversion Int -> UInt8 <no-gc> : UInt8
         Local $receiver : Int
     val local65
       Local $argument.0 : UInt8
@@ -1212,7 +1212,7 @@ Module
     val local66
       Local i32 : Int
     val local67
-      IntegerConversion Int -> UInt16 target=function150 <no-gc> : UInt16
+      IntegerConversion Int -> UInt16 <no-gc> : UInt16
         Local $receiver : Int
     val local68
       Local $argument.0 : UInt16
@@ -1221,7 +1221,7 @@ Module
     val local69
       Local i32 : Int
     val local70
-      IntegerConversion Int -> UInt target=function151 <no-gc> : UInt
+      IntegerConversion Int -> UInt <no-gc> : UInt
         Local $receiver : Int
     val local71
       Local $argument.0 : UInt
@@ -1230,7 +1230,7 @@ Module
     val local72
       Local i32 : Int
     val local73
-      IntegerConversion Int -> ULong target=function152 <no-gc> : ULong
+      IntegerConversion Int -> ULong <no-gc> : ULong
         Local $receiver : Int
     val local74
       Local $argument.0 : ULong
@@ -1241,7 +1241,7 @@ Module
     val local76
       Local i64 : Long
     val local77
-      IntegerConversion Long -> Int8 target=function177 <no-gc> : Int8
+      IntegerConversion Long -> Int8 <no-gc> : Int8
         Local $receiver : Long
     val local78
       Local $argument.0 : Int8
@@ -1250,7 +1250,7 @@ Module
     val local79
       Local i64 : Long
     val local80
-      IntegerConversion Long -> Int16 target=function178 <no-gc> : Int16
+      IntegerConversion Long -> Int16 <no-gc> : Int16
         Local $receiver : Long
     val local81
       Local $argument.0 : Int16
@@ -1259,7 +1259,7 @@ Module
     val local82
       Local i64 : Long
     val local83
-      IntegerConversion Long -> Int target=function179 <no-gc> : Int
+      IntegerConversion Long -> Int <no-gc> : Int
         Local $receiver : Long
     val local84
       Local $argument.0 : Int
@@ -1268,7 +1268,7 @@ Module
     val local85
       Local i64 : Long
     val local86
-      IntegerConversion Long -> Long target=function180 <no-gc> : Long
+      IntegerConversion Long -> Long <no-gc> : Long
         Local $receiver : Long
     val local87
       Local $argument.0 : Long
@@ -1277,7 +1277,7 @@ Module
     val local88
       Local i64 : Long
     val local89
-      IntegerConversion Long -> UInt8 target=function181 <no-gc> : UInt8
+      IntegerConversion Long -> UInt8 <no-gc> : UInt8
         Local $receiver : Long
     val local90
       Local $argument.0 : UInt8
@@ -1286,7 +1286,7 @@ Module
     val local91
       Local i64 : Long
     val local92
-      IntegerConversion Long -> UInt16 target=function182 <no-gc> : UInt16
+      IntegerConversion Long -> UInt16 <no-gc> : UInt16
         Local $receiver : Long
     val local93
       Local $argument.0 : UInt16
@@ -1295,7 +1295,7 @@ Module
     val local94
       Local i64 : Long
     val local95
-      IntegerConversion Long -> UInt target=function183 <no-gc> : UInt
+      IntegerConversion Long -> UInt <no-gc> : UInt
         Local $receiver : Long
     val local96
       Local $argument.0 : UInt
@@ -1304,7 +1304,7 @@ Module
     val local97
       Local i64 : Long
     val local98
-      IntegerConversion Long -> ULong target=function184 <no-gc> : ULong
+      IntegerConversion Long -> ULong <no-gc> : ULong
         Local $receiver : Long
     val local99
       Local $argument.0 : ULong
@@ -1315,7 +1315,7 @@ Module
     val local101
       Local u8 : UInt8
     val local102
-      IntegerConversion UInt8 -> Int8 target=function208 <no-gc> : Int8
+      IntegerConversion UInt8 -> Int8 <no-gc> : Int8
         Local $receiver : UInt8
     val local103
       Local $argument.0 : Int8
@@ -1324,7 +1324,7 @@ Module
     val local104
       Local u8 : UInt8
     val local105
-      IntegerConversion UInt8 -> Int16 target=function209 <no-gc> : Int16
+      IntegerConversion UInt8 -> Int16 <no-gc> : Int16
         Local $receiver : UInt8
     val local106
       Local $argument.0 : Int16
@@ -1333,7 +1333,7 @@ Module
     val local107
       Local u8 : UInt8
     val local108
-      IntegerConversion UInt8 -> Int target=function210 <no-gc> : Int
+      IntegerConversion UInt8 -> Int <no-gc> : Int
         Local $receiver : UInt8
     val local109
       Local $argument.0 : Int
@@ -1342,7 +1342,7 @@ Module
     val local110
       Local u8 : UInt8
     val local111
-      IntegerConversion UInt8 -> Long target=function211 <no-gc> : Long
+      IntegerConversion UInt8 -> Long <no-gc> : Long
         Local $receiver : UInt8
     val local112
       Local $argument.0 : Long
@@ -1351,7 +1351,7 @@ Module
     val local113
       Local u8 : UInt8
     val local114
-      IntegerConversion UInt8 -> UInt8 target=function212 <no-gc> : UInt8
+      IntegerConversion UInt8 -> UInt8 <no-gc> : UInt8
         Local $receiver : UInt8
     val local115
       Local $argument.0 : UInt8
@@ -1360,7 +1360,7 @@ Module
     val local116
       Local u8 : UInt8
     val local117
-      IntegerConversion UInt8 -> UInt16 target=function213 <no-gc> : UInt16
+      IntegerConversion UInt8 -> UInt16 <no-gc> : UInt16
         Local $receiver : UInt8
     val local118
       Local $argument.0 : UInt16
@@ -1369,7 +1369,7 @@ Module
     val local119
       Local u8 : UInt8
     val local120
-      IntegerConversion UInt8 -> UInt target=function214 <no-gc> : UInt
+      IntegerConversion UInt8 -> UInt <no-gc> : UInt
         Local $receiver : UInt8
     val local121
       Local $argument.0 : UInt
@@ -1378,7 +1378,7 @@ Module
     val local122
       Local u8 : UInt8
     val local123
-      IntegerConversion UInt8 -> ULong target=function215 <no-gc> : ULong
+      IntegerConversion UInt8 -> ULong <no-gc> : ULong
         Local $receiver : UInt8
     val local124
       Local $argument.0 : ULong
@@ -1389,7 +1389,7 @@ Module
     val local126
       Local u16 : UInt16
     val local127
-      IntegerConversion UInt16 -> Int8 target=function239 <no-gc> : Int8
+      IntegerConversion UInt16 -> Int8 <no-gc> : Int8
         Local $receiver : UInt16
     val local128
       Local $argument.0 : Int8
@@ -1398,7 +1398,7 @@ Module
     val local129
       Local u16 : UInt16
     val local130
-      IntegerConversion UInt16 -> Int16 target=function240 <no-gc> : Int16
+      IntegerConversion UInt16 -> Int16 <no-gc> : Int16
         Local $receiver : UInt16
     val local131
       Local $argument.0 : Int16
@@ -1407,7 +1407,7 @@ Module
     val local132
       Local u16 : UInt16
     val local133
-      IntegerConversion UInt16 -> Int target=function241 <no-gc> : Int
+      IntegerConversion UInt16 -> Int <no-gc> : Int
         Local $receiver : UInt16
     val local134
       Local $argument.0 : Int
@@ -1416,7 +1416,7 @@ Module
     val local135
       Local u16 : UInt16
     val local136
-      IntegerConversion UInt16 -> Long target=function242 <no-gc> : Long
+      IntegerConversion UInt16 -> Long <no-gc> : Long
         Local $receiver : UInt16
     val local137
       Local $argument.0 : Long
@@ -1425,7 +1425,7 @@ Module
     val local138
       Local u16 : UInt16
     val local139
-      IntegerConversion UInt16 -> UInt8 target=function243 <no-gc> : UInt8
+      IntegerConversion UInt16 -> UInt8 <no-gc> : UInt8
         Local $receiver : UInt16
     val local140
       Local $argument.0 : UInt8
@@ -1434,7 +1434,7 @@ Module
     val local141
       Local u16 : UInt16
     val local142
-      IntegerConversion UInt16 -> UInt16 target=function244 <no-gc> : UInt16
+      IntegerConversion UInt16 -> UInt16 <no-gc> : UInt16
         Local $receiver : UInt16
     val local143
       Local $argument.0 : UInt16
@@ -1443,7 +1443,7 @@ Module
     val local144
       Local u16 : UInt16
     val local145
-      IntegerConversion UInt16 -> UInt target=function245 <no-gc> : UInt
+      IntegerConversion UInt16 -> UInt <no-gc> : UInt
         Local $receiver : UInt16
     val local146
       Local $argument.0 : UInt
@@ -1452,7 +1452,7 @@ Module
     val local147
       Local u16 : UInt16
     val local148
-      IntegerConversion UInt16 -> ULong target=function246 <no-gc> : ULong
+      IntegerConversion UInt16 -> ULong <no-gc> : ULong
         Local $receiver : UInt16
     val local149
       Local $argument.0 : ULong
@@ -1463,7 +1463,7 @@ Module
     val local151
       Local u32 : UInt
     val local152
-      IntegerConversion UInt -> Int8 target=function270 <no-gc> : Int8
+      IntegerConversion UInt -> Int8 <no-gc> : Int8
         Local $receiver : UInt
     val local153
       Local $argument.0 : Int8
@@ -1472,7 +1472,7 @@ Module
     val local154
       Local u32 : UInt
     val local155
-      IntegerConversion UInt -> Int16 target=function271 <no-gc> : Int16
+      IntegerConversion UInt -> Int16 <no-gc> : Int16
         Local $receiver : UInt
     val local156
       Local $argument.0 : Int16
@@ -1481,7 +1481,7 @@ Module
     val local157
       Local u32 : UInt
     val local158
-      IntegerConversion UInt -> Int target=function272 <no-gc> : Int
+      IntegerConversion UInt -> Int <no-gc> : Int
         Local $receiver : UInt
     val local159
       Local $argument.0 : Int
@@ -1490,7 +1490,7 @@ Module
     val local160
       Local u32 : UInt
     val local161
-      IntegerConversion UInt -> Long target=function273 <no-gc> : Long
+      IntegerConversion UInt -> Long <no-gc> : Long
         Local $receiver : UInt
     val local162
       Local $argument.0 : Long
@@ -1499,7 +1499,7 @@ Module
     val local163
       Local u32 : UInt
     val local164
-      IntegerConversion UInt -> UInt8 target=function274 <no-gc> : UInt8
+      IntegerConversion UInt -> UInt8 <no-gc> : UInt8
         Local $receiver : UInt
     val local165
       Local $argument.0 : UInt8
@@ -1508,7 +1508,7 @@ Module
     val local166
       Local u32 : UInt
     val local167
-      IntegerConversion UInt -> UInt16 target=function275 <no-gc> : UInt16
+      IntegerConversion UInt -> UInt16 <no-gc> : UInt16
         Local $receiver : UInt
     val local168
       Local $argument.0 : UInt16
@@ -1517,7 +1517,7 @@ Module
     val local169
       Local u32 : UInt
     val local170
-      IntegerConversion UInt -> UInt target=function276 <no-gc> : UInt
+      IntegerConversion UInt -> UInt <no-gc> : UInt
         Local $receiver : UInt
     val local171
       Local $argument.0 : UInt
@@ -1526,7 +1526,7 @@ Module
     val local172
       Local u32 : UInt
     val local173
-      IntegerConversion UInt -> ULong target=function277 <no-gc> : ULong
+      IntegerConversion UInt -> ULong <no-gc> : ULong
         Local $receiver : UInt
     val local174
       Local $argument.0 : ULong
@@ -1537,7 +1537,7 @@ Module
     val local176
       Local u64 : ULong
     val local177
-      IntegerConversion ULong -> Int8 target=function301 <no-gc> : Int8
+      IntegerConversion ULong -> Int8 <no-gc> : Int8
         Local $receiver : ULong
     val local178
       Local $argument.0 : Int8
@@ -1546,7 +1546,7 @@ Module
     val local179
       Local u64 : ULong
     val local180
-      IntegerConversion ULong -> Int16 target=function302 <no-gc> : Int16
+      IntegerConversion ULong -> Int16 <no-gc> : Int16
         Local $receiver : ULong
     val local181
       Local $argument.0 : Int16
@@ -1555,7 +1555,7 @@ Module
     val local182
       Local u64 : ULong
     val local183
-      IntegerConversion ULong -> Int target=function303 <no-gc> : Int
+      IntegerConversion ULong -> Int <no-gc> : Int
         Local $receiver : ULong
     val local184
       Local $argument.0 : Int
@@ -1564,7 +1564,7 @@ Module
     val local185
       Local u64 : ULong
     val local186
-      IntegerConversion ULong -> Long target=function304 <no-gc> : Long
+      IntegerConversion ULong -> Long <no-gc> : Long
         Local $receiver : ULong
     val local187
       Local $argument.0 : Long
@@ -1573,7 +1573,7 @@ Module
     val local188
       Local u64 : ULong
     val local189
-      IntegerConversion ULong -> UInt8 target=function305 <no-gc> : UInt8
+      IntegerConversion ULong -> UInt8 <no-gc> : UInt8
         Local $receiver : ULong
     val local190
       Local $argument.0 : UInt8
@@ -1582,7 +1582,7 @@ Module
     val local191
       Local u64 : ULong
     val local192
-      IntegerConversion ULong -> UInt16 target=function306 <no-gc> : UInt16
+      IntegerConversion ULong -> UInt16 <no-gc> : UInt16
         Local $receiver : ULong
     val local193
       Local $argument.0 : UInt16
@@ -1591,7 +1591,7 @@ Module
     val local194
       Local u64 : ULong
     val local195
-      IntegerConversion ULong -> UInt target=function307 <no-gc> : UInt
+      IntegerConversion ULong -> UInt <no-gc> : UInt
         Local $receiver : ULong
     val local196
       Local $argument.0 : UInt
@@ -1600,7 +1600,7 @@ Module
     val local197
       Local u64 : ULong
     val local198
-      IntegerConversion ULong -> ULong target=function308 <no-gc> : ULong
+      IntegerConversion ULong -> ULong <no-gc> : ULong
         Local $receiver : ULong
     val local199
       Local $argument.0 : ULong

@@ -245,11 +245,9 @@ resource_node!(DecodedDefaultExpressionKindV1, node, children, {
         Self::IntegerConversion {
             source_kind,
             target_kind,
-            target,
             operand,
         } => {
             children.push(operand)?;
-            children.push(target)?;
             children.push(target_kind)?;
             children.push(source_kind)?;
         }

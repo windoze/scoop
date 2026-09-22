@@ -51,8 +51,8 @@ impl Lowerer {
             } => hir::Pattern::Literal {
                 value: self.instantiate_default_expr(value, context),
                 equality: match *equality {
-                    hir::LiteralPatternEquality::Integer { kind, target } => {
-                        hir::LiteralPatternEquality::Integer { kind, target }
+                    hir::LiteralPatternEquality::Integer { kind } => {
+                        hir::LiteralPatternEquality::Integer { kind }
                     }
                     hir::LiteralPatternEquality::Ordinary { equals } => {
                         hir::LiteralPatternEquality::Ordinary {

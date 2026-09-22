@@ -3031,8 +3031,8 @@ Module
     val local13
       Local $argument.0 : Int8
     val local14
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.add target=function68 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.add <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -128 : Int8
@@ -3047,8 +3047,8 @@ Module
     val local18
       Local $argument.0 : Int8
     val local19
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.sub target=function69 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.sub <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 127 : Int8
@@ -3063,8 +3063,8 @@ Module
     val local23
       Local $argument.0 : Int8
     val local24
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.mul target=function70 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.mul <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -2 : Int8
@@ -3075,8 +3075,8 @@ Module
     val local26
       Local minimum : Int8
     val local27
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.unary_minus target=function65 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.unary_minus <no-gc> : Int8
           Local $receiver : Int8
         IntegerLiteral -128 : Int8
     val local28
@@ -3086,8 +3086,8 @@ Module
     val local29
       Local one : Int8
     val local30
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.unary_plus target=function64 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.unary_plus <no-gc> : Int8
           Local $receiver : Int8
         IntegerLiteral 1 : Int8
     val local31
@@ -3095,7 +3095,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral -128 : Int8
         IntegerLiteral -128 : Int8
     val local33
@@ -3103,7 +3103,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral 127 : Int8
         IntegerLiteral 127 : Int8
     val local35
@@ -3111,7 +3111,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local36
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral -2 : Int8
         IntegerLiteral -2 : Int8
     val local37
@@ -3119,7 +3119,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local38
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral -128 : Int8
         IntegerLiteral -128 : Int8
     val local39
@@ -3133,14 +3133,14 @@ Module
     val local42
       Local $old.0 : Int8
     val local43
-      IntegerOperation int8.inc target=function66 <no-gc> : Int8
+      IntegerOperation int8.inc <no-gc> : Int8
         Local $receiver : Int8
     assign incremented
       Local $new.1 : Int8
     val local44
       Local $old.0 : Int8
     val local45
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         Local incremented : Int8
         IntegerLiteral -128 : Int8
     val local46
@@ -3148,7 +3148,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local47
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         Local beforeIncrement : Int8
         Local maximum : Int8
     val local48
@@ -3162,14 +3162,14 @@ Module
     val local51
       Local $old.2 : Int8
     val local52
-      IntegerOperation int8.dec target=function67 <no-gc> : Int8
+      IntegerOperation int8.dec <no-gc> : Int8
         Local $receiver : Int8
     assign decremented
       Local $new.3 : Int8
     val local53
       Local $old.2 : Int8
     val local54
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         Local decremented : Int8
         IntegerLiteral 127 : Int8
     val local55
@@ -3177,7 +3177,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local56
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         Local beforeDecrement : Int8
         Local minimum : Int8
     val local57
@@ -3191,8 +3191,8 @@ Module
     val local60
       Local $argument.0 : Int8
     val local61
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.and target=function74 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.and <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 24 : Int8
@@ -3207,8 +3207,8 @@ Module
     val local65
       Local $argument.0 : Int8
     val local66
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.or target=function75 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.or <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 126 : Int8
@@ -3223,8 +3223,8 @@ Module
     val local70
       Local $argument.0 : Int8
     val local71
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.xor target=function76 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.xor <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 102 : Int8
@@ -3235,8 +3235,8 @@ Module
     val local73
       Local zero : Int8
     val local74
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.inv target=function77 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.inv <no-gc> : Int8
           Local $receiver : Int8
         IntegerLiteral -1 : Int8
     val local75
@@ -3250,8 +3250,8 @@ Module
     val local78
       Local $argument.0 : Long
     val local79
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.shl target=function78 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.shl <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.count : Long
         IntegerLiteral 2 : Int8
@@ -3266,8 +3266,8 @@ Module
     val local83
       Local $argument.0 : Long
     val local84
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.shr target=function79 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.shr <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.count : Long
         IntegerLiteral -64 : Int8
@@ -3282,8 +3282,8 @@ Module
     val local88
       Local $argument.0 : Long
     val local89
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.ushr target=function80 <no-gc> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.ushr <no-gc> : Int8
           Local $receiver : Int8
           Local $parameter.count : Long
         IntegerLiteral 64 : Int8
@@ -3292,7 +3292,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local91
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral -64 : Int8
         IntegerLiteral -64 : Int8
     val local92
@@ -3300,7 +3300,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local93
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+      IntegerOperation int8.equals <no-gc> : Boolean
         IntegerLiteral 64 : Int8
         IntegerLiteral 64 : Int8
     val local94
@@ -3316,7 +3316,7 @@ Module
     val local98
       MethodCall Boolean.equals : Boolean
         Binary Lt : Boolean
-          IntegerOperation int8.compare_to target=function73 <no-gc> : Long
+          IntegerOperation int8.compare_to <no-gc> : Long
             Local $receiver : Int8
             Local $parameter.other : Int8
           IntegerLiteral 0 : Long
@@ -3332,8 +3332,8 @@ Module
     val local102
       Local $argument.0 : Int8
     val local103
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation int8.compare_to target=function73 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation int8.compare_to <no-gc> : Long
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -1 : Long
@@ -3349,7 +3349,7 @@ Module
       Local $argument.0 : Int8
     val local108
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+        IntegerOperation int8.equals <no-gc> : Boolean
           Local $receiver : Int8
           Local $parameter.other : Int8
         BoolLiteral true : Boolean
@@ -3364,7 +3364,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local112
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -1 : Long
         IntegerLiteral -1 : Long
     val local113
@@ -3393,7 +3393,7 @@ Module
       Local $argument.0 : Int8
     val local121
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int8.equals target=function63 <no-gc> : Boolean
+        IntegerOperation int8.equals <no-gc> : Boolean
           Local $receiver : Int8
           Local $parameter.other : Int8
         BoolLiteral false : Boolean
@@ -3408,8 +3408,8 @@ Module
     val local125
       Local $argument.0 : Int8
     val local126
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.div target=function71 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.div <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -2 : Int8
@@ -3424,8 +3424,8 @@ Module
     val local130
       Local $argument.0 : Int8
     val local131
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.rem target=function72 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.rem <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -1 : Int8
@@ -3440,8 +3440,8 @@ Module
     val local135
       Local $argument.0 : Int8
     val local136
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.div target=function71 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.div <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -128 : Int8
@@ -3456,8 +3456,8 @@ Module
     val local140
       Local $argument.0 : Int8
     val local141
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.rem target=function72 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.rem <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 0 : Int8
@@ -3472,8 +3472,8 @@ Module
     val local145
       Local $argument.0 : Int8
     val local146
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.div target=function71 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.div <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -2 : Int8
@@ -3488,8 +3488,8 @@ Module
     val local150
       Local $argument.0 : Int8
     val local151
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.rem target=function72 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.rem <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -1 : Int8
@@ -3504,8 +3504,8 @@ Module
     val local155
       Local $argument.0 : Int8
     val local156
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.div target=function71 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.div <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral -128 : Int8
@@ -3520,8 +3520,8 @@ Module
     val local160
       Local $argument.0 : Int8
     val local161
-      IntegerOperation int8.equals target=function63 <no-gc> : Boolean
-        IntegerOperation int8.rem target=function72 <managed> : Int8
+      IntegerOperation int8.equals <no-gc> : Boolean
+        IntegerOperation int8.rem <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
         IntegerLiteral 0 : Int8
@@ -3537,7 +3537,7 @@ Module
       val local165
         Local $argument.0 : Int8
       val local166
-        IntegerOperation int8.div target=function71 <managed> : Int8
+        IntegerOperation int8.div <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
       val local167
@@ -3559,7 +3559,7 @@ Module
       val local173
         Local $argument.0 : Int8
       val local174
-        IntegerOperation int8.rem target=function72 <managed> : Int8
+        IntegerOperation int8.rem <managed> : Int8
           Local $receiver : Int8
           Local $parameter.other : Int8
       val local175
@@ -3605,8 +3605,8 @@ Module
     val local13
       Local $argument.0 : Int16
     val local14
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.add target=function100 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.add <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -32768 : Int16
@@ -3621,8 +3621,8 @@ Module
     val local18
       Local $argument.0 : Int16
     val local19
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.sub target=function101 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.sub <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 32767 : Int16
@@ -3637,8 +3637,8 @@ Module
     val local23
       Local $argument.0 : Int16
     val local24
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.mul target=function102 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.mul <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -2 : Int16
@@ -3649,8 +3649,8 @@ Module
     val local26
       Local minimum : Int16
     val local27
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.unary_minus target=function97 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.unary_minus <no-gc> : Int16
           Local $receiver : Int16
         IntegerLiteral -32768 : Int16
     val local28
@@ -3660,8 +3660,8 @@ Module
     val local29
       Local one : Int16
     val local30
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.unary_plus target=function96 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.unary_plus <no-gc> : Int16
           Local $receiver : Int16
         IntegerLiteral 1 : Int16
     val local31
@@ -3669,7 +3669,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral -32768 : Int16
         IntegerLiteral -32768 : Int16
     val local33
@@ -3677,7 +3677,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral 32767 : Int16
         IntegerLiteral 32767 : Int16
     val local35
@@ -3685,7 +3685,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local36
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral -2 : Int16
         IntegerLiteral -2 : Int16
     val local37
@@ -3693,7 +3693,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local38
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral -32768 : Int16
         IntegerLiteral -32768 : Int16
     val local39
@@ -3707,14 +3707,14 @@ Module
     val local42
       Local $old.4 : Int16
     val local43
-      IntegerOperation int16.inc target=function98 <no-gc> : Int16
+      IntegerOperation int16.inc <no-gc> : Int16
         Local $receiver : Int16
     assign incremented
       Local $new.5 : Int16
     val local44
       Local $old.4 : Int16
     val local45
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         Local incremented : Int16
         IntegerLiteral -32768 : Int16
     val local46
@@ -3722,7 +3722,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local47
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         Local beforeIncrement : Int16
         Local maximum : Int16
     val local48
@@ -3736,14 +3736,14 @@ Module
     val local51
       Local $old.6 : Int16
     val local52
-      IntegerOperation int16.dec target=function99 <no-gc> : Int16
+      IntegerOperation int16.dec <no-gc> : Int16
         Local $receiver : Int16
     assign decremented
       Local $new.7 : Int16
     val local53
       Local $old.6 : Int16
     val local54
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         Local decremented : Int16
         IntegerLiteral 32767 : Int16
     val local55
@@ -3751,7 +3751,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local56
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         Local beforeDecrement : Int16
         Local minimum : Int16
     val local57
@@ -3765,8 +3765,8 @@ Module
     val local60
       Local $argument.0 : Int16
     val local61
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.and target=function106 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.and <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 2720 : Int16
@@ -3781,8 +3781,8 @@ Module
     val local65
       Local $argument.0 : Int16
     val local66
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.or target=function107 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.or <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 24565 : Int16
@@ -3797,8 +3797,8 @@ Module
     val local70
       Local $argument.0 : Int16
     val local71
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.xor target=function108 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.xor <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 21845 : Int16
@@ -3809,8 +3809,8 @@ Module
     val local73
       Local zero : Int16
     val local74
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.inv target=function109 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.inv <no-gc> : Int16
           Local $receiver : Int16
         IntegerLiteral -1 : Int16
     val local75
@@ -3824,8 +3824,8 @@ Module
     val local78
       Local $argument.0 : Long
     val local79
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.shl target=function110 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.shl <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.count : Long
         IntegerLiteral 2 : Int16
@@ -3840,8 +3840,8 @@ Module
     val local83
       Local $argument.0 : Long
     val local84
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.shr target=function111 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.shr <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.count : Long
         IntegerLiteral -16384 : Int16
@@ -3856,8 +3856,8 @@ Module
     val local88
       Local $argument.0 : Long
     val local89
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.ushr target=function112 <no-gc> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.ushr <no-gc> : Int16
           Local $receiver : Int16
           Local $parameter.count : Long
         IntegerLiteral 16384 : Int16
@@ -3866,7 +3866,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local91
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral -16384 : Int16
         IntegerLiteral -16384 : Int16
     val local92
@@ -3874,7 +3874,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local93
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+      IntegerOperation int16.equals <no-gc> : Boolean
         IntegerLiteral 16384 : Int16
         IntegerLiteral 16384 : Int16
     val local94
@@ -3890,7 +3890,7 @@ Module
     val local98
       MethodCall Boolean.equals : Boolean
         Binary Lt : Boolean
-          IntegerOperation int16.compare_to target=function105 <no-gc> : Long
+          IntegerOperation int16.compare_to <no-gc> : Long
             Local $receiver : Int16
             Local $parameter.other : Int16
           IntegerLiteral 0 : Long
@@ -3906,8 +3906,8 @@ Module
     val local102
       Local $argument.0 : Int16
     val local103
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation int16.compare_to target=function105 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation int16.compare_to <no-gc> : Long
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -1 : Long
@@ -3923,7 +3923,7 @@ Module
       Local $argument.0 : Int16
     val local108
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+        IntegerOperation int16.equals <no-gc> : Boolean
           Local $receiver : Int16
           Local $parameter.other : Int16
         BoolLiteral true : Boolean
@@ -3938,7 +3938,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local112
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -1 : Long
         IntegerLiteral -1 : Long
     val local113
@@ -3967,7 +3967,7 @@ Module
       Local $argument.0 : Int16
     val local121
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int16.equals target=function95 <no-gc> : Boolean
+        IntegerOperation int16.equals <no-gc> : Boolean
           Local $receiver : Int16
           Local $parameter.other : Int16
         BoolLiteral false : Boolean
@@ -3982,8 +3982,8 @@ Module
     val local125
       Local $argument.0 : Int16
     val local126
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.div target=function103 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.div <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -2 : Int16
@@ -3998,8 +3998,8 @@ Module
     val local130
       Local $argument.0 : Int16
     val local131
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.rem target=function104 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.rem <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -1 : Int16
@@ -4014,8 +4014,8 @@ Module
     val local135
       Local $argument.0 : Int16
     val local136
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.div target=function103 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.div <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -32768 : Int16
@@ -4030,8 +4030,8 @@ Module
     val local140
       Local $argument.0 : Int16
     val local141
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.rem target=function104 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.rem <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 0 : Int16
@@ -4046,8 +4046,8 @@ Module
     val local145
       Local $argument.0 : Int16
     val local146
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.div target=function103 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.div <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -2 : Int16
@@ -4062,8 +4062,8 @@ Module
     val local150
       Local $argument.0 : Int16
     val local151
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.rem target=function104 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.rem <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -1 : Int16
@@ -4078,8 +4078,8 @@ Module
     val local155
       Local $argument.0 : Int16
     val local156
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.div target=function103 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.div <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral -32768 : Int16
@@ -4094,8 +4094,8 @@ Module
     val local160
       Local $argument.0 : Int16
     val local161
-      IntegerOperation int16.equals target=function95 <no-gc> : Boolean
-        IntegerOperation int16.rem target=function104 <managed> : Int16
+      IntegerOperation int16.equals <no-gc> : Boolean
+        IntegerOperation int16.rem <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
         IntegerLiteral 0 : Int16
@@ -4111,7 +4111,7 @@ Module
       val local165
         Local $argument.0 : Int16
       val local166
-        IntegerOperation int16.div target=function103 <managed> : Int16
+        IntegerOperation int16.div <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
       val local167
@@ -4133,7 +4133,7 @@ Module
       val local173
         Local $argument.0 : Int16
       val local174
-        IntegerOperation int16.rem target=function104 <managed> : Int16
+        IntegerOperation int16.rem <managed> : Int16
           Local $receiver : Int16
           Local $parameter.other : Int16
       val local175
@@ -4171,8 +4171,8 @@ Module
     val local9
       Local $argument.0 : Int
     val local10
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.add <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2147483648 : Int
@@ -4187,8 +4187,8 @@ Module
     val local14
       Local $argument.0 : Int
     val local15
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.sub target=function133 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.sub <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 2147483647 : Int
@@ -4203,8 +4203,8 @@ Module
     val local19
       Local $argument.0 : Int
     val local20
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.mul target=function134 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.mul <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2 : Int
@@ -4215,8 +4215,8 @@ Module
     val local22
       Local minimum : Int
     val local23
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.unary_minus target=function129 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.unary_minus <no-gc> : Int
           Local $receiver : Int
         IntegerLiteral -2147483648 : Int
     val local24
@@ -4226,8 +4226,8 @@ Module
     val local25
       Local one : Int
     val local26
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.unary_plus target=function128 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.unary_plus <no-gc> : Int
           Local $receiver : Int
         IntegerLiteral 1 : Int
     val local27
@@ -4235,7 +4235,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local28
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral -2147483648 : Int
         IntegerLiteral -2147483648 : Int
     val local29
@@ -4243,7 +4243,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral 2147483647 : Int
         IntegerLiteral 2147483647 : Int
     val local31
@@ -4251,7 +4251,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral -2 : Int
         IntegerLiteral -2 : Int
     val local33
@@ -4259,7 +4259,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral -2147483648 : Int
         IntegerLiteral -2147483648 : Int
     val local35
@@ -4273,14 +4273,14 @@ Module
     val local38
       Local $old.8 : Int
     val local39
-      IntegerOperation int.inc target=function130 <no-gc> : Int
+      IntegerOperation int.inc <no-gc> : Int
         Local $receiver : Int
     assign incremented
       Local $new.9 : Int
     val local40
       Local $old.8 : Int
     val local41
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local incremented : Int
         IntegerLiteral -2147483648 : Int
     val local42
@@ -4288,7 +4288,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local43
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local beforeIncrement : Int
         Local maximum : Int
     val local44
@@ -4302,14 +4302,14 @@ Module
     val local47
       Local $old.10 : Int
     val local48
-      IntegerOperation int.dec target=function131 <no-gc> : Int
+      IntegerOperation int.dec <no-gc> : Int
         Local $receiver : Int
     assign decremented
       Local $new.11 : Int
     val local49
       Local $old.10 : Int
     val local50
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local decremented : Int
         IntegerLiteral 2147483647 : Int
     val local51
@@ -4317,7 +4317,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local52
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local beforeDecrement : Int
         Local minimum : Int
     val local53
@@ -4331,8 +4331,8 @@ Module
     val local56
       Local $argument.0 : Int
     val local57
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.and target=function138 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.and <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 178260560 : Int
@@ -4347,8 +4347,8 @@ Module
     val local61
       Local $argument.0 : Int
     val local62
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.or target=function139 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.or <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 1609936885 : Int
@@ -4363,8 +4363,8 @@ Module
     val local66
       Local $argument.0 : Int
     val local67
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.xor target=function140 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.xor <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 1431676325 : Int
@@ -4375,8 +4375,8 @@ Module
     val local69
       Local zero : Int
     val local70
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.inv target=function141 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.inv <no-gc> : Int
           Local $receiver : Int
         IntegerLiteral -1 : Int
     val local71
@@ -4390,8 +4390,8 @@ Module
     val local74
       Local $argument.0 : Long
     val local75
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.shl target=function142 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.shl <no-gc> : Int
           Local $receiver : Int
           Local $parameter.count : Long
         IntegerLiteral 2 : Int
@@ -4406,8 +4406,8 @@ Module
     val local79
       Local $argument.0 : Long
     val local80
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.shr target=function143 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.shr <no-gc> : Int
           Local $receiver : Int
           Local $parameter.count : Long
         IntegerLiteral -1073741824 : Int
@@ -4422,8 +4422,8 @@ Module
     val local84
       Local $argument.0 : Long
     val local85
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.ushr target=function144 <no-gc> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.ushr <no-gc> : Int
           Local $receiver : Int
           Local $parameter.count : Long
         IntegerLiteral 1073741824 : Int
@@ -4432,7 +4432,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local87
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral -1073741824 : Int
         IntegerLiteral -1073741824 : Int
     val local88
@@ -4440,7 +4440,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local89
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         IntegerLiteral 1073741824 : Int
         IntegerLiteral 1073741824 : Int
     val local90
@@ -4456,7 +4456,7 @@ Module
     val local94
       MethodCall Boolean.equals : Boolean
         Binary Lt : Boolean
-          IntegerOperation int.compare_to target=function137 <no-gc> : Long
+          IntegerOperation int.compare_to <no-gc> : Long
             Local $receiver : Int
             Local $parameter.other : Int
           IntegerLiteral 0 : Long
@@ -4472,8 +4472,8 @@ Module
     val local98
       Local $argument.0 : Int
     val local99
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation int.compare_to target=function137 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation int.compare_to <no-gc> : Long
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -1 : Long
@@ -4489,7 +4489,7 @@ Module
       Local $argument.0 : Int
     val local104
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int.equals target=function127 <no-gc> : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
           Local $receiver : Int
           Local $parameter.other : Int
         BoolLiteral true : Boolean
@@ -4504,7 +4504,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local108
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -1 : Long
         IntegerLiteral -1 : Long
     val local109
@@ -4533,7 +4533,7 @@ Module
       Local $argument.0 : Int
     val local117
       MethodCall Boolean.equals : Boolean
-        IntegerOperation int.equals target=function127 <no-gc> : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
           Local $receiver : Int
           Local $parameter.other : Int
         BoolLiteral false : Boolean
@@ -4548,8 +4548,8 @@ Module
     val local121
       Local $argument.0 : Int
     val local122
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.div target=function135 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2 : Int
@@ -4564,8 +4564,8 @@ Module
     val local126
       Local $argument.0 : Int
     val local127
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.rem target=function136 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.rem <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -1 : Int
@@ -4580,8 +4580,8 @@ Module
     val local131
       Local $argument.0 : Int
     val local132
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.div target=function135 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2147483648 : Int
@@ -4596,8 +4596,8 @@ Module
     val local136
       Local $argument.0 : Int
     val local137
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.rem target=function136 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.rem <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Int
@@ -4612,8 +4612,8 @@ Module
     val local141
       Local $argument.0 : Int
     val local142
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.div target=function135 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2 : Int
@@ -4628,8 +4628,8 @@ Module
     val local146
       Local $argument.0 : Int
     val local147
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.rem target=function136 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.rem <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -1 : Int
@@ -4644,8 +4644,8 @@ Module
     val local151
       Local $argument.0 : Int
     val local152
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.div target=function135 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral -2147483648 : Int
@@ -4660,8 +4660,8 @@ Module
     val local156
       Local $argument.0 : Int
     val local157
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
-        IntegerOperation int.rem target=function136 <managed> : Int
+      IntegerOperation int.equals <no-gc> : Boolean
+        IntegerOperation int.rem <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
         IntegerLiteral 0 : Int
@@ -4677,7 +4677,7 @@ Module
       val local161
         Local $argument.0 : Int
       val local162
-        IntegerOperation int.div target=function135 <managed> : Int
+        IntegerOperation int.div <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
       val local163
@@ -4699,7 +4699,7 @@ Module
       val local169
         Local $argument.0 : Int
       val local170
-        IntegerOperation int.rem target=function136 <managed> : Int
+        IntegerOperation int.rem <managed> : Int
           Local $receiver : Int
           Local $parameter.other : Int
       val local171
@@ -4737,8 +4737,8 @@ Module
     val local9
       Local $argument.0 : Long
     val local10
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.add <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -9223372036854775808 : Long
@@ -4753,8 +4753,8 @@ Module
     val local14
       Local $argument.0 : Long
     val local15
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.sub target=function165 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.sub <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 9223372036854775807 : Long
@@ -4769,8 +4769,8 @@ Module
     val local19
       Local $argument.0 : Long
     val local20
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.mul target=function166 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.mul <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -2 : Long
@@ -4781,8 +4781,8 @@ Module
     val local22
       Local minimum : Long
     val local23
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.unary_minus target=function161 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.unary_minus <no-gc> : Long
           Local $receiver : Long
         IntegerLiteral -9223372036854775808 : Long
     val local24
@@ -4792,8 +4792,8 @@ Module
     val local25
       Local one : Long
     val local26
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.unary_plus target=function160 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.unary_plus <no-gc> : Long
           Local $receiver : Long
         IntegerLiteral 1 : Long
     val local27
@@ -4801,7 +4801,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local28
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -9223372036854775808 : Long
         IntegerLiteral -9223372036854775808 : Long
     val local29
@@ -4809,7 +4809,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 9223372036854775807 : Long
         IntegerLiteral 9223372036854775807 : Long
     val local31
@@ -4817,7 +4817,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -2 : Long
         IntegerLiteral -2 : Long
     val local33
@@ -4825,7 +4825,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -9223372036854775808 : Long
         IntegerLiteral -9223372036854775808 : Long
     val local35
@@ -4839,14 +4839,14 @@ Module
     val local38
       Local $old.12 : Long
     val local39
-      IntegerOperation long.inc target=function162 <no-gc> : Long
+      IntegerOperation long.inc <no-gc> : Long
         Local $receiver : Long
     assign incremented
       Local $new.13 : Long
     val local40
       Local $old.12 : Long
     val local41
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         Local incremented : Long
         IntegerLiteral -9223372036854775808 : Long
     val local42
@@ -4854,7 +4854,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local43
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         Local beforeIncrement : Long
         Local maximum : Long
     val local44
@@ -4868,14 +4868,14 @@ Module
     val local47
       Local $old.14 : Long
     val local48
-      IntegerOperation long.dec target=function163 <no-gc> : Long
+      IntegerOperation long.dec <no-gc> : Long
         Local $receiver : Long
     assign decremented
       Local $new.15 : Long
     val local49
       Local $old.14 : Long
     val local50
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         Local decremented : Long
         IntegerLiteral 9223372036854775807 : Long
     val local51
@@ -4883,7 +4883,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local52
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         Local beforeDecrement : Long
         Local minimum : Long
     val local53
@@ -4897,8 +4897,8 @@ Module
     val local56
       Local $argument.0 : Long
     val local57
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.and target=function170 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.and <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 765623275544906320 : Long
@@ -4913,8 +4913,8 @@ Module
     val local61
       Local $argument.0 : Long
     val local62
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.or target=function171 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.or <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 6914626271309049845 : Long
@@ -4929,8 +4929,8 @@ Module
     val local66
       Local $argument.0 : Long
     val local67
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.xor target=function172 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.xor <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 6149002995764143525 : Long
@@ -4941,8 +4941,8 @@ Module
     val local69
       Local zero : Long
     val local70
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.inv target=function173 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.inv <no-gc> : Long
           Local $receiver : Long
         IntegerLiteral -1 : Long
     val local71
@@ -4956,8 +4956,8 @@ Module
     val local74
       Local $argument.0 : Long
     val local75
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.shl target=function174 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.shl <no-gc> : Long
           Local $receiver : Long
           Local $parameter.count : Long
         IntegerLiteral 2 : Long
@@ -4972,8 +4972,8 @@ Module
     val local79
       Local $argument.0 : Long
     val local80
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.shr target=function175 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.shr <no-gc> : Long
           Local $receiver : Long
           Local $parameter.count : Long
         IntegerLiteral -4611686018427387904 : Long
@@ -4988,8 +4988,8 @@ Module
     val local84
       Local $argument.0 : Long
     val local85
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.ushr target=function176 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.ushr <no-gc> : Long
           Local $receiver : Long
           Local $parameter.count : Long
         IntegerLiteral 4611686018427387904 : Long
@@ -4998,7 +4998,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local87
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -4611686018427387904 : Long
         IntegerLiteral -4611686018427387904 : Long
     val local88
@@ -5006,7 +5006,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local89
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 4611686018427387904 : Long
         IntegerLiteral 4611686018427387904 : Long
     val local90
@@ -5022,7 +5022,7 @@ Module
     val local94
       MethodCall Boolean.equals : Boolean
         Binary Lt : Boolean
-          IntegerOperation long.compare_to target=function169 <no-gc> : Long
+          IntegerOperation long.compare_to <no-gc> : Long
             Local $receiver : Long
             Local $parameter.other : Long
           IntegerLiteral 0 : Long
@@ -5038,8 +5038,8 @@ Module
     val local98
       Local $argument.0 : Long
     val local99
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.compare_to target=function169 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.compare_to <no-gc> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -1 : Long
@@ -5055,7 +5055,7 @@ Module
       Local $argument.0 : Long
     val local104
       MethodCall Boolean.equals : Boolean
-        IntegerOperation long.equals target=function159 <no-gc> : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
           Local $receiver : Long
           Local $parameter.other : Long
         BoolLiteral true : Boolean
@@ -5070,7 +5070,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local108
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral -1 : Long
         IntegerLiteral -1 : Long
     val local109
@@ -5099,7 +5099,7 @@ Module
       Local $argument.0 : Long
     val local117
       MethodCall Boolean.equals : Boolean
-        IntegerOperation long.equals target=function159 <no-gc> : Boolean
+        IntegerOperation long.equals <no-gc> : Boolean
           Local $receiver : Long
           Local $parameter.other : Long
         BoolLiteral false : Boolean
@@ -5114,8 +5114,8 @@ Module
     val local121
       Local $argument.0 : Long
     val local122
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.div target=function167 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.div <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -2 : Long
@@ -5130,8 +5130,8 @@ Module
     val local126
       Local $argument.0 : Long
     val local127
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.rem target=function168 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.rem <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -1 : Long
@@ -5146,8 +5146,8 @@ Module
     val local131
       Local $argument.0 : Long
     val local132
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.div target=function167 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.div <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -9223372036854775808 : Long
@@ -5162,8 +5162,8 @@ Module
     val local136
       Local $argument.0 : Long
     val local137
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.rem target=function168 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.rem <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 0 : Long
@@ -5178,8 +5178,8 @@ Module
     val local141
       Local $argument.0 : Long
     val local142
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.div target=function167 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.div <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -2 : Long
@@ -5194,8 +5194,8 @@ Module
     val local146
       Local $argument.0 : Long
     val local147
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.rem target=function168 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.rem <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -1 : Long
@@ -5210,8 +5210,8 @@ Module
     val local151
       Local $argument.0 : Long
     val local152
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.div target=function167 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.div <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral -9223372036854775808 : Long
@@ -5226,8 +5226,8 @@ Module
     val local156
       Local $argument.0 : Long
     val local157
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation long.rem target=function168 <managed> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation long.rem <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
         IntegerLiteral 0 : Long
@@ -5243,7 +5243,7 @@ Module
       val local161
         Local $argument.0 : Long
       val local162
-        IntegerOperation long.div target=function167 <managed> : Long
+        IntegerOperation long.div <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
       val local163
@@ -5265,7 +5265,7 @@ Module
       val local169
         Local $argument.0 : Long
       val local170
-        IntegerOperation long.rem target=function168 <managed> : Long
+        IntegerOperation long.rem <managed> : Long
           Local $receiver : Long
           Local $parameter.other : Long
       val local171
@@ -5307,8 +5307,8 @@ Module
     val local11
       Local $argument.0 : UInt8
     val local12
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.add target=function196 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.add <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 0u : UInt8
@@ -5323,8 +5323,8 @@ Module
     val local16
       Local $argument.0 : UInt8
     val local17
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.sub target=function197 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.sub <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 255u : UInt8
@@ -5339,8 +5339,8 @@ Module
     val local21
       Local $argument.0 : UInt8
     val local22
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.mul target=function198 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.mul <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 254u : UInt8
@@ -5351,8 +5351,8 @@ Module
     val local24
       Local one : UInt8
     val local25
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.unary_minus target=function193 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.unary_minus <no-gc> : UInt8
           Local $receiver : UInt8
         IntegerLiteral 255u : UInt8
     val local26
@@ -5362,8 +5362,8 @@ Module
     val local27
       Local one : UInt8
     val local28
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.unary_plus target=function192 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.unary_plus <no-gc> : UInt8
           Local $receiver : UInt8
         IntegerLiteral 1u : UInt8
     val local29
@@ -5371,7 +5371,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         IntegerLiteral 0u : UInt8
         IntegerLiteral 0u : UInt8
     val local31
@@ -5379,7 +5379,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         IntegerLiteral 255u : UInt8
         IntegerLiteral 255u : UInt8
     val local33
@@ -5387,7 +5387,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         IntegerLiteral 254u : UInt8
         IntegerLiteral 254u : UInt8
     val local35
@@ -5395,7 +5395,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local36
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         IntegerLiteral 255u : UInt8
         IntegerLiteral 255u : UInt8
     val local37
@@ -5409,14 +5409,14 @@ Module
     val local40
       Local $old.16 : UInt8
     val local41
-      IntegerOperation uint8.inc target=function194 <no-gc> : UInt8
+      IntegerOperation uint8.inc <no-gc> : UInt8
         Local $receiver : UInt8
     assign incremented
       Local $new.17 : UInt8
     val local42
       Local $old.16 : UInt8
     val local43
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         Local incremented : UInt8
         IntegerLiteral 0u : UInt8
     val local44
@@ -5424,7 +5424,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local45
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         Local beforeIncrement : UInt8
         Local maximum : UInt8
     val local46
@@ -5438,14 +5438,14 @@ Module
     val local49
       Local $old.18 : UInt8
     val local50
-      IntegerOperation uint8.dec target=function195 <no-gc> : UInt8
+      IntegerOperation uint8.dec <no-gc> : UInt8
         Local $receiver : UInt8
     assign decremented
       Local $new.19 : UInt8
     val local51
       Local $old.18 : UInt8
     val local52
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         Local decremented : UInt8
         IntegerLiteral 255u : UInt8
     val local53
@@ -5453,7 +5453,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local54
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+      IntegerOperation uint8.equals <no-gc> : Boolean
         Local beforeDecrement : UInt8
         Local zero : UInt8
     val local55
@@ -5467,8 +5467,8 @@ Module
     val local58
       Local $argument.0 : UInt8
     val local59
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.and target=function202 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.and <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 36u : UInt8
@@ -5483,8 +5483,8 @@ Module
     val local63
       Local $argument.0 : UInt8
     val local64
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.or target=function203 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.or <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 189u : UInt8
@@ -5499,8 +5499,8 @@ Module
     val local68
       Local $argument.0 : UInt8
     val local69
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.xor target=function204 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.xor <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 153u : UInt8
@@ -5511,8 +5511,8 @@ Module
     val local71
       Local zero : UInt8
     val local72
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.inv target=function205 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.inv <no-gc> : UInt8
           Local $receiver : UInt8
         IntegerLiteral 255u : UInt8
     val local73
@@ -5526,8 +5526,8 @@ Module
     val local76
       Local $argument.0 : Long
     val local77
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.shl target=function206 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.shl <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.count : Long
         IntegerLiteral 2u : UInt8
@@ -5542,8 +5542,8 @@ Module
     val local81
       Local $argument.0 : Long
     val local82
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.shr target=function207 <no-gc> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.shr <no-gc> : UInt8
           Local $receiver : UInt8
           Local $parameter.count : Long
         IntegerLiteral 127u : UInt8
@@ -5560,7 +5560,7 @@ Module
     val local87
       MethodCall Boolean.equals : Boolean
         Binary Gt : Boolean
-          IntegerOperation uint8.compare_to target=function201 <no-gc> : Long
+          IntegerOperation uint8.compare_to <no-gc> : Long
             Local $receiver : UInt8
             Local $parameter.other : UInt8
           IntegerLiteral 0 : Long
@@ -5576,8 +5576,8 @@ Module
     val local91
       Local $argument.0 : UInt8
     val local92
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation uint8.compare_to target=function201 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation uint8.compare_to <no-gc> : Long
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 1 : Long
@@ -5593,7 +5593,7 @@ Module
       Local $argument.0 : UInt8
     val local97
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+        IntegerOperation uint8.equals <no-gc> : Boolean
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         BoolLiteral true : Boolean
@@ -5608,7 +5608,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local101
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 1 : Long
         IntegerLiteral 1 : Long
     val local102
@@ -5637,7 +5637,7 @@ Module
       Local $argument.0 : UInt8
     val local110
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
+        IntegerOperation uint8.equals <no-gc> : Boolean
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         BoolLiteral false : Boolean
@@ -5652,8 +5652,8 @@ Module
     val local114
       Local $argument.0 : UInt8
     val local115
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.div target=function199 <managed> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.div <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 35u : UInt8
@@ -5668,8 +5668,8 @@ Module
     val local119
       Local $argument.0 : UInt8
     val local120
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.rem target=function200 <managed> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.rem <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 5u : UInt8
@@ -5684,8 +5684,8 @@ Module
     val local124
       Local $argument.0 : UInt8
     val local125
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.div target=function199 <managed> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.div <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 35u : UInt8
@@ -5700,8 +5700,8 @@ Module
     val local129
       Local $argument.0 : UInt8
     val local130
-      IntegerOperation uint8.equals target=function191 <no-gc> : Boolean
-        IntegerOperation uint8.rem target=function200 <managed> : UInt8
+      IntegerOperation uint8.equals <no-gc> : Boolean
+        IntegerOperation uint8.rem <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
         IntegerLiteral 5u : UInt8
@@ -5717,7 +5717,7 @@ Module
       val local134
         Local $argument.0 : UInt8
       val local135
-        IntegerOperation uint8.div target=function199 <managed> : UInt8
+        IntegerOperation uint8.div <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
       val local136
@@ -5739,7 +5739,7 @@ Module
       val local142
         Local $argument.0 : UInt8
       val local143
-        IntegerOperation uint8.rem target=function200 <managed> : UInt8
+        IntegerOperation uint8.rem <managed> : UInt8
           Local $receiver : UInt8
           Local $parameter.other : UInt8
       val local144
@@ -5781,8 +5781,8 @@ Module
     val local11
       Local $argument.0 : UInt16
     val local12
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.add target=function227 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.add <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 0u : UInt16
@@ -5797,8 +5797,8 @@ Module
     val local16
       Local $argument.0 : UInt16
     val local17
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.sub target=function228 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.sub <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 65535u : UInt16
@@ -5813,8 +5813,8 @@ Module
     val local21
       Local $argument.0 : UInt16
     val local22
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.mul target=function229 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.mul <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 65534u : UInt16
@@ -5825,8 +5825,8 @@ Module
     val local24
       Local one : UInt16
     val local25
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.unary_minus target=function224 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.unary_minus <no-gc> : UInt16
           Local $receiver : UInt16
         IntegerLiteral 65535u : UInt16
     val local26
@@ -5836,8 +5836,8 @@ Module
     val local27
       Local one : UInt16
     val local28
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.unary_plus target=function223 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.unary_plus <no-gc> : UInt16
           Local $receiver : UInt16
         IntegerLiteral 1u : UInt16
     val local29
@@ -5845,7 +5845,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         IntegerLiteral 0u : UInt16
         IntegerLiteral 0u : UInt16
     val local31
@@ -5853,7 +5853,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         IntegerLiteral 65535u : UInt16
         IntegerLiteral 65535u : UInt16
     val local33
@@ -5861,7 +5861,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local34
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         IntegerLiteral 65534u : UInt16
         IntegerLiteral 65534u : UInt16
     val local35
@@ -5869,7 +5869,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local36
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         IntegerLiteral 65535u : UInt16
         IntegerLiteral 65535u : UInt16
     val local37
@@ -5883,14 +5883,14 @@ Module
     val local40
       Local $old.20 : UInt16
     val local41
-      IntegerOperation uint16.inc target=function225 <no-gc> : UInt16
+      IntegerOperation uint16.inc <no-gc> : UInt16
         Local $receiver : UInt16
     assign incremented
       Local $new.21 : UInt16
     val local42
       Local $old.20 : UInt16
     val local43
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         Local incremented : UInt16
         IntegerLiteral 0u : UInt16
     val local44
@@ -5898,7 +5898,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local45
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         Local beforeIncrement : UInt16
         Local maximum : UInt16
     val local46
@@ -5912,14 +5912,14 @@ Module
     val local49
       Local $old.22 : UInt16
     val local50
-      IntegerOperation uint16.dec target=function226 <no-gc> : UInt16
+      IntegerOperation uint16.dec <no-gc> : UInt16
         Local $receiver : UInt16
     assign decremented
       Local $new.23 : UInt16
     val local51
       Local $old.22 : UInt16
     val local52
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         Local decremented : UInt16
         IntegerLiteral 65535u : UInt16
     val local53
@@ -5927,7 +5927,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local54
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+      IntegerOperation uint16.equals <no-gc> : Boolean
         Local beforeDecrement : UInt16
         Local zero : UInt16
     val local55
@@ -5941,8 +5941,8 @@ Module
     val local58
       Local $argument.0 : UInt16
     val local59
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.and target=function233 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.and <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 9252u : UInt16
@@ -5957,8 +5957,8 @@ Module
     val local63
       Local $argument.0 : UInt16
     val local64
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.or target=function234 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.or <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 48573u : UInt16
@@ -5973,8 +5973,8 @@ Module
     val local68
       Local $argument.0 : UInt16
     val local69
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.xor target=function235 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.xor <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 39321u : UInt16
@@ -5985,8 +5985,8 @@ Module
     val local71
       Local zero : UInt16
     val local72
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.inv target=function236 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.inv <no-gc> : UInt16
           Local $receiver : UInt16
         IntegerLiteral 65535u : UInt16
     val local73
@@ -6000,8 +6000,8 @@ Module
     val local76
       Local $argument.0 : Long
     val local77
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.shl target=function237 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.shl <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.count : Long
         IntegerLiteral 2u : UInt16
@@ -6016,8 +6016,8 @@ Module
     val local81
       Local $argument.0 : Long
     val local82
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.shr target=function238 <no-gc> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.shr <no-gc> : UInt16
           Local $receiver : UInt16
           Local $parameter.count : Long
         IntegerLiteral 32767u : UInt16
@@ -6034,7 +6034,7 @@ Module
     val local87
       MethodCall Boolean.equals : Boolean
         Binary Gt : Boolean
-          IntegerOperation uint16.compare_to target=function232 <no-gc> : Long
+          IntegerOperation uint16.compare_to <no-gc> : Long
             Local $receiver : UInt16
             Local $parameter.other : UInt16
           IntegerLiteral 0 : Long
@@ -6050,8 +6050,8 @@ Module
     val local91
       Local $argument.0 : UInt16
     val local92
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation uint16.compare_to target=function232 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation uint16.compare_to <no-gc> : Long
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 1 : Long
@@ -6067,7 +6067,7 @@ Module
       Local $argument.0 : UInt16
     val local97
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+        IntegerOperation uint16.equals <no-gc> : Boolean
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         BoolLiteral true : Boolean
@@ -6082,7 +6082,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local101
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 1 : Long
         IntegerLiteral 1 : Long
     val local102
@@ -6111,7 +6111,7 @@ Module
       Local $argument.0 : UInt16
     val local110
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
+        IntegerOperation uint16.equals <no-gc> : Boolean
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         BoolLiteral false : Boolean
@@ -6126,8 +6126,8 @@ Module
     val local114
       Local $argument.0 : UInt16
     val local115
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.div target=function230 <managed> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.div <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 9285u : UInt16
@@ -6142,8 +6142,8 @@ Module
     val local119
       Local $argument.0 : UInt16
     val local120
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.rem target=function231 <managed> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.rem <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 5u : UInt16
@@ -6158,8 +6158,8 @@ Module
     val local124
       Local $argument.0 : UInt16
     val local125
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.div target=function230 <managed> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.div <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 9285u : UInt16
@@ -6174,8 +6174,8 @@ Module
     val local129
       Local $argument.0 : UInt16
     val local130
-      IntegerOperation uint16.equals target=function222 <no-gc> : Boolean
-        IntegerOperation uint16.rem target=function231 <managed> : UInt16
+      IntegerOperation uint16.equals <no-gc> : Boolean
+        IntegerOperation uint16.rem <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
         IntegerLiteral 5u : UInt16
@@ -6191,7 +6191,7 @@ Module
       val local134
         Local $argument.0 : UInt16
       val local135
-        IntegerOperation uint16.div target=function230 <managed> : UInt16
+        IntegerOperation uint16.div <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
       val local136
@@ -6213,7 +6213,7 @@ Module
       val local142
         Local $argument.0 : UInt16
       val local143
-        IntegerOperation uint16.rem target=function231 <managed> : UInt16
+        IntegerOperation uint16.rem <managed> : UInt16
           Local $receiver : UInt16
           Local $parameter.other : UInt16
       val local144
@@ -6247,8 +6247,8 @@ Module
     val local7
       Local $argument.0 : UInt
     val local8
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.add target=function258 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.add <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 0u : UInt
@@ -6263,8 +6263,8 @@ Module
     val local12
       Local $argument.0 : UInt
     val local13
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.sub target=function259 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.sub <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 4294967295u : UInt
@@ -6279,8 +6279,8 @@ Module
     val local17
       Local $argument.0 : UInt
     val local18
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.mul target=function260 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.mul <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 4294967294u : UInt
@@ -6291,8 +6291,8 @@ Module
     val local20
       Local one : UInt
     val local21
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.unary_minus target=function255 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.unary_minus <no-gc> : UInt
           Local $receiver : UInt
         IntegerLiteral 4294967295u : UInt
     val local22
@@ -6302,8 +6302,8 @@ Module
     val local23
       Local one : UInt
     val local24
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.unary_plus target=function254 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.unary_plus <no-gc> : UInt
           Local $receiver : UInt
         IntegerLiteral 1u : UInt
     val local25
@@ -6311,7 +6311,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local26
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         IntegerLiteral 0u : UInt
         IntegerLiteral 0u : UInt
     val local27
@@ -6319,7 +6319,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local28
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         IntegerLiteral 4294967295u : UInt
         IntegerLiteral 4294967295u : UInt
     val local29
@@ -6327,7 +6327,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         IntegerLiteral 4294967294u : UInt
         IntegerLiteral 4294967294u : UInt
     val local31
@@ -6335,7 +6335,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         IntegerLiteral 4294967295u : UInt
         IntegerLiteral 4294967295u : UInt
     val local33
@@ -6349,14 +6349,14 @@ Module
     val local36
       Local $old.24 : UInt
     val local37
-      IntegerOperation uint.inc target=function256 <no-gc> : UInt
+      IntegerOperation uint.inc <no-gc> : UInt
         Local $receiver : UInt
     assign incremented
       Local $new.25 : UInt
     val local38
       Local $old.24 : UInt
     val local39
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         Local incremented : UInt
         IntegerLiteral 0u : UInt
     val local40
@@ -6364,7 +6364,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local41
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         Local beforeIncrement : UInt
         Local maximum : UInt
     val local42
@@ -6378,14 +6378,14 @@ Module
     val local45
       Local $old.26 : UInt
     val local46
-      IntegerOperation uint.dec target=function257 <no-gc> : UInt
+      IntegerOperation uint.dec <no-gc> : UInt
         Local $receiver : UInt
     assign decremented
       Local $new.27 : UInt
     val local47
       Local $old.26 : UInt
     val local48
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         Local decremented : UInt
         IntegerLiteral 4294967295u : UInt
     val local49
@@ -6393,7 +6393,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local50
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+      IntegerOperation uint.equals <no-gc> : Boolean
         Local beforeDecrement : UInt
         Local zero : UInt
     val local51
@@ -6407,8 +6407,8 @@ Module
     val local54
       Local $argument.0 : UInt
     val local55
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.and target=function264 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.and <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 606348324u : UInt
@@ -6423,8 +6423,8 @@ Module
     val local59
       Local $argument.0 : UInt
     val local60
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.or target=function265 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.or <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 3183328701u : UInt
@@ -6439,8 +6439,8 @@ Module
     val local64
       Local $argument.0 : UInt
     val local65
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.xor target=function266 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.xor <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 2576980377u : UInt
@@ -6451,8 +6451,8 @@ Module
     val local67
       Local zero : UInt
     val local68
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.inv target=function267 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.inv <no-gc> : UInt
           Local $receiver : UInt
         IntegerLiteral 4294967295u : UInt
     val local69
@@ -6466,8 +6466,8 @@ Module
     val local72
       Local $argument.0 : Long
     val local73
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.shl target=function268 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.shl <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.count : Long
         IntegerLiteral 2u : UInt
@@ -6482,8 +6482,8 @@ Module
     val local77
       Local $argument.0 : Long
     val local78
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.shr target=function269 <no-gc> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.shr <no-gc> : UInt
           Local $receiver : UInt
           Local $parameter.count : Long
         IntegerLiteral 2147483647u : UInt
@@ -6500,7 +6500,7 @@ Module
     val local83
       MethodCall Boolean.equals : Boolean
         Binary Gt : Boolean
-          IntegerOperation uint.compare_to target=function263 <no-gc> : Long
+          IntegerOperation uint.compare_to <no-gc> : Long
             Local $receiver : UInt
             Local $parameter.other : UInt
           IntegerLiteral 0 : Long
@@ -6516,8 +6516,8 @@ Module
     val local87
       Local $argument.0 : UInt
     val local88
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation uint.compare_to target=function263 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation uint.compare_to <no-gc> : Long
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 1 : Long
@@ -6533,7 +6533,7 @@ Module
       Local $argument.0 : UInt
     val local93
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+        IntegerOperation uint.equals <no-gc> : Boolean
           Local $receiver : UInt
           Local $parameter.other : UInt
         BoolLiteral true : Boolean
@@ -6548,7 +6548,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local97
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 1 : Long
         IntegerLiteral 1 : Long
     val local98
@@ -6577,7 +6577,7 @@ Module
       Local $argument.0 : UInt
     val local106
       MethodCall Boolean.equals : Boolean
-        IntegerOperation uint.equals target=function253 <no-gc> : Boolean
+        IntegerOperation uint.equals <no-gc> : Boolean
           Local $receiver : UInt
           Local $parameter.other : UInt
         BoolLiteral false : Boolean
@@ -6592,8 +6592,8 @@ Module
     val local110
       Local $argument.0 : UInt
     val local111
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.div target=function261 <managed> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.div <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 571428571u : UInt
@@ -6608,8 +6608,8 @@ Module
     val local115
       Local $argument.0 : UInt
     val local116
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.rem target=function262 <managed> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.rem <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 3u : UInt
@@ -6624,8 +6624,8 @@ Module
     val local120
       Local $argument.0 : UInt
     val local121
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.div target=function261 <managed> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.div <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 571428571u : UInt
@@ -6640,8 +6640,8 @@ Module
     val local125
       Local $argument.0 : UInt
     val local126
-      IntegerOperation uint.equals target=function253 <no-gc> : Boolean
-        IntegerOperation uint.rem target=function262 <managed> : UInt
+      IntegerOperation uint.equals <no-gc> : Boolean
+        IntegerOperation uint.rem <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
         IntegerLiteral 3u : UInt
@@ -6657,7 +6657,7 @@ Module
       val local130
         Local $argument.0 : UInt
       val local131
-        IntegerOperation uint.div target=function261 <managed> : UInt
+        IntegerOperation uint.div <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
       val local132
@@ -6679,7 +6679,7 @@ Module
       val local138
         Local $argument.0 : UInt
       val local139
-        IntegerOperation uint.rem target=function262 <managed> : UInt
+        IntegerOperation uint.rem <managed> : UInt
           Local $receiver : UInt
           Local $parameter.other : UInt
       val local140
@@ -6713,8 +6713,8 @@ Module
     val local7
       Local $argument.0 : ULong
     val local8
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.add target=function289 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.add <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 0uL : ULong
@@ -6729,8 +6729,8 @@ Module
     val local12
       Local $argument.0 : ULong
     val local13
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.sub target=function290 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.sub <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 18446744073709551615uL : ULong
@@ -6745,8 +6745,8 @@ Module
     val local17
       Local $argument.0 : ULong
     val local18
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.mul target=function291 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.mul <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 18446744073709551614uL : ULong
@@ -6757,8 +6757,8 @@ Module
     val local20
       Local one : ULong
     val local21
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.unary_minus target=function286 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.unary_minus <no-gc> : ULong
           Local $receiver : ULong
         IntegerLiteral 18446744073709551615uL : ULong
     val local22
@@ -6768,8 +6768,8 @@ Module
     val local23
       Local one : ULong
     val local24
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.unary_plus target=function285 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.unary_plus <no-gc> : ULong
           Local $receiver : ULong
         IntegerLiteral 1uL : ULong
     val local25
@@ -6777,7 +6777,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local26
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         IntegerLiteral 0uL : ULong
         IntegerLiteral 0uL : ULong
     val local27
@@ -6785,7 +6785,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local28
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         IntegerLiteral 18446744073709551615uL : ULong
         IntegerLiteral 18446744073709551615uL : ULong
     val local29
@@ -6793,7 +6793,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local30
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         IntegerLiteral 18446744073709551614uL : ULong
         IntegerLiteral 18446744073709551614uL : ULong
     val local31
@@ -6801,7 +6801,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local32
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         IntegerLiteral 18446744073709551615uL : ULong
         IntegerLiteral 18446744073709551615uL : ULong
     val local33
@@ -6815,14 +6815,14 @@ Module
     val local36
       Local $old.28 : ULong
     val local37
-      IntegerOperation ulong.inc target=function287 <no-gc> : ULong
+      IntegerOperation ulong.inc <no-gc> : ULong
         Local $receiver : ULong
     assign incremented
       Local $new.29 : ULong
     val local38
       Local $old.28 : ULong
     val local39
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Local incremented : ULong
         IntegerLiteral 0uL : ULong
     val local40
@@ -6830,7 +6830,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local41
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Local beforeIncrement : ULong
         Local maximum : ULong
     val local42
@@ -6844,14 +6844,14 @@ Module
     val local45
       Local $old.30 : ULong
     val local46
-      IntegerOperation ulong.dec target=function288 <no-gc> : ULong
+      IntegerOperation ulong.dec <no-gc> : ULong
         Local $receiver : ULong
     assign decremented
       Local $new.31 : ULong
     val local47
       Local $old.30 : ULong
     val local48
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Local decremented : ULong
         IntegerLiteral 18446744073709551615uL : ULong
     val local49
@@ -6859,7 +6859,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local50
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         Local beforeDecrement : ULong
         Local zero : ULong
     val local51
@@ -6873,8 +6873,8 @@ Module
     val local54
       Local $argument.0 : ULong
     val local55
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.and target=function295 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.and <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 2604246222170760228uL : ULong
@@ -6889,8 +6889,8 @@ Module
     val local59
       Local $argument.0 : ULong
     val local60
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.or target=function296 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.or <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 13672292666396491197uL : ULong
@@ -6905,8 +6905,8 @@ Module
     val local64
       Local $argument.0 : ULong
     val local65
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.xor target=function297 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.xor <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 11068046444225730969uL : ULong
@@ -6917,8 +6917,8 @@ Module
     val local67
       Local zero : ULong
     val local68
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.inv target=function298 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.inv <no-gc> : ULong
           Local $receiver : ULong
         IntegerLiteral 18446744073709551615uL : ULong
     val local69
@@ -6932,8 +6932,8 @@ Module
     val local72
       Local $argument.0 : Long
     val local73
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.shl target=function299 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.shl <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.count : Long
         IntegerLiteral 2uL : ULong
@@ -6948,8 +6948,8 @@ Module
     val local77
       Local $argument.0 : Long
     val local78
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.shr target=function300 <no-gc> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.shr <no-gc> : ULong
           Local $receiver : ULong
           Local $parameter.count : Long
         IntegerLiteral 9223372036854775807uL : ULong
@@ -6966,7 +6966,7 @@ Module
     val local83
       MethodCall Boolean.equals : Boolean
         Binary Gt : Boolean
-          IntegerOperation ulong.compare_to target=function294 <no-gc> : Long
+          IntegerOperation ulong.compare_to <no-gc> : Long
             Local $receiver : ULong
             Local $parameter.other : ULong
           IntegerLiteral 0 : Long
@@ -6982,8 +6982,8 @@ Module
     val local87
       Local $argument.0 : ULong
     val local88
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
-        IntegerOperation ulong.compare_to target=function294 <no-gc> : Long
+      IntegerOperation long.equals <no-gc> : Boolean
+        IntegerOperation ulong.compare_to <no-gc> : Long
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 1 : Long
@@ -6999,7 +6999,7 @@ Module
       Local $argument.0 : ULong
     val local93
       MethodCall Boolean.equals : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           Local $receiver : ULong
           Local $parameter.other : ULong
         BoolLiteral true : Boolean
@@ -7014,7 +7014,7 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local97
-      IntegerOperation long.equals target=function159 <no-gc> : Boolean
+      IntegerOperation long.equals <no-gc> : Boolean
         IntegerLiteral 1 : Long
         IntegerLiteral 1 : Long
     val local98
@@ -7043,7 +7043,7 @@ Module
       Local $argument.0 : ULong
     val local106
       MethodCall Boolean.equals : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           Local $receiver : ULong
           Local $parameter.other : ULong
         BoolLiteral false : Boolean
@@ -7058,8 +7058,8 @@ Module
     val local110
       Local $argument.0 : ULong
     val local111
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.div target=function292 <managed> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.div <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 2571428571428571428uL : ULong
@@ -7074,8 +7074,8 @@ Module
     val local115
       Local $argument.0 : ULong
     val local116
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.rem target=function293 <managed> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.rem <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 4uL : ULong
@@ -7090,8 +7090,8 @@ Module
     val local120
       Local $argument.0 : ULong
     val local121
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.div target=function292 <managed> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.div <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 2571428571428571428uL : ULong
@@ -7106,8 +7106,8 @@ Module
     val local125
       Local $argument.0 : ULong
     val local126
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
-        IntegerOperation ulong.rem target=function293 <managed> : ULong
+      IntegerOperation ulong.equals <no-gc> : Boolean
+        IntegerOperation ulong.rem <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
         IntegerLiteral 4uL : ULong
@@ -7123,7 +7123,7 @@ Module
       val local130
         Local $argument.0 : ULong
       val local131
-        IntegerOperation ulong.div target=function292 <managed> : ULong
+        IntegerOperation ulong.div <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
       val local132
@@ -7145,7 +7145,7 @@ Module
       val local138
         Local $argument.0 : ULong
       val local139
-        IntegerOperation ulong.rem target=function293 <managed> : ULong
+        IntegerOperation ulong.rem <managed> : ULong
           Local $receiver : ULong
           Local $parameter.other : ULong
       val local140

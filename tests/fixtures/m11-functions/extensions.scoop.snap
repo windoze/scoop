@@ -1000,7 +1000,7 @@ Module
     val local4
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun keep<T>(this: T0): T0
@@ -1038,7 +1038,7 @@ Module
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun collide(this: Int): Int
@@ -1049,7 +1049,7 @@ Module
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun label(this: Named): String
@@ -1071,12 +1071,12 @@ Module
     val local4
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun run(this: ThrowingExtension, value: Int): Int
     if
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local value : Int
         IntegerLiteral 0 : Int
       throw

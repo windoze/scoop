@@ -951,7 +951,7 @@ Module
         val local17
           Local $argument.0 : Int
         val local18
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
         val local19
@@ -1002,7 +1002,7 @@ Module
         val local38
           Local $argument.0 : Int
         val local39
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
         val local40

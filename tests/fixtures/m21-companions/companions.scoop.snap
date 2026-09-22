@@ -1039,7 +1039,7 @@ Module
     val local6
       Local $argument.0 : Int
     val local7
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local8
@@ -1080,7 +1080,7 @@ Module
       Local $argument.0 : Int
     assign .field
       SingletonValue Factory : Box.Factory
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local19

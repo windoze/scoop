@@ -919,7 +919,7 @@ Module
     val local6
       Local $argument.0 : Int
     assign global alpha
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun $init$ensure$1(): Unit

@@ -109,7 +109,7 @@ fn expression_body_and_parameters() {
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.mul target=function66 <no-gc> : Int
+      IntegerOperation int.mul <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun main(): Unit

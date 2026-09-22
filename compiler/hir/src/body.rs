@@ -210,13 +210,8 @@ pub enum Pattern {
 /// a typed comparison; every other literal kind keeps its ordinary callable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
-    Integer {
-        kind: IntegerKind,
-        target: NoGcCallableRef,
-    },
-    Ordinary {
-        equals: Callable,
-    },
+    Integer { kind: IntegerKind },
+    Ordinary { equals: Callable },
 }
 
 #[derive(Debug, Clone)]

@@ -203,7 +203,6 @@ pub enum DefaultExpressionKindV1 {
     IntegerConversion {
         source_kind: crate::DefaultIntegerKindV1,
         target_kind: crate::DefaultIntegerKindV1,
-        target: DefaultCallableRefV1,
         operand: Box<DefaultExpressionV1>,
     },
     Binary {

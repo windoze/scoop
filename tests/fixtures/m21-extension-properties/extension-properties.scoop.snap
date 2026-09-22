@@ -879,7 +879,7 @@ Module
       Local $argument.0 : Int
     Call $set$current : Unit
       Local $receiver : Counter
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local13
@@ -892,7 +892,7 @@ Module
     val local16
       Local $old.3 : Int
     val local17
-      IntegerOperation int.inc target=function130 <no-gc> : Int
+      IntegerOperation int.inc <no-gc> : Int
         Local $receiver : Int
     Call $set$current : Unit
       Local $receiver : Counter

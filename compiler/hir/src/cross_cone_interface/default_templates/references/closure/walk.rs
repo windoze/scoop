@@ -193,9 +193,6 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             BodyNode::ArrayAssembly { assembly, origin } => {
                 self.process_array_assembly(assembly, origin, depth, pending)
             }
-            BodyNode::IntegerOperation { operation, origin } => {
-                self.process_integer_operation(operation, origin, depth, pending)
-            }
             BodyNode::IntegerArguments(arguments) => {
                 self.process_integer_arguments(arguments, depth, pending)
             }

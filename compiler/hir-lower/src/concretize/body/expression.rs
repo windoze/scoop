@@ -478,30 +478,7 @@ impl Concretizer<'_> {
                 operation,
                 arguments,
             } => {
-                let operation = match *operation {
-                    export::IntegerOperation::NoGc {
-                        kind,
-                        operation,
-                        target,
-                    } => concrete::IntegerOperation::NoGc {
-                        kind,
-                        operation,
-                        target: concrete::NoGcCallableRef::map_from_export(target, |source| {
-                            self.lower_integer_callable(kind, source)
-                        }),
-                    },
-                    export::IntegerOperation::Managed {
-                        kind,
-                        operation,
-                        target,
-                    } => concrete::IntegerOperation::Managed {
-                        kind,
-                        operation,
-                        target: concrete::ManagedCallableRef::map_from_export(target, |source| {
-                            self.lower_integer_callable(kind, source)
-                        }),
-                    },
-                };
+                let operation = *operation;
                 let arguments =
                     match arguments {
                         export::HirIntegerOperationArguments::Unary(operand) => {
@@ -525,14 +502,7 @@ impl Concretizer<'_> {
                 conversion,
                 operand,
             } => concrete::ExprKind::IntegerConversion {
-                conversion: concrete::IntegerConversion {
-                    source: conversion.source,
-                    target_kind: conversion.target_kind,
-                    target: concrete::NoGcCallableRef::map_from_export(
-                        conversion.target,
-                        |source| self.lower_integer_callable(conversion.source, source),
-                    ),
-                },
+                conversion: *conversion,
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
             },
             export::ExprKind::Binary { op, lhs, rhs } => concrete::ExprKind::Binary {
@@ -565,24 +535,6 @@ impl Concretizer<'_> {
             span: source.span,
             origin: source.origin.concrete(),
         }
-    }
-
-    pub(super) fn lower_integer_callable(
-        &mut self,
-        kind: export::IntegerKind,
-        function: export::FunctionId,
-    ) -> concrete::FunctionId {
-        let CoreConcretizationAuthority::Defined(protocols) = self.core else {
-            panic!("imported-core HIR must encode integer operations with imported targets")
-        };
-        let owner = protocols.fundamental_types.integers.owner(kind);
-        let application = self.source.structs[owner].self_application;
-        let owner = self.lower_struct_application(application, &[]);
-        self.request_method(
-            function,
-            concrete::MethodOwner::Struct(owner),
-            MethodRequest::Plain,
-        )
     }
 
     fn lower_current_source_location(

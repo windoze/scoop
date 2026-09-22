@@ -1338,7 +1338,7 @@ Module
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun optionalOpaqueMatches(actual: Option<Ptr<Unit>>, expected: Ptr<Unit>): Boolean <unsafe>
@@ -1350,7 +1350,7 @@ Module
         val local4
           Local expected : Ptr<Unit>
         assign $result.0
-          IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+          IntegerOperation ulong.equals <no-gc> : Boolean
             PtrToULong : ULong
               Local $receiver : Ptr<Unit>
             PtrToULong : ULong
@@ -1370,7 +1370,7 @@ Module
         val local4
           Local expected : Ptr<NativeCell>
         assign $result.1
-          IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+          IntegerOperation ulong.equals <no-gc> : Boolean
             PtrToULong : ULong
               Local $receiver : Ptr<NativeCell>
             PtrToULong : ULong
@@ -1489,7 +1489,7 @@ Module
       Local opaque : Ptr<Unit>
     val local18
       Unary Not : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           PtrToULong : ULong
             Local $receiver : Ptr<Unit>
           IntegerLiteral 0uL : ULong
@@ -1501,7 +1501,7 @@ Module
       Local cell : Ptr<NativeCell>
     val local21
       Unary Not : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           PtrToULong : ULong
             Local $receiver : Ptr<NativeCell>
           IntegerLiteral 0uL : ULong
@@ -1519,7 +1519,7 @@ Module
     val local26
       Local opaque : Ptr<Unit>
     val local27
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<Unit>
         PtrToULong : ULong
@@ -1538,7 +1538,7 @@ Module
     val local32
       Local cell : Ptr<NativeCell>
     val local33
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<NativeCell>
         PtrToULong : ULong
@@ -1815,7 +1815,7 @@ Module
     val local135
       Local opaque : Ptr<Unit>
     val local136
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<Unit>
         PtrToULong : ULong
@@ -2009,7 +2009,7 @@ Module
     val local204
       Local opaque : Ptr<Unit>
     val local205
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<Unit>
         PtrToULong : ULong
@@ -2024,7 +2024,7 @@ Module
     val local208
       Local cell : Ptr<NativeCell>
     val local209
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<NativeCell>
         PtrToULong : ULong
@@ -2139,7 +2139,7 @@ Module
       GlobalRead globalOpaque : Ptr<Unit>
     val local248
       Unary Not : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           PtrToULong : ULong
             Local $receiver : Ptr<Unit>
           IntegerLiteral 0uL : ULong
@@ -2162,7 +2162,7 @@ Module
       GlobalRead globalCell : Ptr<NativeCell>
     val local255
       Unary Not : Boolean
-        IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+        IntegerOperation ulong.equals <no-gc> : Boolean
           PtrToULong : ULong
             Local $receiver : Ptr<NativeCell>
           IntegerLiteral 0uL : ULong
@@ -2352,7 +2352,7 @@ Module
     val local318
       Local opaque : Ptr<Unit>
     val local319
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<Unit>
         PtrToULong : ULong
@@ -2366,7 +2366,7 @@ Module
     val local322
       Local cell : Ptr<NativeCell>
     val local323
-      IntegerOperation ulong.equals target=function284 <no-gc> : Boolean
+      IntegerOperation ulong.equals <no-gc> : Boolean
         PtrToULong : ULong
           Local $receiver : Ptr<NativeCell>
         PtrToULong : ULong

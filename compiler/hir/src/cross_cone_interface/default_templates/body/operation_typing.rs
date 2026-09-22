@@ -12,8 +12,8 @@ use crate::{
     CanonicalBooleanV1, DefaultCallableDeclarationV1, DefaultCallableRefV1,
     DefaultConstructorRefV1, DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1,
     DefaultExpressionKindV1, DefaultExpressionV1, DefaultFieldRefV1, DefaultIntegerKindV1,
-    DefaultIntegerOperationV1, DefaultIteratorConformanceV1, DefaultIteratorNextV1,
-    DefaultLiteralEqualityV1, DefaultMethodCalleeV1, ExportDefaultTemplateV1,
+    DefaultIteratorConformanceV1, DefaultIteratorNextV1, DefaultLiteralEqualityV1,
+    DefaultMethodCalleeV1, ExportDefaultTemplateV1,
 };
 
 mod authority;
@@ -348,12 +348,6 @@ pub enum DefaultOperationTypeRelationV1 {
 
 #[derive(Clone, Copy, Debug)]
 pub enum DefaultOperationIntrinsicV1<'a> {
-    IntegerOperation(&'a DefaultIntegerOperationV1),
-    IntegerConversion {
-        source: DefaultIntegerKindV1,
-        target: DefaultIntegerKindV1,
-        callable: &'a DefaultCallableRefV1,
-    },
     DirectSuper(&'a DefaultMethodCalleeV1),
     LiteralEquality {
         equality: &'a DefaultLiteralEqualityV1,
@@ -537,6 +531,10 @@ pub enum DefaultOperationTypingProblemV1 {
         actual: DefaultFieldOperationKindV1,
     },
     InvalidArrayAccess,
+    InvalidIntegerOperation {
+        kind: DefaultIntegerKindV1,
+        operation: crate::DefaultNoGcIntegerOperationV1,
+    },
 }
 
 #[derive(Debug, Eq, PartialEq)]

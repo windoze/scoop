@@ -1,0 +1,120 @@
+---
+source: compiler/driver/src/request/preflight/tests/core_library/intrinsics.rs
+expression: dump.text()
+---
+Module
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.default.local.2: Int
+        Type Int
+        Local $dependency.default.local.1
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.default.local.0
+          Type Int
+          Local $dependency.default.local.2
+      call simple: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.default.local.2: Int
+        Type Int
+        Local $dependency.default.local.1
+      val $dependency.default.local.3: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.default.local.0
+          Type Int
+          Local $dependency.default.local.2
+      val $dependency.default.local.4: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.default.local.3
+      val $dependency.default.local.5: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.default.local.6: Int
+        Type Int
+        Local $dependency.default.local.5
+      val $dependency.parameter.value: Long
+        Type Long
+        IntegerCompareTo operands=Int result=Long
+          Type Int
+          Local $dependency.default.local.4
+          Type Int
+          Local $dependency.default.local.6
+      call combined: Long = external1 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.default.local.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.default.local.2: Long
+        Type Long
+        Local $dependency.default.local.1
+      val $dependency.default.local.3: Int
+        Type Int
+        IntegerShift left value=Int count=Int
+          Type Int
+          Local $dependency.default.local.0
+          Type Int
+          IntegerConversion Long -> Int
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.default.local.2
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+      val $dependency.parameter.value: UInt
+        Type UInt
+        IntegerConversion Int -> UInt
+          Type Int
+          Local $dependency.default.local.3
+      call converted: UInt = external2 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.default.local.1: Int
+        Type Int
+        Local $dependency.parameter.seed
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.default.local.1
+      call forwarded: Int = external3 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      return
+  output executable @fn0

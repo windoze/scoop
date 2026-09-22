@@ -859,7 +859,7 @@ Module
       val local9
         Local $argument.0 : Int
       assign iterations
-        IntegerOperation int.add target=function132 <no-gc> : Int
+        IntegerOperation int.add <no-gc> : Int
           Local $receiver : Int
           Local $parameter.other : Int
     val local10

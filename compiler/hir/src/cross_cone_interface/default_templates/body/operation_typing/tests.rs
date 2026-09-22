@@ -411,46 +411,6 @@ fn checks_function_address_and_callback_result_shapes() {
 }
 
 #[test]
-fn validates_integer_intrinsic_shape_and_dispatches_intrinsic_authority() {
-    let fixture = Fixture::new();
-    let integer = core(DefaultOperationCoreTypeV1::Integer(
-        DefaultIntegerKindV1::Signed32,
-    ));
-    let operand = || {
-        expression(
-            &fixture,
-            DefaultExpressionKindV1::IntegerLiteral(CanonicalIntegerConstantV1::Signed32(1)),
-            integer.clone(),
-        )
-    };
-    let integer_operation = DefaultIntegerOperationV1::NoGc {
-        kind: DefaultIntegerKindV1::Signed32,
-        operation: DefaultNoGcIntegerOperationV1::Add,
-        target: fixture.callable(),
-    };
-    let value = expression(
-        &fixture,
-        DefaultExpressionKindV1::IntegerOperation {
-            operation: integer_operation,
-            arguments: DefaultIntegerArgumentsV1::binary(operand(), operand()),
-        },
-        integer.clone(),
-    );
-    let template = template(&fixture, value, Vec::new(), Vec::new(), false);
-    let mut authority = Authority::new();
-    authority.callable = DefaultCallableOperationShapeV1::new(
-        Effect::Ordinary,
-        Some(integer.clone()),
-        Vec::new(),
-        vec![integer.clone()],
-        integer,
-    );
-
-    assert_eq!(validate(&template, &mut authority), Ok(()));
-    assert_eq!(authority.intrinsic_validations, 1);
-}
-
-#[test]
 fn rejects_field_authority_kind_mismatch() {
     let fixture = Fixture::new();
     let unit = core(DefaultOperationCoreTypeV1::Unit);
@@ -1548,3 +1508,6 @@ impl fmt::Display for AuthorityError {
 }
 
 impl std::error::Error for AuthorityError {}
+
+#[path = "integer_tests.rs"]
+mod integers;

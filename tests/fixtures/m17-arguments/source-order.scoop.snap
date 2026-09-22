@@ -963,7 +963,7 @@ Module
     val local5
       Local $argument.0 : Int
     val local9
-      IntegerOperation int.mul target=function134 <no-gc> : Int
+      IntegerOperation int.mul <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local6
@@ -973,13 +973,13 @@ Module
     val local8
       Local $argument.0 : Int
     val local10
-      IntegerOperation int.mul target=function134 <no-gc> : Int
+      IntegerOperation int.mul <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local11
       Local $argument.0 : Int
     val local12
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local13
@@ -987,7 +987,7 @@ Module
     val local14
       Local $argument.0 : Int
     return
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun makeReceiver(): Receiver
@@ -1188,7 +1188,7 @@ Module
     val local69
       Local $argument.0 : Int
     val local70
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local71
@@ -1236,7 +1236,7 @@ Module
     val local87
       Local $argument.0 : Int
     val local88
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local89
@@ -1285,7 +1285,7 @@ Module
         val local107
           Local $argument.0 : Int
         val local108
-          IntegerOperation int.add target=function132 <no-gc> : Int
+          IntegerOperation int.add <no-gc> : Int
             Local $receiver : Int
             Local $parameter.other : Int
         val local109

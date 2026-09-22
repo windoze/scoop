@@ -345,21 +345,17 @@ impl DecodedDefaultExpressionKindV1 {
                 operation,
                 arguments,
             } => DefaultExpressionKindV1::IntegerOperation {
-                operation: operation
-                    .resolve(resolver)
-                    .map_err(DefaultExpressionResolutionError::IntegerOperation)?,
+                operation,
                 arguments: arguments.resolve(resolver, locals)?,
             },
             Self::IntegerConversion {
                 source_kind,
                 target_kind,
-                target,
                 operand,
             } => DefaultExpressionKindV1::IntegerConversion {
                 source_kind,
                 target_kind,
-                target: resolve_callable(target, resolver, 50, 3)?,
-                operand: resolve_child(operand, resolver, locals, 50, 4)?,
+                operand: resolve_child(operand, resolver, locals, 50, 3)?,
             },
             Self::Binary { operator, lhs, rhs } => DefaultExpressionKindV1::Binary {
                 operator,
@@ -670,9 +666,6 @@ impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultExpressionResolut
                 formatter,
                 "invalid default expression tag {variant_tag} field {field} callable: {error}"
             ),
-            Self::IntegerOperation(error) => {
-                write!(formatter, "invalid default integer operation: {error}")
-            }
             Self::DefinitionOrigin(error) => {
                 write!(
                     formatter,

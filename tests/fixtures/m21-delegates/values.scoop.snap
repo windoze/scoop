@@ -915,7 +915,7 @@ Module
     val local10
       Local $old.1 : Int
     val local11
-      IntegerOperation int.inc target=function130 <no-gc> : Int
+      IntegerOperation int.inc <no-gc> : Int
         Local $receiver : Int
     MethodCall LocalDelegate.setValue : Unit
       Local $delegate.0 : LocalDelegate
@@ -948,7 +948,7 @@ Module
     MethodCall LocalDelegate.setValue : Unit
       Local $delegate.0 : LocalDelegate
       UnitLiteral : Unit
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local20

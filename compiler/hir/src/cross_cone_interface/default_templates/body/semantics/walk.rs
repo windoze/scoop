@@ -12,12 +12,11 @@ use crate::{
     DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1, DefaultCallableRefV1,
     DefaultCallableReferenceV1, DefaultCaptureV1, DefaultCatchV1, DefaultConstructorRefV1,
     DefaultEnumVariantFieldRefV1, DefaultEnumVariantRefV1, DefaultExpressionV1, DefaultFieldRefV1,
-    DefaultForIterationPlanV1, DefaultIntegerArgumentsV1, DefaultIntegerOperationV1,
-    DefaultIteratorConformanceV1, DefaultIteratorNextV1, DefaultLambdaV1, DefaultLiteralEqualityV1,
-    DefaultLocalFunctionV1, DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1,
-    DefaultTemplateProviderShapeV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
-    DefaultWhenGuardV1, DefaultWhenV1, ExportDefaultBodyV1,
-    ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
+    DefaultForIterationPlanV1, DefaultIntegerArgumentsV1, DefaultIteratorConformanceV1,
+    DefaultIteratorNextV1, DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1,
+    DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1, DefaultTemplateProviderShapeV1,
+    DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
+    ExportDefaultBodyV1, ExportDefinitionSourceSemanticAuthority, ExportDefinitionSourceV1,
     NominalInterfaceShapeAuthority,
 };
 
@@ -421,10 +420,6 @@ where
                 assembly,
                 definition_origin,
             } => self.process_array_assembly(assembly, definition_origin, depth, pending),
-            BodyNode::IntegerOperation {
-                operation,
-                definition_origin,
-            } => self.process_integer_operation(operation, definition_origin, depth, pending),
             BodyNode::IntegerArguments(arguments) => {
                 self.process_integer_arguments(arguments, depth, pending)
             }

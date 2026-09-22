@@ -9,10 +9,10 @@ use crate::{
     DefaultBindingProjectionV1, DefaultBindingShapeV1, DefaultBoundCallableRefV1,
     DefaultCallableRefV1, DefaultCallableReferenceV1, DefaultCaptureV1, DefaultCatchV1,
     DefaultExpressionV1, DefaultForIterationPlanV1, DefaultIntegerArgumentsV1,
-    DefaultIntegerOperationV1, DefaultIteratorConformanceV1, DefaultIteratorNextV1,
-    DefaultLambdaV1, DefaultLiteralEqualityV1, DefaultLocalFunctionV1, DefaultMethodCalleeV1,
-    DefaultPatternV1, DefaultStatementV1, DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1,
-    DefaultWhenGuardV1, DefaultWhenV1, ExportDefaultBodyV1, ExportDefinitionSourceV1,
+    DefaultIteratorConformanceV1, DefaultIteratorNextV1, DefaultLambdaV1, DefaultLiteralEqualityV1,
+    DefaultLocalFunctionV1, DefaultMethodCalleeV1, DefaultPatternV1, DefaultStatementV1,
+    DefaultTryV1, DefaultWhenArmV1, DefaultWhenFallbackV1, DefaultWhenGuardV1, DefaultWhenV1,
+    ExportDefaultBodyV1, ExportDefinitionSourceV1,
 };
 use scoop_identity::{PersistentObjectValueId, PersistentPropertyId, SignatureTypeKey};
 #[derive(Clone, Copy)]
@@ -177,10 +177,6 @@ pub(in super::super) enum BodyNode<'a> {
     },
     ArrayAssembly {
         assembly: &'a DefaultArrayAssemblyV1,
-        origin: &'a ExportDefinitionSourceV1,
-    },
-    IntegerOperation {
-        operation: &'a DefaultIntegerOperationV1,
         origin: &'a ExportDefinitionSourceV1,
     },
     IntegerArguments(&'a DefaultIntegerArgumentsV1),

@@ -213,16 +213,8 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             Self::IntegerConversion {
                 source_kind,
                 target_kind,
-                target,
                 operand,
-            } => encode_four(
-                encoder,
-                50,
-                source_kind,
-                target_kind,
-                target,
-                operand.as_ref(),
-            ),
+            } => encode_three(encoder, 50, source_kind, target_kind, operand.as_ref()),
             Self::Binary { operator, lhs, rhs } => {
                 encode_three(encoder, 51, operator, lhs.as_ref(), rhs.as_ref())
             }
@@ -459,12 +451,11 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                 })
             }
             50 => {
-                expect_sum_length(decoder, fields, 5)?;
+                expect_sum_length(decoder, fields, 4)?;
                 Ok(Self::IntegerConversion {
                     source_kind: decoder.field(1, DefaultIntegerKindV1::decode)?,
                     target_kind: decoder.field(2, DefaultIntegerKindV1::decode)?,
-                    target: decoder.field(3, DecodedDefaultCallableRefV1::decode)?,
-                    operand: decode_boxed_expression_field(decoder, 4)?,
+                    operand: decode_boxed_expression_field(decoder, 3)?,
                 })
             }
             51 => {

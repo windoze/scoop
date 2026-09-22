@@ -380,25 +380,13 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
 
     for (pattern, expected_kind) in patterns.iter().take(8).zip(hir::IntegerKind::ALL) {
         let hir::Pattern::Literal {
-            equality: hir::LiteralPatternEquality::Integer { kind, target },
+            equality: hir::LiteralPatternEquality::Integer { kind },
             ..
         } = pattern
         else {
             panic!("integer literal patterns use their typed intrinsic plan");
         };
         assert_eq!(*kind, expected_kind);
-        assert!(matches!(
-            module.functions[target.function()].kind,
-            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-                kind: hir::IntrinsicFunctionKind::Integer(
-                    hir::IntegerIntrinsicKind::NoGcOperation {
-                        kind,
-                        operation: hir::NoGcIntegerOperation::Equals,
-                    }
-                ),
-                ..
-            }) if kind == expected_kind
-        ));
     }
 
     let ordinary_patterns = patterns[8..].iter().enumerate().map(|(index, pattern)| {

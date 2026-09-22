@@ -1015,7 +1015,7 @@ Module
       Local $argument.0 : Int
     MethodCall Derived.$set$state : Unit
       Local $place.0 : Derived
-      IntegerOperation int.add target=function132 <no-gc> : Int
+      IntegerOperation int.add <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
     val local18

@@ -1126,7 +1126,7 @@ Module
     val local3
       Local $argument.0 : Long
     val local4
-      IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.add <no-gc> : Long
         Local $receiver : Long
         Local $parameter.other : Long
     val local5
@@ -1135,7 +1135,7 @@ Module
     val local6
       Local $argument.0 : Long
     val local7
-      IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.add <no-gc> : Long
         Local $receiver : Long
         Local $parameter.other : Long
     val local8
@@ -1144,7 +1144,7 @@ Module
     val local9
       Local $argument.0 : Long
     return
-      IntegerOperation long.add target=function164 <no-gc> : Long
+      IntegerOperation long.add <no-gc> : Long
         Local $receiver : Long
         Local $parameter.other : Long
   fun genericRoundTrip<T>(value: T0): T0

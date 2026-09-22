@@ -154,13 +154,8 @@ pub enum Pattern {
 /// function by MIR lowering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
-    Integer {
-        kind: IntegerKind,
-        target: NoGcCallableRef,
-    },
-    Ordinary {
-        equals: Callable,
-    },
+    Integer { kind: IntegerKind },
+    Ordinary { equals: Callable },
 }
 
 #[derive(Debug, Clone)]

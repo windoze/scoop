@@ -821,7 +821,7 @@ Module
   fun coreStringHash(arg1: String): Long <extern9 abi=scoop symbol=scoop_rt_string_hash>
   fun fail(value: Int): Int
     if
-      IntegerOperation int.equals target=function127 <no-gc> : Boolean
+      IntegerOperation int.equals <no-gc> : Boolean
         Local value : Int
         IntegerLiteral 0 : Int
       throw
