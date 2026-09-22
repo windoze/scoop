@@ -51,14 +51,14 @@ fn public_interface(output: &hir::DependencyHirOutput) -> hir::CrossConeHirInter
     let export = output.output().export.module();
     let mut authority = PublicProjectionAuthority {
         current: export.cone,
-        local_nominals: local_nominals(export),
+        local_targets: local_targets(export),
     };
     hir::CrossConeHirInterfaceSectionV1::from_dependency_hir(output, &[], &mut authority).unwrap()
 }
 
 struct PublicProjectionAuthority {
     current: ConeIdentity,
-    local_nominals: BTreeSet<hir::ExternalHirTargetV1>,
+    local_targets: BTreeSet<hir::ExternalHirTargetV1>,
 }
 
 impl hir::PublicExportBindingClosureAuthority for PublicProjectionAuthority {
@@ -91,7 +91,7 @@ impl hir::ExternalHirReferenceSemanticAuthority<&'static str> for PublicProjecti
         &mut self,
         target: hir::ExternalHirTargetV1,
     ) -> Result<ConeIdentity, &'static str> {
-        Ok(if self.local_nominals.contains(&target) {
+        Ok(if self.local_targets.contains(&target) {
             self.current
         } else {
             ConeIdentity::CORE
@@ -106,7 +106,7 @@ impl hir::ExternalHirReferenceSemanticAuthority<&'static str> for PublicProjecti
     }
 }
 
-fn local_nominals(export: &hir::ExportHir) -> BTreeSet<hir::ExternalHirTargetV1> {
+fn local_targets(export: &hir::ExportHir) -> BTreeSet<hir::ExternalHirTargetV1> {
     let mut targets = BTreeSet::new();
     let mut insert = |identity: &hir::HirNominalIdentity| {
         let Some(source) = identity.source() else {
@@ -136,6 +136,20 @@ fn local_nominals(export: &hir::ExportHir) -> BTreeSet<hir::ExternalHirTargetV1>
     }
     for (id, _) in export.objects.iter() {
         insert(&export.nominal_identities[id]);
+    }
+    for (id, _) in export.struct_constructors.iter() {
+        targets.insert(hir::ExternalHirTargetV1::Callable(
+            scoop_identity::CallableTemplateOrigin::Constructor(
+                export.constructor_identities[id].id(),
+            ),
+        ));
+    }
+    for (id, _) in export.class_constructors.iter() {
+        if let Some(record) = export.constructor_identities[id].source_record() {
+            targets.insert(hir::ExternalHirTargetV1::Callable(
+                scoop_identity::CallableTemplateOrigin::Constructor(record.id()),
+            ));
+        }
     }
     targets
 }

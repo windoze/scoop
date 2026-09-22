@@ -12,6 +12,7 @@ impl MirTypeBridgeSemanticReferencesV1 {
         match *record.lowering_role() {
             MirCallableLoweringRoleV1::ClassInitializer { owner }
             | MirCallableLoweringRoleV1::ValueConstructor { owner }
+            | MirCallableLoweringRoleV1::PrimaryValueConstructor { owner }
             | MirCallableLoweringRoleV1::DerivedEquality { owner } => collector.exact(owner)?,
             MirCallableLoweringRoleV1::DispatchAdjust { target }
             | MirCallableLoweringRoleV1::BoxingAdjust { target } => {

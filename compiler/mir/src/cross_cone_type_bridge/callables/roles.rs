@@ -10,6 +10,9 @@ pub enum MirCallableLoweringRoleV1 {
     ValueConstructor {
         owner: PersistentExactTypeId,
     },
+    PrimaryValueConstructor {
+        owner: PersistentExactTypeId,
+    },
     Accessor,
     DispatchAdjust {
         target: StrongCallableDefinitionOwner,
@@ -37,6 +40,9 @@ pub enum DecodedMirCallableLoweringRoleV1 {
         owner: DecodedPersistentId<PersistentExactTypeId>,
     },
     ValueConstructor {
+        owner: DecodedPersistentId<PersistentExactTypeId>,
+    },
+    PrimaryValueConstructor {
         owner: DecodedPersistentId<PersistentExactTypeId>,
     },
     Accessor,
@@ -72,6 +78,11 @@ impl DecodedMirCallableLoweringRoleV1 {
             Self::ValueConstructor { owner } => MirCallableLoweringRoleV1::ValueConstructor {
                 owner: graph.resolve(owner)?,
             },
+            Self::PrimaryValueConstructor { owner } => {
+                MirCallableLoweringRoleV1::PrimaryValueConstructor {
+                    owner: graph.resolve(owner)?,
+                }
+            }
             Self::Accessor => MirCallableLoweringRoleV1::Accessor,
             Self::DispatchAdjust { target } => MirCallableLoweringRoleV1::DispatchAdjust {
                 target: target.resolve(graph)?,
@@ -109,6 +120,7 @@ macro_rules! encode_role {
                     Self::ObjectInitializer { unit } => (8, Some(unit)),
                     Self::PureVirtualTrap { slot } => (9, Some(slot)),
                     Self::DerivedEquality { owner } => (10, Some(owner)),
+                    Self::PrimaryValueConstructor { owner } => (11, Some(owner)),
                 };
                 tag(encoder, if value.is_some() { 2 } else { 1 }, kind)?;
                 if let Some(value) = value {
@@ -152,6 +164,9 @@ impl WireDecode for DecodedMirCallableLoweringRoleV1 {
                 slot: decoder.field(1, DecodedPersistentId::decode)?,
             },
             10 => Self::DerivedEquality {
+                owner: decoder.field(1, DecodedPersistentId::decode)?,
+            },
+            11 => Self::PrimaryValueConstructor {
                 owner: decoder.field(1, DecodedPersistentId::decode)?,
             },
             tag => return Err(error(decoder, WireErrorKind::UnknownTag { tag })),

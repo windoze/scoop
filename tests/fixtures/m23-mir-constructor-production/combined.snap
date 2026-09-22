@@ -1,0 +1,8 @@
+Base(): Public Managed => receiver=Base result=Unit Managed
+Base(Token): Protected Managed => receiver=Base result=Unit Managed
+Child(Token): Public Managed => receiver=Child result=Unit Managed
+Managed(): Public Managed => receiver=none result=Managed Managed
+Managed(Base): Public Managed => receiver=none result=Managed NoGc
+Pair(): Public NoGc => receiver=none result=Pair NoGc
+Pair(Token, Token): Public Managed => receiver=none result=Pair NoGc
+Token(): Public Managed => receiver=none result=Token NoGc

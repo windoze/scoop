@@ -123,3 +123,13 @@ LocalConcrete HIR 与 MIR 的 singleton 现在直接保存 Export HIR 已分配�
 独立 object 与包含相互引用、companion、private object 和顶层 property 的组合 fixture 逐项核对三阶段身份、物理 root、签名及 GC effect，两份 golden 与两张表的 canonical wire 回读通过。前置无关 private 声明不改变任一表的字节；缺少 Unit 依赖、object/backing 类型、实际初始化根或 ensure，以及零复制预算、累计 work 耗尽均拒绝。新增生产模块 125/73/98 行，测试模块 127/176/83 行。测试中的 Unit 依赖记录取实际 MIR exact identity，仅用于组成表验证，未宣称已完成真实 core 的新 type profile 发布。
 
 普通成员与构造器 callable、dispatch、LIR layout/ABI、driver layout-strong 发布及一般跨 Cone nominal 消费仍需继续接通，整个 M23-6 尚未完成。确认全部构建测试进程退出后 cargo clean 移除 25,300 个文件、26.3 GiB，target 已清理。
+
+2026-09-22：构造器 MIR binding 实际生产批次通过 workspace fmt、clippy（含 all-targets）、3 项新增真实源码测试及全部 5,664 项 workspace 测试（37 组，零失败、零忽略），含配套 scoopc 真实进程，使用 LLVM 22.1.8。
+
+lower_constructor_bindings 接收同次 HIR type-semantics、LocalConcrete 与 sealed strong MIR，按 public/protected 构造记录选择已有 typed materialization，复用 MIR lowering 的 exact 构造签名投影，再与实际函数签名及 GC effect 核对。class 构造保留源码返回 class 与 lowered 隐藏 receiver/Unit 返回的区别，struct 主次构造保持值返回；private 实际构造不会进入导出表，缺失任一所需构造整体失败。类型依赖继续通过共有联合索引借用，未新增来源授权结构。
+
+真实源码暴露并修复了旧 binding 的 GC 规则与既有主构造实现之间的冲突：新增明确的 PrimaryValueConstructor 角色（tag11），保持源码 Managed 合同与实际 NoGc 值组装 leaf；参数必须逐项等于完整字段 exact 类型，允许组装含引用的值。普通次构造保持 Managed，显式 @NoGC 次构造仍要求 GC-free，不能冒充主构造或放宽 effect。同步角色编码、回读、语义引用与 stage6/实现规范，既有 exact identity 格式不变。
+
+独立 ZST 与组合 fixture 覆盖嵌套 ZST、含引用 struct、主次构造、@NoGC、protected 基类、默认参数调用本地构造、继承、private 构造及 object。两份 golden 锁定源码/实际签名与 GC effect，完整表 wire 往返及前置无关 private class 后的字节稳定性通过；缺少 Unit/owner 类型、LocalConcrete/MIR 物化、GC 不一致、错误主构造角色、零复制预算及累计 work 耗尽均拒绝。修复测试辅助代码将本地构造默认引用误判为 core 依赖的问题。生产模块 101/148 行，共有签名模块 221 行，新增测试模块 107/202/169 行。
+
+普通成员/accessor 与生成 adjust/dispatch callable、dispatch 表、LIR layout/ABI、driver layout-strong 发布和一般跨 Cone nominal 消费仍需接通；构造组成表完成不代表完整 M23-6 完成。全部构建测试进程退出后 cargo clean 移除 23,983 个文件、25.4 GiB，target 已清理。

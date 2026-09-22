@@ -29,16 +29,7 @@ impl SourceCallableRegistry {
         source: hir::ClassConstructorId,
     ) {
         let constructor = &module.class_constructors[source];
-        let signature = hir::ExactCallableSignature::new(
-            hir::Effect::Ordinary,
-            Some(exact_class(module, constructor.class)),
-            constructor
-                .parameters
-                .iter()
-                .map(|parameter| module.exact_type_identities[parameter.ty].id())
-                .collect(),
-            module.exact_type_identities[module.unit].id(),
-        );
+        let signature = exact_class_initializer_signature(module, source);
         self.record(module, function, constructor.materialization, signature);
     }
 
@@ -49,16 +40,7 @@ impl SourceCallableRegistry {
         source: hir::StructConstructorId,
     ) {
         let constructor = &module.struct_constructors[source];
-        let signature = hir::ExactCallableSignature::new(
-            hir::Effect::Ordinary,
-            None,
-            constructor
-                .parameters
-                .iter()
-                .map(|parameter| module.exact_type_identities[parameter.ty].id())
-                .collect(),
-            exact_struct(module, constructor.structure),
-        );
+        let signature = exact_struct_constructor_signature(module, source);
         self.record(module, function, constructor.materialization, signature);
     }
 
@@ -179,6 +161,40 @@ pub(super) fn exact_function_signature(
             .map(|parameter| module.exact_type_identities[parameter.ty].id())
             .collect(),
         module.exact_type_identities[declaration.return_ty].id(),
+    )
+}
+
+pub(super) fn exact_class_initializer_signature(
+    module: &hir::Module,
+    source: hir::ClassConstructorId,
+) -> hir::ExactCallableSignature {
+    let constructor = &module.class_constructors[source];
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        Some(exact_class(module, constructor.class)),
+        constructor
+            .parameters
+            .iter()
+            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .collect(),
+        module.exact_type_identities[module.unit].id(),
+    )
+}
+
+pub(super) fn exact_struct_constructor_signature(
+    module: &hir::Module,
+    source: hir::StructConstructorId,
+) -> hir::ExactCallableSignature {
+    let constructor = &module.struct_constructors[source];
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        None,
+        constructor
+            .parameters
+            .iter()
+            .map(|parameter| module.exact_type_identities[parameter.ty].id())
+            .collect(),
+        exact_struct(module, constructor.structure),
     )
 }
 

@@ -68,7 +68,13 @@ impl MirCallableBridgeAuthority<'_> {
             return Err(MirCallableBridgeError::OriginMismatch);
         }
         self.validate_origin(&binding.origin)?;
-        for signature in [&binding.semantic, &binding.lowered] {
+        let primary = matches!(
+            binding.role,
+            MirCallableLoweringRoleV1::PrimaryValueConstructor { .. }
+        );
+        for (signature, requires_gc_free) in
+            [(&binding.semantic, true), (&binding.lowered, !primary)]
+        {
             for exact in signature
                 .exact()
                 .receiver()
@@ -78,7 +84,8 @@ impl MirCallableBridgeAuthority<'_> {
                 .chain([signature.exact().result()])
             {
                 let facts = self.type_export(exact)?.facts();
-                if signature.gc_effect() == crate::GcEffect::NoGc
+                if requires_gc_free
+                    && signature.gc_effect() == crate::GcEffect::NoGc
                     && facts.gc() != MirGcKindV1::GcFree
                 {
                     return Err(MirCallableBridgeError::NoGcContainsReferences { exact });
@@ -96,6 +103,7 @@ impl MirCallableBridgeAuthority<'_> {
             binding.role,
             MirCallableLoweringRoleV1::ClassInitializer { .. }
                 | MirCallableLoweringRoleV1::ValueConstructor { .. }
+                | MirCallableLoweringRoleV1::PrimaryValueConstructor { .. }
                 | MirCallableLoweringRoleV1::Accessor
                 | MirCallableLoweringRoleV1::ObjectEnsure { .. }
                 | MirCallableLoweringRoleV1::ObjectInitializer { .. }
@@ -111,7 +119,9 @@ impl MirCallableBridgeAuthority<'_> {
         ) && binding.semantic.gc_effect() == crate::GcEffect::NoGc
             && binding.lowered.gc_effect() == crate::GcEffect::Managed;
         if semantic.effect() != lowered.effect()
-            || (binding.semantic.gc_effect() != binding.lowered.gc_effect() && !wraps_no_gc)
+            || (binding.semantic.gc_effect() != binding.lowered.gc_effect()
+                && !wraps_no_gc
+                && !primary)
         {
             return Err(MirCallableBridgeError::SignatureMismatch);
         }
@@ -166,6 +176,31 @@ impl MirCallableBridgeAuthority<'_> {
                     MirTypeRepresentationV1::Struct { .. }
                 ) || semantic.receiver().is_present()
                     || semantic.result() != owner
+                {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                }
+                Ok(())
+            }
+            (
+                MirCallableOriginV1::Constructor(constructor),
+                MirCallableLoweringRoleV1::PrimaryValueConstructor { owner },
+            ) => {
+                self.constructor_owner(*constructor, owner)?;
+                let MirTypeRepresentationV1::Struct { fields, .. } =
+                    self.type_export(owner)?.representation()
+                else {
+                    return Err(MirCallableBridgeError::SignatureMismatch);
+                };
+                if binding.semantic.gc_effect() != crate::GcEffect::Managed
+                    || binding.lowered.gc_effect() != crate::GcEffect::NoGc
+                    || semantic != lowered
+                    || semantic.receiver().is_present()
+                    || semantic.result() != owner
+                    || !semantic
+                        .parameters()
+                        .iter()
+                        .copied()
+                        .eq(fields.iter().map(|field| field.value))
                 {
                     return Err(MirCallableBridgeError::SignatureMismatch);
                 }

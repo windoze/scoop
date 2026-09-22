@@ -8,39 +8,6 @@ fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())
 }
 
-// Unit is a language builtin. This dependency fixture retains the actual
-// imported identity present in MIR; it does not mint a local source type.
-fn unit_dependency(
-    input: &scoop_mir::SingleConeStrongMirInput,
-    graph: &scoop_identity::ValidatedIdentityGraph,
-) -> CanonicalParamFreeMirTypeExportsV1 {
-    use scoop_mir::*;
-    let Some(unit) = input.module().meta.source_exact_types.get(&Type::Unit) else {
-        return CanonicalParamFreeMirTypeExportsV1::default();
-    };
-    let scoop_identity::ExactTypeKey::Nominal(nominal) = *unit.identity_record().key() else {
-        panic!("Unit is nominal")
-    };
-    CanonicalParamFreeMirTypeExportsV1::try_new(vec![
-        ParamFreeMirTypeExportV1::try_new(
-            MirTypeBridgeAuthority {
-                identities: graph,
-                foundation: input.foundation(),
-            },
-            unit.identity_record().id(),
-            MirTypeOriginV1::SourceNominal(nominal),
-            MirTypeFactsV1::try_new(MirValueKindV1::ZeroSizedValue, MirGcKindV1::GcFree).unwrap(),
-            MirTypeRepresentationV1::Intrinsic(MirParamFreeIntrinsicV1::Unit),
-            MirBaseAndInterfacesV1 {
-                base: MirBaseClassV1::None,
-                interfaces: vec![],
-            },
-        )
-        .unwrap(),
-    ])
-    .unwrap()
-}
-
 #[test]
 fn actual_object_values_and_initialization_callables_share_source_identities() {
     for name in ["standalone", "combined"] {
@@ -50,7 +17,7 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
         let (bytes, projection) = with_production(&source, |output, input, hir, graph, _| {
             let types =
                 scoop_mir_lower::lower_type_exports(hir, input, graph, &mut meter()).unwrap();
-            let unit = unit_dependency(input, graph);
+            let unit = dependencies::unit(input, graph);
             assert!(
                 unit.records()
                     .iter()
@@ -77,7 +44,7 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
             |_, input, hir, graph, _| {
                 let types =
                     scoop_mir_lower::lower_type_exports(hir, input, graph, &mut meter()).unwrap();
-                let unit = unit_dependency(input, graph);
+                let unit = dependencies::unit(input, graph);
                 let index =
                     MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit], &mut meter()).unwrap();
                 let product =
@@ -112,12 +79,12 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
 fn actual_object_production_rejects_missing_dependencies_and_exhausted_budgets() {
     with_production("public object Registry {}", |_, input, hir, graph, _| {
         let types = scoop_mir_lower::lower_type_exports(hir, input, graph, &mut meter()).unwrap();
-        let unit = unit_dependency(input, graph);
+        let unit = dependencies::unit(input, graph);
         rejections::check(input, graph, &types, &unit);
     });
     with_production("public val number: Int = 3", |_, input, hir, graph, _| {
         let types = scoop_mir_lower::lower_type_exports(hir, input, graph, &mut meter()).unwrap();
-        let unit = unit_dependency(input, graph);
+        let unit = dependencies::unit(input, graph);
         let index = MirTypeBridgeTypeIndexV1::try_new(&[&types, &unit], &mut meter()).unwrap();
         let product =
             Production::from_strong_input(input, &types, graph, &index, &mut meter()).unwrap();
