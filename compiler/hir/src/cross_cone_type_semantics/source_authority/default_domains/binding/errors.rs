@@ -10,7 +10,7 @@ pub enum DefaultSourceTypeDomainBindingError {
     Target {
         key: ProtectedDefaultTemplateKeyV1,
         index: u32,
-        error: Box<DefaultSourceTypeDomainError>,
+        error: Box<DefaultSourceDomainError>,
     },
     Witness {
         key: ProtectedDefaultTemplateKeyV1,

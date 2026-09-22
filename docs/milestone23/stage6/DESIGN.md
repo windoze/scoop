@@ -321,6 +321,10 @@ type来源域查询显式接收当前已绑定声明表及按Cone严格递增的
 
 nominal default的type引用绑定只接收BoundNominalDefaultDeclarationsV1，复用其原provider声明、nested identity及精确occurrence闭包；当前access表必须来自同一份bound foundation。逐occurrence选择原provider scope，LocalFunction metadata attachment才增加同一graph内已验证函数key声明的自身非空frame，不能从descriptor的binder出现情况推断。每次独立重放完整target域并与其source witness逐项相等比较，保留模板key和type序号的错误定位；重复target、继承发布与空引用模板均不能跳过事务预算。全部成功后交付借用原声明凭证的独立BoundNominalDefaultTypeDomainsV1，不复制正文或借用witness反推来源，也不授予其他target、receiver、profile或执行资格。
 
+同一来源域注册表还按 typed canonical key 为 Constructor、Global、Singleton 和 Field 四类引用定位实际 provider，并在该 artifact 中重放目标身份与声明关系。struct 字段使用实际 struct 声明域，class/object backing 字段使用真实逻辑 property 域，variant 使用 enum 域，单例使用 source object 域；global 必须是实际 top-level property。source constructor 与零参 generated adapter 分别核对原 constructor 或其唯一 adapter key，再取得真实声明域。field/constructor 的 applied owner 与自身 arity 必须先通过既有来源检查；tuple 字段的声明访问域为 Universal，位置和类型合法性仍由操作类型验证负责。不能按 carrier Cone、名称、候选 witness 或所声称的 owner type 选择 provider，也不能只因 graph 中能解析 ID 就省略 artifact 内的目标记录。
+
+上述四类 occurrence 的批量绑定消费同一 BoundNominalDefaultDeclarationsV1，逐个比较独立重放的完整 target 域与来源 witness；错误保留完整 template key、引用种类和该类序号。重复引用仍逐次验证，空正文仍检查事务预算，当前声明表必须与原声明凭证共用 bound foundation。成功结果仅证明这四类的来源域相等，不替代 Type、Callable、receiver、操作类型、profile 或完整调用域 coverage；全部路由、查询、域生成和比较共享原预算，不交付部分结果。
+
 foundation投影对所有Cone共用入口，按实际typed声明归属处理本地和依赖类型；移除core专用来源入口及其CORE、Defined协议、shape-support授权检查。generic物化和ODR是独立的代码生成语义，不用于建立core信任链。
 
 重复约束canonical去重，完整外层visibility保持不变，static nested边界不得丢弃外层generic约束。公共成员和private setter各按自身声明visibility重放，外层protected区域不自动产生成员receiver限制。查询、哈希、域分配、交集去重与编码排序共用预算；结果仍是原始source域，不因已有继承图而提前删减约束，也不授予checked lookup/slot、protected receiver或default执行资格。六类正文target到权限所属声明的映射、组合type域和candidate witness比较仍由完整引用访问事务负责。

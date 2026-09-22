@@ -16,7 +16,7 @@ impl<'b, 'd, 'p, 's, 'a, 'f> BoundNominalDefaultTypeDomainsV1<'b, 'd, 'p, 's, 'a
         self.declarations
     }
 }
-impl DefaultSourceTypeDomainsV1<'_, '_, '_, '_> {
+impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
     pub fn bind_nominal_default_type_domains<'b, 'd, 'p, 's, 'a, 'f>(
         &self,
         declarations: &'b BoundNominalDefaultDeclarationsV1<'d, 'p, 's, 'a, 'f>,
@@ -104,7 +104,11 @@ impl DefaultSourceTypeDomainsV1<'_, '_, '_, '_> {
     }
 }
 
-fn charge_path(meter: &mut BudgetMeter, path: &WirePath, extra: u64) -> Result<(), WireError> {
+pub(super) fn charge_path(
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+    extra: u64,
+) -> Result<(), WireError> {
     let length = (path.segments().len() as u64).saturating_add(extra);
     meter.charge_work(length, path)?;
     meter.charge_owned_bytes(

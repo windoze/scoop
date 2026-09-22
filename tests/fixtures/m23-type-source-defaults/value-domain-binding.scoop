@@ -1,0 +1,23 @@
+private var globalSeed: Int = 3
+public struct Packet(val value: Int)
+public enum Choice { Present(val value: Int) }
+public object Cache {
+    private var stored: Int = 3
+    private fun read(value: Int = this.stored): Int = value
+}
+public class Cell(private var stored: Int) {
+    private fun read(value: Int = this.stored): Int = value
+}
+public open class Host {
+    private fun global(value: Int = globalSeed + globalSeed): Int = value
+    private fun objectValue(value: Cache = Cache): Cache = value
+    private fun packet(value: Packet = Packet(1)): Packet = value
+    private fun choice(value: Choice = Choice.Present(2)): Choice = value
+    private fun read(source: Packet, value: Int = source.value): Int = value
+    private fun tuple(source: (Int, Int), value: Int = source._1): Int = value
+    private fun literal(value: Int = 1): Int = value
+    public open fun inherited(value: Packet = Packet(4)): Packet = value
+}
+public class Child: Host() {
+    public override fun inherited(value: Packet): Packet = value
+}

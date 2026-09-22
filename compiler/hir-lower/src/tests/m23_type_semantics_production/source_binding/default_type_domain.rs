@@ -1,14 +1,14 @@
 use super::super::source_dispatch::with_hir_source;
 use super::*;
 use hir::{
-    CanonicalDefaultSourceAccessDeclarationsV1 as Table, DefaultSourceTypeAccessDemandV1 as Demand,
-    DefaultSourceTypeDomainError as Error, DefaultSourceTypeDomainsV1 as Domains,
+    CanonicalDefaultSourceAccessDeclarationsV1 as Table, DefaultSourceDomainError as Error,
+    DefaultSourceDomainsV1 as Domains, DefaultSourceTypeAccessDemandV1 as Demand,
 };
 use scoop_identity::{
     CoreBuiltinNominal, DefinitionOriginSubject as Subject, SignatureTypeKey as Type,
 };
 use scoop_wire::WirePath;
-mod dependencies;
+pub(super) mod dependencies;
 mod rejection;
 mod resources;
 const SOURCE: &str = include_str!(concat!(

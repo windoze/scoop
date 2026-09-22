@@ -335,3 +335,9 @@ LIR 五表从完整 MIR source/support/helper 清单选择实际物理定义；�
 组合 fixture 同时暴露现有完整发布边界：param-free static nested 若受 generic 外层 class 的 protected 域约束，继承域尚不能取得所需 concrete exact identity。该场景目前只完成 source profile 投影与编解码验证，未宣称完整发布成功；它与 core 的 generic 继承物化边界一起保留为后续完成项，没有伪造 exact、删减继承约束或放开执行 gate。
 
 每批代码先 cargo fmt --all 与 cargo clippy --workspace --all-targets，三个目标测试通过。重建配套 scoopc 后完整 workspace 37 组、5,796 项通过，0 failed、0 ignored。新增生产模块按 profile 分类、canonical 表与 wire 分开，原默认来源模块为 191 行；公共接口测试辅助器拆为独立模块。确认构建与测试退出后，cargo clean 删除 2,769 个文件、5.8 GiB。本批完成默认 source profile 生产；完整 default authority、HIR committed-use、正式 layout profile 发布和一般跨 Cone 类型消费继续推进，M23-6 保持进行中。
+
+2026-09-23：默认来源域注册表扩展为共有 DefaultSourceDomainsV1，复用既有 Type 查询及同一 provider/identity graph 检查，增加 Constructor、Global、Singleton、Field 四类目标域重放。路由只从 canonical typed key 取得实际 provider，再在其 artifact 中核对目标记录、constructor/variant、logical property、object backing、零参 adapter 和 applied owner/arity 关系。原始域按真实声明重算，tuple 字段保持没有额外声明约束的结构语义；不从 witness、名称或所声称的 owner type 反推来源。
+
+新增完整四类 occurrence 绑定，消费已完成声明、origin、nested identity 和正文引用闭包的结果，要求与当前访问表共用同一 bound foundation。每次独立比较完整来源域，重复引用、继承默认值与空正文均计入共享预算；错误保留 template key、引用种类与序号。返回凭证只覆盖这四类来源域相等，Type、Callable、receiver、操作类型、profile 和调用域 coverage 各自继续验证。
+
+独立和泛型组合源码 fixture/golden 覆盖 struct/class/object 字段、tuple、constructor/variant、global、singleton、重复引用及继承默认值。三个同名 provider 的真实 artifact 验证逐目标来源路由；缺失 provider、错 foundation、缺访问记录、伪造 owner type、member property 冒充 global、逐次 witness 篡改与预算耗尽均拒绝。generated adapter 额外覆盖 graph 可解析但 artifact 缺记录以及其他 generated role 拒绝。每批代码先 cargo fmt --all 与 cargo clippy --workspace --all-targets，默认来源定向 122 项和完整 scoop-hir/scoop-hir-lower 2,804 项全部通过，0 failed、0 ignored。模块按路由、绑定和错误拆分；本轮沿用关闭增量缓存与 debug 信息的构建设置。完整 default authority、committed-use 和正式跨 Cone layout 发布/消费继续推进，M23-6 未完成。

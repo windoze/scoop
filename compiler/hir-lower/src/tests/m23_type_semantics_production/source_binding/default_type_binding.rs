@@ -1,8 +1,8 @@
 use super::*;
 use hir::{
     DefaultBodyReferenceAttachmentV1 as Attachment, DefaultBodyReferenceMetadataV1 as Metadata,
-    DefaultSourceReferenceRecordV1 as Reference, DefaultSourceTypeDomainBindingError as Error,
-    DefaultSourceTypeDomainsV1 as Domains,
+    DefaultSourceDomainsV1 as Domains, DefaultSourceReferenceRecordV1 as Reference,
+    DefaultSourceTypeDomainBindingError as Error,
 };
 mod rejection;
 mod resources;
@@ -85,7 +85,7 @@ fn inspect(
                     );
                     assert!(matches!(
                         result,
-                        Err(hir::DefaultSourceTypeDomainError::Binder(_))
+                        Err(hir::DefaultSourceDomainError::Binder(_))
                     ));
                 }
             }

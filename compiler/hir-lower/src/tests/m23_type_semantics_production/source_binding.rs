@@ -13,6 +13,7 @@ mod default_target_subject;
 mod default_type_access;
 mod default_type_binding;
 mod default_type_domain;
+mod default_value_domain;
 mod dispatch;
 mod dispatch_binding;
 mod dispatch_production;

@@ -24,7 +24,7 @@ pub(super) fn validate(
     }
     Ok(())
 }
-impl<'b, 's, 'a, 'f> DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
+impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
     pub(super) fn provider(
         &self,
         provider: ConeIdentity,

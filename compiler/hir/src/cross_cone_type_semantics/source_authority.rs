@@ -76,5 +76,5 @@ pub use default_target_subject::*;
 mod default_type_access;
 pub use default_type_access::*;
 
-mod default_type_domain;
-pub use default_type_domain::*;
+mod default_domains;
+pub use default_domains::*;

@@ -1,9 +1,10 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum DefaultSourceTypeDomainError {
+pub enum DefaultSourceDomainError {
     Resource(WireError),
     Identity(String),
+    Target(Box<DefaultSourceTargetSubjectError>),
     Access(Box<DefaultSourceAccessBindingError>),
     Domain(Box<DefaultSourceDomainReplayError<DefaultSourceAccessBindingError>>),
     DependencyOrder(ConeIdentity),
@@ -22,6 +23,12 @@ pub enum DefaultSourceTypeDomainError {
     DomainBuild(DefaultSourceAccessBuildError),
 }
 impl Error {
+    pub(super) fn target(error: DefaultSourceTargetSubjectError) -> Self {
+        match error {
+            DefaultSourceTargetSubjectError::Resource(error) => Self::Resource(error),
+            other => Self::Target(Box::new(other)),
+        }
+    }
     pub(super) fn access(error: DefaultSourceAccessBindingError) -> Self {
         match error {
             DefaultSourceAccessBindingError::Resource(error) => Self::Resource(error),
@@ -48,6 +55,7 @@ impl std::fmt::Display for Error {
         match self {
             Self::Resource(e) => e.fmt(f),
             Self::Identity(e) => e.fmt(f),
+            Self::Target(e) => e.fmt(f),
             Self::Access(e) => e.fmt(f),
             Self::Domain(e) => e.fmt(f),
             Self::Binder(e) => e.fmt(f),
@@ -57,13 +65,13 @@ impl std::fmt::Display for Error {
             Self::DomainBuild(e) => e.fmt(f),
             Self::DependencyOrder(id) => write!(
                 f,
-                "default type source dependency {id} is duplicated or out of order"
+                "default source dependency {id} is duplicated or out of order"
             ),
             Self::IdentityGraph(id) => write!(
                 f,
-                "default type source provider {id} uses another identity graph"
+                "default source provider {id} uses another identity graph"
             ),
-            Self::MissingProvider(id) => write!(f, "missing default type source provider {id}"),
+            Self::MissingProvider(id) => write!(f, "missing default source provider {id}"),
             Self::NominalKind(id) => {
                 write!(f, "default type source {id:?} is not a nominal declaration")
             }

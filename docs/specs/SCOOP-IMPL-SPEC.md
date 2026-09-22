@@ -107,6 +107,8 @@ struct/enum 的派生 equality 条件签名必须在继承与源码签名检查�
 
 nominal default的type target-domain绑定必须消费已完成声明、origin、nested identity及六类occurrence闭包绑定的结果，并要求类型域注册表的当前provider与声明绑定共用同一份bound foundation。每条type occurrence使用原provider已验证的binder shape；仅LocalFunction typed attachment可从同一identity graph的已绑定函数key读取自身arity并增加非空frame。按实际target完整重放来源域后，才与该occurrence的完整target-domain witness比较；重复引用不能复用另一作用域的结果，继承default不能借用发布owner的frame。所有模板（含无type引用者）、查询、scope分配和域比较共用预算，任一失败不交付凭证。该独立凭证仅证明type引用来源域，其他五类target、操作类型、receiver、profile与完整调用域覆盖仍须验证。
 
+Constructor、Global、Singleton 和 Field 默认引用复用同一 provider 注册表，先由 canonical typed key 取得真实 provider，再要求对应 artifact 实际拥有目标记录，并核验声明、generated adapter/backing 及 applied owner 关系；随后按真实 constructor、enum、property、struct 或 source object 声明重放域。tuple 字段没有额外声明访问约束，位置与类型另行验证。批量绑定只接收已绑定的完整默认来源，逐 occurrence 比较完整 target-domain witness，保持引用种类和序号；重复、继承与空正文共享同一事务预算，来源 foundation 不同立即拒绝。该凭证不授予其他引用、receiver、profile、调用域 coverage 或执行资格；详细合同见 stage6 §3 的 default 来源域规则。
+
 foundation投影对core与其他Cone使用同一入口；本地声明与依赖的分类取决于实际typed声明归属，不通过CoreShapeSupport、Defined协议或特殊slot授予来源资格。已经完成类型检查的HIR不再为安全性重复证明来源。
 
 成员、参数、slot与默认类型域直接使用前端或依赖导入得到的typed基础类型。Unit结果类型、Array的vararg类型和Ptr/FunPtr的声明访问仍按普通语义检查；消费者不再接收第二份core artifact，不重复检查这些角色的core归属、已验证的kind/arity或canonical来源。Unit exact直接从typed nominal派生；普通metadata解码与身份一致性检查保持共用。

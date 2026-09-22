@@ -21,7 +21,7 @@ fn graph(fixture: &Fixture, record: &Adapter) -> ValidatedIdentityGraph {
 
 #[test]
 fn constructor_adapter_identity_routes_require_both_artifact_records_and_one_graph() {
-    with_hir_source(SOURCE, |output, _| {
+    with_hir_source(SOURCE, |output, core| {
         let fixture = Fixture::from_output(output);
         let record = reference(output, "cell", 0);
         let Constructor::Class {
@@ -49,6 +49,23 @@ fn constructor_adapter_identity_routes_require_both_artifact_records_and_one_gra
         assert!(
             matches!(foundation.default_constructor_access_subject(&target, &mut meter()), Err(Error::MissingAdapter(id)) if id == adapter.id())
         );
+        let required = BTreeSet::from([Subject::Constructor(*source)]);
+        let table =
+            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+        let access = foundation
+            .bind_default_access_declarations(&table, &required, &mut meter())
+            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+        let domains = hir::DefaultSourceDomainsV1::new(
+            &access,
+            &[],
+            inputs.protocols().fundamental_types(),
+            &mut meter(),
+        )
+        .unwrap();
+        assert!(
+            matches!(domains.value_source_domain(hir::DefaultSourceValueTargetV1::Constructor(&target), &mut meter()), Err(hir::DefaultSourceDomainError::Target(error)) if matches!(*error, Error::MissingAdapter(id) if id == adapter.id()))
+        );
         let mut canonical = fixture.foundation.as_canonical().clone();
         canonical
             .set_generated_callables(vec![adapter.clone()])
@@ -74,9 +91,6 @@ fn constructor_adapter_identity_routes_require_both_artifact_records_and_one_gra
                 .unwrap(),
             Subject::Constructor(*source)
         );
-        let required = BTreeSet::from([Subject::Constructor(*source)]);
-        let table =
-            Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
         let bound = foundation
             .bind_default_access_declarations(&table, &required, &mut meter())
             .unwrap();
@@ -85,6 +99,23 @@ fn constructor_adapter_identity_routes_require_both_artifact_records_and_one_gra
                 .source_lookup_domain(Subject::Constructor(*source), &mut meter())
                 .unwrap(),
             record.witness().target_domain()
+        );
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+        let domains = hir::DefaultSourceDomainsV1::new(
+            &bound,
+            &[],
+            inputs.protocols().fundamental_types(),
+            &mut meter(),
+        )
+        .unwrap();
+        assert_eq!(
+            &domains
+                .value_source_domain(
+                    hir::DefaultSourceValueTargetV1::Constructor(&target),
+                    &mut meter()
+                )
+                .unwrap(),
+            record.witness().target_domain(),
         );
         canonical.set_constructors(vec![]).unwrap();
         let artifact = hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
@@ -100,7 +131,7 @@ fn constructor_adapter_identity_routes_require_both_artifact_records_and_one_gra
 
 #[test]
 fn default_constructor_access_rejects_other_actual_generated_callable_roles() {
-    with_hir_source(SOURCE, |output, _| {
+    with_hir_source(SOURCE, |output, core| {
         let fixture = Fixture::from_output(output);
         let export = output.output().export.module();
         let generated = export
@@ -118,6 +149,28 @@ fn default_constructor_access_rejects_other_actual_generated_callable_roles() {
         };
         assert!(
             matches!(fixture.bind().unwrap().default_constructor_access_subject(&target, &mut meter()), Err(Error::AdapterRole(id)) if id == generated)
+        );
+        let foundation = fixture.bind().unwrap();
+        let empty = Table::try_new(vec![], &mut meter()).unwrap();
+        let bound = foundation
+            .bind_default_access_declarations(&empty, &BTreeSet::new(), &mut meter())
+            .unwrap();
+        let inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
+        let domains = hir::DefaultSourceDomainsV1::new(
+            &bound,
+            &[],
+            inputs.protocols().fundamental_types(),
+            &mut meter(),
+        )
+        .unwrap();
+        let error = domains
+            .value_source_domain(
+                hir::DefaultSourceValueTargetV1::Constructor(&target),
+                &mut meter(),
+            )
+            .unwrap_err();
+        assert!(
+            matches!(error, hir::DefaultSourceDomainError::Target(error) if matches!(*error, Error::AdapterRole(id) if id == generated))
         );
     });
 }

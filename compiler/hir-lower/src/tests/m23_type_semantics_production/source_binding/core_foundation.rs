@@ -122,7 +122,7 @@ fn core_source_foundation_binds_real_boolean_and_pointer_access_domains() {
     let interface = hir::CompilerProtocolDefinitionsV1::from_export(&output.export).unwrap();
     let inputs = imported.import_core_inputs(&interface).unwrap();
     let core = inputs.protocols().fundamental_types();
-    let domains = hir::DefaultSourceTypeDomainsV1::new(&access, &[], core, &mut meter()).unwrap();
+    let domains = hir::DefaultSourceDomainsV1::new(&access, &[], core, &mut meter()).unwrap();
     let scope = hir::SignatureBinderScopeV1::for_declaration(0, None);
     let unit = Type::Nominal(core.unit().persistent());
     for ty in [

@@ -1,4 +1,4 @@
-//! Type visibility replay from explicit, artifact-bound declaration providers.
+//! Source visibility replay from explicit, artifact-bound declaration providers.
 use crate::*;
 use scoop_identity::{
     ConeIdentity, DefinitionOriginSubject as Subject, PersistentGenericTypeId, PersistentTypeId,
@@ -11,20 +11,22 @@ mod errors;
 mod merge;
 mod providers;
 mod replay;
+mod values;
 pub use errors::*;
-type Error = DefaultSourceTypeDomainError;
+pub use values::*;
+type Error = DefaultSourceDomainError;
 type Declarations<'s, 'a, 'f> = BoundDefaultSourceAccessDeclarationsV1<'s, 'a, 'f>;
 
 /// A provider registry for raw source domains. It grants no checked lookup,
 /// receiver, default profile, or executable capability.
 #[derive(Debug)]
-pub struct DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
+pub struct DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
     current: &'b Declarations<'s, 'a, 'f>,
     dependencies: &'b [&'b Declarations<'s, 'a, 'f>],
     core: &'b ImportedCoreFundamentalTypeProtocol,
     any: PersistentTypeId,
 }
-impl<'b, 's, 'a, 'f> DefaultSourceTypeDomainsV1<'b, 's, 'a, 'f> {
+impl<'b, 's, 'a, 'f> DefaultSourceDomainsV1<'b, 's, 'a, 'f> {
     pub fn new(
         current: &'b Declarations<'s, 'a, 'f>,
         dependencies: &'b [&'b Declarations<'s, 'a, 'f>],

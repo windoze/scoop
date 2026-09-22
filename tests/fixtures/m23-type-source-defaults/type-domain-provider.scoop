@@ -1,2 +1,12 @@
 private struct Secret()
 private fun pick(first: Secret, value: Secret = first): Secret = value
+private var seed: Int = 5
+private object Cache {}
+private class Cell(val value: Int)
+private struct Packet(val value: Int)
+public class Samples {
+    private fun global(value: Int = seed): Int = value
+    private fun singleton(value: Cache = Cache): Cache = value
+    private fun build(value: Cell = Cell(1)): Cell = value
+    private fun read(source: Packet, value: Int = source.value): Int = value
+}

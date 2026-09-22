@@ -136,7 +136,7 @@ fn default_type_binding_rejects_another_bound_foundation_and_missing_access_sour
                 .unwrap();
             let domains = Domains::new(&access, &[], inputs.core_types, &mut meter()).unwrap();
             let error = domains.bind_nominal_default_type_domains(&bound, &mut meter()).unwrap_err();
-            assert!(matches!(error, Error::Target { error, .. } if matches!(*error, hir::DefaultSourceTypeDomainError::Access(_))));
+            assert!(matches!(error, Error::Target { error, .. } if matches!(*error, hir::DefaultSourceDomainError::Access(_))));
         });
     });
 }
@@ -160,9 +160,7 @@ fn default_type_binding_requires_actual_core_access_sources_for_boolean() {
             };
             assert!(matches!(
                 *error,
-                hir::DefaultSourceTypeDomainError::MissingProvider(
-                    scoop_identity::ConeIdentity::CORE
-                )
+                hir::DefaultSourceDomainError::MissingProvider(scoop_identity::ConeIdentity::CORE)
             ));
             let reference =
                 &inputs.templates.get(key).unwrap().references().types()[index as usize];

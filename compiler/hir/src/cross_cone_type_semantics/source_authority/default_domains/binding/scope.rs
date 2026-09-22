@@ -2,7 +2,7 @@ use super::*;
 use scoop_identity::CallableTemplateOrigin;
 
 pub(super) fn local(
-    domains: &DefaultSourceTypeDomainsV1<'_, '_, '_, '_>,
+    domains: &DefaultSourceDomainsV1<'_, '_, '_, '_>,
     function: &DefaultLocalFunctionV1,
     provider: &SignatureBinderScopeV1,
     meter: &mut BudgetMeter,

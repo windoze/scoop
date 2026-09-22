@@ -1,5 +1,5 @@
 use super::*;
-mod support;
+pub(in crate::tests::m23_type_semantics_production::source_binding) mod support;
 
 #[test]
 fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
@@ -28,7 +28,10 @@ fn default_type_domains_route_each_nominal_to_its_actual_artifact() {
         let actual = domains
             .type_source_domain(&artifact.ty, &scope("nominal"), &mut meter())
             .unwrap();
-        let subject = *artifact.required.first().unwrap();
+        let Type::Nominal(id) = &artifact.ty else {
+            panic!("source nominal")
+        };
+        let subject = Subject::Type(*id);
         assert_eq!(
             actual,
             declaration

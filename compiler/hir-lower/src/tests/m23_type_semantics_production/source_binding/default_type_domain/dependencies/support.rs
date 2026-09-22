@@ -4,15 +4,18 @@ use scoop_identity::{
     ConeCoordinate, ConeIdentity, NormalizedSourcePath, PendingIdentityValidation, SourceIdentity,
 };
 
-pub(super) struct Artifact {
+pub(in crate::tests::m23_type_semantics_production::source_binding) struct Artifact {
     pub coordinate: ConeCoordinate,
     pub source: hir::TypeFoundationSourceAuthorityV1,
     pub foundation: hir::OdrFreeHirFoundation,
     pub table: Table,
     pub required: BTreeSet<Subject>,
     pub ty: Type,
+    pub defaults: hir::CanonicalDefaultSourceTemplatesV1,
 }
-pub(super) fn artifacts(core: &TrustedCoreFixture) -> ([Artifact; 3], ValidatedIdentityGraph) {
+pub(in crate::tests::m23_type_semantics_production::source_binding) fn artifacts(
+    core: &TrustedCoreFixture,
+) -> ([Artifact; 3], ValidatedIdentityGraph) {
     let mut artifacts =
         ["type-current", "type-first", "type-second"].map(|name| artifact(core, name));
     let decode = |value: &hir::CanonicalHirFoundation| -> hir::DecodedHirFoundation {
@@ -120,8 +123,7 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
     let Type::Nominal(id) = ty else {
         panic!("private source nominal")
     };
-    let required = BTreeSet::from([Subject::Type(id)]);
-    let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
+    let mut required = BTreeSet::from([Subject::Type(id)]);
     let source =
         hir::CrossConeTypeSemanticsFoundationV1::from_dependency_hir(&output, &mut meter())
             .unwrap()
@@ -131,6 +133,18 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         hir::CanonicalHirFoundation::from_type_semantics_output(&output).unwrap(),
     )
     .unwrap();
+    let defaults =
+        hir::NominalDefaultSourceProductionV1::from_dependency_hir(&output, &mut meter())
+            .unwrap()
+            .templates()
+            .clone();
+    let identities = identity_closure(&output);
+    let bound = source
+        .bind_to_foundation(&foundation, &identities, &mut meter())
+        .unwrap();
+    required
+        .extend(super::super::super::default_value_domain::support::required(&bound, &defaults));
+    let table = Table::from_export_hir(&output.output().export, &required, &mut meter()).unwrap();
     Artifact {
         coordinate,
         source,
@@ -138,5 +152,6 @@ fn artifact(core: &TrustedCoreFixture, name: &str) -> Artifact {
         table,
         required,
         ty,
+        defaults,
     }
 }

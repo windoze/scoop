@@ -1,7 +1,7 @@
 use super::*;
 use DefaultSourceTypeAccessDemandV1 as Demand;
 
-impl DefaultSourceTypeDomainsV1<'_, '_, '_, '_> {
+impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
     pub(super) fn demand_domain(
         &self,
         demand: Demand<'_>,

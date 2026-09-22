@@ -1,0 +1,19 @@
+private var globalSeed: Int = 3
+public open class Envelope<T> {
+    protected struct Packet<U>(val value: U)
+    protected class Cell<U>(private var stored: U) {
+        private fun read(value: U = this.stored): U = value
+    }
+    protected enum Choice<U> { Present(val value: U) }
+    public object Cache {
+        private var stored: Int = 3
+        private fun read(value: Int = this.stored): Int = value
+    }
+    private fun <U> packet(seed: U, value: Packet<U> = Packet<U>(seed)): Packet<U> = value
+    private fun <U> cell(seed: U, value: Cell<U> = Cell<U>(seed)): Cell<U> = value
+    private fun <U> choice(seed: U, value: Choice<U> = Choice.Present(seed)): Choice<U> = value
+    private fun <U> read(source: Packet<U>, value: U = source.value): U = value
+    private fun cached(value: Cache = Cache): Cache = value
+    private fun global(value: Int = globalSeed + globalSeed): Int = value
+    private fun tuple(source: (Int, Int), value: Int = source._1): Int = value
+}
