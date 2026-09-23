@@ -24,7 +24,7 @@ pub(super) fn with_production(
     .unwrap();
     let request = loaded.validate().unwrap();
     let parsed = request.parse_current_sources().unwrap();
-    let ValidatedCompilerProtocols::Imported(core) = request.protocols() else {
+    let ValidatedCompilerProtocols::Imported(inputs) = request.protocols() else {
         panic!("ordinary source imports its actual language declarations")
     };
     let closure = request.dependencies().semantic();
@@ -32,7 +32,7 @@ pub(super) fn with_production(
     let hir = current_hir::CurrentConeHirArtifacts::lower(
         scoop_identity::RequestedConeKind::Library,
         parsed.sources(),
-        core.import_core_inputs().unwrap().into(),
+        inputs.as_ref().clone().into(),
         &world,
     )
     .unwrap();
@@ -45,24 +45,33 @@ pub(super) fn with_production(
     let selected = closure
         .project_dependency_callables_to_mir(hir.hir.imported_dependencies())
         .unwrap();
-    let selected = core
-        .project_initialization_protocol_to_mir(
-            selected,
-            !hir.hir
-                .output()
-                .local
-                .module()
-                .initialization_units
-                .is_empty(),
-        )
-        .unwrap();
+    let selected = if hir
+        .hir
+        .output()
+        .local
+        .module()
+        .initialization_units
+        .is_empty()
+    {
+        selected
+    } else {
+        closure
+            .select_initialization_cycle(
+                selected,
+                inputs
+                    .protocols()
+                    .exceptions()
+                    .initialization_cycle_thrower(),
+            )
+            .unwrap()
+    };
     let mir = hir.machine_input().lower_selected_mir(selected).unwrap();
     let selected = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .unwrap();
-    let (provider, nominal) = core.runtime_string_source();
+    let source_string = inputs.protocols().fundamental_types().string();
     let string = closure
-        .project_source_type_descriptor(provider, nominal)
+        .project_source_type_descriptor(source_string.provider(), source_string.persistent())
         .unwrap();
     let front = DecodedSlibEnvelope::open(
         core_bytes,

@@ -1,0 +1,263 @@
+Module
+  global0 message: String managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Holder: Holder managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:message eager global0 initializer=@fn4 ensure=@fn5 failure=2 deps=[]
+  init1 object:Holder singleton lazy global1 initializer=@fn0 ensure=@fn1 failure=3 deps=[]
+  enum CoroutineStep<Holder>
+    Completed(value: Holder)
+    Suspended()
+  enum CoroutineSlot<Holder>
+    Empty()
+    Value(value: Holder)
+  class Holder vtable=0 itables=0
+  generated_exact_type get0 location=enum1 nominal_id=707878e6a14b4662389a89e4be952fe913a9777c79dec27bd8eae7bfab797667 exact_id=39bea27981b8d93ef2d5133f82ea0b874eb452116a38e62a5c14255bdfe16beb
+  generated_exact_type get1 location=enum0 nominal_id=93995e0dadd713408a1c777a6458b574441f257ae7bed3bbdf1b7c398e2fced8 exact_id=a6a493f57f03f96631d910195cd3543fc67b751d7c691bbd43c5481e524a4cfa
+  fun $init$body$0 @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Holder
+        ClassAlloc Holder
+      call @fn7 direct
+        Type Holder
+        Local $new.1
+      global_assign $singleton$Holder
+        Type Holder
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn1() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Holder
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn0 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Holder
+      goto bb10
+    bb12 try.catch.12
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          CaughtException
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call $init.materialized: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Holder
+        Type Any
+        Local $init.materialized
+      throw unwind bb6
+        Type Any
+        Local $init.materialized
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Holder
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Holder
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun read @fn2() -> String
+    bb0 entry
+      call @fn1 direct
+      return
+        Type String
+        FieldAccess 0
+          Type Holder
+          GlobalRead $singleton$Holder
+  fun readTop @fn3() -> String
+    bb0 entry
+      call $call.1: String = @fn6 direct
+      return
+        Type String
+        Local $call.1
+  fun $init$body$1 @fn4() -> Unit
+    bb0 entry
+      call $call.1: String = external1 direct
+      global_assign message
+        Type String
+        Local $call.1
+      return
+  fun $init$ensure$1 @fn5() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:message
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn4 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:message
+      goto bb10
+    bb12 try.catch.12
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          CaughtException
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call $init.materialized: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:message
+        Type Any
+        Local $init.materialized
+      throw unwind bb6
+        Type Any
+        Local $init.materialized
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:message
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:message
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$message @fn6() -> String
+    bb0 entry
+      call @fn5 direct
+      return
+        Type String
+        GlobalRead message
+  fun init.Holder.$c0 @fn7(this: Holder) -> Unit
+    bb0 entry
+      call $call.1: String = external1 direct
+      field_set 0
+        Type Holder
+        Local this
+        Type String
+        Local $call.1
+      return
+  coroutine_step cs0 CoroutineStep<Holder> result=Holder
+  coroutine_slot cl0 CoroutineSlot<Holder> value=Holder
+  output library

@@ -1,4 +1,4 @@
-//! Stage-specific projection of committed ordinary-dependency selections.
+//! Stage-specific projection of committed dependency selections.
 
 use scoop_hir::SelectedImportedDependencySet;
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
@@ -8,8 +8,10 @@ use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
 mod descriptor;
 mod errors;
 mod lir;
+mod protocols;
 pub use descriptor::CrossConeTypeDescriptorProjectionError;
 pub use errors::*;
+pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 
 impl ValidatedCrossConeSemanticClosure<'_> {
     /// Projects the exact HIR winners into the matching provider MIR exports.

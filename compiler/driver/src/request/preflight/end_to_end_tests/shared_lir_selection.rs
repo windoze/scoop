@@ -1,6 +1,7 @@
 use super::*;
 
 mod descriptors;
+mod protocols;
 mod selections;
 type Compile<'a> =
     scoop_slib::ValidatedCompileArtifact<'a, scoop_slib::CrossConeSemanticsStrongProfile>;
@@ -13,7 +14,7 @@ fn fixture(name: &str) -> String {
 }
 
 #[test]
-fn shared_lir_projection_uses_actual_service_and_descriptor_providers() {
+fn shared_protocol_and_lir_projection_uses_actual_providers() {
     let target = resolved_target().expect("shared LIR projection requires a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
@@ -64,17 +65,20 @@ fn shared_lir_projection_uses_actual_service_and_descriptor_providers() {
                 .unwrap();
             selections::check(closure.semantic(), core.compile(), ordinary.compile());
             descriptors::check(closure.semantic(), core.compile(), ordinary.compile());
+            protocols::check(closure.semantic(), core.compile(), ordinary.compile());
         }
-        let mut request = request();
-        request.emit = StageDumpPolicy::Stage(StageDumpKind::Lir);
-        let artifact = request.build_and_publish(DecodeLimits::default()).unwrap();
-        let dump = artifact.emitted_dump().unwrap().text();
-        let snapshot = crate::workspace_root().join(format!(
-            "tests/fixtures/m23-shared-lir-selection/{name}.lir.snap"
-        ));
-        if std::env::var_os("SCOOP_UPDATE_SHARED_LIR_SNAPSHOTS").is_some() {
-            std::fs::write(&snapshot, dump).unwrap();
+        for (kind, suffix) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
+            let mut request = request();
+            request.emit = StageDumpPolicy::Stage(kind);
+            let artifact = request.build_and_publish(DecodeLimits::default()).unwrap();
+            let dump = artifact.emitted_dump().unwrap().text();
+            let snapshot = crate::workspace_root().join(format!(
+                "tests/fixtures/m23-shared-lir-selection/{name}.{suffix}.snap"
+            ));
+            if std::env::var_os("SCOOP_UPDATE_SHARED_LIR_SNAPSHOTS").is_some() {
+                std::fs::write(&snapshot, dump).unwrap();
+            }
+            assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         }
-        assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     }
 }

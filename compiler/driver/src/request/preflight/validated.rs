@@ -43,17 +43,17 @@ pub enum ValidatedCurrentConeInput<'input> {
     },
 }
 
-/// Protocol projections retain the exact shared dependency artifact.
-pub enum ValidatedCompilerProtocols<'input> {
+/// Frontend roles imported once from the shared dependency metadata.
+pub enum ValidatedCompilerProtocols {
     CurrentDeclarations,
-    Imported(Box<ValidatedTrustedCoreArtifact<'input>>),
+    Imported(Box<scoop_hir::ImportedCoreInputs>),
 }
 
 pub struct ValidatedSingleConeBuildRequest<'input> {
     pub(super) request: &'input LoadedSingleConeBuildRequest,
     pub(super) current: ValidatedCurrentConeInput<'input>,
     pub(super) dependencies: ValidatedExplicitDependencyInputSet<'input>,
-    pub(super) protocols: ValidatedCompilerProtocols<'input>,
+    pub(super) protocols: ValidatedCompilerProtocols,
 }
 
 impl<'input> ValidatedSingleConeBuildRequest<'input> {
@@ -61,7 +61,7 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         &self.current
     }
 
-    pub const fn protocols(&self) -> &ValidatedCompilerProtocols<'input> {
+    pub const fn protocols(&self) -> &ValidatedCompilerProtocols {
         &self.protocols
     }
 
@@ -117,10 +117,12 @@ impl LoadedSingleConeBuildRequest {
         let protocols = if current_identity == ConeIdentity::CORE {
             ValidatedCompilerProtocols::CurrentDeclarations
         } else {
-            let imported = ValidatedTrustedCoreArtifact::from_closure(&dependencies.closure)
+            let imported = dependencies
+                .semantic()
+                .import_compiler_protocols(ConeIdentity::CORE)
                 .map_err(|source| {
                     SingleConeDependencyValidationError::ExplicitDependencies(Box::new(
-                        ExplicitDependencyValidationError::CoreInterface(source),
+                        ExplicitDependencyValidationError::CompilerProtocols(source),
                     ))
                 })?;
             ValidatedCompilerProtocols::Imported(Box::new(imported))

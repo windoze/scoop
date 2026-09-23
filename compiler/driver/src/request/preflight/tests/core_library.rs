@@ -184,7 +184,7 @@ fn assert_core_views_share_the_dependency_closure(
         validated.current(),
         ValidatedCurrentConeInput::SingleFile { .. }
     ));
-    let ValidatedCompilerProtocols::Imported(trusted_core) = validated.protocols() else {
+    let ValidatedCompilerProtocols::Imported(inputs) = validated.protocols() else {
         panic!("single-file input imports its protocols from the shared dependency closure")
     };
     let closure = &validated.dependencies().closure;
@@ -209,11 +209,25 @@ fn assert_core_views_share_the_dependency_closure(
                 .any(|binding| binding.key().name().as_str() == name)
         );
     }
-    assert!(std::ptr::eq(trusted_core.compile(), member.compile()));
-    assert!(std::ptr::eq(
-        trusted_core.defined_symbols(),
-        member.link().defined_symbols()
-    ));
+    let string = inputs.protocols().fundamental_types().string();
+    assert_eq!(string.provider(), member.compile().identity());
+    assert_eq!(
+        member.compile().hir().identity(string.persistent()),
+        Some(string.identity())
+    );
+    let cycle = inputs
+        .protocols()
+        .exceptions()
+        .initialization_cycle_thrower();
+    let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(function) = cycle.definition()
+    else {
+        panic!("initialization service retains its source function identity")
+    };
+    assert_eq!(cycle.provider(), member.compile().identity());
+    assert_eq!(
+        member.compile().hir().identity(function.persistent()),
+        Some(function)
+    );
     assert_eq!(closure.artifact_count(), 1);
     assert!(!validated.dependencies().is_empty());
     assert!(

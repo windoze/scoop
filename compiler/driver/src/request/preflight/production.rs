@@ -92,7 +92,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
     fn lower_hir(
         &self,
         requested: scoop_identity::RequestedConeKind,
-        protocols: &ValidatedCompilerProtocols<'_>,
+        protocols: &ValidatedCompilerProtocols,
     ) -> Result<current_hir::CurrentConeHirArtifacts, CurrentConeHirStageError> {
         let world = self
             .request
@@ -103,7 +103,7 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         current_hir::CurrentConeHirArtifacts::lower(
             requested,
             &self.sources,
-            protocols.hir_input()?,
+            protocols.hir_input(),
             &world,
         )
     }

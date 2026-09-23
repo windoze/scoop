@@ -56,6 +56,8 @@ LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整�
 
 共有依赖闭包将完整 SelectedExternalMirSet 一次投影为 SelectedExternalLirSet，按每条记录的实际 provider 查询已验证 artifact，保留 Ordinary/InitializationCycle 的既有用途角色。初始化服务与普通 callable 共用 consumer、provider、typed declaration/implementation、完整签名、canonical ABI、definition 及集合覆盖检查；不能先跳过初始化角色，再由 core 包装对象补入第二份选择。初始化 ABI 缺失、角色与真实目标不符、签名不一致或错误 provider 均由共有投影拒绝。String 的 TypeDescriptor 同样由实际 source nominal 与 provider 进入共有 descriptor 查询，核对有限 shape-support、exact type、symbol 和 definition；该查询也适用于当前已发布完整 shape-support 的普通 nominal，不授予额外机器物化资格。删除 driver 的独立 core LIR callable/descriptor 投影适配，保留前端解析的语言角色。此迁移不改变 wire、runtime ABI 或源码可见性。
 
+协议导入保留实际 definition-origin 的 provider 与完整 typed callable 引用；其 provider 来自已验证的共有声明 metadata，不由导入 artifact 的身份补齐。driver 在依赖闭包完成后只保存前端所需的 ImportedCoreInputs，不再保存 ValidatedTrustedCoreArtifact 或另一份 Compile/Link view。初始化服务由共有闭包核对所选 provider、source function、完整源签名与 InitializationCycle 角色，再借用该 provider 已验证的 MIR exact signature 加入同一 selected set；driver 不重新拼接 String/Unit 签名。String descriptor 使用导入 nominal 自带的 source provider 与身份。缺失协议、错误目标、签名不一致、provider 不可达或重复选择均由共有入口拒绝。前端仍按语言规则选择默认协议库，internal 服务的源码可见性、wire 与 runtime ABI 不变。
+
 core 是可由用户修改、扩展和重建的普通 library Cone。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。
 
 当前优先目标与验收改为[core 普通 library 清理](../CORE-LIBRARY.md)。暂停扩展六类default来源授权、防篡改证明及独立source-authority框架。已有typed语义和普通metadata保持可用，专用证明链按实际依赖删除或合并。

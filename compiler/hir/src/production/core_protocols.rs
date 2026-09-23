@@ -38,7 +38,7 @@ pub enum CoreProtocolCallableDefinitionV1 {
 }
 
 impl CoreProtocolCallableDefinitionV1 {
-    const fn origin_subject(self) -> DefinitionOriginSubject {
+    pub(crate) const fn origin_subject(self) -> DefinitionOriginSubject {
         match self {
             Self::Function(id) => DefinitionOriginSubject::Function(id),
             Self::GenericFunction(id) => DefinitionOriginSubject::GenericFunction(id),

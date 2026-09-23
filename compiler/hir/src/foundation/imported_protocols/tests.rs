@@ -30,11 +30,52 @@ fn protocol_import_resolves_actual_provider_ids_in_the_shared_session() {
         );
         assert_eq!(protocols.fundamental_types().boolean().provider(), origin);
         assert_eq!(protocols.fundamental_types().array().provider(), origin);
+        for callable in [
+            protocols.iteration().next(),
+            protocols.exceptions().initialization_cycle_thrower(),
+            protocols.exceptions().throwable_constructor(),
+            protocols.ffi().ptr_cast(),
+            protocols.source_location().current(),
+        ] {
+            assert_eq!(callable.provider(), origin);
+        }
         assert_eq!(
             protocols.fundamental_types().unit().provider(),
             CoreBuiltinNominal::Unit.declaration_key().origin()
         );
     }
+}
+
+#[test]
+fn protocol_callable_provider_comes_from_the_actual_definition_origin() {
+    let provider = crate::core_protocol_test_support::ordinary_origin();
+    let (surface, foundation) = standalone_at(provider);
+    let imported = import(ConeIdentity::SINGLE_FILE, &foundation);
+    let protocols = ImportedCoreProtocols::import(&imported, &surface).unwrap();
+    assert_ne!(imported.origin(), provider);
+    assert_eq!(
+        protocols
+            .exceptions()
+            .initialization_cycle_thrower()
+            .provider(),
+        provider
+    );
+}
+
+#[test]
+fn protocol_callable_import_requires_its_shared_definition_origin() {
+    let (surface, mut foundation) = standalone_at(ConeIdentity::CORE);
+    foundation.set_definition_origins(vec![]).unwrap();
+    let imported = import(ConeIdentity::CORE, &foundation);
+    let CoreProtocolEntryV1::Callable(callable) = &surface.iteration_protocol().entries()[1] else {
+        panic!("iteration next is a callable")
+    };
+    assert_eq!(
+        ImportedCoreProtocols::import(&imported, &surface).unwrap_err(),
+        CoreProtocolImportError::MissingDefinitionOrigin {
+            subject: callable.definition().origin_subject(),
+        }
+    );
 }
 
 #[test]
@@ -60,9 +101,15 @@ fn import(origin: ConeIdentity, foundation: &CanonicalHirFoundation) -> Imported
     let decoded: DecodedHirFoundation =
         decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
     let mut pending = PendingIdentityValidation::new();
-    pending.register_authority(ConeIdentity::CORE).unwrap();
-    if origin != ConeIdentity::CORE {
-        pending.register_authority(origin).unwrap();
+    let mut providers = vec![
+        ConeIdentity::CORE,
+        origin,
+        crate::core_protocol_test_support::ordinary_origin(),
+    ];
+    providers.sort_unstable();
+    providers.dedup();
+    for provider in providers {
+        pending.register_authority(provider).unwrap();
     }
     decoded.register_identities(&mut pending).unwrap();
     decoded.resolve_identities(&mut pending).unwrap();

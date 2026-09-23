@@ -4,9 +4,6 @@ use std::path::{Path, PathBuf};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_toolchain::TrustedCoreSlotLayoutV1;
 
-mod artifact;
-pub use artifact::*;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TrustedCoreSlotIoOperation {
     CanonicalizeSysroot,

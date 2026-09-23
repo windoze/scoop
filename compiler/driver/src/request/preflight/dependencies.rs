@@ -151,7 +151,7 @@ pub enum ExplicitDependencyValidationError {
         source: Box<PrebuiltManifestSummaryError>,
     },
     Closure(Box<CrossConeArtifactClosureValidationError>),
-    CoreInterface(crate::TrustedCoreArtifactValidationError),
+    CompilerProtocols(scoop_slib::CrossConeProtocolImportError),
     CurrentConeArtifact {
         input: ExplicitDependencyArtifactInput,
         identity: ConeIdentity,
@@ -224,7 +224,7 @@ impl fmt::Display for ExplicitDependencyValidationError {
             Self::Closure(source) => {
                 write!(formatter, "dependency closure is not valid: {source}")
             }
-            Self::CoreInterface(source) => source.fmt(formatter),
+            Self::CompilerProtocols(source) => source.fmt(formatter),
             Self::CurrentConeArtifact { input, identity } => write!(
                 formatter,
                 "dependency {input} has the current Cone identity {identity}"
@@ -321,7 +321,7 @@ impl std::error::Error for ExplicitDependencyValidationError {
             Self::Resource(source) => Some(source),
             Self::Summary { source, .. } => Some(source.as_ref()),
             Self::Closure(source) => Some(source.as_ref()),
-            Self::CoreInterface(source) => Some(source),
+            Self::CompilerProtocols(source) => Some(source),
             Self::ManifestIdentity { source, .. } => Some(source),
             Self::CurrentConeArtifact { .. }
             | Self::UnsupportedArtifactShape { .. }

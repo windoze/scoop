@@ -1,17 +1,10 @@
 use super::*;
 
-impl ValidatedCompilerProtocols<'_> {
-    pub(super) fn hir_input(
-        &self,
-    ) -> Result<scoop_hir_lower::CoreProtocolInput, CurrentConeHirStageError> {
+impl ValidatedCompilerProtocols {
+    pub(super) fn hir_input(&self) -> scoop_hir_lower::CoreProtocolInput {
         match self {
-            Self::CurrentDeclarations => {
-                Ok(scoop_hir_lower::CoreProtocolInput::CurrentDeclarations)
-            }
-            Self::Imported(core) => core
-                .import_core_inputs()
-                .map(Into::into)
-                .map_err(CurrentConeHirStageError::CoreInterface),
+            Self::CurrentDeclarations => scoop_hir_lower::CoreProtocolInput::CurrentDeclarations,
+            Self::Imported(inputs) => inputs.as_ref().clone().into(),
         }
     }
 
@@ -31,7 +24,7 @@ impl ValidatedCompilerProtocols<'_> {
             Self::CurrentDeclarations => {
                 (selected, scoop_lir_lower::RuntimeStringDescriptor::Local)
             }
-            Self::Imported(core) => {
+            Self::Imported(inputs) => {
                 let needs_cycle = !hir
                     .hir
                     .output()
@@ -39,15 +32,24 @@ impl ValidatedCompilerProtocols<'_> {
                     .module()
                     .initialization_units
                     .is_empty();
-                let selected = core
-                    .project_initialization_protocol_to_mir(selected, needs_cycle)
-                    .map_err(CurrentConeMirStageError::Projection)
-                    .map_err(CurrentConeProductionFailure::Mir)?;
-                let (provider, nominal) = core.runtime_string_source();
+                let protocols = inputs.protocols();
+                let closure = request.dependencies().semantic();
+                let selected = if needs_cycle {
+                    closure
+                        .select_initialization_cycle(
+                            selected,
+                            protocols.exceptions().initialization_cycle_thrower(),
+                        )
+                        .map_err(CurrentConeMirStageError::Initialization)
+                        .map_err(CurrentConeProductionFailure::Mir)?
+                } else {
+                    selected
+                };
+                let string = protocols.fundamental_types().string();
                 let descriptor = request
                     .dependencies()
                     .semantic()
-                    .project_source_type_descriptor(provider, nominal)
+                    .project_source_type_descriptor(string.provider(), string.persistent())
                     .map_err(CurrentConeLirStageError::TypeDescriptor)
                     .map_err(CurrentConeProductionFailure::Lir)?;
                 (

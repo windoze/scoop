@@ -37,10 +37,16 @@ pub(super) fn check(
         export.signature().clone(),
     )
     .unwrap();
+    let inputs = closure.import_compiler_protocols(core.identity()).unwrap();
     for records in [vec![], vec![ordinary.clone()]] {
-        let mir = Selection::try_from_callables(closure.current(), records)
-            .unwrap()
-            .with_initialization_cycle(service.clone())
+        let mir = closure
+            .select_initialization_cycle(
+                Selection::try_from_callables(closure.current(), records).unwrap(),
+                inputs
+                    .protocols()
+                    .exceptions()
+                    .initialization_cycle_thrower(),
+            )
             .unwrap();
         let lir = closure.project_dependency_callables_to_lir(&mir).unwrap();
         assert_eq!(lir.len(), mir.len());

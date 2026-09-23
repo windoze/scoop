@@ -21,7 +21,7 @@ use super::{
     SingleConeBuildRequest, SingleConeProductionSuccess, SlibOutputDestination, StageDumpKind,
     StageDumpPolicy, TrustedCoreInput,
 };
-use crate::{CrossConeStrongIrProductionV1, ValidatedTrustedCoreArtifact};
+use crate::CrossConeStrongIrProductionV1;
 
 #[cfg(test)]
 mod bootstrap;
