@@ -217,28 +217,10 @@ where
             }
         })?;
 
-        let witness = reference.witness();
-        let expected_owner = self.template.key().owner();
-        if witness.owner() != expected_owner {
-            return Err(self.record_error(
-                kind,
-                index,
-                ExportDefaultReferenceValidationError::WitnessOwner {
-                    expected: expected_owner,
-                    actual: witness.owner(),
-                },
-            ));
-        }
-        if witness.call_domain() != self.expected_call_domain {
-            return Err(self.record_error(
-                kind,
-                index,
-                ExportDefaultReferenceValidationError::CallDomain {
-                    expected: self.expected_call_domain,
-                    actual: witness.call_domain(),
-                },
-            ));
-        }
+        reference
+            .witness()
+            .validate_public_access(self.template.key().owner(), self.expected_call_domain)
+            .map_err(|error| self.record_error(kind, index, error.into()))?;
 
         reference
             .definition_origin()

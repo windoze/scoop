@@ -7,6 +7,7 @@ use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canoni
 
 use super::super::body::expression_test_support::{Fixture, ResolutionError, hex};
 use super::*;
+mod source_domains;
 use crate::{
     DefaultBinderRefV1, DefaultBoundCallableRefV1, DefaultBoundCallableSourceV1,
     DefaultCallableDeclarationV1, DefaultConstructorRefV1, DefaultFieldRefV1,
@@ -17,25 +18,19 @@ fn access_domains_and_witness_have_fixed_wire() {
     let fixture = Fixture::new();
     let witness = witness(&fixture, ExportDefaultCallDomainV1::DirectPublic);
     let bytes = encode(&witness).unwrap();
-
-    assert_eq!(bytes[0], 0xa3);
-    assert_eq!(bytes[1], 0x01);
-    assert!(bytes.ends_with(&[0x02, 0x01, 0x03, 0x01]));
+    assert_eq!(&bytes[..2], &[0xa4, 0x01]);
+    assert!(bytes.ends_with(&[
+        0x02, 0xa2, 0x00, 0x02, 0x01, 0x80, 0x03, 0x80, 0x04, 0xa2, 0x00, 0x02, 0x01, 0x80
+    ]));
     let decoded: DecodedExportDefaultAccessWitnessV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
-    assert_eq!(decoded.resolve(&mut fixture.resolver()), Ok(witness));
-
     assert_eq!(
-        hex(&encode(&ExportDefaultCallDomainV1::DirectPublic).unwrap()),
-        "01"
-    );
-    assert_eq!(
-        hex(&encode(&ExportDefaultCallDomainV1::DirectAndPublicSlot).unwrap()),
-        "02"
-    );
-    assert_eq!(
-        hex(&encode(&ExportDefaultTargetDomainV1::Universal).unwrap()),
-        "01"
+        decoded.resolve(
+            &mut fixture.resolver(),
+            &mut scoop_wire::BudgetMeter::new(DecodeLimits::default()),
+            &scoop_wire::WirePath::root()
+        ),
+        Ok(witness)
     );
 }
 
@@ -300,24 +295,16 @@ fn reference_wire_rejects_unknown_tags_and_non_exact_maps() {
         }
     );
 
-    let error = decode_canonical::<ExportDefaultCallDomainV1>(&[0x03], DecodeLimits::default())
-        .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 3 });
-
-    let error = decode_canonical::<ExportDefaultTargetDomainV1>(&[0x02], DecodeLimits::default())
-        .unwrap_err();
-    assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 2 });
-
     let mut witness = encode(&witness(&fixture, ExportDefaultCallDomainV1::DirectPublic)).unwrap();
-    witness[0] = 0xa2;
+    witness[0] = 0xa3;
     let error =
         decode_canonical::<DecodedExportDefaultAccessWitnessV1>(&witness, DecodeLimits::default())
             .unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 3,
-            actual: 2,
+            expected: 4,
+            actual: 3,
         }
     );
 

@@ -15,6 +15,7 @@ pub enum CrossConeHirDefaultProviderContractError {
     Nominal(DefaultMetadataNominalError),
     Provider(Box<CrossConeHirNominalAuthorityError>),
     MissingDeclaration(CallableTemplateOrigin),
+    PublicWitness(Box<scoop_hir::ExportDefaultPublicWitnessValidationError>),
     MissingProtocol(CallableTemplateOrigin),
     MissingDefaultParameter {
         declaration: CallableTemplateOrigin,
@@ -49,6 +50,7 @@ impl std::fmt::Display for CrossConeHirDefaultProviderContractError {
             Self::Resource(error) => error.fmt(f),
             Self::Nominal(error) => error.fmt(f),
             Self::Provider(error) => error.fmt(f),
+            Self::PublicWitness(error) => error.fmt(f),
             Self::MissingDeclaration(declaration) => {
                 write!(f, "default provider declaration {declaration:?} is absent")
             }
@@ -84,6 +86,7 @@ impl std::error::Error for CrossConeHirDefaultProviderContractError {
             Self::Resource(error) => Some(error),
             Self::Nominal(error) => Some(error),
             Self::Provider(error) => Some(error.as_ref()),
+            Self::PublicWitness(error) => Some(error.as_ref()),
             Self::Shape(error) => Some(error),
             Self::Parameter(error) => Some(error),
             Self::ReceiverShape(error) => Some(error),

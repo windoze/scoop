@@ -55,6 +55,26 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let interface = self
             .provider_interface(provider)
             .map_err(|error| Error::Provider(Box::new(error)))?;
+        self.meter.charge_work(
+            u64::from(
+                self.current_interface
+                    .callable_interfaces()
+                    .records()
+                    .len()
+                    .max(1)
+                    .ilog2(),
+            ) + 1,
+            path,
+        )?;
+        let public = self
+            .current_interface
+            .callable_interfaces()
+            .get(template.key().owner())
+            .ok_or(Error::MissingDeclaration(template.key().owner()))?;
+        template
+            .references()
+            .validate_public_access(public, self.meter, path)
+            .map_err(|error| Error::PublicWitness(Box::new(error)))?;
         let publisher = declarations::contract(
             self.current_interface,
             template.key().owner(),

@@ -342,45 +342,45 @@ impl Fixture {
                 default_reference(
                     ExportDefaultCallableTargetV1::Callable(foreign_callable),
                     &origin,
-                    witness,
+                    &witness,
                 ),
                 default_reference(
                     ExportDefaultCallableTargetV1::Callable(local_callable),
                     &origin,
-                    witness,
+                    &witness,
                 ),
                 default_reference(
                     ExportDefaultCallableTargetV1::DerivedEquality {
                         owner_type: foreign_signature.clone(),
                     },
                     &origin,
-                    witness,
+                    &witness,
                 ),
             ],
-            vec![default_reference(foreign_constructor, &origin, witness)],
+            vec![default_reference(foreign_constructor, &origin, &witness)],
             vec![default_reference(
                 foreign_signature.clone(),
                 &origin,
-                witness,
+                &witness,
             )],
             vec![default_reference(
                 identities.foreign_property,
                 &origin,
-                witness,
+                &witness,
             )],
             vec![default_reference(
                 identities.foreign_object,
                 &origin,
-                witness,
+                &witness,
             )],
             vec![
-                default_reference(foreign_field, &origin, witness),
+                default_reference(foreign_field, &origin, &witness),
                 default_reference(
                     DefaultFieldRefV1::Tuple {
                         declaration_index: 0,
                     },
                     &origin,
-                    witness,
+                    &witness,
                 ),
             ],
         )
@@ -709,9 +709,9 @@ fn template(
 fn default_reference<T>(
     target: T,
     origin: &ExportDefinitionSourceV1,
-    witness: ExportDefaultAccessWitnessV1,
+    witness: &ExportDefaultAccessWitnessV1,
 ) -> ExportDefaultReferenceV1<T> {
-    ExportDefaultReferenceV1::new(target, origin.clone(), witness)
+    ExportDefaultReferenceV1::new(target, origin.clone(), witness.clone())
 }
 
 fn external_reference(

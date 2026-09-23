@@ -234,6 +234,22 @@ impl DecodedExportDefaultTemplateV1 {
     where
         R: DefaultStatementReferenceResolver<E>,
     {
+        self.resolve_metered(
+            resolver,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+            &scoop_wire::WirePath::root(),
+        )
+    }
+
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<ExportDefaultTemplateV1, ExportDefaultTemplateResolutionError<E>>
+    where
+        R: DefaultStatementReferenceResolver<E>,
+    {
         let key = self
             .key
             .resolve(resolver)
@@ -268,7 +284,7 @@ impl DecodedExportDefaultTemplateV1 {
             .map_err(ExportDefaultTemplateResolutionError::ValueParameters)?;
         let references = self
             .references
-            .resolve(resolver)
+            .resolve_metered(resolver, meter, &path.clone().field(11))
             .map_err(ExportDefaultTemplateResolutionError::References)?;
         let definition_origin = self
             .definition_origin

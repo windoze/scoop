@@ -1,0 +1,21 @@
+private fun privateSeed(): Int = 4
+internal fun internalSeed(): Int = 5
+
+public open class SourceBase<T> {
+    protected val seed: Int = 3
+    protected open fun read(value: Int = seed): Int = value
+    private fun hidden(value: Int = privateSeed()): Int = value
+}
+
+public class Cases {
+    private class Hidden<T> {
+        public fun read(value: Int = privateSeed()): Int = value
+    }
+    internal class ConeScoped<T> {
+        public fun read(value: Int = internalSeed()): Int = value
+    }
+}
+
+public class Derived: SourceBase<Int>() {
+    protected override fun read(value: Int): Int = value
+}

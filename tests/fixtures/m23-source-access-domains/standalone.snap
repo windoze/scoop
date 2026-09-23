@@ -1,0 +1,2 @@
+SourceBase.read field: direct=Subclasses(SourceBase) slot=absent target=Subclasses(SourceBase)
+SourceBase.read type: direct=Subclasses(SourceBase) slot=absent target=universal

@@ -1,4 +1,6 @@
 mod access;
+mod public_access;
+pub use public_access::ExportDefaultPublicWitnessValidationError;
 mod callable_target;
 mod closure;
 mod record;
@@ -6,8 +8,9 @@ mod semantics;
 mod set;
 
 pub use access::{
-    DecodedExportDefaultAccessWitnessV1, ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1,
-    ExportDefaultTargetDomainV1,
+    DecodedExportDefaultAccessWitnessV1, ExportDefaultAccessWitnessBuildError,
+    ExportDefaultAccessWitnessResolutionError, ExportDefaultAccessWitnessV1,
+    ExportDefaultCallDomainV1, PublicDefaultWitnessError,
 };
 pub use callable_target::{
     DecodedExportDefaultCallableTargetV1, ExportDefaultCallableTargetBuildError,

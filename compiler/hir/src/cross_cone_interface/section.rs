@@ -232,6 +232,20 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
     where
         R: CrossConeHirInterfaceResolver<E>,
     {
+        self.resolve_metered(
+            resolver,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
+    }
+
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<CrossConeHirInterfaceSectionV1, CrossConeHirInterfaceResolutionError<E>>
+    where
+        R: CrossConeHirInterfaceResolver<E>,
+    {
         let public_bindings = self.public_bindings.resolve(resolver).map_err(|error| {
             CrossConeHirInterfaceResolutionError::PublicBindings(Box::new(error))
         })?;
@@ -254,9 +268,12 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
             .type_aliases
             .resolve(resolver)
             .map_err(|error| CrossConeHirInterfaceResolutionError::TypeAliases(Box::new(error)))?;
-        let mut default_templates = self.default_templates.resolve(resolver).map_err(|error| {
-            CrossConeHirInterfaceResolutionError::DefaultTemplates(Box::new(error))
-        })?;
+        let mut default_templates = self
+            .default_templates
+            .resolve_metered(resolver, meter, &scoop_wire::WirePath::root().field(7))
+            .map_err(|error| {
+                CrossConeHirInterfaceResolutionError::DefaultTemplates(Box::new(error))
+            })?;
         let source_interfaces = self
             .source_interfaces
             .resolve(resolver, &mut default_templates)

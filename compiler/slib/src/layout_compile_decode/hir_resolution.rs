@@ -35,7 +35,7 @@ impl<'input> FoundationValidatedCrossConeLayoutCompileSections<'input> {
             lir_layout_abi,
         } = self;
         let hir_interface = hir_interface
-            .resolve(&mut identities)
+            .resolve_metered(&mut identities, graph.envelope.meter_mut())
             .map_err(|error| CrossConeLayoutHirResolutionError::Public(Box::new(error)))?;
         let hir_type_semantics = hir_type_semantics
             .resolve(

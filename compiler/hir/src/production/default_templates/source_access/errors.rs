@@ -12,6 +12,7 @@ pub enum DefaultSourceAccessProductionError {
     GenericSubclasses(CanonicalPersistentIdSetBuildError<PersistentGenericTypeId>),
     Encoding(scoop_wire::cbor::EncodeError),
     Build(DefaultSourceAccessBuildError),
+    SharedBuild(ExportDefaultAccessWitnessBuildError),
 }
 impl From<scoop_wire::WireError> for DefaultSourceAccessProductionError {
     fn from(error: scoop_wire::WireError) -> Self {
@@ -35,6 +36,7 @@ impl fmt::Display for DefaultSourceAccessProductionError {
             Self::GenericSubclasses(error) => error.fmt(f),
             Self::Encoding(error) => error.fmt(f),
             Self::Build(error) => error.fmt(f),
+            Self::SharedBuild(error) => error.fmt(f),
         }
     }
 }

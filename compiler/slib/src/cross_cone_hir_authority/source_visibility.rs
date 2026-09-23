@@ -10,13 +10,7 @@ mod relations;
 
 type Error = CrossConeHirNominalAuthorityError;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Constraint {
-    Cone(ConeIdentity),
-    File(SourceIdentity),
-    LexicalOwner(SourceNominalId),
-    SubclassesOf(SourceNominalId),
-}
+use scoop_hir::SourceAccessConstraintV1 as Constraint;
 
 impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
     pub(crate) fn validate_property_setter_domains(&mut self) -> Result<(), Error> {

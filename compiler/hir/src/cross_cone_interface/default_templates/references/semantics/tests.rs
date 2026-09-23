@@ -8,6 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits, ResourceKind, WireErrorKind, WirePat
 
 use super::*;
 mod local_signatures;
+mod source_domains;
 use crate::cross_cone_interface::default_templates::body::expression_test_support::Fixture;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
@@ -111,7 +112,7 @@ fn rejects_call_domain_before_origin_or_target_authority() {
             index: 0,
             error: Box::new(ExportDefaultReferenceValidationError::CallDomain {
                 expected: ExportDefaultCallDomainV1::DirectPublic,
-                actual: ExportDefaultCallDomainV1::DirectAndPublicSlot,
+                actual: Some(ExportDefaultCallDomainV1::DirectAndPublicSlot),
             }),
         })
     );

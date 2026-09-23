@@ -5,6 +5,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 mod domains;
 mod errors;
+mod shared;
 use DefaultSourceAccessProductionError as Error;
 pub use errors::DefaultSourceAccessProductionError;
 

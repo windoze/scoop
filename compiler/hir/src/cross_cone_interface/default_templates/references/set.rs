@@ -139,9 +139,27 @@ impl DecodedExportDefaultReferenceSetV1 {
     where
         R: DefaultExpressionReferenceResolver<E>,
     {
+        self.resolve_metered(
+            resolver,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+            &scoop_wire::WirePath::root(),
+        )
+    }
+
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError<E>>
+    where
+        R: DefaultExpressionReferenceResolver<E>,
+    {
         let callables = resolve_set(
             self.callables,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Callable,
             |target, resolver| {
                 target
@@ -152,6 +170,8 @@ impl DecodedExportDefaultReferenceSetV1 {
         let constructors = resolve_set(
             self.constructors,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Constructor,
             |target, resolver| {
                 target
@@ -162,6 +182,8 @@ impl DecodedExportDefaultReferenceSetV1 {
         let types = resolve_set(
             self.types,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Type,
             |target, resolver| {
                 target
@@ -172,6 +194,8 @@ impl DecodedExportDefaultReferenceSetV1 {
         let globals = resolve_set(
             self.globals,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Global,
             |target, resolver| {
                 resolver
@@ -182,6 +206,8 @@ impl DecodedExportDefaultReferenceSetV1 {
         let singleton_values = resolve_set(
             self.singleton_values,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Singleton,
             |target, resolver| {
                 resolver
@@ -192,6 +218,8 @@ impl DecodedExportDefaultReferenceSetV1 {
         let fields = resolve_set(
             self.fields,
             resolver,
+            meter,
+            path,
             ExportDefaultReferenceKindV1::Field,
             |target, resolver| {
                 target
@@ -265,6 +293,7 @@ impl std::error::Error for ExportDefaultReferenceSetBuildError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ExportDefaultReferenceSetValidationError<E> {
+    Resource(WireError),
     TooMany(ExportDefaultReferenceKindV1),
     Record {
         kind: ExportDefaultReferenceKindV1,
@@ -284,6 +313,7 @@ pub enum ExportDefaultReferenceSetValidationError<E> {
 impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceSetValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
             Self::TooMany(kind) => write!(formatter, "default {kind} reference count exceeds u32"),
             Self::Record { kind, index, error } => {
                 write!(
@@ -325,6 +355,8 @@ fn canonicalize<T: Ord>(
 fn resolve_set<R, E, D, T>(
     records: Vec<DecodedExportDefaultReferenceV1<D>>,
     resolver: &mut R,
+    meter: &mut scoop_wire::BudgetMeter,
+    path: &scoop_wire::WirePath,
     kind: ExportDefaultReferenceKindV1,
     mut resolve_target: impl FnMut(
         D,
@@ -337,18 +369,31 @@ where
 {
     u32::try_from(records.len())
         .map_err(|_| ExportDefaultReferenceSetValidationError::TooMany(kind))?;
-    let mut resolved: Vec<ExportDefaultReferenceV1<T>> = Vec::with_capacity(records.len());
+    meter
+        .check_table_entries(records.len() as u64, path)
+        .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
+    let mut resolved: Vec<ExportDefaultReferenceV1<T>> = Vec::new();
+    meter
+        .try_reserve_collection_slots(&mut resolved, records.len(), path)
+        .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
     for (index, record) in records.into_iter().enumerate() {
         let record = record
-            .resolve_with(resolver, |target, resolver| {
-                resolve_target(target, resolver)
-            })
+            .resolve_with(
+                resolver,
+                meter,
+                &path.clone().field(kind as u32 + 1).index(index as u64),
+                |target, resolver| resolve_target(target, resolver),
+            )
             .map_err(|error| ExportDefaultReferenceSetValidationError::Record {
                 kind,
                 index,
                 error,
             })?;
         if let Some(previous) = resolved.last() {
+            previous
+                .witness()
+                .charge_comparison(record.witness(), meter, path)
+                .map_err(ExportDefaultReferenceSetValidationError::Resource)?;
             match previous.cmp(&record) {
                 std::cmp::Ordering::Equal => {
                     return Err(ExportDefaultReferenceSetValidationError::Duplicate {

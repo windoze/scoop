@@ -142,13 +142,32 @@ impl DecodedCanonicalExportDefaultTemplatesV1 {
     where
         R: DefaultStatementReferenceResolver<E>,
     {
+        self.resolve_metered(
+            resolver,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+            &scoop_wire::WirePath::root(),
+        )
+    }
+
+    pub fn resolve_metered<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<CanonicalExportDefaultTemplatesV1, ExportDefaultTemplateSetValidationError<E>>
+    where
+        R: DefaultStatementReferenceResolver<E>,
+    {
         let len = u32::try_from(self.records.len())
             .map_err(|_| ExportDefaultTemplateSetValidationError::TooMany)?;
         let mut records = Vec::<ExportDefaultTemplateV1>::with_capacity(self.records.len());
         for (index, record) in self.records.into_iter().enumerate() {
-            let record = record.resolve(resolver).map_err(|error| {
-                ExportDefaultTemplateSetValidationError::Record { index, error }
-            })?;
+            let record = record
+                .resolve_metered(resolver, meter, &path.clone().index(index as u64))
+                .map_err(|error| ExportDefaultTemplateSetValidationError::Record {
+                    index,
+                    error,
+                })?;
             if let Some(previous) = records.last() {
                 match previous.key().cmp(&record.key()) {
                     std::cmp::Ordering::Equal => {

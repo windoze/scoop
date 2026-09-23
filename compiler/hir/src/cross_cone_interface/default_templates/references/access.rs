@@ -1,150 +1,233 @@
-use scoop_identity::DecodedCallableTemplateOrigin;
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
+//! The single declaration-side access snapshot for a default reference.
 
-use crate::{CallableDeclarationId, CallableDeclarationIdResolver};
+use scoop_identity::{CallableTemplateOrigin, DecodedCallableTemplateOrigin};
+use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
-/// Public call-domain shape carried by an exported default witness.
-///
-/// The general M21 access domain cannot cross the artifact boundary because
-/// its restricted variants contain provider-local arena identities. Exported
-/// source interfaces have already narrowed the successful cases to these two
-/// universal public shapes.
+use crate::{
+    CallableDeclarationId, CallableDeclarationIdResolver, DecodedSourceAccessDomainV1,
+    SourceAccessDomainResolutionError, SourceAccessDomainResolver, SourceAccessDomainV1,
+};
+
+mod errors;
+pub use errors::{
+    ExportDefaultAccessWitnessBuildError, ExportDefaultAccessWitnessResolutionError,
+    PublicDefaultWitnessError,
+};
+
+/// The two universal shapes used when validating a public source callable.
+/// This query result is not a wire domain or a lookup capability.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ExportDefaultCallDomainV1 {
     DirectPublic,
     DirectAndPublicSlot,
 }
 
-impl WireEncode for ExportDefaultCallDomainV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(match self {
-            Self::DirectPublic => 1,
-            Self::DirectAndPublicSlot => 2,
-        })
-    }
-}
-
-impl WireDecode for ExportDefaultCallDomainV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            1 => Ok(Self::DirectPublic),
-            2 => Ok(Self::DirectAndPublicSlot),
-            tag => Err(unknown_tag(decoder, tag)),
-        }
-    }
-}
-
-/// Access-domain shape of every target admitted to an exported default.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum ExportDefaultTargetDomainV1 {
-    Universal,
-}
-
-impl WireEncode for ExportDefaultTargetDomainV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
-    }
-}
-
-impl WireDecode for ExportDefaultTargetDomainV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            1 => Ok(Self::Universal),
-            tag => Err(unknown_tag(decoder, tag)),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExportDefaultAccessWitnessV1 {
     owner: CallableDeclarationId,
-    call_domain: ExportDefaultCallDomainV1,
-    target_domain: ExportDefaultTargetDomainV1,
+    direct: SourceAccessDomainV1,
+    slot: Option<SourceAccessDomainV1>,
+    target: SourceAccessDomainV1,
 }
 
 impl ExportDefaultAccessWitnessV1 {
+    pub fn validate_public_access(
+        &self,
+        owner: CallableDeclarationId,
+        domain: ExportDefaultCallDomainV1,
+    ) -> Result<(), PublicDefaultWitnessError> {
+        if self.owner != owner {
+            return Err(PublicDefaultWitnessError::Owner {
+                expected: owner,
+                actual: self.owner,
+            });
+        }
+        let actual = self.public_call_domain();
+        if actual != Some(domain) {
+            return Err(PublicDefaultWitnessError::CallDomain {
+                expected: domain,
+                actual,
+            });
+        }
+        if !self.target.is_universal() {
+            return Err(PublicDefaultWitnessError::RestrictedTarget);
+        }
+        Ok(())
+    }
+
+    pub(in crate::cross_cone_interface::default_templates) fn charge_comparison(
+        &self,
+        other: &Self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        for witness in [self, other] {
+            for domain in std::iter::once(&witness.direct)
+                .chain(witness.slot.iter())
+                .chain(std::iter::once(&witness.target))
+            {
+                meter.charge_work(domain.constraints().len() as u64 + 1, path)?;
+                for constraint in domain.constraints() {
+                    if let crate::SourceAccessConstraintV1::File(source) = constraint {
+                        meter.charge_work(source.logical_path().as_str().len() as u64, path)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub const fn new(owner: CallableDeclarationId, call_domain: ExportDefaultCallDomainV1) -> Self {
         Self {
             owner,
-            call_domain,
-            target_domain: ExportDefaultTargetDomainV1::Universal,
+            direct: SourceAccessDomainV1::universal(),
+            slot: match call_domain {
+                ExportDefaultCallDomainV1::DirectPublic => None,
+                ExportDefaultCallDomainV1::DirectAndPublicSlot => {
+                    Some(SourceAccessDomainV1::universal())
+                }
+            },
+            target: SourceAccessDomainV1::universal(),
         }
     }
 
-    pub const fn owner(self) -> CallableDeclarationId {
+    pub fn try_new(
+        owner: CallableDeclarationId,
+        direct: SourceAccessDomainV1,
+        slot: Option<SourceAccessDomainV1>,
+        target: SourceAccessDomainV1,
+    ) -> Result<Self, ExportDefaultAccessWitnessBuildError> {
+        if matches!(owner, CallableTemplateOrigin::Accessor(_)) {
+            return Err(ExportDefaultAccessWitnessBuildError::AccessorOwner);
+        }
+        if slot.is_some()
+            && !matches!(
+                owner,
+                CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::GenericFunction(_)
+            )
+        {
+            return Err(ExportDefaultAccessWitnessBuildError::SlotForConstructor);
+        }
+        Ok(Self {
+            owner,
+            direct,
+            slot,
+            target,
+        })
+    }
+
+    pub const fn owner(&self) -> CallableDeclarationId {
         self.owner
     }
-
-    pub const fn call_domain(self) -> ExportDefaultCallDomainV1 {
-        self.call_domain
+    pub const fn direct_call_domain(&self) -> &SourceAccessDomainV1 {
+        &self.direct
+    }
+    pub const fn slot_call_domain(&self) -> Option<&SourceAccessDomainV1> {
+        self.slot.as_ref()
+    }
+    pub const fn target_domain(&self) -> &SourceAccessDomainV1 {
+        &self.target
     }
 
-    pub const fn target_domain(self) -> ExportDefaultTargetDomainV1 {
-        self.target_domain
+    pub fn public_call_domain(&self) -> Option<ExportDefaultCallDomainV1> {
+        if !self.direct.is_universal() {
+            return None;
+        }
+        match &self.slot {
+            None => Some(ExportDefaultCallDomainV1::DirectPublic),
+            Some(slot) if slot.is_universal() => {
+                Some(ExportDefaultCallDomainV1::DirectAndPublicSlot)
+            }
+            Some(_) => None,
+        }
     }
 }
 
-impl WireEncode for ExportDefaultAccessWitnessV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.owner.encode(encoder)?;
-        encoder.field(2)?;
-        self.call_domain.encode(encoder)?;
-        encoder.field(3)?;
-        self.target_domain.encode(encoder)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedExportDefaultAccessWitnessV1 {
     owner: DecodedCallableTemplateOrigin,
-    call_domain: ExportDefaultCallDomainV1,
-    target_domain: ExportDefaultTargetDomainV1,
+    direct: DecodedSourceAccessDomainV1,
+    slot: Option<DecodedSourceAccessDomainV1>,
+    target: DecodedSourceAccessDomainV1,
 }
 
 impl DecodedExportDefaultAccessWitnessV1 {
-    pub fn resolve<R, E>(self, resolver: &mut R) -> Result<ExportDefaultAccessWitnessV1, E>
+    pub fn resolve<R, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<ExportDefaultAccessWitnessV1, ExportDefaultAccessWitnessResolutionError<E>>
     where
-        R: CallableDeclarationIdResolver<E>,
+        R: CallableDeclarationIdResolver<E> + SourceAccessDomainResolver<E>,
     {
-        self.owner
+        meter
+            .charge_work(1, path)
+            .map_err(SourceAccessDomainResolutionError::Resource)?;
+        meter
+            .charge_nodes(1, path)
+            .map_err(SourceAccessDomainResolutionError::Resource)?;
+        let owner = self
+            .owner
             .resolve(resolver)
-            .map(|owner| ExportDefaultAccessWitnessV1 {
-                owner,
-                call_domain: self.call_domain,
-                target_domain: self.target_domain,
-            })
+            .map_err(ExportDefaultAccessWitnessResolutionError::Owner)?;
+        let direct = self
+            .direct
+            .resolve(resolver, meter, &path.clone().field(2))?;
+        let slot = self
+            .slot
+            .map(|slot| slot.resolve(resolver, meter, &path.clone().field(3)))
+            .transpose()?;
+        let target = self
+            .target
+            .resolve(resolver, meter, &path.clone().field(4))?;
+        ExportDefaultAccessWitnessV1::try_new(owner, direct, slot, target)
+            .map_err(ExportDefaultAccessWitnessResolutionError::Build)
     }
 }
 
-impl WireEncode for DecodedExportDefaultAccessWitnessV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.owner.encode(encoder)?;
-        encoder.field(2)?;
-        self.call_domain.encode(encoder)?;
-        encoder.field(3)?;
-        self.target_domain.encode(encoder)
-    }
+macro_rules! encode_witness {
+    ($ty:ty) => {
+        impl WireEncode for $ty {
+            fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+                e.map(4)?;
+                e.field(1)?;
+                self.owner.encode(e)?;
+                e.field(2)?;
+                self.direct.encode(e)?;
+                e.field(3)?;
+                e.array(u64::from(self.slot.is_some()))?;
+                if let Some(slot) = &self.slot {
+                    slot.encode(e)?;
+                }
+                e.field(4)?;
+                self.target.encode(e)
+            }
+        }
+    };
 }
+encode_witness!(ExportDefaultAccessWitnessV1);
+encode_witness!(DecodedExportDefaultAccessWitnessV1);
 
 impl WireDecode for DecodedExportDefaultAccessWitnessV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+    fn decode(d: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
+        d.expect_map(4)?;
         Ok(Self {
-            owner: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
-            call_domain: decoder.field(2, ExportDefaultCallDomainV1::decode)?,
-            target_domain: decoder.field(3, ExportDefaultTargetDomainV1::decode)?,
+            owner: d.field(1, DecodedCallableTemplateOrigin::decode)?,
+            direct: d.field(2, DecodedSourceAccessDomainV1::decode)?,
+            slot: d.field(3, |d| match d.array()? {
+                0 => Ok(None),
+                1 => d.index(0, DecodedSourceAccessDomainV1::decode).map(Some),
+                actual => Err(WireError::new(
+                    scoop_wire::WireErrorKind::InvalidLength {
+                        expected: 1,
+                        actual,
+                    },
+                    d.path().clone(),
+                    Some(d.position()),
+                )),
+            })?,
+            target: d.field(4, DecodedSourceAccessDomainV1::decode)?,
         })
     }
-}
-
-fn unknown_tag(decoder: &Decoder<'_, '_>, tag: u64) -> WireError {
-    WireError::new(
-        WireErrorKind::UnknownTag { tag },
-        decoder.path().clone(),
-        Some(decoder.position()),
-    )
 }

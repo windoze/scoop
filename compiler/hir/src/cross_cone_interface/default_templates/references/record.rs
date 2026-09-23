@@ -47,8 +47,8 @@ impl<T> ExportDefaultReferenceV1<T> {
         &self.definition_origin
     }
 
-    pub const fn witness(&self) -> ExportDefaultAccessWitnessV1 {
-        self.witness
+    pub const fn witness(&self) -> &ExportDefaultAccessWitnessV1 {
+        &self.witness
     }
 }
 
@@ -75,6 +75,8 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
     pub(crate) fn resolve_with<R, E, U>(
         self,
         resolver: &mut R,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
         resolve_target: impl FnOnce(
             T,
             &mut R,
@@ -92,7 +94,7 @@ impl<T> DecodedExportDefaultReferenceV1<T> {
             .map_err(ExportDefaultReferenceResolutionError::DefinitionOrigin)?;
         let witness = self
             .witness
-            .resolve(resolver)
+            .resolve(resolver, meter, &path.clone().field(3))
             .map_err(ExportDefaultReferenceResolutionError::Witness)?;
         Ok(ExportDefaultReferenceV1::new(
             target,
@@ -147,6 +149,7 @@ pub type DecodedExportDefaultFieldReferenceV1 =
 
 pub trait ExportDefaultReferenceResolver<E>:
     CallableDeclarationIdResolver<E>
+    + crate::SourceAccessDomainResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>
     + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -154,6 +157,7 @@ pub trait ExportDefaultReferenceResolver<E>:
 
 impl<R, E> ExportDefaultReferenceResolver<E> for R where
     R: CallableDeclarationIdResolver<E>
+        + crate::SourceAccessDomainResolver<E>
         + PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentKeyResolver<PersistentSourceContextId, SourceContextKey, Error = E>
 {
@@ -197,7 +201,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 pub enum ExportDefaultReferenceResolutionError<E> {
     Target(ExportDefaultReferenceTargetResolutionError<E>),
     DefinitionOrigin(SourceOriginResolutionError<E>),
-    Witness(E),
+    Witness(crate::ExportDefaultAccessWitnessResolutionError<E>),
 }
 
 impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceResolutionError<E> {

@@ -178,7 +178,7 @@ fn routes_reference_envelope_failures_with_table_identity() {
                     index: 0,
                     error: Box::new(ExportDefaultReferenceValidationError::CallDomain {
                         expected: ExportDefaultCallDomainV1::DirectPublic,
-                        actual: ExportDefaultCallDomainV1::DirectAndPublicSlot,
+                        actual: Some(ExportDefaultCallDomainV1::DirectAndPublicSlot),
                     }),
                 }),
             }

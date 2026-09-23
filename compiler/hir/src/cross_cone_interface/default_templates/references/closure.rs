@@ -98,7 +98,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.callables.records,
             &mut self.domains.callables.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Callable,
             site,
             |declared, meter, path| callable_target(declared, target, meter, path),
@@ -119,7 +119,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.constructors.records,
             &mut self.domains.constructors.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Constructor,
             site,
             |declared, meter, path| constructor_target(declared, target, meter, path),
@@ -143,7 +143,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.types.records,
             &mut self.domains.types.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Type,
             site,
             |declared, meter, path| signature_type(declared, target, meter, path),
@@ -164,7 +164,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.globals.records,
             &mut self.domains.globals.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Global,
             site,
             |declared, _, _| Ok(declared.cmp(&target)),
@@ -185,7 +185,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.singletons.records,
             &mut self.domains.singletons.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Singleton,
             site,
             |declared, _, _| Ok(declared.cmp(&target)),
@@ -206,7 +206,7 @@ impl<'a> PublicClosureObserver<'a> {
             self.domains.fields.records,
             &mut self.domains.fields.seen,
             origin,
-            self.witness,
+            &self.witness,
             ExportDefaultReferenceKindV1::Field,
             site,
             |declared, meter, path| field_target(declared, target, meter, path),
@@ -346,7 +346,7 @@ fn observe_record<T>(
     records: &[ExportDefaultReferenceV1<T>],
     seen: &mut [bool],
     origin: &ExportDefinitionSourceV1,
-    witness: ExportDefaultAccessWitnessV1,
+    witness: &ExportDefaultAccessWitnessV1,
     kind: ExportDefaultReferenceKindV1,
     site: ExportDefaultReferenceOccurrenceSiteV1,
     mut compare_target: impl FnMut(&T, &mut BudgetMeter, &WirePath) -> Result<Ordering, WireError>,
@@ -361,10 +361,14 @@ fn observe_record<T>(
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         let middle = start + (end - start) / 2;
         let record = &records[middle];
+        record
+            .witness()
+            .charge_comparison(witness, meter, path)
+            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         let ordering = compare_target(record.target(), meter, path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?
             .then_with(|| record.definition_origin().cmp(origin))
-            .then_with(|| record.witness().cmp(&witness));
+            .then_with(|| record.witness().cmp(witness));
         match ordering {
             Ordering::Less => start = middle + 1,
             Ordering::Greater => end = middle,

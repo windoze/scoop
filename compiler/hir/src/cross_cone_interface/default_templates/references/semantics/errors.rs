@@ -22,8 +22,9 @@ pub enum ExportDefaultReferenceValidationError<E> {
     },
     CallDomain {
         expected: ExportDefaultCallDomainV1,
-        actual: ExportDefaultCallDomainV1,
+        actual: Option<ExportDefaultCallDomainV1>,
     },
+    RestrictedTargetDomain,
     DefinitionOrigin(ExportDefinitionSourceSemanticValidationError<E>),
     Type {
         site: ExportDefaultReferenceTargetTypeSiteV1,
@@ -54,6 +55,9 @@ impl<E: fmt::Display> fmt::Display for ExportDefaultReferenceValidationError<E> 
                 formatter,
                 "default reference call domain {actual:?} differs from owner domain {expected:?}"
             ),
+            Self::RestrictedTargetDomain => {
+                formatter.write_str("a public default reference has a restricted target domain")
+            }
             Self::DefinitionOrigin(error) => {
                 write!(
                     formatter,
@@ -130,5 +134,19 @@ impl<E: std::error::Error + 'static> std::error::Error
 impl<E> From<WireError> for ExportDefaultReferenceValidationError<E> {
     fn from(error: WireError) -> Self {
         Self::Resource(error)
+    }
+}
+
+impl<E> From<crate::PublicDefaultWitnessError> for ExportDefaultReferenceValidationError<E> {
+    fn from(error: crate::PublicDefaultWitnessError) -> Self {
+        match error {
+            crate::PublicDefaultWitnessError::Owner { expected, actual } => {
+                Self::WitnessOwner { expected, actual }
+            }
+            crate::PublicDefaultWitnessError::CallDomain { expected, actual } => {
+                Self::CallDomain { expected, actual }
+            }
+            crate::PublicDefaultWitnessError::RestrictedTarget => Self::RestrictedTargetDomain,
+        }
     }
 }

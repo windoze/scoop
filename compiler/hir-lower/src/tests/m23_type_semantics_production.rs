@@ -22,6 +22,7 @@ mod shape_demands;
 mod shared_callable_declarations;
 mod shared_nominal_declarations;
 mod shared_property_declarations;
+mod shared_source_domains;
 mod source_binding;
 mod source_constructor_gc;
 mod source_constructor_safety;

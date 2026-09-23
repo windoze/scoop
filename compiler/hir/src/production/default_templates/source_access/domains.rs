@@ -66,7 +66,10 @@ impl DefaultSourceAccessDomainV1 {
     }
 }
 
-fn nominal(export: &ExportHir, owner: VisibilityOwner) -> Result<SourceNominalId, Error> {
+pub(super) fn nominal(
+    export: &ExportHir,
+    owner: VisibilityOwner,
+) -> Result<SourceNominalId, Error> {
     let identity = match owner {
         VisibilityOwner::Class(id) => export.nominal_identities.get_class(id),
         VisibilityOwner::Interface(id) => export.nominal_identities.get_interface(id),

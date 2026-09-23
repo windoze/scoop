@@ -18,7 +18,12 @@ mod property_interfaces;
 mod public_bindings;
 mod route_closure;
 mod section;
+mod source_access;
 pub use section::signature_nominal_walk::SignatureNominalWalker;
+pub use source_access::{
+    DecodedSourceAccessConstraintV1, DecodedSourceAccessDomainV1, SourceAccessConstraintV1,
+    SourceAccessDomainResolutionError, SourceAccessDomainResolver, SourceAccessDomainV1,
+};
 mod type_alias_interfaces;
 
 pub use metered_resolution::MeteredInterfaceResolutionError;
@@ -249,18 +254,20 @@ pub use default_templates::{
     DecodedExportDefaultFieldReferenceV1, DecodedExportDefaultGlobalReferenceV1,
     DecodedExportDefaultReferenceSetV1, DecodedExportDefaultReferenceV1,
     DecodedExportDefaultSingletonReferenceV1, DecodedExportDefaultTypeReferenceV1,
-    DefaultReferenceSemanticAuthority, ExportDefaultAccessWitnessV1, ExportDefaultCallDomainV1,
-    ExportDefaultCallableReferenceV1, ExportDefaultCallableTargetBuildError,
-    ExportDefaultCallableTargetResolutionError, ExportDefaultCallableTargetV1,
-    ExportDefaultConstructorReferenceV1, ExportDefaultFieldReferenceV1,
-    ExportDefaultGlobalReferenceV1, ExportDefaultReferenceClosureValidationError,
+    DefaultReferenceSemanticAuthority, ExportDefaultAccessWitnessBuildError,
+    ExportDefaultAccessWitnessResolutionError, ExportDefaultAccessWitnessV1,
+    ExportDefaultCallDomainV1, ExportDefaultCallableReferenceV1,
+    ExportDefaultCallableTargetBuildError, ExportDefaultCallableTargetResolutionError,
+    ExportDefaultCallableTargetV1, ExportDefaultConstructorReferenceV1,
+    ExportDefaultFieldReferenceV1, ExportDefaultGlobalReferenceV1,
+    ExportDefaultPublicWitnessValidationError, ExportDefaultReferenceClosureValidationError,
     ExportDefaultReferenceKindV1, ExportDefaultReferenceOccurrenceSiteV1,
     ExportDefaultReferenceResolutionError, ExportDefaultReferenceResolver,
     ExportDefaultReferenceSetBuildError, ExportDefaultReferenceSetSemanticValidationError,
     ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError,
     ExportDefaultReferenceTargetResolutionError, ExportDefaultReferenceTargetTypeSiteV1,
     ExportDefaultReferenceV1, ExportDefaultReferenceValidationError,
-    ExportDefaultSingletonReferenceV1, ExportDefaultTargetDomainV1, ExportDefaultTypeReferenceV1,
+    ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1, PublicDefaultWitnessError,
     compare_default_signature_reference_targets,
 };
 pub(crate) use default_templates::{
