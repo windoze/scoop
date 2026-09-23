@@ -34,6 +34,22 @@ impl From<WireError> for TypeFoundationBindingError {
     }
 }
 
+impl From<DefinitionSourceLocationValidationError> for TypeFoundationBindingError {
+    fn from(error: DefinitionSourceLocationValidationError) -> Self {
+        use DefinitionSourceLocationValidationError as Location;
+        match error {
+            Location::Resource(error) => Self::Resource(error),
+            Location::Provider { .. } => Self::ForeignOrigin,
+            Location::MissingSourceContext { context } => Self::MissingSourceContext(context),
+            Location::SourceContextMismatch { context } => Self::SourceContextMismatch(context),
+            Location::MissingSourceRecord { .. } => Self::MissingSourceRecord,
+            Location::MissingSourcePoint { byte_offset, .. } => {
+                Self::MissingSourcePoint(byte_offset)
+            }
+        }
+    }
+}
+
 impl fmt::Display for TypeFoundationBindingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

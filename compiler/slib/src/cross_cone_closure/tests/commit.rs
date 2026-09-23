@@ -242,7 +242,7 @@ fn validate_local_front(bytes: &[u8]) -> LirBridgeValidatedCrossConeHirFrontSect
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()

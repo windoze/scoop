@@ -58,6 +58,6 @@ pub(super) fn front(bytes: &[u8]) -> crate::DefinitionSourceValidatedCrossConeHi
     declaration_front(bytes)
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
 }

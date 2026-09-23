@@ -206,7 +206,7 @@ fn validate_until_property(bytes: &[u8]) -> PropertyValidatedCrossConeHirFrontSe
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(vec![])
         .unwrap()

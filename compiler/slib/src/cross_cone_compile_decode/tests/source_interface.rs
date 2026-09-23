@@ -29,6 +29,7 @@ mod default_data_flow;
 mod default_envelope;
 mod default_fixture;
 mod default_origins;
+mod source_providers;
 
 #[test]
 fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
@@ -144,7 +145,7 @@ fn validate_until_type_alias(bytes: &[u8]) -> TypeAliasValidatedCrossConeHirFron
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()

@@ -229,7 +229,7 @@ fn cross_cone_hir_front_validates_a_canonical_nominal_surface() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
@@ -270,7 +270,7 @@ fn cross_cone_hir_front_validates_a_canonical_property_surface() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -323,7 +323,7 @@ fn cross_cone_hir_front_validates_a_canonical_callable_surface() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -387,7 +387,7 @@ fn cross_cone_hir_front_validates_an_enum_variant_constructor_surface() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -427,7 +427,7 @@ fn cross_cone_hir_front_rejects_a_callable_parameter_identity_mismatch() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -476,7 +476,7 @@ fn cross_cone_hir_front_rejects_a_property_owner_identity_mismatch() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
@@ -545,7 +545,7 @@ fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
         .unwrap();
 
     let Err(CrossConeHirNominalSurfaceError::NominalInterfaces(error)) = front
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
     else {

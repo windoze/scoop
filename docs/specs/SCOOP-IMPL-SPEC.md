@@ -101,6 +101,8 @@ struct/enum 的派生 equality 条件签名必须在继承与源码签名检查�
 
 普通 `.slib` reader 必须继续在原 provider 的 binder frame 中重放全部默认值 local 类型及正文类型，包含未使用 local；local selector 的结构路径须属于该默认值的 definition path。正文中的局部函数签名仅在其自身真实非空 type parameter 组存在时增加一层 frame，arity 从同一已验证 identity graph 的 Function/GenericFunction canonical key 取得，不能由 descriptor、capture 或出现的 binder 反推。共有 source contract view 复用同一完整正文遍历、作用域规则和累计预算，类型接口默认值与普通 reader 不保留两套实现。该类型检查不代替操作类型关系、局部函数 parent/ownership、nested ABI、数据流及引用访问闭包。
 
+普通 `.slib` reader 的共有 definition-source 表逐项按 source identity 中的实际 provider 选择已验证 foundation：当前来源使用当前 artifact，外来来源只使用该 artifact 的可达依赖闭包。在同一闭包中出现但不可达的 provider 不得提供位置依据；当前 artifact 保留的外来 source/context 副本也不能替代真正定义方。每个来源必须匹配选中 provider、真实 source/context 关系及声明的起止字节位置，查询共享当前解码的累计预算。该位置校验由普通 reader 和类型接口来源绑定共用；它仅证明位置存在，不授予默认值继承、声明访问或执行资格。参数等要求由当前声明提供的来源仍在各自声明合同中检查，不能借全局来源表接受外来参数。
+
 默认值模板根的定义来源由共有 HIR foundation 校验。普通 `.slib` reader 按模板实际 source 的 Cone 从当前 artifact 或可达依赖闭包选择定义方 foundation，要求 typed root 确实属于该 artifact，且完整 canonical key 与同一已验证 identity graph 一致。Function、GenericFunction 和 Constructor 必须匹配其真实 callable context；EnumVariantConstructor 必须来自源码 nominal，并匹配其 nominal context。模板、声明和 context 的 source 必须一致；继承默认值保留原定义根，不能以发布 owner 或相同签名代替。所有查询、key 比较和来源比较共用当前解码的累计预算；缺失根、错误 provider、文件或 context 均拒绝，不引入独立来源表或调用方提供的默认来源凭证。
 
 默认值内命名局部函数的descriptor必须保留真实声明处的definition origin，正文statement与reference collector投影该descriptor时均读取此来源。卫生展开复用声明身份和来源，不能用外层template的文件/context加上被展开声明的span拼出来源；其他表达式继续使用其已有的definition/evaluation协议。

@@ -107,7 +107,7 @@ fn rejects_an_exported_definition_source_without_foundation_points() {
     let front = validate_until_internal(&bytes);
 
     let Err(CrossConeHirDefinitionSourceSurfaceError::DefinitionSources(error)) =
-        front.validate_definition_sources()
+        front.validate_definition_sources(&[])
     else {
         panic!("an unbacked exported definition point must fail semantic validation");
     };
@@ -194,7 +194,7 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap();
@@ -207,7 +207,7 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
@@ -229,7 +229,7 @@ fn validates_a_type_alias_target_from_a_reachable_provider() {
 
 fn validate_until_callable(bytes: &[u8]) -> CallableValidatedCrossConeHirFrontSections<'_> {
     validate_until_internal(bytes)
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()

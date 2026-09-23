@@ -18,7 +18,7 @@ fn validates_the_complete_local_lir_front() {
         .unwrap()
         .validate_internal_hir_closures()
         .unwrap()
-        .validate_definition_sources()
+        .validate_definition_sources(&[])
         .unwrap()
         .validate_nominal_surface(Vec::new())
         .unwrap()
