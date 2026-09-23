@@ -30,6 +30,7 @@ pub use current_hir::{CurrentConeHirStageError, CurrentConeStrongProfileError};
 mod dependencies;
 #[cfg(test)]
 mod end_to_end_tests;
+mod loading;
 mod machine;
 mod metering;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
@@ -314,6 +315,9 @@ impl std::error::Error for CurrentConeSourceStageError {
 pub enum SingleConePreflightError {
     Manifest(Box<ManifestRootError>),
     ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
+    Dependencies(Box<ExplicitDependencyValidationError>),
+    DefaultCoreSlot(Box<crate::TrustedCoreSlotError>),
+    Request(Box<super::SingleConeBuildRequestError>),
 }
 
 impl fmt::Display for SingleConePreflightError {
@@ -321,6 +325,9 @@ impl fmt::Display for SingleConePreflightError {
         match self {
             Self::Manifest(source) => source.fmt(formatter),
             Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
+            Self::Dependencies(source) => source.fmt(formatter),
+            Self::DefaultCoreSlot(source) => source.fmt(formatter),
+            Self::Request(source) => source.fmt(formatter),
         }
     }
 }
@@ -330,6 +337,9 @@ impl std::error::Error for SingleConePreflightError {
         match self {
             Self::Manifest(source) => Some(source.as_ref()),
             Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
+            Self::Dependencies(source) => Some(source.as_ref()),
+            Self::DefaultCoreSlot(source) => Some(source.as_ref()),
+            Self::Request(source) => Some(source.as_ref()),
         }
     }
 }

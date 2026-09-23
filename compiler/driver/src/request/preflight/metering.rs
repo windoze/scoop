@@ -40,48 +40,6 @@ impl SingleConeBuildRequest {
             .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 
-    pub(super) fn load_preflight_inner(
-        self,
-        limits: DecodeLimits,
-        meter: Option<&mut SlibClosureDecodeMeterV1>,
-    ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
-        let Self {
-            current,
-            mut dependencies,
-            trusted_core,
-            target,
-            output,
-            diagnostics,
-            emit,
-        } = self;
-        let current = load_current_input(current)?;
-        if let TrustedCoreInput::Artifact(input) = trusted_core {
-            dependencies.direct.push(input);
-        }
-        let dependencies = match meter {
-            Some(meter) => LoadedExplicitDependencyInputs::load_metered(
-                dependencies.direct(),
-                dependencies.support(),
-                limits,
-                meter,
-            ),
-            None => LoadedExplicitDependencyInputs::load(
-                dependencies.direct(),
-                dependencies.support(),
-                limits,
-            ),
-        }
-        .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
-        Ok(LoadedSingleConeBuildRequest {
-            current,
-            dependencies,
-            target,
-            output,
-            diagnostics,
-            emit,
-        })
-    }
-
     fn load_preflight_metered(
         self,
         limits: DecodeLimits,

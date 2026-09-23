@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
@@ -15,7 +16,7 @@ use super::{
 pub(super) struct ValidatedDependencyNode<'input> {
     pub(super) input: ExplicitDependencyArtifactInput,
     pub(super) bytes: &'input [u8],
-    pub(super) summary: PrebuiltManifestSummaryV1,
+    pub(super) summary: Cow<'input, PrebuiltManifestSummaryV1>,
 }
 
 pub(super) fn validate_artifact_shape(

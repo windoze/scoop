@@ -5,8 +5,7 @@ use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::{
     CrossConeArtifactClosureInput, SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1,
-    SlibClosureResourceErrorV1, SlibClosureResourceKindV1, probe_prebuilt_manifest_summary,
-    validate_cross_cone_artifact_closure,
+    SlibClosureResourceErrorV1, SlibClosureResourceKindV1, validate_cross_cone_artifact_closure,
 };
 use scoop_toolchain::ResolvedTargetProfile;
 use scoop_wire::sha256;
@@ -43,35 +42,11 @@ impl LoadedExplicitDependencyInputs {
         }
 
         for loaded in &self.artifacts {
-            let snapshot = sha256(&loaded.bytes);
-            let summary = probe_prebuilt_manifest_summary(
-                &loaded.bytes,
+            let summary = loaded.summary(
                 self.limits,
                 target.lir_target_selection(),
-            )
-            .map_err(|source| {
-                Box::new(ExplicitDependencyValidationError::Summary {
-                    input: loaded.input.clone(),
-                    source: Box::new(source),
-                })
-            })?;
-            if let Some(meter) = meter.as_deref_mut() {
-                meter
-                    .observe_artifact_snapshot(&summary, snapshot)
-                    .map_err(|source| {
-                        Box::new(ExplicitDependencyValidationError::Resource(source))
-                    })?;
-                meter
-                    .charge_artifact_decode(
-                        SlibClosureDecodePurposeV1::GraphSummary,
-                        summary.artifact_fingerprint(),
-                        snapshot,
-                        summary.decode_usage(),
-                    )
-                    .map_err(|source| {
-                        Box::new(ExplicitDependencyValidationError::Resource(source))
-                    })?;
-            }
+                meter.as_deref_mut(),
+            )?;
 
             let identity = summary.cone().identity();
             if identity == current_identity {

@@ -45,17 +45,55 @@ impl LoadedExplicitDependencyInputs {
                     index,
                     path: locator.as_path().to_path_buf(),
                 };
-                let bytes = load_artifact_bytes(&input, limits)?;
-                if let Some(meter) = meter.as_deref_mut() {
-                    let byte_length = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-                    meter
-                        .observe_raw_artifact_snapshot(sha256(&bytes), byte_length)
-                        .map_err(ExplicitDependencyLoadError::Resource)?;
-                }
-                artifacts.push(LoadedExplicitDependencyArtifact { input, bytes });
+                artifacts.push(LoadedExplicitDependencyArtifact::load(
+                    input,
+                    limits,
+                    meter.as_deref_mut(),
+                )?);
             }
         }
         Ok(Self { artifacts, limits })
+    }
+
+    pub(in crate::request::preflight) fn append_direct(
+        &mut self,
+        locator: &HostArtifactLocator,
+        meter: Option<&mut SlibClosureDecodeMeterV1>,
+    ) -> Result<(), ExplicitDependencyLoadError> {
+        let index = self
+            .artifacts
+            .iter()
+            .filter(|artifact| artifact.input.role == ExplicitDependencyRole::Direct)
+            .count();
+        let input = ExplicitDependencyArtifactInput {
+            role: ExplicitDependencyRole::Direct,
+            index,
+            path: locator.as_path().to_path_buf(),
+        };
+        let artifact = LoadedExplicitDependencyArtifact::load(input, self.limits, meter)?;
+        self.artifacts.insert(index, artifact);
+        Ok(())
+    }
+}
+
+impl LoadedExplicitDependencyArtifact {
+    fn load(
+        input: ExplicitDependencyArtifactInput,
+        limits: DecodeLimits,
+        meter: Option<&mut SlibClosureDecodeMeterV1>,
+    ) -> Result<Self, ExplicitDependencyLoadError> {
+        let bytes = load_artifact_bytes(&input, limits)?;
+        if let Some(meter) = meter {
+            let byte_length = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+            meter
+                .observe_raw_artifact_snapshot(sha256(&bytes), byte_length)
+                .map_err(ExplicitDependencyLoadError::Resource)?;
+        }
+        Ok(Self {
+            input,
+            bytes,
+            summary: std::cell::OnceCell::new(),
+        })
     }
 }
 
@@ -113,88 +151,4 @@ fn require_size(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn loader_retains_the_opened_bytes_when_the_locator_changes() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("library.slib");
-        std::fs::write(&path, b"initial artifact").unwrap();
-        let loaded = LoadedExplicitDependencyInputs::load(
-            &[HostArtifactLocator::new(&path).unwrap()],
-            &[],
-            DecodeLimits::default(),
-        )
-        .unwrap();
-        std::fs::write(&path, b"changed artifact").unwrap();
-        assert_eq!(loaded.artifacts[0].bytes, b"initial artifact");
-    }
-
-    #[test]
-    fn loader_requires_a_regular_file() {
-        let directory = tempfile::tempdir().unwrap();
-        let locator = HostArtifactLocator::new(directory.path()).unwrap();
-
-        assert!(matches!(
-            LoadedExplicitDependencyInputs::load(
-                &[locator],
-                &[],
-                DecodeLimits::default(),
-            ),
-            Err(ExplicitDependencyLoadError::NotRegularFile(input))
-                if input.role() == ExplicitDependencyRole::Direct
-                    && input.index() == 0
-                    && input.path() == directory.path()
-        ));
-    }
-
-    #[test]
-    fn loader_enforces_the_owned_byte_budget() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("dependency.slib");
-        std::fs::write(&path, b"too large").unwrap();
-        let locator = HostArtifactLocator::new(&path).unwrap();
-        let limits = DecodeLimits {
-            owned_bytes: 3,
-            ..DecodeLimits::default()
-        };
-
-        assert!(matches!(
-            LoadedExplicitDependencyInputs::load(&[locator], &[], limits),
-            Err(ExplicitDependencyLoadError::ArtifactTooLarge {
-                input,
-                actual: 9,
-                limit: 3,
-            }) if input.path() == path
-        ));
-    }
-
-    #[test]
-    fn metered_loader_enforces_the_build_wide_snapshot_budget() {
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("dependency.slib");
-        std::fs::write(&path, b"too large").unwrap();
-        let locator = HostArtifactLocator::new(&path).unwrap();
-        let mut values = scoop_slib::SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
-        values.artifact_snapshot_bytes = 3;
-        let limits = scoop_slib::SlibClosureDecodeLimitsV1::new(values).unwrap();
-        let mut meter = SlibClosureDecodeMeterV1::new(limits);
-
-        assert!(matches!(
-            LoadedExplicitDependencyInputs::load_metered(
-                &[locator],
-                &[],
-                DecodeLimits::default(),
-                &mut meter,
-            ),
-            Err(ExplicitDependencyLoadError::Resource(
-                scoop_slib::SlibClosureResourceErrorV1::LimitExceeded {
-                    resource: scoop_slib::SlibClosureResourceKindV1::ArtifactSnapshotBytes,
-                    limit: 3,
-                    observed: 9,
-                }
-            ))
-        ));
-    }
-}
+mod tests;

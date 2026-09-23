@@ -22,8 +22,6 @@ use scoop_protocol::{
 };
 use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 
-use crate::{TrustedCoreSlotError, resolve_trusted_core_slot};
-
 const MAX_EXPLICIT_ARTIFACTS_PER_ROLE: usize = 4_096;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,6 +90,7 @@ pub enum CurrentConeInput {
 pub enum TrustedCoreInput {
     Artifact(HostArtifactLocator),
     BootstrapSelf,
+    DependenciesOrDefault { sysroot: PathBuf },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -278,7 +277,6 @@ pub enum BuildRequestNormalizationError {
     HostPath(HostPathError),
     Target(ToolchainError),
     Backend(CodegenError),
-    TrustedCoreSlot(TrustedCoreSlotError),
     Request(SingleConeBuildRequestError),
 }
 
@@ -291,7 +289,6 @@ impl fmt::Display for BuildRequestNormalizationError {
             Self::HostPath(error) => error.fmt(formatter),
             Self::Target(error) => error.fmt(formatter),
             Self::Backend(error) => error.fmt(formatter),
-            Self::TrustedCoreSlot(error) => error.fmt(formatter),
             Self::Request(error) => error.fmt(formatter),
         }
     }
@@ -306,7 +303,6 @@ impl std::error::Error for BuildRequestNormalizationError {
             Self::HostPath(error) => Some(error),
             Self::Target(error) => Some(error),
             Self::Backend(error) => Some(error),
-            Self::TrustedCoreSlot(error) => Some(error),
             Self::Request(error) => Some(error),
         }
     }
@@ -384,12 +380,9 @@ pub fn normalize_direct_build_request(
     let trusted_core = if is_core {
         TrustedCoreInput::BootstrapSelf
     } else {
-        let core_slot = resolve_trusted_core_slot(target.lir_target_selection())
-            .map_err(BuildRequestNormalizationError::TrustedCoreSlot)?;
-        TrustedCoreInput::Artifact(
-            HostArtifactLocator::new(core_slot.artifact())
-                .map_err(BuildRequestNormalizationError::Request)?,
-        )
+        TrustedCoreInput::DependenciesOrDefault {
+            sysroot: crate::trusted_core::configured_sysroot_root(),
+        }
     };
     SingleConeBuildRequest::new(
         current,
@@ -495,7 +488,10 @@ fn validate_request_shape(
 ) -> Result<(), SingleConeBuildRequestError> {
     match (current, trusted_core) {
         (CurrentConeInput::Manifest { .. }, _) => Ok(()),
-        (CurrentConeInput::SingleFile { .. }, TrustedCoreInput::Artifact(_)) => {
+        (
+            CurrentConeInput::SingleFile { .. },
+            TrustedCoreInput::Artifact(_) | TrustedCoreInput::DependenciesOrDefault { .. },
+        ) => {
             if dependencies.is_empty() {
                 Ok(())
             } else {

@@ -119,12 +119,6 @@ pub(super) fn validate_output_isolation(
     trusted_core: &TrustedCoreInput,
     output: &SlibOutputDestination,
 ) -> Result<(), SingleConeBuildRequestError> {
-    let output_path = canonical_output_candidate(output.as_path()).map_err(|kind| {
-        SingleConeBuildRequestError::OutputIsolation {
-            path: output.as_path().to_path_buf(),
-            kind,
-        }
-    })?;
     let mut inputs =
         Vec::with_capacity(2 + dependencies.direct().len() + dependencies.support().len());
     match current {
@@ -171,6 +165,19 @@ pub(super) fn validate_output_isolation(
             }),
     );
 
+    validate_output_inputs(inputs, output)
+}
+
+pub(super) fn validate_output_inputs(
+    inputs: impl IntoIterator<Item = (OutputAliasRole, PathBuf)>,
+    output: &SlibOutputDestination,
+) -> Result<(), SingleConeBuildRequestError> {
+    let output_path = canonical_output_candidate(output.as_path()).map_err(|kind| {
+        SingleConeBuildRequestError::OutputIsolation {
+            path: output.as_path().to_path_buf(),
+            kind,
+        }
+    })?;
     for (role, input) in inputs {
         let canonical = std::fs::canonicalize(&input).map_err(|source| {
             SingleConeBuildRequestError::OutputIsolation {

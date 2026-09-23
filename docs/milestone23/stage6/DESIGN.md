@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+直接 `scoopc build` 在同一依赖快照上先检查显式 direct/support 的共有 summary，再决定是否补入默认 core artifact；实际 target、累计资源预算、输出隔离与 Compile/Link 闭包共用既有校验。显式提供 core 时不访问默认 sysroot，错误或重复显式输入不触发回退；single-file 的依赖输入限制保持。该发现顺序不改变 compiler protocol 或机器接口能力。
+
 隐式 Array application 的前端入口与显式泛型应用遵守同一 M23-7 能力边界：普通依赖模式下的 `vararg` 参数及数组字面量在缺少本地数组声明表示时，分别于关键字与完整字面量报告 `SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED`，不进入要求本地 intrinsic arena 的构造路径。定义侧完整数组声明继续使用既有解析与物化规则，不为 core 增加授权豁免；具体职责见实现规范 2.2。
 
 2026-09-23 当前 native C 投影约定：native witness 四字段记录新增必需 NativeBoundaryCAbiV1，封闭表达 SourceRepresentation、UInt64Field 和 NullablePointer，并保存实际 typed field/variant 引用。前端从完整声明角色正规化，依赖查询和 reader 按同一表示与完整字段闭包重放，不再使用 CoreNativeBoundaryNominal 固定身份。HIR foundation 升级为 /3，旧 native field 33 退役、新 field 34 必需，M24 的 HIR major 预留顺延为 /4；详细编码和验证见实现规范 2.11。C 投影不改变 Scoop aggregate ABI 或 runtime C 入口。

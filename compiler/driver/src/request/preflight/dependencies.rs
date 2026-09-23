@@ -10,6 +10,7 @@ use scoop_wire::{DecodeLimits, HashError};
 
 mod graph;
 mod load;
+mod summary;
 mod validate;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -131,6 +132,7 @@ impl std::error::Error for ExplicitDependencyLoadError {
 struct LoadedExplicitDependencyArtifact {
     input: ExplicitDependencyArtifactInput,
     bytes: Vec<u8>,
+    summary: std::cell::OnceCell<scoop_slib::PrebuiltManifestSummaryV1>,
 }
 
 #[derive(Debug)]

@@ -3,6 +3,7 @@ use crate::{HostArtifactLocator, normalize_direct_build_request};
 
 mod aliases;
 mod calls;
+mod direct_inputs;
 mod equality;
 mod intrinsics;
 mod member_calls;
@@ -44,6 +45,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     .unwrap();
     let artifact = workspace.path().join("user-library.slib");
     let first = build_core(&source, &artifact);
+    direct_inputs::check(&target, workspace.path(), &artifact);
     let first_dependency = first.artifact().validation().dependency_record();
     let first_fingerprint = first.artifact().validation().artifact_fingerprint();
     assert_explicit_core_version_is_checked(&target, workspace.path(), &artifact);
