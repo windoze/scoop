@@ -9,6 +9,7 @@ mod const_value;
 mod declaration_origins;
 mod default_contracts;
 mod default_data_flow;
+mod default_nested_identities;
 mod default_origins;
 mod default_type_access;
 mod default_value_access;
@@ -29,6 +30,7 @@ pub use default_contracts::{
     CrossConeHirDefaultProviderContractError, DefaultMetadataNominalError,
 };
 pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
+pub use default_nested_identities::CrossConeHirDefaultNestedIdentityError;
 pub use default_origins::CrossConeHirDefaultRootOriginError;
 pub use default_type_access::CrossConeHirDefaultTypeAccessError;
 pub use default_value_access::CrossConeHirDefaultValueAccessError;

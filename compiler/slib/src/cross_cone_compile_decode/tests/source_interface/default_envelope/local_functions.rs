@@ -53,7 +53,7 @@ fn ordinary_default_envelope_does_not_invent_a_frame_for_a_nongeneric_local_func
     );
 }
 
-fn fixture(
+pub(in super::super) fn fixture(
     arity: u32,
     parameter: SignatureTypeKey,
     descriptor_count: u32,

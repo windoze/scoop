@@ -1,4 +1,4 @@
-//! Borrowed occurrence index over the independent source body.
+//! Borrowed occurrence index over source and published default bodies.
 use crate::*;
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
@@ -10,8 +10,8 @@ pub use query::DefaultSourceNestedCallableQueryError;
 
 /// Raw source descriptors; indexing alone grants no semantic authority.
 #[derive(Debug)]
-pub struct DefaultSourceNestedCallablesV1<'a> {
-    template: ProtectedDefaultTemplateKeyV1,
+pub struct DefaultSourceNestedCallablesV1<'a, K = ProtectedDefaultTemplateKeyV1> {
+    template: K,
     occurrences: Vec<DefaultSourceNestedCallableOccurrenceV1<'a>>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -26,22 +26,18 @@ impl DefaultSourceTemplateV1 {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<DefaultSourceNestedCallablesV1<'_>, WireError> {
-        let mut index = DefaultSourceNestedCallablesV1 {
-            template: self.key(),
-            occurrences: Vec::new(),
-        };
-        self.body().visit_direct_references(
+        DefaultSourceNestedCallablesV1::from_body(
+            self.key(),
+            self.body(),
             self.locals(),
             self.definition_origin(),
-            &mut index,
             meter,
             path,
-        )?;
-        Ok(index)
+        )
     }
 }
-impl<'a> DefaultSourceNestedCallablesV1<'a> {
-    pub const fn template(&self) -> ProtectedDefaultTemplateKeyV1 {
+impl<'a, K: Copy> DefaultSourceNestedCallablesV1<'a, K> {
+    pub const fn template(&self) -> K {
         self.template
     }
     pub fn occurrences(&self) -> &[DefaultSourceNestedCallableOccurrenceV1<'a>] {
@@ -57,5 +53,39 @@ impl<'a> DefaultSourceNestedCallableOccurrenceV1<'a> {
     }
     pub const fn definition_origin(&self) -> &'a ExportDefinitionSourceV1 {
         self.definition_origin
+    }
+}
+
+impl ExportDefaultTemplateV1 {
+    pub fn index_nested_callables(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<DefaultSourceNestedCallablesV1<'_, ExportDefaultTemplateKeyV1>, WireError> {
+        DefaultSourceNestedCallablesV1::from_body(
+            self.key(),
+            self.body(),
+            self.locals(),
+            self.definition_origin(),
+            meter,
+            path,
+        )
+    }
+}
+impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
+    fn from_body(
+        template: K,
+        body: &'a ExportDefaultBodyV1,
+        locals: &'a CanonicalTemplateLocalTableV1,
+        origin: &'a ExportDefinitionSourceV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<Self, WireError> {
+        let mut index = Self {
+            template,
+            occurrences: Vec::new(),
+        };
+        body.visit_direct_references(locals, origin, &mut index, meter, path)?;
+        Ok(index)
     }
 }

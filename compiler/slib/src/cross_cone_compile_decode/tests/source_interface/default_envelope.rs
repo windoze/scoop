@@ -10,7 +10,8 @@ use super::*;
 use crate::CrossConeHirDefaultProviderContractError as Error;
 
 mod local_functions;
-mod support;
+pub(super) mod support;
+pub(super) use local_functions::fixture as local_function_fixture;
 use support::{add_local, add_owner_expression, local_path};
 
 #[test]

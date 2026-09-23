@@ -152,15 +152,16 @@ fn default_source_nested_identities_require_actual_generated_roles_and_paths() {
 #[test]
 fn source_foundation_publishes_unmaterialized_callable_reference_keys_and_origins() {
     with_sources(SOURCE, |output, fixture, _, _| {
-        let legacy = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
-        assert!(
+        let ordinary = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
+        assert_eq!(
             fixture
                 .foundation
                 .as_canonical()
                 .counts()
-                .generated_callables
-                > legacy.counts().generated_callables
+                .generated_callables,
+            ordinary.counts().generated_callables
         );
+        let ordinary = hir::OdrFreeHirFoundation::try_new(ordinary).unwrap();
         let original = source_template(output, "NestedIdentityHost.reference", 0);
         let Expr::CallableReference(reference) = original.body().value().kind() else {
             panic!("expected source callable reference");
@@ -168,6 +169,15 @@ fn source_foundation_publishes_unmaterialized_callable_reference_keys_and_origin
         let subject =
             scoop_identity::DefinitionOriginSubject::GeneratedCallable(reference.invoke());
         let origin = fixture.foundation.definition_origin(subject).unwrap();
+        assert_eq!(ordinary.definition_origin(subject), Some(origin));
+        ordinary
+            .source_record(origin.origin().source())
+            .unwrap()
+            .require_points([
+                origin.origin().span().start_byte(),
+                origin.origin().span().end_byte(),
+            ])
+            .unwrap();
         assert_eq!(
             origin.origin(),
             original.body().value().definition_origin().origin()

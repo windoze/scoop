@@ -13,7 +13,7 @@ pub enum DefaultSourceNestedCallableQueryError {
         actual: DefaultNestedCallableIdentityV1,
     },
 }
-impl<'a> DefaultSourceNestedCallablesV1<'a> {
+impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
     /// Selects a source occurrence before checking the candidate's typed identity.
     pub fn lookup(
         &self,

@@ -5,7 +5,7 @@ use scoop_identity::{CallableTemplateOwner, DefinitionOwnerAtom, PropertyOwner};
 mod owners;
 
 pub(super) fn validate(
-    foundation: &BoundTypeFoundationSourcesV1<'_>,
+    foundation: &DefaultTargetIdentityQueriesV1<'_>,
     parent: CallableTemplateOwner,
     descriptor: DefaultSourceNestedCallableDescriptorV1<'_>,
     meter: &mut BudgetMeter,
@@ -39,7 +39,7 @@ pub(super) fn validate(
 }
 
 struct Arity<'a, 'f> {
-    foundation: &'a BoundTypeFoundationSourcesV1<'f>,
+    foundation: &'a DefaultTargetIdentityQueriesV1<'f>,
     identity: Identity,
     meter: &'a mut BudgetMeter,
     path: &'a WirePath,
@@ -104,7 +104,7 @@ impl<'f> Arity<'_, 'f> {
     }
     fn declaration(&mut self, key: &SourceDeclarationKey, depth: u64) -> Result<u32, Error> {
         self.meter.charge_work(1, self.path)?;
-        if key.origin() != self.foundation.source().entries().provider {
+        if key.origin() != self.foundation.provider {
             return Err(failure(self.identity, Failure::LexicalParent));
         }
         let own = key.duplicate_signature().type_parameter_count();
@@ -144,7 +144,7 @@ impl<'f> Arity<'_, 'f> {
                 self.lookup(canonical.type_source_generic_records(), id)?
             }
         };
-        if key.origin() != self.foundation.source().entries().provider {
+        if key.origin() != self.foundation.provider {
             return Err(failure(self.identity, Failure::LexicalParent));
         }
         // A static nested nominal starts a fresh type-parameter scope.

@@ -2,7 +2,7 @@ use super::*;
 use DefaultSourceNestedCallableDescriptorV1 as Descriptor;
 use scoop_wire::WireErrorKind;
 
-impl<'a> DefaultSourceNestedCallablesV1<'a> {
+impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
     fn push(
         &mut self,
         descriptor: Descriptor<'a>,
@@ -26,7 +26,7 @@ impl<'a> DefaultSourceNestedCallablesV1<'a> {
         Ok(())
     }
 }
-impl<'a> DefaultBodyReferenceVisitorV1<'a> for DefaultSourceNestedCallablesV1<'a> {
+impl<'a, K> DefaultBodyReferenceVisitorV1<'a> for DefaultSourceNestedCallablesV1<'a, K> {
     type Error = WireError;
 
     fn expression(

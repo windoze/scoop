@@ -29,6 +29,7 @@ mod default_contracts;
 mod default_data_flow;
 mod default_envelope;
 mod default_fixture;
+mod default_nested_identities;
 mod default_origins;
 mod default_reference_closure;
 mod default_type_access;

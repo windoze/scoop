@@ -194,15 +194,3 @@ impl From<DefaultTemplateDeclarationContractError<NominalSourceBindingError>> fo
         }
     }
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultSourceNestedIdentityFailureV1 {
-    MissingArtifactRecord,
-    Kind,
-    DefinitionPath,
-    DefinitionSource,
-    LexicalParent,
-    DefinitionContext,
-    OwnerBinderArity { expected: u32, actual: u32 },
-    BodyBinderArity { expected: u32, actual: u32 },
-}

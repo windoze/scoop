@@ -1,0 +1,5 @@
+Module
+  fun readerNested<T>(seed: T0, value: () -> T0): () -> T0
+    return
+      Local value : () -> T0
+  output library

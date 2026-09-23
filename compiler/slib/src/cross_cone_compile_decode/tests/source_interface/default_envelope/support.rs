@@ -62,7 +62,7 @@ pub(super) fn add_owner_expression(
     replace_contents(fixture, locals, statements);
 }
 
-pub(super) fn replace_contents(
+pub(in super::super) fn replace_contents(
     fixture: &mut CallableSourceSurface,
     locals: Vec<TemplateLocalRecordV1>,
     statements: Vec<DefaultStatementV1>,

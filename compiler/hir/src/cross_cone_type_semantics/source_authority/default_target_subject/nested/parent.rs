@@ -24,7 +24,7 @@ pub(super) fn local(
 }
 
 pub(super) fn validate(
-    foundation: &BoundTypeFoundationSourcesV1<'_>,
+    foundation: &DefaultTargetIdentityQueriesV1<'_>,
     parent: CallableTemplateOwner,
     identity: Identity,
     origin: &ExportDefinitionSourceV1,
@@ -32,7 +32,7 @@ pub(super) fn validate(
     path: &WirePath,
 ) -> Result<(), Error> {
     let canonical = foundation.foundation.as_canonical();
-    sources::query(canonical.counts().source_contexts, meter, path)?;
+    query_cost(canonical.counts().source_contexts, meter, path)?;
     let context = foundation
         .foundation
         .source_context_key(origin.origin().context())
@@ -55,7 +55,7 @@ pub(super) fn validate(
 }
 
 fn variant(
-    foundation: &BoundTypeFoundationSourcesV1<'_>,
+    foundation: &DefaultTargetIdentityQueriesV1<'_>,
     variant: scoop_identity::PersistentEnumVariantId,
     identity: Identity,
     origin: &ExportDefinitionSourceV1,
@@ -83,7 +83,7 @@ fn variant(
     if !matches!(context, SourceContextKey::Nominal { owner, .. } if *owner == expected) {
         return Err(failure(identity, Failure::DefinitionContext));
     }
-    sources::query(canonical.counts().definition_origins, meter, path)?;
+    query_cost(canonical.counts().definition_origins, meter, path)?;
     let declaration = foundation
         .foundation
         .definition_origin(DefinitionOriginSubject::EnumVariant(variant))

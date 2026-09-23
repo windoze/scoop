@@ -11,11 +11,13 @@ mod errors;
 mod fields;
 mod globals;
 mod keys;
+mod nested;
 mod owners;
 mod providers;
 pub use applied_fields::DefaultSourceFieldAccessSubjectV1;
 pub use callables::DefaultSourceCallableAccessSubjectV1;
 pub use errors::DefaultSourceTargetSubjectError;
+pub use nested::{DefaultNestedIdentityValidationError, DefaultSourceNestedIdentityFailureV1};
 type Error = DefaultSourceTargetSubjectError;
 
 /// Borrowed identity routes for default targets. The foundation and identity

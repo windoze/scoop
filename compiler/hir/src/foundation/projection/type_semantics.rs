@@ -2,14 +2,13 @@ use super::*;
 use scoop_identity::ExactTypeKey;
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
-mod callable_references;
 mod default_sources;
 
 impl CanonicalHirFoundation {
     /// M23-6 source authority needs the exact type of every generated nominal
     /// in the same sealed HIR, including an otherwise unused object backing
     /// class, and all source parameter/default-body origins before materialization.
-    /// Legacy producers keep their original projection unchanged.
+    /// Ordinary source identities are supplied by the shared foundation projection.
     pub fn from_type_semantics_output(
         output: &crate::DependencyHirOutput,
     ) -> Result<Self, HirFoundationBuildError> {
@@ -24,8 +23,7 @@ impl CanonicalHirFoundation {
         output: &crate::DependencyHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, HirFoundationBuildError> {
-        let mut foundation = Self::from_dependency_output(output)?;
-        callable_references::complete(&output.output().export, &mut foundation, meter)?;
+        let mut foundation = Self::from_dependency_output_with_budget(output, meter)?;
         let mut exacts = foundation
             .exact_types
             .iter()

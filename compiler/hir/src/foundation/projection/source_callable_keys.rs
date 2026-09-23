@@ -1,5 +1,6 @@
 //! Completes source invoke keys without materializing generated callable bodies.
 use super::*;
+use scoop_wire::WirePath;
 use std::collections::btree_map::Entry;
 
 pub(super) fn complete(

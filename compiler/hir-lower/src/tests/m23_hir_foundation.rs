@@ -98,11 +98,19 @@ fn complete_hir_output_projects_one_canonical_foundation() {
         counts.odr_members,
         local.callable_applications.odr_member_records().len()
     );
-    assert_eq!(
-        counts.definition_origins,
-        export.export_definition_origins.len()
-            + local.local_value_identities.definition_origins().len()
-    );
+    let mut definition_subjects: HashSet<_> = export
+        .export_definition_origins
+        .records()
+        .iter()
+        .chain(local.local_value_identities.definition_origins().records())
+        .map(|record| record.subject())
+        .collect();
+    definition_subjects.extend(local.callable_references.iter().map(|(_, reference)| {
+        scoop_identity::DefinitionOriginSubject::GeneratedCallable(
+            reference.identity.callable_record().id(),
+        )
+    }));
+    assert_eq!(counts.definition_origins, definition_subjects.len());
     assert_eq!(
         counts.native_boundary_types,
         output.native_boundary_types.records().len()
