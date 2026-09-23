@@ -15,6 +15,7 @@ mod compile_view_pairing;
 mod cross_cone;
 mod default_reference_closure;
 mod default_type_access;
+mod default_value_access;
 mod layout_exports;
 mod publication;
 mod setter_domains;

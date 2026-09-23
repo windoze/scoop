@@ -6,6 +6,7 @@ pub enum DefaultSourceTargetSubjectError {
     Foundation(TypeFoundationBindingError),
     Encoding(scoop_wire::cbor::EncodeError),
     Identity(SourceDeclarationIdentityError),
+    IdentityLookup(IdentityReferenceError),
     MissingTarget(Target),
     Role(Target),
     MissingGenerated(PersistentTypeId),
@@ -56,6 +57,7 @@ impl std::fmt::Display for Error {
             Self::Foundation(e) => e.fmt(f),
             Self::Encoding(e) => e.fmt(f),
             Self::Identity(e) => e.fmt(f),
+            Self::IdentityLookup(e) => e.fmt(f),
             Self::MissingTarget(target) => {
                 write!(f, "artifact has no default access target key {target:?}")
             }

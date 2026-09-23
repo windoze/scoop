@@ -1,0 +1,7 @@
+Module
+  property0 val ACCESS_GLOBAL: Int getter0=storage <stored global0 image>
+  val ACCESS_GLOBAL: Int <global0 managed>
+  fun accessValue(value: Int): Int
+    return
+      Local value : Int
+  output library

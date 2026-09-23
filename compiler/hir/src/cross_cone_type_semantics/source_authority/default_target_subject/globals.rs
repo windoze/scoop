@@ -1,6 +1,6 @@
 use super::*;
 
-impl BoundTypeFoundationSourcesV1<'_> {
+impl DefaultTargetIdentityQueriesV1<'_> {
     /// Resolves the logical property governing a global reference. Storage and
     /// const classification still require the complete property contract.
     pub fn default_global_access_subject(

@@ -1,0 +1,22 @@
+Module
+  struct AccessPacket<T>
+    field0 first: T0
+    property0 val first: T0 getter0=storage <stored struct0-field0>
+  enum AccessChoice<T>
+    Present(value: T0)
+  class AccessCell<T>(stored: T0)
+    field0 property1: T0
+    property1 val stored: T0 getter1=storage <stored field0 init=parameter1>
+  object AccessRegistry <object0 type0 value0 root0 init0>
+    field1 property2: Int
+    property2 val seed: Int getter2=storage <stored field1 init=expression>
+  property3 val ACCESS_GLOBAL: Int getter3=storage <stored global0 image>
+  val ACCESS_GLOBAL: Int <global0 managed>
+  fun $init$body$0(): Unit
+    assign singleton-root#0
+      ClassInit AccessRegistry : AccessRegistry
+  fun $init$ensure$0(): Unit
+  fun accessValues<T>(seed: T0, cell: AccessCell<T0>, choice: AccessChoice<T0>, packet: AccessPacket<T0>, field: T0, pair: (T0, T0), tuple: T0, singleton: AccessRegistry, sum: Int): T0
+    return
+      Local field : T0
+  output library

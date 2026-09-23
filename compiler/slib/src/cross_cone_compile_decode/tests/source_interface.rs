@@ -32,6 +32,7 @@ mod default_fixture;
 mod default_origins;
 mod default_reference_closure;
 mod default_type_access;
+mod default_value_access;
 mod source_providers;
 
 #[test]

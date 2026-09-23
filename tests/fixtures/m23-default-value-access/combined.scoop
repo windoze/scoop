@@ -1,0 +1,21 @@
+public val ACCESS_GLOBAL: Int = 7
+public struct AccessPacket<T>(val first: T)
+public class AccessCell<T> public constructor(public val stored: T) {
+    public fun read(value: T = this.stored): T = value
+}
+public enum AccessChoice<T> { Present(val value: T) }
+public object AccessRegistry {
+    public val seed: Int = 3
+}
+
+public fun <T> accessValues(
+    seed: T,
+    cell: AccessCell<T> = AccessCell<T>(seed),
+    choice: AccessChoice<T> = AccessChoice.Present(seed),
+    packet: AccessPacket<T> = AccessPacket<T>(seed),
+    field: T = packet.first,
+    pair: (T, T) = (seed, seed),
+    tuple: T = pair._1,
+    singleton: AccessRegistry = AccessRegistry,
+    sum: Int = ACCESS_GLOBAL + AccessRegistry.seed
+): T = field

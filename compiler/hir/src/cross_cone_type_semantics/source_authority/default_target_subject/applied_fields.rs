@@ -8,7 +8,7 @@ pub enum DefaultSourceFieldAccessSubjectV1 {
     TupleElement { declaration_index: u32 },
 }
 
-impl BoundTypeFoundationSourcesV1<'_> {
+impl DefaultTargetIdentityQueriesV1<'_> {
     /// Checks the source owner root of a declared field. A generated object
     /// backing field uses its source object's type, as in sealed HIR signatures.
     pub fn default_field_access_subject(

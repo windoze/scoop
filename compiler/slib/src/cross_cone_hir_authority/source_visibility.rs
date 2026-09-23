@@ -8,6 +8,7 @@ use scoop_wire::WirePath;
 
 mod relations;
 mod types;
+mod values;
 
 type Error = CrossConeHirNominalAuthorityError;
 

@@ -4,6 +4,7 @@ use crate::*;
 use scoop_identity::{DefinitionOriginSubject as Subject, *};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 mod applied_fields;
+mod bound;
 mod callables;
 mod constructors;
 mod errors;
@@ -11,10 +12,33 @@ mod fields;
 mod globals;
 mod keys;
 mod owners;
+mod providers;
 pub use applied_fields::DefaultSourceFieldAccessSubjectV1;
 pub use callables::DefaultSourceCallableAccessSubjectV1;
 pub use errors::DefaultSourceTargetSubjectError;
 type Error = DefaultSourceTargetSubjectError;
+
+/// Borrowed identity routes for default targets. The foundation and identity
+/// graph are the original artifact data; this query supplies no access proof.
+pub struct DefaultTargetIdentityQueriesV1<'f> {
+    provider: ConeIdentity,
+    foundation: &'f OdrFreeHirFoundation,
+    identities: &'f ValidatedIdentityGraph,
+}
+
+impl<'f> DefaultTargetIdentityQueriesV1<'f> {
+    pub const fn new(
+        provider: ConeIdentity,
+        foundation: &'f OdrFreeHirFoundation,
+        identities: &'f ValidatedIdentityGraph,
+    ) -> Self {
+        Self {
+            provider,
+            foundation,
+            identities,
+        }
+    }
+}
 
 /// Non-declaration targets whose visibility belongs to an actual source
 /// declaration. This enum is a query input, not a wire format or access proof.
@@ -27,7 +51,7 @@ pub enum DefaultSourceIndirectTargetV1 {
 }
 type Target = DefaultSourceIndirectTargetV1;
 
-impl BoundTypeFoundationSourcesV1<'_> {
+impl DefaultTargetIdentityQueriesV1<'_> {
     /// Derives a declaration demand from actual local artifact keys. Applied
     /// owner types, declaration access and runtime capabilities remain separate.
     pub fn default_indirect_access_subject(
@@ -74,7 +98,7 @@ impl BoundTypeFoundationSourcesV1<'_> {
 }
 
 struct Query<'b, 'f, 'm> {
-    foundation: &'b BoundTypeFoundationSourcesV1<'f>,
+    foundation: &'b DefaultTargetIdentityQueriesV1<'f>,
     meter: &'m mut BudgetMeter,
     path: WirePath,
 }

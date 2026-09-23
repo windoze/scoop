@@ -1,6 +1,6 @@
 use super::*;
 
-impl BoundTypeFoundationSourcesV1<'_> {
+impl DefaultTargetIdentityQueriesV1<'_> {
     /// Resolves the access declaration and checks the applied nominal root.
     /// Full argument types, parameter protocols and adapter bodies require
     /// their own contracts before any constructor can execute.

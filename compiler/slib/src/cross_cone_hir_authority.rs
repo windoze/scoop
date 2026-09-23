@@ -11,6 +11,7 @@ mod default_contracts;
 mod default_data_flow;
 mod default_origins;
 mod default_type_access;
+mod default_value_access;
 mod definition_source;
 mod errors;
 mod intrinsics;
@@ -30,6 +31,7 @@ pub use default_contracts::{
 pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
 pub use default_origins::CrossConeHirDefaultRootOriginError;
 pub use default_type_access::CrossConeHirDefaultTypeAccessError;
+pub use default_value_access::CrossConeHirDefaultValueAccessError;
 pub use definition_source::*;
 pub use errors::*;
 pub use intrinsics::CrossConeIntrinsicDeclarationError;

@@ -1,5 +1,22 @@
 use super::*;
 
+impl<'f> DefaultTargetIdentityQueriesV1<'f> {
+    /// Borrows the provider's actual source key and checks it against the same
+    /// identity graph used for the target route. Visibility is queried separately.
+    pub fn source_declaration_key(
+        &self,
+        subject: Subject,
+        meter: &mut BudgetMeter,
+    ) -> Result<&'f SourceDeclarationKey, Error> {
+        Query {
+            foundation: self,
+            meter,
+            path: WirePath::root(),
+        }
+        .declaration(subject)
+    }
+}
+
 impl<'f> Query<'_, 'f, '_> {
     pub(super) fn key<I, K>(
         &mut self,
@@ -65,7 +82,7 @@ impl<'f> Query<'_, 'f, '_> {
             other => return Err(Error::DeclarationRole(other)),
         };
         NominalRepresentationSupportV1::charge_source_key_resources(key, self.meter, &self.path)?;
-        if key.origin() != self.foundation.source().entries().provider {
+        if key.origin() != self.foundation.provider {
             return Err(Error::ForeignDeclaration(id));
         }
         Ok(key)

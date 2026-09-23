@@ -15,7 +15,7 @@ pub enum DefaultSourceCallableAccessSubjectV1<'t> {
 }
 type Access<'t> = DefaultSourceCallableAccessSubjectV1<'t>;
 
-impl BoundTypeFoundationSourcesV1<'_> {
+impl DefaultTargetIdentityQueriesV1<'_> {
     pub fn default_callable_access_subject<'t>(
         &self,
         target: &'t Callable,
