@@ -6,16 +6,17 @@ use std::sync::Arc;
 use scoop_hir::{ExternalHirReferenceSemanticAuthority, ExternalHirTargetV1};
 use scoop_identity::{
     BindingTarget, BindingTargetError, CallableTemplateOrigin, CallableTemplateOwner, ConeIdentity,
-    DefinitionOwnerAtom, EnumVariantFieldKey, EnumVariantIdentityKey, FieldIdentityKey,
-    GeneratedCallableKey, NominalDeclarationOwner, PersistentConstructorId,
-    PersistentEnumVariantFieldId, PersistentEnumVariantId, PersistentExtensionPropertyId,
-    PersistentFieldId, PersistentFunctionId, PersistentGeneratedCallableId,
-    PersistentGenericFunctionId, PersistentGenericTypeId, PersistentId, PersistentObjectValueId,
-    PersistentPropertyAccessorId, PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId,
-    PropertyAccessorKey, PropertyOwner, SourceDeclarationKey,
+    DefinitionOwnerAtom, EnumVariantIdentityKey, GeneratedCallableKey, NominalDeclarationOwner,
+    PersistentConstructorId, PersistentEnumVariantId, PersistentExtensionPropertyId,
+    PersistentFunctionId, PersistentGeneratedCallableId, PersistentGenericFunctionId,
+    PersistentGenericTypeId, PersistentId, PersistentObjectValueId, PersistentPropertyAccessorId,
+    PersistentPropertyId, PersistentTypeAliasId, PersistentTypeId, PropertyAccessorKey,
+    PropertyOwner, SourceDeclarationKey,
 };
 
 use super::CanonicalCrossConeRouteAuthority;
+
+mod fields;
 
 #[derive(Clone, Copy)]
 struct ExternalTargetResolution {
@@ -155,33 +156,6 @@ impl CanonicalCrossConeRouteAuthority<'_> {
         })
     }
 
-    fn field_resolution(
-        &self,
-        field: PersistentFieldId,
-        target: ExternalHirTargetV1,
-    ) -> Result<ExternalTargetResolution, CrossConeHirReferenceAuthorityError> {
-        let key = self
-            .identities
-            .canonical_key::<PersistentFieldId, FieldIdentityKey>(field)
-            .map_err(CrossConeHirReferenceAuthorityError::Identity)?;
-        let owner = key
-            .source_owner()
-            .ok_or(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot { target })?;
-        self.nominal_resolution(owner)
-    }
-
-    fn variant_field_resolution(
-        &self,
-        field: PersistentEnumVariantFieldId,
-        target: ExternalHirTargetV1,
-    ) -> Result<ExternalTargetResolution, CrossConeHirReferenceAuthorityError> {
-        let key = self
-            .identities
-            .canonical_key::<PersistentEnumVariantFieldId, EnumVariantFieldKey>(field)
-            .map_err(CrossConeHirReferenceAuthorityError::Identity)?;
-        self.variant_resolution(key.variant(), target)
-    }
-
     fn callable_resolution(
         &self,
         callable: CallableTemplateOrigin,
@@ -305,11 +279,18 @@ impl ExternalHirReferenceSemanticAuthority<CrossConeHirReferenceAuthorityError>
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExternalObjectFieldOwnerMismatch {
+    pub field: scoop_identity::PersistentFieldId,
+    pub property: PersistentPropertyId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeHirReferenceAuthorityError {
     Identity(scoop_identity::IdentityReferenceError),
     NoPublicBindingRoot {
         target: ExternalHirTargetV1,
     },
+    ObjectFieldOwnerMismatch(Box<ExternalObjectFieldOwnerMismatch>),
     GeneratedCallableCycle {
         target: PersistentGeneratedCallableId,
     },
@@ -326,6 +307,11 @@ impl fmt::Display for CrossConeHirReferenceAuthorityError {
                     "external HIR target {target:?} has no public binding root"
                 )
             }
+            Self::ObjectFieldOwnerMismatch(error) => write!(
+                formatter,
+                "object backing field {} and property {} have different source owners or providers",
+                error.field, error.property,
+            ),
             Self::GeneratedCallableCycle { target } => write!(
                 formatter,
                 "generated callable {target} has a cyclic lexical parent chain"
@@ -340,7 +326,9 @@ impl std::error::Error for CrossConeHirReferenceAuthorityError {
         match self {
             Self::Identity(error) => Some(error),
             Self::BindingTarget(error) => Some(error),
-            Self::NoPublicBindingRoot { .. } | Self::GeneratedCallableCycle { .. } => None,
+            Self::NoPublicBindingRoot { .. }
+            | Self::ObjectFieldOwnerMismatch(_)
+            | Self::GeneratedCallableCycle { .. } => None,
         }
     }
 }

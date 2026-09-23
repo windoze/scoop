@@ -28,6 +28,19 @@ impl CrossConeHirProductionAuthority<'_, '_> {
             .fold(0_usize, usize::saturating_add)
     }
 
+    pub(super) fn generated_type_key(
+        &self,
+        id: PersistentTypeId,
+    ) -> Option<&scoop_identity::GeneratedNominalKey> {
+        self.foundations().find_map(|foundation| {
+            let records = foundation.type_source_generated_records();
+            records
+                .binary_search_by_key(&id, |record| record.id())
+                .ok()
+                .map(|index| records[index].key())
+        })
+    }
+
     pub(super) fn source_type_key(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey> {
         self.foundations().find_map(|foundation| {
             foundation

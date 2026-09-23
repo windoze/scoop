@@ -30,6 +30,7 @@ mod default_data_flow;
 mod default_envelope;
 mod default_fixture;
 mod default_origins;
+mod default_reference_closure;
 mod source_providers;
 
 #[test]

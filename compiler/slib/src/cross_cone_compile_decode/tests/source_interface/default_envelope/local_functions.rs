@@ -69,7 +69,7 @@ fn fixture(
     let local = DefaultLocalFunctionV1::try_new(
         declaration,
         local_path(0, 1),
-        function_type,
+        function_type.clone(),
         vec![],
         descriptor_count,
     )
@@ -83,6 +83,30 @@ fn fixture(
         .unwrap(),
     );
     let locals = template.locals().records().to_vec();
+    let references = template.references();
+    let origin = template.definition_origin().clone();
+    let witness =
+        ExportDefaultAccessWitnessV1::new(fixture.owner, ExportDefaultCallDomainV1::DirectPublic);
+    let mut types = references.types().to_vec();
+    types.push(ExportDefaultReferenceV1::new(
+        function_type,
+        origin.clone(),
+        witness.clone(),
+    ));
+    let references = ExportDefaultReferenceSetV1::try_new(
+        vec![ExportDefaultReferenceV1::new(
+            ExportDefaultCallableTargetV1::LocalFunction { declaration },
+            origin,
+            witness,
+        )],
+        references.constructors().to_vec(),
+        types,
+        references.globals().to_vec(),
+        references.singleton_values().to_vec(),
+        references.fields().to_vec(),
+    )
+    .unwrap();
     support::replace_contents(&mut fixture, locals, statements);
+    default_fixture::replace_references(&mut fixture, references);
     fixture
 }

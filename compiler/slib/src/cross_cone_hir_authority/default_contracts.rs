@@ -95,6 +95,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         view.validate(&publisher, &original, shapes, self.meter, path)
             .map_err(|error| Error::Contract(Box::new(error)))?;
         view.validate_provider_types(original.shape(), shapes, self.meter, path)
-            .map_err(|error| Error::Envelope(Box::new(error)))
+            .map_err(|error| Error::Envelope(Box::new(error)))?;
+        template
+            .validate_reference_closure_semantics(public, self.meter, path)
+            .map_err(|error| Error::ReferenceClosure(Box::new(error)))
     }
 }

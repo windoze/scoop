@@ -16,6 +16,7 @@ use crate::{
     ExternalHirTargetV1, PublicExportBindingClosureAuthority,
 };
 
+mod fields;
 mod keys;
 
 /// Production-side view of the current HIR foundation and its validated
@@ -256,15 +257,7 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
                     .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
                 self.source_resolution(key, BindingTarget::type_alias(key))
             }
-            ExternalHirTargetV1::Field(id) => {
-                let key = self
-                    .field_key(id)
-                    .ok_or(CrossConeHirProductionAuthorityError::MissingCanonicalKey { target })?;
-                let owner = key
-                    .source_owner()
-                    .ok_or(CrossConeHirProductionAuthorityError::NoPublicBindingRoot { target })?;
-                self.nominal_resolution(owner, target)
-            }
+            ExternalHirTargetV1::Field(id) => self.field_resolution(id, target),
             ExternalHirTargetV1::EnumVariantField(id) => {
                 let key = self
                     .variant_field_key(id)
@@ -347,6 +340,7 @@ pub enum CrossConeHirProductionAuthorityError {
     NoPublicBindingRoot {
         target: ExternalHirTargetV1,
     },
+    InvalidObjectFieldOwner(scoop_identity::PersistentFieldId),
     GeneratedCallableCycle {
         target: PersistentGeneratedCallableId,
     },
@@ -368,6 +362,10 @@ impl fmt::Display for CrossConeHirProductionAuthorityError {
                     "external HIR target {target:?} has no public binding root"
                 )
             }
+            Self::InvalidObjectFieldOwner(field) => write!(
+                formatter,
+                "object backing field {field} and its property have different source owners or providers"
+            ),
             Self::GeneratedCallableCycle { target } => write!(
                 formatter,
                 "generated callable {target} has a cyclic lexical parent chain"
@@ -383,6 +381,7 @@ impl std::error::Error for CrossConeHirProductionAuthorityError {
             Self::BindingTarget(error) => Some(error),
             Self::MissingCanonicalKey { .. }
             | Self::NoPublicBindingRoot { .. }
+            | Self::InvalidObjectFieldOwner(_)
             | Self::GeneratedCallableCycle { .. } => None,
         }
     }

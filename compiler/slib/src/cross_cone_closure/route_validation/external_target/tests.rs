@@ -23,6 +23,8 @@ use scoop_identity::{
 
 use super::*;
 
+mod object_fields;
+
 #[test]
 fn resolves_every_source_backed_external_target_to_its_canonical_public_root() {
     let fixture = ExternalTargetFixture::new();

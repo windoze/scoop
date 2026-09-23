@@ -1,4 +1,8 @@
-use scoop_hir::{DefaultExpressionV1, ExportDefaultBodyV1, ExportDefaultTemplateV1};
+use scoop_hir::{
+    DefaultExpressionV1, ExportDefaultAccessWitnessV1, ExportDefaultBodyV1,
+    ExportDefaultCallDomainV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultTemplateV1,
+};
 
 use super::*;
 
@@ -10,6 +14,24 @@ pub(super) fn replace(
     let interface = &current.interface;
     let template = &interface.default_templates().records()[0];
     let value = template.body().value();
+    let references = template.references();
+    let mut types = references.types().to_vec();
+    types.push(ExportDefaultReferenceV1::new(
+        template.result().clone(),
+        origin.clone(),
+        ExportDefaultAccessWitnessV1::new(current.owner, ExportDefaultCallDomainV1::DirectPublic),
+    ));
+    types.sort_unstable();
+    types.dedup();
+    let references = ExportDefaultReferenceSetV1::try_new(
+        references.callables().to_vec(),
+        references.constructors().to_vec(),
+        types,
+        references.globals().to_vec(),
+        references.singleton_values().to_vec(),
+        references.fields().to_vec(),
+    )
+    .unwrap();
     let replacement = ExportDefaultTemplateV1::try_new(
         template.key(),
         template.definition_root(),
@@ -30,7 +52,7 @@ pub(super) fn replace(
         template.type_parameters().clone(),
         template.receiver().clone(),
         template.value_parameters().clone(),
-        template.references().clone(),
+        references,
         template.definition_origin().clone(),
     )
     .unwrap();

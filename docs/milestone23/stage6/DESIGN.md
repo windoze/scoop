@@ -454,6 +454,10 @@ public与protected default的receiver合同均来自独立原provider声明：�
 
 普通 `.slib` reader 还须从共有 callable 声明及 source parameter 协议重建默认值的定义方与发布方合同。definition path 的 ordinal 按定义方参数表中实际带默认值的参数顺序计算，不按参数位置或候选正文推断。分别比较原定义方的参数前缀、receiver 和结果，并以完整 binder 映射逐项比较全部发布参数，包含当前参数之后的部分和未使用 binder；直接默认值必须使用恒等映射。原定义方与发布方的执行 effect、完整参数数及当前位置均须一致。该校验与类型接口默认值共用受累计预算约束的逻辑，只消费已有声明和协议，不引入第二份 wire 合同；override 唯一性、访问域、正文操作及引用闭包仍由相应校验负责。
 
+普通 `.slib` reader 在默认值声明合同、provider 类型作用域和访问 witness 检查后，必须沿原 artifact 的累计预算重放正文与六类引用的精确闭包。遍历覆盖全部 local 类型、嵌套 callable/capture、绑定计划、receiver、表达式与语句；每个实际直接引用按完整 typed target、definition origin 和声明调用域 witness 匹配唯一记录。缺失引用、同 target 的错误来源、重复用途未合并以及正文未使用的额外记录均拒绝；不能仅验证外部依赖集合或把候选引用表本身当作正文需求。错误保留模板 key、引用类别及具体 occurrence，验证失败不交付 source-interface checked 状态。该检查复用共有默认正文遍历和闭包校验，不新增 wire 证明表，也不代替目标访问、操作类型、override 或 nested ABI 的独立验证。
+
+默认值引用 object 属性的 backing field 时，外部引用来源与 binding root 查询沿已有 FieldIdentityKey、ObjectBackingClass generated nominal key、源码 object 及 logical property 的 typed 关系解析；生成字段的存在不等于缺少源码根。必须核对生成角色、源码 object kind、property 的直接词法 owner 及实际 provider 一致性，然后使用该源码 object 的 binding root；不得将其他生成字段泛化为可公开访问的源码字段。查询只确定来源和路由根，具体字段访问仍须经过声明域与 receiver 校验。
+
 普通 `.slib` reader 必须继续在原 provider 的 binder frame 中重放全部默认值 local 类型及正文类型，包含未使用 local；local selector 的结构路径须属于该默认值的 definition path。正文中的局部函数签名仅在其自身真实非空 type parameter 组存在时增加一层 frame，arity 从同一已验证 identity graph 的 Function/GenericFunction canonical key 取得，不能由 descriptor、capture 或出现的 binder 反推。共有 source contract view 复用同一完整正文遍历、作用域规则和累计预算，类型接口默认值与普通 reader 不保留两套实现。该类型检查不代替操作类型关系、局部函数 parent/ownership、nested ABI、数据流及引用访问闭包。
 
 普通 `.slib` reader 的共有 definition-source 表逐项按 source identity 中的实际 provider 选择已验证 foundation：当前来源使用当前 artifact，外来来源只使用该 artifact 的可达依赖闭包。在同一闭包中出现但不可达的 provider 不得提供位置依据；当前 artifact 保留的外来 source/context 副本也不能替代真正定义方。每个来源必须匹配选中 provider、真实 source/context 关系及声明的起止字节位置，查询共享当前解码的累计预算。该位置校验由普通 reader 和类型接口来源绑定共用；它仅证明位置存在，不授予默认值继承、声明访问或执行资格。参数等要求由当前声明提供的来源仍在各自声明合同中检查，不能借全局来源表接受外来参数。

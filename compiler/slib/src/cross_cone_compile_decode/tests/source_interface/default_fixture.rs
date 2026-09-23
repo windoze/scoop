@@ -151,3 +151,48 @@ pub(super) fn fixture(case: Case) -> CallableSourceSurface {
     );
     fixture
 }
+
+pub(super) fn replace_references(
+    fixture: &mut CallableSourceSurface,
+    references: ExportDefaultReferenceSetV1,
+) {
+    let interface = &fixture.interface;
+    let original = &interface.default_templates().records()[0];
+    let templates = CanonicalExportDefaultTemplatesV1::try_new(vec![
+        ExportDefaultTemplateV1::try_new(
+            original.key(),
+            original.definition_root(),
+            original.definition_path().clone(),
+            original.locals().clone(),
+            original.body().clone(),
+            original.result().clone(),
+            original.allows_suspend(),
+            original.type_parameters().clone(),
+            original.receiver().clone(),
+            original.value_parameters().clone(),
+            references,
+            original.definition_origin().clone(),
+        )
+        .unwrap(),
+    ])
+    .unwrap();
+    let sources = CanonicalExportDefinitionSourcesV1::from_interface_parts(
+        interface.type_aliases(),
+        interface.source_interfaces(),
+        &templates,
+        interface.constants(),
+    )
+    .unwrap();
+    fixture.interface = CrossConeHirInterfaceSectionV1::new(
+        interface.public_bindings().clone(),
+        interface.nominal_interfaces().clone(),
+        interface.callable_interfaces().clone(),
+        interface.property_interfaces().clone(),
+        interface.type_aliases().clone(),
+        interface.source_interfaces().clone(),
+        templates,
+        interface.constants().clone(),
+        sources,
+        interface.external_references().clone(),
+    );
+}
