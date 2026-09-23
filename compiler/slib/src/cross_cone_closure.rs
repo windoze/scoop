@@ -22,7 +22,7 @@ pub use source_provenance::CrossConeSourceProvenanceError;
 mod surface_validation;
 pub use surface_validation::*;
 
-mod route_validation;
+pub(crate) mod route_validation;
 pub use route_validation::*;
 
 mod external_reference_validation;

@@ -778,6 +778,8 @@ M23-6 的 native C 表示使用必需的 typed 投影数据，不重建任何 Co
 
 M23-6 的 Link strong requirement 在一个共有分类步骤中解析。输入为当前 verified relocation closure、实际外部 callable/descriptor 选择、ordinary callable 选择与已验证依赖的 symbol owner 集合；每个 provider 只允许一份 owner 集合，禁止 self-import、缺失 provider、错 owner、重复 symbol 及不同用途重复认领。String TD、初始化 callable 及 type-registration support 使用显式 provider/typed target，普通 callable 使用同一 provider/symbol/owner 查询，不再先形成 core 专用 proof 或携带独立 core owner 参数。选择的 callable 必须有实际 relocation，descriptor 的 metadata-only 选择仍可没有 machine use；native/runtime/target 的余集保持完整。最终 requirement 的旧 CoreStrong tag 2 退役，新增 tag 8 的三字段 product（field 0=8、field 1=provider、field 2=typed strong owner）；其余 tag 不变。承载最终 requirement 的 `org.scoop-lang.lir/link-identity-closure` 升级为 `/2`，旧 major、旧 tag 及 optional 混入拒绝并重建 artifact/cache，生产 profile、Code fingerprint 和固定向量同步。object-definition fingerprint 的扁平 target sum 使用新 tag 13 保存相同 provider/typed owner，旧 tag 2 同时退役；该域已有 tag 8、9 属于 static-storage，tag 10 属于 associated-atom，tag 11、12 分别属于 ordinary callable 和 layout subject，不复用这些编号；ABI、definition、registration、实际 object bytes、use-site 互斥及联合覆盖的验证不减少，runtime C ABI 和 persistent identity 不变。
 
+layout profile 与 ordinary profile 的 HIR 读取共用实际声明校验代码，从同一 artifact 的 foundation、production 和 public/source metadata 重放来源位置、完整声明、参数/default、常量及依赖引用。依赖查询限于当前 provider 的显式闭包并使用累计预算，不接收编译期 source factory。共有声明检查不替代新增 type semantics、MIR/LIR 或 object 闭合。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

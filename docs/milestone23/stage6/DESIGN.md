@@ -254,6 +254,8 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/1
 
 producer 从同一次 sealed Export/LocalConcrete HIR 及真实 winner-commit 结果生成这些 metadata；普通查询和 reader 使用同一数据模型。bytes-only reader 不需要源码、编译器 token、调用方另行提供的来源 factory，或一份与发布表平行的自证 transcript。reader 验证 provider 所声明的完整语义与机器产物的一致性，不认证源码目录或要求 provider 证明其声明未被用户修改。
 
+layout profile 的共有 HIR 声明读取直接消费同一 artifact 的 identity、foundation、production 与 public/source metadata。它与既有 ordinary reader 共用 definition source、nominal、property、callable、alias、参数/default、const、public route 和 external reference 校验；每个 provider 只使用其显式依赖闭包中已验证的声明，继续消费 artifact 的累计预算。完成这些共有检查只证明声明与引用闭合，新 type semantics、MIR/LIR 和最终 object 的关联仍须分别完成，不能将解码成功或生产侧对象代替这些检查。
+
 共有校验必须保留以下信息与约束：
 
 - identity、definition origin 和 source context 只使用同一 artifact 与依赖闭包中的完整 typed 记录。local declaration 的 key origin、词法 owner、definition subject 和 provider 一致；external 引用按实际 provider 唯一解析。SourceNominal、ExactType、Function、GenericFunction、Constructor、Property、Accessor、DispatchSlot 与不同生成实体不得混用；不得从 FQN、符号、同布局或“唯一匹配项”补身份。

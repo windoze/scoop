@@ -21,7 +21,8 @@ use crate::ConstValidatedCrossConeHirFrontSections;
 mod authority_inputs;
 mod external_target;
 
-pub(super) use authority_inputs::{RouteAuthorityInputs, RouteProviderView};
+pub(super) use authority_inputs::RouteAuthorityInputs;
+pub(crate) use authority_inputs::RouteProviderView;
 pub use external_target::CrossConeHirReferenceAuthorityError;
 
 /// A closure whose public binding routes have been checked against each
@@ -126,7 +127,7 @@ impl<'input> ConstValidatedCrossConeHirClosure<'input> {
     }
 }
 
-pub(super) struct CanonicalCrossConeRouteAuthority<'a> {
+pub(crate) struct CanonicalCrossConeRouteAuthority<'a> {
     current: ConeIdentity,
     identities: &'a ValidatedIdentityGraph,
     direct: &'a [ConeIdentity],
@@ -136,7 +137,7 @@ pub(super) struct CanonicalCrossConeRouteAuthority<'a> {
 }
 
 impl<'a> CanonicalCrossConeRouteAuthority<'a> {
-    pub(super) fn try_new(
+    pub(crate) fn try_new(
         current: ConeIdentity,
         identities: &'a ValidatedIdentityGraph,
         interface: &CrossConeHirInterfaceSectionV1,

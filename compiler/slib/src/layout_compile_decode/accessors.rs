@@ -244,6 +244,18 @@ impl ResolvedCrossConeLayoutHirSections<'_> {
 }
 
 impl HirProductionValidatedCrossConeLayoutSections<'_> {
+    pub(crate) fn nominal_provider_view(
+        &self,
+    ) -> crate::cross_cone_hir_authority::ValidatedNominalProviderView<'_> {
+        crate::cross_cone_hir_authority::ValidatedNominalProviderView {
+            identity: self.identity(),
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+            core: &self.hir_core_production,
+            interface: &self.hir_interface,
+        }
+    }
+
     pub const fn coordinate(&self) -> &scoop_identity::ConeCoordinate {
         self.graph.coordinate()
     }

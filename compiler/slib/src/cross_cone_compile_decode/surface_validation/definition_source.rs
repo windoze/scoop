@@ -1,11 +1,8 @@
 //! Per-artifact exported definition-source validation.
 
-use scoop_hir::{
-    ExportDefinitionSourceSemanticValidationError,
-    ExportDefinitionSourceSetSemanticValidationError, OdrFreeHirFoundation,
-};
+use scoop_hir::{ExportDefinitionSourceSetSemanticValidationError, OdrFreeHirFoundation};
 use scoop_identity::ConeIdentity;
-use scoop_wire::{WireError, WirePath};
+use scoop_wire::WireError;
 
 use super::{InternallyClosedCrossConeHirFrontSections, ValidatedSurfaceFront};
 use crate::cross_cone_hir_authority::CrossConeHirDefinitionSourceAuthorityError;
@@ -40,73 +37,10 @@ impl<'input> InternallyClosedCrossConeHirFrontSections<'input> {
         DefinitionSourceValidatedCrossConeHirFrontSections<'input>,
         CrossConeHirDefinitionSourceSurfaceError,
     > {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        let current = graph.identity();
-        let meter = graph.envelope.meter_mut();
-        let path = WirePath::root().field(9);
-        let sources = hir_interface.definition_sources().sources();
-        meter
-            .check_table_entries(sources.len() as u64, &path)
-            .map_err(CrossConeHirDefinitionSourceSurfaceError::Resource)?;
-        for (index, source) in sources.iter().enumerate() {
-            let path = path.clone().index(index as u64);
-            let provider = source.origin().source().cone();
-            meter
-                .charge_work(
-                    (dependencies.len() as u64)
-                        .saturating_mul(32)
-                        .saturating_add(1),
-                    &path,
-                )
-                .map_err(CrossConeHirDefinitionSourceSurfaceError::Resource)?;
-            let foundation = if provider == current {
-                &foundations.hir
-            } else {
-                dependencies
-                    .iter()
-                    .find(|dependency| dependency.identity == provider)
-                    .map(|dependency| dependency.foundation)
-                    .ok_or(
-                        CrossConeHirDefinitionSourceSurfaceError::UnavailableProvider {
-                            index,
-                            provider,
-                        },
-                    )?
-            };
-            foundation
-                .validate_definition_source_location(provider, source, meter, &path)
-                .map_err(|error| {
-                    CrossConeHirDefinitionSourceSurfaceError::DefinitionSources(
-                        ExportDefinitionSourceSetSemanticValidationError::Source {
-                            index,
-                            error: ExportDefinitionSourceSemanticValidationError::Foundation(error),
-                        },
-                    )
-                })?;
-        }
-        Ok(DefinitionSourceValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.definition_sources(dependencies, meter)?;
+        Ok(DefinitionSourceValidatedCrossConeHirFrontSections(front))
     }
 }
 

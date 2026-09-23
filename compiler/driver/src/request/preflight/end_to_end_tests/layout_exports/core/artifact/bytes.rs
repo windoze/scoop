@@ -57,18 +57,28 @@ pub(super) fn check(
         fingerprints.code(),
         fingerprints.runtime_image()
     );
-    let foundation = compile
-        .validate_foundation_identities([])
-        .unwrap()
-        .validate_foundation_structure()
-        .unwrap();
-    assert_eq!(foundation.identity(), ConeIdentity::CORE);
-    let hir = foundation
-        .resolve_hir_sections()
-        .unwrap()
-        .validate_hir_production()
-        .unwrap();
-    assert_eq!(hir.identity(), ConeIdentity::CORE);
+    let hir = scoop_slib::DecodedCrossConeLayoutCompileClosure::with_current_artifact(
+        ConeIdentity::CORE,
+        artifact.target_selection(),
+        Vec::new(),
+        Vec::new(),
+        compile,
+    )
+    .validate_profile_graph()
+    .unwrap()
+    .validate_identities()
+    .unwrap()
+    .validate_foundation_structure()
+    .unwrap()
+    .resolve_hir_sections()
+    .unwrap()
+    .validate_hir_productions()
+    .unwrap()
+    .validate_hir_declarations()
+    .unwrap();
+    assert_eq!(hir.current(), ConeIdentity::CORE);
+    assert_eq!(hir.dependency_first().count(), 1);
+    assert!(hir.artifact(ConeIdentity::CORE).is_some());
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

@@ -4,8 +4,7 @@ use scoop_hir::CallableSourceInterfaceSetSemanticValidationError;
 
 use super::{TypeAliasValidatedCrossConeHirFrontSections, ValidatedSurfaceFront};
 use crate::cross_cone_hir_authority::{
-    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirCallableSourceAuthorityError,
-    ValidatedNominalProviderView,
+    CrossConeHirCallableSourceAuthorityError, ValidatedNominalProviderView,
 };
 pub use crate::cross_cone_hir_authority::{
     CrossConeHirDefaultCallDomainError, CrossConeHirDefaultCallableAccessError,
@@ -34,69 +33,10 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
         SourceInterfaceValidatedCrossConeHirFrontSections<'input>,
         CrossConeHirSourceInterfaceSurfaceError,
     > {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .source_interfaces()
-            .validate_semantics(hir_interface.callable_interfaces(), &mut authority)
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::SourceInterfaces)?;
-        authority
-            .validate_default_root_origins()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultRootOrigin)?;
-        authority
-            .validate_default_provider_contracts()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultProviderContract)?;
-        authority
-            .validate_default_nested_identities()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultNestedIdentity)?;
-        authority
-            .validate_default_type_access(&hir_core_production)
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultTypeAccess)?;
-        authority
-            .validate_default_value_access()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultValueAccess)?;
-        authority
-            .validate_default_callable_access(&hir_core_production)
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultCallableAccess)?;
-        authority
-            .validate_default_call_domains()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultCallDomain)?;
-        authority
-            .validate_default_local_data_flow()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultDataFlow)?;
-        authority
-            .validate_shared_source_inventory()
-            .map_err(CrossConeHirSourceInterfaceSurfaceError::SourceInventory)?;
-        Ok(SourceInterfaceValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.sources(dependencies, meter)?;
+        Ok(SourceInterfaceValidatedCrossConeHirFrontSections(front))
     }
 }
 

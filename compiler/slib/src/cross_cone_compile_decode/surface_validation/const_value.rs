@@ -4,8 +4,7 @@ use scoop_hir::ExportConstValueSetSemanticValidationError;
 
 use super::{SourceInterfaceValidatedCrossConeHirFrontSections, ValidatedSurfaceFront};
 use crate::cross_cone_hir_authority::{
-    CanonicalCrossConeHirSurfaceAuthority, CrossConeHirConstAuthorityError,
-    ValidatedNominalProviderView,
+    CrossConeHirConstAuthorityError, ValidatedNominalProviderView,
 };
 
 /// One provider whose portable const records match its validated property
@@ -20,42 +19,10 @@ impl<'input> SourceInterfaceValidatedCrossConeHirFrontSections<'input> {
         dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
     ) -> Result<ConstValidatedCrossConeHirFrontSections<'input>, CrossConeHirConstSurfaceError>
     {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .constants()
-            .validate_semantics(&mut authority)
-            .map_err(CrossConeHirConstSurfaceError::Constants)?;
-        Ok(ConstValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.constants(dependencies, meter)?;
+        Ok(ConstValidatedCrossConeHirFrontSections(front))
     }
 }
 

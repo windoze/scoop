@@ -14,10 +14,8 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 use super::HirProductionValidatedCrossConeHirFrontSections;
 use crate::{
-    ValidatedGraphArtifact,
-    cross_cone_hir_authority::{
-        CanonicalCrossConeHirSurfaceAuthority, ValidatedNominalProviderView,
-    },
+    ValidatedGraphArtifact, cross_cone_hir_authority::ValidatedNominalProviderView,
+    hir_interface_validation::HirInterfaceValidationInput,
     strong_compile_decode::OdrFreeStrongFoundationSet,
 };
 
@@ -47,6 +45,19 @@ struct ValidatedSurfaceFront<'input> {
     mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
     lir_strong_production: DecodedStrongProductionSectionV1,
     lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+}
+
+impl ValidatedSurfaceFront<'_> {
+    fn hir_validation_parts(&mut self) -> (HirInterfaceValidationInput<'_>, &mut BudgetMeter) {
+        let input = HirInterfaceValidationInput {
+            current: self.graph.identity(),
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+            core: &self.hir_core_production,
+            interface: &self.hir_interface,
+        };
+        (input, self.graph.envelope.meter_mut())
+    }
 }
 
 /// One provider whose exact section-internal HIR relationships match the
@@ -228,61 +239,10 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
         dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
     ) -> Result<NominalValidatedCrossConeHirFrontSections<'input>, CrossConeHirNominalSurfaceError>
     {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        hir_interface
-            .nominal_interfaces()
-            .validate_declared_field_inventory(
-                foundations.hir.as_canonical(),
-                graph.envelope.meter_mut(),
-            )
-            .map_err(CrossConeHirNominalSurfaceError::Fields)?;
-        hir_interface
-            .nominal_interfaces()
-            .validate_declared_relation_inventory(
-                foundations.hir.as_canonical(),
-                graph.envelope.meter_mut(),
-            )
-            .map_err(CrossConeHirNominalSurfaceError::Relations)?;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .nominal_interfaces()
-            .validate_semantics(&mut authority)
-            .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
-        let mut authority = authority.for_source_declarations();
-        hir_interface
-            .nominal_interfaces()
-            .validate_support_semantics(&mut authority)
-            .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
-        Ok(NominalValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.nominals(dependencies, meter)?;
+        Ok(NominalValidatedCrossConeHirFrontSections(front))
     }
 }
 
@@ -293,54 +253,10 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
         dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
     ) -> Result<PropertyValidatedCrossConeHirFrontSections<'input>, CrossConeHirPropertySurfaceError>
     {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .property_interfaces()
-            .validate_semantics(&mut authority)
-            .map_err(|error| {
-                CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
-            })?;
-        let mut authority = authority.for_source_declarations();
-        hir_interface
-            .property_interfaces()
-            .validate_support_semantics(&mut authority)
-            .map_err(|error| {
-                CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
-            })?;
-        authority
-            .validate_support_property_origins()
-            .map_err(CrossConeHirPropertySurfaceError::Declarations)?;
-        Ok(PropertyValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.properties(dependencies, meter)?;
+        Ok(PropertyValidatedCrossConeHirFrontSections(front))
     }
 }
 
@@ -352,68 +268,10 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
         dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
     ) -> Result<CallableValidatedCrossConeHirFrontSections<'input>, CrossConeHirCallableSurfaceError>
     {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        crate::cross_cone_hir_authority::validate_intrinsic_declarations(
-            &hir_interface,
-            &identities,
-            std::iter::once((graph.identity(), &hir_core_production)).chain(
-                dependencies
-                    .iter()
-                    .map(|provider| (provider.identity, provider.core)),
-            ),
-            graph.envelope.meter_mut(),
-        )
-        .map_err(|error| CrossConeHirCallableSurfaceError::Intrinsics(Box::new(error)))?;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .callable_interfaces()
-            .validate_semantics(&mut authority)
-            .map_err(|error| {
-                CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
-            })?;
-        let mut authority = authority.for_source_declarations();
-        hir_interface
-            .callable_interfaces()
-            .validate_support_semantics(&mut authority)
-            .map_err(|error| {
-                CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
-            })?;
-        authority
-            .validate_support_callable_origins()
-            .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
-        authority
-            .validate_property_setter_domains()
-            .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
-        Ok(CallableValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.callables(dependencies, meter)?;
+        Ok(CallableValidatedCrossConeHirFrontSections(front))
     }
 }
 
@@ -427,43 +285,9 @@ impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
         TypeAliasValidatedCrossConeHirFrontSections<'input>,
         CrossConeHirTypeAliasSurfaceError,
     > {
-        let ValidatedSurfaceFront {
-            mut graph,
-            identities,
-            foundations,
-            hir_core_production,
-            hir_interface,
-            mir_core_production,
-            mir_cross_cone_bridge,
-            lir_strong_production,
-            lir_cross_cone_bridge,
-        } = self.0;
-        let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
-            graph.identity(),
-            &identities,
-            &foundations.hir,
-            &hir_interface,
-            dependencies,
-            graph.envelope.meter_mut(),
-        );
-        hir_interface
-            .type_aliases()
-            .validate_semantics(&mut authority)
-            .map_err(|error| {
-                CrossConeHirTypeAliasSurfaceError::TypeAliasInterfaces(Box::new(error))
-            })?;
-        Ok(TypeAliasValidatedCrossConeHirFrontSections(
-            ValidatedSurfaceFront {
-                graph,
-                identities,
-                foundations,
-                hir_core_production,
-                hir_interface,
-                mir_core_production,
-                mir_cross_cone_bridge,
-                lir_strong_production,
-                lir_cross_cone_bridge,
-            },
-        ))
+        let mut front = self.0;
+        let (input, meter) = front.hir_validation_parts();
+        input.type_aliases(dependencies, meter)?;
+        Ok(TypeAliasValidatedCrossConeHirFrontSections(front))
     }
 }

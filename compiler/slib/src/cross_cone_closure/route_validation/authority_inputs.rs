@@ -6,9 +6,9 @@ use scoop_identity::ConeIdentity;
 use crate::ConstValidatedCrossConeHirFrontSections;
 
 #[derive(Clone, Copy)]
-pub(in crate::cross_cone_closure) struct RouteProviderView<'a> {
-    pub(in crate::cross_cone_closure) identity: ConeIdentity,
-    pub(in crate::cross_cone_closure) bindings: &'a CanonicalPublicExportBindingsV1,
+pub(crate) struct RouteProviderView<'a> {
+    pub(crate) identity: ConeIdentity,
+    pub(crate) bindings: &'a CanonicalPublicExportBindingsV1,
 }
 
 pub(in crate::cross_cone_closure) struct RouteAuthorityInputs<'a> {

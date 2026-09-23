@@ -30,6 +30,8 @@ fn core_can_have_the_only_empty_layout_profile_graph() {
         .resolve_hir_sections()
         .unwrap()
         .validate_hir_productions()
+        .unwrap()
+        .validate_hir_declarations()
         .unwrap();
     assert_eq!(closure.current(), ConeIdentity::CORE);
     assert_eq!(closure.dependency_first().count(), 0);

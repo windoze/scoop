@@ -16,8 +16,13 @@ use crate::{
     },
 };
 
+mod declarations;
 mod foundations;
 mod hir;
+pub use declarations::{
+    CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,
+    HirDeclarationsValidatedCrossConeLayoutClosure,
+};
 pub use hir::CrossConeLayoutClosureHirResolutionError;
 
 /// Untrusted M23-6 artifacts visible while compiling one current Cone.
