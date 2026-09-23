@@ -115,7 +115,7 @@ fn fixture(name: &str) -> Fixture {
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     )
     .unwrap();
     Fixture { identity, record }

@@ -23,9 +23,9 @@ fn shape_queries_borrow_the_artifact_keys_for_all_four_identity_roles() {
             match source.source_shape() {
                 hir::NominalSourceShapeV1::Struct(shape) => {
                     for field in shape.fields() {
-                        let key = bound.struct_field_key(field.field()).unwrap();
+                        let key = bound.nominal_field_key(field.field()).unwrap();
                         same_key(
-                            Shape::struct_field_key(&mut bound, field.field()).unwrap(),
+                            Shape::nominal_field_key(&mut bound, field.field()).unwrap(),
                             key,
                         );
                         roles[0] += 1;
@@ -57,7 +57,7 @@ fn shape_queries_borrow_the_artifact_keys_for_all_four_identity_roles() {
                     );
                     roles[3] += 1;
                 }
-                hir::NominalSourceShapeV1::Class
+                hir::NominalSourceShapeV1::Class(_)
                 | hir::NominalSourceShapeV1::Interface
                 | hir::NominalSourceShapeV1::Intrinsic(_) => continue,
             }

@@ -46,12 +46,7 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
             .representation_support()
             .get(owner)
             .ok_or(TypeSectionExportValidationError::PublicOverlap)?;
-        if matches!(
-            old.kind(),
-            PublicNominalKindV1::Struct | PublicNominalKindV1::Enum
-        ) {
-            require(representation.public_value_shape_matches(old.source_shape(), meter, &at)?)?;
-        }
+        require(representation.public_source_shape_matches(old.source_shape(), meter, &at)?)?;
         meter.charge_work(64, &at)?;
         let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner))
             .map_err(|_| TypeSectionExportValidationError::PublicOverlap)?;

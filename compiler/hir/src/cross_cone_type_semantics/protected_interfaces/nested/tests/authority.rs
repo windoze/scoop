@@ -69,7 +69,7 @@ impl NestedNominalSemanticAuthority<&'static str> for Fixture {
     }
 }
 impl NominalSourceShapeSemanticAuthority<&'static str> for Fixture {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, &'static str> {

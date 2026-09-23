@@ -50,8 +50,8 @@ impl Fixture {
         let object = nominal("LocalObject", SourceNominalKind::Object, 0);
         let foreign_object = nominal("ForeignObject", SourceNominalKind::Object, 0);
 
-        let (struct_field, struct_field_key) = source_field(&structure, "value");
-        let (foreign_struct_field, foreign_struct_field_key) =
+        let (struct_field, nominal_field_key) = source_field(&structure, "value");
+        let (foreign_struct_field, foreign_nominal_field_key) =
             source_field(&foreign_structure, "value");
         let (positional_variant, positional_variant_key) =
             source_variant(&enumeration, "Positional");
@@ -120,8 +120,8 @@ impl Fixture {
             object_value,
             foreign_object_value,
             fields: BTreeMap::from([
-                (struct_field, struct_field_key),
-                (foreign_struct_field, foreign_struct_field_key),
+                (struct_field, nominal_field_key),
+                (foreign_struct_field, foreign_nominal_field_key),
             ]),
             variants: BTreeMap::from([
                 (positional_variant, positional_variant_key),
@@ -175,7 +175,7 @@ impl std::fmt::Display for TestAuthorityError {
 impl std::error::Error for TestAuthorityError {}
 
 pub(super) struct TestAuthority {
-    concrete: BTreeMap<PersistentTypeId, PublicNominalShapeV1>,
+    pub(super) concrete: BTreeMap<PersistentTypeId, PublicNominalShapeV1>,
     generic: BTreeMap<PersistentGenericTypeId, PublicNominalShapeV1>,
     pub(super) fields: BTreeMap<PersistentFieldId, FieldIdentityKey>,
     variants: BTreeMap<PersistentEnumVariantId, EnumVariantIdentityKey>,
@@ -206,7 +206,7 @@ impl NominalInterfaceShapeAuthority<TestAuthorityError> for TestAuthority {
 }
 
 impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for TestAuthority {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {

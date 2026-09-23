@@ -4,9 +4,9 @@ use super::*;
 use crate::{
     CanonicalNominalInterfacesV1, NominalBoundSemanticError,
     NominalInterfaceSetSemanticValidationError, NominalSignatureSemanticError,
-    NominalSourceShapeSemanticError, NominalSourceShapeV1, SignatureTypeFormV1,
-    StructSourceFieldSemanticError, StructSourceShapeV1,
-    TypeParameterBinderSemanticValidationError, TypeParameterBoundLocation,
+    NominalSourceFieldSemanticError, NominalSourceShapeSemanticError, NominalSourceShapeV1,
+    SignatureTypeFormV1, StructSourceShapeV1, TypeParameterBinderSemanticValidationError,
+    TypeParameterBoundLocation,
 };
 
 mod support;
@@ -67,7 +67,7 @@ fn rejects_declaration_kind_and_binder_arity_mismatches() {
         PublicNominalKindV1::Class,
         empty_binders(),
         empty_supertypes(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     );
     assert!(matches!(
         wrong_arity.validate_semantics(&mut authority),
@@ -88,7 +88,7 @@ fn validates_nominal_binder_bounds_through_interface_shapes() {
         PublicNominalKindV1::Class,
         invalid_binders,
         empty_supertypes(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     );
     let mut authority = fixture.authority();
 
@@ -114,7 +114,7 @@ fn rejects_non_nominal_and_non_inheritable_supertypes() {
         PublicNominalKindV1::Class,
         binders(),
         supertypes(vec![binder(0)]),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     );
     let mut authority = fixture.authority();
     assert!(matches!(
@@ -133,7 +133,7 @@ fn rejects_non_nominal_and_non_inheritable_supertypes() {
         PublicNominalKindV1::Class,
         binders(),
         supertypes(vec![SignatureTypeKey::Nominal(fixture.value_struct)]),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     );
     let mut authority = fixture.authority();
     assert!(matches!(
@@ -177,7 +177,7 @@ fn enforces_single_class_inheritance_by_owner_kind() {
             SignatureTypeKey::Nominal(fixture.base_class),
             SignatureTypeKey::Nominal(fixture.second_base_class),
         ]),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     );
     let mut authority = fixture.authority();
     assert!(matches!(
@@ -238,9 +238,9 @@ fn forwards_source_shape_and_missing_declaration_failures() {
     assert!(matches!(
         structure.validate_semantics(&mut shape_authority),
         Err(NominalInterfaceSemanticValidationError::SourceShape(
-            NominalSourceShapeSemanticError::StructField {
+            NominalSourceShapeSemanticError::NominalField {
                 index: 0,
-                error: StructSourceFieldSemanticError::Owner { .. },
+                error: NominalSourceFieldSemanticError::Owner { .. },
             }
         ))
     ));

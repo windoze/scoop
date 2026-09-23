@@ -7,6 +7,7 @@ use crate::{
     EnumSourceShapeV1, ObjectSourceShapeV1, SignatureBinderScopeError, StructSourceShapeV1,
 };
 
+mod reference_fields;
 mod support;
 
 use support::*;
@@ -19,7 +20,7 @@ fn validates_owned_source_shapes_selectors_and_field_types() {
 
     let structure = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(fixture.struct_field, binder(0))],
+            vec![NominalSourceFieldV1::new(fixture.struct_field, binder(0))],
             crate::NominalCLayoutPolicyV1::Ordinary,
         )
         .unwrap(),
@@ -69,7 +70,10 @@ fn validates_owned_source_shapes_selectors_and_field_types() {
         Ok(())
     );
 
-    let object = NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(fixture.object_value));
+    let object = NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+        fixture.object_value,
+        Default::default(),
+    ));
     assert_eq!(
         object.validate_semantics(
             fixture.object_owner,
@@ -87,7 +91,7 @@ fn rejects_shape_kind_mismatch() {
     let mut authority = fixture.authority();
 
     assert_eq!(
-        NominalSourceShapeV1::Class.validate_semantics(
+        NominalSourceShapeV1::Class(Default::default()).validate_semantics(
             fixture.struct_owner,
             PublicNominalKindV1::Struct,
             &binders(),
@@ -106,7 +110,7 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
 
     let structure = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(
+            vec![NominalSourceFieldV1::new(
                 fixture.foreign_struct_field,
                 binder(0),
             )],
@@ -122,9 +126,9 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
             &binders(),
             &mut struct_authority,
         ),
-        Err(NominalSourceShapeSemanticError::StructField {
+        Err(NominalSourceShapeSemanticError::NominalField {
             index: 0,
-            error: StructSourceFieldSemanticError::Owner {
+            error: NominalSourceFieldSemanticError::Owner {
                 expected,
                 actual: Some(actual),
             },
@@ -156,8 +160,10 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
         }) if expected == fixture.enum_owner && actual == fixture.foreign_enum_owner
     ));
 
-    let object =
-        NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(fixture.foreign_object_value));
+    let object = NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+        fixture.foreign_object_value,
+        Default::default(),
+    ));
     let mut object_authority = fixture.authority();
     assert!(matches!(
         object.validate_semantics(
@@ -260,7 +266,7 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
     let fixture = Fixture::new();
     let out_of_scope = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(fixture.struct_field, binder(1))],
+            vec![NominalSourceFieldV1::new(fixture.struct_field, binder(1))],
             crate::NominalCLayoutPolicyV1::Ordinary,
         )
         .unwrap(),
@@ -273,9 +279,9 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
             &binders(),
             &mut scope_authority,
         ),
-        Err(NominalSourceShapeSemanticError::StructField {
+        Err(NominalSourceShapeSemanticError::NominalField {
             index: 0,
-            error: StructSourceFieldSemanticError::ValueType(
+            error: NominalSourceFieldSemanticError::ValueType(
                 SignatureTypeSemanticError::BinderScope(
                     SignatureBinderScopeError::IndexOutOfRange {
                         depth: 0,
@@ -291,7 +297,7 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
     let missing_id = PersistentTypeId::from_source_declaration(&missing).unwrap();
     let unresolved = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(
+            vec![NominalSourceFieldV1::new(
                 fixture.struct_field,
                 SignatureTypeKey::Nominal(missing_id),
             )],
@@ -307,8 +313,8 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
             &binders(),
             &mut reference_authority,
         ),
-        Err(NominalSourceShapeSemanticError::StructField {
-            error: StructSourceFieldSemanticError::ValueType(
+        Err(NominalSourceShapeSemanticError::NominalField {
+            error: NominalSourceFieldSemanticError::ValueType(
                 SignatureTypeSemanticError::Reference(TestAuthorityError::Concrete(id))
             ),
             ..
@@ -321,7 +327,7 @@ fn rejects_missing_kind_specific_identity_authority() {
     let fixture = Fixture::new();
     let shape = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(fixture.struct_field, binder(0))],
+            vec![NominalSourceFieldV1::new(fixture.struct_field, binder(0))],
             crate::NominalCLayoutPolicyV1::Ordinary,
         )
         .unwrap(),
@@ -336,9 +342,9 @@ fn rejects_missing_kind_specific_identity_authority() {
             &binders(),
             &mut authority,
         ),
-        Err(NominalSourceShapeSemanticError::StructField {
+        Err(NominalSourceShapeSemanticError::NominalField {
             index: 0,
-            error: StructSourceFieldSemanticError::Reference(
+            error: NominalSourceFieldSemanticError::Reference(
                 TestAuthorityError::Field(field)
             ),
         }) if field == fixture.struct_field

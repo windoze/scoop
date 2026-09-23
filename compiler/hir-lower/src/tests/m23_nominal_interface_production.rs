@@ -285,7 +285,7 @@ fn producer_projects_complete_nominal_interfaces() {
     assert_eq!(class_record.members().members().len(), 2);
     assert!(matches!(
         class_record.source_shape(),
-        hir::NominalSourceShapeV1::Class
+        hir::NominalSourceShapeV1::Class(_)
     ));
 
     let object = object_id(&module, "ProjectedObject");

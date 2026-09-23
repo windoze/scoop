@@ -41,30 +41,24 @@ impl<'a> TypeFoundationSourceProviderV1<'a> {
             .representations
             .get(owner)
             .ok_or(TypeFoundationReplayError::MissingRepresentation(owner))?;
-        let public_value_shape = self
+        let public_source_shape = self
             .public
             .section()
             .nominal_interfaces()
             .get(nominal)
-            .filter(|record| {
-                matches!(
-                    record.source_shape(),
-                    NominalSourceShapeV1::Struct(_)
-                        | NominalSourceShapeV1::Enum(_)
-                        | NominalSourceShapeV1::Intrinsic(_)
-                )
-            })
             .map_or(
-                NominalRepresentationPublicValueShapeV1::NoPublicValueShape,
+                NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape,
                 |record| {
-                    NominalRepresentationPublicValueShapeV1::PublicValueShape(record.source_shape())
+                    NominalRepresentationPublicSourceShapeV1::PublicSourceShape(
+                        record.source_shape(),
+                    )
                 },
             );
         Ok(NominalRepresentationSourceV1 {
             key: self.source.nominal_key(nominal)?,
             access: self.source.nominal_source(nominal)?.access(),
             shape: representation.shape(),
-            public_value_shape,
+            public_source_shape,
         })
     }
 }
@@ -87,14 +81,7 @@ pub(super) fn validate_public(
                 record.declaration(),
             ));
         }
-        if let SourceNominalId::Concrete(owner) = record.declaration()
-            && matches!(
-                record.source_shape(),
-                NominalSourceShapeV1::Struct(_)
-                    | NominalSourceShapeV1::Enum(_)
-                    | NominalSourceShapeV1::Intrinsic(_)
-            )
-        {
+        if let SourceNominalId::Concrete(owner) = record.declaration() {
             meter.charge_work(
                 u64::from(entries.representations.records().len().max(1).ilog2()) + 1,
                 &at,
@@ -103,8 +90,8 @@ pub(super) fn validate_public(
                 .representations
                 .get(owner)
                 .ok_or(TypeFoundationReplayError::MissingRepresentation(owner))?;
-            if !representation.public_value_shape_matches(record.source_shape(), meter, &at)? {
-                return Err(TypeFoundationReplayError::PublicValueShape(owner));
+            if !representation.public_source_shape_matches(record.source_shape(), meter, &at)? {
+                return Err(TypeFoundationReplayError::PublicSourceShape(owner));
             }
         }
     }

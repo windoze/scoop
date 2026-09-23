@@ -114,7 +114,7 @@ pub(super) fn structure(
                 .unwrap(),
             )
             .unwrap();
-            let shape = StructSourceFieldV1::new(field.id(), ty);
+            let shape = NominalSourceFieldV1::new(field.id(), ty);
             fields.push(field);
             shape
         })

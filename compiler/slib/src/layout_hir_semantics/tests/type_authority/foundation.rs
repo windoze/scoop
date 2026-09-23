@@ -161,7 +161,7 @@ impl NominalRepresentationSemanticAuthority<TestAuthorityError> for EmptyFoundat
             key: &nominal.key,
             access: &nominal.access,
             shape: nominal.representation.shape(),
-            public_value_shape: NominalRepresentationPublicValueShapeV1::NoPublicValueShape,
+            public_source_shape: NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape,
         })
     }
 }

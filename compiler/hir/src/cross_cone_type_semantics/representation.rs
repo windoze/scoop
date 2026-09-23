@@ -364,11 +364,27 @@ impl NominalRepresentationSupportV1 {
                                 )
                         })
             }
-            (NominalRepresentationShapeV1::Class { .. }, NominalSourceShapeV1::Class)
-            | (NominalRepresentationShapeV1::Interface, NominalSourceShapeV1::Interface)
-            | (NominalRepresentationShapeV1::Object { .. }, NominalSourceShapeV1::Object(_)) => {
-                true
+            (
+                NominalRepresentationShapeV1::Class {
+                    declared_fields, ..
+                },
+                NominalSourceShapeV1::Class(_),
+            )
+            | (
+                NominalRepresentationShapeV1::Object {
+                    declared_fields, ..
+                },
+                NominalSourceShapeV1::Object(_),
+            ) => {
+                declared_fields.len() == source.declared_fields().len()
+                    && declared_fields.iter().zip(source.declared_fields()).all(
+                        |(field, source)| {
+                            field.field() == source.field()
+                                && field.value_type() == source.value_type()
+                        },
+                    )
             }
+            (NominalRepresentationShapeV1::Interface, NominalSourceShapeV1::Interface) => true,
             (
                 NominalRepresentationShapeV1::Intrinsic { representation },
                 NominalSourceShapeV1::Intrinsic(source),

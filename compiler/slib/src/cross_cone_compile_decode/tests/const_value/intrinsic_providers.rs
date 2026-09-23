@@ -128,7 +128,7 @@ fn intrinsic_queries_reject_unreachable_missing_and_non_intrinsic_source_records
         assert!(matches!(*error, CrossConeHirIntrinsicTypeError::Nominal(
             CrossConeHirNominalAuthorityError::UnreachableProvider { origin }) if origin == dependency.identity));
 
-        dependency.replace_shape(NominalSourceShapeV1::Class);
+        dependency.replace_shape(NominalSourceShapeV1::Class(Default::default()));
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             base.identity(),
             &identities,

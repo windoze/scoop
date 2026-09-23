@@ -70,7 +70,7 @@ pub(super) fn nominal(provider: ConeIdentity, arity: u32) -> Nominal {
     let shape = StructSourceShapeV1::try_new(
         fields
             .iter()
-            .map(|id| StructSourceFieldV1::new(*id, value_type.clone()))
+            .map(|id| NominalSourceFieldV1::new(*id, value_type.clone()))
             .collect(),
         NominalCLayoutPolicyV1::Ordinary,
     )

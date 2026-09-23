@@ -40,7 +40,7 @@ pub(in crate::cross_cone_type_semantics::protected_interfaces) fn source(
         CanonicalPersistentIdsV1::try_new(constructors).unwrap(),
         CanonicalNestedMemberRefsV1::try_new(members).unwrap(),
         CanonicalNestedNominalRefsV1::try_new(children).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
         CanonicalNestedSourceSupportV1::try_new(support).unwrap(),
     )
     .unwrap()

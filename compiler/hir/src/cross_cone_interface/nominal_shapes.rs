@@ -12,6 +12,7 @@ use crate::{IntrinsicTypeTarget, NominalCLayoutPolicyV1, NominalIntrinsicReprese
 
 mod enumeration;
 mod errors;
+mod fields;
 mod metered_resolution;
 mod semantics;
 mod wire;
@@ -22,114 +23,31 @@ pub use enumeration::{
 };
 pub use errors::{
     EnumSourceFieldResolutionError, EnumSourceVariantBuildError, EnumSourceVariantResolutionError,
-    NominalSourceShapeBuildError, NominalSourceShapeResolutionError,
-    StructSourceFieldResolutionError,
+    NominalSourceFieldResolutionError, NominalSourceShapeBuildError,
+    NominalSourceShapeResolutionError,
 };
+pub use fields::{DecodedNominalSourceFieldV1, NominalSourceFieldV1, NominalSourceFieldsV1};
 pub use semantics::{
     EnumSourceFieldSelectorV1, EnumSourceFieldSemanticError, EnumSourceVariantSemanticError,
-    NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError,
-    ObjectSourceShapeSemanticError, StructSourceFieldSemanticError,
+    NominalSourceFieldSemanticError, NominalSourceShapeSemanticAuthority,
+    NominalSourceShapeSemanticError, ObjectSourceShapeSemanticError,
 };
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StructSourceFieldV1 {
-    field: PersistentFieldId,
-    value_type: SignatureTypeKey,
-}
-
-impl StructSourceFieldV1 {
-    pub const fn new(field: PersistentFieldId, value_type: SignatureTypeKey) -> Self {
-        Self { field, value_type }
-    }
-
-    pub const fn field(&self) -> PersistentFieldId {
-        self.field
-    }
-
-    pub const fn value_type(&self) -> &SignatureTypeKey {
-        &self.value_type
-    }
-}
-
-impl WireEncode for StructSourceFieldV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.field.encode(encoder)?;
-        encoder.field(2)?;
-        self.value_type.encode(encoder)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedStructSourceFieldV1 {
-    field: DecodedPersistentId<PersistentFieldId>,
-    value_type: DecodedSignatureTypeKey,
-}
-
-impl DecodedStructSourceFieldV1 {
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<StructSourceFieldV1, StructSourceFieldResolutionError<E>>
-    where
-        R: NominalSourceShapeResolver<E>,
-    {
-        let field = resolver
-            .resolve(self.field)
-            .map_err(StructSourceFieldResolutionError::Field)?;
-        let value_type = self
-            .value_type
-            .resolve(resolver)
-            .map_err(StructSourceFieldResolutionError::ValueType)?;
-        Ok(StructSourceFieldV1 { field, value_type })
-    }
-}
-
-impl WireEncode for DecodedStructSourceFieldV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.field.encode(encoder)?;
-        encoder.field(2)?;
-        self.value_type.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedStructSourceFieldV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        Ok(Self {
-            field: decoder.field(1, DecodedPersistentId::decode)?,
-            value_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
-        })
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructSourceShapeV1 {
-    fields: Vec<StructSourceFieldV1>,
+    fields: NominalSourceFieldsV1,
     c_layout_policy: NominalCLayoutPolicyV1,
 }
 
 impl StructSourceShapeV1 {
     pub fn try_new(
-        fields: Vec<StructSourceFieldV1>,
+        fields: Vec<NominalSourceFieldV1>,
         c_layout_policy: NominalCLayoutPolicyV1,
     ) -> Result<Self, NominalSourceShapeBuildError> {
         if fields.is_empty() && matches!(c_layout_policy, NominalCLayoutPolicyV1::CLayout { .. }) {
             return Err(NominalSourceShapeBuildError::EmptyCLayout);
         }
-        u32::try_from(fields.len())
-            .map_err(|_| NominalSourceShapeBuildError::TooManyStructFields)?;
-        let mut ids = BTreeSet::new();
-        for field in &fields {
-            if !ids.insert(field.field()) {
-                return Err(NominalSourceShapeBuildError::DuplicateStructField(
-                    field.field(),
-                ));
-            }
-        }
+        let fields = NominalSourceFieldsV1::try_new(fields)?;
         Ok(Self {
             fields,
             c_layout_policy,
@@ -140,29 +58,34 @@ impl StructSourceShapeV1 {
         self.c_layout_policy
     }
 
-    pub fn fields(&self) -> &[StructSourceFieldV1] {
-        &self.fields
+    pub fn fields(&self) -> &[NominalSourceFieldV1] {
+        self.fields.fields()
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectSourceShapeV1 {
     value: PersistentObjectValueId,
+    fields: NominalSourceFieldsV1,
 }
 
 impl ObjectSourceShapeV1 {
-    pub const fn new(value: PersistentObjectValueId) -> Self {
-        Self { value }
+    pub const fn new(value: PersistentObjectValueId, fields: NominalSourceFieldsV1) -> Self {
+        Self { value, fields }
     }
 
-    pub const fn value(self) -> PersistentObjectValueId {
+    pub const fn value(&self) -> PersistentObjectValueId {
         self.value
+    }
+
+    pub fn fields(&self) -> &[NominalSourceFieldV1] {
+        self.fields.fields()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeV1 {
-    Class,
+    Class(NominalSourceFieldsV1),
     Interface,
     Struct(StructSourceShapeV1),
     Enum(EnumSourceShapeV1),
@@ -171,9 +94,26 @@ pub enum NominalSourceShapeV1 {
 }
 
 impl NominalSourceShapeV1 {
+    /// Complete source-order fields, including private backing storage.
+    pub fn declared_fields(&self) -> &[NominalSourceFieldV1] {
+        match self {
+            Self::Class(fields) => fields.fields(),
+            Self::Struct(shape) => shape.fields(),
+            Self::Object(shape) => shape.fields(),
+            Self::Interface | Self::Enum(_) | Self::Intrinsic(_) => &[],
+        }
+    }
+
+    pub(crate) const fn declared_fields_wire_field(&self) -> u32 {
+        match self {
+            Self::Object(_) => 2,
+            _ => 1,
+        }
+    }
+
     pub const fn kind(&self) -> PublicNominalKindV1 {
         match self {
-            Self::Class => PublicNominalKindV1::Class,
+            Self::Class(_) => PublicNominalKindV1::Class,
             Self::Interface => PublicNominalKindV1::Interface,
             Self::Struct(_) => PublicNominalKindV1::Struct,
             Self::Enum(_) => PublicNominalKindV1::Enum,
@@ -188,14 +128,17 @@ impl NominalSourceShapeV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedNominalSourceShapeV1 {
-    Class,
+    Class(Vec<DecodedNominalSourceFieldV1>),
     Interface,
     Struct {
-        fields: Vec<DecodedStructSourceFieldV1>,
+        fields: Vec<DecodedNominalSourceFieldV1>,
         c_layout_policy: NominalCLayoutPolicyV1,
     },
     Enum(Vec<DecodedEnumSourceVariantV1>),
-    Object(DecodedPersistentId<PersistentObjectValueId>),
+    Object {
+        value: DecodedPersistentId<PersistentObjectValueId>,
+        fields: Vec<DecodedNominalSourceFieldV1>,
+    },
     Intrinsic(NominalIntrinsicRepresentationV1),
 }
 
@@ -208,7 +151,9 @@ impl DecodedNominalSourceShapeV1 {
         R: NominalSourceShapeResolver<E>,
     {
         match self {
-            Self::Class => Ok(NominalSourceShapeV1::Class),
+            Self::Class(fields) => {
+                fields::resolve(fields, resolver).map(NominalSourceShapeV1::Class)
+            }
             Self::Interface => Ok(NominalSourceShapeV1::Interface),
             Self::Intrinsic(representation) => Ok(NominalSourceShapeV1::Intrinsic(representation)),
             Self::Struct {
@@ -219,11 +164,15 @@ impl DecodedNominalSourceShapeV1 {
             Self::Enum(variants) => {
                 resolve_enum_shape(variants, resolver).map(NominalSourceShapeV1::Enum)
             }
-            Self::Object(value) => resolver
-                .resolve(value)
-                .map(ObjectSourceShapeV1::new)
-                .map(NominalSourceShapeV1::Object)
-                .map_err(NominalSourceShapeResolutionError::ObjectValue),
+            Self::Object { value, fields } => {
+                let value = resolver
+                    .resolve(value)
+                    .map_err(NominalSourceShapeResolutionError::ObjectValue)?;
+                let fields = fields::resolve(fields, resolver)?;
+                Ok(NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+                    value, fields,
+                )))
+            }
         }
     }
 }
@@ -247,7 +196,7 @@ impl<R, E> NominalSourceShapeResolver<E> for R where
 }
 
 fn resolve_struct_shape<R, E>(
-    decoded: Vec<DecodedStructSourceFieldV1>,
+    decoded: Vec<DecodedNominalSourceFieldV1>,
     c_layout_policy: NominalCLayoutPolicyV1,
     resolver: &mut R,
 ) -> Result<StructSourceShapeV1, NominalSourceShapeResolutionError<E>>
@@ -257,22 +206,7 @@ where
     if decoded.is_empty() && matches!(c_layout_policy, NominalCLayoutPolicyV1::CLayout { .. }) {
         return Err(NominalSourceShapeResolutionError::EmptyCLayout);
     }
-    u32::try_from(decoded.len())
-        .map_err(|_| NominalSourceShapeResolutionError::TooManyStructFields)?;
-    let mut fields = Vec::with_capacity(decoded.len());
-    let mut ids = BTreeSet::new();
-    for (index, field) in decoded.into_iter().enumerate() {
-        let field = field
-            .resolve(resolver)
-            .map_err(|error| NominalSourceShapeResolutionError::StructField { index, error })?;
-        if !ids.insert(field.field()) {
-            return Err(NominalSourceShapeResolutionError::DuplicateStructField {
-                index,
-                field: field.field(),
-            });
-        }
-        fields.push(field);
-    }
+    let fields = fields::resolve(decoded, resolver)?;
     Ok(StructSourceShapeV1 {
         fields,
         c_layout_policy,

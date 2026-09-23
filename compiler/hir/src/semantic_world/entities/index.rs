@@ -154,7 +154,7 @@ impl ImportedEntityIndex {
                     )?;
                 }
             }
-            NominalSourceShapeV1::Class
+            NominalSourceShapeV1::Class(_)
             | NominalSourceShapeV1::Interface
             | NominalSourceShapeV1::Struct(_)
             | NominalSourceShapeV1::Intrinsic(_) => return Ok(()),

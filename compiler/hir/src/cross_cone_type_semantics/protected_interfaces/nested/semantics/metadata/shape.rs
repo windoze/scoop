@@ -17,24 +17,20 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
             .validate_signature_semantics_metered(ty, authority, meter, &WirePath::root())
             .map_err(Error::Signature)
     };
+    for field in source.source_shape().declared_fields() {
+        let key = authority
+            .nominal_field_key(field.field())
+            .map_err(Error::Foundation)?;
+        charge_key(key.as_ref(), meter)?;
+        if PersistentFieldId::from_key(&key).ok() != Some(field.field()) {
+            return Err(Error::Identity);
+        }
+        field_type(field.value_type(), authority, meter)?;
+    }
     match source.source_shape() {
         NominalSourceShapeV1::Intrinsic(_) => meter
             .charge_work(1, &WirePath::root())
             .map_err(Error::Resource)?,
-        NominalSourceShapeV1::Struct(shape) => {
-            for field in shape.fields() {
-                let key = authority
-                    .struct_field_key(field.field())
-                    .map_err(Error::Foundation)?;
-                charge_key(key.as_ref(), meter)?;
-                if PersistentFieldId::from_key(&key).ok() != Some(field.field())
-                    || key.source_owner() != Some(owner)
-                {
-                    return Err(Error::Identity);
-                }
-                field_type(field.value_type(), authority, meter)?;
-            }
-        }
         NominalSourceShapeV1::Enum(shape) => {
             for variant in shape.variants() {
                 let key = authority
@@ -67,7 +63,9 @@ pub(super) fn validate<A: NestedNominalSemanticAuthority<E>, E>(
                 return Err(Error::Identity);
             }
         }
-        NominalSourceShapeV1::Class | NominalSourceShapeV1::Interface => {}
+        NominalSourceShapeV1::Class(_)
+        | NominalSourceShapeV1::Struct(_)
+        | NominalSourceShapeV1::Interface => {}
     }
     // Preserve the existing source field selector and object owner semantics;
     // all recursive type work and key hashing was metered above.

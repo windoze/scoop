@@ -27,11 +27,11 @@ use crate::{
     CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, EnumSourceFieldV1,
     EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1, ExportDefinitionSourceV1,
     ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1,
-    ExternalHirTargetV1, NominalInterfaceRecordV1, NominalSourceShapeV1,
+    ExternalHirTargetV1, NominalInterfaceRecordV1, NominalSourceFieldV1, NominalSourceShapeV1,
     NominalTypeParameterBoundsV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
     PropertyRepresentationV1, PublicDeclarationOwnerV1, PublicExportBindingClosureAuthority,
-    PublicLookupAccessV1, PublicNominalKindV1, SourceParameterShapeV1, StructSourceFieldV1,
-    StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsV1,
+    PublicLookupAccessV1, PublicNominalKindV1, SourceParameterShapeV1, StructSourceShapeV1,
+    TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsV1,
 };
 
 #[test]
@@ -277,7 +277,7 @@ impl Fixture {
             },
             Case {
                 target: struct_field_type,
-                site: ExternalHirSignatureUseSiteV1::NominalStructField {
+                site: ExternalHirSignatureUseSiteV1::NominalField {
                     record_index: struct_index,
                     field_index: 0,
                 },
@@ -508,7 +508,7 @@ fn nominal_interfaces(
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         NominalSourceShapeV1::Struct(
             StructSourceShapeV1::try_new(
-                vec![StructSourceFieldV1::new(
+                vec![NominalSourceFieldV1::new(
                     field,
                     signature(struct_field_type),
                 )],

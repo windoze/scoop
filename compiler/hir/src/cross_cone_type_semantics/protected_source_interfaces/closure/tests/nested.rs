@@ -107,7 +107,7 @@ fn nested(
         CanonicalNestedMemberRefsV1::try_new(vec![NestedSourceMemberRefV1::Function(function)])
             .unwrap(),
         CanonicalNestedNominalRefsV1::try_new(children).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
         CanonicalNestedSourceSupportV1::try_new(support).unwrap(),
     )
     .unwrap();

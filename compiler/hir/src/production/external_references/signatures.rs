@@ -47,17 +47,20 @@ where
                 &path.clone().field(4).index(signature_index),
             )?;
         }
+        for (field_index, field) in (0_u64..).zip(record.source_shape().declared_fields()) {
+            observe(
+                accumulator,
+                field.value_type(),
+                meter,
+                &path
+                    .clone()
+                    .field(8)
+                    .field(record.source_shape().declared_fields_wire_field())
+                    .index(field_index)
+                    .field(2),
+            )?;
+        }
         match record.source_shape() {
-            NominalSourceShapeV1::Struct(shape) => {
-                for (field_index, field) in (0_u64..).zip(shape.fields()) {
-                    observe(
-                        accumulator,
-                        field.value_type(),
-                        meter,
-                        &path.clone().field(8).field(1).index(field_index).field(2),
-                    )?;
-                }
-            }
             NominalSourceShapeV1::Enum(shape) => {
                 for (variant_index, variant) in (0_u64..).zip(shape.variants()) {
                     for (field_index, field) in (0_u64..).zip(variant.fields()) {
@@ -77,7 +80,8 @@ where
                     }
                 }
             }
-            NominalSourceShapeV1::Class
+            NominalSourceShapeV1::Struct(_)
+            | NominalSourceShapeV1::Class(_)
             | NominalSourceShapeV1::Interface
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Intrinsic(_) => continue,

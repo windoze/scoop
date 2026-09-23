@@ -218,7 +218,7 @@ impl NominalSupportPropertySemanticAuthority<TestAuthorityError> for EmptyDeclar
 }
 
 impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for EmptyDeclarations {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         _field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {

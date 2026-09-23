@@ -3,14 +3,14 @@ use super::*;
 impl NominalSourceShapeSemanticAuthority<Error>
     for BoundNominalDispatchSourcesV1<'_, '_, '_, '_, '_>
 {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         id: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, Error> {
         self.parameters
             .members()
             .nominals
-            .struct_field_key(id)
+            .nominal_field_key(id)
             .map(Cow::Borrowed)
             .map_err(Into::into)
     }

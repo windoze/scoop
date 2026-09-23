@@ -56,7 +56,7 @@ impl BoundNominalSourceContractsV1<'_, '_> {
                 let applied = Applied::new(self, owner_type, meter, path)?;
                 let fields = applied.struct_shape()?.fields();
                 Ok(Shape::Aggregate(applied.aggregate(
-                    fields.iter().map(StructSourceFieldV1::value_type),
+                    fields.iter().map(NominalSourceFieldV1::value_type),
                     meter,
                     path,
                 )?))

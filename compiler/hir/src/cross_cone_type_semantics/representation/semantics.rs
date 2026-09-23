@@ -40,7 +40,7 @@ impl NominalRepresentationSupportV1 {
 }
 
 impl NominalRepresentationSupportV1 {
-    pub(in crate::cross_cone_type_semantics) fn public_value_shape_matches(
+    pub(in crate::cross_cone_type_semantics) fn public_source_shape_matches(
         &self,
         source: &NominalSourceShapeV1,
         meter: &mut BudgetMeter,
@@ -53,9 +53,9 @@ impl NominalRepresentationSupportV1 {
 /// Effective public value lookup is projected from the real source surface,
 /// including its lexical owners. It is not inferred from candidate visibility.
 #[derive(Clone, Copy, Debug)]
-pub enum NominalRepresentationPublicValueShapeV1<'a> {
-    PublicValueShape(&'a NominalSourceShapeV1),
-    NoPublicValueShape,
+pub enum NominalRepresentationPublicSourceShapeV1<'a> {
+    PublicSourceShape(&'a NominalSourceShapeV1),
+    NoPublicSourceShape,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -63,7 +63,7 @@ pub struct NominalRepresentationSourceV1<'a> {
     pub key: &'a SourceDeclarationKey,
     pub access: &'a DeclarationAccessSourceV1,
     pub shape: &'a NominalRepresentationShapeV1,
-    pub public_value_shape: NominalRepresentationPublicValueShapeV1<'a>,
+    pub public_source_shape: NominalRepresentationPublicSourceShapeV1<'a>,
 }
 
 pub trait NominalRepresentationSemanticAuthority<E> {

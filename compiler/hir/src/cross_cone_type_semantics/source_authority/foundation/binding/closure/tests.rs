@@ -105,8 +105,8 @@ fn byte_restored_dependencies_replay_inheritance_without_merging_local_inventory
         closure
             .representation_source(base.owner)
             .unwrap()
-            .public_value_shape,
-        NominalRepresentationPublicValueShapeV1::NoPublicValueShape
+            .public_source_shape,
+        NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape
     ));
 }
 

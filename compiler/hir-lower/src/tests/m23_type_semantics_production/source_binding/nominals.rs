@@ -103,7 +103,7 @@ fn byte_restored_nominal_sources_bind_complete_declarations_and_variant_origins(
                         for field in shape.fields() {
                             assert_eq!(
                                 PersistentFieldId::from_key(
-                                    bound.struct_field_key(field.field()).unwrap()
+                                    bound.nominal_field_key(field.field()).unwrap()
                                 )
                                 .unwrap(),
                                 field.field()
@@ -166,7 +166,7 @@ fn byte_restored_nominal_sources_bind_complete_declarations_and_variant_origins(
                             shape.value()
                         );
                     }
-                    hir::NominalSourceShapeV1::Class
+                    hir::NominalSourceShapeV1::Class(_)
                     | hir::NominalSourceShapeV1::Interface
                     | hir::NominalSourceShapeV1::Intrinsic(_) => continue,
                 }

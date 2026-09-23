@@ -28,13 +28,13 @@ fn intrinsic_representation_requires_its_exact_source_family_in_both_join_paths(
             NominalSourceShapeV1::Struct(
                 StructSourceShapeV1::try_new(vec![], NominalCLayoutPolicyV1::Ordinary).unwrap(),
             ),
-            NominalSourceShapeV1::Class,
+            NominalSourceShapeV1::Class(Default::default()),
         ] {
             let agrees = source == NominalSourceShapeV1::Intrinsic(representation);
             assert_eq!(record.validate_public_source_shape(&source).is_ok(), agrees);
             assert_eq!(
                 record
-                    .public_value_shape_matches(
+                    .public_source_shape_matches(
                         &source,
                         &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
                         &scoop_wire::WirePath::root()
@@ -88,7 +88,7 @@ fn representation_requires_the_complete_public_c_layout_policy() {
     ] {
         let source = NominalSourceShapeV1::Struct(
             StructSourceShapeV1::try_new(
-                vec![StructSourceFieldV1::new(
+                vec![NominalSourceFieldV1::new(
                     field.field(),
                     field.value_type().clone(),
                 )],

@@ -94,9 +94,9 @@ impl NominalRepresentationSemanticAuthority<&'static str> for Fixture {
             key: &source.key,
             access: &source.access,
             shape: &source.shape,
-            public_value_shape: match &source.public {
-                Some(public) => NominalRepresentationPublicValueShapeV1::PublicValueShape(public),
-                None => NominalRepresentationPublicValueShapeV1::NoPublicValueShape,
+            public_source_shape: match &source.public {
+                Some(public) => NominalRepresentationPublicSourceShapeV1::PublicSourceShape(public),
+                None => NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape,
             },
         })
     }

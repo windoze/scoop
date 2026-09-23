@@ -106,7 +106,10 @@ fn native_producer_rejects_wrong_field_owner_kind_and_binder() {
         ));
     });
     let mut fixture = self::fixture();
-    set_shape(&mut fixture, NominalSourceShapeV1::Class);
+    set_shape(
+        &mut fixture,
+        NominalSourceShapeV1::Class(Default::default()),
+    );
     with_world(&[&fixture], &[], |world| {
         assert!(matches!(
             world.native_boundary_type_definition(owner(&fixture), Ok),

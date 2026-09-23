@@ -20,8 +20,8 @@ fn source_shape_and_variant_style_tags_have_fixed_wire() {
     let empty_enum = NominalSourceShapeV1::Enum(EnumSourceShapeV1::try_new(Vec::new()).unwrap());
 
     assert_eq!(
-        encode(&NominalSourceShapeV1::Class).unwrap(),
-        [0xa1, 0x00, 0x01]
+        encode(&NominalSourceShapeV1::Class(Default::default())).unwrap(),
+        [0xa2, 0x00, 0x07, 0x01, 0x80]
     );
     assert_eq!(
         encode(&NominalSourceShapeV1::Interface).unwrap(),
@@ -86,7 +86,7 @@ fn producer_rejects_duplicate_fields_variants_and_unit_payloads() {
             vec![struct_field.clone(), struct_field],
             crate::NominalCLayoutPolicyV1::Ordinary
         ),
-        Err(NominalSourceShapeBuildError::DuplicateStructField(
+        Err(NominalSourceShapeBuildError::DuplicateNominalField(
             fixture.struct_first.id()
         ))
     );
@@ -129,7 +129,7 @@ fn producer_rejects_duplicate_fields_variants_and_unit_payloads() {
 fn every_source_shape_round_trips_through_typed_authority() {
     let fixture = fixture();
     let shapes = [
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
         NominalSourceShapeV1::Interface,
         NominalSourceShapeV1::Struct(
             StructSourceShapeV1::try_new(
@@ -158,7 +158,10 @@ fn every_source_shape_round_trips_through_typed_authority() {
             ])
             .unwrap(),
         ),
-        NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(fixture.object_value.id())),
+        NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+            fixture.object_value.id(),
+            Default::default(),
+        )),
     ];
     let mut authority = authority(&fixture);
 
@@ -177,7 +180,7 @@ fn reader_rejects_duplicate_struct_enum_and_variant_field_ids() {
     let mut struct_authority = authority(&fixture);
     assert!(matches!(
         decode_shape(&duplicate_struct).resolve(&mut struct_authority),
-        Err(NominalSourceShapeResolutionError::DuplicateStructField {
+        Err(NominalSourceShapeResolutionError::DuplicateNominalField {
             index: 1,
             field,
         }) if field == fixture.struct_first.id()
@@ -232,23 +235,33 @@ fn reader_rejects_missing_typed_authority() {
 
     assert!(matches!(
         decode_shape(&shape).resolve(&mut authority),
-        Err(NominalSourceShapeResolutionError::StructField {
+        Err(NominalSourceShapeResolutionError::NominalField {
             index: 0,
-            error: StructSourceFieldResolutionError::Field(IdentityReferenceError::Missing { .. }),
+            error: NominalSourceFieldResolutionError::Field(IdentityReferenceError::Missing { .. }),
         })
     ));
 }
 
 #[test]
 fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
+    for retired in [1, 5] {
+        let error = decode_canonical::<DecodedNominalSourceShapeV1>(
+            &[0xa1, 0x00, retired],
+            DecodeLimits::default(),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(error.kind(), WireErrorKind::UnknownTag { tag } if *tag == u64::from(retired))
+        );
+    }
     let unknown_shape = decode_canonical::<DecodedNominalSourceShapeV1>(
-        &[0xa1, 0x00, 0x07],
+        &[0xa1, 0x00, 0x09],
         DecodeLimits::default(),
     )
     .unwrap_err();
     assert!(matches!(
         unknown_shape.kind(),
-        WireErrorKind::UnknownTag { tag: 7 }
+        WireErrorKind::UnknownTag { tag: 9 }
     ));
 
     let unknown_style =
@@ -259,15 +272,15 @@ fn reader_rejects_unknown_tags_and_wrong_sum_lengths() {
     ));
 
     let wrong_length = decode_canonical::<DecodedNominalSourceShapeV1>(
-        &[0xa2, 0x00, 0x01, 0x01, 0xf6],
+        &[0xa1, 0x00, 0x07],
         DecodeLimits::default(),
     )
     .unwrap_err();
     assert!(matches!(
         wrong_length.kind(),
         WireErrorKind::InvalidLength {
-            expected: 1,
-            actual: 2,
+            expected: 2,
+            actual: 1,
         }
     ));
 }
@@ -335,8 +348,8 @@ fn identifier(value: &str) -> CanonicalIdentifier {
     CanonicalIdentifier::new(value).unwrap()
 }
 
-fn struct_field(field: PersistentFieldId, index: u32) -> StructSourceFieldV1 {
-    StructSourceFieldV1::new(field, SignatureTypeKey::Binder { depth: 0, index })
+fn struct_field(field: PersistentFieldId, index: u32) -> NominalSourceFieldV1 {
+    NominalSourceFieldV1::new(field, SignatureTypeKey::Binder { depth: 0, index })
 }
 
 fn enum_field(field: PersistentEnumVariantFieldId, index: u32) -> EnumSourceFieldV1 {
@@ -370,7 +383,7 @@ fn decode_shape<T: WireEncode>(value: &T) -> DecodedNominalSourceShapeV1 {
     decode_canonical(&encode(value).unwrap(), DecodeLimits::default()).unwrap()
 }
 
-struct InvalidStructShape(Vec<StructSourceFieldV1>);
+struct InvalidStructShape(Vec<NominalSourceFieldV1>);
 
 impl WireEncode for InvalidStructShape {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {

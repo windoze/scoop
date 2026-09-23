@@ -116,13 +116,19 @@ impl<'a> NominalProjection<'a> {
             &header.binders,
         )?;
         let owner = header.declaration;
+        let source_shape = source_shape::class_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            declaration,
+            &header.binders,
+            owner,
+        )?;
         self.finish_record(
             LocalNominalId::Class(id),
             header,
             exact_supertypes,
             constructors::from_class(self, id, declaration, owner)?,
             members::ordinary(self, owner, &declaration.methods, &declaration.properties)?,
-            source_shape::class_shape(declaration),
+            source_shape,
         )
     }
 

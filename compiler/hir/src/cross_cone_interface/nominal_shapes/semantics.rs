@@ -8,19 +8,32 @@ use scoop_identity::{
 };
 
 use super::{
-    EnumSourceFieldV1, EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceShapeV1,
-    StructSourceFieldV1,
+    EnumSourceFieldV1, EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceFieldV1,
+    NominalSourceShapeV1,
 };
 use crate::{
     CanonicalBinderListV1, NominalInterfaceShapeAuthority, PublicNominalKindV1,
     SignatureBinderScopeV1, SignatureTypeSemanticError, SourceNominalId,
 };
 
+mod fields;
+
 /// Supplies the canonical identity key for each trusted id referenced by a
 /// nominal source shape. Implementations must reject a missing id or a key
 /// that was not used to derive that exact id.
 pub trait NominalSourceShapeSemanticAuthority<E>: NominalInterfaceShapeAuthority<E> {
-    fn struct_field_key(
+    /// Structural type facts for backing storage; this does not authorize lookup.
+    fn storage_nominal_shape(
+        &mut self,
+        declaration: SourceNominalId,
+    ) -> Result<crate::PublicNominalShapeV1, E> {
+        match declaration {
+            SourceNominalId::Concrete(id) => self.concrete_nominal_shape(id),
+            SourceNominalId::GenericTemplate(id) => self.generic_nominal_shape(id),
+        }
+    }
+
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, E>;
@@ -61,19 +74,15 @@ impl NominalSourceShapeV1 {
         }
 
         let scope = type_parameters.signature_scope(None);
+        for (index, field) in self.declared_fields().iter().enumerate() {
+            validate_nominal_field(field, self.kind(), declaration, &scope, authority)
+                .map_err(|error| NominalSourceShapeSemanticError::NominalField { index, error })?;
+        }
         match self {
-            Self::Class | Self::Interface => Ok(()),
+            Self::Class(_) | Self::Struct(_) | Self::Interface => Ok(()),
             Self::Intrinsic(representation) => representation
                 .validate_binders(type_parameters)
                 .map_err(NominalSourceShapeSemanticError::IntrinsicBinders),
-            Self::Struct(shape) => {
-                for (index, field) in shape.fields().iter().enumerate() {
-                    validate_struct_field(field, declaration, &scope, authority).map_err(
-                        |error| NominalSourceShapeSemanticError::StructField { index, error },
-                    )?;
-                }
-                Ok(())
-            }
             Self::Enum(shape) => {
                 for (index, variant) in shape.variants().iter().enumerate() {
                     validate_enum_variant(variant, declaration, &scope, authority).map_err(
@@ -88,28 +97,22 @@ impl NominalSourceShapeV1 {
     }
 }
 
-fn validate_struct_field<A, E>(
-    field: &StructSourceFieldV1,
+fn validate_nominal_field<A, E>(
+    field: &NominalSourceFieldV1,
+    kind: PublicNominalKindV1,
     declaration: SourceNominalId,
     scope: &SignatureBinderScopeV1,
     authority: &mut A,
-) -> Result<(), StructSourceFieldSemanticError<E>>
+) -> Result<(), NominalSourceFieldSemanticError<E>>
 where
     A: NominalSourceShapeSemanticAuthority<E>,
 {
     let key = authority
-        .struct_field_key(field.field())
-        .map_err(StructSourceFieldSemanticError::Reference)?;
-    let actual = key.source_owner();
-    if actual != Some(declaration) {
-        return Err(StructSourceFieldSemanticError::Owner {
-            expected: declaration,
-            actual,
-        });
-    }
-    scope
-        .validate_signature_semantics(field.value_type(), authority)
-        .map_err(StructSourceFieldSemanticError::ValueType)
+        .nominal_field_key(field.field())
+        .map_err(NominalSourceFieldSemanticError::Reference)?;
+    fields::validate_owner(&key, kind, declaration)?;
+    fields::validate_type(field.value_type(), kind, scope, authority)
+        .map_err(NominalSourceFieldSemanticError::ValueType)
 }
 
 fn validate_enum_variant<A, E>(
@@ -226,8 +229,9 @@ impl EnumSourceFieldSelectorV1 {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum StructSourceFieldSemanticError<E> {
+pub enum NominalSourceFieldSemanticError<E> {
     Reference(E),
+    FieldRole,
     Owner {
         expected: SourceNominalId,
         actual: Option<SourceNominalId>,
@@ -283,9 +287,9 @@ pub enum NominalSourceShapeSemanticError<E> {
         expected: PublicNominalKindV1,
         actual: PublicNominalKindV1,
     },
-    StructField {
+    NominalField {
         index: usize,
-        error: StructSourceFieldSemanticError<E>,
+        error: NominalSourceFieldSemanticError<E>,
     },
     EnumVariant {
         index: usize,
@@ -294,10 +298,11 @@ pub enum NominalSourceShapeSemanticError<E> {
     ObjectValue(ObjectSourceShapeSemanticError<E>),
 }
 
-impl<E: fmt::Display> fmt::Display for StructSourceFieldSemanticError<E> {
+impl<E: fmt::Display> fmt::Display for NominalSourceFieldSemanticError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Reference(error) => write!(formatter, "invalid field identity: {error}"),
+            Self::FieldRole => formatter.write_str("field role does not match its nominal kind"),
             Self::Owner { expected, actual } => write!(
                 formatter,
                 "field owner {actual:?} does not match nominal {expected:?}"
@@ -307,7 +312,7 @@ impl<E: fmt::Display> fmt::Display for StructSourceFieldSemanticError<E> {
     }
 }
 
-impl<E: std::error::Error + 'static> std::error::Error for StructSourceFieldSemanticError<E> {}
+impl<E: std::error::Error + 'static> std::error::Error for NominalSourceFieldSemanticError<E> {}
 
 impl<E: fmt::Display> fmt::Display for EnumSourceFieldSemanticError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -374,8 +379,8 @@ impl<E: fmt::Display> fmt::Display for NominalSourceShapeSemanticError<E> {
                 formatter,
                 "source shape kind {actual:?} does not match nominal kind {expected:?}"
             ),
-            Self::StructField { index, error } => {
-                write!(formatter, "invalid struct field {index}: {error}")
+            Self::NominalField { index, error } => {
+                write!(formatter, "invalid nominal field {index}: {error}")
             }
             Self::EnumVariant { index, error } => {
                 write!(formatter, "invalid enum variant {index}: {error}")

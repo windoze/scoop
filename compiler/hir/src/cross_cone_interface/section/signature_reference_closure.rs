@@ -75,24 +75,22 @@ impl CrossConeHirInterfaceSectionV1 {
                 )?;
             }
 
+            for (field_index, field) in record.source_shape().declared_fields().iter().enumerate() {
+                validator.visit_signature(
+                    field.value_type(),
+                    ExternalHirSignatureUseSiteV1::NominalField {
+                        record_index,
+                        field_index,
+                    },
+                    &record_path
+                        .clone()
+                        .field(8)
+                        .field(record.source_shape().declared_fields_wire_field())
+                        .index(field_index as u64)
+                        .field(2),
+                )?;
+            }
             match record.source_shape() {
-                NominalSourceShapeV1::Struct(shape) => {
-                    for (field_index, field) in shape.fields().iter().enumerate() {
-                        validator.visit_signature(
-                            field.value_type(),
-                            ExternalHirSignatureUseSiteV1::NominalStructField {
-                                record_index,
-                                field_index,
-                            },
-                            &record_path
-                                .clone()
-                                .field(8)
-                                .field(1)
-                                .index(field_index as u64)
-                                .field(2),
-                        )?;
-                    }
-                }
                 NominalSourceShapeV1::Enum(shape) => {
                     for (variant_index, variant) in shape.variants().iter().enumerate() {
                         for (field_index, field) in variant.fields().iter().enumerate() {
@@ -115,7 +113,8 @@ impl CrossConeHirInterfaceSectionV1 {
                         }
                     }
                 }
-                NominalSourceShapeV1::Class
+                NominalSourceShapeV1::Struct(_)
+                | NominalSourceShapeV1::Class(_)
                 | NominalSourceShapeV1::Interface
                 | NominalSourceShapeV1::Object(_)
                 | NominalSourceShapeV1::Intrinsic(_) => continue,
@@ -434,7 +433,7 @@ pub enum ExternalHirSignatureUseSiteV1 {
         record_index: usize,
         signature_index: usize,
     },
-    NominalStructField {
+    NominalField {
         record_index: usize,
         field_index: usize,
     },

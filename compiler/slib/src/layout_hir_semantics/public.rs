@@ -140,6 +140,10 @@ where
     dependencies.sort_unstable_by_key(|dependency| dependency.provider);
     let direct = direct_dependencies(provider, position, dependency_positions, checked)?;
     let (identities, foundation, core, interface, _, meter) = artifact.hir_semantic_parts();
+    interface
+        .nominal_interfaces()
+        .validate_declared_field_inventory(foundation.as_canonical(), meter)
+        .map_err(|source| CrossConeLayoutHirSemanticClosureError::Fields { provider, source })?;
     crate::cross_cone_hir_authority::validate_intrinsic_declarations(
         interface,
         identities,

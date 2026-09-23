@@ -86,7 +86,7 @@ fn nominal_binding_rejects_omitted_fields_variants_and_variant_fields() {
         );
         assert!(matches!(
             foundation.bind_nominal_sources(&replace(&table, record), &mut meter()),
-            Err(Error::Inventory("struct fields"))
+            Err(Error::Inventory("nominal fields"))
         ));
         let choice = named(&fixture, &table, "Choice");
         let Shape::Enum(shape) = choice.source_shape() else {

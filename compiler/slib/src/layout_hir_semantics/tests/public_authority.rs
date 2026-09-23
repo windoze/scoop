@@ -83,7 +83,7 @@ impl NominalInterfaceShapeAuthority<TestAuthorityError> for EmptyPublicAuthority
 }
 
 impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for EmptyPublicAuthority {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         _field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {

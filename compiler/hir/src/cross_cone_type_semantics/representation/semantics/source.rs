@@ -70,11 +70,11 @@ pub(super) fn validate(
     )? {
         return Err(Mismatch::Shape.into());
     }
-    if let NominalRepresentationPublicValueShapeV1::PublicValueShape(public) =
-        expected.public_value_shape
-        && !record.public_value_shape_matches(public, meter, &path.clone().field(3))?
+    if let NominalRepresentationPublicSourceShapeV1::PublicSourceShape(public) =
+        expected.public_source_shape
+        && !record.public_source_shape_matches(public, meter, &path.clone().field(3))?
     {
-        return Err(Mismatch::PublicValueShape.into());
+        return Err(Mismatch::PublicSourceShape.into());
     }
     Ok(())
 }

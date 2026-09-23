@@ -1,5 +1,7 @@
 # M23-6 设计：跨 Cone layout、typed ABI 与 ZST
 
+2026-09-23 共有声明字段约定：`hir/cross-cone-interface/4` 将 class source shape 改为 `{ 0: 7, 1: declared_fields }`，object source shape 改为 `{ 0: 8, 1: value, 2: declared_fields }`；旧 class tag 1、object tag 5 退役，其余 shape tag 保持。字段使用共有的 typed field id 与完整 signature type，保留声明顺序、私有 backing/delegate 字段和泛型 binder 引用，不含基类字段前缀。object 字段必须属于从实际 object id 派生的 backing class。public、nested support、普通声明合同、representation join 与外来 signature 引用闭包使用相同字段信息；必要的私有声明引用只作支持数据，不加入 public lookup。旧 section major、旧 shape tag 和 optional 旧版本混入均拒绝，profile 与 HIR fingerprint 同步变化并要求重建 artifact/cache。该完整源码信息用于共有语义与机器依赖判定，本身不授予 layout、ODR 或 native 执行能力。
+
 直接 `scoopc build` 在同一依赖快照上先检查显式 direct/support 的共有 summary，再决定是否补入默认 core artifact；实际 target、累计资源预算、输出隔离与 Compile/Link 闭包共用既有校验。显式提供 core 时不访问默认 sysroot，错误或重复显式输入不触发回退；single-file 的依赖输入限制保持。该发现顺序不改变 compiler protocol 或机器接口能力。
 
 隐式 Array application 的前端入口与显式泛型应用遵守同一 M23-7 能力边界：普通依赖模式下的 `vararg` 参数及数组字面量在缺少本地数组声明表示时，分别于关键字与完整字面量报告 `SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED`，不进入要求本地 intrinsic arena 的构造路径。定义侧完整数组声明继续使用既有解析与物化规则，不为 core 增加授权豁免；具体职责见实现规范 2.2。
@@ -168,9 +170,9 @@ ordinary callable 的 canonical ABI 校验对 core 与普通 provider 无差别�
 
 native-boundary reader 在同一 validated identity graph 中解析本地与外来声明，统一重建 owner、kind、参数个数、binder 及成员关系；不保留 external-core 的零字段/Reference 特许恢复分支。完整性查询共享当前和依赖图的 canonical field、variant 与 variant-field records，依赖 key 以共享引用读取，不加入本地定义 inventory。缺少 canonical 声明或遗漏实际成员必须失败，闭包查询使用调用方预算。generic 声明的结构解析不授予 generic application 执行或 ODR 物化能力；profile 的既有 gate 继续检查。producer 的外来类型输入按下述共有 world 规则闭合；后端 typed 表示与通用 layout/ABI 查询的连接仍须按清理设计完成。
 
-共有 struct source shape 在 `cross-cone-interface/3` 中精确为 `{ 0: 3, 1: source-order fields, 2: NominalCLayoutPolicyV1 }`；policy 使用 type-semantics 的既有闭合编码，由实际 HIR `@CLayout` 属性投影。公开 source shape、nominal source contract 与 nested source support 共享该结构，representation join 必须同时比较字段与 policy。intrinsic source shape 使用新增 tag 6 明确保存完整 family，并与 representation 比对，不能使用普通 struct/class shape 代替。旧 `/1`、`/2` section 及旧两字段 struct shape 直接拒绝并重建产物，profile fingerprint、inventory 和 HIR fingerprint 随之更新，不回改 native-boundary witness 或 C ABI。本次扩展只补齐声明事实，不以 source shape 授予 layout、scan 或物化能力。
+共有 struct source shape 在 `cross-cone-interface/4` 中精确为 `{ 0: 3, 1: source-order fields, 2: NominalCLayoutPolicyV1 }`；policy 使用 type-semantics 的既有闭合编码，由实际 HIR `@CLayout` 属性投影。公开 source shape、nominal source contract 与 nested source support 共享该结构，representation join 必须同时比较字段与 policy。intrinsic source shape 使用新增 tag 6 明确保存完整 family，并与 representation 比对，不能使用普通 struct/class shape 代替。旧 `/1`、`/2`、`/3` section 及旧两字段 struct shape 直接拒绝并重建产物，profile fingerprint、inventory 和 HIR fingerprint 随之更新，不回改 native-boundary witness 或 C ABI。本次扩展只补齐声明事实，不以 source shape 授予 layout、scan 或物化能力。
 
-native-boundary producer 直接借用共有 dependency world，不再接收 `CurrentArtifactOnly/TrustedCore` sum 或 `ImportedCoreNativeBoundaryTypes`。外来 owner 必须解析到实际 provider 的 canonical source key；共有 v3 source shape 提供 intrinsic family、完整 struct CLayout/字段或 enum variant/字段，成员 key 来自同一 provider。非公开但已有 native witness 的声明可沿已持有 typed 引用继续闭合，Reference 由真实声明 kind 决定；共有 source shape 与已有 native witness 同时存在时逐项一致。缺失或不一致立即失败，不按 CORE、名称或空字段补默认记录。本地和外来 shape 都进入同一 signature-type 传递遍历，支持跨 direct/support provider 的字段/variant 闭包并按实际 owner 规范化；不把该最小 witness 作为一般 layout、lookup 或物化能力。
+native-boundary producer 直接借用共有 dependency world，不再接收 `CurrentArtifactOnly/TrustedCore` sum 或 `ImportedCoreNativeBoundaryTypes`。外来 owner 必须解析到实际 provider 的 canonical source key；共有 v4 source shape 提供 intrinsic family、完整 struct CLayout/字段或 enum variant/字段，成员 key 来自同一 provider。非公开但已有 native witness 的声明可沿已持有 typed 引用继续闭合，Reference 由真实声明 kind 决定；共有 source shape 与已有 native witness 同时存在时逐项一致。缺失或不一致立即失败，不按 CORE、名称或空字段补默认记录。本地和外来 shape 都进入同一 signature-type 传递遍历，支持跨 direct/support provider 的字段/variant 闭包并按实际 owner 规范化；不把该最小 witness 作为一般 layout、lookup 或物化能力。
 
 compiler protocol 的 constituent 仅验证实际声明与角色关系，不额外要求当前 export、声明 owner 或导入 foundation 的来源为 CORE。已有 identity/definition-origin 检查、完整 signature 与 binder、constructor/generated-adapter source、enum kind/member owner、effect 和固定角色完整性继续执行，普通 provider 的相同声明经同一路径验证；缺失或不一致不能以来源身份豁免。Unit 保留既有语言内建身份。producer/reader 删除重复来源资格，typed 引用编码与前端 intrinsic 使用边界不变；完整 operation 表按下一段退役，HIR 的 Core/NotCore 外层按本节 `/3` 修订迁移；其余协议投影及 String/初始化服务的 LIR/Link 外层继续共有化。
 
@@ -210,7 +212,7 @@ org.scoop-lang.slib-profile/cross-cone-layout-strong/1
 | `org.scoop-lang.lir/cross-cone-layout-link-closure/2` | LIR | Link | Code + LinkValidationOnly |
 | `org.scoop-lang.lir/strong-production/6` | LIR | Compile、Link | Lir + Code + RuntimeImage |
 
-`cross-cone-type-semantics/1` 承载 type facts、完整表示与继承接口，复用 `cross-cone-interface/3` 的普通声明、参数和默认值 metadata。HIR type、MIR type bridge、LIR layout/ABI 三条 Compile section 的完整 canonical inner bytes 分别进入对应 layer contribution；Link-only section 仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly。strong-production/6 沿用强定义 section 自身的三个 sink。
+`cross-cone-type-semantics/1` 承载 type facts、完整表示与继承接口，复用 `cross-cone-interface/4` 的普通声明、参数和默认值 metadata。HIR type、MIR type bridge、LIR layout/ABI 三条 Compile section 的完整 canonical inner bytes 分别进入对应 layer contribution；Link-only section 仅以 semantic physical-import projection 进入 Code，member/range/patch 信息只作 LinkValidationOnly。strong-production/6 沿用强定义 section 自身的三个 sink。
 
 所有 source Cone、core、single-file 与 cache 产物最终使用新 profile、四条新增 section 及 strong-production/6；空集合显式编码。compiler compatibility 与 cache key 共用新 profile fingerprint，旧 completed dependency 必须重建，不做内存升级。section major 与 outer schema 是不同版本维度；本阶段仍使用 M23 outer schema 1 和既有 runtime ABI。
 

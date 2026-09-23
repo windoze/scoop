@@ -11,7 +11,7 @@ use scoop_identity::{
 use super::super::*;
 use crate::{
     CanonicalBinderListV1, CanonicalPersistentIdsV1, CanonicalPublicMemberRefsV1,
-    CanonicalSignatureTypesV1, PublicMemberRefV1, StructSourceFieldV1, StructSourceShapeV1,
+    CanonicalSignatureTypesV1, NominalSourceFieldV1, PublicMemberRefV1, StructSourceShapeV1,
     TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
@@ -105,7 +105,7 @@ impl Fixture {
             CanonicalPersistentIdsV1::try_new(vec![self.nested_binding.id()]).unwrap(),
             NominalSourceShapeV1::Struct(
                 StructSourceShapeV1::try_new(
-                    vec![StructSourceFieldV1::new(self.field.id(), binder(0))],
+                    vec![NominalSourceFieldV1::new(self.field.id(), binder(0))],
                     crate::NominalCLayoutPolicyV1::Ordinary,
                 )
                 .unwrap(),

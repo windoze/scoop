@@ -267,7 +267,7 @@ fn nominal_record(
         hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPersistentIdsV1::try_new(nested_bindings).unwrap(),
-        hir::NominalSourceShapeV1::Class,
+        hir::NominalSourceShapeV1::Class(Default::default()),
     )
     .unwrap()
 }
@@ -284,7 +284,7 @@ fn object_record(
         hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         hir::CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-        hir::NominalSourceShapeV1::Object(hir::ObjectSourceShapeV1::new(value)),
+        hir::NominalSourceShapeV1::Object(hir::ObjectSourceShapeV1::new(value, Default::default())),
     )
     .unwrap()
 }

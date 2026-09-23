@@ -330,7 +330,25 @@ impl NominalInterfaceShapeAuthority<CrossConeHirNominalAuthorityError>
 impl NominalSourceShapeSemanticAuthority<CrossConeHirNominalAuthorityError>
     for CanonicalCrossConeHirSurfaceAuthority<'_>
 {
-    fn struct_field_key(
+    fn storage_nominal_shape(
+        &mut self,
+        declaration: SourceNominalId,
+    ) -> Result<PublicNominalShapeV1, CrossConeHirNominalAuthorityError> {
+        let key = self.source_nominal_key(declaration)?;
+        self.provider_interface(key.origin())?;
+        let kind = PublicNominalKindV1::try_from(key.declaration_kind()).map_err(|_| {
+            CrossConeHirNominalAuthorityError::InvalidNominalDeclarationKind {
+                declaration,
+                actual: key.declaration_kind(),
+            }
+        })?;
+        Ok(PublicNominalShapeV1::new(
+            kind,
+            key.duplicate_signature().type_parameter_count(),
+        ))
+    }
+
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, CrossConeHirNominalAuthorityError> {

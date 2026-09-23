@@ -19,7 +19,7 @@ impl BoundNominalSourceContractsV1<'_, '_> {
             return Err(Error::FieldOwner { owner, field });
         };
         meter.charge_work(u64::from(self.fields.len().max(1).ilog2()) + 1, path)?;
-        if self.struct_field_key(field)?.source_owner() != Some(owner) {
+        if self.nominal_field_key(field)?.source_owner() != Some(owner) {
             return Err(Error::FieldOwner { owner, field });
         }
         meter.check_table_entries(shape.fields().len() as u64, path)?;

@@ -3,9 +3,12 @@ use scoop_identity::NominalDeclarationOwner;
 use super::{NominalInterfaceBuildError, NominalSourceProjectionError};
 use crate::{
     CanonicalSignatureTypesV1, EnumSourceFieldV1, EnumSourceShapeV1, EnumSourceVariantStyleV1,
-    EnumSourceVariantV1, HirSignatureBinder, NominalSourceShapeV1, ObjectSourceShapeV1,
-    StructSourceFieldV1, StructSourceShapeV1,
+    EnumSourceVariantV1, HirSignatureBinder, NominalSourceFieldV1, NominalSourceShapeV1,
+    StructSourceShapeV1,
 };
+
+mod reference;
+pub(super) use reference::{class_shape, object_shape};
 
 /// Shared source-only projection; it has no public lookup inventory.
 pub(super) struct SourceShapeProjection<'a> {
@@ -18,15 +21,6 @@ impl<'a> SourceShapeProjection<'a> {
             export,
             signatures: super::HirInterfaceSignatureProjector::new(export),
         }
-    }
-}
-
-pub(super) fn class_shape(declaration: &crate::ClassDecl) -> NominalSourceShapeV1 {
-    match &declaration.representation {
-        crate::ClassRepresentation::Declared => NominalSourceShapeV1::Class,
-        crate::ClassRepresentation::Intrinsic(intrinsic) => NominalSourceShapeV1::Intrinsic(
-            crate::NominalIntrinsicRepresentationV1::new(intrinsic.kind),
-        ),
     }
 }
 
@@ -161,7 +155,7 @@ pub(super) fn struct_shape(
                 declaration: owner,
                 source,
             })?;
-        fields.push(StructSourceFieldV1::new(identity.id(), value_type));
+        fields.push(NominalSourceFieldV1::new(identity.id(), value_type));
     }
     StructSourceShapeV1::try_new(
         fields,
@@ -265,38 +259,6 @@ pub(super) fn enum_shape(
     EnumSourceShapeV1::try_new(variants)
         .map(NominalSourceShapeV1::Enum)
         .map_err(|detail| source_error(owner, NominalSourceProjectionError::Shape(detail)))
-}
-
-pub(super) fn object_shape(
-    projection: &SourceShapeProjection<'_>,
-    id: crate::ObjectId,
-    declaration: &crate::ObjectDecl,
-    owner: NominalDeclarationOwner,
-) -> Result<NominalSourceShapeV1, NominalInterfaceBuildError> {
-    let value = projection
-        .export
-        .object_value_identities
-        .get(declaration.singleton_value)
-        .ok_or_else(|| {
-            source_error(
-                owner,
-                NominalSourceProjectionError::MissingObjectValueIdentity(super::raw_index(
-                    declaration.singleton_value,
-                )),
-            )
-        })?;
-    if value.declaration() != id {
-        return Err(source_error(
-            owner,
-            NominalSourceProjectionError::ObjectValueOwner {
-                expected: super::raw_index(id),
-                actual: super::raw_index(value.declaration()),
-            },
-        ));
-    }
-    Ok(NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
-        value.id(),
-    )))
 }
 
 fn source_error(

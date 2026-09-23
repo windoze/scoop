@@ -83,7 +83,7 @@ impl NominalRepresentationSemanticAuthority<&'static str> for Fixture {
                 .get(&owner)
                 .ok_or("unknown source representation")?
                 .shape(),
-            public_value_shape: NominalRepresentationPublicValueShapeV1::NoPublicValueShape,
+            public_source_shape: NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape,
         })
     }
 }

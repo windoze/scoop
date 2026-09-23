@@ -162,9 +162,9 @@ fn reader_reports_the_constituent_that_lacks_typed_authority() {
     assert!(matches!(
         decode_record(&fixture.record()).resolve(&mut without_field),
         Err(NominalInterfaceRecordResolutionError::SourceShape(
-            NominalSourceShapeResolutionError::StructField {
+            NominalSourceShapeResolutionError::NominalField {
                 index: 0,
-                error: crate::StructSourceFieldResolutionError::Field(
+                error: crate::NominalSourceFieldResolutionError::Field(
                     IdentityReferenceError::Missing { .. }
                 ),
             }

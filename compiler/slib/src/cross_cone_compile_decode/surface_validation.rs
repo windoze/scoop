@@ -237,6 +237,13 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             lir_strong_production,
             lir_cross_cone_bridge,
         } = self.0;
+        hir_interface
+            .nominal_interfaces()
+            .validate_declared_field_inventory(
+                foundations.hir.as_canonical(),
+                graph.envelope.meter_mut(),
+            )
+            .map_err(CrossConeHirNominalSurfaceError::Fields)?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             graph.identity(),
             &identities,

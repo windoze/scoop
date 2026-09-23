@@ -41,7 +41,7 @@ pub(super) fn fixture() -> Fixture {
         )])
         .unwrap(),
         CanonicalNestedNominalRefsV1::try_new(vec![child_id]).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
         CanonicalNestedSourceSupportV1::try_new(support).unwrap(),
     )
     .unwrap();
@@ -126,6 +126,7 @@ fn child(
         CanonicalNestedNominalRefsV1::try_new(vec![]).unwrap(),
         NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
             PersistentObjectValueId::from_source_object(&key).unwrap(),
+            Default::default(),
         )),
         CanonicalNestedSourceSupportV1::try_new(vec![record]).unwrap(),
     )

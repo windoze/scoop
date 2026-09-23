@@ -38,7 +38,7 @@ fn nominal_binding_replays_source_kind_arity_bounds_and_supertype_rules() {
             marker.constructors().clone(),
             marker.members().clone(),
             marker.children().clone(),
-            hir::NominalSourceShapeV1::Class,
+            hir::NominalSourceShapeV1::Class(Default::default()),
         )
         .unwrap();
         let extra_binder = hir::TypeParameterBinderV1::new(
@@ -117,7 +117,7 @@ fn nominal_binding_limits_signature_depth_before_recursive_shape_replay() {
         for _ in 0..32 {
             nested = SignatureTypeKey::RawPointer(Box::new(nested));
         }
-        fields[0] = hir::StructSourceFieldV1::new(fields[0].field(), nested);
+        fields[0] = hir::NominalSourceFieldV1::new(fields[0].field(), nested);
         let source = rebuild(
             pair,
             pair.constructors().clone(),

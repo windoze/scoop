@@ -26,6 +26,7 @@ mod source_default_references;
 mod source_default_table;
 mod source_default_templates;
 mod source_dispatch;
+mod source_fields;
 mod source_foundation;
 mod source_inventory;
 mod source_mir_types;

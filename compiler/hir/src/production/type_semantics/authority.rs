@@ -38,7 +38,7 @@ pub(super) struct TypeSemanticsSourceEvidenceV1 {
 #[derive(Clone, Debug)]
 pub(super) struct TypeSemanticsRepresentationEvidenceV1 {
     pub shape: NominalRepresentationShapeV1,
-    pub public_value_shape: Option<NominalSourceShapeV1>,
+    pub public_source_shape: Option<NominalSourceShapeV1>,
     pub object_record: Option<NominalRepresentationSupportV1>,
 }
 
@@ -259,15 +259,15 @@ impl NominalRepresentationSemanticAuthority<CrossConeTypeSemanticsFoundationErro
                 owner,
             )),
         )?;
-        let public_value_shape = match representation.public_value_shape.as_ref() {
-            Some(shape) => NominalRepresentationPublicValueShapeV1::PublicValueShape(shape),
-            None => NominalRepresentationPublicValueShapeV1::NoPublicValueShape,
+        let public_source_shape = match representation.public_source_shape.as_ref() {
+            Some(shape) => NominalRepresentationPublicSourceShapeV1::PublicSourceShape(shape),
+            None => NominalRepresentationPublicSourceShapeV1::NoPublicSourceShape,
         };
         Ok(NominalRepresentationSourceV1 {
             key: &source.key,
             access: &source.access,
             shape: &representation.shape,
-            public_value_shape,
+            public_source_shape,
         })
     }
 }

@@ -78,14 +78,9 @@ pub(super) fn representation_evidence(
             .get(&source_id)
             .ok_or(Error::MissingLocalSupport(nominal.exact))?;
         let shape = representation::shape(export, local, nominal)?;
-        let public_value_shape = match nominal.local {
-            NominalLocalId::Struct(_) | NominalLocalId::Enum(_) => public
-                .get(source_id)
-                .map(|interface| interface.source_shape().clone()),
-            NominalLocalId::Class(_) | NominalLocalId::Interface(_) | NominalLocalId::Object(_) => {
-                None
-            }
-        };
+        let public_source_shape = public
+            .get(source_id)
+            .map(|interface| interface.source_shape().clone());
         let object_record = matches!(nominal.local, NominalLocalId::Object(_))
             .then(|| {
                 NominalRepresentationSupportV1::try_new(
@@ -103,7 +98,7 @@ pub(super) fn representation_evidence(
             nominal.owner,
             TypeSemanticsRepresentationEvidenceV1 {
                 shape,
-                public_value_shape,
+                public_source_shape,
                 object_record,
             },
         );

@@ -117,7 +117,7 @@ impl NominalInterfaceShapeAuthority<Infallible> for EmptyAuthority {
 }
 
 impl NominalSourceShapeSemanticAuthority<Infallible> for EmptyAuthority {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         _field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, Infallible> {

@@ -11,7 +11,7 @@ impl DecodedNominalSourceShapeV1 {
         let path = WirePath::root();
         meter.charge_nodes(1, &path).map_err(Error::Resource)?;
         match &self {
-            Self::Struct { fields, .. } => {
+            Self::Class(fields) | Self::Struct { fields, .. } | Self::Object { fields, .. } => {
                 meter
                     .charge_collection_slots((fields.len() as u64).saturating_mul(2), &path)
                     .map_err(Error::Resource)?;
@@ -42,7 +42,7 @@ impl DecodedNominalSourceShapeV1 {
                     }
                 }
             }
-            Self::Class | Self::Interface | Self::Object(_) | Self::Intrinsic(_) => {
+            Self::Interface | Self::Intrinsic(_) => {
                 return self.resolve(resolver).map_err(Error::Value);
             }
         }

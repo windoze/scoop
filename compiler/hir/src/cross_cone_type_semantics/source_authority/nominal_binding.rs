@@ -93,7 +93,7 @@ impl<'a, 'f> BoundNominalSourceContractsV1<'a, 'f> {
         self.table.get(owner).ok_or(Error::MissingSource(owner))
     }
 
-    pub fn struct_field_key(
+    pub fn nominal_field_key(
         &self,
         field: PersistentFieldId,
     ) -> Result<&'f FieldIdentityKey, Error> {

@@ -13,9 +13,9 @@ use scoop_identity::{
 use super::super::*;
 use crate::{
     CanonicalBinderListV1, CanonicalPersistentIdsV1, CanonicalPublicMemberRefsV1,
-    CanonicalSignatureTypesV1, NominalInterfaceShapeAuthority, NominalSourceShapeSemanticAuthority,
-    NominalSourceShapeV1, PublicMemberRefV1, PublicNominalShapeV1, StructSourceFieldV1,
-    StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
+    CanonicalSignatureTypesV1, NominalInterfaceShapeAuthority, NominalSourceFieldV1,
+    NominalSourceShapeSemanticAuthority, NominalSourceShapeV1, PublicMemberRefV1,
+    PublicNominalShapeV1, StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
 pub(super) struct Fixture {
@@ -31,7 +31,7 @@ pub(super) struct Fixture {
     pub(super) member: PublicMemberRefV1,
     pub(super) nested_binding: PersistentExportBindingId,
     struct_field: PersistentFieldId,
-    foreign_struct_field_key: FieldIdentityKey,
+    foreign_nominal_field_key: FieldIdentityKey,
     shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
 }
 
@@ -80,9 +80,9 @@ impl Fixture {
         );
         let nested_binding = PersistentExportBindingId::from_key(&nested_binding_key).unwrap();
 
-        let foreign_struct_field_key =
+        let foreign_nominal_field_key =
             FieldIdentityKey::source_declared(&foreign_struct, identifier("value")).unwrap();
-        let struct_field = PersistentFieldId::from_key(&foreign_struct_field_key).unwrap();
+        let struct_field = PersistentFieldId::from_key(&foreign_nominal_field_key).unwrap();
 
         Self {
             owner,
@@ -97,7 +97,7 @@ impl Fixture {
             member,
             nested_binding,
             struct_field,
-            foreign_struct_field_key,
+            foreign_nominal_field_key,
             shapes: BTreeMap::from([
                 (
                     SourceNominalId::Concrete(base_class),
@@ -127,7 +127,7 @@ impl Fixture {
                 SignatureTypeKey::Nominal(self.base_class),
                 generic_application(self.generic_interface, binder(0)),
             ]),
-            NominalSourceShapeV1::Class,
+            NominalSourceShapeV1::Class(Default::default()),
         )
     }
 
@@ -165,7 +165,7 @@ impl Fixture {
             CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
             NominalSourceShapeV1::Struct(
                 StructSourceShapeV1::try_new(
-                    vec![StructSourceFieldV1::new(
+                    vec![NominalSourceFieldV1::new(
                         self.struct_field,
                         SignatureTypeKey::Nominal(self.base_class),
                     )],
@@ -190,7 +190,7 @@ impl Fixture {
             member: self.member,
             nested_binding_owner: PublicDeclarationOwnerV1::Nominal(self.owner),
             nested_binding: self.nested_binding,
-            fields: BTreeMap::from([(self.struct_field, self.foreign_struct_field_key.clone())]),
+            fields: BTreeMap::from([(self.struct_field, self.foreign_nominal_field_key.clone())]),
         }
     }
 }
@@ -252,7 +252,7 @@ impl NominalInterfaceShapeAuthority<TestAuthorityError> for TestAuthority {
 }
 
 impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for TestAuthority {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<Cow<'_, FieldIdentityKey>, TestAuthorityError> {
@@ -380,7 +380,7 @@ pub(super) fn generic_object_record() -> (
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
-        NominalSourceShapeV1::Object(crate::ObjectSourceShapeV1::new(value)),
+        NominalSourceShapeV1::Object(crate::ObjectSourceShapeV1::new(value, Default::default())),
     )
     .unwrap();
     (record, declaration, key)

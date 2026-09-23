@@ -6,6 +6,10 @@ use scoop_identity::ConeIdentity;
 /// Complete old-public/new-type HIR closure validation failure.
 #[derive(Debug)]
 pub enum CrossConeLayoutHirSemanticClosureError<E> {
+    Fields {
+        provider: ConeIdentity,
+        source: scoop_hir::NominalSourceFieldInventoryError,
+    },
     AuthorityCount {
         expected: usize,
         actual: usize,
@@ -43,6 +47,9 @@ pub enum CrossConeLayoutHirSemanticClosureError<E> {
 impl<E: fmt::Display> fmt::Display for CrossConeLayoutHirSemanticClosureError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Fields { provider, source } => {
+                write!(formatter, "invalid nominal fields for {provider}: {source}")
+            }
             Self::AuthorityCount { expected, actual } => write!(
                 formatter,
                 "layout HIR semantic authority count is {actual}, expected {expected}"
@@ -95,6 +102,7 @@ impl<E: std::error::Error + 'static> std::error::Error
 {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Fields { source, .. } => Some(source),
             Self::PublicAuthority { source, .. } => Some(source),
             Self::Public { source, .. } => Some(source.as_ref()),
             Self::Types { source, .. } => Some(source.as_ref()),

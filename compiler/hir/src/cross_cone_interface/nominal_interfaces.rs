@@ -16,10 +16,12 @@ use super::{
 use crate::BinderListValidationError;
 
 mod errors;
+mod field_inventory;
 mod semantics;
 mod table;
 
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
+pub use field_inventory::NominalSourceFieldInventoryError;
 pub use semantics::{
     ExactSupertypeSemanticError, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError,

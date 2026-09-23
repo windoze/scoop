@@ -18,12 +18,9 @@ pub(super) fn bind(
     let mut variants = BTreeMap::<SourceNominalId, BTreeSet<_>>::new();
     let mut variant_fields = BTreeMap::<PersistentEnumVariantId, BTreeSet<_>>::new();
     for record in own.type_source_field_records() {
-        let Some(owner) = record.key().source_owner() else {
+        let Some(owner) = field_owner(bound, record.key(), meter)? else {
             continue;
         };
-        if !required(bound, owner, PublicNominalKindV1::Struct, meter)? {
-            continue;
-        }
         insert_resources(fields.len(), record.key(), meter)?;
         binding_keys::verify(
             record.id(),
@@ -99,23 +96,17 @@ pub(super) fn bind(
         bound.objects.insert(record.id(), record.key());
     }
     for record in bound.table.records() {
+        exact_set(
+            fields.get(&record.owner()),
+            record
+                .source_shape()
+                .declared_fields()
+                .iter()
+                .map(NominalSourceFieldV1::field),
+            meter,
+            "nominal fields",
+        )?;
         match record.source_shape() {
-            NominalSourceShapeV1::Intrinsic(_) => {
-                exact_set(
-                    fields.get(&record.owner()),
-                    std::iter::empty(),
-                    meter,
-                    "intrinsic source fields",
-                )?;
-            }
-            NominalSourceShapeV1::Struct(shape) => {
-                exact_set(
-                    fields.get(&record.owner()),
-                    shape.fields().iter().map(StructSourceFieldV1::field),
-                    meter,
-                    "struct fields",
-                )?;
-            }
             NominalSourceShapeV1::Enum(shape) => {
                 exact_set(
                     variants.get(&record.owner()),
@@ -145,7 +136,10 @@ pub(super) fn bind(
             NominalSourceShapeV1::Object(shape) => {
                 bound.object_value_key(shape.value())?;
             }
-            NominalSourceShapeV1::Class | NominalSourceShapeV1::Interface => {}
+            NominalSourceShapeV1::Class(_)
+            | NominalSourceShapeV1::Struct(_)
+            | NominalSourceShapeV1::Intrinsic(_)
+            | NominalSourceShapeV1::Interface => {}
         }
     }
     Ok(())
@@ -238,4 +232,38 @@ fn variant_origin(
     let source = ExportDefinitionSourceV1::new(origin.clone());
     foundation.validate_origin(&source, meter, &path)?;
     Ok(source)
+}
+
+fn field_owner(
+    bound: &BoundNominalSourceContractsV1<'_, '_>,
+    key: &FieldIdentityKey,
+    meter: &mut BudgetMeter,
+) -> Result<Option<SourceNominalId>, Error> {
+    use scoop_identity::{FieldIdentityView, GeneratedNominalKey};
+    let owner = match key.view() {
+        FieldIdentityView::SourceDeclared { owner, .. }
+        | FieldIdentityView::SourcePropertyBacking { owner, .. }
+        | FieldIdentityView::SourcePropertyDelegate { owner, .. } => owner,
+        FieldIdentityView::Generated { owner, key } if key.object_backing_property().is_some() => {
+            queries(
+                bound
+                    .foundation
+                    .source()
+                    .entries()
+                    .generated_nominals
+                    .values()
+                    .len(),
+                meter,
+            )?;
+            let GeneratedNominalKey::ObjectBackingClass { object } =
+                bound.foundation.generated_key(owner)?
+            else {
+                return Err(Error::Inventory("object backing field owner"));
+            };
+            SourceNominalId::Concrete(*object)
+        }
+        FieldIdentityView::Generated { .. } => return Ok(None),
+    };
+    queries(bound.table.records().len(), meter)?;
+    Ok(bound.table.get(owner).map(|_| owner))
 }

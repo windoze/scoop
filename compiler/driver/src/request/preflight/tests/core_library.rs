@@ -9,6 +9,7 @@ mod equality;
 mod intrinsics;
 mod member_calls;
 mod metadata;
+mod source_fields;
 
 const EXTENSION: &str =
     include_str!("../../../../../../tests/fixtures/core-library/extension.scoop");
@@ -50,6 +51,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     )
     .unwrap();
     let artifact = workspace.path().join("user-library.slib");
+    source_fields::write_source(&source);
     let first = build_core(&source, &artifact);
     direct_inputs::check(&target, workspace.path(), &artifact);
     let first_dependency = first.artifact().validation().dependency_record();
@@ -190,6 +192,7 @@ fn assert_core_views_share_the_dependency_closure(
         .share_artifact(scoop_identity::ConeIdentity::CORE)
         .unwrap();
     metadata::assert_ordinary_interfaces(member.compile().production());
+    source_fields::assert_source_fields(member.compile().production());
     let world = closure.semantic().imported_semantic_world().unwrap();
     let core = world
         .direct_provider(scoop_identity::ConeIdentity::CORE)

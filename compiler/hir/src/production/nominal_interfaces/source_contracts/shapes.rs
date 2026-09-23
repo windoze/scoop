@@ -17,9 +17,10 @@ pub(super) fn project(
                 binders.len(),
                 meter,
             )?;
+            charge_fields(export, d, binders.len(), meter)?;
             (
                 source_shape::class_supertypes(&projection, owner, d, binders),
-                Ok(source_shape::class_shape(d)),
+                source_shape::class_shape(&projection, d, binders, owner),
             )
         }
         LocalNominalId::Interface(id) => {
@@ -77,6 +78,7 @@ pub(super) fn project(
                 binders.len(),
                 meter,
             )?;
+            charge_fields(export, backing, binders.len(), meter)?;
             (
                 source_shape::object_supertypes(&projection, owner, backing, binders),
                 source_shape::object_shape(&projection, id, d, owner),
@@ -95,6 +97,19 @@ fn charge_types(
     charge_canonical(count, meter)?;
     for ty in types {
         resources::ty(export, ty, binders, 3, meter)?;
+    }
+    Ok(())
+}
+
+fn charge_fields(
+    export: &ExportHir,
+    class: &crate::ClassDecl,
+    binders: usize,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
+    charge_canonical(class.fields.len(), meter)?;
+    for field in &class.fields {
+        resources::ty(export, export.class_fields[*field].ty, binders, 3, meter)?;
     }
     Ok(())
 }

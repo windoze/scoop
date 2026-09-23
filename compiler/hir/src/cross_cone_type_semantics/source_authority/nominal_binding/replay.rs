@@ -52,11 +52,12 @@ pub(super) fn shape(key: &SourceDeclarationKey) -> Result<PublicNominalShapeV1, 
 }
 
 impl NominalSourceShapeSemanticAuthority<Error> for BoundNominalSourceContractsV1<'_, '_> {
-    fn struct_field_key(
+    fn nominal_field_key(
         &mut self,
         field: PersistentFieldId,
     ) -> Result<std::borrow::Cow<'_, FieldIdentityKey>, Error> {
-        BoundNominalSourceContractsV1::struct_field_key(self, field).map(std::borrow::Cow::Borrowed)
+        BoundNominalSourceContractsV1::nominal_field_key(self, field)
+            .map(std::borrow::Cow::Borrowed)
     }
     fn enum_variant_key(
         &mut self,

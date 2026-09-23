@@ -73,12 +73,10 @@ pub(super) fn validate(
             }
         }
     }
+    for field in source.source_shape().declared_fields() {
+        signature(&scope, field.value_type(), owner, bound, meter)?;
+    }
     match source.source_shape() {
-        NominalSourceShapeV1::Struct(shape) => {
-            for field in shape.fields() {
-                signature(&scope, field.value_type(), owner, bound, meter)?;
-            }
-        }
         NominalSourceShapeV1::Enum(shape) => {
             for variant in shape.variants() {
                 for field in variant.fields() {
@@ -87,7 +85,8 @@ pub(super) fn validate(
             }
         }
         NominalSourceShapeV1::Intrinsic(_) => meter.charge_work(1, &WirePath::root())?,
-        NominalSourceShapeV1::Class
+        NominalSourceShapeV1::Struct(_)
+        | NominalSourceShapeV1::Class(_)
         | NominalSourceShapeV1::Interface
         | NominalSourceShapeV1::Object(_) => {}
     }
@@ -95,8 +94,8 @@ pub(super) fn validate(
         .source_shape()
         .validate_semantics(owner, source.kind(), source.type_parameters(), bound)
         .map_err(|error| match error {
-            NominalSourceShapeSemanticError::StructField {
-                error: StructSourceFieldSemanticError::Reference(error),
+            NominalSourceShapeSemanticError::NominalField {
+                error: NominalSourceFieldSemanticError::Reference(error),
                 ..
             }
             | NominalSourceShapeSemanticError::EnumVariant {

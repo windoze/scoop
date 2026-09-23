@@ -25,9 +25,9 @@ impl std::error::Error for EnumSourceVariantBuildError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeBuildError {
-    TooManyStructFields,
+    TooManyNominalFields,
     EmptyCLayout,
-    DuplicateStructField(PersistentFieldId),
+    DuplicateNominalField(PersistentFieldId),
     TooManyEnumVariants,
     DuplicateEnumVariant(PersistentEnumVariantId),
 }
@@ -38,9 +38,9 @@ impl fmt::Display for NominalSourceShapeBuildError {
             Self::EmptyCLayout => {
                 formatter.write_str("CLayout struct must declare at least one field")
             }
-            Self::TooManyStructFields => formatter.write_str("struct field count exceeds u32"),
-            Self::DuplicateStructField(field) => {
-                write!(formatter, "duplicate struct field identity {field}")
+            Self::TooManyNominalFields => formatter.write_str("nominal field count exceeds u32"),
+            Self::DuplicateNominalField(field) => {
+                write!(formatter, "duplicate nominal field identity {field}")
             }
             Self::TooManyEnumVariants => formatter.write_str("enum variant count exceeds u32"),
             Self::DuplicateEnumVariant(variant) => {
@@ -53,21 +53,21 @@ impl fmt::Display for NominalSourceShapeBuildError {
 impl std::error::Error for NominalSourceShapeBuildError {}
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum StructSourceFieldResolutionError<E> {
+pub enum NominalSourceFieldResolutionError<E> {
     Field(E),
     ValueType(E),
 }
 
-impl<E: fmt::Display> fmt::Display for StructSourceFieldResolutionError<E> {
+impl<E: fmt::Display> fmt::Display for NominalSourceFieldResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Field(error) => write!(formatter, "invalid struct field identity: {error}"),
-            Self::ValueType(error) => write!(formatter, "invalid struct field type: {error}"),
+            Self::Field(error) => write!(formatter, "invalid nominal field identity: {error}"),
+            Self::ValueType(error) => write!(formatter, "invalid nominal field type: {error}"),
         }
     }
 }
 
-impl<E: std::error::Error + 'static> std::error::Error for StructSourceFieldResolutionError<E> {}
+impl<E: std::error::Error + 'static> std::error::Error for NominalSourceFieldResolutionError<E> {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum EnumSourceFieldResolutionError<E> {
@@ -121,13 +121,13 @@ impl<E: std::error::Error + 'static> std::error::Error for EnumSourceVariantReso
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum NominalSourceShapeResolutionError<E> {
-    TooManyStructFields,
+    TooManyNominalFields,
     EmptyCLayout,
-    StructField {
+    NominalField {
         index: usize,
-        error: StructSourceFieldResolutionError<E>,
+        error: NominalSourceFieldResolutionError<E>,
     },
-    DuplicateStructField {
+    DuplicateNominalField {
         index: usize,
         field: PersistentFieldId,
     },
@@ -149,12 +149,15 @@ impl<E: fmt::Display> fmt::Display for NominalSourceShapeResolutionError<E> {
             Self::EmptyCLayout => {
                 formatter.write_str("CLayout struct must declare at least one field")
             }
-            Self::TooManyStructFields => formatter.write_str("struct field count exceeds u32"),
-            Self::StructField { index, error } => {
-                write!(formatter, "invalid struct field {index}: {error}")
+            Self::TooManyNominalFields => formatter.write_str("nominal field count exceeds u32"),
+            Self::NominalField { index, error } => {
+                write!(formatter, "invalid nominal field {index}: {error}")
             }
-            Self::DuplicateStructField { index, field } => {
-                write!(formatter, "duplicate struct field {field} at index {index}")
+            Self::DuplicateNominalField { index, field } => {
+                write!(
+                    formatter,
+                    "duplicate nominal field {field} at index {index}"
+                )
             }
             Self::TooManyEnumVariants => formatter.write_str("enum variant count exceeds u32"),
             Self::EnumVariant { index, error } => {

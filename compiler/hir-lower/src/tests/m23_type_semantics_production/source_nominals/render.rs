@@ -36,7 +36,7 @@ pub(super) fn render(export: &hir::ExportHir, table: &Table) -> String {
         let shape = match record.source_shape() {
             hir::NominalSourceShapeV1::Struct(shape) => format!("fields={}", shape.fields().len()),
             hir::NominalSourceShapeV1::Enum(shape) => shape.variants().iter().map(|variant| format!("{:?}:{}", variant.style(), variant.fields().len())).collect::<Vec<_>>().join(", "),
-            hir::NominalSourceShapeV1::Class => "class".into(),
+            hir::NominalSourceShapeV1::Class(_) => "class".into(),
             hir::NominalSourceShapeV1::Interface => "interface".into(),
             hir::NominalSourceShapeV1::Object(_) => "singleton".into(),
             hir::NominalSourceShapeV1::Intrinsic(representation) => format!("intrinsic={:?}", representation.family()),

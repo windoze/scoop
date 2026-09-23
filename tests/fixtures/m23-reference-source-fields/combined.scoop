@@ -1,0 +1,18 @@
+public struct FieldEmpty()
+public struct FieldPayload(val empty: FieldEmpty, val number: Int)
+public enum FieldChoice {
+    Empty,
+    Value(FieldPayload)
+}
+public interface FieldView {
+    public fun read(): Int
+}
+public class FieldCombined : FieldView {
+    private val payload: FieldPayload = FieldPayload(FieldEmpty(), 2)
+    private val choice: FieldChoice = FieldChoice.Value(payload)
+    public override fun read(): Int = payload.number
+}
+public object FieldCombinedSingleton : FieldView {
+    private val stored: FieldPayload = FieldPayload(FieldEmpty(), 4)
+    public override fun read(): Int = stored.number
+}

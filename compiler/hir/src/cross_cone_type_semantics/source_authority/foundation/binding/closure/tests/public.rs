@@ -41,7 +41,7 @@ fn public_join_requires_source_root_and_equal_value_shape() {
     let field = PersistentFieldId::from_key(&key).unwrap();
     let changed = NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(
+            vec![NominalSourceFieldV1::new(
                 field,
                 SignatureTypeKey::Nominal(root.owner),
             )],
@@ -51,7 +51,7 @@ fn public_join_requires_source_root_and_equal_value_shape() {
     );
     assert!(
         matches!(super::super::provider::validate_public(&bound, &table(root.owner, changed), &mut meter()),
-        Err(TypeFoundationReplayError::PublicValueShape(owner)) if owner == root.owner)
+        Err(TypeFoundationReplayError::PublicSourceShape(owner)) if owner == root.owner)
     );
     assert!(matches!(
         super::super::provider::validate_public(

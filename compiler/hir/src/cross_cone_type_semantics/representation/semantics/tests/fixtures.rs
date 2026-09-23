@@ -12,7 +12,7 @@ pub(super) fn structure(
         StructSourceShapeV1::try_new(
             fields
                 .iter()
-                .map(|field| StructSourceFieldV1::new(field.field(), field.value_type().clone()))
+                .map(|field| NominalSourceFieldV1::new(field.field(), field.value_type().clone()))
                 .collect(),
             crate::NominalCLayoutPolicyV1::Ordinary,
         )

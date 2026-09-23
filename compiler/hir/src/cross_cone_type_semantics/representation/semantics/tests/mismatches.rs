@@ -173,7 +173,7 @@ fn shape_sequences_base_backing_and_intrinsic_family_must_match_real_source() {
 }
 
 #[test]
-fn independent_public_value_shape_is_required_to_agree_field_by_field() {
+fn independent_public_source_shape_is_required_to_agree_field_by_field() {
     let fixture = fixtures::mixed();
     let table = fixture.table();
     for owner in fixture.required.values() {
@@ -206,7 +206,7 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
         mismatch(
             &table,
             &changed,
-            NominalRepresentationSourceMismatchV1::PublicValueShape,
+            NominalRepresentationSourceMismatchV1::PublicSourceShape,
         );
     }
     let (mut changed, owner) = fixtures::structure(unit(), 1);
@@ -217,7 +217,7 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
     };
     source.public = Some(NominalSourceShapeV1::Struct(
         StructSourceShapeV1::try_new(
-            vec![StructSourceFieldV1::new(
+            vec![NominalSourceFieldV1::new(
                 public.fields()[0].field(),
                 SignatureTypeKey::RawPointer(Box::new(unit())),
             )],
@@ -228,7 +228,7 @@ fn independent_public_value_shape_is_required_to_agree_field_by_field() {
     mismatch(
         &table,
         &changed,
-        NominalRepresentationSourceMismatchV1::PublicValueShape,
+        NominalRepresentationSourceMismatchV1::PublicSourceShape,
     );
 }
 
@@ -255,6 +255,6 @@ fn independent_public_source_policy_must_agree_in_the_metered_reader() {
     mismatch(
         &table,
         &fixture,
-        NominalRepresentationSourceMismatchV1::PublicValueShape,
+        NominalRepresentationSourceMismatchV1::PublicSourceShape,
     );
 }

@@ -12,7 +12,7 @@ pub enum NominalRepresentationSourceMismatchV1 {
     AccessOwners,
     Access,
     Shape,
-    PublicValueShape,
+    PublicSourceShape,
 }
 impl fmt::Display for NominalRepresentationSourceMismatchV1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -27,7 +27,7 @@ impl fmt::Display for NominalRepresentationSourceMismatchV1 {
             }
             Self::Access => "representation access differs from the real source declaration",
             Self::Shape => "representation differs from the real source shape",
-            Self::PublicValueShape => "representation differs from its public value source shape",
+            Self::PublicSourceShape => "representation differs from its public value source shape",
         })
     }
 }

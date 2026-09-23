@@ -41,7 +41,7 @@ fn fixture() -> (Fixture, CanonicalNominalSourceContractsV1) {
         ])
         .unwrap(),
         CanonicalNestedNominalRefsV1::try_new(vec![child.source, sibling.source]).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     )
     .unwrap();
     let table = CanonicalNominalSourceContractsV1::try_new(vec![record], &mut meter()).unwrap();

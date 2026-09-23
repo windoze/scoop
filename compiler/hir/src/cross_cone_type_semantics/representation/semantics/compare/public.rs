@@ -11,6 +11,30 @@ pub(in super::super) fn public_value(
     meter.charge_work(1, path)?;
     match (actual, expected) {
         (
+            NominalRepresentationShapeV1::Class {
+                declared_fields, ..
+            },
+            NominalSourceShapeV1::Class(_),
+        )
+        | (
+            NominalRepresentationShapeV1::Object {
+                declared_fields, ..
+            },
+            NominalSourceShapeV1::Object(_),
+        ) => types::fields(
+            declared_fields
+                .iter()
+                .map(|field| (field.field(), field.value_type())),
+            expected
+                .declared_fields()
+                .iter()
+                .map(|field| (field.field(), field.value_type())),
+            4,
+            meter,
+            path,
+        ),
+        (NominalRepresentationShapeV1::Interface, NominalSourceShapeV1::Interface) => Ok(true),
+        (
             NominalRepresentationShapeV1::Intrinsic { representation },
             NominalSourceShapeV1::Intrinsic(source),
         ) => Ok(representation == source),

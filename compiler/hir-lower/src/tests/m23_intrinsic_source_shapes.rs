@@ -51,9 +51,17 @@ fn shared_public_and_source_contract_producers_preserve_every_intrinsic_family()
             )),
             hir::ClassRepresentation::Declared if declaration.name == "IntrinsicStringLike" => {
                 let owner = source_owner(&module.nominal_identities[id]);
+                let hir::NominalSourceShapeV1::Class(fields) =
+                    public.get(owner).unwrap().source_shape()
+                else {
+                    panic!(
+                        "ordinary classes preserve source storage instead of claiming an intrinsic family"
+                    );
+                };
+                assert_eq!(fields.fields().len(), declaration.fields.len());
                 assert_eq!(
-                    public.get(owner).unwrap().source_shape(),
-                    &hir::NominalSourceShapeV1::Class
+                    fields.fields()[0].field(),
+                    module.field_identities[declaration.fields[0]].id()
                 );
             }
             hir::ClassRepresentation::Declared => continue,

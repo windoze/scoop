@@ -299,17 +299,18 @@ pub use nominal_interfaces::{
     NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
+    NominalSourceFieldInventoryError,
 };
 pub use nominal_shapes::{
-    DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceShapeV1,
-    DecodedStructSourceFieldV1, EnumSourceFieldResolutionError, EnumSourceFieldSelectorV1,
+    DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceFieldV1,
+    DecodedNominalSourceShapeV1, EnumSourceFieldResolutionError, EnumSourceFieldSelectorV1,
     EnumSourceFieldSemanticError, EnumSourceFieldV1, EnumSourceShapeV1,
     EnumSourceVariantBuildError, EnumSourceVariantResolutionError, EnumSourceVariantSemanticError,
-    EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceShapeBuildError,
-    NominalSourceShapeResolutionError, NominalSourceShapeResolver,
+    EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceFieldResolutionError,
+    NominalSourceFieldSemanticError, NominalSourceFieldV1, NominalSourceFieldsV1,
+    NominalSourceShapeBuildError, NominalSourceShapeResolutionError, NominalSourceShapeResolver,
     NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError, NominalSourceShapeV1,
-    ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceFieldResolutionError,
-    StructSourceFieldSemanticError, StructSourceFieldV1, StructSourceShapeV1,
+    ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceShapeV1,
 };
 pub use property_interfaces::{
     CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,

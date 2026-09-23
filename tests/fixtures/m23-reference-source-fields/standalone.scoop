@@ -1,0 +1,21 @@
+public open class FieldBase {
+    private val inherited: Int = 7
+}
+
+public class FieldBox<T>(private val item: T) {
+    private var cache: T = item
+}
+
+public class FieldChild : FieldBase() {
+    private val text: String = "stored"
+    public val number: Int = 1
+}
+
+public object FieldSingleton {
+    private var state: Int = 3
+}
+
+private struct FieldHidden(val number: Int)
+public class FieldPrivateOwner {
+    private val hidden: FieldHidden = FieldHidden(5)
+}

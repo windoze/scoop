@@ -186,7 +186,10 @@ impl ProviderFixture {
             nominal_record_with_shape(
                 object_type.id(),
                 PublicNominalKindV1::Object,
-                NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(object_value.id())),
+                NominalSourceShapeV1::Object(ObjectSourceShapeV1::new(
+                    object_value.id(),
+                    Default::default(),
+                )),
             ),
             nominal_record_with_shape(
                 enum_type.id(),
@@ -327,7 +330,7 @@ fn nominal_record(
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         CanonicalPublicMemberRefsV1::try_new(Vec::new()).unwrap(),
         CanonicalPersistentIdsV1::try_new(nested_bindings).unwrap(),
-        NominalSourceShapeV1::Class,
+        NominalSourceShapeV1::Class(Default::default()),
     )
     .unwrap()
 }

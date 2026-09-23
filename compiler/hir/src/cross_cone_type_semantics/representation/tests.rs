@@ -4,7 +4,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 use crate::{
     EnumSourceFieldV1, EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1,
-    HirCLayoutContract, HirCLayoutValue, IntrinsicTypeKind, StructSourceFieldV1,
+    HirCLayoutContract, HirCLayoutValue, IntrinsicTypeKind, NominalSourceFieldV1,
     StructSourceShapeV1,
 };
 
@@ -47,7 +47,7 @@ fn struct_support_preserves_declaration_order_and_matches_public_shape() {
                 fields
                     .iter()
                     .map(|field| {
-                        StructSourceFieldV1::new(field.field(), field.value_type().clone())
+                        NominalSourceFieldV1::new(field.field(), field.value_type().clone())
                     })
                     .collect(),
                 crate::NominalCLayoutPolicyV1::Ordinary,
@@ -107,9 +107,16 @@ fn enum_support_keeps_variant_order_gc_and_typed_payload_identity() {
 }
 
 #[test]
-fn class_object_interface_and_intrinsic_shapes_round_trip_without_lookup_fields() {
+fn class_object_interface_and_intrinsic_shapes_round_trip_with_complete_fields() {
     let mut class = Fixture::new(SourceNominalKind::Class);
     let field = class.class_field("privateValue");
+    let source = NominalSourceShapeV1::Class(
+        crate::NominalSourceFieldsV1::try_new(vec![crate::NominalSourceFieldV1::new(
+            field.field(),
+            field.value_type().clone(),
+        )])
+        .unwrap(),
+    );
     let record = round_trip(
         &mut class,
         NominalRepresentationShapeV1::Class {
@@ -117,9 +124,7 @@ fn class_object_interface_and_intrinsic_shapes_round_trip_without_lookup_fields(
             declared_fields: vec![field],
         },
     );
-    record
-        .validate_public_source_shape(&NominalSourceShapeV1::Class)
-        .unwrap();
+    record.validate_public_source_shape(&source).unwrap();
     let mut object = Fixture::new(SourceNominalKind::Object);
     let field = object.class_field("storedValue");
     let backing = object.backing();

@@ -14,7 +14,7 @@ pub enum TypeFoundationReplayError {
     DuplicateFact(PersistentExactTypeId),
     SharedKeyMismatch,
     PublicNominal(SourceNominalId),
-    PublicValueShape(PersistentTypeId),
+    PublicSourceShape(PersistentTypeId),
     MissingRepresentation(PersistentTypeId),
     DependencyFact {
         provider: ConeIdentity,
@@ -53,7 +53,7 @@ impl fmt::Display for TypeFoundationReplayError {
             Self::DuplicateFact(exact) => write!(f, "source fact {exact} has multiple owners"),
             Self::SharedKeyMismatch => f.write_str("shared source identity keys differ"),
             Self::PublicNominal(owner) => write!(f, "public nominal {owner:?} has no source root"),
-            Self::PublicValueShape(owner) => write!(
+            Self::PublicSourceShape(owner) => write!(
                 f,
                 "public value {owner} differs from its source representation"
             ),

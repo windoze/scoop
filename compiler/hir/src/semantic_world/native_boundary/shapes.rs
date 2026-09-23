@@ -62,7 +62,7 @@ pub(super) fn project(
                 .collect::<Result<_, _>>()?;
             Ok(Shape::Enum { variants })
         }
-        NominalSourceShapeV1::Class
+        NominalSourceShapeV1::Class(_)
         | NominalSourceShapeV1::Interface
         | NominalSourceShapeV1::Object(_) => Ok(Shape::Reference),
     }

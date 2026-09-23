@@ -11,12 +11,12 @@ use scoop_hir::{
     CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError, EnumSourceShapeV1,
     EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalInterfaceRecordV1,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetSemanticValidationError,
-    NominalSourceShapeV1, PropertyAccessorClosureValidationError, PropertyCapabilityV1,
-    PropertyInterfaceRecordV1, PropertyInterfaceSemanticValidationError,
+    NominalSourceFieldV1, NominalSourceShapeV1, PropertyAccessorClosureValidationError,
+    PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyInterfaceSemanticValidationError,
     PropertyInterfaceSetSemanticValidationError, PropertyPublicAccessV1, PropertyRepresentationV1,
     PropertySetterPublicAccessV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
     PublicMemberRefV1, PublicNominalKindV1, SourceNominalId, SourceParameterShapeV1,
-    StructSourceFieldV1, StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
+    StructSourceShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 use scoop_identity::{
     AccessorRole, ArtifactCapabilityProfileId, CallableTemplateOrigin, CanonicalIdentifier,
@@ -49,6 +49,7 @@ mod const_value;
 mod intrinsics;
 mod lir_bridge;
 mod mir_bridge;
+mod nominal_fields;
 mod source_interface;
 mod type_alias;
 
@@ -894,7 +895,7 @@ fn nominal_surface(
         CanonicalPersistentIdsV1::try_new(Vec::new()).unwrap(),
         NominalSourceShapeV1::Struct(
             StructSourceShapeV1::try_new(
-                vec![StructSourceFieldV1::new(
+                vec![NominalSourceFieldV1::new(
                     field.id(),
                     SignatureTypeKey::Nominal(nominal.id()),
                 )],
