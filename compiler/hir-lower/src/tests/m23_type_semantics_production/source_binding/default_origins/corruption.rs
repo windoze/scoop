@@ -11,7 +11,7 @@ fn default_root_requires_its_own_callable_or_enum_context() {
                 let other = table.records().iter().find(|other| other.definition_origin().origin().context() != template.definition_origin().origin().context()).unwrap();
                 assert_eq!(other.definition_origin().origin().source(), template.definition_origin().origin().source());
                 let forged = replace(&table, rebuild(template, template.definition_root(), template.body().clone(), other.definition_origin().clone()));
-                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::RootOrigin(root)) if root == template.definition_root()));
+                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == template.definition_root()));
             }
         });
     });
@@ -124,7 +124,7 @@ fn default_root_origin_cannot_borrow_another_files_valid_source_context() {
             sources.with_bound(&foundation, inputs.protocols().fundamental_types(), |members, constructors| {
                 let parameters = members.bind_parameter_protocols(constructors, &sources.protocols, &mut meter()).unwrap();
                 parameters.bind_default_origins(&table, &[], &mut meter()).unwrap();
-                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::RootOrigin(root)) if root == first.definition_root()));
+                assert!(matches!(parameters.bind_default_origins(&forged, &[], &mut meter()), Err(Error::Root(hir::DefaultTemplateRootOriginValidationError::RootOrigin(root))) if root == first.definition_root()));
             });
         },
     );

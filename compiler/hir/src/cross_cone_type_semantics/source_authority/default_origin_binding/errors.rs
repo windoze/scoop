@@ -10,9 +10,7 @@ pub enum DefaultSourceOriginBindingError {
     DependencyOrder(ConeIdentity),
     IdentityGraph(ConeIdentity),
     MissingProvider(ConeIdentity),
-    MissingRoot(PersistentLexicalRootV1),
-    RootProvider(PersistentLexicalRootV1),
-    RootOrigin(PersistentLexicalRootV1),
+    Root(DefaultTemplateRootOriginValidationError),
     Origin {
         key: ProtectedDefaultTemplateKeyV1,
         error: TypeFoundationBindingError,
@@ -50,18 +48,7 @@ impl fmt::Display for DefaultSourceOriginBindingError {
             Self::MissingProvider(provider) => {
                 write!(f, "default source has no artifact provider {provider:?}")
             }
-            Self::MissingRoot(root) => write!(
-                f,
-                "default source root {root:?} is absent from its provider artifact"
-            ),
-            Self::RootProvider(root) => write!(
-                f,
-                "default source root {root:?} belongs to another provider"
-            ),
-            Self::RootOrigin(root) => write!(
-                f,
-                "default source root {root:?} has no matching declaration source/context"
-            ),
+            Self::Root(error) => error.fmt(f),
             Self::Origin { key, error } => write!(
                 f,
                 "default source {key:?} has an invalid artifact location: {error}"

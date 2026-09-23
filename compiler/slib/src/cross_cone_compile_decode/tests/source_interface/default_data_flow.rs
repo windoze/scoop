@@ -6,8 +6,7 @@ use scoop_hir::{
 use super::*;
 use crate::CrossConeHirDefaultDataFlowError;
 
-mod support;
-use support::{Case, fixture};
+use super::default_fixture::{Case, fixture};
 
 #[test]
 fn the_ordinary_reader_accepts_a_default_local_defined_before_its_use() {

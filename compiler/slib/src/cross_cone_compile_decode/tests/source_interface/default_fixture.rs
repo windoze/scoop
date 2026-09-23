@@ -4,7 +4,7 @@ use scoop_identity::{
     StructuralPathSegment,
 };
 
-use super::super::{CallableSourceSurface, SourceInterfaceCase};
+use super::{CallableSourceSurface, SourceInterfaceCase};
 
 #[derive(Clone, Copy)]
 pub(super) enum Case {

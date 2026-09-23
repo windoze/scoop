@@ -97,6 +97,8 @@ struct/enum 的派生 equality 条件签名必须在继承与源码签名检查�
 
 默认template实例化器只在winner与完整type arguments已经确定后执行完整type substitution、前置parameter value绑定与上述通用origin构造，然后把展开结果作为调用处普通concrete expression交给统一lowering；它不得重新做名称/import/extension/overload决议，也不得依赖intrinsic registry、匹配callee identity或按expression kind建立专用分支。需要观察求值位置的语言设施统一读取所在concrete expression的evaluation origin。`current_source_location`只是普通HIR intrinsic consumer之一，不是default实例化协议的一部分；definition/evaluation也不能以覆盖节点span、`Option`缺失后回退或consumer反推的方式互相冒充。
 
+默认值模板根的定义来源由共有 HIR foundation 校验。普通 `.slib` reader 按模板实际 source 的 Cone 从当前 artifact 或可达依赖闭包选择定义方 foundation，要求 typed root 确实属于该 artifact，且完整 canonical key 与同一已验证 identity graph 一致。Function、GenericFunction 和 Constructor 必须匹配其真实 callable context；EnumVariantConstructor 必须来自源码 nominal，并匹配其 nominal context。模板、声明和 context 的 source 必须一致；继承默认值保留原定义根，不能以发布 owner 或相同签名代替。所有查询、key 比较和来源比较共用当前解码的累计预算；缺失根、错误 provider、文件或 context 均拒绝，不引入独立来源表或调用方提供的默认来源凭证。
+
 默认值内命名局部函数的descriptor必须保留真实声明处的definition origin，正文statement与reference collector投影该descriptor时均读取此来源。卫生展开复用声明身份和来源，不能用外层template的文件/context加上被展开声明的span拼出来源；其他表达式继续使用其已有的definition/evaluation协议。
 
 命名局部函数的descriptor区分原声明function type与当前出现位置的function type：前者始终处于被提升函数自己的binder frame，后者和capture求值源随默认值卫生展开逐项代换。一次展开为声明建立typed descriptor映射，后续direct call与callable reference复用该映射，但不创建新的persistent声明身份。identity验证只在root、path、原声明签名、owner binder数、definition origin及有序capture binding完全一致时接受同一局部函数的重复descriptor。具体化用callee自己的实参代换原声明签名；来源正文投影使用当前出现位置的签名。capture的body binding身份保持不变，default wire中的selector则取当前已映射的求值源local，不能要求定义方binding仍出现在调用方local表中。

@@ -5,7 +5,6 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 mod errors;
 mod providers;
-mod roots;
 pub use errors::*;
 type Error = DefaultSourceOriginBindingError;
 
@@ -35,7 +34,17 @@ impl<'p, 's, 'a, 'f> BoundNominalParameterProtocolsV1<'p, 's, 'a, 'f> {
             let key = template.key();
             let origin = template.definition_origin();
             let provider = providers.get(origin.origin().source().cone(), meter, &path)?;
-            roots::validate(provider, template, meter, &path)?;
+            provider
+                .foundation
+                .validate_default_template_root_origin(
+                    provider.source().entries().provider,
+                    provider.identities,
+                    template.definition_root(),
+                    template.definition_origin(),
+                    meter,
+                    &path,
+                )
+                .map_err(Error::Root)?;
             template.visit_definition_sources_metered(
                 &mut |origin: &ExportDefinitionSourceV1,
                       _,

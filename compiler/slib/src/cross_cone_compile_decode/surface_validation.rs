@@ -162,6 +162,8 @@ macro_rules! impl_nominal_provider_view {
             pub(crate) const fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
                 ValidatedNominalProviderView {
                     identity: self.0.graph.identity(),
+                    identities: &self.0.identities,
+                    foundation: &self.0.foundations.hir,
                     core: &self.0.hir_core_production,
                     interface: &self.0.hir_interface,
                 }

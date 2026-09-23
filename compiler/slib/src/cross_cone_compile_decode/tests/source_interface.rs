@@ -25,6 +25,8 @@ use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
 mod default_data_flow;
+mod default_fixture;
+mod default_origins;
 
 #[test]
 fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
@@ -240,6 +242,14 @@ impl CallableSourceSurface {
         )
         .unwrap();
         let owner = CallableTemplateOrigin::Function(function.id());
+        let parameter_context_key = SourceContextKey::Callable {
+            source: declaration_source.clone(),
+            owner: scoop_identity::CallableOwner::Function(function.id()),
+        };
+        let parameter_context = CborIdentityRecord::<PersistentSourceContextId, _>::from_key(
+            parameter_context_key.clone(),
+        )
+        .unwrap();
 
         let (parameter_origin, mut source_records, mut contexts) = match case {
             SourceInterfaceCase::DifferentParameterSource => {
@@ -274,7 +284,7 @@ impl CallableSourceSurface {
                 DefinitionOrigin::new(
                     declaration_source.clone(),
                     SourceSpan::new(14, 19).unwrap(),
-                    &declaration_context_key,
+                    &parameter_context_key,
                 )
                 .unwrap(),
                 Vec::new(),
@@ -290,6 +300,7 @@ impl CallableSourceSurface {
             .unwrap(),
         );
         contexts.push(declaration_context);
+        contexts.push(parameter_context);
 
         let mut foundation = base_hir_foundation();
         foundation.set_sources(source_records).unwrap();

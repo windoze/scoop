@@ -28,11 +28,13 @@ pub use wire::{
     NativeBoundaryShapeCoverageError, ValidatedHirFoundation,
 };
 mod counts;
+mod default_origins;
 mod imported;
 mod imported_protocols;
 mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
+pub use default_origins::DefaultTemplateRootOriginValidationError;
 mod type_source_keys;
 pub use imported::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 pub use imported_protocols::{

@@ -92,6 +92,8 @@ impl Provider {
     ) -> ValidatedNominalProviderView<'a> {
         ValidatedNominalProviderView {
             identity: self.identity,
+            identities: base.identity_graph(),
+            foundation: base.hir_foundation(),
             core: base.hir_core_production(),
             interface: &self.interface,
         }

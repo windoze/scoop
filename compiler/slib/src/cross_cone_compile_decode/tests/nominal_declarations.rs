@@ -11,9 +11,7 @@ use support::*;
 
 #[test]
 fn source_support_queries_never_expose_a_dependency_private_nominal() {
-    use crate::cross_cone_hir_authority::{
-        CanonicalCrossConeHirSurfaceAuthority, ValidatedNominalProviderView,
-    };
+    use crate::cross_cone_hir_authority::CanonicalCrossConeHirSurfaceAuthority;
     use scoop_hir::NominalInterfaceShapeAuthority as _;
 
     let fixture = Fixture::new();
@@ -42,11 +40,7 @@ fn source_support_queries_never_expose_a_dependency_private_nominal() {
                 scoop_identity::ConeIdentity::SINGLE_FILE,
                 &empty_foundation,
                 &empty,
-                vec![ValidatedNominalProviderView {
-                    identity: provider.identity(),
-                    core: provider.hir_core_production(),
-                    interface: provider.hir_interface(),
-                }],
+                vec![provider.nominal_provider_view()],
             )
         };
         let mut meter = scoop_wire::BudgetMeter::new(DecodeLimits::default());

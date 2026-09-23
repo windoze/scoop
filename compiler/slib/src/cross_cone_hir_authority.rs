@@ -8,6 +8,7 @@ mod callable_source;
 mod const_value;
 mod declaration_origins;
 mod default_data_flow;
+mod default_origins;
 mod definition_source;
 mod errors;
 mod intrinsics;
@@ -21,6 +22,7 @@ mod type_alias;
 pub use callable_source::*;
 pub use const_value::*;
 pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
+pub use default_origins::CrossConeHirDefaultRootOriginError;
 pub use definition_source::*;
 pub use errors::*;
 pub use intrinsics::CrossConeIntrinsicDeclarationError;
@@ -49,6 +51,8 @@ use scoop_identity::{
 #[derive(Clone, Copy)]
 pub(crate) struct ValidatedNominalProviderView<'a> {
     pub(crate) identity: ConeIdentity,
+    pub(crate) identities: &'a ValidatedIdentityGraph,
+    pub(crate) foundation: &'a OdrFreeHirFoundation,
     pub(crate) core: &'a CoreBootstrapInterfaceSectionV1,
     pub(crate) interface: &'a CrossConeHirInterfaceSectionV1,
 }
