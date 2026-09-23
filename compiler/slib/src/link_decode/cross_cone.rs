@@ -80,8 +80,9 @@ pub struct ValidatedCrossConeStrongLinkArtifact<'input> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn validate_cross_cone_strong_link_artifact<'input>(
+pub(super) fn validate_cross_cone_strong_link_parts<'input>(
     graph: ValidatedGraphArtifact<'input>,
+    hir_interface: &scoop_hir::CrossConeHirInterfaceSectionV1,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
@@ -98,7 +99,7 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::Identities(Box::new(error)))?
         .validate_cross_cone_foundation_structure()
         .map_err(|error| StrongLinkArtifactValidationError::Foundations(Box::new(error)))?
-        .validate_production(expected_external_bridges)
+        .validate_shared_production(hir_interface, expected_external_bridges)
         .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
         .validate_materializations()
         .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?
@@ -129,27 +130,10 @@ pub fn validate_cross_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
 }
 
-pub fn validate_self_describing_cross_cone_strong_link_artifact<'input>(
-    graph: ValidatedGraphArtifact<'input>,
-    lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
-    dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
-    c_bridge_profile: &CBridgeToolchainProfileV1,
-) -> Result<ValidatedCrossConeStrongLinkArtifact<'input>, StrongLinkArtifactValidationError> {
-    validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
-        graph,
-        std::iter::empty(),
-        lir_cross_cone_bridge,
-        dependency_owners,
-        c_bridge_profile,
-    )
-}
-
-pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_authorities<
-    'input,
-    'authority,
->(
+pub(super) fn validate_self_describing_cross_cone_strong_link_parts<'input, 'authority>(
     graph: ValidatedGraphArtifact<'input>,
     external_authorities: impl IntoIterator<Item = &'authority ValidatedIdentityGraph>,
+    hir_interface: &scoop_hir::CrossConeHirInterfaceSectionV1,
     lir_cross_cone_bridge: &scoop_lir::CrossConeLirBridgeSectionV1,
     dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
     c_bridge_profile: &CBridgeToolchainProfileV1,
@@ -169,7 +153,7 @@ pub(crate) fn validate_self_describing_cross_cone_strong_link_artifact_with_auth
         .reconstruct_external_bridges()
         .map_err(|error| StrongLinkArtifactValidationError::ExternalBridges(Box::new(error)))?;
     front
-        .validate_production(&external_bridges)
+        .validate_shared_production(hir_interface, &external_bridges)
         .map_err(|error| StrongLinkArtifactValidationError::Production(Box::new(error)))?
         .validate_materializations()
         .map_err(|error| StrongLinkArtifactValidationError::Materializations(Box::new(error)))?

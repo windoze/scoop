@@ -11,6 +11,7 @@ use scoop_wire::DecodeLimits;
 use super::*;
 use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 
+mod compile_view_pairing;
 mod cross_cone;
 mod layout_exports;
 mod publication;

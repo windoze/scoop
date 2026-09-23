@@ -369,7 +369,7 @@ fn validate_link<'input>(
     let link = validate_self_describing_cross_cone_strong_link_artifact_with_authorities(
         graph,
         authorities,
-        compile.production().lir_cross_cone(),
+        compile,
         &dependency_owners,
         c_bridge_profile,
     )

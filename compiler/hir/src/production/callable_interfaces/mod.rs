@@ -14,6 +14,7 @@ mod errors;
 mod functions;
 mod parameters;
 pub(in crate::production) use parameters::project_source as source_parameter_shapes;
+mod nominal_declarations;
 mod slots;
 mod support;
 mod variants;

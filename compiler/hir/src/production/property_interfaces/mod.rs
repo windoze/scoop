@@ -13,6 +13,7 @@ mod accessors;
 mod declaration;
 mod errors;
 mod signature;
+mod support;
 
 pub(in crate::production) use accessors::project_representation as source_property_representation;
 pub use errors::{
@@ -81,25 +82,7 @@ impl CanonicalPropertyInterfacesV1 {
                     .map_err(|source| Error::Record { property, source })?,
             );
         }
-        let mut support = Vec::new();
-        meter
-            .try_reserve_collection_slots(&mut support, required.len(), &path)
-            .map_err(Error::Resource)?;
-        for (id, _) in export.properties.iter() {
-            query(meter, required.len())?;
-            let Some(identity) = export.property_identities.get(id) else {
-                continue;
-            };
-            if required
-                .remove(&persistent_property_owner(identity))
-                .is_some()
-            {
-                support.push(declaration::project(export, &projector, id, meter)?);
-            }
-        }
-        if let Some((id, _)) = required.first_key_value() {
-            return Err(Error::MissingSupport(*id));
-        }
+        let support = support::project(export, &projector, required, meter)?;
         let table = Self::with_support(records, support).map_err(Error::Table)?;
         table
             .validate_declaration_inventory(nominals, meter)

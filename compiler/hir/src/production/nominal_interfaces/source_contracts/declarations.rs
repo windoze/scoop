@@ -7,6 +7,23 @@ pub(in crate::production::nominal_interfaces) fn project(
     meter: &mut BudgetMeter,
 ) -> Result<BTreeMap<SourceNominalId, NominalInterfaceRecordV1>, Error> {
     let required = CanonicalSourceNominalIdsV1::from_complete_module(export, meter)?;
+    project_required(export, &required, meter)
+}
+
+pub(in crate::production::nominal_interfaces) fn project_roots(
+    export: &ExportHir,
+    roots: &[SourceNominalId],
+    meter: &mut BudgetMeter,
+) -> Result<BTreeMap<SourceNominalId, NominalInterfaceRecordV1>, Error> {
+    let required = CanonicalSourceNominalIdsV1::from_complete_roots(export, roots, meter)?;
+    project_required(export, &required, meter)
+}
+
+fn project_required(
+    export: &ExportHir,
+    required: &CanonicalSourceNominalIdsV1,
+    meter: &mut BudgetMeter,
+) -> Result<BTreeMap<SourceNominalId, NominalInterfaceRecordV1>, Error> {
     let mut records = BTreeMap::new();
     let path = WirePath::root();
     for local in locals(export) {

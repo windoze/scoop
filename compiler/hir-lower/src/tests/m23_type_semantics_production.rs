@@ -16,6 +16,7 @@ use public_projection::public_interface;
 
 mod declaration_dump;
 mod fact_providers;
+mod shape_demands;
 mod shared_callable_declarations;
 mod shared_nominal_declarations;
 mod shared_property_declarations;

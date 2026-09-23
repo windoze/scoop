@@ -814,7 +814,9 @@ impl<'input> NativeBoundaryValidatedSingleConeCompileProduction<'input> {
 }
 
 mod errors;
+mod shared_shapes;
 mod validation;
+pub(crate) use shared_shapes::validate_shared_strong_profile_production;
 
 pub use errors::{
     SingleConeCompileSectionDecodeError, StrongCompileArtifactValidationError,
@@ -826,7 +828,8 @@ use validation::validate_strong_profile_local_production;
 pub(crate) use validation::{
     StrongProfileSemanticFront, validate_cross_cone_strong_profile_foundations,
     validate_strong_profile_foundations, validate_strong_profile_lir_production,
-    validate_strong_profile_production, validate_strong_profile_relations,
+    validate_strong_profile_lir_with_shape_sources, validate_strong_profile_production,
+    validate_strong_profile_relations,
 };
 
 #[cfg(test)]

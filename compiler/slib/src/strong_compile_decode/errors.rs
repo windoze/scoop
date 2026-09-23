@@ -120,7 +120,7 @@ impl fmt::Display for StrongProfileInitializationAbiRelationError {
 
 impl std::error::Error for StrongProfileInitializationAbiRelationError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongProfileRelationError {
     ShapeSources(PublicNominalShapeProjectionError),
     OutputMismatch,

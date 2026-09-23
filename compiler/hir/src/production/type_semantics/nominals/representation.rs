@@ -6,7 +6,7 @@ use crate::*;
 use super::super::CrossConeTypeSemanticsProductionError as Error;
 
 mod requirements;
-pub(super) use requirements::{fact_requirements, visit_required_types};
+pub(super) use requirements::fact_requirements;
 
 pub(super) fn shape(
     export: &ExportHir,

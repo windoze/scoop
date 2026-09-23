@@ -431,10 +431,9 @@ fn finish_output(
             format!("failed to seal Export HIR output: {error}"),
         )]
     })?;
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_public_bindings(
-        export.cone,
-        &export.public_export_bindings,
-        &export.export_binding_identities,
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(
+        export.module(),
+        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .map_err(|error| {
         vec![Diagnostic::at(
@@ -549,10 +548,9 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 /// Concretize a checked, output-sealed Export HIR graph while translating the
 /// output branch into the LocalConcrete HIR id domain.
 pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHirOutput {
-    let requirements = hir::PublicNominalShapeRequirementsV1::from_public_bindings(
-        export.cone,
-        &export.public_export_bindings,
-        &export.export_binding_identities,
+    let requirements = hir::PublicNominalShapeRequirementsV1::from_export_hir(
+        export.module(),
+        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .expect("checked HIR public bindings have valid nominal identities");
     concretize::lower_output(export, &requirements)

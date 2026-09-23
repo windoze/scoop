@@ -143,6 +143,8 @@ ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
 
 M23-6 的 HIR nominal type 导出先从同一次 Export/LocalConcrete HIR 计算表示与继承的必需集合。依赖包括全部自身字段、enum payload、class base、interface ancestry、公开或 protected 构造器参数，以及实际 virtual/interface slot 的参数、结果与 execution；generic application，或依赖泛型/挂起 ABI、native 定义的 slot，使该声明保留为 source-only，并沿本地 nominal 依赖传递。引用类型环按有限图求闭包，不能因遍历顺序误判，也不能通过截断继承、字段或 slot 消除依赖。完整源码根、kind、binder、modality、supertype、成员、构造器与默认值仍保留；只有闭合的参数自由根进入 representation、fact 和 exact inheritance 表。候选表与从声明计算的必需集合逐项覆盖，可物化根缺失或 source-only 根混入均拒绝。该计算不按 CORE 身份或 source 路径分支，不授予 callable body、独立 Structural ODR、native、shape-support 或实际跨 Cone use 能力；这些仍由完整机器闭包与对应阶段能力门检查。
 
+M23-6 的 nominal 表示与继承物化闭包直接读取共有 nominal/callable 声明；它是有预算的临时查询结果，不保存第二份来源、资格或 exact 清单。公开记录和必要支持记录使用同一完整字段、enum payload、supertypes、公开或 protected 构造器参数及实际 slot 签名；getter/setter 与普通函数同样参与。generic application、未绑定 binder、generic/suspend/native slot 将所属 nominal 标记为 source-only，沿当前 provider 的 nominal 依赖反向传播；环按有限图求不动点，结果不依赖声明顺序。structural 签名递归检查子类型，但不因此授予独立 Structural ODR 物化。HIR producer 与 artifact reader 重放同一算法，保持完整源码声明；形状需求只从当前 exporter 的 DeclaredCurrent 公开根中选择闭合子集，不能因 source-only 声明存在而要求不存在的 shape-support。外来 nominal 仍由其实际 provider 的机器接口及消费闭包验证；本地临时集合不授予外来机器使用、访问权或后续里程碑能力。Link 入口接收已验证的 Compile artifact，先核对完整 artifact fingerprint、实际 Cone、target 与 compatibility，再借用其中的共有声明和 LIR bridge；调用方不能另行传入候选声明替代该来源。Link 用自己的累计预算重算形状需求，不从待验 LIR 形状表反推需要集合，也不增加持久化资格字段。
+
 ### 1.3 表示覆盖与 ODR gate
 
 本阶段完整定义和验证 `Array<ZST>`、`Option<ZST>`、`Phantom<A/B>`、tuple/function/pointer 的表示，不据此开放这些 application 的 production ownership。

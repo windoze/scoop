@@ -93,8 +93,11 @@ const LINK_SECTION_HANDLER_BASE_WORK: u64 = 64;
 mod states;
 pub use states::*;
 
+mod compile_view;
 mod cross_cone;
 mod decode;
+mod shared_shapes;
+pub use compile_view::*;
 pub use cross_cone::*;
 mod layout;
 pub use layout::*;
@@ -784,6 +787,7 @@ impl std::error::Error for StrongLinkFinalValidationError {
 
 #[derive(Debug)]
 pub enum StrongLinkArtifactValidationError {
+    CompileView(crate::PublishViewMismatchError),
     Decode(Box<SingleConeLinkSectionDecodeError>),
     Identities(Box<IdentityValidationError>),
     Foundations(Box<StrongProfileFoundationError>),
@@ -810,6 +814,7 @@ impl fmt::Display for StrongLinkArtifactValidationError {
 impl std::error::Error for StrongLinkArtifactValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::CompileView(error) => error,
             Self::Decode(error) => error.as_ref(),
             Self::Identities(error) => error.as_ref(),
             Self::Foundations(error) => error.as_ref(),

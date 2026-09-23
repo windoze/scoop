@@ -20,8 +20,9 @@ fn cross_cone_graph_validates_the_complete_final_link_view() {
     open_graph(&bytes)
         .decode_cross_cone_hir_front_sections()
         .unwrap();
-    let artifact = validate_cross_cone_strong_link_artifact(
+    let artifact = super::super::cross_cone::validate_cross_cone_strong_link_parts(
         open_graph(&bytes),
+        &empty_hir_interface(),
         &external,
         &lir_bridge,
         &dependency_owners,
@@ -66,8 +67,9 @@ fn cross_cone_link_reader_rejects_the_legacy_profile() {
     let dependency_owners = Vec::new();
 
     assert!(matches!(
-        validate_cross_cone_strong_link_artifact(
+        super::super::cross_cone::validate_cross_cone_strong_link_parts(
             open_graph(&bytes),
+            &empty_hir_interface(),
             &external,
             &lir_bridge,
             &dependency_owners,

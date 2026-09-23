@@ -27,7 +27,7 @@ use crate::{
     },
     strong_compile_decode::{
         OdrFreeStrongFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
-        validate_strong_profile_lir_production,
+        validate_strong_profile_lir_with_shape_sources,
     },
 };
 
@@ -238,7 +238,17 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
         let external_bridges = lir_strong_production
             .reconstruct_external_bridges(graph.identity(), &mut identities)
             .map_err(CrossConeLirFrontValidationError::ExternalBridges)?;
-        let lir_strong_production = validate_strong_profile_lir_production(
+        let shape_sources = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
+            hir_core_production.direct_public_surface(),
+            foundations.hir.as_canonical(),
+            hir_interface.nominal_interfaces(),
+            hir_interface.callable_interfaces(),
+            graph.envelope.meter_mut(),
+        )
+        .and_then(|roots| roots.source_declarations(foundations.hir.as_canonical()))
+        .map_err(StrongProfileLirProductionError::ShapeSources)
+        .map_err(CrossConeLirFrontValidationError::StrongProduction)?;
+        let lir_strong_production = validate_strong_profile_lir_with_shape_sources(
             &graph,
             &mut identities,
             StrongProfileSemanticFront {
@@ -249,6 +259,7 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
             },
             lir_strong_production,
             &external_bridges,
+            &shape_sources,
         )
         .map_err(CrossConeLirFrontValidationError::StrongProduction)?;
         validate_native_boundary_parts(

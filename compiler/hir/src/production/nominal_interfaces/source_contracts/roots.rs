@@ -38,6 +38,28 @@ impl CanonicalSourceNominalIdsV1 {
         complete_children: bool,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
+        Self::collect_roots(
+            export,
+            complete_children,
+            index::public(export).map(|local| index::source(export, local)),
+            meter,
+        )
+    }
+
+    pub(in crate::production::nominal_interfaces) fn from_complete_roots(
+        export: &ExportHir,
+        roots: &[SourceNominalId],
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        Self::collect_roots(export, true, roots.iter().copied().map(Ok), meter)
+    }
+
+    fn collect_roots(
+        export: &ExportHir,
+        complete_children: bool,
+        seeds: impl Iterator<Item = Result<SourceNominalId, Error>>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
         meter
             .check_semantic_depth(1, &WirePath::root())
             .map_err(resource)?;
@@ -49,9 +71,9 @@ impl CanonicalSourceNominalIdsV1 {
             field_types: BTreeSet::new(),
             meter,
         };
-        for local in index::public(export) {
+        for owner in seeds {
             work(roots.meter, index.nodes.len())?;
-            let owner = index::source(export, local)?;
+            let owner = owner?;
             if !index.nodes.contains_key(&owner) {
                 return Err(invalid("public source root is not owned by this Cone"));
             }

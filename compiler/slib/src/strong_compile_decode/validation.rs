@@ -94,18 +94,36 @@ pub(crate) fn validate_strong_profile_lir_production(
     lir: DecodedStrongProductionSectionV1,
     expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
 ) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
-    let entry_source = match front.mir_production.entry_bridge() {
-        EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
-        EntryMirBridgeBranchV1::Executable(bridge) => {
-            EntryProductionSourceV1::executable(bridge.source().clone())
-        }
-    };
     let shape_sources = PublicNominalShapeRequirementsV1::from_direct_surface(
         front.hir_production.direct_public_surface(),
         front.hir_foundation.as_canonical(),
     )
     .and_then(|shapes| shapes.source_declarations(front.hir_foundation.as_canonical()))
     .map_err(StrongProfileLirProductionError::ShapeSources)?;
+    validate_strong_profile_lir_with_shape_sources(
+        graph,
+        identities,
+        front,
+        lir,
+        expected_external_bridges,
+        &shape_sources,
+    )
+}
+
+pub(crate) fn validate_strong_profile_lir_with_shape_sources(
+    graph: &ValidatedGraphArtifact<'_>,
+    identities: &mut ValidatedIdentityGraph,
+    front: StrongProfileSemanticFront<'_>,
+    lir: DecodedStrongProductionSectionV1,
+    expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
+    shape_sources: &[scoop_identity::SourceDeclarationKey],
+) -> Result<StrongProductionSectionV1, StrongProfileLirProductionError> {
+    let entry_source = match front.mir_production.entry_bridge() {
+        EntryMirBridgeBranchV1::Library => EntryProductionSourceV1::Library,
+        EntryMirBridgeBranchV1::Executable(bridge) => {
+            EntryProductionSourceV1::executable(bridge.source().clone())
+        }
+    };
     let lir = lir
         .validate(
             graph.coordinate().clone(),
@@ -113,7 +131,7 @@ pub(crate) fn validate_strong_profile_lir_production(
             front.lir_foundation,
             expected_external_bridges,
             entry_source,
-            &shape_sources,
+            shape_sources,
             identities,
         )
         .map_err(StrongProfileLirProductionError::Production)?;

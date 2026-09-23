@@ -15,6 +15,11 @@ use crate::{
     ExportBindingSourceV1, HirExportBindingIdentities,
 };
 
+mod materialization;
+mod shared;
+
+pub use materialization::{NominalMaterializationClosure, NominalMaterializationClosureError};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PublicNominalShapeRequirementV1 {
     source: PersistentTypeId,
@@ -121,11 +126,13 @@ impl PublicNominalShapeRequirementsV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PublicNominalShapeProjectionError {
     MissingBinding(PersistentExportBindingId),
     MissingSourceNominal(PersistentTypeId),
     Identity(scoop_wire::HashError),
+    Materialization(NominalMaterializationClosureError),
+    SharedDeclarations(String),
 }
 
 impl fmt::Display for PublicNominalShapeProjectionError {

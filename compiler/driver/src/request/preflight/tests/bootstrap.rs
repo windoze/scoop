@@ -162,9 +162,12 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         Err(scoop_mir_lower::MirProductionLoweringError::InitializationCycleSignatureMismatch)
     ));
 
-    let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_direct_surface(
+    let expected_shape_roots = scoop_hir::PublicNominalShapeRequirementsV1::from_shared_surface(
         output.production_section().direct_public_surface(),
         output.foundation(),
+        output.cross_cone_section().nominal_interfaces(),
+        output.cross_cone_section().callable_interfaces(),
+        &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
     )
     .unwrap()
     .roots()
