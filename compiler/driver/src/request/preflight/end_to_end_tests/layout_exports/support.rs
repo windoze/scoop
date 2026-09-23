@@ -60,8 +60,9 @@ pub(super) fn with_production(
     let selected = closure
         .project_dependency_callables_to_lir(&mir.selected_callables)
         .unwrap();
-    let (string, selected) = core
-        .project_core_callables_to_lir(&mir.selected_callables, selected)
+    let (provider, nominal) = core.runtime_string_source();
+    let string = closure
+        .project_source_type_descriptor(provider, nominal)
         .unwrap();
     let front = DecodedSlibEnvelope::open(
         core_bytes,

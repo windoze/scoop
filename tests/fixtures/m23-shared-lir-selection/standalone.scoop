@@ -1,0 +1,3 @@
+private fun initialMessage(): String = "standalone"
+public val message: String = initialMessage()
+public fun read(): String = message

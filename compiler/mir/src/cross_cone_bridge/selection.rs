@@ -141,6 +141,11 @@ impl SelectedExternalMirSet {
         self.consumer
     }
 
+    /// Complete selection, including compiler-service roles.
+    pub fn callables(&self) -> &[SelectedExternalMirCallable] {
+        &self.callables
+    }
+
     pub fn callable(
         &self,
         id: SelectedExternalMirCallableId,

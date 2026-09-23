@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeLirStageError {
-    Projection(crate::TrustedCoreLirSetProjectionError),
+    TypeDescriptor(scoop_slib::CrossConeTypeDescriptorProjectionError),
     DependencyProjection(scoop_slib::CrossConeLirSelectionProjectionError),
     Lowering(scoop_lir_lower::StrongLirLoweringError),
     CrossConeBridge(scoop_lir_lower::CrossConeLirBridgeLoweringError),
@@ -11,7 +11,7 @@ pub enum CurrentConeLirStageError {
 impl fmt::Display for CurrentConeLirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Projection(source) => source.fmt(formatter),
+            Self::TypeDescriptor(source) => source.fmt(formatter),
             Self::DependencyProjection(source) => source.fmt(formatter),
             Self::Lowering(source) => source.fmt(formatter),
             Self::CrossConeBridge(source) => source.fmt(formatter),
@@ -22,7 +22,7 @@ impl fmt::Display for CurrentConeLirStageError {
 impl std::error::Error for CurrentConeLirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::Projection(source) => source,
+            Self::TypeDescriptor(source) => source,
             Self::DependencyProjection(source) => source,
             Self::Lowering(source) => source,
             Self::CrossConeBridge(source) => source,

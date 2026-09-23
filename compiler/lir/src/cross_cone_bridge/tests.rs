@@ -15,6 +15,7 @@ use crate::{CanonicalLirFoundation, OdrFreeLirFoundation};
 
 mod abi_record;
 mod relations;
+mod role_selection;
 mod wire;
 
 struct Fixture {

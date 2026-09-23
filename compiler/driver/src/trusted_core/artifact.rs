@@ -4,9 +4,8 @@ use std::rc::Rc;
 use scoop_hir::{CompilerProtocolDefinitionsV1, CoreProtocolImportError, ImportedCoreInputs};
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, Effect, ExactCallableSignature, ExactTypeKey,
-    PersistentExactTypeId,
+    PersistentExactTypeId, PersistentTypeId,
 };
-use scoop_lir::{ImportedLirCallableProjectionError, ImportedLirTypeDescriptorProjectionError};
 use scoop_mir::ImportedMirCallableProjectionError;
 use scoop_slib::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CrossConeSemanticsStrongProfile, SharedCrossConeArtifact,
@@ -50,6 +49,13 @@ impl<'input> ValidatedTrustedCoreArtifact<'input> {
     /// Projects compiler protocols from the shared dependency artifact and its decoded interface.
     pub fn import_core_inputs(&self) -> Result<ImportedCoreInputs, CoreProtocolImportError> {
         self.compile().hir().import_core_inputs(&self.interface)
+    }
+
+    pub(crate) fn runtime_string_source(&self) -> (ConeIdentity, PersistentTypeId) {
+        (
+            self.compile().identity(),
+            self.interface.string_capability().source_type(),
+        )
     }
 
     pub fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {

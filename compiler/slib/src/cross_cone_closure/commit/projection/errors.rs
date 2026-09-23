@@ -1,0 +1,192 @@
+use std::fmt;
+
+use scoop_identity::{CallableRole, ConeIdentity, DependencyCallableDeclarationId};
+
+#[derive(Debug)]
+pub enum CrossConeMirSelectionProjectionError {
+    ConsumerMismatch {
+        closure: ConeIdentity,
+        selected: ConeIdentity,
+    },
+    MissingProvider {
+        provider: ConeIdentity,
+    },
+    ProviderCertificateMismatch {
+        provider: ConeIdentity,
+    },
+    MissingExport {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
+    ImplementationMismatch {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
+    SignatureMismatch {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
+    Record(scoop_mir::ParamFreeMirCallableBuildError),
+    Selection(scoop_mir::SelectedExternalMirSetBuildError),
+}
+
+impl fmt::Display for CrossConeMirSelectionProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ConsumerMismatch { closure, selected } => write!(
+                formatter,
+                "dependency HIR selection belongs to consumer {selected}, not closure {closure}"
+            ),
+            Self::MissingProvider { provider } => write!(
+                formatter,
+                "dependency HIR selection names provider {provider} outside the committed closure"
+            ),
+            Self::ProviderCertificateMismatch { provider } => write!(
+                formatter,
+                "dependency HIR selection carries a stale certificate for provider {provider}"
+            ),
+            Self::MissingExport {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "provider {provider} has no MIR export for selected callable {declaration:?}"
+            ),
+            Self::ImplementationMismatch {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "provider {provider} changed the implementation of selected callable {declaration:?} between HIR and MIR"
+            ),
+            Self::SignatureMismatch {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "provider {provider} changed the signature of selected callable {declaration:?} between HIR and MIR"
+            ),
+            Self::Record(source) => write!(
+                formatter,
+                "cannot construct a selected dependency MIR record: {source}"
+            ),
+            Self::Selection(source) => write!(
+                formatter,
+                "cannot seal the selected dependency MIR set: {source}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeMirSelectionProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Record(source) => Some(source),
+            Self::Selection(source) => Some(source),
+            Self::ConsumerMismatch { .. }
+            | Self::MissingProvider { .. }
+            | Self::ProviderCertificateMismatch { .. }
+            | Self::MissingExport { .. }
+            | Self::ImplementationMismatch { .. }
+            | Self::SignatureMismatch { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CrossConeLirSelectionProjectionError {
+    MissingInitializationAbi {
+        provider: ConeIdentity,
+    },
+    RoleMismatch {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+        selected: CallableRole,
+        actual: CallableRole,
+    },
+    InitializationService(scoop_lir::ImportedLirCallableProjectionError),
+    ConsumerMismatch {
+        closure: ConeIdentity,
+        selected: ConeIdentity,
+    },
+    MissingProvider {
+        provider: ConeIdentity,
+    },
+    MissingExport {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
+    BridgeMismatch {
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
+    Record(scoop_lir::ParamFreeLirCallableBuildError),
+    Selection(scoop_lir::SelectedExternalLirSetBuildError),
+}
+
+impl fmt::Display for CrossConeLirSelectionProjectionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingInitializationAbi { provider } => write!(
+                formatter,
+                "provider {provider} has no initialization-service ABI"
+            ),
+            Self::RoleMismatch {
+                provider,
+                declaration,
+                selected,
+                actual,
+            } => write!(
+                formatter,
+                "provider {provider} callable {declaration:?} has role {actual:?}, selected as {selected:?}"
+            ),
+            Self::InitializationService(source) => source.fmt(formatter),
+            Self::ConsumerMismatch { closure, selected } => write!(
+                formatter,
+                "dependency MIR selection belongs to consumer {selected}, not closure {closure}"
+            ),
+            Self::MissingProvider { provider } => write!(
+                formatter,
+                "dependency MIR selection names provider {provider} outside the committed closure"
+            ),
+            Self::MissingExport {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "provider {provider} has no LIR export for selected callable {declaration:?}"
+            ),
+            Self::BridgeMismatch {
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "provider {provider} changed the bridge contract of selected callable {declaration:?} between MIR and LIR"
+            ),
+            Self::Record(source) => write!(
+                formatter,
+                "cannot construct a selected dependency LIR record: {source}"
+            ),
+            Self::Selection(source) => write!(
+                formatter,
+                "cannot seal the selected dependency LIR set: {source}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CrossConeLirSelectionProjectionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InitializationService(source) => Some(source),
+            Self::Record(source) => Some(source),
+            Self::Selection(source) => Some(source),
+            Self::ConsumerMismatch { .. }
+            | Self::MissingInitializationAbi { .. }
+            | Self::RoleMismatch { .. }
+            | Self::MissingProvider { .. }
+            | Self::MissingExport { .. }
+            | Self::BridgeMismatch { .. } => None,
+        }
+    }
+}

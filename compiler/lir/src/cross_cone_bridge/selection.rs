@@ -56,10 +56,50 @@ impl SelectedExternalLirSet {
         }
     }
 
+    /// Seals all projected roles together before lowering allocates any uses.
+    pub fn try_from_role_records(
+        consumer: ConeIdentity,
+        records: Vec<(CallableRole, SelectedDependencyLirCallableV1)>,
+    ) -> Result<Self, SelectedExternalLirSetBuildError> {
+        Self::try_from_selections(
+            consumer,
+            records
+                .into_iter()
+                .map(|(role, record)| match role {
+                    CallableRole::Ordinary => SelectedExternalLirCallable::dependency(record),
+                    CallableRole::InitializationCycle => {
+                        SelectedExternalLirCallable::initialization_cycle(record)
+                    }
+                })
+                .collect(),
+        )
+    }
+
     fn try_from_selections(
         consumer: ConeIdentity,
         mut selected: Vec<SelectedExternalLirCallable>,
     ) -> Result<Self, SelectedExternalLirSetBuildError> {
+        let mut has_initialization_cycle = false;
+        for callable in &selected {
+            if callable.role() == CallableRole::InitializationCycle {
+                if has_initialization_cycle {
+                    return Err(SelectedExternalLirSetBuildError::DuplicateInitializationCycle);
+                }
+                if !matches!(
+                    callable.bridge().declaration(),
+                    DependencyCallableDeclarationId::Function(_)
+                ) || callable
+                    .bridge()
+                    .abi_signature()
+                    .signature()
+                    .receiver()
+                    .is_present()
+                {
+                    return Err(SelectedExternalLirSetBuildError::InvalidInitializationCycle);
+                }
+                has_initialization_cycle = true;
+            }
+        }
         selected.sort_unstable_by_key(|callable| {
             (callable.provider(), callable.bridge().declaration())
         });
@@ -136,21 +176,6 @@ impl SelectedExternalLirSet {
         self,
         record: SelectedDependencyLirCallableV1,
     ) -> Result<Self, SelectedExternalLirSetBuildError> {
-        if self.initialization_cycle().is_some() {
-            return Err(SelectedExternalLirSetBuildError::DuplicateInitializationCycle);
-        }
-        if !matches!(
-            record.bridge().declaration(),
-            DependencyCallableDeclarationId::Function(_)
-        ) || record
-            .bridge()
-            .abi_signature()
-            .signature()
-            .receiver()
-            .is_present()
-        {
-            return Err(SelectedExternalLirSetBuildError::InvalidInitializationCycle);
-        }
         let mut callables = self.callables;
         callables.push(SelectedExternalLirCallable::initialization_cycle(record));
         Self::try_from_selections(self.consumer, callables)

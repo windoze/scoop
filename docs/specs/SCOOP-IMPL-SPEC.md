@@ -36,6 +36,8 @@ MIR的初始化服务与普通依赖调用共用`ExternalCallableUse`、typed id
 
 LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整保存provider、typed declaration/target、canonical ABI、calling convention、root plan、symbol及definition；选择角色与MIR使用同一语义枚举。MIR strong输出只保留一张完整外部callable根表，LIR共用选择覆盖、角色、签名、GC effect、参数/结果exact type查询和物理ABI分类，不再保留core专用callable集合或借用凭证。初始化服务与普通调用只在旧metadata角色物化时区分。String的foundation投影返回已有的完整`ExternalTypeDescriptor`，lowering显式接收Local/External描述符输入，所有测试也经过同一输入；不保留仅测试可用的runtime String替代分支。上述合并不改变String表示、内部函数源码可见性或旧wire契约。
 
+共有依赖闭包将完整 SelectedExternalMirSet 一次投影为 SelectedExternalLirSet，按每条记录的实际 provider 查询已验证 artifact，保留 Ordinary/InitializationCycle 的既有用途角色。初始化服务与普通 callable 共用 consumer、provider、typed declaration/implementation、完整签名、canonical ABI、definition 及集合覆盖检查；不能先跳过初始化角色，再由 core 包装对象补入第二份选择。初始化 ABI 缺失、角色与真实目标不符、签名不一致或错误 provider 均由共有投影拒绝。String 的 TypeDescriptor 同样由实际 source nominal 与 provider 进入共有 descriptor 查询，核对有限 shape-support、exact type、symbol 和 definition；该查询也适用于当前已发布完整 shape-support 的普通 nominal，不授予额外机器物化资格。删除 driver 的独立 core LIR callable/descriptor 投影适配，保留前端解析的语言角色。此迁移不改变 wire、runtime ABI 或源码可见性。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。
