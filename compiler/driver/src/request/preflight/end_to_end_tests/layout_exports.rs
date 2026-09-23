@@ -6,6 +6,7 @@ use scoop_mir as mir;
 use scoop_wire::{BudgetMeter, WireDecode, WireEncode, decode_canonical, encode};
 
 mod assertions;
+mod core;
 mod dependencies;
 mod private_types;
 mod rejections;

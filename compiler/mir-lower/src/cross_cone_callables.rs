@@ -112,6 +112,7 @@ impl SourceContract {
 pub enum SourceMirCallableProductionError {
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
+    Materialization(hir::NominalMaterializationClosureError),
     Bridge(mir::MirCallableBridgeError),
     ConflictingSource(DependencyCallableDeclarationId),
     MissingSourceContract(DependencyCallableDeclarationId),

@@ -31,7 +31,7 @@ impl Lowerer {
             );
 
             if root.boxed_value() == scoop_hir::LocalBoxedValueRequirement::Required {
-                self.materialize_shape_box(module, root.ty(), &value, root.exact());
+                self.materialize_shape_box(module, &value, root.exact());
             }
             self.coroutines.step_for(
                 &self.source_exact_types,
@@ -53,40 +53,13 @@ impl Lowerer {
     fn materialize_shape_box(
         &mut self,
         module: &hir::Module,
-        source: hir::TypeId,
         payload: &mir::Type,
         exact: hir::PersistentExactTypeId,
     ) {
         let class = self
             .boxed
             .get_or_create(&mut self.classes, &mut self.shell, payload, exact);
-        let declared_interfaces: &[hir::TypeId] = match module.types[source].kind {
-            hir::TypeKind::Struct(id) => &module.structs[id].interfaces,
-            hir::TypeKind::Enum(id) => &module.enums[id].interfaces,
-            hir::TypeKind::Unit
-            | hir::TypeKind::Integer(_)
-            | hir::TypeKind::Boolean
-            | hir::TypeKind::Ptr(_)
-            | hir::TypeKind::FunPtr(_) => &[],
-            _ => unreachable!("only source struct and enum declarations have shape-support boxes"),
-        };
-        for &interface in declared_interfaces {
-            let lowered = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            }
-            .lower(
-                interface,
-                &mut self.source_exact_types,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            );
-            let mir::Type::Interface(interface) = lowered else {
-                unreachable!("declared nominal interfaces lower to MIR interfaces")
-            };
+        for interface in self.value_interfaces(module, payload) {
             if !self.classes[class].interfaces.contains(&interface) {
                 self.classes[class].interfaces.push(interface);
             }

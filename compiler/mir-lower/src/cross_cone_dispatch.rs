@@ -45,6 +45,25 @@ pub fn lower_dispatch_schemas(
             records.push(context.record(source, *backing, meter)?);
         }
     }
+    work(input.module().meta.source_exact_types.len() as u64, meter)?;
+    if let Some(builtin) = input.module().meta.source_exact_types.get(&mir::Type::Any) {
+        let exact = builtin.identity_record().id();
+        work(search(local_types.records().len()), meter)?;
+        if local_types.get(exact).is_some() {
+            meter.charge_owned_bytes(
+                std::mem::size_of::<mir::ParamFreeMirDispatchSchemaV1>() as u64,
+                &WirePath::root(),
+            )?;
+            meter.try_reserve_collection_slots(&mut records, 1, &WirePath::root())?;
+            records.push(mir::ParamFreeMirDispatchSchemaV1::try_new(
+                authority,
+                exact,
+                mir::MirClassVtableSchemaV1::ClassVtable(vec![]),
+                vec![],
+                meter,
+            )?);
+        }
+    }
     Ok(
         mir::CanonicalMirDispatchSchemasV1::try_new_with_dependencies(
             authority,

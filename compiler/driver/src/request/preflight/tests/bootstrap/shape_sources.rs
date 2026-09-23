@@ -48,7 +48,6 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
     for mutate in [
         |module: &mut scoop_mir::Module| module.meta.coroutine_steps.clear(),
         |module: &mut scoop_mir::Module| module.meta.coroutine_slots.clear(),
-        |module: &mut scoop_mir::Module| module.meta.boxed_types.clear(),
     ] {
         let Err(Error::Foundation(scoop_mir::MirFoundationBuildError::InvalidModule(error))) =
             seal(&hir, sources.clone(), mutate)
@@ -66,6 +65,20 @@ fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy()
             }
         );
     }
+    let Err(Error::Foundation(scoop_mir::MirFoundationBuildError::InvalidModule(error))) =
+        seal(&hir, sources, |module| module.meta.boxed_types.clear())
+    else {
+        panic!("an adjust without its value box must fail the common foundation validator")
+    };
+    assert_eq!(
+        *error,
+        scoop_mir::MirValidationError {
+            location: scoop_mir::MirValidationLocation::BoxingAdjust { adjust: 0 },
+            kind: scoop_mir::MirValidationErrorKind::InvalidBoxingAdjust {
+                reason: "the adjust class is not a materialized value box",
+            },
+        }
+    );
 }
 
 fn declaration(provider: ConeIdentity, parameters: u32) -> SourceDeclarationKey {

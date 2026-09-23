@@ -177,7 +177,12 @@ fn validate_source_representation(
     let representation = descriptor.value_layout().representation().kind();
     let valid = match kind {
         SourceDeclarationKind::Struct => {
-            matches!(representation, ExactRepresentationKindV1::Struct(_))
+            matches!(
+                representation,
+                ExactRepresentationKindV1::Struct(_)
+                    | ExactRepresentationKindV1::Scalar(_)
+                    | ExactRepresentationKindV1::IntrinsicValue(_)
+            )
         }
         SourceDeclarationKind::Enum => matches!(
             representation,

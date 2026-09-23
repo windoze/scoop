@@ -6,11 +6,32 @@ pub(super) fn actual(
     input: LayoutAbiExportInputV1<'_>,
     result: &lir::LayoutAbiExportConstituentsV1,
 ) {
-    assert_eq!(result.provider(), input.mir.module().cone);
     assert_eq!(
         result.descriptors().records().len(),
-        input.lir.module().meta.type_descriptors.len()
+        input.lir.module().meta.type_descriptors.len(),
+        "descriptors without MIR exports: {:?}",
+        input
+            .lir
+            .module()
+            .meta
+            .type_descriptors
+            .iter()
+            .filter(|(_, descriptor)| input
+                .bridge
+                .types()
+                .get(descriptor.identity.exact_type())
+                .is_none())
+            .map(|(_, descriptor)| &descriptor.diagnostic_name)
+            .collect::<Vec<_>>()
     );
+    contents(input, result);
+}
+
+pub(super) fn contents(
+    input: LayoutAbiExportInputV1<'_>,
+    result: &lir::LayoutAbiExportConstituentsV1,
+) {
+    assert_eq!(result.provider(), input.mir.module().cone);
     assert_eq!(
         result.callables().records().len(),
         input.bridge.callables().entries().len()
@@ -25,6 +46,14 @@ pub(super) fn actual(
         if let mir::SourceExactTypeOwner::Cone(provider) = source.owner()
             && provider != result.provider()
         {
+            assert!(
+                input
+                    .bridge
+                    .types()
+                    .get(source.identity_record().id())
+                    .is_none(),
+                "foreign source types remain dependency exports"
+            );
             assert!(
                 input
                     .mir
@@ -61,7 +90,10 @@ pub(super) fn actual(
             }
         }
     }
-    assert!(elided_inputs > 0 && elided_results > 0);
+    assert!(
+        elided_inputs > 0 && elided_results > 0,
+        "elided inputs={elided_inputs} results={elided_results}",
+    );
 }
 
 pub(super) fn bytes(result: &lir::LayoutAbiExportConstituentsV1) -> [Vec<u8>; 5] {

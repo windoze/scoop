@@ -15,7 +15,8 @@ impl MirDispatchSchemaAuthority<'_> {
         let representation = self.type_export(record.owner())?.representation();
         let class_like = matches!(
             representation,
-            MirTypeRepresentationV1::Class { .. }
+            MirTypeRepresentationV1::Intrinsic(crate::MirParamFreeIntrinsicV1::String)
+                | MirTypeRepresentationV1::Class { .. }
                 | MirTypeRepresentationV1::Object { .. }
                 | MirTypeRepresentationV1::ObjectBacking { .. }
         );

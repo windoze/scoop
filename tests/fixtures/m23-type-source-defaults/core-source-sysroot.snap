@@ -1,4 +1,4 @@
-roots 42; representations 16; facts 16; inheritance edges 16; origins 552
+roots 42; representations 16; facts 17; inheritance edges 16; origins 552
 ArithmeticException: arity 0; source-only
 Array: arity 1; generic
 Boolean: arity 0; intrinsic

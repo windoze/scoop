@@ -1,16 +1,20 @@
 use super::*;
 
+mod signatures;
+
 pub(super) fn collect(
     public: &hir::CrossConeHirInterfaceSectionV1,
     source: &hir::CrossConeTypeSemanticsProductionV1,
     meter: &mut BudgetMeter,
 ) -> Result<BTreeMap<Declaration, SourceContract>, Error> {
     let mut required = BTreeMap::new();
+    let signatures = signatures::MaterializableSignatures::new(public, meter)?;
     for record in public.callable_interfaces().records() {
         // Closed source signatures are required here; generic declarations
         // remain HIR metadata until their separate ODR materialization path.
         signature_cost(record, meter)?;
         if record.effects().implementation() != hir::CallableImplementationV1::Scoop
+            || record.effects().execution() == scoop_identity::Effect::Suspend
             || !record.type_parameters().is_empty()
             || matches!(
                 record.owner().nominal_owner(),
@@ -23,6 +27,24 @@ pub(super) fn collect(
                 .parameters()
                 .iter()
                 .any(|parameter| parameter.value_type().contains_binder())
+        {
+            continue;
+        }
+        if !signatures.owner(record.owner().nominal_owner(), meter)?
+            || !signatures.all(
+                record
+                    .receiver()
+                    .into_iter()
+                    .chain(
+                        record
+                            .parameters()
+                            .parameters()
+                            .iter()
+                            .map(|p| p.value_type()),
+                    )
+                    .chain(std::iter::once(record.result())),
+                meter,
+            )?
         {
             continue;
         }
@@ -39,8 +61,22 @@ pub(super) fn collect(
         work(1, meter)?;
         let payload = record.payload();
         if payload.effects().implementation() != hir::CallableImplementationV1::Scoop
+            || payload.effects().execution() == scoop_identity::Effect::Suspend
             || !payload.type_parameters().is_empty()
             || matches!(payload.owner(), hir::SourceNominalId::GenericTemplate(_))
+        {
+            continue;
+        }
+        if !signatures.owner(Some(payload.owner()), meter)?
+            || !signatures.all(
+                payload
+                    .parameters()
+                    .parameters()
+                    .iter()
+                    .map(|p| p.value_type())
+                    .chain(std::iter::once(payload.result())),
+                meter,
+            )?
         {
             continue;
         }

@@ -1,6 +1,13 @@
 use super::*;
 
 impl FactProjector<'_> {
+    pub(super) fn is_local_builtin(&self, ty: concrete::TypeId) -> bool {
+        matches!(
+            self.local.types[ty].kind,
+            concrete::TypeKind::Unit | concrete::TypeKind::Any
+        ) && self.declared_origin(ty) == Some(self.local.cone)
+    }
+
     pub(super) fn is_generic_application(&self, ty: concrete::TypeId) -> bool {
         match self.local.types[ty].kind {
             concrete::TypeKind::Struct(id) => !self.local.structs[id].type_arguments.is_empty(),

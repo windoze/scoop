@@ -7,6 +7,7 @@ use scoop_identity::{
 use scoop_mir as mir;
 use scoop_wire::{BudgetMeter, WirePath};
 
+mod builtins;
 mod representation;
 mod resources;
 use resources::{reserve, work};
@@ -62,6 +63,12 @@ pub fn lower_source_type_exports(
             continue;
         };
         let Some(representation) = source.get(*owner) else {
+            if let Some(record) =
+                builtins::project(hir, input, identities, identity, *owner, meter)?
+            {
+                reserve(&mut records, 1, meter)?;
+                records.push(record);
+            }
             continue;
         };
         let exact = identity.identity_record().id();

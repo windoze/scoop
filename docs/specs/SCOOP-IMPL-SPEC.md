@@ -40,6 +40,14 @@ LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整�
 
 协议导入保留实际 definition-origin 的 provider 与完整 typed callable 引用；其 provider 来自已验证的共有声明 metadata，不由导入 artifact 的身份补齐。driver 在依赖闭包完成后只保存前端所需的 ImportedCoreInputs，不再保存 ValidatedTrustedCoreArtifact 或另一份 Compile/Link view。初始化服务由共有闭包核对所选 provider、source function、完整源签名与 InitializationCycle 角色，再借用该 provider 已验证的 MIR exact signature 加入同一 selected set；driver 不重新拼接 String/Unit 签名。String descriptor 使用导入 nominal 自带的 source provider 与身份。缺失协议、错误目标、签名不一致、provider 不可达或重复选择均由共有入口拒绝。前端仍按语言规则选择默认协议库，internal 服务的源码可见性、wire 与 runtime ABI 不变。
 
+MIR type bridge 的本地类型导出必须包含由当前 provider 拥有的语言内建 Unit/Any，即使它们没有普通源码声明 arena 或 nominal representation-support 记录。HIR facts 先完整发布当前 provider 拥有的 Unit/Any 固定语义，不能仅依赖普通 nominal roots 或源码签名触发它们。MIR 生产器从同次 sealed MIR 的 typed source-exact 引用与 HIR exact facts 投影其固定表示，并核对语言内建 nominal identity 及声明 provider；Unit 保持 ZST/GcFree，Any 保持根类型的 reference 语义，MIR 使用无成员、无 base 的 abstract class 表示和空 class dispatch schema，并由 LIR 生成既有 abstract-reference 布局；其 class-kind identity 不变。外来 Unit/Any 继续由依赖类型表提供，不能在每个 consumer 中重复发布，也不能将这一规则推广为 CORE 来源的任意类型豁免。
+
+MIR callable inventory 复用共有 nominal 表示与继承闭包检查 owner、receiver、参数和结果；依赖 source-only nominal 的未物化声明保留完整源码接口，不要求不存在的机器正文，可物化声明缺失及实际使用的能力门保持错误。
+
+有限 shape-support 的装箱也从值类型的实际 typed 声明读取全部接口，并生成同一套 adjust thunk/itable；不能把 Integer/Boolean 的 intrinsic 表示当作没有接口。String 的 intrinsic 表示保持其源码 class 的 vtable/itable 要求，使用相同的 owner kind、receiver、slot 与 target 校验。LIR shape-support 的 source-kind 检查允许 struct 对应普通字段表示、intrinsic scalar 或固定 Unit value；具体 intrinsic family 仍由完整 HIR/MIR/layout join 核对，不能从 CORE 来源推断。
+
+完整 core 源码及新增值类型、接口、类和初始化声明的闭合子集必须通过同一 MIR/LIR export 组装路径；不得用测试手工补入基础类型表代替实际 producer 输出。此修正不改变语言行为、runtime ABI 或 wire 结构。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。

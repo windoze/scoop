@@ -93,6 +93,11 @@ fn project<'a>(
     for exact in required_exacts {
         projector.visit_exact(*exact, root_exacts.contains(exact))?;
     }
+    for (ty, _) in local.types.iter() {
+        if projector.is_local_builtin(ty) {
+            projector.visit_exact(projector.exact(ty)?, false)?;
+        }
+    }
     Ok(projector)
 }
 
