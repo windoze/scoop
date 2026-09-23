@@ -7,6 +7,7 @@ use scoop_identity::{
 };
 
 use super::*;
+use crate::CallableInterfaceRecordV1;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
     CallableParameterCallingV1, CallableSafetyV1, CallableSourceEffectsV1,

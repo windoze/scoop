@@ -1,5 +1,6 @@
 //! Projection of the complete public HIR callable surface.
 
+use super::nominal_interfaces::SharedSourceRoots;
 use super::signatures::HirInterfaceSignatureProjector;
 use crate::{CanonicalCallableInterfacesV1, ExportHir};
 
@@ -45,20 +46,24 @@ impl CanonicalCallableInterfacesV1 {
         export: &ExportHir,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CallableInterfaceBuildError> {
-        let nominals =
-            crate::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter)
-                .map_err(CallableInterfaceBuildError::Nominals)?;
+        let roots = SharedSourceRoots::from_export_hir(export, meter)
+            .map_err(CallableInterfaceBuildError::Nominals)?;
+        let nominals = crate::CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(
+            export, &roots, meter,
+        )
+        .map_err(CallableInterfaceBuildError::Nominals)?;
         let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir_with_nominals(
-            export, &nominals, meter,
+            export, &nominals, &roots, meter,
         )
         .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
-        Self::from_export_hir_with_nominals(export, &properties, &nominals, meter)
+        Self::from_export_hir_with_nominals(export, &properties, &nominals, &roots, meter)
     }
 
     pub(in crate::production) fn from_export_hir_with_nominals(
         export: &ExportHir,
         properties: &crate::CanonicalPropertyInterfacesV1,
         nominals: &crate::CanonicalNominalInterfacesV1,
+        roots: &SharedSourceRoots,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CallableInterfaceBuildError> {
         let projection = CallableProjection {
@@ -71,11 +76,17 @@ impl CanonicalCallableInterfacesV1 {
         constructors::project_all(&projection, &mut records)?;
         variants::project_all(&projection, &mut records)?;
         accessors::project_all(&projection, &mut records)?;
-        let support = support::project(&projection, nominals, &records, meter)?;
+        let support = support::project(
+            &projection,
+            nominals,
+            &records,
+            &roots.top_level_callables,
+            meter,
+        )?;
         let callables =
             Self::with_support(records, support).map_err(CallableInterfaceBuildError::Table)?;
         callables
-            .validate_declaration_inventory(nominals, properties, meter)
+            .validate_member_declaration_inventory(nominals, properties, meter)
             .map_err(CallableInterfaceBuildError::Inventory)?;
         projection
             .properties

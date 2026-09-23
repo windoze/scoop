@@ -17,6 +17,7 @@ mod nested_bindings;
 pub(in crate::production) mod owner_resolution;
 mod root_declarations;
 mod source_contracts;
+pub(in crate::production) use source_contracts::SharedSourceRoots;
 pub(in crate::production) use source_contracts::{NestedSourceNode, project_nested_sources};
 mod source_shape;
 
@@ -59,13 +60,23 @@ impl CanonicalNominalInterfacesV1 {
         export: &ExportHir,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, NominalInterfaceBuildError> {
+        let roots = SharedSourceRoots::from_export_hir(export, meter)?;
+        Self::from_export_hir_with_source_roots(export, &roots, meter)
+    }
+
+    pub(in crate::production) fn from_export_hir_with_source_roots(
+        export: &ExportHir,
+        roots: &SharedSourceRoots,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<Self, NominalInterfaceBuildError> {
         let declarations =
-            source_contracts::project_declarations(export, meter).map_err(|error| match error {
-                crate::CrossConeTypeSemanticsProductionError::SourceInventory(
-                    crate::SourceInventoryError::Resource(error),
-                ) => NominalInterfaceBuildError::Resource(error),
-                other => NominalInterfaceBuildError::Declarations(other.to_string()),
-            })?;
+            source_contracts::project_required_declarations(export, &roots.nominals, meter)
+                .map_err(|error| match error {
+                    crate::CrossConeTypeSemanticsProductionError::SourceInventory(
+                        crate::SourceInventoryError::Resource(error),
+                    ) => NominalInterfaceBuildError::Resource(error),
+                    other => NominalInterfaceBuildError::Declarations(other.to_string()),
+                })?;
         let projection = NominalProjection::new(export, &declarations);
         let mut records = Vec::with_capacity(
             export.public_surface.classes.len()

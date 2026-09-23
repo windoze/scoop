@@ -1,9 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_identity::{
-    BindingTarget, ConeIdentity, ExportBindingKey, NominalDeclarationOwner, PersistentExactTypeId,
-    PersistentExportBindingId,
-};
+use scoop_identity::{ConeIdentity, NominalDeclarationOwner, PersistentExactTypeId};
 use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
 
 use super::m23_ordinary_core_only::support::{parsed_ordinary, trusted_core};

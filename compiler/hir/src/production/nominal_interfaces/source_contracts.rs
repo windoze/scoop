@@ -11,13 +11,14 @@ type Error = CrossConeTypeSemanticsProductionError;
 
 mod constructors;
 mod declarations;
-pub(super) use declarations::project as project_declarations;
+pub(super) use declarations::project_required as project_required_declarations;
 pub(super) use declarations::project_roots as project_root_declarations;
 mod members;
 mod nested;
 pub(in crate::production) use nested::{NestedSourceNode, project as project_nested_sources};
 mod projection;
 mod roots;
+pub(in crate::production) use roots::SharedSourceRoots;
 mod shapes;
 
 impl CanonicalNominalSourceContractsV1 {

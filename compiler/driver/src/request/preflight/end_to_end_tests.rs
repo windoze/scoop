@@ -25,6 +25,7 @@ mod publication;
 mod setter_domains;
 mod shape_materialization;
 mod shared_nominal_declarations;
+mod shared_source_closure;
 mod source_only_nominals;
 mod support;
 

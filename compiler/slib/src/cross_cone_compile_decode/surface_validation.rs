@@ -270,9 +270,6 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             .nominal_interfaces()
             .validate_support_semantics(&mut authority)
             .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
-        authority
-            .validate_shared_nominal_inventory()
-            .map_err(CrossConeHirNominalSurfaceError::Declarations)?;
         Ok(NominalValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,

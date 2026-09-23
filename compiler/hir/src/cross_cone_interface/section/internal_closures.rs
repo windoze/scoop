@@ -13,7 +13,7 @@ use crate::{
 impl CrossConeHirInterfaceSectionV1 {
     /// Validates every exact relationship that can be reconstructed entirely
     /// from this section plus the already validated foundation direct surface.
-    /// Cross-artifact identity, route, and visibility authority remain the
+    /// Rooted source-support reachability, cross-artifact identity, route, and visibility remain the
     /// responsibility of the closure-wide semantic pass.
     pub fn validate_internal_closures(
         &self,
@@ -25,10 +25,10 @@ impl CrossConeHirInterfaceSectionV1 {
             .validate_direct_surface(direct_surface)
             .map_err(CrossConeHirInternalClosureValidationError::DirectSurface)?;
         self.property_interfaces()
-            .validate_declaration_inventory(self.nominal_interfaces(), meter)
+            .validate_member_declaration_inventory(self.nominal_interfaces(), meter)
             .map_err(CrossConeHirInternalClosureValidationError::PropertyDeclarations)?;
         self.callable_interfaces()
-            .validate_declaration_inventory(
+            .validate_member_declaration_inventory(
                 self.nominal_interfaces(),
                 self.property_interfaces(),
                 meter,

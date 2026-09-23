@@ -44,6 +44,25 @@ impl CanonicalPropertyInterfacesV1 {
         nominals: &CanonicalNominalInterfacesV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), PropertyDeclarationInventoryError> {
+        self.validate_inventory(nominals, true, meter)
+    }
+
+    /// Checks member ownership and accessor relationships. Top-level support
+    /// reachability is proved separately from public roots and actual bodies.
+    pub fn validate_member_declaration_inventory(
+        &self,
+        nominals: &CanonicalNominalInterfacesV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), PropertyDeclarationInventoryError> {
+        self.validate_inventory(nominals, false, meter)
+    }
+
+    fn validate_inventory(
+        &self,
+        nominals: &CanonicalNominalInterfacesV1,
+        exact_members: bool,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), PropertyDeclarationInventoryError> {
         let required = nominals.declared_source_properties(meter)?;
         let path = WirePath::root().field(4);
         for (declaration, owner) in &required {
@@ -64,7 +83,13 @@ impl CanonicalPropertyInterfacesV1 {
         }
         for record in self.support_records() {
             meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
-            if !required.contains_key(&record.declaration()) {
+            if !required.contains_key(&record.declaration())
+                && (exact_members
+                    || !matches!(
+                        record.owner(),
+                        PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension
+                    ))
+            {
                 return Err(PropertyDeclarationInventoryError::UnexpectedSupport(
                     record.declaration(),
                 ));

@@ -3,7 +3,9 @@
 use crate::*;
 use scoop_wire::{BudgetMeter, WirePath};
 
+mod call_domains;
 mod domains;
+pub(super) use call_domains::SourceCallDomain;
 mod errors;
 mod shared;
 use DefaultSourceAccessProductionError as Error;

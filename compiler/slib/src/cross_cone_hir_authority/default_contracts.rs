@@ -66,15 +66,16 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             ) + 1,
             path,
         )?;
-        let public = self
+        if let Some(public) = self
             .current_interface
             .callable_interfaces()
             .get(template.key().owner())
-            .ok_or(Error::MissingDeclaration(template.key().owner()))?;
-        template
-            .references()
-            .validate_public_access(public, self.meter, path)
-            .map_err(|error| Error::PublicWitness(Box::new(error)))?;
+        {
+            template
+                .references()
+                .validate_public_access(public, self.meter, path)
+                .map_err(|error| Error::PublicWitness(Box::new(error)))?;
+        }
         let publisher = declarations::contract(
             self.current_interface,
             template.key().owner(),
@@ -97,7 +98,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         view.validate_provider_types(original.shape(), shapes, self.meter, path)
             .map_err(|error| Error::Envelope(Box::new(error)))?;
         template
-            .validate_reference_closure_semantics(public, self.meter, path)
+            .validate_source_reference_closure(self.meter, path)
             .map_err(|error| Error::ReferenceClosure(Box::new(error)))
     }
 }

@@ -205,6 +205,7 @@ impl fmt::Display for DefaultBodyProjectionError {
 impl fmt::Display for DefaultReferenceProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Access(source) => source.fmt(formatter),
             Self::Entity(source) => source.fmt(formatter),
             Self::Signature(source) => source.fmt(formatter),
             Self::DefinitionOrigin(source) => source.fmt(formatter),

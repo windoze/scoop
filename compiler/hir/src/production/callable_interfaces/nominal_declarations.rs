@@ -14,7 +14,13 @@ impl CanonicalCallableInterfacesV1 {
             signatures: HirInterfaceSignatureProjector::new(export),
             properties,
         };
-        let records = support::project(&projection, nominals, &[], meter)?;
+        let records = support::project(
+            &projection,
+            nominals,
+            &[],
+            &std::collections::BTreeMap::new(),
+            meter,
+        )?;
         let table =
             Self::with_support(Vec::new(), records).map_err(CallableInterfaceBuildError::Table)?;
         table

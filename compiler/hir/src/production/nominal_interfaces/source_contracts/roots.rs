@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 mod callables;
 mod index;
 mod properties;
+mod shared;
+pub(in crate::production) use shared::SharedSourceRoots;
 mod storage;
 pub(super) use index::Index;
 
@@ -24,13 +26,6 @@ impl CanonicalSourceNominalIdsV1 {
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
         Self::collect_module(export, false, meter)
-    }
-
-    pub(in crate::production::nominal_interfaces) fn from_complete_module(
-        export: &ExportHir,
-        meter: &mut BudgetMeter,
-    ) -> Result<Self, Error> {
-        Self::collect_module(export, true, meter)
     }
 
     fn collect_module(
@@ -79,53 +74,9 @@ impl CanonicalSourceNominalIdsV1 {
             }
             roots.require(owner, false)?;
         }
-        while let Some((owner, complete)) = roots.pending.pop() {
-            work(roots.meter, index.nodes.len())?;
-            let node = index
-                .nodes
-                .get(&owner)
-                .ok_or_else(|| invalid("required nominal source root is absent"))?;
-            if let Some(parent) = node.parent {
-                roots.require(parent, false)?;
-            }
-            index::visit_bases(export, node.local, |ty| {
-                if roots.complete_children {
-                    roots.require_field_type(export, &index, ty, 1)?;
-                }
-                work(roots.meter, index.nodes.len())?;
-                if matches!(export.types[ty], Type::Class(_)) {
-                    roots
-                        .meter
-                        .charge_work(export.objects.len() as u64, &WirePath::root())
-                        .map_err(resource)?;
-                }
-                let base = owner_resolution::from_type(export, ty)
-                    .ok_or_else(|| invalid("source inheritance has no nominal identity"))?;
-                // Foreign source owners are supplied by their provider closure.
-                if index.nodes.contains_key(&base) {
-                    roots.require(base, false)?;
-                }
-                Ok(())
-            })?;
-            storage::visit_fields(export, node.local, |ty| {
-                roots.require_field_type(export, &index, ty, 1)
-            })?;
-            if roots.complete_children {
-                callables::visit_types(export, node.local, |ty| {
-                    roots.require_field_type(export, &index, ty, 1)
-                })?;
-                properties::visit_types(export, node.local, |ty| {
-                    roots.require_field_type(export, &index, ty, 1)
-                })?;
-            }
-            work(roots.meter, index.children.len())?;
-            if let Some(children) = index.children.get(&owner) {
-                for child in children {
-                    work(roots.meter, index.nodes.len())?;
-                    if complete || index.nodes[child].visibility == DeclaredVisibility::Protected {
-                        roots.require(*child, true)?;
-                    }
-                }
+        loop {
+            if roots.expand_next(export, &index)?.is_none() {
+                break;
             }
         }
         let mut values = Vec::new();
@@ -148,6 +99,63 @@ struct Roots<'m> {
     meter: &'m mut BudgetMeter,
 }
 impl Roots<'_> {
+    fn expand_next(
+        &mut self,
+        export: &ExportHir,
+        index: &Index,
+    ) -> Result<Option<SourceNominalId>, Error> {
+        let Some((owner, complete)) = self.pending.pop() else {
+            return Ok(None);
+        };
+        work(self.meter, index.nodes.len())?;
+        let node = index
+            .nodes
+            .get(&owner)
+            .ok_or_else(|| invalid("required nominal source root is absent"))?;
+        if let Some(parent) = node.parent {
+            self.require(parent, false)?;
+        }
+        index::visit_bases(export, node.local, |ty| {
+            if self.complete_children {
+                self.require_field_type(export, index, ty, 1)?;
+            }
+            work(self.meter, index.nodes.len())?;
+            if matches!(export.types[ty], Type::Class(_)) {
+                self.meter
+                    .charge_work(export.objects.len() as u64, &WirePath::root())
+                    .map_err(resource)?;
+            }
+            let base = owner_resolution::from_type(export, ty)
+                .ok_or_else(|| invalid("source inheritance has no nominal identity"))?;
+            // Foreign source owners are supplied by their provider closure.
+            if index.nodes.contains_key(&base) {
+                self.require(base, false)?;
+            }
+            Ok(())
+        })?;
+        storage::visit_fields(export, node.local, |ty| {
+            self.require_field_type(export, index, ty, 1)
+        })?;
+        if self.complete_children {
+            callables::visit_types(export, node.local, |ty| {
+                self.require_field_type(export, index, ty, 1)
+            })?;
+            properties::visit_types(export, node.local, |ty| {
+                self.require_field_type(export, index, ty, 1)
+            })?;
+        }
+        work(self.meter, index.children.len())?;
+        if let Some(children) = index.children.get(&owner) {
+            for child in children {
+                work(self.meter, index.nodes.len())?;
+                if complete || index.nodes[child].visibility == DeclaredVisibility::Protected {
+                    self.require(*child, true)?;
+                }
+            }
+        }
+        Ok(Some(owner))
+    }
+
     fn require(&mut self, owner: SourceNominalId, complete: bool) -> Result<(), Error> {
         let complete = complete || self.complete_children;
         work(self.meter, self.required.len())?;

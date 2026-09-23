@@ -3,8 +3,6 @@ use scoop_hir::{DeclaredVisibilityV1, NestedSourceMemberRefV1, NominalInterfaceR
 use scoop_identity::DefinitionOriginSubject;
 use scoop_wire::WirePath;
 
-mod closure;
-
 type Error = CrossConeHirNominalAuthorityError;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {

@@ -10,7 +10,7 @@ use crate::{
 
 impl CanonicalCallableSourceInterfacesV1 {
     /// Validates this table against an already validated callable-interface
-    /// table and the current artifact's source/core authorities.
+    /// table and the current artifact's shared source authorities.
     pub fn validate_semantics<A, E>(
         &self,
         callables: &CanonicalCallableInterfacesV1,
@@ -20,7 +20,7 @@ impl CanonicalCallableSourceInterfacesV1 {
         A: CallableSourceInterfaceSemanticAuthority<E>,
     {
         for (index, source) in self.records().iter().enumerate() {
-            let callable = callables.get(source.owner()).ok_or(
+            let callable = callables.declaration(source.owner()).ok_or(
                 CallableSourceInterfaceSetSemanticValidationError::OrphanSourceInterface {
                     index,
                     owner: source.owner(),
@@ -36,7 +36,7 @@ impl CanonicalCallableSourceInterfacesV1 {
                 )?;
         }
 
-        for callable in callables.records() {
+        for callable in callables.all_declarations() {
             let declaration = callable.declaration();
             if matches!(declaration, CallableTemplateOrigin::Accessor(_)) {
                 continue;

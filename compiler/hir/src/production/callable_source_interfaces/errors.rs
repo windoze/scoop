@@ -15,7 +15,6 @@ pub enum SourceCallableOwnerProjectionError {
     MissingIdentity,
     NonSourceFunction,
     ConstructorOwnerMismatch,
-    TooManyVariants,
     MissingCallableInterface(CallableTemplateOrigin),
     Signature(HirInterfaceSignatureProjectionError),
 }
@@ -90,10 +89,9 @@ impl fmt::Display for SourceCallableOwnerProjectionError {
             Self::ConstructorOwnerMismatch => {
                 formatter.write_str("constructor is not attached to its declared nominal owner")
             }
-            Self::TooManyVariants => formatter.write_str("enum variant count exceeds u32"),
             Self::MissingCallableInterface(declaration) => write!(
                 formatter,
-                "public callable {declaration:?} has no declaration interface"
+                "shared callable {declaration:?} has no declaration interface"
             ),
             Self::Signature(source) => source.fmt(formatter),
         }
@@ -105,7 +103,7 @@ impl fmt::Display for CallableSourceParameterProjectionError {
         match self {
             Self::MissingCallableInterface(declaration) => write!(
                 formatter,
-                "public callable {declaration:?} has no declaration interface"
+                "shared callable {declaration:?} has no declaration interface"
             ),
             Self::MissingInterface => formatter.write_str("source parameter interface is missing"),
             Self::DuplicateInterface => {
@@ -172,7 +170,7 @@ impl fmt::Display for CallableSourceInterfaceProductionError {
                 write!(formatter, "cannot project callable authority: {source}")
             }
             Self::Owner { subject, error } => {
-                write!(formatter, "cannot identify public {subject}: {error}")
+                write!(formatter, "cannot identify source {subject}: {error}")
             }
             Self::Parameters { subject, error } => {
                 write!(
@@ -182,7 +180,7 @@ impl fmt::Display for CallableSourceInterfaceProductionError {
             }
             Self::MissingInterface(declaration) => write!(
                 formatter,
-                "public source callable {declaration:?} has no source interface"
+                "shared source callable {declaration:?} has no source interface"
             ),
             Self::PropertyAccessorInterface(declaration) => write!(
                 formatter,

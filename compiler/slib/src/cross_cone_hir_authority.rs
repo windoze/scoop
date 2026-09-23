@@ -23,6 +23,7 @@ mod nominal_intrinsics;
 mod nominals;
 mod property;
 mod property_declarations;
+mod source_inventory;
 mod source_visibility;
 mod type_alias;
 
@@ -43,6 +44,7 @@ pub use errors::*;
 pub use intrinsics::CrossConeIntrinsicDeclarationError;
 pub(crate) use intrinsics::validate_intrinsic_declarations;
 pub use nominal_intrinsics::CrossConeHirIntrinsicTypeError;
+pub use source_inventory::{CrossConeHirSourceInventoryError, SourceInventoryDeclaration};
 
 use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1, ExportBindingSourceV1,

@@ -16,17 +16,14 @@ use crate::{
 };
 
 mod compare;
+mod observer;
 mod visitor;
 mod walk;
 
 pub use visitor::*;
 
-use visitor::DefaultBodyReferenceTargetV1 as Target;
-
-use compare::{
-    CallableTargetView, ConstructorTargetView, FieldTargetView, callable_target,
-    constructor_target, field_target, signature_type,
-};
+use compare::{CallableTargetView, ConstructorTargetView, FieldTargetView};
+use observer::ClosureObserver;
 
 impl ExportDefaultTemplateV1 {
     /// Proves that the declared six-domain reference set is exactly the
@@ -57,7 +54,31 @@ impl ExportDefaultTemplateV1 {
             expected_owner,
             call_domain(owner_interface.access()),
         );
-        let mut observer = PublicClosureObserver::new(self.references(), witness, meter, path)?;
+        self.validate_reference_closure(WitnessExpectation::Public(witness), meter, path)
+    }
+
+    /// Checks the exact direct reference closure of any shared source default.
+    /// Target access and publisher call domains must also be replayed from the
+    /// actual provider declarations by the artifact reader.
+    pub fn validate_source_reference_closure(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        self.validate_reference_closure(
+            WitnessExpectation::SourceOwner(self.key().owner()),
+            meter,
+            path,
+        )
+    }
+
+    fn validate_reference_closure(
+        &self,
+        witness: WitnessExpectation,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
+        let mut observer = ClosureObserver::new(self.references(), witness, meter, path)?;
         self.body().visit_direct_references(
             self.locals(),
             self.definition_origin(),
@@ -65,191 +86,31 @@ impl ExportDefaultTemplateV1 {
             meter,
             path,
         )?;
-        observer.domains.finish(meter, path)
+        observer.finish(meter, path)
     }
 }
 
-struct PublicClosureObserver<'a> {
-    witness: ExportDefaultAccessWitnessV1,
-    domains: ReferenceDomains<'a>,
+enum WitnessExpectation {
+    Public(ExportDefaultAccessWitnessV1),
+    SourceOwner(CallableTemplateOrigin),
 }
 
-impl<'a> PublicClosureObserver<'a> {
-    fn new(
-        references: &'a ExportDefaultReferenceSetV1,
-        witness: ExportDefaultAccessWitnessV1,
+impl WitnessExpectation {
+    fn compare(
+        &self,
+        actual: &ExportDefaultAccessWitnessV1,
         meter: &mut BudgetMeter,
         path: &WirePath,
-    ) -> Result<Self, ExportDefaultReferenceClosureValidationError> {
-        let domains = ReferenceDomains::new(references, meter, path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
-        Ok(Self { witness, domains })
-    }
-
-    fn observe_callable(
-        &mut self,
-        target: CallableTargetView<'_>,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        observe_record(
-            self.domains.callables.records,
-            &mut self.domains.callables.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Callable,
-            site,
-            |declared, meter, path| callable_target(declared, target, meter, path),
-            meter,
-            path,
-        )
-    }
-
-    fn observe_constructor(
-        &mut self,
-        target: ConstructorTargetView<'_>,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        observe_record(
-            self.domains.constructors.records,
-            &mut self.domains.constructors.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Constructor,
-            site,
-            |declared, meter, path| constructor_target(declared, target, meter, path),
-            meter,
-            path,
-        )
-    }
-
-    fn match_type(
-        &mut self,
-        target: &SignatureTypeKey,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        if matches!(target, SignatureTypeKey::Binder { .. }) {
-            return Ok(());
-        }
-        observe_record(
-            self.domains.types.records,
-            &mut self.domains.types.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Type,
-            site,
-            |declared, meter, path| signature_type(declared, target, meter, path),
-            meter,
-            path,
-        )
-    }
-
-    fn observe_global(
-        &mut self,
-        target: PersistentPropertyId,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        observe_record(
-            self.domains.globals.records,
-            &mut self.domains.globals.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Global,
-            site,
-            |declared, _, _| Ok(declared.cmp(&target)),
-            meter,
-            path,
-        )
-    }
-
-    fn observe_singleton(
-        &mut self,
-        target: PersistentObjectValueId,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        observe_record(
-            self.domains.singletons.records,
-            &mut self.domains.singletons.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Singleton,
-            site,
-            |declared, _, _| Ok(declared.cmp(&target)),
-            meter,
-            path,
-        )
-    }
-
-    fn observe_field(
-        &mut self,
-        target: FieldTargetView<'_>,
-        origin: &ExportDefinitionSourceV1,
-        site: ExportDefaultReferenceOccurrenceSiteV1,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), ExportDefaultReferenceClosureValidationError> {
-        observe_record(
-            self.domains.fields.records,
-            &mut self.domains.fields.seen,
-            origin,
-            &self.witness,
-            ExportDefaultReferenceKindV1::Field,
-            site,
-            |declared, meter, path| field_target(declared, target, meter, path),
-            meter,
-            path,
-        )
-    }
-}
-
-impl<'body> DefaultBodyReferenceVisitorV1<'body> for PublicClosureObserver<'_> {
-    type Error = ExportDefaultReferenceClosureValidationError;
-
-    fn expression(
-        &mut self,
-        _: u32,
-        _: &crate::DefaultExpressionV1,
-        _: &mut BudgetMeter,
-        _: &WirePath,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn reference(
-        &mut self,
-        occurrence: DefaultBodyReferenceOccurrenceV1<'body>,
-        meter: &mut BudgetMeter,
-        path: &WirePath,
-    ) -> Result<(), Self::Error> {
-        let DefaultBodyReferenceOccurrenceV1 {
-            target,
-            definition_origin: origin,
-            site,
-            ..
-        } = occurrence;
-        match target {
-            Target::Callable(target) => self.observe_callable(target, origin, site, meter, path),
-            Target::Constructor(target) => {
-                self.observe_constructor(target, origin, site, meter, path)
+    ) -> Result<Ordering, WireError> {
+        match self {
+            Self::Public(expected) => {
+                actual.charge_comparison(expected, meter, path)?;
+                Ok(actual.cmp(expected))
             }
-            Target::Type(target) => self.match_type(target, origin, site, meter, path),
-            Target::Global(target) => self.observe_global(target, origin, site, meter, path),
-            Target::Singleton(target) => self.observe_singleton(target, origin, site, meter, path),
-            Target::Field(target) => self.observe_field(target, origin, site, meter, path),
+            Self::SourceOwner(expected) => {
+                meter.charge_work(1, path)?;
+                Ok(actual.owner().cmp(expected))
+            }
         }
     }
 }
@@ -346,7 +207,7 @@ fn observe_record<T>(
     records: &[ExportDefaultReferenceV1<T>],
     seen: &mut [bool],
     origin: &ExportDefinitionSourceV1,
-    witness: &ExportDefaultAccessWitnessV1,
+    witness: &WitnessExpectation,
     kind: ExportDefaultReferenceKindV1,
     site: ExportDefaultReferenceOccurrenceSiteV1,
     mut compare_target: impl FnMut(&T, &mut BudgetMeter, &WirePath) -> Result<Ordering, WireError>,
@@ -361,14 +222,11 @@ fn observe_record<T>(
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
         let middle = start + (end - start) / 2;
         let record = &records[middle];
-        record
-            .witness()
-            .charge_comparison(witness, meter, path)
-            .map_err(ExportDefaultReferenceClosureValidationError::Resource)?;
+        let witness_ordering = witness.compare(record.witness(), meter, path)?;
         let ordering = compare_target(record.target(), meter, path)
             .map_err(ExportDefaultReferenceClosureValidationError::Resource)?
             .then_with(|| record.definition_origin().cmp(origin))
-            .then_with(|| record.witness().cmp(witness));
+            .then(witness_ordering);
         match ordering {
             Ordering::Less => start = middle + 1,
             Ordering::Greater => end = middle,

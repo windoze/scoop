@@ -1,4 +1,4 @@
-//! Projection of source-level argument protocols for public callables.
+//! Projection of source-level argument protocols for all shared source declarations.
 
 use scoop_identity::CallableTemplateOrigin;
 
@@ -27,7 +27,7 @@ pub(super) struct SourceCallableOwner {
     pub(super) binders: Vec<crate::HirSignatureBinder>,
 }
 
-pub(super) fn public_source_callable_owners<'a>(
+pub(super) fn shared_source_callable_owners<'a>(
     export: &'a ExportHir,
     callables: &'a CanonicalCallableInterfacesV1,
 ) -> Result<Vec<SourceCallableOwner>, CallableSourceInterfaceProductionError> {
@@ -36,11 +36,11 @@ pub(super) fn public_source_callable_owners<'a>(
         callables,
         signatures: HirInterfaceSignatureProjector::new(export),
     };
-    owners::collect_public(&projection)
+    owners::collect(&projection)
 }
 
 impl CanonicalCallableSourceInterfacesV1 {
-    /// Projects exactly one source-call interface for every public source
+    /// Projects exactly one source-call interface for every shared source
     /// callable. Property accessors are intentionally absent because callers
     /// never apply named/default/vararg source argument rules to accessors.
     pub fn from_export_hir(
@@ -60,7 +60,7 @@ impl CanonicalCallableSourceInterfacesV1 {
             callables,
             signatures: HirInterfaceSignatureProjector::new(export),
         };
-        let owners = owners::collect_public(&projection)?;
+        let owners = owners::collect(&projection)?;
         let mut records = Vec::with_capacity(owners.len());
         for owner in owners {
             records.push(parameters::project(&projection, owner)?);
@@ -76,7 +76,7 @@ fn validate_closure(
     callables: &CanonicalCallableInterfacesV1,
     interfaces: &CanonicalCallableSourceInterfacesV1,
 ) -> Result<(), CallableSourceInterfaceProductionError> {
-    for callable in callables.records() {
+    for callable in callables.all_declarations() {
         let declaration = callable.declaration();
         if matches!(declaration, CallableTemplateOrigin::Accessor(_)) {
             if interfaces.get(declaration).is_some() {

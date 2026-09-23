@@ -1,15 +1,6 @@
 use super::*;
 use std::collections::BTreeMap;
 
-/// One shared source record for each public or necessary support declaration.
-pub(in crate::production::nominal_interfaces) fn project(
-    export: &ExportHir,
-    meter: &mut BudgetMeter,
-) -> Result<BTreeMap<SourceNominalId, NominalInterfaceRecordV1>, Error> {
-    let required = CanonicalSourceNominalIdsV1::from_complete_module(export, meter)?;
-    project_required(export, &required, meter)
-}
-
 pub(in crate::production::nominal_interfaces) fn project_roots(
     export: &ExportHir,
     roots: &[SourceNominalId],
@@ -19,7 +10,7 @@ pub(in crate::production::nominal_interfaces) fn project_roots(
     project_required(export, &required, meter)
 }
 
-fn project_required(
+pub(in crate::production::nominal_interfaces) fn project_required(
     export: &ExportHir,
     required: &CanonicalSourceNominalIdsV1,
     meter: &mut BudgetMeter,

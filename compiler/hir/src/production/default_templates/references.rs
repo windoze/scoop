@@ -3,19 +3,20 @@
 use scoop_identity::CallableTemplateOrigin;
 
 use super::entities::DefaultEntityProjector;
+use super::source_access::SourceCallDomain;
 use crate::{
     DefaultConstructorRefV1, ExportDefaultAccessWitness, ExportDefaultAccessWitnessV1,
-    ExportDefaultCallDomainV1, ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1,
-    ExportDefaultReferenceV1, ExportDefaultReferences, ExportHir, HirSignatureBinder,
-    PublicLookupAccessV1,
+    ExportDefaultReferenceKindV1, ExportDefaultReferenceSetV1, ExportDefaultReferenceV1,
+    ExportDefaultReferences, ExportHir, HirSignatureBinder, SourceAccessDomainV1,
 };
 
 pub(super) struct ReferenceProjection<'a, 'hir, 'meter> {
     pub(super) entities: &'a DefaultEntityProjector<'hir, 'meter>,
     pub(super) source_owner: CallableTemplateOrigin,
-    pub(super) source_access: PublicLookupAccessV1,
+    pub(super) source_domain: SourceCallDomain<'hir>,
     pub(super) target_owner: CallableTemplateOrigin,
-    pub(super) target_access: PublicLookupAccessV1,
+    pub(super) target_domain: SourceCallDomain<'hir>,
+    pub(super) target_public: bool,
     pub(super) binders: &'a [HirSignatureBinder],
 }
 
@@ -166,26 +167,33 @@ fn witness(
             actual,
         });
     }
-    if !witness.target_domain.is_universal() || !witness.call_domain.direct.0.is_universal() {
+    if projection.target_public && !witness.target_domain.is_universal() {
         return Err(super::DefaultReferenceProjectionError::RestrictedTarget { kind, index });
     }
-    let source_domain_matches = match (projection.source_access, witness.call_domain.slot.as_ref())
-    {
-        (PublicLookupAccessV1::DirectOnly, None) => true,
-        (PublicLookupAccessV1::PublicSlot, Some(slot)) => slot.0.is_universal(),
-        _ => false,
-    };
-    if !source_domain_matches {
+    if !projection.source_domain.matches(&witness.call_domain) {
         return Err(super::DefaultReferenceProjectionError::InvalidCallDomain { kind, index });
     }
-    let call_domain = match projection.target_access {
-        PublicLookupAccessV1::DirectOnly => ExportDefaultCallDomainV1::DirectPublic,
-        PublicLookupAccessV1::PublicSlot => ExportDefaultCallDomainV1::DirectAndPublicSlot,
-    };
-    Ok(ExportDefaultAccessWitnessV1::new(
-        projection.target_owner,
-        call_domain,
-    ))
+    projection
+        .entities
+        .resources
+        .with_fallible_meter(|meter, _| {
+            let export = projection.entities.export();
+            let direct = SourceAccessDomainV1::from_export_hir(
+                export,
+                projection.target_domain.direct,
+                meter,
+            )?;
+            let slot = projection
+                .target_domain
+                .slot
+                .map(|slot| SourceAccessDomainV1::from_export_hir(export, slot, meter))
+                .transpose()?;
+            let target =
+                SourceAccessDomainV1::from_export_hir(export, &witness.target_domain, meter)?;
+            ExportDefaultAccessWitnessV1::try_new(projection.target_owner, direct, slot, target)
+                .map_err(super::DefaultSourceAccessProductionError::SharedBuild)
+        })
+        .map_err(super::DefaultReferenceProjectionError::Access)
 }
 
 fn origin(

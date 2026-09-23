@@ -36,6 +36,7 @@ mod default_origins;
 mod default_reference_closure;
 mod default_type_access;
 mod default_value_access;
+mod shared_source;
 mod source_providers;
 
 #[test]

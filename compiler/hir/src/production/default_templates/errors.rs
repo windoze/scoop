@@ -126,6 +126,7 @@ pub enum DefaultBodyProjectionError {
 
 #[derive(Debug)]
 pub enum DefaultReferenceProjectionError {
+    Access(super::DefaultSourceAccessProductionError),
     Entity(DefaultEntityProjectionError),
     Signature(HirInterfaceSignatureProjectionError),
     DefinitionOrigin(HirDefinitionSourceProjectionError),

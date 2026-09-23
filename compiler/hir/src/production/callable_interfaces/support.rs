@@ -21,6 +21,7 @@ pub(super) fn project(
     projection: &CallableProjection<'_>,
     nominals: &CanonicalNominalInterfacesV1,
     public: &[CallableInterfaceRecordV1],
+    top_level: &std::collections::BTreeMap<CallableTemplateOrigin, crate::PublicDeclarationOwnerV1>,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<CallableDeclarationRecordV1>, CallableInterfaceBuildError> {
     use CallableInterfaceBuildError as Error;
@@ -31,6 +32,13 @@ pub(super) fn project(
     )
     .map_err(Error::Inventory)?;
     let path = WirePath::root().field(3);
+    for (id, owner) in top_level {
+        query(meter, required.len())?;
+        meter
+            .charge_collection_slots(1, &path)
+            .map_err(Error::Resource)?;
+        required.insert(*id, *owner);
+    }
     for record in public {
         query(meter, required.len())?;
         required.remove(&record.declaration());

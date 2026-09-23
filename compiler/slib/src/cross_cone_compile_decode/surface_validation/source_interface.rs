@@ -12,7 +12,8 @@ pub use crate::cross_cone_hir_authority::{
     CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError,
     CrossConeHirDefaultNestedIdentityError, CrossConeHirDefaultProviderContractError,
     CrossConeHirDefaultRootOriginError, CrossConeHirDefaultTypeAccessError,
-    CrossConeHirDefaultValueAccessError, DefaultMetadataNominalError,
+    CrossConeHirDefaultValueAccessError, CrossConeHirSourceInventoryError,
+    DefaultMetadataNominalError, SourceInventoryDeclaration,
 };
 
 /// One provider whose callable source-order parameter protocol is exact and
@@ -80,6 +81,9 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
         authority
             .validate_default_local_data_flow()
             .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultDataFlow)?;
+        authority
+            .validate_shared_source_inventory()
+            .map_err(CrossConeHirSourceInterfaceSurfaceError::SourceInventory)?;
         Ok(SourceInterfaceValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,
@@ -98,6 +102,7 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
 
 #[derive(Debug)]
 pub enum CrossConeHirSourceInterfaceSurfaceError {
+    SourceInventory(CrossConeHirSourceInventoryError),
     SourceInterfaces(
         CallableSourceInterfaceSetSemanticValidationError<CrossConeHirCallableSourceAuthorityError>,
     ),
@@ -114,6 +119,7 @@ pub enum CrossConeHirSourceInterfaceSurfaceError {
 impl std::fmt::Display for CrossConeHirSourceInterfaceSurfaceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::SourceInventory(error) => error.fmt(formatter),
             Self::SourceInterfaces(error) => error.fmt(formatter),
             Self::DefaultRootOrigin(error) => error.fmt(formatter),
             Self::DefaultProviderContract(error) => error.fmt(formatter),
@@ -130,6 +136,7 @@ impl std::fmt::Display for CrossConeHirSourceInterfaceSurfaceError {
 impl std::error::Error for CrossConeHirSourceInterfaceSurfaceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::SourceInventory(error) => Some(error),
             Self::SourceInterfaces(error) => Some(error),
             Self::DefaultRootOrigin(error) => Some(error),
             Self::DefaultProviderContract(error) => Some(error),

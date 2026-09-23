@@ -1,0 +1,14 @@
+Module
+  class SourceContainer()
+  property0 val sourceBias: Int getter0=storage <stored global0 image>
+  val sourceBias: Int <global0 managed>
+  fun sourceSeed(value: Int): Int
+    return
+      Local value : Int
+  fun unreachableLeft(value: Int): Int
+    return
+      Local value : Int
+  fun unreachableRight(value: Int): Int
+    return
+      Local value : Int
+  output library

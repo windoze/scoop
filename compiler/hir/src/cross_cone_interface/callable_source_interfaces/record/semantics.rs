@@ -1,7 +1,7 @@
 use scoop_identity::{ConeIdentity, PersistentGenericTypeId, SignatureTypeKey};
 
 use super::CallableSourceInterfaceV1;
-use crate::{CallableInterfaceRecordV1, CallableSourceParameterV1, ExportDefinitionSourceV1};
+use crate::{CallableDeclarationRecordV1, CallableSourceParameterV1, ExportDefinitionSourceV1};
 
 mod errors;
 
@@ -27,7 +27,7 @@ pub trait CallableSourceInterfaceSemanticAuthority<E> {
 impl CallableSourceInterfaceV1 {
     pub fn validate_semantics<A, E>(
         &self,
-        callable: &CallableInterfaceRecordV1,
+        callable: &CallableDeclarationRecordV1,
         authority: &mut A,
     ) -> Result<(), CallableSourceInterfaceSemanticValidationError<E>>
     where

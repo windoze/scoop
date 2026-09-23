@@ -26,7 +26,7 @@ fn project_parameters(
     owner: &SourceCallableOwner,
 ) -> Result<CallableSourceInterfaceV1, CallableSourceParameterProjectionError> {
     let source = unique_interface(projection.export, owner.local)?;
-    let callable = projection.callables.get(owner.declaration).ok_or(
+    let callable = projection.callables.declaration(owner.declaration).ok_or(
         CallableSourceParameterProjectionError::MissingCallableInterface(owner.declaration),
     )?;
     let expected = callable.parameters().parameters();

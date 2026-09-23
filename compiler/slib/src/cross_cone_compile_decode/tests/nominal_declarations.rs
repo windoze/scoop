@@ -93,16 +93,24 @@ fn ordinary_reader_preserves_private_support_from_the_same_nominal_table() {
 fn ordinary_reader_rejects_missing_support_and_unrelated_support() {
     let fixture = Fixture::new();
     for (include, extra, expected) in [
+        (false, false, "required shared source declaration is absent"),
         (
-            false,
-            false,
-            "required source support declaration is absent",
+            true,
+            true,
+            "shared source support is unreachable from public roots",
         ),
-        (true, true, "unrelated source support declaration"),
     ] {
         let bytes = fixture.artifact(include, true, extra);
-        let Err(CrossConeHirNominalSurfaceError::Declarations(error)) =
-            front(&bytes).validate_nominal_surface(vec![])
+        let Err(CrossConeHirSourceInterfaceSurfaceError::SourceInventory(error)) = front(&bytes)
+            .validate_nominal_surface(vec![])
+            .unwrap()
+            .validate_property_surface(vec![])
+            .unwrap()
+            .validate_callable_surface(vec![])
+            .unwrap()
+            .validate_type_alias_surface(vec![])
+            .unwrap()
+            .validate_source_interfaces(vec![])
         else {
             panic!("support closure must reject missing or unrelated declarations")
         };

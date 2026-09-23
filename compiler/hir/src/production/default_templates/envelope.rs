@@ -1,4 +1,4 @@
-//! Public reference envelopes around the shared portable default body projection.
+//! Source reference envelopes around the shared portable default body projection.
 use super::{
     entities::DefaultEntityProjector, errors::DefaultTemplateEnvelopeProjectionError, references,
 };
@@ -36,7 +36,7 @@ fn project_inner(
     source_id: ExportDefaultSourceId,
 ) -> Result<ExportDefaultTemplateV1, DefaultTemplateEnvelopeProjectionError> {
     let projected = projection::project_body(export, entities, &owner.binders, source_id)?;
-    let owner_interface = callables.get(owner.declaration).ok_or(
+    callables.declaration(owner.declaration).ok_or(
         DefaultTemplateEnvelopeProjectionError::Provider(
             super::DefaultEntityProjectionError::MissingIdentity {
                 kind: "default owner callable interface",
@@ -45,21 +45,26 @@ fn project_inner(
         ),
     )?;
     let provider_owner = projected.root.declaration();
-    let provider_interface =
-        callables
-            .get(provider_owner)
-            .ok_or(DefaultTemplateEnvelopeProjectionError::Provider(
-                super::DefaultEntityProjectionError::MissingIdentity {
-                    kind: "default provider callable interface",
-                    index: super::owner_index(owner.local),
-                },
-            ))?;
+    callables.declaration(provider_owner).ok_or(
+        DefaultTemplateEnvelopeProjectionError::Provider(
+            super::DefaultEntityProjectionError::MissingIdentity {
+                kind: "default provider callable interface",
+                index: super::owner_index(owner.local),
+            },
+        ),
+    )?;
     let reference_projection = references::ReferenceProjection {
         entities,
         source_owner: provider_owner,
-        source_access: provider_interface.access(),
+        source_domain: super::source_access::SourceCallDomain::from_owner(
+            export,
+            projected.local_owner,
+        )
+        .map_err(DefaultTemplateEnvelopeProjectionError::Provider)?,
         target_owner: owner.declaration,
-        target_access: owner_interface.access(),
+        target_domain: super::source_access::SourceCallDomain::from_owner(export, owner.local)
+            .map_err(DefaultTemplateEnvelopeProjectionError::Provider)?,
+        target_public: callables.get(owner.declaration).is_some(),
         binders: &projected.provider_binders,
     };
     let references = references::project(&reference_projection, projected.references)

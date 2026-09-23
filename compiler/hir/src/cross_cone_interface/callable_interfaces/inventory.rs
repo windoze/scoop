@@ -100,6 +100,27 @@ impl CanonicalCallableInterfacesV1 {
         properties: &CanonicalPropertyInterfacesV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), CallableDeclarationInventoryError> {
+        self.validate_inventory(nominals, properties, true, meter)
+    }
+
+    /// Checks member ownership and accessor relationships. Top-level support
+    /// reachability is proved separately from public roots and actual bodies.
+    pub fn validate_member_declaration_inventory(
+        &self,
+        nominals: &CanonicalNominalInterfacesV1,
+        properties: &CanonicalPropertyInterfacesV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), CallableDeclarationInventoryError> {
+        self.validate_inventory(nominals, properties, false, meter)
+    }
+
+    fn validate_inventory(
+        &self,
+        nominals: &CanonicalNominalInterfacesV1,
+        properties: &CanonicalPropertyInterfacesV1,
+        exact_members: bool,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), CallableDeclarationInventoryError> {
         let required = Self::required_declarations(nominals, properties, meter)?;
         let path = WirePath::root().field(3);
         for (declaration, owner) in &required {
@@ -120,7 +141,18 @@ impl CanonicalCallableInterfacesV1 {
         }
         for record in self.support_records() {
             meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
-            if !required.contains_key(&record.declaration()) {
+            if !required.contains_key(&record.declaration())
+                && (exact_members
+                    || !matches!(
+                        record.owner(),
+                        PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension
+                    )
+                    || !matches!(
+                        record.declaration(),
+                        CallableTemplateOrigin::Function(_)
+                            | CallableTemplateOrigin::GenericFunction(_)
+                    ))
+            {
                 return Err(CallableDeclarationInventoryError::UnexpectedSupport(
                     record.declaration(),
                 ));

@@ -6,37 +6,8 @@ use super::{
 };
 use crate::{ExportParameterOwner, HirClassConstructorIdentity, HirFunctionIdentity};
 
-pub(super) fn collect_public(
-    projection: &CallableSourceProjection<'_>,
-) -> Result<Vec<SourceCallableOwner>, CallableSourceInterfaceProductionError> {
-    let mut owners = Vec::new();
-    for &function in &projection.export.public_surface.functions {
-        let subject = crate::CallableProjectionSubject::Function(super::raw_index(function));
-        owners.push(
-            project_function(projection, function)
-                .map_err(|error| production_error(subject, error))?,
-        );
-    }
-    for &constructor in &projection.export.public_surface.struct_constructors {
-        let subject =
-            crate::CallableProjectionSubject::StructConstructor(super::raw_index(constructor));
-        owners.push(
-            project_struct_constructor(projection, constructor, subject)
-                .map_err(|error| production_error(subject, error))?,
-        );
-    }
-    for &constructor in &projection.export.public_surface.class_constructors {
-        let subject =
-            crate::CallableProjectionSubject::ClassConstructor(super::raw_index(constructor));
-        if let Some(owner) = project_class_constructor(projection, constructor, subject)
-            .map_err(|error| production_error(subject, error))?
-        {
-            owners.push(owner);
-        }
-    }
-    collect_variants(projection, &mut owners)?;
-    Ok(owners)
-}
+mod selection;
+pub(super) use selection::collect;
 
 fn project_function(
     projection: &CallableSourceProjection<'_>,
@@ -138,84 +109,37 @@ fn project_class_constructor(
     }))
 }
 
-fn collect_variants(
+fn project_variant(
     projection: &CallableSourceProjection<'_>,
-    owners: &mut Vec<SourceCallableOwner>,
-) -> Result<(), CallableSourceInterfaceProductionError> {
-    for &enumeration_id in &projection.export.public_surface.enums {
-        let enumeration =
-            super::arena_get(&projection.export.enums, enumeration_id).ok_or_else(|| {
-                production_error(
-                    crate::CallableProjectionSubject::Variant {
-                        enumeration: super::raw_index(enumeration_id),
-                        variant: 0,
-                    },
-                    SourceCallableOwnerProjectionError::UnknownDeclaration,
-                )
-            })?;
-        let binders = projection
-            .signatures
-            .binder_frame(&enumeration.type_params, 0)
-            .map_err(|error| {
-                production_error(
-                    crate::CallableProjectionSubject::Variant {
-                        enumeration: super::raw_index(enumeration_id),
-                        variant: 0,
-                    },
-                    SourceCallableOwnerProjectionError::Signature(error),
-                )
-            })?;
-        for variant_index in 0..enumeration.variants.len() {
-            let variant_index = u32::try_from(variant_index).map_err(|_| {
-                production_error(
-                    crate::CallableProjectionSubject::Variant {
-                        enumeration: super::raw_index(enumeration_id),
-                        variant: u32::MAX,
-                    },
-                    SourceCallableOwnerProjectionError::TooManyVariants,
-                )
-            })?;
-            let subject = crate::CallableProjectionSubject::Variant {
-                enumeration: super::raw_index(enumeration_id),
-                variant: variant_index,
-            };
-            let variant = crate::EnumVariantRef::checked(
-                &projection.export.enums,
-                enumeration_id,
-                variant_index,
-            )
-            .ok_or_else(|| {
-                production_error(
-                    subject,
-                    SourceCallableOwnerProjectionError::UnknownDeclaration,
-                )
-            })?;
-            let identity = projection
-                .export
-                .enum_member_identities
-                .get_variant(variant)
-                .ok_or_else(|| {
-                    production_error(subject, SourceCallableOwnerProjectionError::MissingIdentity)
-                })?;
-            let declaration = CallableTemplateOrigin::VariantConstructor(identity.id());
-            require_callable(projection, declaration)
-                .map_err(|error| production_error(subject, error))?;
-            owners.push(SourceCallableOwner {
-                subject,
-                local: ExportParameterOwner::VariantConstructor(variant),
-                declaration,
-                binders: binders.clone(),
-            });
-        }
-    }
-    Ok(())
+    variant: crate::EnumVariantRef,
+    subject: crate::CallableProjectionSubject,
+) -> Result<SourceCallableOwner, SourceCallableOwnerProjectionError> {
+    let enumeration = super::arena_get(&projection.export.enums, variant.enumeration())
+        .ok_or(SourceCallableOwnerProjectionError::UnknownNominalOwner)?;
+    let identity = projection
+        .export
+        .enum_member_identities
+        .get_variant(variant)
+        .ok_or(SourceCallableOwnerProjectionError::MissingIdentity)?;
+    let declaration = CallableTemplateOrigin::VariantConstructor(identity.id());
+    require_callable(projection, declaration)?;
+    let binders = projection
+        .signatures
+        .binder_frame(&enumeration.type_params, 0)
+        .map_err(SourceCallableOwnerProjectionError::Signature)?;
+    Ok(SourceCallableOwner {
+        subject,
+        local: ExportParameterOwner::VariantConstructor(variant),
+        declaration,
+        binders,
+    })
 }
 
 fn require_callable(
     projection: &CallableSourceProjection<'_>,
     declaration: CallableTemplateOrigin,
 ) -> Result<(), SourceCallableOwnerProjectionError> {
-    if projection.callables.get(declaration).is_some() {
+    if projection.callables.declaration(declaration).is_some() {
         Ok(())
     } else {
         Err(SourceCallableOwnerProjectionError::MissingCallableInterface(declaration))

@@ -9,6 +9,7 @@ use scoop_identity::{SignatureTypeKey, StructuralDefinitionPath};
 
 #[derive(Debug)]
 pub(in crate::production::default_templates) struct ProjectedDefaultBody<'a> {
+    pub local_owner: ExportParameterOwner,
     pub root: PersistentLexicalRootV1,
     pub path: StructuralDefinitionPath,
     pub locals: CanonicalTemplateLocalTableV1,
@@ -130,6 +131,18 @@ pub(in crate::production::default_templates) fn project_body<'a>(
         crate::production::definition_sources::project_definition_source(export, template.origin)
             .map_err(DefaultTemplateEnvelopeProjectionError::DefinitionOrigin)?;
     Ok(ProjectedDefaultBody {
+        local_owner: match template.definition_root {
+            LexicalDefinitionRoot::Function(id) => ExportParameterOwner::Function(id),
+            LexicalDefinitionRoot::StructConstructor(id) => {
+                ExportParameterOwner::StructConstructor(id)
+            }
+            LexicalDefinitionRoot::ClassConstructor(id) => {
+                ExportParameterOwner::ClassConstructor(id)
+            }
+            LexicalDefinitionRoot::VariantConstructor(id) => {
+                ExportParameterOwner::VariantConstructor(id)
+            }
+        },
         root: provider.root,
         path: template.definition_path.clone(),
         locals: local_table,

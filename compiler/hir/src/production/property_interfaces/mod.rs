@@ -1,5 +1,6 @@
 //! Projection of public properties and necessary source declarations.
 
+use super::nominal_interfaces::SharedSourceRoots;
 use super::signatures::HirInterfaceSignatureProjector;
 use crate::{
     CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, ExportHir, HirPropertyIdentity,
@@ -29,14 +30,18 @@ impl CanonicalPropertyInterfacesV1 {
         export: &ExportHir,
         meter: &mut BudgetMeter,
     ) -> Result<Self, PropertyInterfaceBuildError> {
-        let nominals = CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter)
+        let roots = SharedSourceRoots::from_export_hir(export, meter)
             .map_err(PropertyInterfaceBuildError::Nominals)?;
-        Self::from_export_hir_with_nominals(export, &nominals, meter)
+        let nominals =
+            CanonicalNominalInterfacesV1::from_export_hir_with_source_roots(export, &roots, meter)
+                .map_err(PropertyInterfaceBuildError::Nominals)?;
+        Self::from_export_hir_with_nominals(export, &nominals, &roots, meter)
     }
 
     pub(in crate::production) fn from_export_hir_with_nominals(
         export: &ExportHir,
         nominals: &CanonicalNominalInterfacesV1,
+        roots: &SharedSourceRoots,
         meter: &mut BudgetMeter,
     ) -> Result<Self, PropertyInterfaceBuildError> {
         use PropertyInterfaceBuildError as Error;
@@ -60,7 +65,16 @@ impl CanonicalPropertyInterfacesV1 {
             .collect::<HashSet<_>>();
         let mut required = nominals
             .declared_source_properties(meter)
-            .map_err(Error::Inventory)?;
+            .map_err(Error::Inventory)?
+            .into_keys()
+            .collect::<std::collections::BTreeSet<_>>();
+        for property in &roots.top_level_properties {
+            query(meter, required.len())?;
+            meter
+                .charge_collection_slots(1, &path)
+                .map_err(Error::Resource)?;
+            required.insert(*property);
+        }
         let mut records = Vec::new();
         meter
             .try_reserve_collection_slots(&mut records, surface.properties.len(), &path)
@@ -85,7 +99,7 @@ impl CanonicalPropertyInterfacesV1 {
         let support = support::project(export, &projector, required, meter)?;
         let table = Self::with_support(records, support).map_err(Error::Table)?;
         table
-            .validate_declaration_inventory(nominals, meter)
+            .validate_member_declaration_inventory(nominals, meter)
             .map_err(Error::Inventory)?;
         Ok(table)
     }

@@ -53,7 +53,7 @@ pub(super) fn visit_types(
     Ok(())
 }
 
-fn function(
+pub(super) fn function(
     export: &ExportHir,
     id: FunctionId,
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
@@ -89,7 +89,7 @@ fn function(
     }
 }
 
-fn bounds(
+pub(super) fn bounds(
     export: &ExportHir,
     parameters: &[TypeParamDecl],
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,

@@ -6,7 +6,7 @@ use crate::{
     ExportParameterCalling, ExportParameterInterface, ExportParameterOwner,
 };
 
-use super::callable_source_interfaces::{SourceCallableOwner, public_source_callable_owners};
+use super::callable_source_interfaces::{SourceCallableOwner, shared_source_callable_owners};
 
 mod body;
 mod entities;
@@ -70,7 +70,7 @@ impl CanonicalExportDefaultTemplatesV1 {
         callables: &CanonicalCallableInterfacesV1,
         source_interfaces: &CanonicalCallableSourceInterfacesV1,
     ) -> Result<Self, DefaultTemplateProductionError> {
-        let owners = public_source_callable_owners(export, callables)
+        let owners = shared_source_callable_owners(export, callables)
             .map_err(DefaultTemplateProductionError::SourceInterfaces)?;
         let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let entities = DefaultEntityProjector::new(export, imported_dependencies, &mut meter);

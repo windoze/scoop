@@ -1,11 +1,11 @@
 use super::*;
-use crate::{PropertyDeclarationId, PropertyDeclarationRecordV1, SourceNominalId};
-use std::collections::BTreeMap;
+use crate::{PropertyDeclarationId, PropertyDeclarationRecordV1};
+use std::collections::BTreeSet;
 
 pub(super) fn project(
     export: &ExportHir,
     projector: &HirInterfaceSignatureProjector<'_>,
-    mut required: BTreeMap<PropertyDeclarationId, SourceNominalId>,
+    mut required: BTreeSet<PropertyDeclarationId>,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<PropertyDeclarationRecordV1>, PropertyInterfaceBuildError> {
     use PropertyInterfaceBuildError as Error;
@@ -19,14 +19,11 @@ pub(super) fn project(
         let Some(identity) = export.property_identities.get(id) else {
             continue;
         };
-        if required
-            .remove(&persistent_property_owner(identity))
-            .is_some()
-        {
+        if required.remove(&persistent_property_owner(identity)) {
             records.push(declaration::project(export, projector, id, meter)?);
         }
     }
-    if let Some((id, _)) = required.first_key_value() {
+    if let Some(id) = required.first() {
         return Err(Error::MissingSupport(*id));
     }
     Ok(records)
@@ -45,7 +42,7 @@ impl CanonicalPropertyInterfacesV1 {
         let records = project(
             export,
             &HirInterfaceSignatureProjector::new(export),
-            required,
+            required.into_keys().collect(),
             meter,
         )?;
         let table = Self::with_support(Vec::new(), records).map_err(Error::Table)?;
