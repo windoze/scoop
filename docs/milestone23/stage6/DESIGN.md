@@ -446,6 +446,8 @@ public与protected default的receiver合同均来自独立原provider声明：�
 
 普通 `.slib` reader 还须从共有 callable 声明及 source parameter 协议重建默认值的定义方与发布方合同。definition path 的 ordinal 按定义方参数表中实际带默认值的参数顺序计算，不按参数位置或候选正文推断。分别比较原定义方的参数前缀、receiver 和结果，并以完整 binder 映射逐项比较全部发布参数，包含当前参数之后的部分和未使用 binder；直接默认值必须使用恒等映射。原定义方与发布方的执行 effect、完整参数数及当前位置均须一致。该校验与类型接口默认值共用受累计预算约束的逻辑，只消费已有声明和协议，不引入第二份 wire 合同；override 唯一性、访问域、正文操作及引用闭包仍由相应校验负责。
 
+普通 `.slib` reader 必须继续在原 provider 的 binder frame 中重放全部默认值 local 类型及正文类型，包含未使用 local；local selector 的结构路径须属于该默认值的 definition path。正文中的局部函数签名仅在其自身真实非空 type parameter 组存在时增加一层 frame，arity 从同一已验证 identity graph 的 Function/GenericFunction canonical key 取得，不能由 descriptor、capture 或出现的 binder 反推。共有 source contract view 复用同一完整正文遍历、作用域规则和累计预算，类型接口默认值与普通 reader 不保留两套实现。该类型检查不代替操作类型关系、局部函数 parent/ownership、nested ABI、数据流及引用访问闭包。
+
 默认值模板根的定义来源由共有 HIR foundation 校验。普通 `.slib` reader 按模板实际 source 的 Cone 从当前 artifact 或可达依赖闭包选择定义方 foundation，要求 typed root 确实属于该 artifact，且完整 canonical key 与同一已验证 identity graph 一致。Function、GenericFunction 和 Constructor 必须匹配其真实 callable context；EnumVariantConstructor 必须来自源码 nominal，并匹配其 nominal context。模板、声明和 context 的 source 必须一致；继承默认值保留原定义根，不能以发布 owner 或相同签名代替。所有查询、key 比较和来源比较共用当前解码的累计预算；缺失根、错误 provider、文件或 context 均拒绝，不引入独立来源表或调用方提供的默认来源凭证。
 
 public与protected候选默认值还必须从独立authority取得原provider的完整参数表及该definition path对应的参数位置。借用合同必须结构上携带存在的当前参数，越界位置不能产生合同；其位置和总参数数须与发布声明一致。原始prefix local与result在provider frame中分别精确匹配此前参数和当前参数，随后逐项核对完整参数表（包含当前参数之后的位置）的provider到发布type代换。不能因A、B在继承映射中都变为T而允许把provider的A改成B；不能从候选local/result拼出预期provider参数。声明来源绑定保留这份借用合同以供后续完整authority组合，且不因此跳过override唯一性与body/reference-access验证。protected查询、原始比较和全部代换使用同一个预算，public保持旧wire与预算边界。

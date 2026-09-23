@@ -7,12 +7,14 @@ use scoop_identity::{CallableTemplateOrigin, Effect, SignatureTypeKey, Structura
 use crate::{
     CanonicalBinderUseListV1, CanonicalBooleanV1, CanonicalTemplateLocalTableV1,
     CanonicalTemplateValueParametersV1, DefaultSourceTemplateV1,
-    DefaultTemplateProviderParameterV1, DefaultTemplateProviderShapeV1, ExportDefaultTemplateV1,
-    OptionalTemplateReceiverV1, PersistentLexicalRootV1,
+    DefaultTemplateProviderParameterV1, DefaultTemplateProviderShapeV1, ExportDefaultBodyV1,
+    ExportDefaultTemplateV1, OptionalTemplateReceiverV1, PersistentLexicalRootV1,
 };
 
+mod envelope;
 mod errors;
 mod validation;
+pub use envelope::DefaultTemplateSourceEnvelopeError;
 pub use errors::DefaultTemplateDeclarationContractError;
 
 /// Declaration facts obtained from the actual provider's checked metadata.
@@ -28,6 +30,10 @@ pub struct DefaultTemplateDeclarationContractV1<'a> {
 }
 
 impl<'a> DefaultTemplateDeclarationContractV1<'a> {
+    pub const fn shape(&self) -> DefaultTemplateProviderShapeV1 {
+        self.shape
+    }
+
     pub const fn new(
         declaration: CallableTemplateOrigin,
         shape: DefaultTemplateProviderShapeV1,
@@ -60,6 +66,7 @@ pub struct DefaultTemplateContractViewV1<'a> {
     value_parameters: &'a CanonicalTemplateValueParametersV1,
     result: &'a SignatureTypeKey,
     allows_suspend: CanonicalBooleanV1,
+    body: &'a ExportDefaultBodyV1,
 }
 
 macro_rules! contract_view {
@@ -77,6 +84,7 @@ macro_rules! contract_view {
                     value_parameters: template.value_parameters(),
                     result: template.result(),
                     allows_suspend: template.allows_suspend(),
+                    body: template.body(),
                 }
             }
         }

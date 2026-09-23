@@ -26,6 +26,7 @@ use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
 mod default_contracts;
 mod default_data_flow;
+mod default_envelope;
 mod default_fixture;
 mod default_origins;
 

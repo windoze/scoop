@@ -1,7 +1,7 @@
 use scoop_hir::{
     DefaultNominalReceiverBuildError, DefaultTemplateDeclarationContractError,
     DefaultTemplateProviderParameterBuildError, DefaultTemplateProviderShapeBuildError,
-    ExportDefaultTemplateKeyV1,
+    DefaultTemplateSourceEnvelopeError, ExportDefaultTemplateKeyV1,
 };
 use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::WireError;
@@ -25,6 +25,7 @@ pub enum CrossConeHirDefaultProviderContractError {
     Parameter(DefaultTemplateProviderParameterBuildError),
     ReceiverShape(DefaultNominalReceiverBuildError),
     Contract(Box<DefaultTemplateDeclarationContractError<DefaultMetadataNominalError>>),
+    Envelope(Box<DefaultTemplateSourceEnvelopeError<DefaultMetadataNominalError>>),
     Template {
         index: usize,
         key: ExportDefaultTemplateKeyV1,
@@ -69,6 +70,7 @@ impl std::fmt::Display for CrossConeHirDefaultProviderContractError {
             Self::Parameter(error) => error.fmt(f),
             Self::ReceiverShape(error) => error.fmt(f),
             Self::Contract(error) => error.fmt(f),
+            Self::Envelope(error) => error.fmt(f),
             Self::Template { index, key, source } => write!(
                 f,
                 "default template[{index}] {key:?} has an invalid provider contract: {source}"
@@ -86,6 +88,7 @@ impl std::error::Error for CrossConeHirDefaultProviderContractError {
             Self::Parameter(error) => Some(error),
             Self::ReceiverShape(error) => Some(error),
             Self::Contract(error) => Some(error.as_ref()),
+            Self::Envelope(error) => Some(error.as_ref()),
             Self::Template { source, .. } => Some(source.as_ref()),
             _ => None,
         }

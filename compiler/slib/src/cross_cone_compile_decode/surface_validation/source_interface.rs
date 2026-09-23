@@ -1,4 +1,4 @@
-//! Per-artifact callable source protocols, default origins and body data flow.
+//! Per-artifact callable source protocols, default type scopes and body data flow.
 
 use scoop_hir::CallableSourceInterfaceSetSemanticValidationError;
 
@@ -14,9 +14,9 @@ pub use crate::cross_cone_hir_authority::{
 };
 
 /// One provider whose callable source-order parameter protocol is exact and
-/// whose defaults have valid root origins, source declaration contracts and
-/// local data flow. Operation typing, inherited-provider relations and reference
-/// envelopes are separate semantic checks.
+/// whose defaults have valid root origins, source declaration contracts,
+/// provider type scopes and local data flow. Operation typing, inherited-provider
+/// relations, nested ABI and reference envelopes are separate semantic checks.
 pub struct SourceInterfaceValidatedCrossConeHirFrontSections<'input>(
     pub(super) ValidatedSurfaceFront<'input>,
 );

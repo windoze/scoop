@@ -4,20 +4,30 @@ use scoop_hir::{
     CrossConeHirInterfaceSectionV1, NominalInterfaceShapeAuthority, PublicNominalKindV1,
     PublicNominalShapeV1, SourceNominalId,
 };
-use scoop_identity::{ConeIdentity, CoreBuiltinNominal, PersistentGenericTypeId, PersistentTypeId};
+use scoop_identity::{
+    CallableTemplateOrigin, ConeIdentity, CoreBuiltinNominal, IdentityReferenceError,
+    PersistentGenericTypeId, PersistentTypeId, ValidatedIdentityGraph,
+};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 /// A transient type-shape index over already checked metadata. It grants no
 /// lookup or access rights to the private declarations used for source typing.
-pub(super) struct DefaultNominalShapes(BTreeMap<SourceNominalId, PublicNominalShapeV1>);
+pub(super) struct DefaultNominalShapes<'g> {
+    shapes: BTreeMap<SourceNominalId, PublicNominalShapeV1>,
+    pub(super) identities: &'g ValidatedIdentityGraph,
+}
 
-impl DefaultNominalShapes {
+impl<'g> DefaultNominalShapes<'g> {
     pub(super) fn new<'a>(
+        identities: &'g ValidatedIdentityGraph,
         providers: impl IntoIterator<Item = (ConeIdentity, &'a CrossConeHirInterfaceSectionV1)>,
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<Self, DefaultMetadataNominalError> {
-        let mut result = Self(BTreeMap::new());
+        let mut result = Self {
+            shapes: BTreeMap::new(),
+            identities,
+        };
         for (provider, interface) in providers {
             meter.charge_work(1, path)?;
             for record in interface.nominal_interfaces().all_records() {
@@ -54,11 +64,11 @@ impl DefaultNominalShapes {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<(), DefaultMetadataNominalError> {
-        meter.check_table_entries(self.0.len() as u64 + 1, path)?;
-        meter.charge_work(u64::from(self.0.len().max(1).ilog2()) + 1, path)?;
+        meter.check_table_entries(self.shapes.len() as u64 + 1, path)?;
+        meter.charge_work(u64::from(self.shapes.len().max(1).ilog2()) + 1, path)?;
         meter.charge_nodes(1, path)?;
         meter.charge_collection_slots(1, path)?;
-        if self.0.insert(declaration, shape).is_some() {
+        if self.shapes.insert(declaration, shape).is_some() {
             return Err(DefaultMetadataNominalError::Duplicate(declaration));
         }
         Ok(())
@@ -68,14 +78,14 @@ impl DefaultNominalShapes {
         &self,
         declaration: SourceNominalId,
     ) -> Result<PublicNominalShapeV1, DefaultMetadataNominalError> {
-        self.0
+        self.shapes
             .get(&declaration)
             .copied()
             .ok_or(DefaultMetadataNominalError::Missing(declaration))
     }
 }
 
-impl NominalInterfaceShapeAuthority<DefaultMetadataNominalError> for DefaultNominalShapes {
+impl NominalInterfaceShapeAuthority<DefaultMetadataNominalError> for DefaultNominalShapes<'_> {
     fn concrete_nominal_shape(
         &mut self,
         declaration: PersistentTypeId,
@@ -95,6 +105,8 @@ pub enum DefaultMetadataNominalError {
     Resource(WireError),
     Missing(SourceNominalId),
     Duplicate(SourceNominalId),
+    Identity(IdentityReferenceError),
+    NonFunctionSignature(CallableTemplateOrigin),
 }
 impl From<WireError> for DefaultMetadataNominalError {
     fn from(error: WireError) -> Self {
@@ -113,7 +125,20 @@ impl std::fmt::Display for DefaultMetadataNominalError {
                 f,
                 "default source type {declaration:?} occurs in multiple provider tables"
             ),
+            Self::Identity(error) => error.fmt(f),
+            Self::NonFunctionSignature(declaration) => write!(
+                f,
+                "default local signature target {declaration:?} is not a function"
+            ),
         }
     }
 }
-impl std::error::Error for DefaultMetadataNominalError {}
+impl std::error::Error for DefaultMetadataNominalError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Resource(error) => Some(error),
+            Self::Identity(error) => Some(error),
+            Self::Missing(_) | Self::Duplicate(_) | Self::NonFunctionSignature(_) => None,
+        }
+    }
+}

@@ -7,7 +7,6 @@ mod contracts;
 mod data_flow;
 mod direct_domain;
 pub use direct_domain::DefaultSourceDirectDomainError;
-mod envelope;
 mod errors;
 mod nested_identities;
 mod provider_slot;

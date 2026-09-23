@@ -50,7 +50,12 @@ pub(super) fn validate<'d>(
         meter,
         path,
     )?;
-    super::envelope::validate(template, provider_binders, &mut shapes, meter, path)?;
+    DefaultTemplateContractViewV1::from(template).validate_provider_types(
+        provider_binders,
+        &mut shapes,
+        meter,
+        path,
+    )?;
     let nested_callables = template.index_nested_callables(meter, path)?;
     Ok(DeclarationFacts {
         nested_callables,

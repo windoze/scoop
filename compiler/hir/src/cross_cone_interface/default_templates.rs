@@ -17,7 +17,7 @@ mod value_parameters;
 
 pub use declaration_contract::{
     DefaultTemplateContractViewV1, DefaultTemplateDeclarationContractError,
-    DefaultTemplateDeclarationContractV1,
+    DefaultTemplateDeclarationContractV1, DefaultTemplateSourceEnvelopeError,
 };
 
 pub(crate) use body::{

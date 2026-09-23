@@ -33,7 +33,7 @@ pub(super) fn contract<'a>(
     interface: &'a CrossConeHirInterfaceSectionV1,
     declaration: CallableTemplateOrigin,
     selection: ParameterSelection,
-    shapes: &DefaultNominalShapes,
+    shapes: &DefaultNominalShapes<'_>,
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<DefaultTemplateDeclarationContractV1<'a>, Error> {

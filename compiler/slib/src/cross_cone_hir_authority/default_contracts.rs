@@ -7,6 +7,7 @@ use super::CanonicalCrossConeHirSurfaceAuthority;
 
 mod declarations;
 mod errors;
+mod local_signatures;
 mod shapes;
 use declarations::ParameterSelection;
 pub use errors::CrossConeHirDefaultProviderContractError;
@@ -26,7 +27,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                 .iter()
                 .map(|provider| (provider.identity, provider.interface)),
         );
-        let mut shapes = DefaultNominalShapes::new(providers, self.meter, &path)?;
+        let mut shapes = DefaultNominalShapes::new(self.identities, providers, self.meter, &path)?;
         self.meter
             .check_table_entries(templates.len() as u64, &path)?;
         for (index, template) in templates.iter().enumerate() {
@@ -47,7 +48,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
     fn validate_default_contract(
         &mut self,
         template: &ExportDefaultTemplateV1,
-        shapes: &mut DefaultNominalShapes,
+        shapes: &mut DefaultNominalShapes<'_>,
         path: &WirePath,
     ) -> Result<(), Error> {
         let provider = template.definition_origin().origin().source().cone();
@@ -70,8 +71,10 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             self.meter,
             path,
         )?;
-        DefaultTemplateContractViewV1::from(template)
-            .validate(&publisher, &original, shapes, self.meter, path)
-            .map_err(|error| Error::Contract(Box::new(error)))
+        let view = DefaultTemplateContractViewV1::from(template);
+        view.validate(&publisher, &original, shapes, self.meter, path)
+            .map_err(|error| Error::Contract(Box::new(error)))?;
+        view.validate_provider_types(original.shape(), shapes, self.meter, path)
+            .map_err(|error| Error::Envelope(Box::new(error)))
     }
 }

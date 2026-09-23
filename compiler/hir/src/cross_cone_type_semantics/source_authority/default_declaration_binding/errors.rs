@@ -159,6 +159,19 @@ impl std::fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 
+impl From<DefaultTemplateSourceEnvelopeError<NominalSourceBindingError>> for Error {
+    fn from(error: DefaultTemplateSourceEnvelopeError<NominalSourceBindingError>) -> Self {
+        match error {
+            DefaultTemplateSourceEnvelopeError::Resource(error) => Self::Resource(error),
+            DefaultTemplateSourceEnvelopeError::LocalScope(error) => Self::LocalScope(error),
+            DefaultTemplateSourceEnvelopeError::LocalType { index, error } => {
+                Self::LocalType { index, error }
+            }
+            DefaultTemplateSourceEnvelopeError::Body(error) => Self::BodyEnvelope(error),
+        }
+    }
+}
+
 impl From<DefaultTemplateDeclarationContractError<NominalSourceBindingError>> for Error {
     fn from(error: DefaultTemplateDeclarationContractError<NominalSourceBindingError>) -> Self {
         use DefaultTemplateDeclarationContractError as Contract;
