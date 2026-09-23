@@ -7,6 +7,7 @@ mod callable_declarations;
 mod callable_source;
 mod const_value;
 mod declaration_origins;
+mod default_callable_access;
 mod default_contracts;
 mod default_data_flow;
 mod default_nested_identities;
@@ -26,6 +27,7 @@ mod type_alias;
 
 pub use callable_source::*;
 pub use const_value::*;
+pub use default_callable_access::CrossConeHirDefaultCallableAccessError;
 pub use default_contracts::{
     CrossConeHirDefaultProviderContractError, DefaultMetadataNominalError,
 };

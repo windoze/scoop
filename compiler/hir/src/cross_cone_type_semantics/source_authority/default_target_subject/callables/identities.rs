@@ -1,5 +1,4 @@
 use super::*;
-use scoop_identity::PropertyOwner;
 
 impl Query<'_, '_, '_> {
     pub(super) fn callable<'t>(&mut self, declaration: Declaration) -> Result<Access<'t>, Error> {
@@ -37,16 +36,8 @@ impl Query<'_, '_, '_> {
         }
     }
     fn accessor<'t>(&mut self, id: PersistentPropertyAccessorId) -> Result<Access<'t>, Error> {
-        let canonical = self.foundation.foundation.as_canonical();
         let subject = Subject::PropertyAccessor(id);
-        let key = self.key(canonical.type_source_accessor_records(), id, || {
-            Error::MissingDeclaration(subject)
-        })?;
-        self.meter.charge_edges(1, &self.path)?;
-        let property = match key.owner() {
-            PropertyOwner::Property(id) => Subject::Property(id),
-            PropertyOwner::ExtensionProperty(id) => Subject::ExtensionProperty(id),
-        };
+        let property = self.accessor_property(id)?;
         let key = self.declaration(property)?;
         self.nominal_callable_scope(subject, key)?;
         Ok(Access::Declaration(subject))

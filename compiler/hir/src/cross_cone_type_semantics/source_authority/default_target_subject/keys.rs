@@ -1,23 +1,49 @@
 use super::*;
+use scoop_identity::PropertyOwner;
 
 impl<'f> DefaultTargetIdentityQueriesV1<'f> {
     /// Borrows the provider's actual source key and checks it against the same
-    /// identity graph used for the target route. Visibility is queried separately.
+    /// identity graph used for the target route. An accessor borrows its logical
+    /// property's lexical key; visibility still belongs to the accessor itself.
     pub fn source_declaration_key(
         &self,
         subject: Subject,
         meter: &mut BudgetMeter,
     ) -> Result<&'f SourceDeclarationKey, Error> {
-        Query {
+        let mut query = Query {
             foundation: self,
             meter,
             path: WirePath::root(),
-        }
-        .declaration(subject)
+        };
+        let lexical_subject = match subject {
+            Subject::PropertyAccessor(id) => query.accessor_property(id)?,
+            _ => subject,
+        };
+        query.declaration(lexical_subject)
     }
 }
 
 impl<'f> Query<'_, 'f, '_> {
+    pub(super) fn accessor_property(
+        &mut self,
+        id: PersistentPropertyAccessorId,
+    ) -> Result<Subject, Error> {
+        let subject = Subject::PropertyAccessor(id);
+        let key = self.key(
+            self.foundation
+                .foundation
+                .as_canonical()
+                .type_source_accessor_records(),
+            id,
+            || Error::MissingDeclaration(subject),
+        )?;
+        self.meter.charge_edges(1, &self.path)?;
+        Ok(match key.owner() {
+            PropertyOwner::Property(id) => Subject::Property(id),
+            PropertyOwner::ExtensionProperty(id) => Subject::ExtensionProperty(id),
+        })
+    }
+
     pub(super) fn key<I, K>(
         &mut self,
         records: &'f [CborIdentityRecord<I, K>],

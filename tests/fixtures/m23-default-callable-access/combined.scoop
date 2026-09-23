@@ -1,0 +1,51 @@
+public fun callablePlain(): Int = 1
+public fun <T> callableKeep(value: T): T = value
+public fun Int.callableExtension(): Int = this
+public class CallableCell<T>(private var backing: T) {
+    public var number: T
+        get() = backing
+        set(next) { backing = next }
+}
+public struct CallableValue<T>()
+public open class CallableBase<T> {
+    public fun read(value: T): T = value
+}
+public interface CallableReader<T> {
+    public fun read(value: T): T
+}
+public class CallableHost<Host> {
+    public fun direct(value: Int = callablePlain() + callablePlain()): Int = value
+    public fun <T> generic(source: T, value: T = callableKeep<T>(source)): T = value
+    public fun getter(source: CallableCell<Host>, value: Host = source.number): Host = value
+    public fun setter(source: CallableCell<Host>, seed: Host, value: Host = if (true) {
+        source.number = seed
+        source.number
+    } else { seed }): Host = value
+    public fun lambda(value: () -> Int = { 1 }): () -> Int = value
+    public fun anonymous(value: () -> Int = fun(): Int { return 1 }): () -> Int = value
+    public fun reference(value: () -> Int = ::callablePlain): () -> Int = value
+    public fun extension(source: Int, value: () -> Int = source::callableExtension): () -> Int = value
+    public fun local(value: Int = if (true) {
+        fun leaf(): Int { return 1 }
+        leaf()
+    } else { 2 }): Int = value
+    public fun localReference(value: () -> Int = if (true) {
+        fun leaf(): Int { return 1 }
+        ::leaf
+    } else { fun(): Int { return 2 } }): () -> Int = value
+    public fun equality(left: CallableValue<Host>, right: CallableValue<Host>, value: Boolean = left == right): Boolean = value
+    public fun unit(left: Unit, right: Unit, value: Boolean = left == right): Boolean = value
+    public fun tuple(left: (CallableValue<Host>, Unit), right: (CallableValue<Host>, Unit), value: Boolean = left == right): Boolean = value
+    public fun <T: CallableBase<Host>> classBound(source: T, seed: Host, value: Host = source.read(seed)): Host = value
+    public fun <T: CallableReader<Host>> interfaceBound(source: T, seed: Host, value: Host = source.read(seed)): Host = value
+    public fun <T: CallableBase<Host>> boundReference(source: T, value: (Host) -> Host = source::read): (Host) -> Host = value
+    public fun <T> choose(value: T): T = value
+    public fun <T> factory(source: T, value: () -> T = { source }): () -> T = value
+    public fun <T> factoryReference(value: (T) -> T = this::choose): (T) -> T = value
+    public fun <T, U> pair(
+        left: T,
+        right: U,
+        lambdas: (() -> T, () -> U) = (factory<T>(left), factory<U>(right)),
+        references: ((T) -> T, (U) -> U) = (factoryReference<T>(), factoryReference<U>())
+    ): Int = 1
+}

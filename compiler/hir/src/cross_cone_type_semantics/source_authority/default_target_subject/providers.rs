@@ -1,5 +1,35 @@
 use super::*;
+use scoop_identity::PropertyOwner;
 use std::sync::Arc;
+
+impl DefaultCallableDeclarationV1 {
+    /// Routes source callables by their typed key. Generated descriptors must
+    /// instead be attached to an actual body occurrence before routing.
+    pub fn source_provider(
+        self,
+        identities: &ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<ConeIdentity, Error> {
+        let mut route = Route {
+            identities,
+            meter,
+            path,
+        };
+        match self {
+            Self::Function(id) => route.source(id),
+            Self::GenericFunction(id) => route.source(id),
+            Self::PropertyAccessor(id) => {
+                let key = route.key::<_, PropertyAccessorKey>(id)?;
+                match key.owner() {
+                    PropertyOwner::Property(id) => route.source(id),
+                    PropertyOwner::ExtensionProperty(id) => route.source(id),
+                }
+            }
+            Self::Generated(_) => Err(Error::CallableRole(self)),
+        }
+    }
+}
 
 impl DefaultSourceValueTargetV1<'_> {
     /// Routes by typed identity before querying a provider's actual foundation.

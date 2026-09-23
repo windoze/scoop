@@ -67,13 +67,3 @@ impl DefaultSourceDomainsV1<'_, '_, '_, '_> {
         }
     }
 }
-
-fn local_declaration(origin: CallableTemplateOrigin) -> Result<Declaration, Error> {
-    match origin {
-        CallableTemplateOrigin::Function(id) => Ok(Declaration::Function(id)),
-        CallableTemplateOrigin::GenericFunction(id) => Ok(Declaration::GenericFunction(id)),
-        _ => Err(Error::target(
-            DefaultSourceTargetSubjectError::CallableOrigin(origin),
-        )),
-    }
-}

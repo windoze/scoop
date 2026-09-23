@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn restrict(
+pub(in super::super) fn restrict(
     front: &mut HirProductionValidatedCrossConeHirFrontSections<'_>,
     subject: DefinitionOriginSubject,
     visibility: DeclaredVisibilityV1,
@@ -43,8 +43,21 @@ pub(super) fn restrict(
             )
             .unwrap();
         }
-        DefinitionOriginSubject::Constructor(id) => {
-            let declaration = CallableTemplateOrigin::Constructor(id);
+        DefinitionOriginSubject::Constructor(_)
+        | DefinitionOriginSubject::Function(_)
+        | DefinitionOriginSubject::GenericFunction(_)
+        | DefinitionOriginSubject::PropertyAccessor(_) => {
+            let declaration = match subject {
+                DefinitionOriginSubject::Constructor(id) => CallableTemplateOrigin::Constructor(id),
+                DefinitionOriginSubject::Function(id) => CallableTemplateOrigin::Function(id),
+                DefinitionOriginSubject::GenericFunction(id) => {
+                    CallableTemplateOrigin::GenericFunction(id)
+                }
+                DefinitionOriginSubject::PropertyAccessor(id) => {
+                    CallableTemplateOrigin::Accessor(id)
+                }
+                _ => panic!("callable subject"),
+            };
             let record = callables.declaration(declaration).unwrap();
             let restricted = CallableDeclarationRecordV1::try_new(
                 declaration,
@@ -59,7 +72,12 @@ pub(super) fn restrict(
                 record.slot_relations().clone(),
             )
             .unwrap();
-            let mut support = callables.support_records().to_vec();
+            let mut support = callables
+                .support_records()
+                .iter()
+                .filter(|r| r.declaration() != declaration)
+                .cloned()
+                .collect::<Vec<_>>();
             support.push(restricted);
             callables = CanonicalCallableInterfacesV1::with_support(
                 callables

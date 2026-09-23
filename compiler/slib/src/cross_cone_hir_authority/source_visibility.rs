@@ -6,6 +6,8 @@ use scoop_hir::{DeclaredVisibilityV1, NominalInterfaceRecordV1};
 use scoop_identity::{DefinitionOriginSubject, SourceDeclarationKind, SourceIdentity};
 use scoop_wire::WirePath;
 
+mod callables;
+mod declarations;
 mod relations;
 mod types;
 mod values;

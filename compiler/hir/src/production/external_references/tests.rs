@@ -19,6 +19,8 @@ use crate::{
     ReexportRouteV1,
 };
 
+mod builtin_defaults;
+
 #[test]
 fn producer_unions_reexport_and_selected_roles_with_one_canonical_witness() {
     let current = cone("consumer");

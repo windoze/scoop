@@ -14,6 +14,8 @@ pub enum DefaultSourceTargetSubjectError {
     MissingCallable(PersistentGeneratedCallableId),
     CallableRole(DefaultCallableDeclarationV1),
     CallableOrigin(CallableTemplateOrigin),
+    EqualityTarget,
+    LocalReference(CallableTemplateOrigin),
     NestedRole(DefaultNestedCallableIdentityV1),
     DeclarationScope(Subject),
     GlobalScope(PersistentPropertyId),
@@ -73,6 +75,15 @@ impl std::fmt::Display for Error {
             }
             Self::CallableOrigin(id) => {
                 write!(f, "default function target is not a function {id:?}")
+            }
+            Self::EqualityTarget => {
+                f.write_str("derived equality has no named source callable declaration")
+            }
+            Self::LocalReference(id) => {
+                write!(
+                    f,
+                    "default local reference {id:?} differs from its actual callee"
+                )
             }
             Self::NestedRole(id) => write!(
                 f,

@@ -3,7 +3,6 @@ use scoop_hir::{
     DefaultFieldRefV1, DefaultSourceFieldAccessSubjectV1, DefaultSourceIndirectTargetV1,
     DefaultSourceValueTargetV1 as Target, DefaultTargetIdentityQueriesV1, SourceAccessDomainV1,
 };
-use scoop_identity::DefinitionOriginSubject as Subject;
 
 use crate::cross_cone_hir_authority::CrossConeHirDefaultValueAccessError as ValueError;
 
@@ -49,95 +48,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
             }
         };
         let key = query.source_declaration_key(subject, self.meter)?;
-        self.value_subject_domain(subject, key, path)
+        self.source_declaration_access_domain(subject, key, path)
             .map_err(Into::into)
-    }
-
-    fn value_subject_domain(
-        &mut self,
-        subject: Subject,
-        key: &SourceDeclarationKey,
-        path: &WirePath,
-    ) -> Result<SourceAccessDomainV1, Error> {
-        self.visibility_work(self.dependencies.len() as u64 + 1)?;
-        let interface = self.provider_interface(key.origin())?;
-        let visibility = match subject {
-            Subject::Type(_) | Subject::GenericType(_) => {
-                let declaration = match subject {
-                    Subject::Type(id) => SourceNominalId::Concrete(id),
-                    Subject::GenericType(id) => SourceNominalId::GenericTemplate(id),
-                    _ => {
-                        return Err(Error::DeclarationOrigin {
-                            subject,
-                            reason: "value access owner must be a source nominal",
-                        });
-                    }
-                };
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .nominal_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
-                interface
-                    .nominal_interfaces()
-                    .declaration(declaration)
-                    .ok_or(Error::MissingNominalInterface {
-                        origin: key.origin(),
-                        declaration,
-                    })?
-                    .declaration_details()
-                    .declared_visibility()
-            }
-            Subject::Property(id) => {
-                let declaration = PropertyOwner::Property(id);
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .property_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
-                interface
-                    .property_interfaces()
-                    .declaration(declaration)
-                    .ok_or(Error::MissingPropertyInterface { declaration })?
-                    .declared_visibility()
-            }
-            Subject::Constructor(id) => {
-                let declaration = CallableTemplateOrigin::Constructor(id);
-                self.visibility_work(
-                    u64::from(
-                        interface
-                            .callable_interfaces()
-                            .declaration_count()
-                            .max(1)
-                            .ilog2(),
-                    ) + 1,
-                )?;
-                interface
-                    .callable_interfaces()
-                    .declaration(declaration)
-                    .ok_or(Error::CallableDeclaration {
-                        declaration,
-                        reason: "constructor has no shared callable declaration",
-                    })?
-                    .declared_visibility()
-            }
-            _ => {
-                return Err(Error::DeclarationOrigin {
-                    subject,
-                    reason: "value access requires a nominal, constructor or logical property",
-                });
-            }
-        };
-        let constraints = self.visibility_domain(key, subject, visibility)?;
-        SourceAccessDomainV1::from_constraints(constraints, self.meter, path)
-            .map_err(Error::Resource)
     }
 }

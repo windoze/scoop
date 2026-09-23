@@ -7,7 +7,7 @@ use scoop_hir::DefaultSourceValueTargetV1 as Target;
 use scoop_hir::*;
 use scoop_wire::WirePath;
 
-mod declarations;
+pub(super) mod declarations;
 mod providers;
 mod support;
 

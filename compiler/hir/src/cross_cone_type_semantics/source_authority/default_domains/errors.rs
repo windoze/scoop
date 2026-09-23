@@ -32,6 +32,8 @@ impl Error {
     pub(super) fn target(error: DefaultSourceTargetSubjectError) -> Self {
         match error {
             DefaultSourceTargetSubjectError::Resource(error) => Self::Resource(error),
+            DefaultSourceTargetSubjectError::EqualityTarget => Self::EqualityShape,
+            DefaultSourceTargetSubjectError::LocalReference(origin) => Self::LocalReference(origin),
             other => Self::Target(Box::new(other)),
         }
     }

@@ -170,7 +170,10 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
                 ExternalHirReferenceRoleV1::DefaultDependency,
                 ExternalHirReferenceRoleV1::ConcreteSelectedUse,
             ] {
-                if pending.roles.contains(&role) && !pending.witnessed_roles.contains(&role) {
+                if pending.roles.contains(&role)
+                    && role.requires_source_name_witness(target)
+                    && !pending.witnessed_roles.contains(&role)
+                {
                     return Err(ExternalHirReferenceProductionError::MissingWitnessUse {
                         target,
                         role,

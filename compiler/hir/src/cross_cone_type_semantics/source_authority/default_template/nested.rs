@@ -2,6 +2,7 @@
 use crate::*;
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
+mod attachment;
 mod descriptor;
 mod query;
 mod visit;

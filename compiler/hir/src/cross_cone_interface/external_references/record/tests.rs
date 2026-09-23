@@ -1,7 +1,10 @@
 use scoop_wire::{DecodeLimits, WireEncode, decode_canonical, encode};
 
 use super::*;
+use crate::ExternalHirReferenceRoleV1;
 use crate::cross_cone_interface::external_references::test_support::{Fixture, roles, witnesses};
+
+mod builtin_defaults;
 
 #[test]
 fn record_has_a_fixed_four_field_wire_and_round_trips() {

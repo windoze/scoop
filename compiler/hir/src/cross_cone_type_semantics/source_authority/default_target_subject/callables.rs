@@ -4,6 +4,7 @@ use DefaultCallableReferenceTargetViewV1 as View;
 use DefaultNestedCallableIdentityV1 as Nested;
 use ExportDefaultCallableTargetV1 as Callable;
 mod identities;
+mod reference_target;
 
 /// Identity-backed access demands. Nested and equality demands require their
 /// own full source contracts; none of these variants is an access proof.
@@ -24,7 +25,7 @@ impl DefaultTargetIdentityQueriesV1<'_> {
         self.default_callable_access_subject_view(target.into(), meter)
     }
 
-    pub(crate) fn default_callable_access_subject_view<'t>(
+    pub fn default_callable_access_subject_view<'t>(
         &self,
         target: View<'t>,
         meter: &mut BudgetMeter,

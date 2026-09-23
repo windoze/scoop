@@ -3,6 +3,8 @@ use super::*;
 #[derive(Debug)]
 pub enum DefaultSourceNestedCallableQueryError {
     Resource(WireError),
+    Attachment,
+    MissingIdentity(DefaultNestedCallableIdentityV1),
     Standalone,
     Missing {
         ordinal: u64,
@@ -12,6 +14,11 @@ pub enum DefaultSourceNestedCallableQueryError {
         expected: DefaultNestedCallableIdentityV1,
         actual: DefaultNestedCallableIdentityV1,
     },
+}
+impl From<WireError> for DefaultSourceNestedCallableQueryError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
 }
 impl<'a, K> DefaultSourceNestedCallablesV1<'a, K> {
     /// Selects a source occurrence before checking the candidate's typed identity.
@@ -47,6 +54,15 @@ impl std::fmt::Display for DefaultSourceNestedCallableQueryError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(error) => error.fmt(f),
+            Self::Attachment => {
+                f.write_str("default callable has no nested descriptor at its body attachment")
+            }
+            Self::MissingIdentity(identity) => {
+                write!(
+                    f,
+                    "default body has no attached nested descriptor {identity:?}"
+                )
+            }
             Self::Standalone => {
                 f.write_str("standalone nested query has no source body occurrence")
             }

@@ -7,8 +7,8 @@ use super::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
     DecodedCanonicalDependencyBindingWitnessesV1, DecodedCanonicalExternalHirReferenceRolesV1,
     DecodedExternalHirTargetV1, DependencyBindingWitnessSetValidationError,
-    ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
-    ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
+    ExternalHirReferenceRoleSetValidationError, ExternalHirTargetResolutionError,
+    ExternalHirTargetResolver, ExternalHirTargetV1,
 };
 
 mod semantics;
@@ -32,7 +32,7 @@ impl ExternalHirReferenceV1 {
         roles: CanonicalExternalHirReferenceRolesV1,
         witnesses: CanonicalDependencyBindingWitnessesV1,
     ) -> Result<Self, ExternalHirReferenceBuildError> {
-        validate_witness_presence(&roles, &witnesses)?;
+        validate_witness_presence(target, &roles, &witnesses)?;
         Ok(Self {
             origin,
             target,
@@ -148,18 +148,14 @@ impl<R, E> ExternalHirReferenceResolver<E> for R where
 }
 
 fn validate_witness_presence(
+    target: ExternalHirTargetV1,
     roles: &CanonicalExternalHirReferenceRolesV1,
     witnesses: &CanonicalDependencyBindingWitnessesV1,
 ) -> Result<(), ExternalHirReferenceBuildError> {
-    let requires_witness = roles.roles().iter().any(|role| {
-        matches!(
-            role,
-            ExternalHirReferenceRoleV1::ReexportTarget
-                | ExternalHirReferenceRoleV1::AliasTarget
-                | ExternalHirReferenceRoleV1::DefaultDependency
-                | ExternalHirReferenceRoleV1::ConcreteSelectedUse
-        )
-    });
+    let requires_witness = roles
+        .roles()
+        .iter()
+        .any(|role| role.requires_source_name_witness(target));
     match (requires_witness, witnesses.is_empty()) {
         (true, true) => Err(ExternalHirReferenceBuildError::MissingWitness),
         (false, false) => Err(ExternalHirReferenceBuildError::UnexpectedWitness),
