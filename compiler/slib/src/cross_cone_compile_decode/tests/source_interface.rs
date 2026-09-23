@@ -24,6 +24,8 @@ use scoop_wire::encode;
 use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
+mod default_data_flow;
+
 #[test]
 fn vararg_reader_follows_the_actual_intrinsic_array_on_an_ordinary_provider() {
     let fixture = CallableSourceSurface::new(SourceInterfaceCase::IntrinsicArrayVararg);
@@ -162,7 +164,7 @@ enum SourceInterfaceCase {
 struct CallableSourceSurface {
     cone: ConeRecord,
     foundation: CanonicalHirFoundation,
-    interface: Vec<u8>,
+    interface: CrossConeHirInterfaceSectionV1,
     owner: CallableTemplateOrigin,
 }
 
@@ -400,7 +402,7 @@ impl CallableSourceSurface {
         } else {
             vec![ExportDefinitionSourceV1::new(parameter_origin)]
         };
-        let mut section = CrossConeHirInterfaceSectionV1::new(
+        let section = CrossConeHirInterfaceSectionV1::new(
             CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
             CanonicalNominalInterfacesV1::try_new(vec![nominal_interface, array_interface])
                 .unwrap(),
@@ -417,17 +419,18 @@ impl CallableSourceSurface {
         Self {
             cone,
             foundation,
-            interface: encode(&section.index_for_wire().unwrap()).unwrap(),
+            interface: section,
             owner,
         }
     }
 
     fn artifact(&self) -> Vec<u8> {
+        let mut interface = self.interface.clone();
         cross_cone_artifact_for_with_hir_foundation(
             self.cone.clone(),
             Vec::new(),
             &self.foundation,
-            self.interface.clone(),
+            encode(&interface.index_for_wire().unwrap()).unwrap(),
         )
     }
 }

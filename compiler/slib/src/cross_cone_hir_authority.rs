@@ -5,6 +5,7 @@ use std::borrow::Cow;
 mod callable;
 mod callable_source;
 mod const_value;
+mod default_data_flow;
 mod definition_source;
 mod errors;
 mod intrinsics;
@@ -15,6 +16,7 @@ mod type_alias;
 
 pub use callable_source::*;
 pub use const_value::*;
+pub use default_data_flow::{CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError};
 pub use definition_source::*;
 pub use errors::*;
 pub use intrinsics::CrossConeIntrinsicDeclarationError;

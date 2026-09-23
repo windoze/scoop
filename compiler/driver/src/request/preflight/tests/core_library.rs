@@ -3,6 +3,7 @@ use crate::{HostArtifactLocator, normalize_direct_build_request};
 
 mod aliases;
 mod calls;
+mod default_data_flow;
 mod direct_inputs;
 mod equality;
 mod intrinsics;
@@ -41,6 +42,11 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     std::fs::write(
         source.join("src/user_integer_defaults.scoop"),
         include_str!("../../../../../../tests/fixtures/core-library/integer-defaults.scoop"),
+    )
+    .unwrap();
+    std::fs::write(
+        source.join("src/user_default_data_flow.scoop"),
+        include_str!("../../../../../../tests/fixtures/core-library/default-data-flow.scoop"),
     )
     .unwrap();
     let artifact = workspace.path().join("user-library.slib");
@@ -96,6 +102,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     member_calls::assert_member_calls(&target, workspace.path(), &artifact);
     equality::assert_equality(&target, workspace.path(), &artifact);
     intrinsics::assert_normalized_integer_defaults(&target, workspace.path(), &artifact);
+    default_data_flow::assert_branching_defaults(&target, workspace.path(), &artifact);
     intrinsics::assert_integer_exception_requires_layout(&target, workspace.path(), &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(

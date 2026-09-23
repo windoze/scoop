@@ -868,6 +868,8 @@ envelope/profile/target/resource checks
 
 继承环和by-value representation环拒绝；通过managed reference的递归class合法，layout重放在reference leaf停止，不沿对象图无限展开。所有provider来自同一target-compatible显式artifact closure。prebuilt/cache验证只能读取该closure内的required section，不得要求原始source、compiler进程内token或调用方注入authority factory。记录存在、id匹配或digest相同都不能替代逐字段关系证明。
 
+普通 callable source-interface 的读取阶段也必须验证每份默认正文的 definite assignment、局部变量可变性、循环控制与完整 binding plan/action 顺序。struct pattern 的字段序号从当前声明及显式依赖闭包中已验证的共有 nominal metadata 取得，并核对 typed field owner 和 generic arity；不能信任正文自报的字段顺序、按名称恢复字段或使用 core 专用来源入口。字段查询索引与递归正文遍历使用同一 artifact 的资源预算，失败不能进入后续 const、bridge 或 identity commit 阶段。此项与完整默认值的 provider、类型、effect、nested callable 和引用域校验共同组成完整入口，不代替其他检查。
+
 错误前不发布partial world、arena、artifact或cache entry。MIR/LIR自身不报告新的源码visibility/overload错误；不完整selected集合属于compiler/artifact invariant。
 
 ### 11.2 semantic dependency与physical use分开
