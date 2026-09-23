@@ -116,7 +116,7 @@ fn generic_unit_return_in_suspend_function_completes_unit() {
     let unit = h.unit;
     let leaf = identity_fn(&mut h, "genericLeaf");
     h.functions[leaf].is_suspend = true;
-    h.instantiate(leaf, vec![unit]);
+    h.use_identity_instances(leaf, &[unit]);
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));

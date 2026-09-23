@@ -1,0 +1,18 @@
+standalone
+  struct-constructor ReadyValue arity=1
+  type ReadyValue
+combined
+  class-constructor ReadyCycleA arity=1
+  class-constructor ReadyCycleB arity=1
+  class-constructor ReadyDirect arity=0
+  struct-constructor ReadyEmpty arity=0
+  type ReadyCycleA
+  type ReadyCycleB
+  type ReadyDirect
+  type ReadyEmpty
+shape-demand
+  class-constructor ReadyDirect arity=0
+  class-constructor ReadyOuter arity=0
+  type ReadyDirect
+  type ReadyOuter
+  type ReadyPrivateConstructor

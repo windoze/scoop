@@ -145,6 +145,8 @@ M23-6 的 HIR nominal type 导出先从同一次 Export/LocalConcrete HIR 计算
 
 M23-6 的 nominal 表示与继承物化闭包直接读取共有 nominal/callable 声明；它是有预算的临时查询结果，不保存第二份来源、资格或 exact 清单。公开记录和必要支持记录使用同一完整字段、enum payload、supertypes、公开或 protected 构造器参数及实际 slot 签名；getter/setter 与普通函数同样参与。generic application、未绑定 binder、generic/suspend/native slot 将所属 nominal 标记为 source-only，沿当前 provider 的 nominal 依赖反向传播；环按有限图求不动点，结果不依赖声明顺序。structural 签名递归检查子类型，但不因此授予独立 Structural ODR 物化。HIR producer 与 artifact reader 重放同一算法，保持完整源码声明；形状需求只从当前 exporter 的 DeclaredCurrent 公开根中选择闭合子集，不能因 source-only 声明存在而要求不存在的 shape-support。外来 nominal 仍由其实际 provider 的机器接口及消费闭包验证；本地临时集合不授予外来机器使用、访问权或后续里程碑能力。Link 入口接收已验证的 Compile artifact，先核对完整 artifact fingerprint、实际 Cone、target 与 compatibility，再借用其中的共有声明和 LIR bridge；调用方不能另行传入候选声明替代该来源。Link 用自己的累计预算重算形状需求，不从待验 LIR 形状表反推需要集合，也不增加持久化资格字段。
 
+M23-6 的自动 nominal 物化根以完整共有声明的表示与继承闭包为准；内部声明与公开声明使用同一算法，source-only owner 不因出现在 source arena 中就生成本地类型、构造器、成员或 slot 正文。自动成员与构造器根的签名若依赖 source-only nominal，也不单独预物化；实际本地调用、构造及已求值正文中的类型需要仍通过同一 typed 请求和固定点队列产生完整实例。generic callable application 的来源记录不是独立发射根，未求值 default 或未实例化 generic body 中的记录不能触发物化。对象、companion、singleton value、published root、initialization unit 与 failure root 使用各自显式的 Export→LocalConcrete 映射，不转换 source arena 下标冒充 concrete id；lazy 初始化仅随真实对象需要进入闭包，eager 全局初始化仍是必需根。编译器协议的完整输出以已验证的 typed 角色引用作为明确请求根，经过相同队列，不能依赖整个 core 声明表的预物化。nominal type 生产先按共有声明筛选完整表示与继承集合，再核对所需根的 Export/LocalConcrete exact pair；source-only 声明无需伪造 concrete 实例。
+
 ### 1.3 表示覆盖与 ODR gate
 
 本阶段完整定义和验证 `Array<ZST>`、`Option<ZST>`、`Phantom<A/B>`、tuple/function/pointer 的表示，不据此开放这些 application 的 production ownership。

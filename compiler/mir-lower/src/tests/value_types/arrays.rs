@@ -263,13 +263,17 @@ fn instance_types_preserve_array_arguments() {
             statements: Vec::new(),
         },
     );
-    h.instantiate(f, vec![array_int]);
-    h.instantiate(f, vec![mutable_int]);
+    h.use_identity_instances(f, &[array_int, mutable_int]);
     let module = lower(&h.finish(main));
 
     assert_eq!(module.meta.instances.len(), 2);
     // Substitution recurses into the array element types.
-    let array_instance = &module.functions[module.top_level[1]];
+    let instances = module
+        .functions
+        .iter()
+        .filter_map(|(_, function)| (function.name == "f").then_some(function))
+        .collect::<Vec<_>>();
+    let array_instance = instances[0];
     assert_eq!(
         mir::array_type(&module, &array_instance.params[0].ty),
         Some((
@@ -277,7 +281,7 @@ fn instance_types_preserve_array_arguments() {
             &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
         ))
     );
-    let mutable_instance = &module.functions[module.top_level[2]];
+    let mutable_instance = instances[1];
     assert_eq!(
         mir::array_type(&module, &mutable_instance.return_ty),
         Some((

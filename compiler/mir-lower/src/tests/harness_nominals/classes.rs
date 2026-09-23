@@ -192,7 +192,7 @@ impl Harness {
             self.exception(name)
         } else {
             self.class(
-                &format!("${name}Protocol"),
+                &format!("_{name}Protocol"),
                 // LocalConcreteHir's exception contract always includes a
                 // real constructor callable. The protocol shell remains
                 // hidden from unrelated dump assertions by the test helper.

@@ -1,6 +1,67 @@
 use super::*;
 use scoop_identity::BindableEntity;
 
+pub(super) fn all_current(
+    export: &ExportHir,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<SourceNominalId>, PublicNominalShapeProjectionError> {
+    let path = WirePath::root();
+    let declarations = export
+        .structs
+        .iter()
+        .map(|(id, _)| &export.nominal_identities[id])
+        .chain(
+            export
+                .enums
+                .iter()
+                .map(|(id, _)| &export.nominal_identities[id]),
+        )
+        .chain(
+            export
+                .classes
+                .iter()
+                .map(|(id, _)| &export.nominal_identities[id]),
+        )
+        .chain(
+            export
+                .interfaces
+                .iter()
+                .map(|(id, _)| &export.nominal_identities[id]),
+        )
+        .chain(
+            export
+                .objects
+                .iter()
+                .map(|(id, _)| &export.nominal_identities[id]),
+        );
+    let mut roots = Vec::new();
+    for identity in declarations {
+        meter.charge_work(1, &path).map_err(resource)?;
+        let Some(source) = identity.source() else {
+            continue;
+        };
+        if source.declaration().origin() != export.cone {
+            continue;
+        }
+        let source = match source {
+            crate::HirSourceNominalIdentity::Concrete(record) => {
+                SourceNominalId::Concrete(record.id())
+            }
+            crate::HirSourceNominalIdentity::Generic(record) => {
+                SourceNominalId::GenericTemplate(record.id())
+            }
+        };
+        meter
+            .check_table_entries(roots.len() as u64 + 1, &path)
+            .map_err(resource)?;
+        meter
+            .try_reserve_collection_slots(&mut roots, 1, &path)
+            .map_err(resource)?;
+        roots.push(source);
+    }
+    Ok(roots)
+}
+
 pub(super) fn current(
     export: &ExportHir,
     meter: &mut BudgetMeter,

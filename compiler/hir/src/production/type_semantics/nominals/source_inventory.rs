@@ -133,6 +133,7 @@ pub(super) fn from_pair<'a>(
 ) -> Result<Vec<ConcreteNominal<'a>>, Error> {
     let export = output.export.module();
     let local = output.local.module();
+    let materialization = materialization::closure(output, meter)?;
     let mut nominals = Vec::new();
     let mut found = 0;
     for local_id in authority_projection::all_nominals(export) {
@@ -146,6 +147,17 @@ pub(super) fn from_pair<'a>(
             continue;
         }
         found += 1;
+        if let Some(owner) = source.concrete_id() {
+            meter
+                .charge_work(
+                    1 + u64::from(materialization.sources().len().max(1).ilog2()),
+                    &WirePath::root(),
+                )
+                .map_err(resource)?;
+            if !materialization.contains(owner) {
+                continue;
+            }
+        }
         if let Some(nominal) = concrete(export, local, local_id, source, meter)? {
             meter
                 .check_table_entries(nominals.len() as u64 + 1, &WirePath::root())
@@ -161,7 +173,6 @@ pub(super) fn from_pair<'a>(
             "required concrete source owner is absent from sealed HIR",
         ));
     }
-    materialization::retain_closed(output, &mut nominals, meter)?;
     Ok(nominals)
 }
 

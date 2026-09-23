@@ -38,7 +38,7 @@
       goto bb6
     bb6 if.merge.6
       return
-  fun init.LocalTools.$c7 @fn37(this: LocalTools) -> Unit
+  fun init.LocalTools.$c7 @fn30(this: LocalTools) -> Unit
     bb0 entry
       return
   coroutine_step cs13 CoroutineStep<LocalTools> result=LocalTools

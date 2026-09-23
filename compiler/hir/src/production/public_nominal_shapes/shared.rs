@@ -12,11 +12,27 @@ impl NominalMaterializationClosure {
         meter: &mut BudgetMeter,
     ) -> Result<Self, PublicNominalShapeProjectionError> {
         let roots = roots::current(export, meter)?;
-        let nominals = CanonicalNominalInterfacesV1::declarations_for_roots(export, &roots, meter)
+        Self::from_roots(export, &roots, meter)
+    }
+
+    pub fn from_current_declarations(
+        export: &ExportHir,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
+        let roots = roots::all_current(export, meter)?;
+        Self::from_roots(export, &roots, meter)
+    }
+
+    fn from_roots(
+        export: &ExportHir,
+        roots: &[SourceNominalId],
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, PublicNominalShapeProjectionError> {
+        let nominals = CanonicalNominalInterfacesV1::declarations_for_roots(export, roots, meter)
             .map_err(|error| match error {
-                crate::NominalInterfaceBuildError::Resource(error) => resource(error),
-                other => PublicNominalShapeProjectionError::SharedDeclarations(other.to_string()),
-            })?;
+            crate::NominalInterfaceBuildError::Resource(error) => resource(error),
+            other => PublicNominalShapeProjectionError::SharedDeclarations(other.to_string()),
+        })?;
         let properties = crate::CanonicalPropertyInterfacesV1::from_nominal_declarations(
             export, &nominals, meter,
         )

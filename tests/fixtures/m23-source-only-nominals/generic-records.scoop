@@ -1,0 +1,3 @@
+public fun <T> requested(value: T): T = value
+public fun dormant(value: Int = requested<Int>(9)): Int = value
+public fun <T> dormantBody(seed: T): Int = requested<Int>(7)

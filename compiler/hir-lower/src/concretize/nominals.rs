@@ -126,24 +126,6 @@ impl Concretizer<'_> {
         self.struct_by_key.insert(key, id);
         self.struct_source.insert(id, source_id);
         self.struct_type.insert(id, ty);
-        if source.type_params.is_empty()
-            && matches!(
-                source.representation,
-                export::StructRepresentation::Declared(_)
-            )
-        {
-            for &constructor in &source.constructors {
-                let raw = self.struct_constructor_slots.len() as u32;
-                self.struct_constructor_slots.push(None);
-                self.struct_constructor_keys.push((constructor, id));
-                let concrete = concrete::StructConstructorId::from_raw(raw.into());
-                assert!(
-                    self.struct_constructor_by_key
-                        .insert((constructor, id), concrete)
-                        .is_none()
-                );
-            }
-        }
         let fields: Vec<_> = source
             .semantic_fields()
             .iter()
@@ -189,14 +171,9 @@ impl Concretizer<'_> {
         self.structs[id].methods = methods;
         if source.type_params.is_empty() {
             for &constructor in &source.constructors {
-                let concrete = self.lower_struct_constructor(constructor, id, &arguments);
-                let target = self.struct_constructor_by_key[&(constructor, id)];
-                let slot = target.into_raw().into_u32() as usize;
-                assert!(
-                    self.struct_constructor_slots[slot]
-                        .replace(concrete)
-                        .is_none()
-                );
+                if self.automatic_struct_constructor(constructor) {
+                    self.request_struct_constructor(constructor, id);
+                }
             }
         }
         id

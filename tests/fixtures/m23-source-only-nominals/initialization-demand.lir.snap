@@ -1,0 +1,351 @@
+Module
+  global @scoop$1$ss$b5e2a7f6984bb4e7ae79265d40971f907b4e577e5c20770f2a576e085e1645bc : i32 scan=none
+  global @scoop$1$ss$6f5219d6b0a5b58eb9f45b68380d20fe8ba3d8e6efe5779e8040545b9f7d7332 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$4c2aaac88920b124e94d6873861062af65a59be00f80a37cfa06ed2b3e65ef89 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$3d9099206da1bd613b9b68fe91a620ecdcf894b1f9547e1ef67fb39e4a840574 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$a5e27649e70929798c9152ebd7d87a19eca7ca3d10c44c60c60a8b8fd9342b4d : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$3120d5962eff288981848342582685a988eacf5e9c0c0ba16adc771f765ba7ce : ptr<managed> scan=refs[0]
+  init0 top-level:eager storage=@scoop$1$ss$b5e2a7f6984bb4e7ae79265d40971f907b4e577e5c20770f2a576e085e1645bc failure=@scoop$1$ss$3d9099206da1bd613b9b68fe91a620ecdcf894b1f9547e1ef67fb39e4a840574 initializer=@scoop$1$cb$b1147c9cad386f77d84b2356b450ecf4ec94cc20b79471e138301943a9a81e67 ensure=@scoop$1$cb$a69cbd694f9fd2f40ed709ff936c8c9ef9558831d5912d1ebabd410e61e639ee deps=[1]
+  init1 object:ReadyRegistry lazy storage=@scoop$1$ss$6f5219d6b0a5b58eb9f45b68380d20fe8ba3d8e6efe5779e8040545b9f7d7332 failure=@scoop$1$ss$a5e27649e70929798c9152ebd7d87a19eca7ca3d10c44c60c60a8b8fd9342b4d initializer=@scoop$1$cb$0433b9a662e58019e37f34345cd0719bbbb992dcd5d7d9427664c93b18f0d04f ensure=@scoop$1$cb$72f7ca0c75b78c26d47097a53158ce14be97d9c23b22ff2cce9d121c7c8cd4ea deps=[2]
+  init2 companion:DeferredHost.ReadyFactory lazy storage=@scoop$1$ss$4c2aaac88920b124e94d6873861062af65a59be00f80a37cfa06ed2b3e65ef89 failure=@scoop$1$ss$3120d5962eff288981848342582685a988eacf5e9c0c0ba16adc771f765ba7ce initializer=@scoop$1$cb$74ac3c9525003536bd5fe4116e744e57a84e6e90b096e2171572311d976306ab ensure=@scoop$1$cb$0bc2cfa4a9fbb4f1dc32d020a3514143438043c5726c95905e4cdcfa2852fb59 deps=[]
+  enum CoroutineStep<ReadyRegistry> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<ReadyRegistry> niche(kind=managed,payload_variant=1)
+  enum CoroutineStep<DeferredHost.ReadyFactory> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<DeferredHost.ReadyFactory> niche(kind=managed,payload_variant=1)
+  fun @scoop$1$cb$c400a7550b4c4c8434c8ae70d86d5633a53b8ab697758b6249cbca6616c4d5f5(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$e39f2b00ca5ee4c46a1d79675186d8c577710643ff01acf20abd26ce16e3dbbb(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$0433b9a662e58019e37f34345cd0719bbbb992dcd5d7d9427664c93b18f0d04f() -> void
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    store t0 -> local0
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn9(local0)
+    t1 = aggregate () : {}
+    global_store global1, local0
+    ret
+  fun @scoop$1$cb$72f7ca0c75b78c26d47097a53158ce14be97d9c23b22ff2cce9d121c7c8cd4ea() -> void
+    local %0 $init.state: machine<initialization-outcome>
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $sc.1: exception_record
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init1)
+    store t0 -> local0
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
+    cbr t2 then @if.then.14 else @if.else.15
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local5
+    store t4 -> local6
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local6 : ptr<managed>
+    store t5 -> local7
+    br @try.catch.12
+  block try.handler_pad.6
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
+    store t6 -> local5
+    store t7 -> local6
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local5
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block try.catch.12
+    store local7 -> local1
+    br @scope.13
+  block scope.13
+    call managed-direct-target1 sp<managed-call:4> live=[local1:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t12 -> local2
+    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init1, local2)
+    t13 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.2 unwind @try.handler_pad.6
+    br @throw.normal.2
+  block if.then.14
+    br @if.merge.16
+  block if.else.15
+    t14 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
+    cbr t14 then @if.then.17 else @if.else.18
+  block if.merge.16
+    br @if.merge.3
+  block if.then.17
+    call managed-direct-target2 sp<managed-call:3> live=[] t15 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init1)
+    store t15 -> local3
+    throw local3
+    unreachable
+  block if.else.18
+    call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init1)
+    store t16 -> local4
+    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    t17 = aggregate () : {}
+    unreachable
+  block invoke.normal.1
+    t10 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:6> live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init1)
+    t11 = aggregate () : {}
+    br @try.end.10
+  block throw.normal.2
+    unreachable
+  fun @scoop$1$cb$74ac3c9525003536bd5fe4116e744e57a84e6e90b096e2171572311d976306ab() -> void
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
+    store t0 -> local0
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local0)
+    t1 = aggregate () : {}
+    global_store global2, local0
+    ret
+  fun @scoop$1$cb$0bc2cfa4a9fbb4f1dc32d020a3514143438043c5726c95905e4cdcfa2852fb59() -> void
+    local %0 $init.state: machine<initialization-outcome>
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $sc.1: exception_record
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init2)
+    store t0 -> local0
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
+    cbr t2 then @if.then.14 else @if.else.15
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local5
+    store t4 -> local6
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local6 : ptr<managed>
+    store t5 -> local7
+    br @try.catch.12
+  block try.handler_pad.6
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
+    store t6 -> local5
+    store t7 -> local6
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local5
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block try.catch.12
+    store local7 -> local1
+    br @scope.13
+  block scope.13
+    call managed-direct-target1 sp<managed-call:4> live=[local1:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t12 -> local2
+    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init2, local2)
+    t13 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.2 unwind @try.handler_pad.6
+    br @throw.normal.2
+  block if.then.14
+    br @if.merge.16
+  block if.else.15
+    t14 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
+    cbr t14 then @if.then.17 else @if.else.18
+  block if.merge.16
+    br @if.merge.3
+  block if.then.17
+    call managed-direct-target2 sp<managed-call:3> live=[] t15 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init2)
+    store t15 -> local3
+    throw local3
+    unreachable
+  block if.else.18
+    call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init2)
+    store t16 -> local4
+    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    t17 = aggregate () : {}
+    unreachable
+  block invoke.normal.1
+    t10 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:6> live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init2)
+    t11 = aggregate () : {}
+    br @try.end.10
+  block throw.normal.2
+    unreachable
+  fun @scoop$1$cb$b1147c9cad386f77d84b2356b450ecf4ec94cc20b79471e138301943a9a81e67() -> void
+    local %0 $receiver: ptr<managed>
+    local %1 $call.1: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn3()
+    t0 = aggregate () : {}
+    t1 = global_load global1 : ptr<managed>
+    store t1 -> local0
+    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 local-fn0(local0)
+    store t2 -> local1
+    global_store global0, local1
+    ret
+  fun @scoop$1$cb$a69cbd694f9fd2f40ed709ff936c8c9ef9558831d5912d1ebabd410e61e639ee() -> void
+    local %0 $init.state: machine<initialization-outcome>
+    local %1 $init.caught: ptr<managed>
+    local %2 $init.materialized: ptr<managed>
+    local %3 $init.failure: ptr<managed>
+    local %4 $init.message: ptr<managed>
+    local %5 $sc.1: exception_record
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>) -> machine<initialization-outcome> runtime @scoop_rt_init_enter(init0)
+    store t0 -> local0
+    t1 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(RunInitializer)) : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    br @try.body.11
+  block if.else.2
+    t2 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Ready)) : i1
+    cbr t2 then @if.then.14 else @if.else.15
+  block if.merge.3
+    ret
+  block try.unwind.4
+    (t3, t4) = landingpad : (exception_record, ptr<raw>)
+    store t3 -> local5
+    store t4 -> local6
+    br @try.dispatch.5
+  block try.dispatch.5
+    t5 = begin_catch local6 : ptr<managed>
+    store t5 -> local7
+    br @try.catch.12
+  block try.handler_pad.6
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
+    store t6 -> local5
+    store t7 -> local6
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    resume local5
+  block try.end.10
+    br @if.merge.3
+  block try.body.11
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn6() normal @invoke.normal.1 unwind @try.unwind.4
+    br @invoke.normal.1
+  block try.catch.12
+    store local7 -> local1
+    br @scope.13
+  block scope.13
+    call managed-direct-target1 sp<managed-call:4> live=[local1:ptr<managed>@0] t12 = sig=direct1 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local1)
+    store t12 -> local2
+    call managed-void-target2 sp<managed-call:5> live=[local2:ptr<managed>@0] sig=void2 (ptr<metadata>, ptr<managed>) runtime @scoop_rt_init_fail(init0, local2)
+    t13 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local2) normal @throw.normal.2 unwind @try.handler_pad.6
+    br @throw.normal.2
+  block if.then.14
+    br @if.merge.16
+  block if.else.15
+    t14 = MachineEq(InitializationOutcome) local0, machine<initialization-outcome>(InitializationOutcome(Failed)) : i1
+    cbr t14 then @if.then.17 else @if.else.18
+  block if.merge.16
+    br @if.merge.3
+  block if.then.17
+    call managed-direct-target2 sp<managed-call:3> live=[] t15 = sig=direct2 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_failure(init0)
+    store t15 -> local3
+    throw local3
+    unreachable
+  block if.else.18
+    call managed-direct-target3 sp<managed-call:1> live=[] t16 = sig=direct3 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_init_cycle_message(init0)
+    store t16 -> local4
+    call managed-void-target3 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void4 (ptr<managed>) external-fn0(local4)
+    t17 = aggregate () : {}
+    unreachable
+  block invoke.normal.1
+    t10 = aggregate () : {}
+    call managed-void-target1 sp<managed-call:6> live=[] sig=void1 (ptr<metadata>) runtime @scoop_rt_init_succeed(init0)
+    t11 = aggregate () : {}
+    br @try.end.10
+  block throw.normal.2
+    unreachable
+  fun @scoop$1$cb$f88a5dc796932042014bfcbf9a6449c8fed8e4d1d653a0711daf6d756818f0dd() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn7()
+    t0 = aggregate () : {}
+    t1 = global_load global0 : i32
+    ret t1
+  fun @scoop$1$cb$c24a0ff375afd4626278b2136b78171dd4def55358959c5716e86c779f11ee6f(ptr<managed>) -> void
+    local %0 $receiver: ptr<managed>
+    local %1 $dependency.receiver: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 () local-fn5()
+    t0 = aggregate () : {}
+    t1 = global_load global2 : ptr<managed>
+    store t1 -> local0
+    call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i32 local-fn1(local0)
+    store t2 -> local1
+    store integer<Int>(0x00000001) -> local2
+    store local2 -> local3
+    t3 = integer_Add<Int> local1, local3 : i32
+    heap_store param0 +16 t3
+    ret
+  fun @scoop$1$cb$f4e2bf580ffd11490c1a42a0508d7ef3d517fe0d5d953569f0d682bcbcfa0184(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 integer<Int>(0x00000006)
+    ret
+  fun @scoop$1$cb$77ddf4b270c37bc8ff23e461da27e656a5c8d5261368aa127d559b8c33ebe46f() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn7() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 ReadyRegistry @scoop$1$td$d7cbac1151ee4c13913a0e27c2f858c3a6b1466af0ce75ff026074fc73cafc27 type-id=16140416260342835972 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 DeferredHost.ReadyFactory @scoop$1$td$4ff0ffc61a7586e3764631f6eac5b406dc253f352f2546f5e8e89decd5ced6d0 type-id=14359490911194117353 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 CoroutineSlot<ReadyRegistry> @scoop$1$td$16c124b6b28967f4abb16dbe60a7f1be5f7ec5d92394a6e99d0351615fc6e07e type-id=7025108670692405104 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 CoroutineSlot<DeferredHost.ReadyFactory> @scoop$1$td$ba48e0d43232e084e60b8ac7d23cc5644feafd7f6e9c9ac4268c112b7f215916 type-id=13417840119897556171 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 CoroutineStep<ReadyRegistry> @scoop$1$td$bfda6a71d73e4467ad550015b4e6b79d6bee0a34a138d8de2ea73ff3e2616b1b type-id=2330840255388541797 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 CoroutineStep<DeferredHost.ReadyFactory> @scoop$1$td$d23f96fe229d643f44f428b41e6a43d34d650b9906b53d6dd3dd4a100b292c73 type-id=10747225838853789770 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout CoroutineStep<ReadyRegistry> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<ReadyRegistry> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<DeferredHost.ReadyFactory> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<DeferredHost.ReadyFactory> size=8 align=8 enum-scan=refs[0]
+  layout ReadyRegistry value size=8 align=8 refs=[0]
+  layout ReadyRegistry size=24 align=8 refs=[]
+  layout DeferredHost.ReadyFactory value size=8 align=8 refs=[0]
+  layout DeferredHost.ReadyFactory size=24 align=8 refs=[]
+  output library

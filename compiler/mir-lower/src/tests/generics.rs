@@ -328,19 +328,40 @@ fn generic_interface_applications_get_distinct_mir_identities() {
     let (int, string) = (h.int, h.string);
     let int_channel = h.interface_app(interface, vec![int]);
     let string_channel = h.interface_app(interface, vec![string]);
-    h.declare_class(
+    let ints = h.declare_class(
         "Ints",
         hir::ClassModifier::Final,
         &[],
         None,
         vec![int_channel],
     );
-    h.declare_class(
+    let strings = h.declare_class(
         "Strings",
         hir::ClassModifier::Final,
         &[],
         None,
         vec![string_channel],
+    );
+    let mut locals = Arena::new();
+    let parameters = [ints, strings]
+        .into_iter()
+        .enumerate()
+        .map(|(index, owner)| {
+            let ty = h.class_ty(owner);
+            let name = format!("value{index}");
+            let value = locals.alloc(local(&name, ty));
+            param(&name, ty, value)
+        })
+        .collect();
+    h.user_fn_full(
+        "observeChannels",
+        Vec::new(),
+        parameters,
+        h.unit,
+        hir::Body {
+            locals,
+            statements: Vec::new(),
+        },
     );
     let main = h.user_fn(
         "main",

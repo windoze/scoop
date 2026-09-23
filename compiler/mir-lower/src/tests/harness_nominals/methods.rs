@@ -114,7 +114,11 @@ impl Harness {
             kind: hir::FunctionKind::User(body),
             method: Some(hir::Method {
                 owner: method_of,
-                modifier: hir::MethodModifier::Open,
+                modifier: if matches!(dispatch, hir::MethodDispatch::Direct) {
+                    hir::MethodModifier::Final
+                } else {
+                    hir::MethodModifier::Open
+                },
                 dispatch,
             }),
             span: SPAN,

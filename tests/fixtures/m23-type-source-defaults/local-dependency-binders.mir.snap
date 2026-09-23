@@ -12,12 +12,12 @@
     Value(value: DependencyCombinationHost)
   class LocalDependencyHost vtable=0 itables=0
   class DependencyCombinationHost vtable=0 itables=0
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn37 captures=1
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn38 captures=1
-  closure cc2 $Closure$lambda2 type=function_type1 invoke=@fn42 captures=1
-  closure cc3 $Closure$lambda3 type=function_type1 invoke=@fn43 captures=1
-  closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn39 captures=1
-  closure cc5 $Closure$anonymous1 type=function_type1 invoke=@fn44 captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn31 captures=1
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn33 captures=1
+  closure cc2 $Closure$lambda2 type=function_type1 invoke=@fn39 captures=1
+  closure cc3 $Closure$lambda3 type=function_type1 invoke=@fn41 captures=1
+  closure cc4 $Closure$anonymous0 type=function_type0 invoke=@fn35 captures=1
+  closure cc5 $Closure$anonymous1 type=function_type1 invoke=@fn43 captures=1
   closure cc6 $Closure$reference0 type=function_type0 invoke=@fn50 captures=1
   closure cc7 $Closure$reference1 type=function_type1 invoke=@fn51 captures=1
   fun main @fn23() -> Unit
@@ -25,7 +25,7 @@
       assign $new.1
         Type LocalDependencyHost
         ClassAlloc LocalDependencyHost
-      call @fn60 direct
+      call @fn58 direct
         Type LocalDependencyHost
         Local $new.1
       val local: LocalDependencyHost
@@ -56,7 +56,7 @@
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call $call.2: String = @fn32 direct
+      call $call.2: String = @fn24 direct
         Type String
         Local $parameter.seed
       assign $result.0
@@ -72,12 +72,12 @@
       val $parameter.value: String
         Type String
         Local $result.0
-      call $parameter.value: String = @fn24 direct
+      call $parameter.value: String = @fn25 direct
         Type String
         Local $parameter.seed
         Type String
         Local $parameter.value
-      call $call.3: String = @fn33 direct
+      call $call.3: String = @fn26 direct
         Type LocalDependencyHost
         Local $receiver
         Type Int
@@ -111,7 +111,7 @@
         Type Boolean
         BoolLiteral true
     bb4 if.then.4
-      call $call.4: Int = @fn34 direct
+      call $call.4: Int = @fn27 direct
         Type Int
         Local $parameter.seed
       assign $result.0
@@ -127,12 +127,12 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $parameter.value: Int = @fn25 direct
+      call $parameter.value: Int = @fn28 direct
         Type Int
         Local $parameter.seed
         Type Int
         Local $parameter.value
-      call $call.5: Int = @fn35 direct
+      call $call.5: Int = @fn29 direct
         Type LocalDependencyHost
         Local $receiver
         Type String
@@ -144,7 +144,7 @@
       assign $new.6
         Type DependencyCombinationHost
         ClassAlloc DependencyCombinationHost
-      call @fn61 direct
+      call @fn59 direct
         Type DependencyCombinationHost
         Local $new.6
       val combined: DependencyCombinationHost
@@ -197,7 +197,7 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
-      call $parameter.local: () -> String = @fn26 direct
+      call $parameter.local: () -> String = @fn32 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -214,7 +214,7 @@
           CaptureInit field=0
             Type String
             Local $parameter.seed
-      call $parameter.lambda: () -> String = @fn27 direct
+      call $parameter.lambda: () -> String = @fn34 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -231,12 +231,12 @@
           CaptureInit field=0
             Type String
             Local $parameter.seed
-      call $parameter.anonymous: () -> String = @fn28 direct
+      call $parameter.anonymous: () -> String = @fn36 direct
         Type String
         Local $parameter.seed
         Type () -> String
         Local $parameter.value
-      call $call.7: String = @fn40 direct
+      call $call.7: String = @fn37 direct
         Type DependencyCombinationHost
         Local $receiver
         Type Int
@@ -296,7 +296,7 @@
       val $parameter.value: () -> Int
         Type () -> Int
         Local $result.1
-      call $parameter.local: () -> Int = @fn29 direct
+      call $parameter.local: () -> Int = @fn40 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
@@ -313,7 +313,7 @@
           CaptureInit field=0
             Type Int
             Local $parameter.seed
-      call $parameter.lambda: () -> Int = @fn30 direct
+      call $parameter.lambda: () -> Int = @fn42 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
@@ -330,7 +330,7 @@
           CaptureInit field=0
             Type Int
             Local $parameter.seed
-      call $parameter.anonymous: () -> Int = @fn31 direct
+      call $parameter.anonymous: () -> Int = @fn44 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
@@ -421,12 +421,12 @@
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
-      call $call.9: () -> String = @fn26 direct
+      call $call.9: () -> String = @fn32 direct
         Type String
         Local $parameter.seed
         Type () -> String
         Local $parameter.value
-      call $call.10: () -> String = @fn26 direct
+      call $call.10: () -> String = @fn32 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -518,12 +518,12 @@
       val $parameter.value: () -> Int
         Type () -> Int
         Local $result.1
-      call $call.12: () -> Int = @fn29 direct
+      call $call.12: () -> Int = @fn40 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
         Local $parameter.value
-      call $call.13: () -> Int = @fn29 direct
+      call $call.13: () -> Int = @fn40 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
@@ -543,93 +543,78 @@
         Type (() -> Int, () -> Int)
         Local $parameter.value
       return
-  fun localDependency @fn24(seed: String, value: String) -> String
-    bb0 entry
-      return
-        Type String
-        Local value
-  fun localDependency @fn25(seed: Int, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
-  fun dependencyReference @fn26(seed: String, value: () -> String) -> () -> String
-    bb0 entry
-      return
-        Type () -> String
-        Local value
-  fun dependencyLambda @fn27(seed: String, value: () -> String) -> () -> String
-    bb0 entry
-      return
-        Type () -> String
-        Local value
-  fun dependencyAnonymous @fn28(seed: String, value: () -> String) -> () -> String
-    bb0 entry
-      return
-        Type () -> String
-        Local value
-  fun dependencyReference @fn29(seed: Int, value: () -> Int) -> () -> Int
-    bb0 entry
-      return
-        Type () -> Int
-        Local value
-  fun dependencyLambda @fn30(seed: Int, value: () -> Int) -> () -> Int
-    bb0 entry
-      return
-        Type () -> Int
-        Local value
-  fun dependencyAnonymous @fn31(seed: Int, value: () -> Int) -> () -> Int
-    bb0 entry
-      return
-        Type () -> Int
-        Local value
-  fun $local.0.copy @fn32($capture.seed: String) -> String
+  fun $local.0.copy @fn24($capture.seed: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun LocalDependencyHost.apply @fn33(this: LocalDependencyHost, left: Int, right: String, value: String) -> String
+  fun localDependency @fn25(seed: String, value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun $local.0.copy @fn34($capture.seed: Int) -> Int
+  fun LocalDependencyHost.apply @fn26(this: LocalDependencyHost, left: Int, right: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.0.copy @fn27($capture.seed: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.seed
-  fun LocalDependencyHost.apply @fn35(this: LocalDependencyHost, left: String, right: Int, value: Int) -> Int
+  fun localDependency @fn28(seed: Int, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun $local.1.copy @fn36($capture.seed: String) -> String
+  fun LocalDependencyHost.apply @fn29(this: LocalDependencyHost, left: String, right: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $local.1.copy @fn30($capture.seed: String) -> String
     bb0 entry
       return
         Type String
         Local $capture.seed
-  fun $lambda.1 @fn37($closure: () -> String) -> String
+  fun $lambda.1 @fn31($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc0 0
           Type () -> String
           Local $closure
-  fun $lambda.0 @fn38($closure: () -> String) -> String
+  fun dependencyReference @fn32(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $lambda.0 @fn33($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc1 0
           Type () -> String
           Local $closure
-  fun $anonymous.0 @fn39($closure: () -> String) -> String
+  fun dependencyLambda @fn34(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun $anonymous.0 @fn35($closure: () -> String) -> String
     bb0 entry
       return
         Type String
         ClosureCapture cc4 0
           Type () -> String
           Local $closure
-  fun DependencyCombinationHost.callbacks @fn40(this: DependencyCombinationHost, left: Int, right: String, local: () -> String, lambda: () -> String, anonymous: () -> String) -> String
+  fun dependencyAnonymous @fn36(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun DependencyCombinationHost.callbacks @fn37(this: DependencyCombinationHost, left: Int, right: String, local: () -> String, lambda: () -> String, anonymous: () -> String) -> String
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
         Type () -> String
@@ -637,32 +622,47 @@
       return
         Type String
         Local $call.1
-  fun $local.1.copy @fn41($capture.seed: Int) -> Int
+  fun $local.1.copy @fn38($capture.seed: Int) -> Int
     bb0 entry
       return
         Type Int
         Local $capture.seed
-  fun $lambda.1 @fn42($closure: () -> Int) -> Int
+  fun $lambda.1 @fn39($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc2 0
           Type () -> Int
           Local $closure
-  fun $lambda.0 @fn43($closure: () -> Int) -> Int
+  fun dependencyReference @fn40(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $lambda.0 @fn41($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc3 0
           Type () -> Int
           Local $closure
-  fun $anonymous.0 @fn44($closure: () -> Int) -> Int
+  fun dependencyLambda @fn42(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun $anonymous.0 @fn43($closure: () -> Int) -> Int
     bb0 entry
       return
         Type Int
         ClosureCapture cc5 0
           Type () -> Int
           Local $closure
+  fun dependencyAnonymous @fn44(seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
   fun DependencyCombinationHost.callbacks @fn45(this: DependencyCombinationHost, left: String, right: Int, local: () -> Int, lambda: () -> Int, anonymous: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type1> closure[function_type1]
@@ -683,7 +683,7 @@
         Local value
   fun $reference.0 @fn50($closure: () -> String) -> String
     bb0 entry
-      call $call.1: String = @fn36 direct
+      call $call.1: String = @fn30 direct
         Type String
         ClosureCapture cc6 0
           Type () -> String
@@ -693,7 +693,7 @@
         Local $call.1
   fun $reference.1 @fn51($closure: () -> Int) -> Int
     bb0 entry
-      call $call.1: Int = @fn41 direct
+      call $call.1: Int = @fn38 direct
         Type Int
         ClosureCapture cc7 0
           Type () -> Int
@@ -701,37 +701,37 @@
       return
         Type Int
         Local $call.1
-  fun init.LocalDependencyHost.$c7 @fn60(this: LocalDependencyHost) -> Unit
+  fun init.LocalDependencyHost.$c7 @fn58(this: LocalDependencyHost) -> Unit
     bb0 entry
       return
-  fun init.DependencyCombinationHost.$c8 @fn61(this: DependencyCombinationHost) -> Unit
+  fun init.DependencyCombinationHost.$c8 @fn59(this: DependencyCombinationHost) -> Unit
     bb0 entry
       return
   coroutine_step cs0 CoroutineStep<LocalDependencyHost> result=LocalDependencyHost
   coroutine_step cs1 CoroutineStep<DependencyCombinationHost> result=DependencyCombinationHost
   coroutine_slot cl0 CoroutineSlot<LocalDependencyHost> value=LocalDependencyHost
   coroutine_slot cl1 CoroutineSlot<DependencyCombinationHost> value=DependencyCombinationHost
-  instance mi0 function=@fn24 <- localDependency
+  instance mi0 function=@fn24 <- $local.0.copy
   instance mi1 function=@fn25 <- localDependency
-  instance mi2 function=@fn26 <- dependencyReference
-  instance mi3 function=@fn27 <- dependencyLambda
-  instance mi4 function=@fn28 <- dependencyAnonymous
-  instance mi5 function=@fn29 <- dependencyReference
-  instance mi6 function=@fn30 <- dependencyLambda
-  instance mi7 function=@fn31 <- dependencyAnonymous
-  instance mi8 function=@fn32 <- $local.0.copy
-  instance mi9 function=@fn33 <- LocalDependencyHost.apply
-  instance mi10 function=@fn34 <- $local.0.copy
-  instance mi11 function=@fn35 <- LocalDependencyHost.apply
-  instance mi12 function=@fn36 <- $local.1.copy
-  instance mi13 function=@fn37 <- $lambda.1
-  instance mi14 function=@fn38 <- $lambda.0
-  instance mi15 function=@fn39 <- $anonymous.0
-  instance mi16 function=@fn40 <- DependencyCombinationHost.callbacks
-  instance mi17 function=@fn41 <- $local.1.copy
-  instance mi18 function=@fn42 <- $lambda.1
-  instance mi19 function=@fn43 <- $lambda.0
-  instance mi20 function=@fn44 <- $anonymous.0
+  instance mi2 function=@fn26 <- LocalDependencyHost.apply
+  instance mi3 function=@fn27 <- $local.0.copy
+  instance mi4 function=@fn28 <- localDependency
+  instance mi5 function=@fn29 <- LocalDependencyHost.apply
+  instance mi6 function=@fn30 <- $local.1.copy
+  instance mi7 function=@fn31 <- $lambda.1
+  instance mi8 function=@fn32 <- dependencyReference
+  instance mi9 function=@fn33 <- $lambda.0
+  instance mi10 function=@fn34 <- dependencyLambda
+  instance mi11 function=@fn35 <- $anonymous.0
+  instance mi12 function=@fn36 <- dependencyAnonymous
+  instance mi13 function=@fn37 <- DependencyCombinationHost.callbacks
+  instance mi14 function=@fn38 <- $local.1.copy
+  instance mi15 function=@fn39 <- $lambda.1
+  instance mi16 function=@fn40 <- dependencyReference
+  instance mi17 function=@fn41 <- $lambda.0
+  instance mi18 function=@fn42 <- dependencyLambda
+  instance mi19 function=@fn43 <- $anonymous.0
+  instance mi20 function=@fn44 <- dependencyAnonymous
   instance mi21 function=@fn45 <- DependencyCombinationHost.callbacks
   instance mi22 function=@fn46 <- DependencyCombinationHost.repeated
   instance mi23 function=@fn47 <- DependencyCombinationHost.repeated

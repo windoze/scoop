@@ -95,9 +95,9 @@ impl Concretizer<'_> {
             export::ExprKind::GlobalRead(global) => {
                 concrete::ExprKind::GlobalRead(self.global_map[global])
             }
-            export::ExprKind::SingletonValue(value) => concrete::ExprKind::SingletonValue(
-                concrete::SingletonValueId::from_raw(value.into_raw()),
-            ),
+            export::ExprKind::SingletonValue(value) => {
+                concrete::ExprKind::SingletonValue(self.lower_singleton_value(*value))
+            }
             export::ExprKind::Capture(binding) => {
                 concrete::ExprKind::Capture(concrete::BindingId::from_raw(binding.into_raw()))
             }

@@ -54,7 +54,7 @@ impl Concretizer<'_> {
             }
             export::StatementKind::InitializationEnsure(unit) => {
                 concrete::StatementKind::InitializationEnsure(
-                    concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                    self.request_initialization_unit(*unit),
                 )
             }
             // This marker has no runtime semantics. Concrete local-function
@@ -355,9 +355,7 @@ impl Concretizer<'_> {
                 concrete::AssignTarget::Global(self.global_map[global])
             }
             export::AssignTarget::SingletonPublishedRoot(root) => {
-                concrete::AssignTarget::SingletonPublishedRoot(
-                    concrete::SingletonPublishedRootId::from_raw(root.into_raw()),
-                )
+                concrete::AssignTarget::SingletonPublishedRoot(self.lower_singleton_root(*root))
             }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
                 array: Box::new(self.lower_expr(array, substitution, locals)),

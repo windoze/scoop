@@ -8,7 +8,7 @@
         Type Boolean
         BoolLiteral true
     bb1 if.then.1
-      call $call.1: String = @fn31 direct
+      call $call.1: String = @fn28 direct
         Type String
         Local seed
       assign $result.3
@@ -24,7 +24,7 @@
       val $parameter.value: String
         Type String
         Local $result.3
-      call $call.2: String = @fn32 direct
+      call $call.2: String = @fn29 direct
         Type String
         Local $parameter.value
       return
@@ -69,7 +69,7 @@
       val $parameter.unused: Int
         Type Int
         Local $argument.0
-      call $call.1: String = @fn33 direct
+      call $call.1: String = @fn30 direct
         Type String
         Local $parameter.seed
         Type Int
@@ -87,7 +87,7 @@
       val $parameter.value: String
         Type String
         Local $result.0
-      call $call.2: String = @fn28 direct
+      call $call.2: String = @fn31 direct
         Type String
         Local $parameter.seed
         Type Int
@@ -116,7 +116,7 @@
       val $parameter.unused: String
         Type String
         Local $argument.0
-      call $call.3: Int = @fn34 direct
+      call $call.3: Int = @fn32 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -134,7 +134,7 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $call.4: Int = @fn29 direct
+      call $call.4: Int = @fn33 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -153,7 +153,7 @@
       val $parameter.right: Int
         Type Int
         Local $argument.1
-      call $call.5: Int = @fn30 direct
+      call $call.5: Int = @fn34 direct
         Type String
         Local $parameter.left
         Type Int
@@ -346,17 +346,37 @@
         Type () -> String
         Local $call.13
       return
-  fun genericCapture @fn28(seed: String, ignored: Int, value: String) -> String
+  fun $local.5.copy @fn28($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun $local.4.choose @fn29(value: String) -> String
     bb0 entry
       return
         Type String
         Local value
-  fun genericCapture @fn29(seed: Int, ignored: String, value: Int) -> Int
+  fun $local.0.copy @fn30($capture.seed: String, unused: Int) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun genericCapture @fn31(seed: String, ignored: Int, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.0.copy @fn32($capture.seed: Int, unused: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.seed
+  fun genericCapture @fn33(seed: Int, ignored: String, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun forward @fn30(left: String, right: Int) -> Int
+  fun forward @fn34(left: String, right: Int) -> Int
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -380,7 +400,7 @@
       val $parameter.unused: String
         Type String
         Local $argument.0
-      call $call.1: Int = @fn34 direct
+      call $call.1: Int = @fn32 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -398,7 +418,7 @@
       val $parameter.value: Int
         Type Int
         Local $result.0
-      call $call.2: Int = @fn29 direct
+      call $call.2: Int = @fn33 direct
         Type Int
         Local $parameter.seed
         Type String
@@ -408,26 +428,6 @@
       return
         Type Int
         Local $call.2
-  fun $local.5.copy @fn31($capture.seed: String) -> String
-    bb0 entry
-      return
-        Type String
-        Local $capture.seed
-  fun $local.4.choose @fn32(value: String) -> String
-    bb0 entry
-      return
-        Type String
-        Local value
-  fun $local.0.copy @fn33($capture.seed: String, unused: Int) -> String
-    bb0 entry
-      return
-        Type String
-        Local $capture.seed
-  fun $local.0.copy @fn34($capture.seed: Int, unused: String) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local $capture.seed
   fun $local.1.copy @fn35($capture.seed: String) -> String
     bb0 entry
       return
@@ -469,8 +469,8 @@
       return
         Type String
         Local $call.1
-  instance mi0 function=@fn28 <- genericCapture
-  instance mi1 function=@fn29 <- genericCapture
-  instance mi2 function=@fn30 <- forward
-  instance mi3 function=@fn33 <- $local.0.copy
-  instance mi4 function=@fn34 <- $local.0.copy
+  instance mi0 function=@fn30 <- $local.0.copy
+  instance mi1 function=@fn31 <- genericCapture
+  instance mi2 function=@fn32 <- $local.0.copy
+  instance mi3 function=@fn33 <- genericCapture
+  instance mi4 function=@fn34 <- forward

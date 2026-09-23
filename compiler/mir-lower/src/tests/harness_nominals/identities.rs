@@ -28,7 +28,7 @@ fn test_source_nominal_identity(
 
 /// The MIR unit harness assembles nominal arenas directly rather than parsing
 /// source declarations. Give each fixture entity a valid, arena-aligned typed
-/// identity without treating its ABI-oriented display name as source syntax.
+/// identity matching its complete source declaration contract.
 pub(in crate::tests) fn test_nominal_identities_without_objects(
     structs: &Arena<hir::StructDecl>,
     enums: &Arena<hir::EnumDecl>,
@@ -47,9 +47,9 @@ pub(in crate::tests) fn test_nominal_identities(
 ) -> hir::HirNominalIdentities {
     let struct_identities = structs
         .iter()
-        .map(|(id, declaration)| {
+        .map(|(_, declaration)| {
             test_source_nominal_identity(
-                &format!("TestStruct{}", id.into_raw().into_u32()),
+                &declaration.name,
                 scoop_identity::SourceNominalKind::Struct,
                 declaration.type_params.len(),
             )
@@ -57,9 +57,9 @@ pub(in crate::tests) fn test_nominal_identities(
         .collect();
     let enum_identities = enums
         .iter()
-        .map(|(id, declaration)| {
+        .map(|(_, declaration)| {
             test_source_nominal_identity(
-                &format!("TestEnum{}", id.into_raw().into_u32()),
+                &declaration.name,
                 scoop_identity::SourceNominalKind::Enum,
                 declaration.type_params.len(),
             )
@@ -67,9 +67,9 @@ pub(in crate::tests) fn test_nominal_identities(
         .collect();
     let class_identities = classes
         .iter()
-        .map(|(id, declaration)| {
+        .map(|(_, declaration)| {
             test_source_nominal_identity(
-                &format!("TestClass{}", id.into_raw().into_u32()),
+                &declaration.name,
                 scoop_identity::SourceNominalKind::Class,
                 declaration.type_params.len(),
             )
@@ -77,9 +77,9 @@ pub(in crate::tests) fn test_nominal_identities(
         .collect();
     let interface_identities = interfaces
         .iter()
-        .map(|(id, declaration)| {
+        .map(|(_, declaration)| {
             test_source_nominal_identity(
-                &format!("TestInterface{}", id.into_raw().into_u32()),
+                &declaration.name,
                 scoop_identity::SourceNominalKind::Interface,
                 declaration.type_params.len(),
             )
@@ -87,9 +87,9 @@ pub(in crate::tests) fn test_nominal_identities(
         .collect();
     let object_identities = objects
         .iter()
-        .map(|(id, _)| {
+        .map(|(_, declaration)| {
             test_source_nominal_identity(
-                &format!("TestObject{}", id.into_raw().into_u32()),
+                &declaration.name,
                 scoop_identity::SourceNominalKind::Object,
                 0,
             )
@@ -113,27 +113,36 @@ pub(in crate::tests) fn test_nominal_identities(
 pub(in crate::tests) fn test_property_identities(
     properties: &Arena<hir::Property>,
     extensions: &Arena<hir::ExtensionProperty>,
+    nominals: &hir::HirNominalIdentities,
 ) -> hir::HirPropertyIdentities {
     let source = scoop_identity::SourceIdentity::single_file();
     let identities = properties
         .iter()
-        .map(|(id, property)| {
-            assert!(
-                !matches!(property.owner, hir::PropertyOwner::Extension(_)),
-                "the MIR unit harness has no extension-property templates"
-            );
+        .map(|(_, property)| {
+            let owner = match property.owner {
+                hir::PropertyOwner::Class(id) => Some(&nominals[id]),
+                hir::PropertyOwner::Struct(id) => Some(&nominals[id]),
+                hir::PropertyOwner::Enum(id) => Some(&nominals[id]),
+                hir::PropertyOwner::Interface(id) => Some(&nominals[id]),
+                hir::PropertyOwner::Object(id) => Some(&nominals[id]),
+                hir::PropertyOwner::TopLevel => None,
+                hir::PropertyOwner::Extension(_) => {
+                    panic!("the MIR harness has no extension properties")
+                }
+            };
+            let owners = owner
+                .map(|owner| owner.source().unwrap().definition_owner())
+                .into_iter()
+                .collect();
             let site = scoop_identity::SourceDeclarationSite::new(
                 source.cone(),
                 scoop_identity::PackagePath::root(),
-                scoop_identity::DefinitionOwnerChain::top_level(),
+                scoop_identity::DefinitionOwnerChain::from_outer_to_inner(owners),
                 scoop_identity::DeclarationScope::SourceScoped(source.clone()),
             )
             .expect("the single-file test property site is valid");
-            let name = scoop_identity::CanonicalIdentifier::new(&format!(
-                "TestProperty{}",
-                id.into_raw().into_u32()
-            ))
-            .expect("synthetic property names are canonical identifiers");
+            let name = scoop_identity::CanonicalIdentifier::new(&property.name)
+                .expect("synthetic property names are canonical identifiers");
             hir::HirPropertyIdentity::from_ordinary_declaration(
                 scoop_identity::SourceDeclarationKey::property(site, name),
             )

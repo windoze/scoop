@@ -654,6 +654,7 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
     export.property_identities = crate::tests::harness_nominals::test_property_identities(
         &export.properties,
         &export.extension_properties,
+        &export.nominal_identities,
     );
     export.property_accessor_identities =
         crate::tests::harness_nominals::test_property_accessor_identities(

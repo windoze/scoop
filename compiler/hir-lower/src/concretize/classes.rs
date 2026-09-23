@@ -70,23 +70,8 @@ impl Concretizer<'_> {
         self.class_source.insert(id, source_id);
         self.class_type.insert(id, ty);
 
-        // Reserve every parameter-free initializer before lowering its body. `this` cycles
-        // have already been rejected in Export HIR, while recursive type
-        // references can still encounter these identities during lowering.
-        if source.type_params.is_empty()
-            && matches!(source.representation, export::ClassRepresentation::Declared)
-        {
-            for &constructor in &source.constructors {
-                let raw = self.class_constructor_slots.len() as u32;
-                self.class_constructor_slots.push(None);
-                self.class_constructor_keys.push((constructor, id));
-                let concrete = concrete::ClassConstructorId::from_raw(raw.into());
-                assert!(
-                    self.class_constructor_by_key
-                        .insert((constructor, id), concrete)
-                        .is_none()
-                );
-            }
+        if let Some(object) = self.object_by_backing_class.get(&source_id).copied() {
+            self.register_object(object, id, ty);
         }
 
         let fields: Vec<concrete::Field> = source
@@ -101,9 +86,9 @@ impl Concretizer<'_> {
         let method_owner = self.object_by_backing_class.get(&source_id).map_or(
             concrete::MethodOwner::Class(id),
             |object| {
-                concrete::MethodOwner::Object(concrete::ObjectTypeId::from_raw(
-                    self.source.objects[*object].object_type.into_raw(),
-                ))
+                concrete::MethodOwner::Object(
+                    self.object_type_map[&self.source.objects[*object].object_type],
+                )
             },
         );
         let methods = self.request_concrete_methods(&source.methods, method_owner);
@@ -137,14 +122,9 @@ impl Concretizer<'_> {
         self.classes[id].methods = methods;
         if source.type_params.is_empty() {
             for &constructor in &source.constructors {
-                let concrete = self.lower_class_constructor(constructor, id, &arguments);
-                let target = self.class_constructor_by_key[&(constructor, id)];
-                let slot = target.into_raw().into_u32() as usize;
-                assert!(
-                    self.class_constructor_slots[slot]
-                        .replace(concrete)
-                        .is_none()
-                );
+                if self.automatic_class_constructor(constructor) {
+                    self.request_class_constructor(constructor, id);
+                }
             }
         }
         id
@@ -460,6 +440,9 @@ impl Concretizer<'_> {
             .copied()
             .filter_map(|method| {
                 let function = &self.source.functions[method];
+                if !self.automatic_method(method) {
+                    return None;
+                }
                 match function.genericity {
                     export::FunctionGenericity::Plain
                     | export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
@@ -620,7 +603,7 @@ impl Concretizer<'_> {
                     }
                     export::HirStaticInitialState::ZeroedForRuntimeUnit { unit } => {
                         concrete::HirStaticInitialState::ZeroedForRuntimeUnit {
-                            unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
+                            unit: self.request_initialization_unit(*unit),
                         }
                     }
                 },

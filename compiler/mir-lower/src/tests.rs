@@ -12,6 +12,7 @@ mod generics;
 mod harness_core;
 mod harness_functions;
 mod harness_gc;
+mod harness_metadata;
 mod harness_nominals;
 mod operators;
 mod overloads;
@@ -72,8 +73,8 @@ fn lower(module: &hir::ExportHirOutput) -> mir::Module {
     let functions = &module.functions;
     module.top_level.retain(|id| {
         let name = &functions[*id].name;
-        !(name.starts_with("init.$") && name.contains("ExceptionProtocol.$c"))
-            && !name.starts_with("init.$ThrowableProtocol.$c")
+        !(name.starts_with("init._") && name.contains("ExceptionProtocol.$c"))
+            && !name.starts_with("init._ThrowableProtocol.$c")
     });
     module
 }
@@ -285,8 +286,8 @@ fn dump(module: &mir::Module) -> String {
     mir::dump(module)
         .lines()
         .filter(|line| {
-            !(line.contains("class $") && line.contains("ExceptionProtocol"))
-                && !line.contains("class $ThrowableProtocol")
+            !(line.contains("class _") && line.contains("ExceptionProtocol"))
+                && !line.contains("class _ThrowableProtocol")
         })
         .map(|line| format!("{line}\n"))
         .collect()

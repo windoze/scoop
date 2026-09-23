@@ -10,6 +10,7 @@ use la_arena::Arena;
 use scoop_hir as export;
 use scoop_hir::concrete;
 
+mod automatic;
 mod body;
 mod callable_identities;
 mod callables;
@@ -19,10 +20,14 @@ mod closures;
 mod constructor_slots;
 mod constructor_work;
 mod functions;
+mod initialization;
 mod interfaces;
 mod nominals;
+mod objects;
+mod protocols;
 mod types;
 
+use automatic::AutomaticNominalRoots;
 use callback_slots::{PendingForeignCallbackRegistration, finish_foreign_callback_slots};
 use closures::{PendingCallableReference, finish_callable_references};
 use constructor_slots::{
@@ -30,28 +35,31 @@ use constructor_slots::{
     finish_struct_constructor_slots,
 };
 use functions::PendingFunction;
+use initialization::InitializationRequest;
 
 pub(crate) fn lower(module: &export::Module) -> concrete::Module {
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
-    Concretizer::new(module).run()
+    Concretizer::new(module)
+        .expect("validated declaration roots have a complete materialization closure")
+        .run()
 }
 
 pub(crate) fn lower_output(
     output: &export::ExportHirOutput,
     requirements: &export::PublicNominalShapeRequirementsV1,
-) -> export::LocalConcreteHirOutput {
+) -> Result<export::LocalConcreteHirOutput, export::PublicNominalShapeProjectionError> {
     let module = output.module();
     export::validate_iteration_plans(module)
         .expect("Export HIR iteration plans must pass the complete reader boundary validator");
+    let concretizer = Concretizer::new(module)?;
     let (module, output_kind) = match output.output_kind() {
-        export::ConeOutputKind::Library => (
-            Concretizer::new(module).run(),
-            export::LocalConeOutputKind::Library,
-        ),
+        export::ConeOutputKind::Library => {
+            (concretizer.run(), export::LocalConeOutputKind::Library)
+        }
         export::ConeOutputKind::Executable { local_entry } => {
             let (module, entry) =
-                Concretizer::new(module).run_with_entry(local_entry.local_function().function());
+                concretizer.run_with_entry(local_entry.local_function().function());
             let entry = export::ConcreteExecutableEntry::try_new(&module, local_entry, entry)
                 .expect("concretization preserves the validated executable entry");
             (
@@ -64,8 +72,10 @@ pub(crate) fn lower_output(
     };
     let materialization = export::LocalShapeSupportPlan::try_new(&module, requirements)
         .expect("validated public shape roots survive concretization");
-    export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
-        .expect("concretization produces a structurally valid closed output")
+    Ok(
+        export::LocalConcreteHirOutput::try_new(module, output_kind, materialization)
+            .expect("concretization produces a structurally valid closed output"),
+    )
 }
 
 #[derive(Clone, Copy)]
@@ -121,6 +131,7 @@ impl FunctionKey {
 
 struct Concretizer<'a> {
     source: &'a export::Module,
+    automatic: AutomaticNominalRoots,
     core: CoreConcretizationAuthority<'a>,
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
@@ -159,9 +170,17 @@ struct Concretizer<'a> {
     globals: Arena<concrete::Global>,
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
     initialization_units: Arena<concrete::InitializationUnit>,
+    initialization_map: HashMap<export::InitializationUnitId, concrete::InitializationUnitId>,
+    initialization_requests: Vec<InitializationRequest>,
+    pending_initializations: VecDeque<export::InitializationUnitId>,
+    initialization_function_units: HashMap<export::FunctionId, export::InitializationUnitId>,
     initialization_failure_roots: Arena<concrete::InitializationFailureRoot>,
     objects: Arena<concrete::ObjectDecl>,
     object_types: Arena<concrete::ObjectType>,
+    object_type_map: HashMap<export::ObjectTypeId, concrete::ObjectTypeId>,
+    singleton_value_map: HashMap<export::SingletonValueId, concrete::SingletonValueId>,
+    singleton_root_map:
+        HashMap<export::SingletonPublishedRootId, concrete::SingletonPublishedRootId>,
     companion_relations: Arena<concrete::CompanionRelation>,
     singleton_values: Arena<concrete::SingletonValue>,
     singleton_published_roots: Arena<concrete::SingletonPublishedRoot>,
@@ -258,7 +277,8 @@ impl<'a> Concretizer<'a> {
         format!("{prefix}.{name}")
     }
 
-    fn new(source: &'a export::Module) -> Self {
+    fn new(source: &'a export::Module) -> Result<Self, export::PublicNominalShapeProjectionError> {
+        let automatic = AutomaticNominalRoots::new(source)?;
         let object_by_backing_class = source
             .objects
             .iter()
@@ -275,8 +295,9 @@ impl<'a> Concretizer<'a> {
                 (source_id, target)
             })
             .collect();
-        Self {
+        Ok(Self {
             source,
+            automatic,
             core: CoreConcretizationAuthority::from_module(source),
             types: Arena::new(),
             type_by_kind: HashMap::new(),
@@ -311,9 +332,20 @@ impl<'a> Concretizer<'a> {
             globals: Arena::new(),
             global_map: HashMap::new(),
             initialization_units: Arena::new(),
+            initialization_map: HashMap::new(),
+            initialization_requests: Vec::new(),
+            pending_initializations: VecDeque::new(),
+            initialization_function_units: source
+                .initialization_units
+                .iter()
+                .flat_map(|(id, unit)| [(unit.initializer, id), (unit.ensure, id)])
+                .collect(),
             initialization_failure_roots: Arena::new(),
             objects: Arena::new(),
             object_types: Arena::new(),
+            object_type_map: HashMap::new(),
+            singleton_value_map: HashMap::new(),
+            singleton_root_map: HashMap::new(),
             companion_relations: Arena::new(),
             singleton_values: Arena::new(),
             singleton_published_roots: Arena::new(),
@@ -340,7 +372,7 @@ impl<'a> Concretizer<'a> {
             foreign_callback_slots: Vec::new(),
             foreign_callback_by_key: HashMap::new(),
             next_loop_identity: 0,
-        }
+        })
     }
 
     fn run(self) -> concrete::Module {
@@ -386,98 +418,31 @@ impl<'a> Concretizer<'a> {
         self.lower_extern_functions();
         self.lower_globals();
 
-        // Non-generic aggregate declarations and source functions are local
-        // concrete entities even when no expression happens to mention them.
-        for (_, declaration) in self.source.structs.iter() {
-            if declaration.type_params.is_empty() {
+        for (id, declaration) in self.source.structs.iter() {
+            if declaration.type_params.is_empty()
+                && self.automatic_nominal(&self.source.nominal_identities[id])
+            {
                 self.lower_struct_application(declaration.self_application, &[]);
             }
         }
         for (id, declaration) in self.source.enums.iter() {
-            if declaration.type_params.is_empty() {
+            if declaration.type_params.is_empty()
+                && self.automatic_nominal(&self.source.nominal_identities[id])
+            {
                 self.ensure_enum(id, Vec::new());
             }
         }
         for (id, declaration) in self.source.interfaces.iter() {
-            if declaration.type_params.is_empty() {
+            if declaration.type_params.is_empty()
+                && self.automatic_nominal(&self.source.nominal_identities[id])
+            {
                 self.ensure_interface(id, Vec::new());
             }
         }
-        for (_, declaration) in self.source.classes.iter() {
-            if declaration.type_params.is_empty() {
+        for (id, declaration) in self.source.classes.iter() {
+            if declaration.type_params.is_empty() && self.automatic_class(id) {
                 self.lower_class_application(declaration.self_application, &[]);
             }
-        }
-        for (source_id, declaration) in self.source.objects.iter() {
-            let backing_class = self.lower_class_application(
-                self.source.classes[declaration.backing_class].self_application,
-                &[],
-            );
-            let source_type = &self.source.object_types[declaration.object_type];
-            let canonical_type = self.lower_type(source_type.canonical_type, &[]);
-            let object_type = self.object_types.alloc(concrete::ObjectType {
-                declaration: concrete::ObjectId::from_raw(source_id.into_raw()),
-                representation: backing_class,
-                canonical_type,
-            });
-            assert_eq!(declaration.object_type.into_raw(), object_type.into_raw());
-            let object = self.objects.alloc(concrete::ObjectDecl {
-                origin: self.source.nominal_identities[source_id].clone(),
-                name: declaration.name.clone(),
-                owner: self.lower_nominal_owner(declaration.owner),
-                object_type,
-                singleton_value: concrete::SingletonValueId::from_raw(
-                    declaration.singleton_value.into_raw(),
-                ),
-                kind: match declaration.kind {
-                    export::ObjectKind::Standalone => concrete::ObjectKind::Standalone,
-                    export::ObjectKind::Companion(relation) => concrete::ObjectKind::Companion(
-                        concrete::CompanionRelationId::from_raw(relation.into_raw()),
-                    ),
-                },
-                backing_class,
-                span: declaration.span,
-            });
-            assert_eq!(source_id.into_raw(), object.into_raw());
-        }
-        for (source_id, relation) in self.source.companion_relations.iter() {
-            let lowered = self.companion_relations.alloc(concrete::CompanionRelation {
-                host: self
-                    .lower_nominal_owner(Some(relation.host))
-                    .expect("a companion relation always has a nominal host"),
-                object: concrete::ObjectId::from_raw(relation.object.into_raw()),
-                name: match &relation.name {
-                    export::CompanionName::Default => concrete::CompanionName::Default,
-                    export::CompanionName::Named(name) => {
-                        concrete::CompanionName::Named(name.clone())
-                    }
-                },
-            });
-            assert_eq!(source_id.into_raw(), lowered.into_raw());
-        }
-        for (source_id, source) in self.source.singleton_published_roots.iter() {
-            let ty = self.lower_type(source.ty, &[]);
-            let root = self
-                .singleton_published_roots
-                .alloc(concrete::SingletonPublishedRoot {
-                    value: concrete::SingletonValueId::from_raw(source.value.into_raw()),
-                    ty,
-                });
-            assert_eq!(source_id.into_raw(), root.into_raw());
-        }
-        for (source_id, source) in self.source.singleton_values.iter() {
-            let value = self.singleton_values.alloc(concrete::SingletonValue {
-                identity: self.source.object_value_identities[source_id].id(),
-                declaration: concrete::ObjectId::from_raw(source.declaration.into_raw()),
-                object_type: concrete::ObjectTypeId::from_raw(source.object_type.into_raw()),
-                published_root: concrete::SingletonPublishedRootId::from_raw(
-                    source.published_root.into_raw(),
-                ),
-                initialization: concrete::InitializationUnitId::from_raw(
-                    source.initialization.into_raw(),
-                ),
-            });
-            assert_eq!(source_id.into_raw(), value.into_raw());
         }
         let lexical_functions = self
             .source
@@ -502,108 +467,12 @@ impl<'a> Concretizer<'a> {
                 && function.method.is_none()
                 && function.type_param_count() == 0
                 && self.is_emittable_source_function(id)
+                && self.initialization_helper_is_required(id)
             {
                 self.request_function(id, Vec::new());
             }
         }
-        for (_, request) in self.source.instantiations.iter() {
-            let function = self.source.generic_functions[request.generic].function;
-            if lexical_functions.contains(&function)
-                || !self.is_emittable_source_function(function)
-                || request
-                    .type_args
-                    .iter()
-                    .any(|argument| export_type_has_param(self.source, *argument))
-            {
-                continue;
-            }
-            let arguments = request
-                .type_args
-                .iter()
-                .map(|argument| self.lower_type(*argument, &[]))
-                .collect();
-            self.request_function(function, arguments);
-        }
         self.drain_pending_callables();
-
-        for (source_id, source) in self.source.initialization_failure_roots.iter() {
-            let id = self
-                .initialization_failure_roots
-                .alloc(concrete::InitializationFailureRoot {
-                    unit: concrete::InitializationUnitId::from_raw(source.unit.into_raw()),
-                });
-            assert_eq!(source_id.into_raw(), id.into_raw());
-        }
-        for (source_id, source) in self.source.initialization_units.iter() {
-            let kind = match source.kind {
-                export::InitializationUnitKind::EagerTopLevel { storage, .. } => {
-                    concrete::InitializationUnitKind::EagerTopLevel {
-                        storage: self.global_map[&storage],
-                    }
-                }
-                export::InitializationUnitKind::LazySingleton {
-                    value,
-                    published_root,
-                } => concrete::InitializationUnitKind::LazySingleton {
-                    value: concrete::SingletonValueId::from_raw(value.into_raw()),
-                    published_root: concrete::SingletonPublishedRootId::from_raw(
-                        published_root.into_raw(),
-                    ),
-                },
-            };
-            let function = |source| {
-                self.function_by_key[&FunctionKey::Free {
-                    source,
-                    arguments: Vec::new(),
-                }]
-            };
-            let cycle_thrower = match self.core {
-                CoreConcretizationAuthority::Defined(protocols) => {
-                    concrete::InitializationCycleThrower::Local(function(
-                        protocols.exceptions.initialization_cycle_thrower,
-                    ))
-                }
-                CoreConcretizationAuthority::Imported(protocols) => {
-                    concrete::InitializationCycleThrower::Imported(
-                        protocols
-                            .exceptions()
-                            .initialization_cycle_thrower()
-                            .clone(),
-                    )
-                }
-            };
-            let id = self
-                .initialization_units
-                .alloc(concrete::InitializationUnit {
-                    identity: self.source.initialization_unit_identities[source_id].clone(),
-                    display_name: source.display_name.clone(),
-                    schedule: match source.schedule {
-                        export::InitializationSchedule::EagerStartup => {
-                            concrete::InitializationSchedule::EagerStartup
-                        }
-                        export::InitializationSchedule::LazyAccess => {
-                            concrete::InitializationSchedule::LazyAccess
-                        }
-                    },
-                    kind,
-                    initializer: function(source.initializer),
-                    ensure: function(source.ensure),
-                    failure_root: concrete::InitializationFailureRootId::from_raw(
-                        source.failure_root.into_raw(),
-                    ),
-                    dependencies: source
-                        .dependencies
-                        .iter()
-                        .map(|dependency| concrete::InitializationDependency {
-                            unit: concrete::InitializationUnitId::from_raw(
-                                dependency.unit.into_raw(),
-                            ),
-                        })
-                        .collect(),
-                    cycle_thrower,
-                });
-            assert_eq!(source_id.into_raw(), id.into_raw());
-        }
 
         let core_protocols = match self.core {
             CoreConcretizationAuthority::Defined(protocols) => {
@@ -613,6 +482,7 @@ impl<'a> Concretizer<'a> {
                 concrete::ConcreteCoreProtocols::Imported(Box::new(protocols.clone()))
             }
         };
+        self.finish_initialization_units();
         let extra = finish(&self);
         let core_types = match &core_protocols {
             concrete::ConcreteCoreProtocols::Defined(protocols) => {
@@ -710,145 +580,11 @@ impl<'a> Concretizer<'a> {
         (module, extra)
     }
 
-    fn lower_defined_core_protocols(
-        &mut self,
-        protocols: &export::DefinedCoreProtocols,
-    ) -> concrete::ConcreteCoreProtocols {
-        let coroutine_protocols = self.build_coroutine_protocols(protocols.coroutines);
-        self.drain_pending_callables();
-
-        let source_callback_core = protocols.foreign_callbacks;
-        let callback_reusable =
-            self.lower_applied_enum_variant_ref(source_callback_core.modes.reusable(), &[]);
-        let callback_one_shot =
-            self.lower_applied_enum_variant_ref(source_callback_core.modes.one_shot(), &[]);
-        let callback_modes = concrete::ForeignCallbackModes::checked(
-            &self.enums,
-            callback_reusable,
-            callback_one_shot,
-        )
-        .expect("the validated foreign callback mode protocol survives concretization");
-        let callback_registered =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.registered(), &[]);
-        let callback_active =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.active(), &[]);
-        let callback_completed =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.completed(), &[]);
-        let callback_failed =
-            self.lower_applied_enum_variant_ref(source_callback_core.states.failed(), &[]);
-        let callback_states = concrete::ForeignCallbackStates::checked(
-            &self.enums,
-            callback_registered,
-            callback_active,
-            callback_completed,
-            callback_failed,
-        )
-        .expect("the validated foreign callback state protocol survives concretization");
-        let callback_failure_some = self.lower_applied_enum_variant_field_ref(
-            source_callback_core.failure_result.some_payload(),
-            &[],
-        );
-        let callback_failure_none =
-            self.lower_applied_enum_variant_ref(source_callback_core.failure_result.none(), &[]);
-        let callback_failure_option = concrete::OptionCore::checked(
-            &self.enums,
-            callback_failure_some,
-            callback_failure_none,
-        )
-        .expect("the validated foreign callback failure protocol survives concretization");
-        let callback_throwable =
-            self.class_by_key[&(protocols.exceptions.throwable.class(), Vec::new())];
-        let callback_failure_result = concrete::ForeignCallbackFailureResult::checked(
-            &self.enums,
-            &self.types,
-            callback_failure_option,
-            callback_throwable,
-        )
-        .expect("foreign callback failure remains the exact Option<Throwable> specialization");
-
-        let fundamental_types = concrete::IntrinsicTypeCore {
-            integers: export::IntegerTypeCore::new(export::IntegerKind::ALL.map(|kind| {
-                self.struct_by_key[&(protocols.fundamental_types.integers.owner(kind), Vec::new())]
-            }))
-            .expect("validated integer owners remain distinct after concretization"),
-            boolean: self.struct_by_key[&(protocols.fundamental_types.boolean, Vec::new())],
-            string: self.class_by_key[&(protocols.fundamental_types.string, Vec::new())],
-        };
-
-        let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
-            constructor: {
-                let class = self.class_by_key[&(exception.class(), Vec::new())];
-                concrete::ZeroArgClassConstructor {
-                    class,
-                    callable: self.class_constructor_by_key[&(exception.callable(), class)],
-                }
-            },
-        };
-        let source_exception_core = protocols.exceptions;
-        let source_option_core = protocols.option;
-        let option = self
-            .enums
-            .iter()
-            .filter(|(enumeration, _)| {
-                self.enum_source[enumeration] == source_option_core.enumeration()
-            })
-            .map(|(enumeration, _)| {
-                let some = concrete::EnumVariantRef::checked(
-                    &self.enums,
-                    enumeration,
-                    concrete::VariantId::from_raw(
-                        source_option_core.some_payload().variant().local_index(),
-                    ),
-                )
-                .expect("a concrete Option specialization retains its Some variant");
-                let some_payload = concrete::EnumVariantFieldRef::checked(
-                    &self.enums,
-                    some,
-                    source_option_core.some_payload().local_index(),
-                )
-                .expect("a concrete Option specialization retains its Some payload identity");
-                let none = concrete::EnumVariantRef::checked(
-                    &self.enums,
-                    enumeration,
-                    concrete::VariantId::from_raw(source_option_core.none().local_index()),
-                )
-                .expect("a concrete Option specialization retains its None variant");
-                concrete::OptionCore::checked(&self.enums, some_payload, none)
-                    .expect("the validated Option shape survives concretization")
-            })
-            .collect();
-
-        concrete::ConcreteCoreProtocols::Defined(Box::new(concrete::DefinedConcreteCoreProtocols {
-            option,
-            exceptions: concrete::CompilerExceptionCore {
-                throwable: lower_exception(source_exception_core.throwable),
-                unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
-                class_cast_exception: lower_exception(source_exception_core.class_cast_exception),
-                arithmetic_exception: lower_exception(source_exception_core.arithmetic_exception),
-                index_out_of_bounds_exception: lower_exception(
-                    source_exception_core.index_out_of_bounds_exception,
-                ),
-                illegal_state_exception: lower_exception(
-                    source_exception_core.illegal_state_exception,
-                ),
-                initialization_cycle_thrower: self.function_by_key[&FunctionKey::Free {
-                    source: source_exception_core.initialization_cycle_thrower,
-                    arguments: Vec::new(),
-                }],
-            },
-            coroutines: coroutine_protocols,
-            foreign_callbacks: concrete::ForeignCallbackCore {
-                modes: callback_modes,
-                states: callback_states,
-                failure_result: callback_failure_result,
-            },
-            fundamental_types,
-        }))
-    }
-
     fn drain_pending_callables(&mut self) {
         loop {
-            if let Some((key, id)) = self.pending_functions.pop_front() {
+            if let Some(unit) = self.pending_initializations.pop_front() {
+                self.require_initialization_dependencies(unit);
+            } else if let Some((key, id)) = self.pending_functions.pop_front() {
                 let function = self.lower_function(&key);
                 let slot = id.into_raw().into_u32() as usize;
                 assert!(self.function_slots[slot].replace(function).is_none());
@@ -858,90 +594,6 @@ impl<'a> Concretizer<'a> {
                 break;
             }
         }
-    }
-
-    fn build_coroutine_protocols(
-        &mut self,
-        core: export::CoroutineCore,
-    ) -> Vec<concrete::CoroutineProtocol> {
-        let mut protocols = Vec::new();
-        loop {
-            self.drain_pending_callables();
-            let mut results = Vec::new();
-            for (index, function) in self.function_slots.iter().enumerate() {
-                let Some(function) = function else {
-                    continue;
-                };
-                if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
-                    results.push(function.return_ty);
-                }
-                if matches!(
-                    function.kind,
-                    concrete::FunctionKind::Intrinsic(intrinsic)
-                        if matches!(
-                            intrinsic.kind,
-                            concrete::IntrinsicFunctionKind::CoroutineStart
-                                | concrete::IntrinsicFunctionKind::CoroutineSuspend
-                        )
-                ) {
-                    results.extend(self.function_key_arguments(&self.function_keys[index]));
-                }
-            }
-            // Suspend function-value variance bridges are synthesized by MIR
-            // and use the target function type's result. Include those
-            // concrete results in HIR's closed coroutine protocol set too.
-            results.extend(
-                self.function_types.iter().filter_map(|(_, function)| {
-                    function.is_suspend.then_some(function.return_type)
-                }),
-            );
-            results.sort_by_key(|id| id.into_raw().into_u32());
-            results.dedup();
-            results.retain(|result| {
-                !protocols
-                    .iter()
-                    .any(|protocol: &concrete::CoroutineProtocol| protocol.result_type == *result)
-            });
-            if results.is_empty() {
-                break;
-            }
-            protocols.extend(results.into_iter().map(|result_type| {
-                let continuation = self.ensure_interface(core.continuation, vec![result_type]);
-                let suspend_task = self.ensure_interface(core.suspend_task, vec![result_type]);
-                let suspend_registration =
-                    self.ensure_interface(core.suspend_registration, vec![result_type]);
-                concrete::CoroutineProtocol {
-                    result_type,
-                    continuation,
-                    suspend_task,
-                    suspend_registration,
-                    start_coroutine: self.request_function(core.start_coroutine, vec![result_type]),
-                    suspend_coroutine: self
-                        .request_function(core.suspend_coroutine, vec![result_type]),
-                    continuation_resume: self.request_method(
-                        core.continuation_resume,
-                        concrete::MethodOwner::Interface(continuation),
-                        MethodRequest::Plain,
-                    ),
-                    continuation_resume_with_exception: self.request_method(
-                        core.continuation_resume_with_exception,
-                        concrete::MethodOwner::Interface(continuation),
-                        MethodRequest::Plain,
-                    ),
-                    suspend_task_run: self.request_method(
-                        core.suspend_task_run,
-                        concrete::MethodOwner::Interface(suspend_task),
-                        MethodRequest::Plain,
-                    ),
-                    suspend_registration_register: self.request_method(
-                        core.suspend_registration_register,
-                        concrete::MethodOwner::Interface(suspend_registration),
-                        MethodRequest::Plain,
-                    ),
-                }
-            }));
-        }
-        protocols
     }
 }
 
@@ -961,39 +613,4 @@ fn finish_function_slots(
         assert_eq!(id.into_raw().into_u32() as usize, index);
     }
     arena
-}
-
-fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {
-    match &module.types[ty] {
-        export::Type::Param(_) => true,
-        export::Type::Ptr(element) => export_type_has_param(module, *element),
-        export::Type::Tuple(elements) => elements
-            .iter()
-            .any(|element| export_type_has_param(module, *element)),
-        export::Type::Function(function) | export::Type::FunPtr(function) => {
-            let function = &module.function_types[*function];
-            function
-                .parameter_types
-                .iter()
-                .any(|parameter| export_type_has_param(module, *parameter))
-                || export_type_has_param(module, function.return_type)
-        }
-        export::Type::Class(application) => module.class_applications[*application]
-            .arguments
-            .iter()
-            .any(|argument| export_type_has_param(module, *argument)),
-        export::Type::Struct(application) => module.struct_applications[*application]
-            .arguments
-            .iter()
-            .any(|argument| export_type_has_param(module, *argument)),
-        export::Type::Interface(application) => module.interface_applications[*application]
-            .arguments
-            .iter()
-            .any(|argument| export_type_has_param(module, *argument)),
-        export::Type::Enum(application) => module.enum_applications[*application]
-            .arguments
-            .iter()
-            .any(|argument| export_type_has_param(module, *argument)),
-        _ => false,
-    }
 }

@@ -340,16 +340,20 @@ fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
             statements: Vec::new(),
         },
     );
-    h.instantiate(f, vec![option_int]);
-    h.instantiate(f, vec![pair]);
+    h.use_identity_instances(f, &[option_int, pair]);
     let module = lower(&h.finish(main));
 
     assert_eq!(module.meta.instances.len(), 2);
-    let first = &module.meta.instances[instance_id(&module, module.top_level[1])];
-    let second = &module.meta.instances[instance_id(&module, module.top_level[2])];
+    let instances = module
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == "f")
+        .collect::<Vec<_>>();
+    let first = &module.meta.instances[instance_id(&module, instances[0].0)];
+    let second = &module.meta.instances[instance_id(&module, instances[1].0)];
     assert_ne!(first.materialization, second.materialization);
     // Substitution recurses into enum / tuple types.
-    let option_instance = &module.functions[module.top_level[1]];
+    let option_instance = instances[0].1;
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
         panic!("the Option<Int> instance parameter must be an enum type")
     };
@@ -362,7 +366,7 @@ fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
         args.as_slice(),
         &[mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
     );
-    let tuple_instance = &module.functions[module.top_level[2]];
+    let tuple_instance = instances[1].1;
     assert_eq!(
         tuple_instance.return_ty,
         mir::Type::Tuple(vec![

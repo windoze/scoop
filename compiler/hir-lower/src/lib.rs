@@ -441,7 +441,12 @@ fn finish_output(
             format!("failed to project public nominal shapes: {error}"),
         )]
     })?;
-    let local = concretize::lower_output(&export, &requirements);
+    let local = concretize::lower_output(&export, &requirements).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to project automatic nominal roots: {error}"),
+        )]
+    })?;
     let native_boundary_types =
         crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
             .map_err(native_boundary_diagnostic)?;
@@ -554,6 +559,7 @@ pub fn concretize_output(export: &hir::ExportHirOutput) -> hir::LocalConcreteHir
     )
     .expect("checked HIR public bindings have valid nominal identities");
     concretize::lower_output(export, &requirements)
+        .expect("validated Export HIR has complete automatic nominal roots")
 }
 
 #[derive(Clone)]

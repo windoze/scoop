@@ -17,6 +17,7 @@ mod layout_exports;
 mod publication;
 mod shape_materialization;
 mod shared_nominal_declarations;
+mod source_only_nominals;
 
 #[test]
 fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {

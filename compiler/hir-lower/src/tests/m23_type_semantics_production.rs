@@ -14,6 +14,7 @@ use hir::NominalInheritanceSemanticAuthority as _;
 mod public_projection;
 use public_projection::public_interface;
 
+mod automatic_materialization;
 mod declaration_dump;
 mod fact_providers;
 mod shape_demands;
