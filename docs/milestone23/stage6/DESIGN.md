@@ -269,6 +269,8 @@ layout profile 的共有 HIR 声明读取直接消费同一 artifact 的 identit
 
 当前 Cone 的形状物化需求由共有公共声明和实际本地使用产生：按 export binding 的实际 exporter 选择 DeclaredCurrent 声明，再应用第 1.2 节的完整物化闭包 gate。HIR 保存必需的 LocalShapeSupportPlan；MIR 接收同一 typed source 集合并核对实际 source/exact 与 helper；LIR 核对实际 producer 的完整 layout、scan、descriptor 和 registration。alias、reexport 和仅作源码 metadata 的声明不自动增加本地机器根。所有 Cone 共用同一计划和 reader 校验，compiler protocol 的 Defined/Imported 角色不决定形状需求。
 
+layout profile 的 HIR 类型基础读取从共有 nominal/callable 声明重算当前可物化集合，并从完整字段、variant、继承和公开/受保护构造参数闭合必需 exact facts；Unit/Any 由其既有定义 owner 保留。struct/enum/tuple 的 GC/ZST 事实继续使用共有递归算法，引用值作为 managed leaf，不以对象字段判断值的 GC-free 或大小。external nominal 只查询实际 provider 已验证的事实，缺失、额外、本地冒领外来事实、错误 intrinsic family 和 by-value cycle 均拒绝。representation 的 owner、来源位置、词法 owner、visibility、完整字段/variant、CLayout policy、base 和 object backing 与同一共有声明及事实关联，预算贯穿身份、集合、递归和比较；这些检查不替代 dispatch、protected/default、selected use 或机器产物闭合。
+
 ### 3.2 不改义的既有 section
 
 - identity-foundation 的布局/scan/dispatch key 继续只证明 identity；本阶段新 payload 引用它们，不重复声明同 kind/id。

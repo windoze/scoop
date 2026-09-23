@@ -28,7 +28,42 @@ pub(super) fn validate(
     path: &WirePath,
 ) -> Result<(), Failure> {
     use NominalRepresentationSourceMismatchV1 as Mismatch;
-    let key = expected.key;
+    validate_header(
+        record,
+        expected.key,
+        expected.access,
+        provider,
+        expected.shape.source_kind(),
+        meter,
+        path,
+    )?;
+    if !compare::shape(
+        record.shape(),
+        expected.shape,
+        meter,
+        &path.clone().field(3),
+    )? {
+        return Err(Mismatch::Shape.into());
+    }
+    if let NominalRepresentationPublicSourceShapeV1::PublicSourceShape(public) =
+        expected.public_source_shape
+        && !record.public_source_shape_matches(public, meter, &path.clone().field(3))?
+    {
+        return Err(Mismatch::PublicSourceShape.into());
+    }
+    Ok(())
+}
+
+pub(super) fn validate_header(
+    record: &NominalRepresentationSupportV1,
+    key: &SourceDeclarationKey,
+    access: &DeclarationAccessSourceV1,
+    provider: ConeIdentity,
+    source_kind: scoop_identity::SourceDeclarationKind,
+    meter: &mut BudgetMeter,
+    path: &WirePath,
+) -> Result<(), Failure> {
+    use NominalRepresentationSourceMismatchV1 as Mismatch;
     if !key.declaration_kind().is_nominal()
         || !matches!(
             key.duplicate_signature(),
@@ -46,35 +81,21 @@ pub(super) fn validate(
     if PersistentTypeId::from_source_declaration(key).ok() != Some(record.owner()) {
         return Err(Mismatch::OwnerIdentity.into());
     }
-    if key.declaration_kind() != expected.shape.source_kind() {
+    if key.declaration_kind() != source_kind {
         return Err(Mismatch::SourceKind.into());
     }
     let at = path.clone().field(2);
-    charge_access(expected.access, meter, &at)?;
+    charge_access(access, meter, &at)?;
     charge_access(record.declaration_access(), meter, &at)?;
-    let source = expected.access.definition_origin().origin().source();
+    let source = access.definition_origin().origin().source();
     if source.cone() != provider || key.scope().source().is_some_and(|scope| scope != source) {
         return Err(Mismatch::AccessSource.into());
     }
-    if !owners_match(key, expected.access.lexical_owners()) {
+    if !owners_match(key, access.lexical_owners()) {
         return Err(Mismatch::AccessOwners.into());
     }
-    if record.declaration_access() != expected.access {
+    if record.declaration_access() != access {
         return Err(Mismatch::Access.into());
-    }
-    if !compare::shape(
-        record.shape(),
-        expected.shape,
-        meter,
-        &path.clone().field(3),
-    )? {
-        return Err(Mismatch::Shape.into());
-    }
-    if let NominalRepresentationPublicSourceShapeV1::PublicSourceShape(public) =
-        expected.public_source_shape
-        && !record.public_source_shape_matches(public, meter, &path.clone().field(3))?
-    {
-        return Err(Mismatch::PublicSourceShape.into());
     }
     Ok(())
 }

@@ -17,7 +17,6 @@ pub struct CrossConeLayoutHirDeclarationError {
 
 #[derive(Debug)]
 pub enum CrossConeHirDeclarationValidationError {
-    Allocation { requested_slots: usize },
     Resource(WireError),
     Internal(Box<CrossConeHirInternalClosureValidationError>),
     DefinitionSources(CrossConeHirDefinitionSourceSurfaceError),
@@ -49,12 +48,6 @@ impl std::error::Error for CrossConeLayoutHirDeclarationError {
 impl std::fmt::Display for CrossConeHirDeclarationValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Allocation { requested_slots } => {
-                write!(
-                    f,
-                    "cannot allocate {requested_slots} HIR declaration provider slots"
-                )
-            }
             Self::Resource(error) => error.fmt(f),
             Self::Internal(error) => error.fmt(f),
             Self::DefinitionSources(error) => error.fmt(f),

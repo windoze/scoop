@@ -4,12 +4,11 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{BudgetMeter, WirePath};
 
-use super::HirProductionValidatedCrossConeLayoutClosure;
+use super::{HirProductionValidatedCrossConeLayoutClosure, reachability::transitive_positions};
 use crate::{
     DefinitionSourceProviderView, HirProductionValidatedCrossConeLayoutSections,
     cross_cone_hir_authority::ValidatedNominalProviderView,
     hir_interface_validation::HirInterfaceValidationInput,
-    layout_hir_semantics::transitive_positions,
 };
 
 mod errors;
@@ -83,20 +82,8 @@ fn validate_provider(
     let current = artifact.identity();
     let (identities, foundation, core, interface, _, meter) = artifact.hir_semantic_parts();
     let path = WirePath::root();
-    let edge_count = dependency_positions[..=position]
-        .iter()
-        .fold(0_u64, |count, edges| {
-            count.saturating_add(edges.len() as u64)
-        });
-    meter
-        .charge_work(
-            (position as u64)
-                .saturating_add(edge_count)
-                .saturating_add(1),
-            &path,
-        )
-        .map_err(Error::Resource)?;
-    let reachable = transitive_positions(position, dependency_positions);
+    let reachable =
+        transitive_positions(position, dependency_positions, meter).map_err(Error::Resource)?;
     let dependencies = collect_views(
         reachable
             .iter()
@@ -170,9 +157,9 @@ fn collect_views<T>(
         .charge_work(requested_slots as u64, &WirePath::root())
         .map_err(Error::Resource)?;
     let mut result = Vec::new();
-    result
-        .try_reserve_exact(requested_slots)
-        .map_err(|_| Error::Allocation { requested_slots })?;
+    meter
+        .try_reserve_collection_slots(&mut result, requested_slots, &WirePath::root())
+        .map_err(Error::Resource)?;
     result.extend(values);
     Ok(result)
 }

@@ -10,6 +10,7 @@ use crate::{CanonicalPersistentIdsV1, DeclarationAccessSourceV1, NominalSourceSh
 
 mod compare;
 mod errors;
+mod shared;
 mod source;
 #[cfg(test)]
 mod tests;

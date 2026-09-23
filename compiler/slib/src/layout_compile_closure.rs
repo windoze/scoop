@@ -19,11 +19,14 @@ use crate::{
 mod declarations;
 mod foundations;
 mod hir;
+mod reachability;
+mod type_foundations;
 pub use declarations::{
     CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,
     HirDeclarationsValidatedCrossConeLayoutClosure,
 };
 pub use hir::CrossConeLayoutClosureHirResolutionError;
+pub use type_foundations::CrossConeLayoutTypeFoundationError;
 
 /// Untrusted M23-6 artifacts visible while compiling one current Cone.
 pub struct DecodedCrossConeLayoutCompileClosure<'input> {

@@ -15,6 +15,7 @@ mod representation_fields;
 mod representation_policy;
 mod section;
 mod selected;
+mod shared_foundation;
 mod slot_contracts;
 mod slot_schemas;
 mod source_authority;
@@ -32,6 +33,9 @@ pub use representation_fields::*;
 pub use representation_policy::*;
 pub use section::*;
 pub use selected::*;
+pub use shared_foundation::{
+    CheckedSharedTypeFoundationV1, SharedTypeMetadataError, SharedTypeMetadataV1,
+};
 pub use slot_contracts::*;
 pub use slot_schemas::*;
 pub use source_authority::*;
