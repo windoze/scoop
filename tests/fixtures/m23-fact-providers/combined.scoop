@@ -1,0 +1,20 @@
+public struct Empty()
+public struct Widths(
+    val i8: Int8,
+    val i16: Int16,
+    val i32: Int,
+    val i64: Long,
+    val u8: UInt8,
+    val u16: UInt16,
+    val u32: UInt,
+    val u64: ULong
+)
+public struct Packet(val meta: (Boolean, Unit), val message: String, val empty: Empty)
+public struct NothingStored(val pair: (Empty, Unit))
+public enum Result {
+    Ready(Packet),
+    Missing
+}
+public class Holder {
+    private val enabled: Boolean = true
+}

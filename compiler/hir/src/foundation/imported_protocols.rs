@@ -445,7 +445,7 @@ pub struct ImportedCoreProtocols {
 }
 
 impl ImportedCoreProtocols {
-    fn import(
+    pub(crate) fn import(
         foundation: &ImportedHirFoundation,
         protocols: &crate::CoreCompilerProtocolSurfaceV1,
     ) -> Result<Self, CoreProtocolImportError> {

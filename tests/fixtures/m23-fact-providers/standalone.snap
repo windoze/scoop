@@ -1,0 +1,3 @@
+dependency Boolean provider=core
+dependency Int provider=core
+local FlagValue Value { zst: NonZero } GcFree

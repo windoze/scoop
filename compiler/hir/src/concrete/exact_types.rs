@@ -14,6 +14,7 @@ use super::{
 use crate::HirNominalIdentity;
 
 mod error;
+mod origins;
 pub use error::{ExactTypeIdentityError, ExactTypeRelation};
 
 #[cfg(test)]

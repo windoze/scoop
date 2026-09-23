@@ -1,0 +1,19 @@
+dependency Boolean provider=core
+dependency Int provider=core
+dependency Int16 provider=core
+dependency Int8 provider=core
+dependency Long provider=core
+dependency String provider=core
+dependency UInt provider=core
+dependency UInt16 provider=core
+dependency UInt8 provider=core
+dependency ULong provider=core
+dependency Unit provider=core
+local (Boolean, Unit) Value { zst: NonZero } GcFree
+local (Empty, Unit) Value { zst: ZeroSized } GcFree
+local Empty Value { zst: ZeroSized } GcFree
+local Holder Reference ContainsManagedReferences
+local NothingStored Value { zst: ZeroSized } GcFree
+local Packet Value { zst: NonZero } ContainsManagedReferences
+local Result Value { zst: NonZero } ContainsManagedReferences
+local Widths Value { zst: NonZero } GcFree
