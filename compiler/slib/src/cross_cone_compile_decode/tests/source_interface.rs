@@ -31,6 +31,7 @@ mod default_envelope;
 mod default_fixture;
 mod default_origins;
 mod default_reference_closure;
+mod default_type_access;
 mod source_providers;
 
 #[test]
@@ -177,7 +178,10 @@ struct CallableSourceSurface {
 
 impl CallableSourceSurface {
     fn new(case: SourceInterfaceCase) -> Self {
-        let cone = cone();
+        Self::for_cone(case, cone())
+    }
+
+    fn for_cone(case: SourceInterfaceCase, cone: ConeRecord) -> Self {
         let identity = cone.identity();
         let declaration_source = SourceIdentity::new(
             identity,

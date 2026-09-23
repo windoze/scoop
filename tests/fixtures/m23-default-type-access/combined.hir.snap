@@ -1,0 +1,13 @@
+Module
+  struct AccessBox<T>
+    field0 value: T0
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+  struct AccessHolder.Nested
+    field0 value: Int
+    property1 val value: Int getter1=storage <stored struct1-field0>
+  class AccessHolder()
+  fun accessCombined<T>(value: T0, box: AccessBox<T0>, pair: (T0, Int), factory: () -> T0, nested: AccessHolder.Nested): T0
+    return
+      FieldAccess field 0 : T0
+        Local box : AccessBox<T0>
+  output library

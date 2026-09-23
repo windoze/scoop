@@ -1,0 +1,7 @@
+public class DomainContainer {
+    private class Hidden {
+        public struct Exposed()
+    }
+    public fun invalid(value: Int = if (true) { val hidden = Hidden.Exposed(); 1 } else { 0 }): Int = value
+}
+fun main() {}

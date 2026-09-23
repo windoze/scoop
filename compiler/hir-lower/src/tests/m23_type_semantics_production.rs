@@ -16,6 +16,7 @@ use public_projection::public_interface;
 
 mod automatic_materialization;
 mod declaration_dump;
+mod default_type_access;
 mod fact_providers;
 mod setter_domains;
 mod shape_demands;

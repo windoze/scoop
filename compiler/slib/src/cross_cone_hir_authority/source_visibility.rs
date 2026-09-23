@@ -7,6 +7,7 @@ use scoop_identity::{DefinitionOriginSubject, SourceDeclarationKind, SourceIdent
 use scoop_wire::WirePath;
 
 mod relations;
+mod types;
 
 type Error = CrossConeHirNominalAuthorityError;
 

@@ -16,6 +16,7 @@ mod fixed_signatures;
 mod operation_owners;
 mod operation_signatures;
 mod shared_intrinsics;
+mod source_types;
 use fixed_signatures::validate_fixed_callable_signatures;
 use operation_owners::expected_operation_owner;
 pub use shared_intrinsics::IntrinsicCallableContractError;
