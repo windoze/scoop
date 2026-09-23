@@ -1,23 +1,23 @@
-roots 40; representations 25; facts 29; inheritance edges 25; origins 14
-ArithmeticException: arity 0; class
+roots 40; representations 18; facts 20; inheritance edges 18; origins 14
+ArithmeticException: arity 0; source-only
 Array: arity 1; generic
 Boolean: arity 0; intrinsic
-ClassCastException: arity 0; class
+ClassCastException: arity 0; source-only
 Continuation: arity 1; generic
 CoreSourceBox: arity 1; generic
-CoreSourceEntry: arity 0; class
+CoreSourceEntry: arity 0; source-only
 CoreSourceFace: arity 1; generic
 CoreSourcePair: arity 0; struct
 CoreSourceZero: arity 0; struct
-Exception: arity 0; class
+Exception: arity 0; source-only
 ForeignCallback: arity 1; generic
 ForeignCallbackMode: arity 0; enum
 ForeignCallbackState: arity 0; enum
 FunPtr: arity 1; generic
 GcHandle: arity 1; generic
 Hash: arity 0; interface
-IllegalStateException: arity 0; class
-IndexOutOfBoundsException: arity 0; class
+IllegalStateException: arity 0; source-only
+IndexOutOfBoundsException: arity 0; source-only
 Int16: arity 0; intrinsic
 Int8: arity 0; intrinsic
 Int: arity 0; intrinsic
@@ -38,4 +38,4 @@ UInt16: arity 0; intrinsic
 UInt8: arity 0; intrinsic
 UInt: arity 0; intrinsic
 ULong: arity 0; intrinsic
-UnwrapException: arity 0; class
+UnwrapException: arity 0; source-only

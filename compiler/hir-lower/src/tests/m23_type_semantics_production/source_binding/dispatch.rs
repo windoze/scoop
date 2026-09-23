@@ -118,7 +118,7 @@ fn protected_constructor_does_not_require_candidate_contracts_to_bind_foundation
 }
 
 #[test]
-fn independent_foundation_projects_existing_generic_edges_without_materializing() {
+fn foundation_preserves_generic_supertypes_without_machine_edges() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
@@ -126,7 +126,7 @@ fn independent_foundation_projects_existing_generic_edges_without_materializing(
                 hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
                     .unwrap();
             assert!(
-                !foundation
+                foundation
                     .source_transcript(&mut meter())
                     .unwrap()
                     .entries()
@@ -134,6 +134,16 @@ fn independent_foundation_projects_existing_generic_edges_without_materializing(
                     .records()
                     .is_empty()
             );
+            assert_eq!(foundation.source_roots().len(), 2);
+            let public = public_interface(output);
+            assert!(public.nominal_interfaces().records().iter().any(|source| {
+                source.exact_supertypes().values().iter().any(|supertype| {
+                    matches!(
+                        supertype,
+                        scoop_identity::SignatureTypeKey::NominalApplication { .. }
+                    )
+                })
+            }));
         },
     );
 }

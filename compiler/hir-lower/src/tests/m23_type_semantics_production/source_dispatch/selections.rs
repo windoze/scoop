@@ -115,17 +115,23 @@ fn source_selection_bytes_ignore_arena_order_and_obey_shared_limits() {
 }
 
 #[test]
-fn source_selections_reject_generic_dispatch_application_without_odr_authority() {
+fn source_selections_leave_generic_dispatch_declarations_source_only() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                    output,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
+            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
+                output,
+                &mut BudgetMeter::new(DecodeLimits::default()),
+            )
+            .unwrap();
+            assert!(selections.records().is_empty());
+            assert_eq!(
+                public_interface(output)
+                    .nominal_interfaces()
+                    .records()
+                    .len(),
+                2
+            );
         },
     );
 }

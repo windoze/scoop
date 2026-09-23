@@ -1,101 +1,12 @@
-use std::collections::BTreeSet;
-
-use scoop_identity::{OptionalSignatureType, PersistentExactTypeId, PersistentTypeId};
+use scoop_identity::{OptionalSignatureType, PersistentTypeId};
 
 use super::{ConcreteNominal, NominalLocalId};
 use crate::*;
 
 use super::super::CrossConeTypeSemanticsProductionError as Error;
 
-/// Exact types whose representation or exported constructor ABI must be
-/// available to M23-6. Facts projection applies the generic/local-support
-/// gates recursively to this independently collected HIR inventory.
-pub(super) fn fact_requirements(
-    export: &ExportHir,
-    nominals: &[ConcreteNominal<'_>],
-) -> Result<BTreeSet<PersistentExactTypeId>, Error> {
-    let mut types = Vec::new();
-    for nominal in nominals {
-        match nominal.local {
-            NominalLocalId::Struct(id) => {
-                types.extend(
-                    export.structs[id]
-                        .semantic_fields()
-                        .iter()
-                        .map(|field| field.ty),
-                );
-                types.extend(export.structs[id].interfaces.iter().copied());
-                for constructor in &export.structs[id].constructors {
-                    let constructor = &export.struct_constructors[*constructor];
-                    if is_exported_constructor(constructor.access.declared) {
-                        types.extend(constructor.parameters.iter().map(|parameter| parameter.ty));
-                    }
-                }
-            }
-            NominalLocalId::Enum(id) => {
-                types.extend(
-                    export.enums[id]
-                        .variants
-                        .iter()
-                        .flat_map(|variant| variant.fields.iter().map(|field| field.ty)),
-                );
-                types.extend(export.enums[id].interfaces.iter().copied());
-            }
-            NominalLocalId::Class(id) => {
-                let declaration = &export.classes[id];
-                types.extend(
-                    declaration
-                        .fields
-                        .iter()
-                        .map(|field| export.class_fields[*field].ty),
-                );
-                types.extend(declaration.base_class);
-                types.extend(declaration.interfaces.iter().copied());
-                for constructor in &declaration.constructors {
-                    let constructor = &export.class_constructors[*constructor];
-                    if is_exported_constructor(constructor.access.declared) {
-                        types.extend(constructor.parameters.iter().map(|parameter| parameter.ty));
-                    }
-                }
-            }
-            NominalLocalId::Interface(id) => types.extend(
-                export.interfaces[id]
-                    .parents
-                    .iter()
-                    .map(|parent| export.interface_applications[*parent].canonical_type),
-            ),
-            NominalLocalId::Object(id) => {
-                let class = &export.classes[export.objects[id].backing_class];
-                types.extend(
-                    class
-                        .fields
-                        .iter()
-                        .map(|field| export.class_fields[*field].ty),
-                );
-                types.extend(class.base_class);
-                types.extend(class.interfaces.iter().copied());
-            }
-        }
-    }
-    types
-        .into_iter()
-        .map(|ty| {
-            export
-                .type_identities
-                .get(ty)
-                .and_then(HirTypeIdentity::exact)
-                .map(|record| record.id())
-                .ok_or(Error::MissingExactIdentity)
-        })
-        .collect()
-}
-
-fn is_exported_constructor(visibility: DeclaredVisibility) -> bool {
-    matches!(
-        visibility,
-        DeclaredVisibility::Public | DeclaredVisibility::Protected
-    )
-}
+mod requirements;
+pub(super) use requirements::{fact_requirements, visit_required_types};
 
 pub(super) fn shape(
     export: &ExportHir,

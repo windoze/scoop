@@ -169,17 +169,23 @@ fn roundtrip(
 }
 
 #[test]
-fn source_dispatch_rejects_generic_interface_materialization() {
+fn source_dispatch_preserves_generic_interfaces_without_machine_inventory() {
     with_source(
         "public interface Generic<T> {}\npublic class User : Generic<Int>",
         |output, _| {
-            assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                    output,
-                    &mut BudgetMeter::new(DecodeLimits::default())
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
+            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
+                output,
+                &mut BudgetMeter::new(DecodeLimits::default()),
+            )
+            .unwrap();
+            assert!(inventory.records().is_empty());
+            assert_eq!(
+                public_interface(output)
+                    .nominal_interfaces()
+                    .records()
+                    .len(),
+                2
+            );
         },
     );
 }

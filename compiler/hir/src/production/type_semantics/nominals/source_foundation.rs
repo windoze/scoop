@@ -57,8 +57,8 @@ pub(super) fn project<'a>(
         )
         .map_err(inheritance::source_resources::resource)?;
     roots.extend_from_slice(required.values());
-    // Every param-free declaration in the source closure needs representation
-    // support; generic templates remain source-only. Exact pairs are never made up.
+    // Source roots remain complete. Only the closed param-free subset supplies
+    // representation and exact inheritance; no exact pair is synthesized.
     let concrete = source_inventory::from_pair(output, &required, meter)?;
     let root_exacts = concrete
         .iter()

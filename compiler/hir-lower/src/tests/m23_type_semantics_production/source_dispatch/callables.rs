@@ -6,6 +6,7 @@ use hir::{
 };
 use scoop_identity::{CallableTemplateOwner, DefinitionOriginSubject};
 
+mod source_only;
 mod support;
 mod wire;
 use support::{render, verify_concrete};

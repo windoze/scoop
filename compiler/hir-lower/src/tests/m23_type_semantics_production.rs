@@ -36,6 +36,7 @@ mod source_nominal_constructors;
 mod source_nominal_parameters;
 mod source_nominal_properties;
 mod source_nominals;
+mod source_only_nominals;
 mod source_parameters;
 mod source_properties;
 mod source_protected_callables;

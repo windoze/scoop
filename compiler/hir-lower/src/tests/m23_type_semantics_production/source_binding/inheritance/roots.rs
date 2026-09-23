@@ -122,20 +122,18 @@ fn nested_generic_edges_are_metadata_before_dispatch_materialization() {
                 hir::CrossConeTypeSemanticsFoundationV1::from_hir(output.output(), &mut meter())
                     .unwrap();
             assert_eq!(foundation.source_roots().len(), 3);
-            assert!(matches!(
-                hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
-                    output,
-                    &mut meter()
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
-            assert!(matches!(
-                hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
-                    output,
-                    &mut meter()
-                ),
-                Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-            ));
+            let inventory = hir::CanonicalSourceInheritanceInventoriesV1::from_dependency_hir(
+                output,
+                &mut meter(),
+            )
+            .unwrap();
+            assert_eq!(inventory.records().len(), 1);
+            let selections = hir::CanonicalInheritanceSourceSlotSelectionsV1::from_dependency_hir(
+                output,
+                &mut meter(),
+            )
+            .unwrap();
+            assert!(selections.records().is_empty());
         },
     );
 }

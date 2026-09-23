@@ -9,6 +9,10 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
     meter: &mut BudgetMeter,
     path: &WirePath,
 ) -> Result<(), TypeSectionExportValidationError<E>> {
+    let required = foundation
+        .required_representation_owners()
+        .map_err(TypeSectionExportValidationError::Source)?
+        .values();
     sequence(public.nominal_interfaces().records().len(), meter, path)?;
     for (index, old) in public.nominal_interfaces().records().iter().enumerate() {
         let at = path.clone().field(2).index(index as u64);
@@ -37,6 +41,12 @@ pub(super) fn validate<F: TypeSectionFoundationSemanticAuthority<E>, E>(
         let SourceNominalId::Concrete(owner) = old.declaration() else {
             continue;
         };
+        lookup(required.len(), meter, &at)?;
+        if required.binary_search(&owner).is_err() {
+            // Source-only declarations have already passed the common source
+            // checks. The complete machine inventory is checked separately.
+            continue;
+        }
         lookup(
             candidate.representation_support().records().len(),
             meter,

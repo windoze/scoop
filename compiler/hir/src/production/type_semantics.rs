@@ -49,8 +49,9 @@ impl CrossConeTypeSemanticsProductionV1 {
     /// Projects the M23-6 HIR payload from the sealed Export/LocalConcrete
     /// pair and the M23-5 public interface produced from that same output.
     /// Members, slots and default bodies share the resolved source projection.
-    /// Generic materialization returns a typed capability error before a
-    /// partial section can be observed. M23-5 narrow dependency selections
+    /// Declarations with generic machine dependencies remain source-only;
+    /// closed nominal roots retain complete representation and inheritance.
+    /// Actual generic materialization still requires M23-7. Narrow selections
     /// remain in their existing partition and do not populate field 8.
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,

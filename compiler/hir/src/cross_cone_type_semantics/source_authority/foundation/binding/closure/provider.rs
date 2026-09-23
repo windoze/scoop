@@ -83,6 +83,18 @@ pub(super) fn validate_public(
         }
         if let SourceNominalId::Concrete(owner) = record.declaration() {
             meter.charge_work(
+                u64::from(entries.representation_owners.values().len().max(1).ilog2()) + 1,
+                &at,
+            )?;
+            if entries
+                .representation_owners
+                .values()
+                .binary_search(&owner)
+                .is_err()
+            {
+                continue;
+            }
+            meter.charge_work(
                 u64::from(entries.representations.records().len().max(1).ilog2()) + 1,
                 &at,
             )?;

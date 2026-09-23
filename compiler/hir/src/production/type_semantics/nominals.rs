@@ -11,6 +11,7 @@ use crate::*;
 mod authority_projection;
 pub(super) use authority_projection::all_nominals;
 mod interfaces;
+mod materialization;
 mod representation;
 mod source_foundation;
 mod source_inventory;

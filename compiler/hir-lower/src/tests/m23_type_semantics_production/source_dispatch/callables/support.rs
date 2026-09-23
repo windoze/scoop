@@ -130,6 +130,7 @@ pub(super) fn render(output: &hir::DependencyHirOutput, table: &Table) -> String
             )
         })
         .collect::<Vec<_>>();
+    lines.extend(super::source_only::render(output, table));
     lines.sort();
     lines.concat()
 }

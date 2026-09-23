@@ -1,4 +1,4 @@
-Await.waitFor: 1 params, Abstract, Public, Suspend, Safe, Managed, None, Ordinary
+Await.waitFor: 1 params, Abstract, Public, Suspend, Safe, Managed, None, Ordinary, source-only
 Base.$get$number: 0 params, Open, Public, Ordinary, Safe, Managed, None, Ordinary
 Base.$set$number: 1 params, Open, Protected, Ordinary, Safe, Managed, None, Ordinary
 Base.secret: 1 params, Open, Protected, Ordinary, Safe, Managed, None, Ordinary

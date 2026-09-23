@@ -2,9 +2,9 @@ use super::*;
 use scoop_wire::{BudgetMeter, WirePath};
 
 impl CanonicalSourceInheritanceInventoriesV1 {
-    /// Projects the local param-free source closure from a sealed HIR pair without
-    /// consulting candidate interfaces. This is source data, not a checked
-    /// type-section or machine-use capability.
+    /// Projects the closed local representation/inheritance subset from sealed
+    /// declarations. Full source contracts remain available for excluded roots;
+    /// this inventory itself grants no machine-use capability.
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,
         meter: &mut BudgetMeter,
@@ -161,6 +161,7 @@ pub(super) fn from_pair<'a>(
             "required concrete source owner is absent from sealed HIR",
         ));
     }
+    materialization::retain_closed(output, &mut nominals, meter)?;
     Ok(nominals)
 }
 

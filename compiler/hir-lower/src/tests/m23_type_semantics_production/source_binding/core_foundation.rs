@@ -11,13 +11,7 @@ use support::{artifact, lower_minimal, lower_sysroot};
 fn core_source_foundation_replays_real_bootstrap_artifact() {
     let output = lower_minimal();
     replay(&output);
-    assert_eq!(
-        snapshot::render(&output),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/core-source-foundation.snap"
-        ))
-    );
+    snapshot::check(&output, "core-source-foundation");
 }
 
 #[test]
@@ -51,13 +45,7 @@ fn core_source_foundation_replays_full_sysroot_artifact() {
             binding.origin()
         );
     }
-    assert_eq!(
-        snapshot::render(&output),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-type-source-defaults/core-source-sysroot.snap"
-        ))
-    );
+    snapshot::check(&output, "core-source-sysroot");
 }
 
 fn replay(output: &hir::Output) {
@@ -82,7 +70,18 @@ fn replay(output: &hir::Output) {
             source.nominal_declaration_key(*owner).unwrap()
         );
     }
-    assert!(source.source_fact_shapes().any(|(id, _)| matches!(
+    assert!(
+        transcript
+            .entries()
+            .exact_keys
+            .values()
+            .iter()
+            .any(|id| matches!(
+                bound.exact_type_key(*id).unwrap(),
+                scoop_identity::ExactTypeKey::NominalApplication { .. }
+            ))
+    );
+    assert!(source.source_fact_shapes().all(|(id, _)| !matches!(
         bound.exact_type_key(id).unwrap(),
         scoop_identity::ExactTypeKey::NominalApplication { .. }
     )));

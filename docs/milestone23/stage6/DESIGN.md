@@ -133,6 +133,8 @@ ExactOwnerRoot == SourceCone != exemption from dependency ODR requirements
 
 发布源码接口与发布机器接口分别按其实际需求闭合。普通 library 可以保留完整 generic 或暂不可物化的源码声明；只有完整机器依赖闭包满足本阶段能力的声明进入 layout/ABI/dispatch 导出与有限 shape-support。未被实际物化的声明不能仅因存在于源码接口就使整个 library 失败，也不能通过删除其公开类型、继承、成员或默认值信息来绕过 gate。实际本地使用、可发布机器根或下游使用一旦需要 generic/Structural ODR 或 native 能力，仍在该使用处报告 M23-7/10 诊断，不能发出部分机器接口、空实现或替代定义。此规则对 core 和普通 Cone 相同，包括 `IntRange : Iterable<Int>` 这类无自身类型参数但依赖 generic application 的声明。
 
+M23-6 的 HIR nominal type 导出先从同一次 Export/LocalConcrete HIR 计算表示与继承的必需集合。依赖包括全部自身字段、enum payload、class base、interface ancestry、公开或 protected 构造器参数，以及实际 virtual/interface slot 的参数、结果与 execution；generic application，或依赖泛型/挂起 ABI、native 定义的 slot，使该声明保留为 source-only，并沿本地 nominal 依赖传递。引用类型环按有限图求闭包，不能因遍历顺序误判，也不能通过截断继承、字段或 slot 消除依赖。完整源码根、kind、binder、modality、supertype、成员、构造器与默认值仍保留；只有闭合的参数自由根进入 representation、fact 和 exact inheritance 表。候选表与从声明计算的必需集合逐项覆盖，可物化根缺失或 source-only 根混入均拒绝。该计算不按 CORE 身份或 source 路径分支，不授予 callable body、独立 Structural ODR、native、shape-support 或实际跨 Cone use 能力；这些仍由完整机器闭包与对应阶段能力门检查。
+
 ### 1.3 表示覆盖与 ODR gate
 
 本阶段完整定义和验证 `Array<ZST>`、`Option<ZST>`、`Phantom<A/B>`、tuple/function/pointer 的表示，不据此开放这些 application 的 production ownership。

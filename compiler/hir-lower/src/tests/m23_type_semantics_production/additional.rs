@@ -57,7 +57,7 @@ fn producer_keeps_final_direct_methods_in_the_m23_5_partition() {
 }
 
 #[test]
-fn producer_rejects_generic_materialization_without_odr_authority() {
+fn producer_preserves_generic_storage_as_source_only() {
     let core = trusted_core();
     let mut source = file(vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
@@ -74,14 +74,22 @@ fn producer_rejects_generic_materialization_without_odr_authority() {
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
-    assert!(matches!(
-        produce_cross_cone_type_semantics(&output, &public),
-        Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-    ));
+    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
+    assert_eq!(production.source_roots().len(), 2);
+    assert_eq!(production.source_nominals().records().len(), 2);
+    assert_eq!(public.nominal_interfaces().records().len(), 2);
+    assert!(
+        production
+            .section()
+            .representation_support()
+            .records()
+            .is_empty()
+    );
+    assert!(production.section().inheritance().records().is_empty());
 }
 
 #[test]
-fn producer_rejects_generic_class_backing_field_without_odr_authority() {
+fn producer_preserves_generic_class_backing_field_as_source_only() {
     let core = trusted_core();
     let mut source = file(vec![
         generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]),
@@ -102,14 +110,22 @@ fn producer_rejects_generic_class_backing_field_without_odr_authority() {
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
-    assert!(matches!(
-        produce_cross_cone_type_semantics(&output, &public),
-        Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-    ));
+    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
+    assert_eq!(production.source_roots().len(), 2);
+    assert_eq!(production.source_nominals().records().len(), 2);
+    assert_eq!(public.nominal_interfaces().records().len(), 2);
+    assert!(
+        production
+            .section()
+            .representation_support()
+            .records()
+            .is_empty()
+    );
+    assert!(production.section().inheritance().records().is_empty());
 }
 
 #[test]
-fn producer_rejects_generic_constructor_parameter_without_odr_authority() {
+fn producer_preserves_generic_constructor_parameter_as_source_only() {
     let core = trusted_core();
     let mut holder = class_decl(
         ast::ClassModifier::Final,
@@ -139,10 +155,18 @@ fn producer_rejects_generic_constructor_parameter_without_odr_authority() {
     let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
     let public = public_interface(&output);
 
-    assert!(matches!(
-        produce_cross_cone_type_semantics(&output, &public),
-        Err(hir::CrossConeTypeSemanticsProductionError::GenericOdrRequired(_))
-    ));
+    let production = produce_cross_cone_type_semantics(&output, &public).unwrap();
+    assert_eq!(production.source_roots().len(), 2);
+    assert_eq!(production.source_nominals().records().len(), 2);
+    assert_eq!(public.nominal_interfaces().records().len(), 2);
+    assert!(
+        production
+            .section()
+            .representation_support()
+            .records()
+            .is_empty()
+    );
+    assert!(production.section().inheritance().records().is_empty());
 }
 
 #[test]
