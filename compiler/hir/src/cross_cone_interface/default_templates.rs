@@ -5,6 +5,7 @@ use crate::CallableDeclarationIdResolver;
 
 mod binder_uses;
 mod body;
+mod declaration_contract;
 mod locals;
 mod receiver;
 mod references;
@@ -13,6 +14,11 @@ mod roots;
 mod table;
 mod template;
 mod value_parameters;
+
+pub use declaration_contract::{
+    DefaultTemplateContractViewV1, DefaultTemplateDeclarationContractError,
+    DefaultTemplateDeclarationContractV1,
+};
 
 pub(crate) use body::{
     DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,

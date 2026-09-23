@@ -1,6 +1,8 @@
 use super::*;
 type Error = ExportDefaultTemplateContractSemanticValidationError<AuthorityError>;
 
+mod shared_contract;
+
 fn publishing(
     fixture: &mut Fixture,
     types: Vec<SignatureTypeKey>,

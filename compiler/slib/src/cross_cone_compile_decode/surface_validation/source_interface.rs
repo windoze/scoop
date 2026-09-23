@@ -9,12 +9,14 @@ use crate::cross_cone_hir_authority::{
 };
 pub use crate::cross_cone_hir_authority::{
     CrossConeHirDefaultDataFlowError, CrossConeHirDefaultFieldError,
-    CrossConeHirDefaultRootOriginError,
+    CrossConeHirDefaultProviderContractError, CrossConeHirDefaultRootOriginError,
+    DefaultMetadataNominalError,
 };
 
 /// One provider whose callable source-order parameter protocol is exact and
-/// whose default bodies have valid root origins and local data flow. Operation typing and
-/// provider/reference envelopes are separate semantic checks.
+/// whose defaults have valid root origins, source declaration contracts and
+/// local data flow. Operation typing, inherited-provider relations and reference
+/// envelopes are separate semantic checks.
 pub struct SourceInterfaceValidatedCrossConeHirFrontSections<'input>(
     pub(super) ValidatedSurfaceFront<'input>,
 );
@@ -54,6 +56,9 @@ impl<'input> TypeAliasValidatedCrossConeHirFrontSections<'input> {
             .validate_default_root_origins()
             .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultRootOrigin)?;
         authority
+            .validate_default_provider_contracts()
+            .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultProviderContract)?;
+        authority
             .validate_default_local_data_flow()
             .map_err(CrossConeHirSourceInterfaceSurfaceError::DefaultDataFlow)?;
         Ok(SourceInterfaceValidatedCrossConeHirFrontSections(
@@ -78,6 +83,7 @@ pub enum CrossConeHirSourceInterfaceSurfaceError {
         CallableSourceInterfaceSetSemanticValidationError<CrossConeHirCallableSourceAuthorityError>,
     ),
     DefaultRootOrigin(CrossConeHirDefaultRootOriginError),
+    DefaultProviderContract(CrossConeHirDefaultProviderContractError),
     DefaultDataFlow(CrossConeHirDefaultDataFlowError),
 }
 
@@ -86,6 +92,7 @@ impl std::fmt::Display for CrossConeHirSourceInterfaceSurfaceError {
         match self {
             Self::SourceInterfaces(error) => error.fmt(formatter),
             Self::DefaultRootOrigin(error) => error.fmt(formatter),
+            Self::DefaultProviderContract(error) => error.fmt(formatter),
             Self::DefaultDataFlow(error) => error.fmt(formatter),
         }
     }
@@ -96,6 +103,7 @@ impl std::error::Error for CrossConeHirSourceInterfaceSurfaceError {
         match self {
             Self::SourceInterfaces(error) => Some(error),
             Self::DefaultRootOrigin(error) => Some(error),
+            Self::DefaultProviderContract(error) => Some(error),
             Self::DefaultDataFlow(error) => Some(error),
         }
     }

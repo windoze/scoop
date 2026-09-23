@@ -15,6 +15,7 @@ pub enum DefaultSourceDeclarationBindingError {
     Receiver(MeteredTemplateReceiverSemanticValidationError),
     Prefix(MeteredTemplateValueParameterSemanticValidationError),
     Substitution(MeteredDefaultTemplateTypeSubstitutionError),
+    Contract(Box<DefaultTemplateDeclarationContractError<NominalSourceBindingError>>),
     Record {
         key: ProtectedDefaultTemplateKeyV1,
         error: Box<Self>,
@@ -98,6 +99,7 @@ impl std::fmt::Display for Error {
             Self::Receiver(e) => e.fmt(f),
             Self::Prefix(e) => e.fmt(f),
             Self::Substitution(e) => e.fmt(f),
+            Self::Contract(e) => e.fmt(f),
             Self::Record { key, error } => {
                 write!(f, "default source {key:?} declaration contract: {error}")
             }
@@ -156,6 +158,29 @@ impl std::fmt::Display for Error {
     }
 }
 impl std::error::Error for Error {}
+
+impl From<DefaultTemplateDeclarationContractError<NominalSourceBindingError>> for Error {
+    fn from(error: DefaultTemplateDeclarationContractError<NominalSourceBindingError>) -> Self {
+        use DefaultTemplateDeclarationContractError as Contract;
+        match error {
+            Contract::Resource(error) => Self::Resource(error),
+            Contract::ParameterArity => Self::ParameterArity,
+            Contract::DefinitionPath => Self::DefinitionPath,
+            Contract::MappingArity => Self::MappingArity,
+            Contract::DirectMapping { index } => Self::DirectMapping { index },
+            Contract::ParameterType { index } => Self::ParameterType { index },
+            Contract::ResultType => Self::ResultType,
+            Contract::SuspendPermission => Self::SuspendPermission,
+            Contract::Signature(error) => Self::Signature(error),
+            Contract::Receiver(error) => Self::Receiver(error),
+            Contract::Prefix(error) => Self::Prefix(error),
+            Contract::Substitution(error) => Self::Substitution(error),
+            error @ (Contract::Declaration
+            | Contract::ParameterPosition
+            | Contract::DirectShape) => Self::Contract(Box::new(error)),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DefaultSourceNestedIdentityFailureV1 {

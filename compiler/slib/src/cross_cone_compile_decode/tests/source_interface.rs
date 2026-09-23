@@ -24,6 +24,7 @@ use scoop_wire::encode;
 use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
+mod default_contracts;
 mod default_data_flow;
 mod default_fixture;
 mod default_origins;
