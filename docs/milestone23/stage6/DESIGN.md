@@ -318,6 +318,8 @@ table 按 kind-specific typed 主键的 canonical bytes 严格递增；set 排�
 
 文中 `Checked`、`Selected`、`Ref`、`Witness` 表示构造完成后的内存类型，不把 arena index 或“已验证”布尔值写入 wire。wire 只保存重建这些证明所需的 typed id 与 canonical facts；reader 重建后才返回 handle。
 
+layout profile 的继承图与 nominal 访问域从同一共有声明重放：所有源码 nominal（含 source-only 泛型）保留词法 owner 与来源；只有已闭合表示的 nominal 进入 exact 继承图。reader 逐项核对继承表的完整 owner 集合、modality、直接 base 和 interface，再复用共有算法拒绝缺失父节点、final base、错误 kind 与继承环，并核对声明 lookup/inheritance 域和 object/backing 关系。依赖按实际 provider 及其已登记身份解析，临时图与来源记录计入当前累计预算；图仅在读取作用域内借用，不增加 wire、来源凭证或发布资格，也不替代 slot、protected/default 和 selected use 的后续闭合。
+
 ## 4. HIR：type facts 与继承接口
 
 ### 4.1 type semantics section

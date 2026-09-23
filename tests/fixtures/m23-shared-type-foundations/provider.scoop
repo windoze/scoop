@@ -1,0 +1,5 @@
+package dependency.types
+
+public struct Empty() {}
+public struct Cell(val count: Int, val text: String)
+public class Ref public constructor(val cell: Cell) {}

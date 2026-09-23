@@ -11,9 +11,13 @@ use scoop_identity::{
     ExactTypeKey, NonEmptyVec, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
 };
 
+pub(super) mod dependencies;
+mod inheritance;
+
 pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
     facts(checked);
     representations(checked);
+    inheritance::check(checked);
     let mut exhausted = scoop_wire::BudgetMeter::new(DecodeLimits {
         validation_work_units: 0,
         ..DecodeLimits::default()

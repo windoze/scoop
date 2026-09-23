@@ -3,7 +3,10 @@ use scoop_identity::{
 };
 use scoop_wire::WireError;
 
-use crate::{ExactTypeFactsSemanticError, NominalMaterializationClosureError};
+use crate::{
+    AccessDomainSemanticError, ExactTypeFactsSemanticError, InheritanceGraphError,
+    NominalMaterializationClosureError, SourceNominalId,
+};
 
 #[derive(Debug)]
 pub enum SharedTypeMetadataError {
@@ -28,6 +31,12 @@ pub enum SharedTypeMetadataError {
     DeclarationSource(PersistentTypeId),
     ClassBase(PersistentTypeId),
     Facts(Box<ExactTypeFactsSemanticError<SharedTypeMetadataError>>),
+    InheritanceSource(SourceNominalId),
+    InheritanceOrigin,
+    InheritanceInventory(ConeIdentity),
+    InheritanceEdges(PersistentExactTypeId),
+    InheritanceGraph(Box<InheritanceGraphError<SharedTypeMetadataError>>),
+    InheritanceDomains(AccessDomainSemanticError),
 }
 
 impl From<WireError> for SharedTypeMetadataError {

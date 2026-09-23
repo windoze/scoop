@@ -10,8 +10,9 @@ use scoop_wire::{BudgetMeter, WirePath};
 use super::{HirDeclarationsValidatedCrossConeLayoutClosure, reachability::transitive_positions};
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
-    /// Borrows checked records from the artifacts themselves. The result is
-    /// available only after every provider's replay succeeds in graph order.
+    /// Borrows checked records from the artifacts themselves. Fact,
+    /// representation, inheritance-graph and nominal-domain replay share the
+    /// original artifact budget; slot/default/selected joins remain pending.
     pub fn validate_type_foundations(
         &mut self,
     ) -> Result<Vec<CheckedSharedTypeFoundationV1<'_>>, CrossConeLayoutTypeFoundationError> {
@@ -56,7 +57,9 @@ fn validate_provider<'a>(
     let mut providers = Vec::new();
     meter.try_reserve_collection_slots(&mut providers, reachable.len(), &path)?;
     providers.extend(reachable.iter().map(|position| checked[*position]));
-    types.validate_shared_foundation(input, &providers, meter)
+    let checked = types.validate_shared_foundation(input, &providers, meter)?;
+    checked.with_inheritance_graph(&providers, meter, |_, _| ())?;
+    Ok(checked)
 }
 
 #[derive(Debug)]

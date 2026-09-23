@@ -12,10 +12,13 @@ use crate::{
 
 mod errors;
 mod facts;
+mod inheritance;
 mod keys;
 mod requirements;
+mod sources;
 use SharedTypeMetadataError as Error;
 pub use errors::SharedTypeMetadataError;
+pub(crate) use sources::declaration_access;
 
 /// The same decoded declaration data used by ordinary HIR readers. No source
 /// transcript or compilation-process evidence is part of this input.

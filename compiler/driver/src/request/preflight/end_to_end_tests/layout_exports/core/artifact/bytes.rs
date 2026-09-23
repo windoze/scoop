@@ -88,6 +88,9 @@ pub(super) fn check(
         hir.representation_support()
     );
     super::type_foundations::check(checked[0]);
+    if name == "base" {
+        super::type_foundations::dependencies::check(checked[0]);
+    }
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

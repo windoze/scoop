@@ -1,9 +1,8 @@
 //! Representation joins use the same declarations as ordinary HIR lookup.
 
 use scoop_identity::{
-    CoreBuiltinNominal, DefinitionOriginSubject, DefinitionOwnerAtom, ExactTypeKey,
-    GeneratedNominalKey, OptionalSignatureType, PersistentTypeId, SignatureTypeKey,
-    SourceDeclarationKind,
+    CoreBuiltinNominal, ExactTypeKey, GeneratedNominalKey, OptionalSignatureType, PersistentTypeId,
+    SignatureTypeKey, SourceDeclarationKind,
 };
 use scoop_wire::{BudgetMeter, WirePath};
 
@@ -11,11 +10,11 @@ use super::{
     CanonicalNominalRepresentationSupportV1, CheckedNominalRepresentationSupportV1, source,
 };
 use crate::{
-    CheckedExactTypeFactsV1, DeclarationAccessSourceV1, ExactTypeGcV1, ExportDefinitionSourceV1,
-    NominalInterfaceRecordV1, NominalMaterializationClosure, NominalRepresentationShapeV1,
-    NominalRepresentationSupportV1, PublicNominalKindV1, SourceNominalId,
+    CheckedExactTypeFactsV1, ExactTypeGcV1, NominalInterfaceRecordV1,
+    NominalMaterializationClosure, NominalRepresentationShapeV1, NominalRepresentationSupportV1,
+    PublicNominalKindV1,
     cross_cone_type_semantics::shared_foundation::{
-        MetadataTypes, SharedTypeMetadataError as Error,
+        MetadataTypes, SharedTypeMetadataError as Error, declaration_access,
     },
 };
 
@@ -44,7 +43,7 @@ impl CanonicalNominalRepresentationSupportV1 {
             let owner = record.owner();
             let declaration = types.nominal(owner, meter)?;
             let key = types.nominal_key(owner, meter)?;
-            let access = access(types, declaration, key.owners().owners(), meter)?;
+            let access = declaration_access(types.current, declaration, &key, meter)?;
             source::validate_header(
                 record,
                 &key,
@@ -65,48 +64,6 @@ impl CanonicalNominalRepresentationSupportV1 {
         }
         Ok(CheckedNominalRepresentationSupportV1 { table: self })
     }
-}
-
-fn access(
-    types: MetadataTypes<'_, '_>,
-    declaration: &NominalInterfaceRecordV1,
-    owners: &[DefinitionOwnerAtom],
-    meter: &mut BudgetMeter,
-) -> Result<DeclarationAccessSourceV1, Error> {
-    let SourceNominalId::Concrete(owner) = declaration.declaration() else {
-        return Err(Error::NonConcreteSignature);
-    };
-    let path = WirePath::root();
-    let mut lexical = Vec::new();
-    meter.try_reserve_collection_slots(&mut lexical, owners.len(), &path)?;
-    for parent in owners {
-        lexical.push(match parent {
-            DefinitionOwnerAtom::Type(owner) => SourceNominalId::Concrete(*owner),
-            DefinitionOwnerAtom::GenericType(owner) => SourceNominalId::GenericTemplate(*owner),
-            _ => return Err(Error::DeclarationSource(owner)),
-        });
-    }
-    let origin = types
-        .current
-        .foundation
-        .definition_origin(DefinitionOriginSubject::Type(owner))
-        .ok_or(Error::DeclarationSource(owner))?;
-    let length =
-        scoop_wire::encoded_length(origin).map_err(|error| Error::Key(error.to_string()))?;
-    meter.charge_work(length, &path)?;
-    meter.charge_owned_bytes(length, &path)?;
-    let source = ExportDefinitionSourceV1::new(origin.origin().clone());
-    types
-        .current
-        .foundation
-        .validate_definition_source_location(types.current.provider, &source, meter, &path)
-        .map_err(|_| Error::DeclarationSource(owner))?;
-    DeclarationAccessSourceV1::try_new(
-        declaration.declaration_details().declared_visibility(),
-        lexical,
-        source,
-    )
-    .map_err(|_| Error::DeclarationSource(owner))
 }
 
 fn source_kind(kind: PublicNominalKindV1) -> SourceDeclarationKind {
