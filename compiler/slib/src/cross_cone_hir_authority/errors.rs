@@ -9,6 +9,10 @@ use scoop_identity::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeHirNominalAuthorityError {
+    DeclarationOrigin {
+        subject: DefinitionOriginSubject,
+        reason: &'static str,
+    },
     Resource(scoop_wire::WireError),
     NominalDeclaration {
         declaration: SourceNominalId,
@@ -118,6 +122,10 @@ pub enum CrossConeHirNominalAuthorityError {
 impl fmt::Display for CrossConeHirNominalAuthorityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DeclarationOrigin { subject, reason } => write!(
+                formatter,
+                "invalid shared declaration origin {subject:?}: {reason}"
+            ),
             Self::Resource(error) => error.fmt(formatter),
             Self::NominalDeclaration {
                 declaration,
@@ -295,6 +303,7 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             Self::Identity(error) => Some(error),
             Self::NestedBindingTarget { source, .. } => Some(source.as_ref()),
             Self::NominalDeclaration { .. }
+            | Self::DeclarationOrigin { .. }
             | Self::CallableDeclaration { .. }
             | Self::ForeignDeclaration { .. }
             | Self::UnreachableProvider { .. }

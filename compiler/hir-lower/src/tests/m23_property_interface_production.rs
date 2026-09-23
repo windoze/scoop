@@ -283,7 +283,10 @@ fn producer_rejects_a_public_property_with_a_non_public_getter() {
         Err(hir::PropertyInterfaceBuildError::Accessor {
             property: persistent,
             role: AccessorRole::Getter,
-            detail: hir::ExportPropertyAccessorBuildError::NotPublic,
+            detail: hir::ExportPropertyAccessorBuildError::DeclaredVisibilityMismatch {
+                expected: hir::DeclaredVisibility::Public,
+                actual: hir::DeclaredVisibility::Internal,
+            },
         })
     );
 }

@@ -206,10 +206,20 @@ impl CrossConeHirInterfaceSectionV1 {
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let table_path = path.clone().field(4);
-        for (wire_index, (record_index, record)) in
-            (0_u64..).zip(self.property_interfaces().records().iter().enumerate())
-        {
-            let record_path = table_path.clone().index(wire_index);
+        let table = self.property_interfaces();
+        for (record_index, record) in table.all_declarations().enumerate() {
+            let record_path = if record_index < table.records().len() {
+                table_path
+                    .clone()
+                    .field(1)
+                    .index(record_index as u64)
+                    .field(1)
+            } else {
+                table_path
+                    .clone()
+                    .field(2)
+                    .index((record_index - table.records().len()) as u64)
+            };
             visit_binder_signatures(
                 validator,
                 record.type_parameters(),

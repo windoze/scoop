@@ -1,0 +1,8 @@
+Store.computed.Getter()->Hidden Private Final lookup=false slots=0
+Store.computed:Hidden Private RuntimeAccessor lookup=false
+Store.state.Getter()->Int Private Final lookup=false slots=0
+Store.state.Setter(value:Int)->Unit Private Final lookup=false slots=0
+Store.state:Int Private RuntimeAccessor lookup=false
+Store.value.Getter()->Int Public Final lookup=true slots=0
+Store.value.Setter(next:Int)->Unit Private Final lookup=false slots=0
+Store.value:Int Public RuntimeAccessor lookup=true

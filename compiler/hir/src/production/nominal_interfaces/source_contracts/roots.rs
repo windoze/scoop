@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod callables;
 mod index;
+mod properties;
 mod storage;
 pub(super) use index::Index;
 
@@ -89,6 +90,9 @@ impl CanonicalSourceNominalIdsV1 {
             })?;
             if roots.complete_children {
                 callables::visit_types(export, node.local, |ty| {
+                    roots.require_field_type(export, &index, ty, 1)
+                })?;
+                properties::visit_types(export, node.local, |ty| {
                     roots.require_field_type(export, &index, ty, 1)
                 })?;
             }

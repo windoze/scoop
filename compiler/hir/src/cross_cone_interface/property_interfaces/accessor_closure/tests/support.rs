@@ -8,9 +8,10 @@ use scoop_identity::{
 };
 
 use crate::{
-    CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordV1, CallableModalityV1,
-    CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1,
-    CanonicalCallableInterfacesV1, CanonicalPropertyInterfacesV1, CanonicalSourceParameterShapesV1,
+    CallableDeclarationRecordV1, CallableImplementationV1, CallableInfixV1,
+    CallableInterfaceRecordV1, CallableModalityV1, CallableOperatorRoleV1, CallableSafetyV1,
+    CallableSourceEffectsV1, CanonicalBinderListV1, CanonicalCallableInterfacesV1,
+    CanonicalPropertyInterfacesV1, CanonicalSourceParameterShapesV1, DeclaredVisibilityV1,
     PropertyAccessorClosureValidationError, PropertyCapabilityV1, PropertyDeclarationId,
     PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
     PropertySetterPublicAccessV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
@@ -21,9 +22,19 @@ pub(super) fn validate(
     properties: Vec<PropertyInterfaceRecordV1>,
     callables: Vec<CallableInterfaceRecordV1>,
 ) -> Result<(), PropertyAccessorClosureValidationError> {
+    validate_support(properties, callables, Vec::new())
+}
+
+pub(super) fn validate_support(
+    properties: Vec<PropertyInterfaceRecordV1>,
+    callables: Vec<CallableInterfaceRecordV1>,
+    support: Vec<CallableDeclarationRecordV1>,
+) -> Result<(), PropertyAccessorClosureValidationError> {
     CanonicalPropertyInterfacesV1::try_new(properties)
         .unwrap()
-        .validate_accessor_closure(&CanonicalCallableInterfacesV1::try_new(callables).unwrap())
+        .validate_accessor_closure(
+            &CanonicalCallableInterfacesV1::with_support(callables, support).unwrap(),
+        )
 }
 
 pub(super) struct Fixture {
@@ -172,6 +183,26 @@ pub(super) struct AccessorInput {
 }
 
 impl AccessorInput {
+    pub(super) fn build_source(
+        self,
+        visibility: DeclaredVisibilityV1,
+    ) -> CallableDeclarationRecordV1 {
+        let record = self.build();
+        CallableDeclarationRecordV1::try_new(
+            record.declaration(),
+            record.owner(),
+            record.type_parameters().clone(),
+            record.receiver().cloned(),
+            record.parameters().clone(),
+            record.result().clone(),
+            record.effects(),
+            record.modality(),
+            visibility,
+            record.slot_relations().clone(),
+        )
+        .unwrap()
+    }
+
     pub(super) fn build(self) -> CallableInterfaceRecordV1 {
         let parameters = self
             .parameters

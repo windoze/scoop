@@ -1,114 +1,120 @@
-//! Projection of the complete public HIR property surface.
-
-use std::collections::HashSet;
-
-use scoop_identity::PropertyOwner as PersistentPropertyOwner;
+//! Projection of public properties and necessary source declarations.
 
 use super::signatures::HirInterfaceSignatureProjector;
 use crate::{
-    CanonicalPropertyInterfacesV1, ExportHir, HirPropertyIdentity, PropertyCapabilityV1,
+    CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, ExportHir, HirPropertyIdentity,
     PropertyInterfaceRecordV1,
 };
+use scoop_identity::PropertyOwner as PersistentPropertyOwner;
+use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
+use std::collections::HashSet;
 
 mod accessors;
+mod declaration;
 mod errors;
 mod signature;
 
+pub(in crate::production) use accessors::project_representation as source_property_representation;
 pub use errors::{
     ExportPropertyAccessorBuildError, PropertyInterfaceBuildError, PropertyNominalOwnerKind,
 };
 
-pub(in crate::production) use accessors::project_representation as source_property_representation;
-use accessors::{project_accessors, project_public_access, project_representation};
-use signature::project_property_signature;
-
 impl CanonicalPropertyInterfacesV1 {
-    /// Projects exactly the current Cone's public logical properties.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, PropertyInterfaceBuildError> {
+        Self::from_export_hir_with_budget(export, &mut BudgetMeter::new(DecodeLimits::default()))
+    }
+
+    pub fn from_export_hir_with_budget(
+        export: &ExportHir,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, PropertyInterfaceBuildError> {
+        let nominals = CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter)
+            .map_err(PropertyInterfaceBuildError::Nominals)?;
+        Self::from_export_hir_with_nominals(export, &nominals, meter)
+    }
+
+    pub(in crate::production) fn from_export_hir_with_nominals(
+        export: &ExportHir,
+        nominals: &CanonicalNominalInterfacesV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, PropertyInterfaceBuildError> {
+        use PropertyInterfaceBuildError as Error;
+        let path = WirePath::root().field(4);
         let projector = HirInterfaceSignatureProjector::new(export);
-        let public_getters = export
-            .public_surface
+        let surface = &export.public_surface;
+        let count = surface.property_getters.len() as u64 + surface.property_setters.len() as u64;
+        meter
+            .charge_collection_slots(count, &path)
+            .map_err(Error::Resource)?;
+        meter.charge_work(count, &path).map_err(Error::Resource)?;
+        let public_getters = surface
             .property_getters
             .iter()
             .copied()
             .collect::<HashSet<_>>();
-        let public_setters = export
-            .public_surface
+        let public_setters = surface
             .property_setters
             .iter()
             .copied()
             .collect::<HashSet<_>>();
-        let mut records = Vec::with_capacity(export.public_surface.properties.len());
-
-        for &property_id in &export.public_surface.properties {
-            let property = arena_get(&export.properties, property_id).ok_or_else(|| {
-                PropertyInterfaceBuildError::UnknownPublicProperty(raw_index(property_id))
-            })?;
-            let identity = export.property_identities.get(property_id).ok_or_else(|| {
-                PropertyInterfaceBuildError::MissingPropertyIdentity(raw_index(property_id))
-            })?;
-            let declaration = persistent_property_owner(identity);
-            signature::validate_declaration_identity(export, declaration, identity)?;
-
-            let signature = project_property_signature(export, &projector, property_id, property)?;
-            let access = project_public_access(&property.access).ok_or(
-                PropertyInterfaceBuildError::InvalidPublicAccess(declaration),
-            )?;
-            let accessors = project_accessors(
+        let mut required = nominals
+            .declared_source_properties(meter)
+            .map_err(Error::Inventory)?;
+        let mut records = Vec::new();
+        meter
+            .try_reserve_collection_slots(&mut records, surface.properties.len(), &path)
+            .map_err(Error::Resource)?;
+        for &id in &surface.properties {
+            query(meter, required.len())?;
+            let data = declaration::project(export, &projector, id, meter)?;
+            required.remove(&data.declaration());
+            let (access, setter) = accessors::public_lookup(
                 export,
-                property_id,
-                declaration,
-                property.capability,
-                access,
+                id,
+                data.declaration(),
                 &public_getters,
                 &public_setters,
             )?;
-            let capability = match accessors.setter {
-                None => PropertyCapabilityV1::read_only(accessors.getter_id),
-                Some(setter) => PropertyCapabilityV1::try_read_write(
-                    accessors.getter_id,
-                    setter.id,
-                    setter.access,
-                )
-                .map_err(|source| PropertyInterfaceBuildError::Capability {
-                    property: declaration,
-                    source,
-                })?,
-            };
-            let representation = project_representation(
-                property,
-                accessors.getter,
-                accessors.setter.map(|setter| setter.declaration),
-            )
-            .map_err(|detail| PropertyInterfaceBuildError::Representation {
-                property: declaration,
-                detail,
-            })?;
-            let value_type = projector
-                .map_type(property.ty, &signature.binders)
-                .map_err(|source| PropertyInterfaceBuildError::Signature {
-                    property: declaration,
-                    source,
-                })?;
-            let record = PropertyInterfaceRecordV1::try_new(
-                declaration,
-                signature.owner,
-                signature.type_parameters,
-                signature.receiver,
-                value_type,
-                capability,
-                representation,
-                access,
-            )
-            .map_err(|source| PropertyInterfaceBuildError::Record {
-                property: declaration,
-                source,
-            })?;
-            records.push(record);
+            let property = data.declaration();
+            records.push(
+                PropertyInterfaceRecordV1::from_declaration(data, access, setter)
+                    .map_err(|source| Error::Record { property, source })?,
+            );
         }
-
-        Self::try_new(records).map_err(PropertyInterfaceBuildError::Table)
+        let mut support = Vec::new();
+        meter
+            .try_reserve_collection_slots(&mut support, required.len(), &path)
+            .map_err(Error::Resource)?;
+        for (id, _) in export.properties.iter() {
+            query(meter, required.len())?;
+            let Some(identity) = export.property_identities.get(id) else {
+                continue;
+            };
+            if required
+                .remove(&persistent_property_owner(identity))
+                .is_some()
+            {
+                support.push(declaration::project(export, &projector, id, meter)?);
+            }
+        }
+        if let Some((id, _)) = required.first_key_value() {
+            return Err(Error::MissingSupport(*id));
+        }
+        let table = Self::with_support(records, support).map_err(Error::Table)?;
+        table
+            .validate_declaration_inventory(nominals, meter)
+            .map_err(Error::Inventory)?;
+        Ok(table)
     }
+}
+
+fn query(meter: &mut BudgetMeter, count: usize) -> Result<(), PropertyInterfaceBuildError> {
+    meter
+        .charge_work(
+            u64::from(count.max(1).ilog2()) + 1,
+            &WirePath::root().field(4),
+        )
+        .map_err(PropertyInterfaceBuildError::Resource)
 }
 
 fn persistent_property_owner(identity: &HirPropertyIdentity) -> PersistentPropertyOwner {

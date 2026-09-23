@@ -15,6 +15,8 @@ use crate::{
     PropertyRepresentationV1, PublicDeclarationOwnerV1, PublicNominalKindV1, PublicNominalShapeV1,
 };
 
+mod support_wire;
+
 #[test]
 fn producer_sorts_records_rejects_duplicates_and_has_stable_wire() {
     let first = fixture("First");
@@ -37,9 +39,10 @@ fn producer_sorts_records_rejects_duplicates_and_has_stable_wire() {
     );
 
     let expected = [
-        b"\x82".as_slice(),
+        b"\xa2\x01\x82".as_slice(),
         encode(&interfaces.records()[0]).unwrap().as_slice(),
         encode(&interfaces.records()[1]).unwrap().as_slice(),
+        b"\x02\x80".as_slice(),
     ]
     .concat();
     assert_eq!(encode(&interfaces).unwrap(), expected);
@@ -315,10 +318,14 @@ struct RecordSequence(Vec<PropertyInterfaceRecordV1>);
 
 impl WireEncode for RecordSequence {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
         encoder.array(self.0.len() as u64)?;
         for record in &self.0 {
             record.encode(encoder)?;
         }
+        encoder.field(2)?;
+        encoder.array(0)?;
         Ok(())
     }
 }

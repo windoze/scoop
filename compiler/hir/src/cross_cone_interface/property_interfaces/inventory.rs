@@ -1,0 +1,103 @@
+use crate::{
+    CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1, NestedSourceMemberRefV1,
+    PropertyDeclarationId, PublicDeclarationOwnerV1, SourceNominalId,
+};
+use scoop_identity::PropertyOwner;
+use scoop_wire::{BudgetMeter, WireError, WirePath};
+use std::collections::BTreeMap;
+
+impl CanonicalNominalInterfacesV1 {
+    pub fn declared_source_properties(
+        &self,
+        meter: &mut BudgetMeter,
+    ) -> Result<BTreeMap<PropertyDeclarationId, SourceNominalId>, PropertyDeclarationInventoryError>
+    {
+        let mut required = BTreeMap::new();
+        let path = WirePath::root().field(4);
+        for nominal in self.all_records() {
+            meter.charge_work(1, &path)?;
+            for member in nominal.declaration_details().members().values() {
+                meter.charge_work(1, &path)?;
+                let NestedSourceMemberRefV1::Property(id) = member else {
+                    continue;
+                };
+                let declaration = PropertyOwner::Property(*id);
+                meter.check_table_entries(required.len() as u64 + 1, &path)?;
+                meter.charge_collection_slots(1, &path)?;
+                meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
+                if let Some(first) = required.insert(declaration, nominal.declaration()) {
+                    return Err(PropertyDeclarationInventoryError::DuplicateRelation {
+                        declaration,
+                        first,
+                        second: nominal.declaration(),
+                    });
+                }
+            }
+        }
+        Ok(required)
+    }
+}
+
+impl CanonicalPropertyInterfacesV1 {
+    pub fn validate_declaration_inventory(
+        &self,
+        nominals: &CanonicalNominalInterfacesV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), PropertyDeclarationInventoryError> {
+        let required = nominals.declared_source_properties(meter)?;
+        let path = WirePath::root().field(4);
+        for (declaration, owner) in &required {
+            meter.charge_work(
+                u64::from(self.declaration_count().max(1).ilog2()) + 1,
+                &path,
+            )?;
+            let record = self
+                .declaration(*declaration)
+                .ok_or(PropertyDeclarationInventoryError::Missing(*declaration))?;
+            if record.owner() != PublicDeclarationOwnerV1::Nominal(*owner) {
+                return Err(PropertyDeclarationInventoryError::Owner {
+                    declaration: *declaration,
+                    expected: *owner,
+                    actual: record.owner(),
+                });
+            }
+        }
+        for record in self.support_records() {
+            meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
+            if !required.contains_key(&record.declaration()) {
+                return Err(PropertyDeclarationInventoryError::UnexpectedSupport(
+                    record.declaration(),
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PropertyDeclarationInventoryError {
+    Missing(PropertyDeclarationId),
+    UnexpectedSupport(PropertyDeclarationId),
+    Owner {
+        declaration: PropertyDeclarationId,
+        expected: SourceNominalId,
+        actual: PublicDeclarationOwnerV1,
+    },
+    DuplicateRelation {
+        declaration: PropertyDeclarationId,
+        first: SourceNominalId,
+        second: SourceNominalId,
+    },
+    Resource(WireError),
+}
+impl From<WireError> for PropertyDeclarationInventoryError {
+    fn from(error: WireError) -> Self {
+        Self::Resource(error)
+    }
+}
+impl std::fmt::Display for PropertyDeclarationInventoryError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid shared property declaration inventory: {self:?}")
+    }
+}
+impl std::error::Error for PropertyDeclarationInventoryError {}

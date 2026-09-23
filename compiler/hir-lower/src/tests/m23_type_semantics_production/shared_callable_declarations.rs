@@ -25,9 +25,10 @@ fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
             let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+            let properties = hir::CanonicalPropertyInterfacesV1::from_export_hir(export).unwrap();
             let table = Table::from_export_hir_with_budget(export, &mut meter()).unwrap();
             table
-                .validate_declaration_inventory(&nominals, &mut meter())
+                .validate_declaration_inventory(&nominals, &properties, &mut meter())
                 .unwrap();
             assert!(!table.support_records().is_empty());
             for record in table.support_records() {
@@ -57,6 +58,7 @@ fn shared_callables_reject_missing_support_and_cross_partition_duplicates() {
     with_hir_source(COMBINED, |output, _| {
         let export = output.output().export.module();
         let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+        let properties = hir::CanonicalPropertyInterfacesV1::from_export_hir(export).unwrap();
         let table = Table::from_export_hir(export).unwrap();
         for removed in table.support_records() {
             let support = table
@@ -67,7 +69,7 @@ fn shared_callables_reject_missing_support_and_cross_partition_duplicates() {
                 .collect();
             let missing = Table::with_support(table.records().to_vec(), support).unwrap();
             assert_eq!(
-                missing.validate_declaration_inventory(&nominals, &mut meter()),
+                missing.validate_declaration_inventory(&nominals, &properties, &mut meter()),
                 Err(Error::Missing(removed.declaration()))
             );
         }
@@ -102,6 +104,7 @@ fn shared_callables_reject_wrong_owner_and_unrelated_support() {
     with_hir_source(STANDALONE, |output, _| {
         let export = output.output().export.module();
         let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+        let properties = hir::CanonicalPropertyInterfacesV1::from_export_hir(export).unwrap();
         let table = Table::from_export_hir(export).unwrap();
         let mut support = table.support_records().to_vec();
         let record = support
@@ -127,16 +130,17 @@ fn shared_callables_reject_wrong_owner_and_unrelated_support() {
         .unwrap();
         let invalid = Table::with_support(table.records().to_vec(), support).unwrap();
         assert_eq!(
-            invalid.validate_declaration_inventory(&nominals, &mut meter()),
+            invalid.validate_declaration_inventory(&nominals, &properties, &mut meter()),
             Err(Error::Owner {
                 declaration,
-                expected,
+                expected: hir::PublicDeclarationOwnerV1::Nominal(expected),
                 actual: hir::PublicDeclarationOwnerV1::TopLevel
             })
         );
         assert!(matches!(
             table.validate_declaration_inventory(
                 &hir::CanonicalNominalInterfacesV1::try_new(vec![]).unwrap(),
+                &properties,
                 &mut meter()
             ),
             Err(Error::UnexpectedSupport(_))

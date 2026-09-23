@@ -64,12 +64,16 @@ impl CrossConeHirInterfaceSectionV1 {
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
-        let property_interfaces = CanonicalPropertyInterfacesV1::from_export_hir(export)
-            .map_err(CrossConeHirInterfaceProductionError::Properties)?;
         let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let nominal_interfaces =
             CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, &mut meter)
                 .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
+        let property_interfaces = CanonicalPropertyInterfacesV1::from_export_hir_with_nominals(
+            export,
+            &nominal_interfaces,
+            &mut meter,
+        )
+        .map_err(CrossConeHirInterfaceProductionError::Properties)?;
         let callable_interfaces = CanonicalCallableInterfacesV1::from_export_hir_with_nominals(
             export,
             &property_interfaces,

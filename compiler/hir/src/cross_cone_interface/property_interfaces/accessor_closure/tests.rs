@@ -4,7 +4,7 @@ use super::PropertyAccessorClosureValidationError;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
     CallableOperatorV1, CanonicalCallableInterfacesV1, CanonicalPropertyInterfacesV1,
-    PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
+    DeclaredVisibilityV1, PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
     PropertyRepresentationV1, PropertySetterPublicAccessV1, PublicDeclarationOwnerV1,
     PublicLookupAccessV1,
 };
@@ -35,7 +35,7 @@ fn accepts_complete_public_runtime_accessor_pair() {
 }
 
 #[test]
-fn requires_every_public_accessor_and_excludes_restricted_setters() {
+fn requires_every_accessor_and_keeps_restricted_setters_out_of_public_lookup() {
     let fixture = Fixture::top_level("required");
     let read_only = fixture.property(
         None,
@@ -81,6 +81,24 @@ fn requires_every_public_accessor_and_excludes_restricted_setters() {
         validate(
             vec![restricted_setter.clone()],
             vec![fixture.accessor(AccessorRole::Getter).build()],
+        ),
+        Err(
+            PropertyAccessorClosureValidationError::MissingSourceAccessor {
+                property: fixture.declaration,
+                role: AccessorRole::Setter,
+                accessor: fixture.setter,
+            }
+        )
+    );
+    assert_eq!(
+        validate_support(
+            vec![restricted_setter.clone()],
+            vec![fixture.accessor(AccessorRole::Getter).build()],
+            vec![
+                fixture
+                    .accessor(AccessorRole::Setter)
+                    .build_source(DeclaredVisibilityV1::Private)
+            ],
         ),
         Ok(())
     );
@@ -397,7 +415,7 @@ fn enforces_const_and_abstract_representation_modalities() {
 }
 
 #[test]
-fn runtime_properties_require_a_concrete_accessor_when_all_accessors_are_public() {
+fn runtime_properties_require_a_concrete_accessor_in_either_lookup_partition() {
     let fixture = Fixture::nominal("runtime", SourceNominalKind::Interface);
     let read_only = fixture.property(
         None,
@@ -440,5 +458,16 @@ fn runtime_properties_require_a_concrete_accessor_when_all_accessors_are_public(
     let mut getter = fixture.accessor(AccessorRole::Getter);
     getter.modality = CallableModalityV1::Abstract;
     getter.access = PublicLookupAccessV1::PublicSlot;
-    assert_eq!(validate(vec![restricted], vec![getter.build()]), Ok(()));
+    assert_eq!(
+        validate_support(
+            vec![restricted],
+            vec![getter.build()],
+            vec![
+                fixture
+                    .accessor(AccessorRole::Setter)
+                    .build_source(DeclaredVisibilityV1::Private)
+            ],
+        ),
+        Ok(())
+    );
 }

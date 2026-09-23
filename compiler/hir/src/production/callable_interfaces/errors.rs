@@ -99,10 +99,6 @@ pub enum CallableProjectionError {
     },
     MissingInterfaceMethod(u32),
     InterfaceMethodMismatch,
-    AccessorAccessMismatch {
-        expected: crate::PublicLookupAccessV1,
-        actual: crate::PublicLookupAccessV1,
-    },
     Signature(HirInterfaceSignatureProjectionError),
     Parameters(SourceParameterProjectionError),
     Access(CallableAccessProjectionError),
@@ -279,10 +275,6 @@ impl fmt::Display for CallableProjectionError {
             Self::InterfaceMethodMismatch => {
                 formatter.write_str("interface method entity does not reference this function")
             }
-            Self::AccessorAccessMismatch { expected, actual } => write!(
-                formatter,
-                "accessor access is {actual:?}, expected {expected:?} from its property"
-            ),
             Self::Signature(source) => source.fmt(formatter),
             Self::Parameters(source) => source.fmt(formatter),
             Self::Access(source) => source.fmt(formatter),

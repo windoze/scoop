@@ -52,7 +52,9 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                         owner,
                         scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
                     )?,
-                    scoop_hir::NestedSourceMemberRefV1::Property(_) => {}
+                    scoop_hir::NestedSourceMemberRefV1::Property(id) => {
+                        closure.property(owner, scoop_identity::PropertyOwner::Property(*id))?
+                    }
                 }
             }
             if let NominalSourceShapeV1::Enum(shape) = record.source_shape() {
@@ -161,6 +163,27 @@ impl Closure<'_, '_> {
             self.signature(parameter.value_type())?;
         }
         self.signature(record.result())
+    }
+
+    fn property(
+        &mut self,
+        owner: SourceNominalId,
+        declaration: scoop_hir::PropertyDeclarationId,
+    ) -> Result<(), Error> {
+        let record = self
+            .world
+            .current_interface
+            .property_interfaces()
+            .declaration(declaration)
+            .ok_or_else(|| invalid(owner, "required source property declaration is absent"))?;
+        if record.owner() != scoop_hir::PublicDeclarationOwnerV1::Nominal(owner) {
+            return Err(invalid(owner, "source property belongs to another nominal"));
+        }
+        self.binders(record.type_parameters())?;
+        if let Some(receiver) = record.receiver() {
+            self.signature(receiver)?;
+        }
+        self.signature(record.value_type())
     }
 
     fn binders(&mut self, binders: &scoop_hir::CanonicalBinderListV1) -> Result<(), Error> {

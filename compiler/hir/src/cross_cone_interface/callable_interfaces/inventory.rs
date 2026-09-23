@@ -1,6 +1,6 @@
 use crate::{
-    CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, NestedSourceMemberRefV1,
-    NominalSourceShapeV1, PublicDeclarationOwnerV1, SourceNominalId,
+    CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, CanonicalPropertyInterfacesV1,
+    NestedSourceMemberRefV1, NominalSourceShapeV1, PublicDeclarationOwnerV1,
 };
 use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{BudgetMeter, WireError, WirePath};
@@ -10,8 +10,10 @@ impl CanonicalNominalInterfacesV1 {
     pub fn declared_source_callables(
         &self,
         meter: &mut BudgetMeter,
-    ) -> Result<BTreeMap<CallableTemplateOrigin, SourceNominalId>, CallableDeclarationInventoryError>
-    {
+    ) -> Result<
+        BTreeMap<CallableTemplateOrigin, PublicDeclarationOwnerV1>,
+        CallableDeclarationInventoryError,
+    > {
         let mut required = BTreeMap::new();
         let path = WirePath::root().field(3);
         for nominal in self.all_records() {
@@ -22,11 +24,14 @@ impl CanonicalNominalInterfacesV1 {
             let mut add = |declaration| -> Result<(), CallableDeclarationInventoryError> {
                 meter.charge_collection_slots(1, &path)?;
                 meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
-                if let Some(previous) = required.insert(declaration, nominal.declaration()) {
+                if let Some(previous) = required.insert(
+                    declaration,
+                    PublicDeclarationOwnerV1::Nominal(nominal.declaration()),
+                ) {
                     return Err(CallableDeclarationInventoryError::DuplicateRelation {
                         declaration,
                         first: previous,
-                        second: nominal.declaration(),
+                        second: PublicDeclarationOwnerV1::Nominal(nominal.declaration()),
                     });
                 }
                 Ok(())
@@ -58,13 +63,44 @@ impl CanonicalNominalInterfacesV1 {
 }
 
 impl CanonicalCallableInterfacesV1 {
+    pub(crate) fn required_declarations(
+        nominals: &CanonicalNominalInterfacesV1,
+        properties: &CanonicalPropertyInterfacesV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<
+        BTreeMap<CallableTemplateOrigin, PublicDeclarationOwnerV1>,
+        CallableDeclarationInventoryError,
+    > {
+        let mut required = nominals.declared_source_callables(meter)?;
+        let path = WirePath::root().field(3);
+        for property in properties.all_declarations() {
+            for accessor in
+                std::iter::once(property.accessors().getter()).chain(property.accessors().setter())
+            {
+                meter.check_table_entries(required.len() as u64 + 1, &path)?;
+                meter.charge_collection_slots(1, &path)?;
+                meter.charge_work(u64::from(required.len().max(1).ilog2()) + 1, &path)?;
+                let declaration = CallableTemplateOrigin::Accessor(accessor);
+                if let Some(first) = required.insert(declaration, property.owner()) {
+                    return Err(CallableDeclarationInventoryError::DuplicateRelation {
+                        declaration,
+                        first,
+                        second: property.owner(),
+                    });
+                }
+            }
+        }
+        Ok(required)
+    }
+
     /// The shared nominal declaration relationships require exact source coverage.
     pub fn validate_declaration_inventory(
         &self,
         nominals: &CanonicalNominalInterfacesV1,
+        properties: &CanonicalPropertyInterfacesV1,
         meter: &mut BudgetMeter,
     ) -> Result<(), CallableDeclarationInventoryError> {
-        let required = nominals.declared_source_callables(meter)?;
+        let required = Self::required_declarations(nominals, properties, meter)?;
         let path = WirePath::root().field(3);
         for (declaration, owner) in &required {
             meter.charge_work(
@@ -74,7 +110,7 @@ impl CanonicalCallableInterfacesV1 {
             let record = self
                 .declaration(*declaration)
                 .ok_or(CallableDeclarationInventoryError::Missing(*declaration))?;
-            if record.owner() != PublicDeclarationOwnerV1::Nominal(*owner) {
+            if record.owner() != *owner {
                 return Err(CallableDeclarationInventoryError::Owner {
                     declaration: *declaration,
                     expected: *owner,
@@ -100,13 +136,13 @@ pub enum CallableDeclarationInventoryError {
     UnexpectedSupport(CallableTemplateOrigin),
     Owner {
         declaration: CallableTemplateOrigin,
-        expected: SourceNominalId,
+        expected: PublicDeclarationOwnerV1,
         actual: PublicDeclarationOwnerV1,
     },
     DuplicateRelation {
         declaration: CallableTemplateOrigin,
-        first: SourceNominalId,
-        second: SourceNominalId,
+        first: PublicDeclarationOwnerV1,
+        second: PublicDeclarationOwnerV1,
     },
     Resource(WireError),
 }

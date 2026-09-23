@@ -44,11 +44,13 @@ impl CanonicalCallableInterfacesV1 {
         export: &ExportHir,
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CallableInterfaceBuildError> {
-        let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir(export)
-            .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
         let nominals =
             crate::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter)
                 .map_err(CallableInterfaceBuildError::Nominals)?;
+        let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir_with_nominals(
+            export, &nominals, meter,
+        )
+        .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
         Self::from_export_hir_with_nominals(export, &properties, &nominals, meter)
     }
 
@@ -72,11 +74,11 @@ impl CanonicalCallableInterfacesV1 {
         let callables =
             Self::with_support(records, support).map_err(CallableInterfaceBuildError::Table)?;
         callables
-            .validate_declaration_inventory(nominals, meter)
+            .validate_declaration_inventory(nominals, properties, meter)
             .map_err(CallableInterfaceBuildError::Inventory)?;
         projection
             .properties
-            .validate_accessor_closure(&callables)
+            .validate_accessor_closure_with_budget(&callables, meter)
             .map_err(CallableInterfaceBuildError::AccessorClosure)?;
         Ok(callables)
     }

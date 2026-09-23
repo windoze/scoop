@@ -10,7 +10,7 @@ fn layout_profile_has_a_fixed_descriptor_and_fingerprint() {
     );
     assert_eq!(
         profile.fingerprint().unwrap().to_string(),
-        "469c639a8622afed09d9cc28dcfc63ad72f5c0bc871f5d1f1aa8580a2bf29e3c"
+        "640a3595677c25fab28a6852e9eac78a05ba59f177f09e1124091b38a7279785"
     );
     assert_eq!(
         ArtifactCapabilityProfile::from_id(descriptor.id()),

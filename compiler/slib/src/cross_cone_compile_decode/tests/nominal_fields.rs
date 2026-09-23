@@ -55,19 +55,7 @@ fn ordinary_reader_rejects_missing_source_fields_after_canonical_bytes_are_resto
 }
 
 pub(super) fn front(bytes: &[u8]) -> crate::DefinitionSourceValidatedCrossConeHirFrontSections<'_> {
-    let mut decoded = open_graph(bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let identities = decoded
-        .validate_foundation_identities(std::iter::empty())
-        .unwrap();
-    decoded
-        .validate_foundation_structure(identities)
-        .unwrap()
-        .resolve_hir_interface()
-        .unwrap()
-        .validate_hir_production()
-        .unwrap()
+    declaration_front(bytes)
         .validate_internal_hir_closures()
         .unwrap()
         .validate_definition_sources()

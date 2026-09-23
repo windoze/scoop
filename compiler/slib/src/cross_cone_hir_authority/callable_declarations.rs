@@ -3,7 +3,6 @@
 use super::*;
 use scoop_hir::DeclaredVisibilityV1;
 use scoop_identity::{DefinitionOriginSubject, SourceDeclarationKind};
-use scoop_wire::WirePath;
 
 type Error = CrossConeHirNominalAuthorityError;
 
@@ -12,53 +11,52 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         for record in self
             .current_interface
             .callable_interfaces()
-            .support_records()
+            .all_declarations()
         {
+            if self
+                .current_interface
+                .callable_interfaces()
+                .get(record.declaration())
+                .is_some()
+                && !matches!(record.declaration(), CallableTemplateOrigin::Accessor(_))
+            {
+                continue;
+            }
             let declaration = record.declaration();
             let (key, subject) = self.support_callable_origin(declaration)?;
-            let origin = self
-                .current_foundation
-                .definition_origin(subject)
-                .ok_or(Error::MissingDefinitionOrigin { subject })?;
-            let path = WirePath::root().field(3).field(2);
-            self.meter
-                .charge_work(
-                    key.owners().owners().len() as u64
-                        + origin.origin().source().logical_path().as_str().len() as u64
-                        + 1,
-                    &path,
-                )
-                .map_err(Error::Resource)?;
-            if key.origin() != self.current
-                || origin.origin().source().cone() != self.current
-                || key
-                    .scope()
-                    .source()
-                    .is_some_and(|source| source != origin.origin().source())
-            {
-                return Err(invalid(
-                    declaration,
-                    "source origin differs from its typed declaration",
-                ));
-            }
-            let PublicDeclarationOwnerV1::Nominal(owner) = record.owner() else {
-                return Err(invalid(
-                    declaration,
-                    "necessary support requires a nominal owner",
-                ));
+            let owner = match record.owner() {
+                PublicDeclarationOwnerV1::Nominal(owner) => Some(owner),
+                PublicDeclarationOwnerV1::TopLevel | PublicDeclarationOwnerV1::Extension => None,
             };
-            let owner_key = self.source_nominal_key(owner)?;
+            let origin_owner =
+                if matches!(declaration, CallableTemplateOrigin::VariantConstructor(_)) {
+                    self.source_key_owner("variant enum", &key)?
+                } else {
+                    record.owner()
+                };
+            self.validate_declaration_origin(
+                &key,
+                subject,
+                origin_owner,
+                record.declared_visibility(),
+            )?;
+            let owner_kind = owner
+                .map(|owner| {
+                    self.source_nominal_key(owner)
+                        .map(|key| key.declaration_kind())
+                })
+                .transpose()?;
             let expected_kind = match declaration {
                 CallableTemplateOrigin::Constructor(_) => matches!(
-                    owner_key.declaration_kind(),
-                    SourceDeclarationKind::Struct | SourceDeclarationKind::Class
+                    owner_kind,
+                    Some(SourceDeclarationKind::Struct | SourceDeclarationKind::Class)
                 ),
                 CallableTemplateOrigin::VariantConstructor(_) => {
-                    owner_key.declaration_kind() == SourceDeclarationKind::Enum
+                    owner_kind == Some(SourceDeclarationKind::Enum)
                 }
                 CallableTemplateOrigin::Function(_)
                 | CallableTemplateOrigin::GenericFunction(_) => true,
-                CallableTemplateOrigin::Accessor(_) => false,
+                CallableTemplateOrigin::Accessor(_) => true,
             };
             if !expected_kind {
                 return Err(invalid(
@@ -66,33 +64,12 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     "source declaration has an incompatible owner kind",
                 ));
             }
-            if matches!(declaration, CallableTemplateOrigin::VariantConstructor(_)) {
-                if record.declared_visibility() != DeclaredVisibilityV1::Public {
-                    return Err(invalid(
-                        declaration,
-                        "variant visibility must follow its enum owner",
-                    ));
-                }
-            } else if key.origin() != owner_key.origin()
-                || key.package() != owner_key.package()
-                || key
-                    .owners()
-                    .owners()
-                    .split_last()
-                    .map(|(_, parents)| parents)
-                    != Some(owner_key.owners().owners())
+            if matches!(declaration, CallableTemplateOrigin::VariantConstructor(_))
+                && record.declared_visibility() != DeclaredVisibilityV1::Public
             {
                 return Err(invalid(
                     declaration,
-                    "source callable has a different lexical owner chain",
-                ));
-            }
-            if record.declared_visibility() == DeclaredVisibilityV1::Protected
-                && owner_key.declaration_kind() != SourceDeclarationKind::Class
-            {
-                return Err(invalid(
-                    declaration,
-                    "protected callable requires a class owner",
+                    "variant visibility must follow its enum owner",
                 ));
             }
         }
@@ -122,11 +99,15 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     DefinitionOriginSubject::EnumVariant(variant),
                 ));
             }
-            CallableTemplateOrigin::Accessor(_) => {
-                return Err(invalid(
-                    declaration,
-                    "accessor is not a declared nominal function or constructor",
-                ));
+            CallableTemplateOrigin::Accessor(id) => {
+                let accessor = self
+                    .identities
+                    .canonical_key::<_, PropertyAccessorKey>(id)
+                    .map_err(Error::Identity)?;
+                let property = accessor.owner();
+                // Foundation validation already ties the accessor source to this property.
+                let subject = DefinitionOriginSubject::PropertyAccessor(id);
+                return Ok((self.property_key(property)?, subject));
             }
         };
         Ok((self.function_key(declaration)?, subject))

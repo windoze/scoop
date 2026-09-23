@@ -15,7 +15,7 @@ fn property_record_has_fixed_field_wire_and_accessors() {
     let fixture = Fixture::new();
     let record = fixture.record();
     let expected = [
-        b"\xa8\x01".as_slice(),
+        b"\xa3\x01\xa8\x01".as_slice(),
         encode(&record.declaration()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.owner()).unwrap().as_slice(),
@@ -30,11 +30,17 @@ fn property_record_has_fixed_field_wire_and_accessors() {
         b"\x05".as_slice(),
         encode(record.value_type()).unwrap().as_slice(),
         b"\x06".as_slice(),
-        encode(&record.capability()).unwrap().as_slice(),
+        encode(&record.accessors()).unwrap().as_slice(),
         b"\x07".as_slice(),
         encode(&record.representation()).unwrap().as_slice(),
         b"\x08".as_slice(),
+        encode(&record.declared_visibility()).unwrap().as_slice(),
+        b"\x02".as_slice(),
         encode(&record.access()).unwrap().as_slice(),
+        b"\x03".as_slice(),
+        encode(&record.capability().setter_access().unwrap())
+            .unwrap()
+            .as_slice(),
     ]
     .concat();
 
@@ -237,7 +243,7 @@ fn reader_replays_record_invariants_and_exact_map_shape() {
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 8,
+            expected: 3,
             actual: 0,
         }
     );

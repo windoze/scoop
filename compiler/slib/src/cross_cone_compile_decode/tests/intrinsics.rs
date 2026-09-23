@@ -169,7 +169,11 @@ fn intrinsic_artifact(count: usize) -> Vec<u8> {
     let mut interface = CrossConeHirInterfaceSectionV1::new(
         interface.public_bindings().clone(),
         interface.nominal_interfaces().clone(),
-        CanonicalCallableInterfacesV1::try_new(callables).unwrap(),
+        CanonicalCallableInterfacesV1::with_support(
+            callables,
+            interface.callable_interfaces().support_records().to_vec(),
+        )
+        .unwrap(),
         interface.property_interfaces().clone(),
         interface.type_aliases().clone(),
         interface.source_interfaces().clone(),

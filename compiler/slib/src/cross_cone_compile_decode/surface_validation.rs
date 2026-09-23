@@ -319,6 +319,16 @@ impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
             .map_err(|error| {
                 CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
             })?;
+        let mut authority = authority.for_source_declarations();
+        hir_interface
+            .property_interfaces()
+            .validate_support_semantics(&mut authority)
+            .map_err(|error| {
+                CrossConeHirPropertySurfaceError::PropertyInterfaces(Box::new(error))
+            })?;
+        authority
+            .validate_support_property_origins()
+            .map_err(CrossConeHirPropertySurfaceError::Declarations)?;
         Ok(PropertyValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,

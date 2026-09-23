@@ -1,0 +1,24 @@
+public interface View {
+    public val value: Int get() = hidden
+    private val hidden: Int get() = 4
+}
+
+public open class Base {
+    private var count: Int = 1
+    protected open var state: Int
+        get() = count
+        private set(next) { count = next }
+}
+
+public class Service : Base(), View {}
+
+public class Outer {
+    private class Cell<T>(initial: T) {
+        private var stored: T = initial
+        public val value: T get() = stored
+    }
+}
+
+public object Cache {
+    internal var size: Int = 0
+}

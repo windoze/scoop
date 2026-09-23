@@ -108,3 +108,27 @@ fn name(value: &str, meter: &mut BudgetMeter) -> Result<(), WireError> {
     meter.charge_owned_bytes(value.len() as u64 * 2, &path)?;
     meter.charge_work(value.len() as u64 * 2, &path)
 }
+
+pub(super) fn accessor(
+    export: &ExportHir,
+    id: crate::PropertyId,
+    parameter: Option<&str>,
+    meter: &mut BudgetMeter,
+) -> Result<(), WireError> {
+    let property = &export.properties[id];
+    meter.charge_collection_slots(1, &WirePath::root())?;
+    if let Some(parameter) = parameter {
+        name(parameter, meter)?;
+    }
+    ty(export, property.ty, 0, 1, meter)?;
+    if let crate::PropertyOwner::Extension(id) = property.owner {
+        ty(
+            export,
+            export.extension_properties[id].receiver_ty,
+            0,
+            1,
+            meter,
+        )?;
+    }
+    Ok(())
+}

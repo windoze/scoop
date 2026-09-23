@@ -20,7 +20,6 @@ pub(super) struct ProjectedAccessors<'a> {
 pub(super) struct ProjectedSetter<'a> {
     pub(super) id: scoop_identity::PersistentPropertyAccessorId,
     pub(super) declaration: &'a PropertySetter,
-    pub(super) access: PropertySetterPublicAccessV1,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -29,9 +28,6 @@ pub(super) fn project_accessors<'a>(
     property_id: crate::PropertyId,
     property: PersistentPropertyOwner,
     capability: PropertyCapability,
-    expected_access: PropertyPublicAccessV1,
-    public_getters: &HashSet<PropertyGetterId>,
-    public_setters: &HashSet<PropertySetterId>,
 ) -> Result<ProjectedAccessors<'a>, PropertyInterfaceBuildError> {
     let getter_id = capability.getter();
     let getter = arena_get(&export.property_getters, getter_id).ok_or_else(|| {
@@ -52,26 +48,10 @@ pub(super) fn project_accessors<'a>(
             )
         })?;
     validate_accessor_identity(property_id, property, AccessorRole::Getter, identity)?;
-    validate_public_accessor(
-        property,
-        AccessorRole::Getter,
-        &getter.access,
-        expected_access,
-        public_getters.contains(&getter_id),
-    )?;
 
     let setter = capability
         .setter()
-        .map(|setter_id| {
-            project_setter(
-                export,
-                property_id,
-                property,
-                setter_id,
-                expected_access,
-                public_setters,
-            )
-        })
+        .map(|setter_id| project_setter(export, property_id, property, setter_id))
         .transpose()?;
     Ok(ProjectedAccessors {
         getter_id: identity.id(),
@@ -85,8 +65,6 @@ fn project_setter<'a>(
     property_id: crate::PropertyId,
     property: PersistentPropertyOwner,
     setter_id: PropertySetterId,
-    expected_access: PropertyPublicAccessV1,
-    public_setters: &HashSet<PropertySetterId>,
 ) -> Result<ProjectedSetter<'a>, PropertyInterfaceBuildError> {
     let setter = arena_get(&export.property_setters, setter_id).ok_or_else(|| {
         accessor_error(
@@ -107,6 +85,35 @@ fn project_setter<'a>(
         })?;
     validate_accessor_identity(property_id, property, AccessorRole::Setter, identity)?;
 
+    Ok(ProjectedSetter {
+        id: identity.id(),
+        declaration: setter,
+    })
+}
+
+pub(super) fn public_lookup(
+    export: &ExportHir,
+    property_id: crate::PropertyId,
+    property: PersistentPropertyOwner,
+    public_getters: &HashSet<PropertyGetterId>,
+    public_setters: &HashSet<PropertySetterId>,
+) -> Result<(PropertyPublicAccessV1, PropertySetterPublicAccessV1), PropertyInterfaceBuildError> {
+    let source = &export.properties[property_id];
+    let expected_access = project_public_access(&source.access)
+        .ok_or(PropertyInterfaceBuildError::InvalidPublicAccess(property))?;
+    let getter_id = source.capability.getter();
+    let getter = &export.property_getters[getter_id];
+    validate_public_accessor(
+        property,
+        AccessorRole::Getter,
+        &getter.access,
+        expected_access,
+        public_getters.contains(&getter_id),
+    )?;
+    let Some(setter_id) = source.capability.setter() else {
+        return Ok((expected_access, PropertySetterPublicAccessV1::Restricted));
+    };
+    let setter = &export.property_setters[setter_id];
     let is_in_public_surface = public_setters.contains(&setter_id);
     let access = match project_public_access(&setter.access) {
         Some(actual) => {
@@ -140,11 +147,7 @@ fn project_setter<'a>(
             PropertySetterPublicAccessV1::Restricted
         }
     };
-    Ok(ProjectedSetter {
-        id: identity.id(),
-        declaration: setter,
-        access,
-    })
+    Ok((expected_access, access))
 }
 
 fn validate_public_accessor(

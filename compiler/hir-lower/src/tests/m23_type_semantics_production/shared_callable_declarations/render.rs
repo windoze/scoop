@@ -1,8 +1,6 @@
+use super::super::declaration_dump::{named, nominal, ty};
 use super::*;
-use scoop_identity::{
-    DeclarationName, EnumVariantIdentityKey, SignatureTypeKey, SourceDeclarationKey,
-    ValidatedIdentityGraph,
-};
+use scoop_identity::{EnumVariantIdentityKey, SourceDeclarationKey, ValidatedIdentityGraph};
 
 pub(super) fn table(table: &Table, identities: &ValidatedIdentityGraph) -> String {
     let mut rows = Vec::new();
@@ -27,7 +25,20 @@ pub(super) fn table(table: &Table, identities: &ValidatedIdentityGraph) -> Strin
                 .unwrap()
                 .as_str()
                 .to_owned(),
-            CallableTemplateOrigin::Accessor(_) => panic!("fixture has no public properties"),
+            CallableTemplateOrigin::Accessor(id) => {
+                let accessor = identities
+                    .canonical_key::<_, scoop_identity::PropertyAccessorKey>(id)
+                    .unwrap();
+                let key = match accessor.owner() {
+                    scoop_identity::PropertyOwner::Property(id) => identities
+                        .canonical_key::<_, SourceDeclarationKey>(id)
+                        .unwrap(),
+                    scoop_identity::PropertyOwner::ExtensionProperty(id) => identities
+                        .canonical_key::<_, SourceDeclarationKey>(id)
+                        .unwrap(),
+                };
+                format!("{}.{:?}", named(&key), accessor.role())
+            }
         };
         let hir::PublicDeclarationOwnerV1::Nominal(owner) = record.owner() else {
             panic!("nominal")
@@ -73,44 +84,4 @@ pub(super) fn table(table: &Table, identities: &ValidatedIdentityGraph) -> Strin
     }
     rows.sort();
     rows.concat()
-}
-
-fn named(key: &SourceDeclarationKey) -> String {
-    let DeclarationName::Named(name) = key.name() else {
-        panic!("named source")
-    };
-    name.as_str().to_owned()
-}
-
-fn nominal(owner: hir::SourceNominalId, identities: &ValidatedIdentityGraph) -> String {
-    match owner {
-        hir::SourceNominalId::Concrete(id) => named(
-            &identities
-                .canonical_key::<_, SourceDeclarationKey>(id)
-                .unwrap(),
-        ),
-        hir::SourceNominalId::GenericTemplate(id) => named(
-            &identities
-                .canonical_key::<_, SourceDeclarationKey>(id)
-                .unwrap(),
-        ),
-    }
-}
-
-fn ty(value: &SignatureTypeKey, identities: &ValidatedIdentityGraph) -> String {
-    match value {
-        SignatureTypeKey::Nominal(id) => nominal(hir::SourceNominalId::Concrete(*id), identities),
-        SignatureTypeKey::NominalApplication { origin, arguments } => format!(
-            "{}<{}>",
-            nominal(hir::SourceNominalId::GenericTemplate(*origin), identities),
-            arguments
-                .as_slice()
-                .iter()
-                .map(|v| ty(v, identities))
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        SignatureTypeKey::Binder { depth, index } => format!("binder({depth},{index})"),
-        other => panic!("unexpected fixture signature {other:?}"),
-    }
 }

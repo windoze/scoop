@@ -125,11 +125,15 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         };
         let owner = self.source_key_owner("property accessor", &property_key)?;
         self.require_current_nominal_owner("property owner", owner)?;
-        let property = self
-            .current_interface
-            .property_interfaces()
-            .get(declaration)
-            .ok_or(CrossConeHirNominalAuthorityError::MissingPropertyInterface { declaration })?;
+        let properties = self.current_interface.property_interfaces();
+        let property = if self.include_nominal_support {
+            properties.declaration(declaration)
+        } else {
+            properties
+                .get(declaration)
+                .map(scoop_hir::PropertyInterfaceRecordV1::declaration_data)
+        }
+        .ok_or(CrossConeHirNominalAuthorityError::MissingPropertyInterface { declaration })?;
         let parameters = match accessor_key.role() {
             AccessorRole::Getter => Vec::new(),
             AccessorRole::Setter => vec![property.value_type().clone()],

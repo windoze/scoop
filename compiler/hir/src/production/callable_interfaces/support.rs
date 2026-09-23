@@ -24,9 +24,12 @@ pub(super) fn project(
     meter: &mut BudgetMeter,
 ) -> Result<Vec<CallableDeclarationRecordV1>, CallableInterfaceBuildError> {
     use CallableInterfaceBuildError as Error;
-    let mut required = nominals
-        .declared_source_callables(meter)
-        .map_err(Error::Inventory)?;
+    let mut required = CanonicalCallableInterfacesV1::required_declarations(
+        nominals,
+        projection.properties,
+        meter,
+    )
+    .map_err(Error::Inventory)?;
     let path = WirePath::root().field(3);
     for record in public {
         query(meter, required.len())?;
@@ -123,7 +126,7 @@ pub(super) fn project(
             .charge_work(required.len() as u64, &path)
             .map_err(Error::Resource)?;
         if !required.iter().any(|(declaration, required_owner)| {
-            *required_owner == owner
+            *required_owner == crate::PublicDeclarationOwnerV1::Nominal(owner)
                 && matches!(declaration, CallableTemplateOrigin::VariantConstructor(_))
         }) {
             continue;
@@ -155,6 +158,39 @@ pub(super) fn project(
             if required.remove(&record.declaration()).is_some() {
                 records.push(record);
             }
+        }
+    }
+    for (id, _) in export.property_getters.iter() {
+        query(meter, required.len())?;
+        let Some(identity) = export.property_accessor_identities.get_getter(id) else {
+            continue;
+        };
+        let declaration = CallableTemplateOrigin::Accessor(identity.id());
+        if required.remove(&declaration).is_some() {
+            resources::accessor(export, identity.property(), None, meter)
+                .map_err(Error::Resource)?;
+            records.push(accessors::project_getter(projection, id).map_err(|error| {
+                Error::projection(CallableProjectionSubject::Getter(raw_index(id)), error)
+            })?);
+        }
+    }
+    for (id, setter) in export.property_setters.iter() {
+        query(meter, required.len())?;
+        let Some(identity) = export.property_accessor_identities.get_setter(id) else {
+            continue;
+        };
+        let declaration = CallableTemplateOrigin::Accessor(identity.id());
+        if required.remove(&declaration).is_some() {
+            resources::accessor(
+                export,
+                identity.property(),
+                Some(&setter.parameter_name),
+                meter,
+            )
+            .map_err(Error::Resource)?;
+            records.push(accessors::project_setter(projection, id).map_err(|error| {
+                Error::projection(CallableProjectionSubject::Setter(raw_index(id)), error)
+            })?);
         }
     }
     if let Some((declaration, _)) = required.first_key_value() {

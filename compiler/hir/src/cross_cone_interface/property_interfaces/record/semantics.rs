@@ -3,7 +3,7 @@ use scoop_identity::{
     SignatureTypeKey,
 };
 
-use super::PropertyInterfaceRecordV1;
+use super::{PropertyDeclarationRecordV1, PropertyInterfaceRecordV1};
 use crate::{
     NominalInterfaceShapeAuthority, PropertyCapabilityV1, PropertyDeclarationId,
     PropertyPublicAccessV1, PropertyRepresentationV1, PublicDeclarationOwnerV1,
@@ -107,7 +107,7 @@ pub trait PropertyInterfaceSemanticAuthority<E>: NominalInterfaceShapeAuthority<
     ) -> Result<PropertyAccessorKey, E>;
 }
 
-impl PropertyInterfaceRecordV1 {
+impl PropertyDeclarationRecordV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
@@ -135,15 +135,11 @@ impl PropertyInterfaceRecordV1 {
             .validate_signature_semantics(&self.value_type, authority)
             .map_err(PropertyInterfaceSemanticValidationError::ValueType)?;
 
-        self.validate_accessor(self.capability.getter(), AccessorRole::Getter, authority)?;
-        if let Some(setter) = self.capability.setter() {
+        self.validate_accessor(self.accessors.getter(), AccessorRole::Getter, authority)?;
+        if let Some(setter) = self.accessors.setter() {
             self.validate_accessor(setter, AccessorRole::Setter, authority)?;
         }
 
-        let source = authority
-            .property_declaration_source_shape(self.declaration)
-            .map_err(PropertyInterfaceSemanticValidationError::Source)?;
-        self.validate_source_shape(source)?;
         self.validate_const_owner(authority)
     }
 
@@ -208,31 +204,6 @@ impl PropertyInterfaceRecordV1 {
         Ok(())
     }
 
-    fn validate_source_shape<E>(
-        &self,
-        source: PropertyDeclarationSourceShapeV1,
-    ) -> Result<(), PropertyInterfaceSemanticValidationError<E>> {
-        if self.capability != source.capability {
-            return Err(PropertyInterfaceSemanticValidationError::Capability {
-                expected: Box::new(source.capability),
-                actual: Box::new(self.capability),
-            });
-        }
-        if self.representation != source.representation {
-            return Err(PropertyInterfaceSemanticValidationError::Representation {
-                expected: source.representation,
-                actual: self.representation,
-            });
-        }
-        if self.access != source.access {
-            return Err(PropertyInterfaceSemanticValidationError::Access {
-                expected: source.access,
-                actual: self.access,
-            });
-        }
-        Ok(())
-    }
-
     fn validate_const_owner<A, E>(
         &self,
         authority: &mut A,
@@ -276,3 +247,43 @@ fn validate_const_nominal_shape<E>(
 
 #[cfg(test)]
 mod tests;
+
+impl PropertyInterfaceRecordV1 {
+    pub fn validate_semantics<A, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), PropertyInterfaceSemanticValidationError<E>>
+    where
+        A: PropertyInterfaceSemanticAuthority<E>,
+    {
+        self.declaration_data().validate_semantics(authority)?;
+        let source = authority
+            .property_declaration_source_shape(self.declaration())
+            .map_err(PropertyInterfaceSemanticValidationError::Source)?;
+        self.validate_source_shape(source)
+    }
+    fn validate_source_shape<E>(
+        &self,
+        source: PropertyDeclarationSourceShapeV1,
+    ) -> Result<(), PropertyInterfaceSemanticValidationError<E>> {
+        if self.capability() != source.capability {
+            return Err(PropertyInterfaceSemanticValidationError::Capability {
+                expected: Box::new(source.capability),
+                actual: Box::new(self.capability()),
+            });
+        }
+        if self.representation() != source.representation {
+            return Err(PropertyInterfaceSemanticValidationError::Representation {
+                expected: source.representation,
+                actual: self.representation(),
+            });
+        }
+        if self.access() != source.access {
+            return Err(PropertyInterfaceSemanticValidationError::Access {
+                expected: source.access,
+                actual: self.access(),
+            });
+        }
+        Ok(())
+    }
+}

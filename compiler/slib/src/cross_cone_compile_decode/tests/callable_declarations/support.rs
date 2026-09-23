@@ -25,12 +25,13 @@ impl Fixture {
             .filter(|r| r.declaration() != function && r.declaration() != constructor)
             .cloned()
             .collect();
-        let support = [function, constructor]
+        let mut support = [function, constructor]
             .map(|id| {
                 let record = section.callable_interfaces().get(id).unwrap();
                 declaration(record.declaration_data(), record.result().clone())
             })
             .to_vec();
+        support.extend_from_slice(section.callable_interfaces().support_records());
         let record = section
             .nominal_interfaces()
             .get(SourceNominalId::Concrete(owner))
@@ -117,17 +118,5 @@ pub(super) fn declaration(
 }
 
 pub(super) fn front(bytes: &[u8]) -> crate::HirProductionValidatedCrossConeHirFrontSections<'_> {
-    let mut decoded = open_graph(bytes)
-        .decode_cross_cone_hir_front_sections()
-        .unwrap();
-    let identities = decoded
-        .validate_foundation_identities(std::iter::empty())
-        .unwrap();
-    decoded
-        .validate_foundation_structure(identities)
-        .unwrap()
-        .resolve_hir_interface()
-        .unwrap()
-        .validate_hir_production()
-        .unwrap()
+    declaration_front(bytes)
 }

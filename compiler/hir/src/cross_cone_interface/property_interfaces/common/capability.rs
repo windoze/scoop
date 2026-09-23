@@ -23,6 +23,23 @@ enum PropertyCapabilityKindV1 {
 }
 
 impl PropertyCapabilityV1 {
+    pub(crate) const fn from_accessors(
+        accessors: super::PropertyAccessorsV1,
+        setter_access: PropertySetterPublicAccessV1,
+    ) -> Self {
+        let getter = accessors.getter();
+        match accessors.setter() {
+            None => Self::read_only(getter),
+            Some(setter) => Self {
+                kind: PropertyCapabilityKindV1::ReadWrite {
+                    getter,
+                    setter,
+                    setter_access,
+                },
+            },
+        }
+    }
+
     pub const fn read_only(getter: PersistentPropertyAccessorId) -> Self {
         Self {
             kind: PropertyCapabilityKindV1::ReadOnly { getter },

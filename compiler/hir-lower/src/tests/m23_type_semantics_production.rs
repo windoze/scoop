@@ -14,9 +14,11 @@ use hir::NominalInheritanceSemanticAuthority as _;
 mod public_projection;
 use public_projection::public_interface;
 
+mod declaration_dump;
 mod fact_providers;
 mod shared_callable_declarations;
 mod shared_nominal_declarations;
+mod shared_property_declarations;
 mod source_binding;
 mod source_constructor_gc;
 mod source_constructor_safety;

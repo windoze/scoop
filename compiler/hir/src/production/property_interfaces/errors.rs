@@ -18,6 +18,10 @@ pub enum PropertyNominalOwnerKind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExportPropertyAccessorBuildError {
+    DeclaredVisibilityMismatch {
+        expected: crate::DeclaredVisibility,
+        actual: crate::DeclaredVisibility,
+    },
     Unknown(u32),
     MissingIdentity(u32),
     PropertyMismatch {
@@ -38,6 +42,10 @@ pub enum ExportPropertyAccessorBuildError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PropertyInterfaceBuildError {
+    Resource(scoop_wire::WireError),
+    Nominals(crate::NominalInterfaceBuildError),
+    Inventory(crate::PropertyDeclarationInventoryError),
+    MissingSupport(crate::PropertyDeclarationId),
     UnknownPublicProperty(u32),
     MissingPropertyIdentity(u32),
     ForeignDeclaration {
@@ -45,7 +53,6 @@ pub enum PropertyInterfaceBuildError {
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
-    InvalidDeclarationScope(PersistentPropertyOwner),
     InvalidPublicAccess(PersistentPropertyOwner),
     UnknownExtensionOwner {
         property: PersistentPropertyOwner,
@@ -97,6 +104,13 @@ pub enum PropertyInterfaceBuildError {
 impl fmt::Display for PropertyInterfaceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
+            Self::Nominals(error) => error.fmt(formatter),
+            Self::Inventory(error) => error.fmt(formatter),
+            Self::MissingSupport(property) => write!(
+                formatter,
+                "required source property {property:?} is absent from sealed HIR"
+            ),
             Self::UnknownPublicProperty(property) => {
                 write!(
                     formatter,
@@ -114,10 +128,6 @@ impl fmt::Display for PropertyInterfaceBuildError {
             } => write!(
                 formatter,
                 "property interface {property:?} belongs to Cone {actual}, not current Cone {expected}"
-            ),
-            Self::InvalidDeclarationScope(property) => write!(
-                formatter,
-                "property interface {property:?} does not have ConeWide declaration scope"
             ),
             Self::InvalidPublicAccess(property) => write!(
                 formatter,
@@ -197,6 +207,10 @@ impl fmt::Display for PropertyInterfaceBuildError {
 impl fmt::Display for ExportPropertyAccessorBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DeclaredVisibilityMismatch { expected, actual } => write!(
+                formatter,
+                "getter visibility {actual:?} differs from property visibility {expected:?}"
+            ),
             Self::Unknown(accessor) => write!(formatter, "unknown local accessor {accessor}"),
             Self::MissingIdentity(accessor) => {
                 write!(

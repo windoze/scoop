@@ -41,6 +41,7 @@ pub enum CrossConeHirNominalSurfaceError {
 
 #[derive(Debug)]
 pub enum CrossConeHirPropertySurfaceError {
+    Declarations(CrossConeHirNominalAuthorityError),
     PropertyInterfaces(
         Box<PropertyInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
@@ -102,7 +103,22 @@ impl std::error::Error for CrossConeHirNominalSurfaceError {
         }
     }
 }
-impl_surface_error!(CrossConeHirPropertySurfaceError, PropertyInterfaces);
+impl std::fmt::Display for CrossConeHirPropertySurfaceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Declarations(error) => error.fmt(f),
+            Self::PropertyInterfaces(error) => error.fmt(f),
+        }
+    }
+}
+impl std::error::Error for CrossConeHirPropertySurfaceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Declarations(error) => Some(error),
+            Self::PropertyInterfaces(error) => Some(error.as_ref()),
+        }
+    }
+}
 impl std::fmt::Display for CrossConeHirCallableSurfaceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

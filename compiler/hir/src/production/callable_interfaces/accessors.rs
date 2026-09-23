@@ -6,35 +6,60 @@ use super::{
 };
 use crate::{
     CallableInterfaceRecordV1, CallableModalityV1, CanonicalSourceParameterShapesV1,
-    HirPropertyIdentity, MethodModifier, PropertyAccessorImplementation, PropertyPublicAccessV1,
-    PropertySetterPublicAccessV1, PublicLookupAccessV1, SourceParameterShapeV1,
+    HirPropertyIdentity, MethodModifier, PropertyAccessorImplementation, SourceParameterShapeV1,
 };
 
 pub(super) fn project_all(
     projection: &CallableProjection<'_>,
     records: &mut Vec<CallableInterfaceRecordV1>,
 ) -> Result<(), CallableInterfaceBuildError> {
-    for &getter in &projection.export.public_surface.property_getters {
-        let subject = CallableProjectionSubject::Getter(super::raw_index(getter));
+    for &id in &projection.export.public_surface.property_getters {
+        let subject = CallableProjectionSubject::Getter(super::raw_index(id));
+        let source = project_getter(projection, id)
+            .map_err(|error| CallableInterfaceBuildError::projection(subject, error))?;
+        let access =
+            access::project(&projection.export.property_getters[id].access).map_err(|error| {
+                CallableInterfaceBuildError::projection(
+                    subject,
+                    CallableProjectionError::Access(error),
+                )
+            })?;
         records.push(
-            project_getter(projection, getter)
-                .map_err(|error| CallableInterfaceBuildError::projection(subject, error))?,
+            CallableInterfaceRecordV1::from_declaration(source, access).map_err(|error| {
+                CallableInterfaceBuildError::projection(
+                    subject,
+                    CallableProjectionError::Record(error),
+                )
+            })?,
         );
     }
-    for &setter in &projection.export.public_surface.property_setters {
-        let subject = CallableProjectionSubject::Setter(super::raw_index(setter));
+    for &id in &projection.export.public_surface.property_setters {
+        let subject = CallableProjectionSubject::Setter(super::raw_index(id));
+        let source = project_setter(projection, id)
+            .map_err(|error| CallableInterfaceBuildError::projection(subject, error))?;
+        let access =
+            access::project(&projection.export.property_setters[id].access).map_err(|error| {
+                CallableInterfaceBuildError::projection(
+                    subject,
+                    CallableProjectionError::Access(error),
+                )
+            })?;
         records.push(
-            project_setter(projection, setter)
-                .map_err(|error| CallableInterfaceBuildError::projection(subject, error))?,
+            CallableInterfaceRecordV1::from_declaration(source, access).map_err(|error| {
+                CallableInterfaceBuildError::projection(
+                    subject,
+                    CallableProjectionError::Record(error),
+                )
+            })?,
         );
     }
     Ok(())
 }
 
-fn project_getter(
+pub(super) fn project_getter(
     projection: &CallableProjection<'_>,
     getter_id: crate::PropertyGetterId,
-) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
+) -> Result<crate::CallableDeclarationRecordV1, CallableProjectionError> {
     let getter = super::arena_get(&projection.export.property_getters, getter_id)
         .ok_or(CallableProjectionError::UnknownDeclaration)?;
     let identity = projection
@@ -60,10 +85,10 @@ fn project_getter(
     )
 }
 
-fn project_setter(
+pub(super) fn project_setter(
     projection: &CallableProjection<'_>,
     setter_id: crate::PropertySetterId,
-) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
+) -> Result<crate::CallableDeclarationRecordV1, CallableProjectionError> {
     let setter = super::arena_get(&projection.export.property_setters, setter_id)
         .ok_or(CallableProjectionError::UnknownDeclaration)?;
     let identity = projection
@@ -73,9 +98,6 @@ fn project_setter(
         .ok_or(CallableProjectionError::MissingIdentity)?;
     let (property, interface) =
         property_interface(projection, identity, AccessorRole::Setter, identity.id())?;
-    if interface.capability().setter_access() != Some(PropertySetterPublicAccessV1::Public) {
-        return Err(CallableProjectionError::PropertyOwnerMismatch);
-    }
     let name =
         scoop_identity::CanonicalIdentifier::new(&setter.parameter_name).map_err(|source| {
             CallableProjectionError::Parameters(SourceParameterProjectionError::InvalidName {
@@ -111,32 +133,20 @@ fn project_setter(
 fn finish(
     projection: &CallableProjection<'_>,
     property: &crate::Property,
-    interface: &crate::PropertyInterfaceRecordV1,
+    interface: &crate::PropertyDeclarationRecordV1,
     accessor: scoop_identity::PersistentPropertyAccessorId,
     declaration_access: crate::DeclarationAccess,
     attributes: crate::FunctionAttributes,
     implementation: PropertyAccessorImplementation,
     parameters: CanonicalSourceParameterShapesV1,
     result: SignatureTypeKey,
-) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
+) -> Result<crate::CallableDeclarationRecordV1, CallableProjectionError> {
     let type_parameters = projection
         .signatures
         .project_binder_list(&[], &[])
         .map_err(CallableProjectionError::Signature)?;
-    let actual_access =
-        access::project(&declaration_access).map_err(CallableProjectionError::Access)?;
-    let expected_access = match interface.access() {
-        PropertyPublicAccessV1::DirectOnly => PublicLookupAccessV1::DirectOnly,
-        PropertyPublicAccessV1::PublicSlot => PublicLookupAccessV1::PublicSlot,
-    };
-    if actual_access != expected_access {
-        return Err(CallableProjectionError::AccessorAccessMismatch {
-            expected: expected_access,
-            actual: actual_access,
-        });
-    }
     let effects = effects::accessor(attributes).map_err(CallableProjectionError::Effects)?;
-    CallableInterfaceRecordV1::try_new(
+    crate::CallableDeclarationRecordV1::try_new(
         CallableTemplateOrigin::Accessor(accessor),
         interface.owner(),
         type_parameters,
@@ -144,8 +154,8 @@ fn finish(
         parameters,
         result,
         effects,
-        modality(property, implementation),
-        actual_access,
+        modality(property, implementation, declaration_access.declared),
+        declaration_access.declared.into(),
         super::slots::accessor(projection.export, implementation)?,
     )
     .map_err(CallableProjectionError::Record)
@@ -156,7 +166,8 @@ fn property_interface<'a>(
     identity: &crate::HirPropertyAccessorIdentity,
     expected_role: AccessorRole,
     accessor: scoop_identity::PersistentPropertyAccessorId,
-) -> Result<(&'a crate::Property, &'a crate::PropertyInterfaceRecordV1), CallableProjectionError> {
+) -> Result<(&'a crate::Property, &'a crate::PropertyDeclarationRecordV1), CallableProjectionError>
+{
     if identity.record().key().role() != expected_role {
         return Err(CallableProjectionError::AccessorRole {
             expected: expected_role,
@@ -174,12 +185,12 @@ fn property_interface<'a>(
     if identity.record().key().owner() != declaration {
         return Err(CallableProjectionError::PropertyOwnerMismatch);
     }
-    let interface = projection.properties.get(declaration).ok_or(
+    let interface = projection.properties.declaration(declaration).ok_or(
         CallableProjectionError::MissingPropertyInterface(declaration),
     )?;
     let expected_accessor = match expected_role {
-        AccessorRole::Getter => Some(interface.capability().getter()),
-        AccessorRole::Setter => interface.capability().setter(),
+        AccessorRole::Getter => Some(interface.accessors().getter()),
+        AccessorRole::Setter => interface.accessors().setter(),
     };
     if expected_accessor != Some(accessor) {
         return Err(CallableProjectionError::PropertyOwnerMismatch);
@@ -197,7 +208,11 @@ fn persistent_property_owner(identity: &HirPropertyIdentity) -> PropertyOwner {
 fn modality(
     property: &crate::Property,
     implementation: PropertyAccessorImplementation,
+    visibility: crate::DeclaredVisibility,
 ) -> CallableModalityV1 {
+    if visibility == crate::DeclaredVisibility::Private {
+        return CallableModalityV1::Final;
+    }
     match implementation {
         PropertyAccessorImplementation::AbstractSlot(_) => CallableModalityV1::Abstract,
         PropertyAccessorImplementation::Body(_)

@@ -6,6 +6,10 @@ use support::*;
 
 #[test]
 fn ordinary_reader_validates_private_methods_and_constructors_from_shared_bytes() {
+    let builtin_bytes = builtin_provider_artifact();
+    let builtin = nominal_fields::front(&builtin_bytes)
+        .validate_nominal_surface(vec![])
+        .unwrap();
     let fixture = Fixture::new();
     let bytes = fixture.artifact(&fixture.interface);
     let checked = nominal_fields::front(&bytes)
@@ -13,10 +17,10 @@ fn ordinary_reader_validates_private_methods_and_constructors_from_shared_bytes(
         .unwrap()
         .validate_property_surface(vec![])
         .unwrap()
-        .validate_callable_surface(vec![])
+        .validate_callable_surface(vec![builtin.nominal_provider_view()])
         .unwrap();
     let table = checked.hir_interface().callable_interfaces();
-    assert_eq!(table.support_records().len(), 2);
+    assert_eq!(table.support_records().len(), 3);
     for declaration in [fixture.function, fixture.constructor] {
         assert!(table.get(declaration).is_none());
         assert_eq!(

@@ -7,6 +7,8 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PropertyInterfaceRecordBuildError {
+    NonPublicDeclaration(crate::DeclaredVisibilityV1),
+    MissingSetterLookup(PropertyDeclarationId),
     UnexpectedExtensionOwner(PropertyDeclarationId),
     ExtensionOwnerRequired {
         declaration: PropertyDeclarationId,
@@ -34,6 +36,14 @@ pub enum PropertyInterfaceRecordBuildError {
 impl fmt::Display for PropertyInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NonPublicDeclaration(visibility) => write!(
+                formatter,
+                "property declaration with visibility {visibility:?} cannot enter public lookup"
+            ),
+            Self::MissingSetterLookup(declaration) => write!(
+                formatter,
+                "read-only property {declaration:?} cannot expose a setter"
+            ),
             Self::UnexpectedExtensionOwner(declaration) => write!(
                 formatter,
                 "ordinary property {declaration:?} cannot have an extension owner"

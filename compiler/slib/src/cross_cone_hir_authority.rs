@@ -6,6 +6,7 @@ mod callable;
 mod callable_declarations;
 mod callable_source;
 mod const_value;
+mod declaration_origins;
 mod default_data_flow;
 mod definition_source;
 mod errors;
@@ -14,6 +15,7 @@ mod nominal_declarations;
 mod nominal_intrinsics;
 mod nominals;
 mod property;
+mod property_declarations;
 mod type_alias;
 
 pub use callable_source::*;

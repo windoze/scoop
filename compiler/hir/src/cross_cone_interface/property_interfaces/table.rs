@@ -1,60 +1,129 @@
-use std::fmt;
-
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
-
 use super::{
-    DecodedPropertyInterfaceRecordV1, PropertyInterfaceRecordResolutionError,
+    DecodedPropertyDeclarationRecordV1, DecodedPropertyInterfaceRecordV1,
+    PropertyDeclarationRecordV1, PropertyInterfaceRecordResolutionError,
     PropertyInterfaceRecordResolver, PropertyInterfaceRecordV1, PropertyInterfaceSemanticAuthority,
     PropertyInterfaceSemanticValidationError,
 };
 use crate::PropertyDeclarationId;
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use std::fmt;
 
+mod decode;
+mod errors;
+pub use decode::DecodedCanonicalPropertyInterfacesV1;
+pub use errors::{
+    PropertyInterfaceSetBuildError, PropertyInterfaceSetSemanticValidationError,
+    PropertyInterfaceSetValidationError,
+};
+
+/// Public lookup and necessary source support share one declaration per typed id.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalPropertyInterfacesV1 {
     records: Vec<PropertyInterfaceRecordV1>,
+    support: Vec<PropertyDeclarationRecordV1>,
 }
 
 impl CanonicalPropertyInterfacesV1 {
     pub fn try_new(
+        records: Vec<PropertyInterfaceRecordV1>,
+    ) -> Result<Self, PropertyInterfaceSetBuildError> {
+        Self::with_support(records, Vec::new())
+    }
+
+    pub fn with_support(
         mut records: Vec<PropertyInterfaceRecordV1>,
+        mut support: Vec<PropertyDeclarationRecordV1>,
     ) -> Result<Self, PropertyInterfaceSetBuildError> {
         records.sort_unstable_by_key(PropertyInterfaceRecordV1::declaration);
-        if let Some(pair) = records
+        support.sort_unstable_by_key(PropertyDeclarationRecordV1::declaration);
+        let duplicate = records
             .windows(2)
             .find(|pair| pair[0].declaration() == pair[1].declaration())
-        {
+            .map(|pair| pair[0].declaration())
+            .or_else(|| {
+                support
+                    .windows(2)
+                    .find(|pair| pair[0].declaration() == pair[1].declaration())
+                    .map(|pair| pair[0].declaration())
+            });
+        if let Some(declaration) = duplicate {
             return Err(PropertyInterfaceSetBuildError::DuplicateDeclaration(
-                pair[0].declaration(),
+                declaration,
             ));
         }
-        Ok(Self { records })
+        for record in &support {
+            if records
+                .binary_search_by_key(
+                    &record.declaration(),
+                    PropertyInterfaceRecordV1::declaration,
+                )
+                .is_ok()
+            {
+                return Err(PropertyInterfaceSetBuildError::DuplicateDeclaration(
+                    record.declaration(),
+                ));
+            }
+        }
+        Ok(Self { records, support })
     }
 
     pub fn records(&self) -> &[PropertyInterfaceRecordV1] {
         &self.records
     }
-
+    pub fn support_records(&self) -> &[PropertyDeclarationRecordV1] {
+        &self.support
+    }
+    pub fn all_declarations(&self) -> impl Iterator<Item = &PropertyDeclarationRecordV1> {
+        self.records
+            .iter()
+            .map(PropertyInterfaceRecordV1::declaration_data)
+            .chain(&self.support)
+    }
+    pub fn declaration_count(&self) -> usize {
+        self.records.len() + self.support.len()
+    }
     pub fn get(&self, declaration: PropertyDeclarationId) -> Option<&PropertyInterfaceRecordV1> {
         self.records
             .binary_search_by_key(&declaration, PropertyInterfaceRecordV1::declaration)
             .ok()
             .map(|index| &self.records[index])
     }
-
+    pub fn declaration(
+        &self,
+        declaration: PropertyDeclarationId,
+    ) -> Option<&PropertyDeclarationRecordV1> {
+        self.get(declaration)
+            .map(PropertyInterfaceRecordV1::declaration_data)
+            .or_else(|| {
+                self.support
+                    .binary_search_by_key(&declaration, PropertyDeclarationRecordV1::declaration)
+                    .ok()
+                    .map(|index| &self.support[index])
+            })
+    }
     pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
+        self.records.is_empty() && self.support.is_empty()
     }
 
-    pub fn validate_semantics<A, E>(
+    pub fn validate_semantics<A: PropertyInterfaceSemanticAuthority<E>, E>(
         &self,
         authority: &mut A,
-    ) -> Result<(), PropertyInterfaceSetSemanticValidationError<E>>
-    where
-        A: PropertyInterfaceSemanticAuthority<E>,
-    {
+    ) -> Result<(), PropertyInterfaceSetSemanticValidationError<E>> {
         for (index, record) in self.records.iter().enumerate() {
             record.validate_semantics(authority).map_err(|error| {
                 PropertyInterfaceSetSemanticValidationError::Record { index, error }
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn validate_support_semantics<A: PropertyInterfaceSemanticAuthority<E>, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), PropertyInterfaceSetSemanticValidationError<E>> {
+        for (index, record) in self.support.iter().enumerate() {
+            record.validate_semantics(authority).map_err(|error| {
+                PropertyInterfaceSetSemanticValidationError::SupportRecord { index, error }
             })?;
         }
         Ok(())
@@ -63,146 +132,19 @@ impl CanonicalPropertyInterfacesV1 {
 
 impl WireEncode for CanonicalPropertyInterfacesV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
         encoder.array(self.records.len() as u64)?;
         for record in &self.records {
             record.encode(encoder)?;
         }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedCanonicalPropertyInterfacesV1 {
-    records: Vec<DecodedPropertyInterfaceRecordV1>,
-}
-
-impl DecodedCanonicalPropertyInterfacesV1 {
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<CanonicalPropertyInterfacesV1, PropertyInterfaceSetValidationError<E>>
-    where
-        R: PropertyInterfaceRecordResolver<E>,
-    {
-        let mut records = Vec::<PropertyInterfaceRecordV1>::with_capacity(self.records.len());
-        for (index, record) in self.records.into_iter().enumerate() {
-            let record = record
-                .resolve(resolver)
-                .map_err(|error| PropertyInterfaceSetValidationError::Record { index, error })?;
-            if let Some(previous) = records.last() {
-                match previous.declaration().cmp(&record.declaration()) {
-                    std::cmp::Ordering::Equal => {
-                        return Err(PropertyInterfaceSetValidationError::DuplicateDeclaration {
-                            index,
-                            declaration: record.declaration(),
-                        });
-                    }
-                    std::cmp::Ordering::Greater => {
-                        return Err(PropertyInterfaceSetValidationError::NonCanonicalOrder {
-                            index,
-                        });
-                    }
-                    std::cmp::Ordering::Less => {}
-                }
-            }
-            records.push(record);
-        }
-        Ok(CanonicalPropertyInterfacesV1 { records })
-    }
-}
-
-impl WireEncode for DecodedCanonicalPropertyInterfacesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.records.len() as u64)?;
-        for record in &self.records {
+        encoder.field(2)?;
+        encoder.array(self.support.len() as u64)?;
+        for record in &self.support {
             record.encode(encoder)?;
         }
         Ok(())
     }
-}
-
-impl WireDecode for DecodedCanonicalPropertyInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|decoder, _| DecodedPropertyInterfaceRecordV1::decode(decoder))
-            .map(|records| Self { records })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PropertyInterfaceSetBuildError {
-    DuplicateDeclaration(PropertyDeclarationId),
-}
-
-impl fmt::Display for PropertyInterfaceSetBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::DuplicateDeclaration(declaration) => {
-                write!(formatter, "duplicate property interface {declaration:?}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for PropertyInterfaceSetBuildError {}
-
-#[derive(Debug)]
-pub enum PropertyInterfaceSetValidationError<E> {
-    Record {
-        index: usize,
-        error: PropertyInterfaceRecordResolutionError<E>,
-    },
-    DuplicateDeclaration {
-        index: usize,
-        declaration: PropertyDeclarationId,
-    },
-    NonCanonicalOrder {
-        index: usize,
-    },
-}
-
-impl<E: fmt::Display> fmt::Display for PropertyInterfaceSetValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Record { index, error } => {
-                write!(formatter, "invalid property interface {index}: {error}")
-            }
-            Self::DuplicateDeclaration { index, declaration } => write!(
-                formatter,
-                "duplicate property interface {declaration:?} at index {index}"
-            ),
-            Self::NonCanonicalOrder { index } => write!(
-                formatter,
-                "non-canonical property interface order at index {index}"
-            ),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for PropertyInterfaceSetValidationError<E> {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PropertyInterfaceSetSemanticValidationError<E> {
-    Record {
-        index: usize,
-        error: PropertyInterfaceSemanticValidationError<E>,
-    },
-}
-
-impl<E: fmt::Display> fmt::Display for PropertyInterfaceSetSemanticValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Record { index, error } => write!(
-                formatter,
-                "invalid property interface semantics {index}: {error}"
-            ),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error
-    for PropertyInterfaceSetSemanticValidationError<E>
-{
 }
 
 #[cfg(test)]

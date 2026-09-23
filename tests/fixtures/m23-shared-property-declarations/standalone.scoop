@@ -1,0 +1,10 @@
+private class Hidden {}
+
+public class Store {
+    private val computed: Hidden get() = Hidden()
+    private var state: Int = 0
+    public var value: Int
+        get() = state
+        private set(next) { state = next }
+    public fun read(): Int = value
+}
