@@ -14,6 +14,10 @@ M23-6 的 MIR export 由同一 `mir-lower` 入口完整组装六张组成表；�
 
 M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export 组成表和实际 Strong V2 registration，统一生产 layout、descriptor、dispatch、callable ABI 与有限 shape-support 五表。布局覆盖 MIR 导出闭包中实际发射的本地根，descriptor 逐项对应实际 registration；callable 使用 MIR lowered signature 查询唯一的 ManagedValue layout，保留 receiver、重复参数和 Unit result 的逻辑位置。dispatch 从实际 LIR table 读取物理 callable，按 MIR schema 的声明序 slot 重放；BoxedValue 通过明确 payload 关系使用源码 value schema，step/slot 的无成员关系只允许实际空表。依赖表只借用，不能复制成局部定义；错误 provider、target、缺失或重复关系直接失败，所有查询与构造共用预算。完整 selected-use、source 与最终 artifact 闭包仍须单独闭合，此组装不新增来源授权体系，也不放开 ODR。
 
+完整 LIR section 的实际 source 适配器从同次 sealed MIR/LIR 与 Strong V2 registration 重新投影五张预期 export 表，按实际跨阶段 source-exact 引用取得外来 ManagedValue layout；lookup 必须唯一且属于该 exact 的实际 provider。额外 descriptor 与新 callable 用途取实际 LIR external arena，初始化 descriptor 用途取同次 registration 中已验证的外部单元依赖。物理 import 必须精确覆盖这些实际用途，并逐项匹配 provider、typed subject、symbol 与 definition；完整 section 继续核对 terminal contract。既有 String 角色和旧 callable 分区按明确的 LIR 引用及 origin 区分，不能按 CORE 身份分支；它们继续经过共有旧 bridge 校验，不重复加入物理 import。投影、比较、去重、排序及完整 section 重放共用预算，不新增 wire 或独立来源授权。
+
+当前 provider 拥有的语言内建 Unit/Any 必须在 LocalConcrete HIR sealing 前显式保留，并在 HIR → MIR 转置时作为必需类型根沿共有 source-exact 路径处理；不能依赖额外源码引用才获得完整导出。该必需集合依据内建 typed declaration 的真实 origin 判定，外来 consumer 仍只为实际使用引入依赖引用。验收包括不添加类型使用的原始 core 源码基线，完整 MIR/LIR section、Strong V2 registration 和 LLVM 对象发射均须闭合。
+
 ## 1. 总体技术路线
 
 - 编译器实现语言为 **Rust**，LLVM 绑定使用 **inkwell**（feature `llvm22-1`）；个别 inkwell 未覆盖的 LLVM 子系统（statepoint / stackmap 等）可降落到 `llvm-sys`；

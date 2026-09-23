@@ -163,20 +163,20 @@ pub(super) fn with_production(
             &mut meter(),
         )
         .unwrap();
-    run(
-        scoop_lir_lower::LayoutAbiExportInputV1 {
-            mir: &mir.strong,
-            lir: &lir,
-            bridge: &bridge,
-            registration: &registration,
-            identities: &graph,
-            coordinates: &coordinates,
-        },
-        scoop_lir_lower::LayoutAbiExportDependenciesV1 {
-            layouts: &[&layouts],
-            callables: &[],
-        },
-    );
+    let input = scoop_lir_lower::LayoutAbiExportInputV1 {
+        mir: &mir.strong,
+        lir: &lir,
+        bridge: &bridge,
+        registration: &registration,
+        identities: &graph,
+        coordinates: &coordinates,
+    };
+    let dependencies = scoop_lir_lower::LayoutAbiExportDependenciesV1 {
+        layouts: &[&layouts],
+        callables: &[],
+    };
+    source_contracts::check(input, dependencies);
+    run(input, dependencies);
 }
 
 fn identities(

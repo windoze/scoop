@@ -8,6 +8,8 @@ use scoop_mir as mir;
 
 mod source_origin;
 
+pub(super) use source_origin::{SourceExactTypeRegistry, owned_builtin_types};
+
 pub(super) fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
 }
@@ -35,57 +37,6 @@ pub(super) fn exact_function_identity(
     );
     let exact_type = module.exact_type_identities[source.canonical_type].id();
     (signature, exact_type)
-}
-
-/// Exact source types that have actually crossed the HIR -> MIR boundary.
-/// Registration happens inside `Types::lower`, so recursive child types are
-/// covered without forcing unused LocalConcrete declarations into MIR.
-#[derive(Default)]
-pub(super) struct SourceExactTypeRegistry {
-    entries: Vec<(hir::TypeId, mir::SourceExactTypeIdentity)>,
-}
-
-impl SourceExactTypeRegistry {
-    fn record(&mut self, module: &hir::Module, source: hir::TypeId, lowered: mir::Type) {
-        if let Some((_, existing)) = self.entries.iter().find(|(found, _)| *found == source) {
-            assert_eq!(
-                existing.ty(),
-                &lowered,
-                "one LocalConcrete HIR type must always lower to the same MIR type"
-            );
-            return;
-        }
-        assert!(
-            self.entries.iter().all(|(_, existing)| {
-                existing.ty() != &lowered
-                    && existing.identity_record().id() != module.exact_type_identities[source].id()
-            }),
-            "source exact types transpose one-to-one into MIR"
-        );
-        let identity = mir::SourceExactTypeIdentity::checked(
-            lowered,
-            module.exact_type_identities[source].clone(),
-            source_origin::lower(module, source),
-        )
-        .expect("validated HIR exact types retain their complete provenance");
-        self.entries.push((source, identity));
-    }
-
-    pub(super) fn get(&self, ty: &mir::Type) -> Option<&mir::SourceExactTypeIdentity> {
-        self.entries
-            .iter()
-            .find_map(|(_, entry)| (entry.ty() == ty).then_some(entry))
-    }
-
-    pub(super) fn finish(self) -> mir::SourceExactTypeIdentities {
-        mir::SourceExactTypeIdentities::checked(
-            self.entries
-                .into_iter()
-                .map(|(_, identity)| identity)
-                .collect(),
-        )
-        .expect("registered source exact types are one-to-one")
-    }
 }
 
 pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKind {

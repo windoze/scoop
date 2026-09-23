@@ -258,7 +258,13 @@ impl Lowerer {
         // A logical callable signature is itself a HIR -> MIR type use. This
         // includes hidden class-initializer receivers and source result types
         // that a later physical ABI transform may erase or replace.
-        for source in self.source_callables.required_types(module) {
+        // Owned language builtins are required exports even without source uses.
+        for source in self
+            .source_callables
+            .required_types(module)
+            .into_iter()
+            .chain(crate::types::owned_builtin_types(module))
+        {
             Types {
                 module,
                 struct_map: &self.struct_map,

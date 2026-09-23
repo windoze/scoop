@@ -10,6 +10,7 @@ mod core;
 mod dependencies;
 mod private_types;
 mod rejections;
+mod source_contracts;
 mod support;
 
 fn meter() -> BudgetMeter {

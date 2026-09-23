@@ -1,6 +1,7 @@
 use super::*;
 
 mod contracts;
+mod layout_section;
 mod section;
 
 #[test]
@@ -43,7 +44,7 @@ fn ordinary_library_omits_only_source_only_machine_signatures() {
 fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
-    for name in ["standalone", "combined"] {
+    for name in ["base", "standalone", "combined"] {
         let directory = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(directory.path());
         let root = directory.path().join("lib/scoop.core");
@@ -156,14 +157,34 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
             &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} LIR exports: {error}"));
-        assertions::contents(input, &result);
         let mut dump = contracts::check(&hir, &source, input, &result);
+        assertions::contents(input, &result);
+        if name != "base" {
+            assertions::zero_sized_abi(&result);
+        }
         dump.push_str(&assertions::dump(input, &result));
         let snapshot = fixtures.join(format!("{name}.snap"));
         if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
             std::fs::write(&snapshot, &dump).unwrap();
         }
         assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+        let layout_section = layout_section::check(mir_input, input, result);
+        let production = registration
+            .validate_layout_abi(&layout_section, &mut meter())
+            .unwrap();
+        assert_eq!(
+            production.type_registrations().registrations().len(),
+            lir.module().meta.type_descriptors.len()
+        );
+        let objects = scoop_codegen::emit_object_set_v2(
+            &lir,
+            production,
+            directory.path(),
+            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
+                .unwrap(),
+        )
+        .unwrap();
+        layout_section::snapshot(name, &fixtures, &layout_section, &objects);
         section::check(name, &fixtures, mir_input, bridge);
     }
 }

@@ -483,6 +483,13 @@ impl<'a> Concretizer<'a> {
             }
         };
         self.finish_initialization_units();
+        if self.source.cone
+            == scoop_identity::CoreBuiltinNominal::Any
+                .declaration_key()
+                .origin()
+        {
+            self.intern_type(concrete::TypeKind::Any, false);
+        }
         let extra = finish(&self);
         let core_types = match &core_protocols {
             concrete::ConcreteCoreProtocols::Defined(protocols) => {
