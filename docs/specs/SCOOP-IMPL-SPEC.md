@@ -237,6 +237,8 @@ M23-6 的默认参数 profile 在完整 source 正文与参数表生产时按参
 
 默认操作的 nominal shape 查询消费已绑定的完整 nominal 来源表，真实 owner 必须在该 artifact 中存在；不能仅凭共享 graph 能解析某个 id 就借用另一 provider 的声明。查询保留 source nominal kind、直接 owner 自身 arity、struct 字段顺序、enum variant 与字段身份，以及 object value 到 source object 的关系。泛型字段按 owner 的完整实参一次代换，实参中已有的 binder 不再次代换；static nested 的外层 qualifier 不增加 arity。struct 字段按语言 4.1 保持不可变，variant 字段位置来自实际 source 顺序，不从候选字段序号或同形布局推断。普通 struct 构造不得把 intrinsic representation 当作无字段 struct。查询、实参复制、输出集合及逐字段代换共用原预算，空 aggregate 也须计费；这些 shape 仍不授权 receiver、声明访问、generic bound 满足或机器执行。
 
+默认正文中的 nominal 成员调用签名只从同 artifact 已绑定 callable 来源取得，Function、GenericFunction 与 PropertyAccessor 保持各自 typed identity。concrete owner 可由实际声明补出 self type，generic owner 必须显式提供完整应用；所给 owner 必须与声明直接 owner 相等。owner 与 callable 自身实参分别精确核验 arity，按 owner/own 顺序组成一次代换，保留原 execution effect、完整参数和结果；receiver 独立为应用后的 nominal self type，nominal 成员没有 lexical captures，vararg 的 Array 类型保持完整。构造操作先重放实际 Constructor/Variant/ZeroArgumentConstructorAdapter 身份和 owner，再取得已绑定参数协议与来源签名；零参 adapter 只接受原构造器的全部参数均有 default 或空 vararg，不能删除 Required 参数。所有查询、类型拷贝与代换共用预算，错误 provider、缺失来源、错 owner/arity 或无效 adapter 均拒绝。这些查询提供正文操作的来源签名输入，不替代泛型 bound、receiver 兼容性、访问、default body 和 adapter 执行证明。
+
 ### 2.3 MIR
 
 只接收**本Cone**的`LocalConcreteHir`以及由HIR `CrossConeUseSet`选出的**上游Cone MIR meta**（见下）。其输入类型签名不得接受`ExportHir`或未筛选的`.slib`reader结果，负责：

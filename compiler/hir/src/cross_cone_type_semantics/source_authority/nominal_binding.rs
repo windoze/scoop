@@ -18,6 +18,7 @@ mod field_index;
 mod inventory;
 mod keys;
 mod operations;
+pub(super) use operations::Applied;
 pub use operations::*;
 mod replay;
 pub use errors::*;

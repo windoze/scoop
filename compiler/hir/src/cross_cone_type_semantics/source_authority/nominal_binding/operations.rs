@@ -10,7 +10,7 @@ mod errors;
 mod variants;
 pub use errors::DefaultSourceNominalOperationError;
 type Error = DefaultSourceNominalOperationError;
-use applied::Applied;
+pub(in crate::cross_cone_type_semantics::source_authority) use applied::Applied;
 
 /// Nominal value queries only; callable and stored class/property contracts are separate.
 #[derive(Clone, Copy, Debug)]

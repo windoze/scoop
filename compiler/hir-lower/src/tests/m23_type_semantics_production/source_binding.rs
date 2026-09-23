@@ -10,6 +10,7 @@ mod default_access;
 mod default_callable_domain;
 mod default_domains_support;
 mod default_nominal_operations;
+mod default_operation_signatures;
 mod default_operation_types;
 mod default_origins;
 mod default_production;

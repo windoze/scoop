@@ -16,6 +16,11 @@ pub enum DefaultSourceNominalOperationError {
         expected: u32,
         actual: usize,
     },
+    CallableArity {
+        owner: SourceNominalId,
+        expected: u32,
+        actual: usize,
+    },
     StructRepresentation(SourceNominalId),
     VariantOwner {
         variant: PersistentEnumVariantId,
@@ -83,6 +88,14 @@ impl std::fmt::Display for Error {
             } => write!(
                 f,
                 "default operation owner {owner:?} requires {expected} arguments, got {actual}"
+            ),
+            Self::CallableArity {
+                owner,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "default callable under {owner:?} requires {expected} own arguments, got {actual}"
             ),
             Self::StructRepresentation(owner) => write!(
                 f,
