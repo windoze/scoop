@@ -133,29 +133,9 @@ impl CrossConeHirInterfaceSectionV1 {
     {
         let table_path = path.clone().field(3);
         let callables = self.callable_interfaces();
-        let public = callables
-            .records()
-            .iter()
-            .enumerate()
-            .map(|(index, record)| {
-                (
-                    index,
-                    table_path.clone().field(1).index(index as u64).field(1),
-                    record.declaration_data(),
-                )
-            });
-        let support = callables
-            .support_records()
-            .iter()
-            .enumerate()
-            .map(|(index, record)| {
-                (
-                    callables.records().len() + index,
-                    table_path.clone().field(2).index(index as u64),
-                    record,
-                )
-            });
-        for (record_index, record_path, record) in public.chain(support) {
+        for (record_index, (record_path, record)) in
+            callables.wire_declarations(table_path).enumerate()
+        {
             visit_binder_signatures(
                 validator,
                 record.type_parameters(),
@@ -207,19 +187,8 @@ impl CrossConeHirInterfaceSectionV1 {
     {
         let table_path = path.clone().field(4);
         let table = self.property_interfaces();
-        for (record_index, record) in table.all_declarations().enumerate() {
-            let record_path = if record_index < table.records().len() {
-                table_path
-                    .clone()
-                    .field(1)
-                    .index(record_index as u64)
-                    .field(1)
-            } else {
-                table_path
-                    .clone()
-                    .field(2)
-                    .index((record_index - table.records().len()) as u64)
-            };
+        for (record_index, (record_path, record)) in table.wire_declarations(table_path).enumerate()
+        {
             visit_binder_signatures(
                 validator,
                 record.type_parameters(),

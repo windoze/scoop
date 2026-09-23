@@ -101,8 +101,10 @@ fn collect_callables<A, E>(
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
-    for (wire_index, record) in (0_u64..).zip(input.callable_interfaces.records()) {
-        let path = WirePath::root().field(3).index(wire_index);
+    for (path, record) in input
+        .callable_interfaces
+        .wire_declarations(WirePath::root().field(3))
+    {
         collect_binders(
             record.type_parameters(),
             accumulator,
@@ -138,8 +140,10 @@ fn collect_properties<A, E>(
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
-    for (wire_index, record) in (0_u64..).zip(input.property_interfaces.records()) {
-        let path = WirePath::root().field(4).index(wire_index);
+    for (path, record) in input
+        .property_interfaces
+        .wire_declarations(WirePath::root().field(4))
+    {
         collect_binders(
             record.type_parameters(),
             accumulator,

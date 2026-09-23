@@ -15,6 +15,7 @@ mod compile_view_pairing;
 mod cross_cone;
 mod layout_exports;
 mod publication;
+mod setter_domains;
 mod shape_materialization;
 mod shared_nominal_declarations;
 mod source_only_nominals;

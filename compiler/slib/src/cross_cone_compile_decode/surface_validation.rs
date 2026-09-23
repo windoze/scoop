@@ -401,6 +401,9 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
         authority
             .validate_support_callable_origins()
             .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
+        authority
+            .validate_property_setter_domains()
+            .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
         Ok(CallableValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,

@@ -79,6 +79,28 @@ impl CanonicalCallableInterfacesV1 {
             .map(CallableInterfaceRecordV1::declaration_data)
             .chain(&self.support)
     }
+    pub(crate) fn wire_declarations(
+        &self,
+        path: scoop_wire::WirePath,
+    ) -> impl Iterator<Item = (scoop_wire::WirePath, &CallableDeclarationRecordV1)> {
+        let public = path.clone().field(1);
+        let support = path.field(2);
+        self.records
+            .iter()
+            .enumerate()
+            .map(move |(index, record)| {
+                (
+                    public.clone().index(index as u64).field(1),
+                    record.declaration_data(),
+                )
+            })
+            .chain(
+                self.support
+                    .iter()
+                    .enumerate()
+                    .map(move |(index, record)| (support.clone().index(index as u64), record)),
+            )
+    }
     pub fn declaration_count(&self) -> usize {
         self.records.len() + self.support.len()
     }

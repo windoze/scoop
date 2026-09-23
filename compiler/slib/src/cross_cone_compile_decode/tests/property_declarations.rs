@@ -6,6 +6,7 @@ use scoop_hir::{
     PropertyDeclarationRecordV1,
 };
 
+mod domains;
 mod support;
 use support::Fixture;
 

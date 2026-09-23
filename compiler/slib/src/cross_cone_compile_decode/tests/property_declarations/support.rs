@@ -1,5 +1,7 @@
 use super::*;
 
+mod domains;
+
 pub(super) struct Fixture {
     foundation: CanonicalHirFoundation,
     nominal: NominalInterfaceRecordV1,

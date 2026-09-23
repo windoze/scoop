@@ -1,0 +1,4 @@
+public class InvalidOwner {
+    protected var invalid: Int = 0
+        internal set(value) { field = value }
+}
