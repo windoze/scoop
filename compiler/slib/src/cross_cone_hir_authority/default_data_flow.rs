@@ -63,10 +63,10 @@ impl DefaultStructFields {
         let mut count = 0;
         for interface in interfaces.clone() {
             meter.charge_work(
-                interface.nominal_interfaces().records().len() as u64 * 2,
+                interface.nominal_interfaces().declaration_count() as u64 * 2,
                 path,
             )?;
-            for record in interface.nominal_interfaces().records() {
+            for record in interface.nominal_interfaces().all_records() {
                 if let NominalSourceShapeV1::Struct(shape) = record.source_shape() {
                     count += shape.fields().len() as u64;
                     meter.check_table_entries(count, path)?;
@@ -77,7 +77,7 @@ impl DefaultStructFields {
         let mut fields = Vec::new();
         meter.try_reserve_collection_slots(&mut fields, count as usize, path)?;
         for interface in interfaces {
-            for record in interface.nominal_interfaces().records() {
+            for record in interface.nominal_interfaces().all_records() {
                 let NominalSourceShapeV1::Struct(shape) = record.source_shape() else {
                     continue;
                 };

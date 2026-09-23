@@ -15,11 +15,16 @@ use super::{
 };
 use crate::BinderListValidationError;
 
+mod declaration;
 mod errors;
 mod field_inventory;
 mod semantics;
 mod table;
 
+pub use declaration::{
+    DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError,
+    NominalDeclarationDetailsV1, NominalDeclarationInventoryError,
+};
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
 pub use field_inventory::NominalSourceFieldInventoryError;
 pub use semantics::{
@@ -42,6 +47,7 @@ pub struct NominalInterfaceRecordV1 {
     members: CanonicalPublicMemberRefsV1,
     nested_bindings: CanonicalPersistentIdsV1<PersistentExportBindingId>,
     source_shape: NominalSourceShapeV1,
+    details: NominalDeclarationDetailsV1,
 }
 
 impl NominalInterfaceRecordV1 {
@@ -55,6 +61,7 @@ impl NominalInterfaceRecordV1 {
         members: CanonicalPublicMemberRefsV1,
         nested_bindings: CanonicalPersistentIdsV1<PersistentExportBindingId>,
         source_shape: NominalSourceShapeV1,
+        details: NominalDeclarationDetailsV1,
     ) -> Result<Self, NominalInterfaceRecordBuildError> {
         if source_shape.kind() != kind {
             return Err(NominalInterfaceRecordBuildError::SourceShapeKind {
@@ -78,6 +85,7 @@ impl NominalInterfaceRecordV1 {
             ));
         }
         validate_member_partition(&members)?;
+        details.validate(kind, &constructors, &members)?;
         Ok(Self {
             declaration,
             kind,
@@ -87,6 +95,7 @@ impl NominalInterfaceRecordV1 {
             members,
             nested_bindings,
             source_shape,
+            details,
         })
     }
 
@@ -125,7 +134,7 @@ impl NominalInterfaceRecordV1 {
 
 impl WireEncode for NominalInterfaceRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -141,125 +150,14 @@ impl WireEncode for NominalInterfaceRecordV1 {
         encoder.field(7)?;
         self.nested_bindings.encode(encoder)?;
         encoder.field(8)?;
-        self.source_shape.encode(encoder)
+        self.source_shape.encode(encoder)?;
+        encoder.field(9)?;
+        self.details.encode(encoder)
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedNominalInterfaceRecordV1 {
-    declaration: DecodedSourceNominalId,
-    kind: PublicNominalKindV1,
-    type_parameters: DecodedCanonicalBinderListV1,
-    exact_supertypes: DecodedCanonicalSignatureTypesV1,
-    constructors: DecodedCanonicalPersistentIdsV1<PersistentConstructorId>,
-    members: DecodedCanonicalPublicMemberRefsV1,
-    nested_bindings: DecodedCanonicalPersistentIdsV1<PersistentExportBindingId>,
-    source_shape: DecodedNominalSourceShapeV1,
-}
-
-impl DecodedNominalInterfaceRecordV1 {
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceRecordResolutionError<E>>
-    where
-        R: NominalInterfaceRecordResolver<E>,
-    {
-        let declaration = self
-            .declaration
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::Declaration)?;
-        let type_parameters = self
-            .type_parameters
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::TypeParameters)?;
-        let exact_supertypes = self
-            .exact_supertypes
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::ExactSupertypes)?;
-        let constructors = self
-            .constructors
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::Constructors)?;
-        let members = self
-            .members
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::Members)?;
-        let nested_bindings = self
-            .nested_bindings
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::NestedBindings)?;
-        let source_shape = self
-            .source_shape
-            .resolve(resolver)
-            .map_err(NominalInterfaceRecordResolutionError::SourceShape)?;
-        NominalInterfaceRecordV1::try_new(
-            declaration,
-            self.kind,
-            type_parameters,
-            exact_supertypes,
-            constructors,
-            members,
-            nested_bindings,
-            source_shape,
-        )
-        .map_err(NominalInterfaceRecordResolutionError::Record)
-    }
-}
-
-impl WireEncode for DecodedNominalInterfaceRecordV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
-        encoder.field(1)?;
-        self.declaration.encode(encoder)?;
-        encoder.field(2)?;
-        self.kind.encode(encoder)?;
-        encoder.field(3)?;
-        self.type_parameters.encode(encoder)?;
-        encoder.field(4)?;
-        self.exact_supertypes.encode(encoder)?;
-        encoder.field(5)?;
-        self.constructors.encode(encoder)?;
-        encoder.field(6)?;
-        self.members.encode(encoder)?;
-        encoder.field(7)?;
-        self.nested_bindings.encode(encoder)?;
-        encoder.field(8)?;
-        self.source_shape.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedNominalInterfaceRecordV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(8)?;
-        Ok(Self {
-            declaration: decoder.field(1, DecodedSourceNominalId::decode)?,
-            kind: decoder.field(2, PublicNominalKindV1::decode)?,
-            type_parameters: decoder.field(3, DecodedCanonicalBinderListV1::decode)?,
-            exact_supertypes: decoder.field(4, DecodedCanonicalSignatureTypesV1::decode)?,
-            constructors: decoder.field(5, DecodedCanonicalPersistentIdsV1::decode)?,
-            members: decoder.field(6, DecodedCanonicalPublicMemberRefsV1::decode)?,
-            nested_bindings: decoder.field(7, DecodedCanonicalPersistentIdsV1::decode)?,
-            source_shape: decoder.field(8, DecodedNominalSourceShapeV1::decode)?,
-        })
-    }
-}
-
-pub trait NominalInterfaceRecordResolver<E>:
-    SourceNominalIdResolver<E>
-    + PublicMemberRefResolver<E>
-    + NominalSourceShapeResolver<E>
-    + PersistentIdResolver<PersistentExportBindingId, Error = E>
-{
-}
-
-impl<R, E> NominalInterfaceRecordResolver<E> for R where
-    R: SourceNominalIdResolver<E>
-        + PublicMemberRefResolver<E>
-        + NominalSourceShapeResolver<E>
-        + PersistentIdResolver<PersistentExportBindingId, Error = E>
-{
-}
+mod decode;
+pub use decode::{DecodedNominalInterfaceRecordV1, NominalInterfaceRecordResolver};
 
 fn validate_member_partition(
     members: &CanonicalPublicMemberRefsV1,

@@ -167,3 +167,6 @@ pub use source_interfaces::*;
 
 mod dump;
 pub use dump::{dump, dump_module, dump_pattern};
+
+#[cfg(test)]
+mod nominal_interface_fixture;

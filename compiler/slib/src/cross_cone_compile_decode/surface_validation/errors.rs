@@ -31,7 +31,9 @@ impl std::error::Error for CrossConeHirInternalClosureError {
 
 #[derive(Debug)]
 pub enum CrossConeHirNominalSurfaceError {
+    Declarations(CrossConeHirNominalAuthorityError),
     Fields(scoop_hir::NominalSourceFieldInventoryError),
+    Relations(scoop_hir::NominalDeclarationInventoryError),
     NominalInterfaces(
         Box<NominalInterfaceSetSemanticValidationError<CrossConeHirNominalAuthorityError>>,
     ),
@@ -82,16 +84,20 @@ macro_rules! impl_surface_error {
 impl std::fmt::Display for CrossConeHirNominalSurfaceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Declarations(error) => error.fmt(f),
             Self::NominalInterfaces(error) => error.fmt(f),
             Self::Fields(error) => error.fmt(f),
+            Self::Relations(error) => error.fmt(f),
         }
     }
 }
 impl std::error::Error for CrossConeHirNominalSurfaceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Declarations(error) => Some(error),
             Self::NominalInterfaces(error) => Some(error.as_ref()),
             Self::Fields(error) => Some(error),
+            Self::Relations(error) => Some(error),
         }
     }
 }

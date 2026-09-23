@@ -46,7 +46,17 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         {
             return Ok(PublicNominalShapeV1::new(expected_kind, expected_arity));
         }
-        let record = Self::checked_nominal_record(interface, declaration, &key)?;
+        let record = if self.include_nominal_support && origin == self.current {
+            interface
+                .nominal_interfaces()
+                .declaration(declaration)
+                .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
+                    origin,
+                    declaration,
+                })?
+        } else {
+            Self::checked_nominal_record(interface, declaration, &key)?
+        };
         Ok(PublicNominalShapeV1::new(
             record.kind(),
             record.type_parameters().len_u32(),

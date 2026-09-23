@@ -27,11 +27,11 @@ use crate::{
     CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, EnumSourceFieldV1,
     EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1, ExportDefinitionSourceV1,
     ExternalHirReferenceRoleV1, ExternalHirReferenceSemanticAuthority, ExternalHirReferenceV1,
-    ExternalHirTargetV1, NominalInterfaceRecordV1, NominalSourceFieldV1, NominalSourceShapeV1,
-    NominalTypeParameterBoundsV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
-    PropertyRepresentationV1, PublicDeclarationOwnerV1, PublicExportBindingClosureAuthority,
-    PublicLookupAccessV1, PublicNominalKindV1, SourceParameterShapeV1, StructSourceShapeV1,
-    TypeParameterBinderV1, TypeParameterBoundLocation, TypeParameterBoundsV1,
+    ExternalHirTargetV1, NominalSourceFieldV1, NominalSourceShapeV1, NominalTypeParameterBoundsV1,
+    PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
+    PublicDeclarationOwnerV1, PublicExportBindingClosureAuthority, PublicLookupAccessV1,
+    PublicNominalKindV1, SourceParameterShapeV1, StructSourceShapeV1, TypeParameterBinderV1,
+    TypeParameterBoundLocation, TypeParameterBoundsV1,
 };
 
 #[test]
@@ -485,7 +485,7 @@ fn nominal_interfaces(
         &FieldIdentityKey::source_declared(&structure_key, identifier("value")).unwrap(),
     )
     .unwrap();
-    let structure_record = NominalInterfaceRecordV1::try_new(
+    let structure_record = crate::nominal_interface_fixture::public_record(
         structure,
         PublicNominalKindV1::Struct,
         binder_list(
@@ -538,7 +538,7 @@ fn nominal_interfaces(
         },
     ))
     .unwrap();
-    let enumeration_record = NominalInterfaceRecordV1::try_new(
+    let enumeration_record = crate::nominal_interface_fixture::public_record(
         enumeration,
         PublicNominalKindV1::Enum,
         empty_binders(),

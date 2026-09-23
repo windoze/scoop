@@ -276,7 +276,7 @@ impl ConstSurface {
             .set_property_accessors(vec![getter.clone()])
             .unwrap();
 
-        let nominal_interface = NominalInterfaceRecordV1::try_new(
+        let nominal_interface = crate::nominal_interface_fixture::public_record(
             SourceNominalId::Concrete(value_type.id()),
             PublicNominalKindV1::Struct,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

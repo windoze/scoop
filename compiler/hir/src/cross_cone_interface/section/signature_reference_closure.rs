@@ -47,10 +47,10 @@ impl CrossConeHirInterfaceSectionV1 {
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
         let table_path = path.clone().field(2);
-        for (wire_index, (record_index, record)) in
-            (0_u64..).zip(self.nominal_interfaces().records().iter().enumerate())
+        for (record_index, (partition, wire_index, record)) in
+            self.nominal_interfaces().wire_records().enumerate()
         {
-            let record_path = table_path.clone().index(wire_index);
+            let record_path = table_path.clone().field(partition).index(wire_index as u64);
             visit_binder_signatures(
                 validator,
                 record.type_parameters(),

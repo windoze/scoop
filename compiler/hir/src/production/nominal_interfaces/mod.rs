@@ -1,6 +1,6 @@
 //! Projection of the complete public HIR nominal surface.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use scoop_identity::{DefinitionOwnerAtom, NominalDeclarationOwner};
 
@@ -27,6 +27,7 @@ pub use errors::{
 
 struct NominalProjection<'a> {
     export: &'a ExportHir,
+    declarations: &'a BTreeMap<crate::SourceNominalId, NominalInterfaceRecordV1>,
     signatures: HirInterfaceSignatureProjector<'a>,
     public_functions: HashSet<crate::FunctionId>,
     public_properties: HashSet<crate::PropertyId>,
@@ -47,7 +48,24 @@ impl CanonicalNominalInterfacesV1 {
     /// surface. Member and nested relations remain attached to their typed
     /// source owner instead of being recovered from names.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, NominalInterfaceBuildError> {
-        let projection = NominalProjection::new(export);
+        Self::from_export_hir_with_budget(
+            export,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
+    }
+
+    pub fn from_export_hir_with_budget(
+        export: &ExportHir,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<Self, NominalInterfaceBuildError> {
+        let declarations =
+            source_contracts::project_declarations(export, meter).map_err(|error| match error {
+                crate::CrossConeTypeSemanticsProductionError::SourceInventory(
+                    crate::SourceInventoryError::Resource(error),
+                ) => NominalInterfaceBuildError::Resource(error),
+                other => NominalInterfaceBuildError::Declarations(other.to_string()),
+            })?;
+        let projection = NominalProjection::new(export, &declarations);
         let mut records = Vec::with_capacity(
             export.public_surface.classes.len()
                 + export.public_surface.interfaces.len()
@@ -70,14 +88,26 @@ impl CanonicalNominalInterfacesV1 {
         for &id in &export.public_surface.objects {
             records.push(projection.project_object(id)?);
         }
-        Self::try_new(records).map_err(NominalInterfaceBuildError::Table)
+        let public = records
+            .iter()
+            .map(NominalInterfaceRecordV1::declaration)
+            .collect::<HashSet<_>>();
+        let support = declarations
+            .into_iter()
+            .filter_map(|(owner, record)| (!public.contains(&owner)).then_some(record))
+            .collect();
+        Self::with_support(records, support).map_err(NominalInterfaceBuildError::Table)
     }
 }
 
 impl<'a> NominalProjection<'a> {
-    fn new(export: &'a ExportHir) -> Self {
+    fn new(
+        export: &'a ExportHir,
+        declarations: &'a BTreeMap<crate::SourceNominalId, NominalInterfaceRecordV1>,
+    ) -> Self {
         Self {
             export,
+            declarations,
             signatures: HirInterfaceSignatureProjector::new(export),
             public_functions: export.public_surface.functions.iter().copied().collect(),
             public_properties: export.public_surface.properties.iter().copied().collect(),
@@ -295,6 +325,16 @@ impl<'a> NominalProjection<'a> {
         source_shape: crate::NominalSourceShapeV1,
     ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
         let nested_bindings = nested_bindings::project(self, local, header.declaration)?;
+        let details = self
+            .declarations
+            .get(&header.declaration)
+            .ok_or_else(|| {
+                NominalInterfaceBuildError::Declarations(
+                    "public nominal has no shared declaration".into(),
+                )
+            })?
+            .declaration_details()
+            .clone();
         NominalInterfaceRecordV1::try_new(
             header.declaration,
             local.kind(),
@@ -304,6 +344,7 @@ impl<'a> NominalProjection<'a> {
             members,
             nested_bindings,
             source_shape,
+            details,
         )
         .map_err(|source| NominalInterfaceBuildError::Record {
             declaration: header.declaration,

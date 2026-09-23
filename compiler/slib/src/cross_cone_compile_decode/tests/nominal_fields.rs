@@ -26,6 +26,7 @@ fn ordinary_reader_rejects_missing_source_fields_after_canonical_bytes_are_resto
             StructSourceShapeV1::try_new(vec![], scoop_hir::NominalCLayoutPolicyV1::Ordinary)
                 .unwrap(),
         ),
+        nominal.declaration_details().clone(),
     )
     .unwrap();
     let mut corrupt = CrossConeHirInterfaceSectionV1::new(
@@ -53,7 +54,7 @@ fn ordinary_reader_rejects_missing_source_fields_after_canonical_bytes_are_resto
     assert!(error.to_string().contains("omits declared field"));
 }
 
-fn front(bytes: &[u8]) -> crate::DefinitionSourceValidatedCrossConeHirFrontSections<'_> {
+pub(super) fn front(bytes: &[u8]) -> crate::DefinitionSourceValidatedCrossConeHirFrontSections<'_> {
     let mut decoded = open_graph(bytes)
         .decode_cross_cone_hir_front_sections()
         .unwrap();

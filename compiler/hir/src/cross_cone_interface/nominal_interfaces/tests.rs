@@ -8,6 +8,7 @@ use crate::{
     StructSourceShapeV1,
 };
 
+mod declaration;
 mod support;
 
 use support::*;
@@ -17,7 +18,7 @@ fn nominal_record_has_fixed_field_wire_and_accessors() {
     let fixture = Fixture::new();
     let record = fixture.record();
     let expected = [
-        b"\xa8\x01".as_slice(),
+        b"\xa9\x01".as_slice(),
         encode(&record.declaration()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.kind()).unwrap().as_slice(),
@@ -33,6 +34,8 @@ fn nominal_record_has_fixed_field_wire_and_accessors() {
         encode(record.nested_bindings()).unwrap().as_slice(),
         b"\x08".as_slice(),
         encode(record.source_shape()).unwrap().as_slice(),
+        b"\x09".as_slice(),
+        encode(record.declaration_details()).unwrap().as_slice(),
     ]
     .concat();
 
@@ -51,6 +54,17 @@ fn nominal_record_has_fixed_field_wire_and_accessors() {
         &[fixture.nested_binding.id()]
     );
     assert_eq!(record.source_shape().kind(), PublicNominalKindV1::Struct);
+    let details = record.declaration_details();
+    assert_eq!(
+        details.modality(),
+        crate::NominalInheritanceModalityV1::Final
+    );
+    assert_eq!(
+        details.declared_visibility(),
+        crate::DeclaredVisibilityV1::Public
+    );
+    assert_eq!(details.constructors(), record.constructors());
+    assert_eq!(details.members().values().len(), 2);
 }
 
 #[test]
@@ -81,7 +95,7 @@ fn producer_rejects_shape_kind_and_member_partition_violations() {
     );
 
     assert_eq!(
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             scoop_identity::NominalDeclarationOwner::GenericTemplate(fixture.owner.id()),
             PublicNominalKindV1::Interface,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -181,7 +195,7 @@ fn reader_requires_the_exact_record_map_shape() {
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 8,
+            expected: 9,
             actual: 0,
         }
     ));
@@ -193,7 +207,7 @@ fn minimal_record(
     members: CanonicalPublicMemberRefsV1,
     source_shape: NominalSourceShapeV1,
 ) -> Result<NominalInterfaceRecordV1, NominalInterfaceRecordBuildError> {
-    NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         scoop_identity::NominalDeclarationOwner::GenericTemplate(fixture.owner.id()),
         kind,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

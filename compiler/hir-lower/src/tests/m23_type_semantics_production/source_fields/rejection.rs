@@ -5,7 +5,7 @@ fn replace_fields(
     owner: hir::SourceNominalId,
     fields: Vec<hir::NominalSourceFieldV1>,
 ) -> hir::CanonicalNominalInterfacesV1 {
-    hir::CanonicalNominalInterfacesV1::try_new(
+    hir::CanonicalNominalInterfacesV1::with_support(
         table
             .records()
             .iter()
@@ -24,10 +24,12 @@ fn replace_fields(
                     hir::NominalSourceShapeV1::Class(
                         hir::NominalSourceFieldsV1::try_new(fields.clone()).unwrap(),
                     ),
+                    record.declaration_details().clone(),
                 )
                 .unwrap()
             })
             .collect(),
+        table.support_records().to_vec(),
     )
     .unwrap()
 }

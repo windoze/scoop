@@ -14,12 +14,34 @@ impl CanonicalSourceNominalIdsV1 {
         output: &ExportHirOutput,
         meter: &mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let export = output.module();
+        Self::from_module(output.module(), meter)
+    }
+
+    pub(in crate::production) fn from_module(
+        export: &ExportHir,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        Self::collect_module(export, false, meter)
+    }
+
+    pub(in crate::production::nominal_interfaces) fn from_complete_module(
+        export: &ExportHir,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
+        Self::collect_module(export, true, meter)
+    }
+
+    fn collect_module(
+        export: &ExportHir,
+        complete_children: bool,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, Error> {
         meter
             .check_semantic_depth(1, &WirePath::root())
             .map_err(resource)?;
         let index = Index::new(export, meter)?;
         let mut roots = Roots {
+            complete_children,
             required: BTreeMap::new(),
             pending: Vec::new(),
             field_types: BTreeSet::new(),
@@ -82,6 +104,7 @@ impl CanonicalSourceNominalIdsV1 {
 }
 
 struct Roots<'m> {
+    complete_children: bool,
     // A complete root recursively owns all lexical children, including private
     // support. A normal inheritance root only introduces protected children.
     required: BTreeMap<SourceNominalId, bool>,
@@ -91,6 +114,7 @@ struct Roots<'m> {
 }
 impl Roots<'_> {
     fn require(&mut self, owner: SourceNominalId, complete: bool) -> Result<(), Error> {
+        let complete = complete || self.complete_children;
         work(self.meter, self.required.len())?;
         let previous = self.required.get(&owner).copied();
         if previous.is_some_and(|already_complete| already_complete || !complete) {

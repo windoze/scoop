@@ -75,7 +75,7 @@ pub(super) fn nominal(provider: ConeIdentity, arity: u32) -> Nominal {
         NominalCLayoutPolicyV1::Ordinary,
     )
     .unwrap();
-    let record = NominalInterfaceRecordV1::try_new(
+    let record = crate::nominal_interface_fixture::public_record(
         owner,
         PublicNominalKindV1::Struct,
         CanonicalBinderListV1::try_new(

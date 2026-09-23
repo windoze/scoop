@@ -10,6 +10,12 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
+    Modality {
+        kind: PublicNominalKindV1,
+        modality: crate::NominalInheritanceModalityV1,
+    },
+    UndeclaredConstructor(PersistentConstructorId),
+    UndeclaredMember(crate::PublicMemberRefV1),
     IntrinsicBinders(crate::NominalIntrinsicBinderError),
     SourceShapeKind {
         expected: PublicNominalKindV1,
@@ -23,6 +29,18 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Modality { kind, modality } => write!(
+                formatter,
+                "{modality:?} is not a valid modality for {kind:?}"
+            ),
+            Self::UndeclaredConstructor(id) => write!(
+                formatter,
+                "public constructor {id} is absent from the declaration"
+            ),
+            Self::UndeclaredMember(id) => write!(
+                formatter,
+                "public member {id:?} is absent from the declaration"
+            ),
             Self::IntrinsicBinders(error) => error.fmt(formatter),
             Self::SourceShapeKind { expected, actual } => write!(
                 formatter,
@@ -47,6 +65,7 @@ impl std::error::Error for NominalInterfaceRecordBuildError {}
 
 #[derive(Debug)]
 pub enum NominalInterfaceRecordResolutionError<E> {
+    DeclarationDetails(super::NominalDeclarationDetailsResolutionError<E>),
     Declaration(E),
     TypeParameters(BinderListValidationError<E>),
     ExactSupertypes(SignatureTypeSetValidationError<E>),
@@ -60,6 +79,9 @@ pub enum NominalInterfaceRecordResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for NominalInterfaceRecordResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DeclarationDetails(error) => {
+                write!(formatter, "invalid nominal declaration details: {error}")
+            }
             Self::Declaration(error) => write!(formatter, "invalid nominal declaration: {error}"),
             Self::TypeParameters(error) => {
                 write!(formatter, "invalid nominal type parameters: {error}")

@@ -128,7 +128,7 @@ fn record(
     shape: NominalSourceShapeV1,
     binders: CanonicalBinderListV1,
 ) -> NominalInterfaceRecordV1 {
-    NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         owner,
         shape.kind(),
         binders,

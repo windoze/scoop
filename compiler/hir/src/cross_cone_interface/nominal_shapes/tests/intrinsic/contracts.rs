@@ -93,7 +93,7 @@ fn public_record(
     kind: PublicNominalKindV1,
     binders: CanonicalBinderListV1,
 ) -> Result<NominalInterfaceRecordV1, NominalInterfaceRecordBuildError> {
-    NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         owner(family),
         kind,
         binders,

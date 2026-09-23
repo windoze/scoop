@@ -12,10 +12,12 @@ pub enum DecodedNestedSourceMemberRefV1 {
     Property(DecodedPersistentId<PersistentPropertyId>),
 }
 impl DecodedNestedSourceMemberRefV1 {
-    pub fn resolve<R: NestedSourceInterfaceResolver<E>, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<NestedSourceMemberRefV1, E> {
+    pub fn resolve<R, E>(self, resolver: &mut R) -> Result<NestedSourceMemberRefV1, E>
+    where
+        R: PersistentIdResolver<PersistentFunctionId, Error = E>
+            + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
+            + PersistentIdResolver<PersistentPropertyId, Error = E>,
+    {
         Ok(match self {
             Self::Function(id) => NestedSourceMemberRefV1::Function(resolver.resolve(id)?),
             Self::GenericFunction(id) => {

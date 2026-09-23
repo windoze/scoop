@@ -88,7 +88,7 @@ fn nominal(declaration: crate::SourceNominalId) -> crate::NominalInterfaceRecord
             crate::TypeParameterBoundsV1::Unconstrained,
         )],
     };
-    crate::NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         declaration,
         crate::PublicNominalKindV1::Struct,
         CanonicalBinderListV1::try_new(binders).unwrap(),

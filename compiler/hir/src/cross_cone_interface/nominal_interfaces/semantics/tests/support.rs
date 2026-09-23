@@ -138,7 +138,7 @@ impl Fixture {
         exact_supertypes: CanonicalSignatureTypesV1,
         source_shape: NominalSourceShapeV1,
     ) -> NominalInterfaceRecordV1 {
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             self.owner,
             kind,
             type_parameters,
@@ -155,7 +155,7 @@ impl Fixture {
         &self,
         exact_supertypes: CanonicalSignatureTypesV1,
     ) -> NominalInterfaceRecordV1 {
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             self.struct_owner,
             PublicNominalKindV1::Struct,
             empty_binders(),
@@ -285,6 +285,14 @@ impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for TestAuthority {
 }
 
 impl NominalInterfaceSemanticAuthority<TestAuthorityError> for TestAuthority {
+    fn validate_nominal_declaration(
+        &mut self,
+        declaration: &crate::NominalInterfaceRecordV1,
+    ) -> Result<(), TestAuthorityError> {
+        self.nominal_declaration_key(declaration.declaration())
+            .map(|_| ())
+    }
+
     fn nominal_declaration_key(
         &mut self,
         declaration: SourceNominalId,
@@ -372,7 +380,7 @@ pub(super) fn generic_object_record() -> (
     );
     let value_key = nominal("ObjectValue", SourceNominalKind::Object, 0);
     let value = PersistentObjectValueId::from_source_object(&value_key).unwrap();
-    let record = NominalInterfaceRecordV1::try_new(
+    let record = crate::nominal_interface_fixture::public_record(
         declaration,
         PublicNominalKindV1::Object,
         binders(),

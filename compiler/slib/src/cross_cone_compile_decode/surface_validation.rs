@@ -244,6 +244,13 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
                 graph.envelope.meter_mut(),
             )
             .map_err(CrossConeHirNominalSurfaceError::Fields)?;
+        hir_interface
+            .nominal_interfaces()
+            .validate_declared_relation_inventory(
+                foundations.hir.as_canonical(),
+                graph.envelope.meter_mut(),
+            )
+            .map_err(CrossConeHirNominalSurfaceError::Relations)?;
         let mut authority = CanonicalCrossConeHirSurfaceAuthority::new(
             graph.identity(),
             &identities,
@@ -256,6 +263,14 @@ impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
             .nominal_interfaces()
             .validate_semantics(&mut authority)
             .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
+        let mut authority = authority.for_source_declarations();
+        hir_interface
+            .nominal_interfaces()
+            .validate_support_semantics(&mut authority)
+            .map_err(|error| CrossConeHirNominalSurfaceError::NominalInterfaces(Box::new(error)))?;
+        authority
+            .validate_shared_nominal_inventory()
+            .map_err(CrossConeHirNominalSurfaceError::Declarations)?;
         Ok(NominalValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,

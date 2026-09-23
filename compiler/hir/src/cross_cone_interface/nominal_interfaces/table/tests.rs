@@ -1,3 +1,5 @@
+mod partitions;
+
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionOwnerChain,
     NominalDeclarationOwner, PackagePath, PersistentTypeId, SourceDeclarationKey,
@@ -33,9 +35,10 @@ fn producer_sorts_records_rejects_duplicates_and_has_stable_wire() {
     );
 
     let expected = [
-        b"\x82".as_slice(),
+        b"\xa2\x01\x82".as_slice(),
         encode(&interfaces.records()[0]).unwrap().as_slice(),
         encode(&interfaces.records()[1]).unwrap().as_slice(),
+        b"\x02\x80".as_slice(),
     ]
     .concat();
     assert_eq!(encode(&interfaces).unwrap(), expected);
@@ -107,7 +110,7 @@ fn fixture(name: &str) -> Fixture {
         0,
     );
     let identity = CborIdentityRecord::from_key(key).unwrap();
-    let record = NominalInterfaceRecordV1::try_new(
+    let record = crate::nominal_interface_fixture::public_record(
         NominalDeclarationOwner::Concrete(identity.id()),
         PublicNominalKindV1::Class,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -141,10 +144,13 @@ struct RecordSequence(Vec<NominalInterfaceRecordV1>);
 
 impl WireEncode for RecordSequence {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
         encoder.array(self.0.len() as u64)?;
         for record in &self.0 {
             record.encode(encoder)?;
         }
-        Ok(())
+        encoder.field(2)?;
+        encoder.array(0)
     }
 }

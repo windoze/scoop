@@ -9,6 +9,7 @@ mod default_data_flow;
 mod definition_source;
 mod errors;
 mod intrinsics;
+mod nominal_declarations;
 mod nominal_intrinsics;
 mod nominals;
 mod property;
@@ -62,6 +63,7 @@ pub(crate) struct CanonicalCrossConeHirSurfaceAuthority<'a> {
     current_interface: &'a CrossConeHirInterfaceSectionV1,
     dependencies: Vec<ValidatedNominalProviderView<'a>>,
     meter: &'a mut scoop_wire::BudgetMeter,
+    include_nominal_support: bool,
 }
 
 impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
@@ -80,7 +82,13 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
             current_interface,
             dependencies,
             meter,
+            include_nominal_support: false,
         }
+    }
+
+    pub(crate) fn for_source_declarations(mut self) -> Self {
+        self.include_nominal_support = true;
+        self
     }
 
     fn require_current(
@@ -392,6 +400,13 @@ impl NominalSourceShapeSemanticAuthority<CrossConeHirNominalAuthorityError>
 impl NominalInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
     for CanonicalCrossConeHirSurfaceAuthority<'_>
 {
+    fn validate_nominal_declaration(
+        &mut self,
+        declaration: &scoop_hir::NominalInterfaceRecordV1,
+    ) -> Result<(), CrossConeHirNominalAuthorityError> {
+        self.validate_shared_nominal_declaration(declaration)
+    }
+
     fn nominal_declaration_key(
         &mut self,
         declaration: SourceNominalId,

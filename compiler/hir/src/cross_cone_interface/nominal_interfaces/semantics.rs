@@ -14,6 +14,11 @@ pub use errors::{ExactSupertypeSemanticError, NominalInterfaceSemanticValidation
 /// interface. Every returned fact must be derived from the canonical key of
 /// the exact typed id passed to the method.
 pub trait NominalInterfaceSemanticAuthority<E>: NominalSourceShapeSemanticAuthority<E> {
+    fn validate_nominal_declaration(
+        &mut self,
+        declaration: &NominalInterfaceRecordV1,
+    ) -> Result<(), E>;
+
     fn nominal_declaration_key(
         &mut self,
         declaration: SourceNominalId,
@@ -41,6 +46,9 @@ impl NominalInterfaceRecordV1 {
         A: NominalInterfaceSemanticAuthority<E>,
     {
         self.validate_declaration(authority)?;
+        authority
+            .validate_nominal_declaration(self)
+            .map_err(NominalInterfaceSemanticValidationError::Declaration)?;
         self.type_parameters
             .validate_bound_semantics(None, authority)
             .map_err(NominalInterfaceSemanticValidationError::TypeParameters)?;

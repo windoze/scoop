@@ -82,7 +82,7 @@ impl Fixture {
     }
 
     pub(super) fn record(&self) -> NominalInterfaceRecordV1 {
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             NominalDeclarationOwner::GenericTemplate(self.owner.id()),
             PublicNominalKindV1::Struct,
             CanonicalBinderListV1::try_new(vec![TypeParameterBinderV1::new(

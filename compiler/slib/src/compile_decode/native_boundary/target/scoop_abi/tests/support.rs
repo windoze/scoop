@@ -71,7 +71,7 @@ impl Fixture {
                 use scoop_hir::*;
                 let source_shape = NominalSourceShapeV1::Intrinsic(*representation);
                 CanonicalNominalInterfacesV1::try_new(vec![
-                    NominalInterfaceRecordV1::try_new(
+                    crate::nominal_interface_fixture::public_record(
                         SourceNominalId::Concrete(
                             PersistentTypeId::from_source_declaration(&source).unwrap(),
                         ),

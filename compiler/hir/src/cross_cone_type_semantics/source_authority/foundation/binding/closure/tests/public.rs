@@ -2,7 +2,7 @@ use super::*;
 
 fn table(owner: PersistentTypeId, shape: NominalSourceShapeV1) -> CanonicalNominalInterfacesV1 {
     CanonicalNominalInterfacesV1::try_new(vec![
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             SourceNominalId::Concrete(owner),
             shape.kind(),
             CanonicalBinderListV1::try_new(vec![]).unwrap(),

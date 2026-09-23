@@ -69,7 +69,7 @@ pub(super) fn set_shape(fixture: &mut ProviderFixture, shape: NominalSourceShape
             )
         })
         .collect();
-    let nominal = NominalInterfaceRecordV1::try_new(
+    let nominal = crate::nominal_interface_fixture::public_record(
         fixture.outer.unwrap(),
         shape.kind(),
         CanonicalBinderListV1::try_new(binders).unwrap(),

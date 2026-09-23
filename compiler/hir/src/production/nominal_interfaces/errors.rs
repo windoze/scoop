@@ -102,6 +102,8 @@ pub enum NominalSourceProjectionError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceBuildError {
+    Resource(scoop_wire::WireError),
+    Declarations(String),
     UnknownPublicNominal {
         kind: NominalArenaKind,
         index: u32,
@@ -198,6 +200,10 @@ pub enum NominalInterfaceBuildError {
 impl fmt::Display for NominalInterfaceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
+            Self::Declarations(reason) => {
+                write!(formatter, "invalid shared nominal declarations: {reason}")
+            }
             Self::UnknownPublicNominal { kind, index } => {
                 write!(
                     formatter,

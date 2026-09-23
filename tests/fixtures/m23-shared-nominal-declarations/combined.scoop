@@ -1,0 +1,23 @@
+private class Unrelated {}
+internal open class StorageBase(private val number: Int) {}
+private class SecretStorage : StorageBase(4) {
+    private var payload: Int = 5
+}
+public interface DeferredGeneric<T> {}
+public open class Container {
+    private val storage: SecretStorage = SecretStorage()
+    private fun helper(): Int = 2
+    internal fun internalValue(): Int = helper()
+    protected open fun base(value: Int = 1): Int = value
+    public fun <T> echo(value: T): T = value
+    public val value: Int get() = helper()
+    private class Hidden {
+        internal class Nested<T>(private val item: T) {}
+    }
+    internal class InternalOnly {}
+    protected class Deferred : DeferredGeneric<Int> {}
+    public class Visible<T> {}
+    public object Cache {
+        private val item: Int = 8
+    }
+}

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v4_preserves_nominal_fields_and_rejects_retired_majors() {
+fn source_interface_v5_preserves_complete_declarations_and_rejects_retired_majors() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        4,
+        5,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

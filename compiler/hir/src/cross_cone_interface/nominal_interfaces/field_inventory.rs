@@ -13,8 +13,8 @@ impl CanonicalNominalInterfacesV1 {
     ) -> Result<(), NominalSourceFieldInventoryError> {
         let path = WirePath::root().field(2);
         let mut backing = Vec::new();
-        reserve(&mut backing, self.records().len(), meter, &path)?;
-        for record in self.records() {
+        reserve(&mut backing, self.declaration_count(), meter, &path)?;
+        for record in self.all_records() {
             if record.kind() == PublicNominalKindV1::Object {
                 let SourceNominalId::Concrete(object) = record.declaration() else {
                     return Err(NominalSourceFieldInventoryError::ObjectOwner(
@@ -49,15 +49,17 @@ impl CanonicalNominalInterfacesV1 {
                         .map(|index| backing[index].1)
                 }
             };
-            meter.charge_work(u64::from(self.records().len().max(1).ilog2()) + 1, &path)?;
-            if let Some(owner) = owner.filter(|owner| self.get(*owner).is_some()) {
+            meter.charge_work(
+                u64::from(self.declaration_count().max(1).ilog2()) + 1,
+                &path,
+            )?;
+            if let Some(owner) = owner.filter(|owner| self.declaration(*owner).is_some()) {
                 expected.push((owner, field.id()));
             }
         }
         expected.sort_unstable();
         let count = self
-            .records()
-            .iter()
+            .all_records()
             .try_fold(0usize, |count, record| {
                 count.checked_add(record.source_shape().declared_fields().len())
             })
@@ -70,7 +72,7 @@ impl CanonicalNominalInterfacesV1 {
             })?;
         let mut actual = Vec::new();
         reserve(&mut actual, count, meter, &path)?;
-        for record in self.records() {
+        for record in self.all_records() {
             actual.extend(
                 record
                     .source_shape()

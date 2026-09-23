@@ -931,3 +931,6 @@ impl GcIntrinsic {
         }
     }
 }
+
+#[cfg(test)]
+mod nominal_interface_fixture;

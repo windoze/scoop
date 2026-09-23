@@ -18,7 +18,7 @@ mod property_interfaces;
 mod public_bindings;
 mod route_closure;
 mod section;
-pub(crate) use section::signature_nominal_walk::SignatureNominalWalker;
+pub use section::signature_nominal_walk::SignatureNominalWalker;
 mod type_alias_interfaces;
 
 pub use metered_resolution::MeteredInterfaceResolutionError;
@@ -294,9 +294,11 @@ pub use external_references::{
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
-    DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError, NominalInterfaceRecordBuildError,
-    NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
-    NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
+    DecodedNominalDeclarationDetailsV1, DecodedNominalInterfaceRecordV1,
+    ExactSupertypeSemanticError, NominalDeclarationDetailsResolutionError,
+    NominalDeclarationDetailsV1, NominalDeclarationInventoryError,
+    NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError,
+    NominalInterfaceRecordResolver, NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
     NominalSourceFieldInventoryError,

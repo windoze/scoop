@@ -148,7 +148,10 @@ fn empty_section_has_fixed_wire_and_resolves() {
     let mut section = empty_section();
     let bytes = encode(&section.index_for_wire().unwrap()).unwrap();
 
-    assert_eq!(hex(&bytes), "aa0180028003800480058006800780088009800a80");
+    assert_eq!(
+        hex(&bytes),
+        "aa018002a20180028003800480058006800780088009800a80"
+    );
 
     let decoded: DecodedCrossConeHirInterfaceSectionV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();

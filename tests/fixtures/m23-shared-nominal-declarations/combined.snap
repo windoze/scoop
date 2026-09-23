@@ -1,0 +1,10 @@
+Cache Object Final Public public=true binders=0 supers=0 fields=1 constructors=0 members=1 children=0
+Container Class Open Public public=true binders=0 supers=0 fields=1 constructors=1 members=6 children=5
+Deferred Class Final Protected public=false binders=0 supers=1 fields=0 constructors=1 members=0 children=0
+DeferredGeneric Interface Interface Public public=true binders=1 supers=0 fields=0 constructors=0 members=0 children=0
+Hidden Class Final Private public=false binders=0 supers=0 fields=0 constructors=1 members=0 children=1
+InternalOnly Class Final Internal public=false binders=0 supers=0 fields=0 constructors=1 members=0 children=0
+Nested Class Final Internal public=false binders=1 supers=0 fields=1 constructors=1 members=1 children=0
+SecretStorage Class Final Private public=false binders=0 supers=1 fields=1 constructors=1 members=1 children=0
+StorageBase Class Open Internal public=false binders=0 supers=0 fields=1 constructors=1 members=1 children=0
+Visible Class Final Public public=true binders=1 supers=0 fields=0 constructors=1 members=0 children=0

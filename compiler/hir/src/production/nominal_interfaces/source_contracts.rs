@@ -10,6 +10,8 @@ use scoop_wire::{BudgetMeter, WirePath};
 type Error = CrossConeTypeSemanticsProductionError;
 
 mod constructors;
+mod declarations;
+pub(super) use declarations::project as project_declarations;
 mod members;
 mod nested;
 pub(in crate::production) use nested::{NestedSourceNode, project as project_nested_sources};

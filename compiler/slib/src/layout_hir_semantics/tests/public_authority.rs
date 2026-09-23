@@ -113,6 +113,14 @@ impl NominalSourceShapeSemanticAuthority<TestAuthorityError> for EmptyPublicAuth
 }
 
 impl NominalInterfaceSemanticAuthority<TestAuthorityError> for EmptyPublicAuthority {
+    fn validate_nominal_declaration(
+        &mut self,
+        declaration: &scoop_hir::NominalInterfaceRecordV1,
+    ) -> Result<(), TestAuthorityError> {
+        self.nominal_declaration_key(declaration.declaration())
+            .map(|_| ())
+    }
+
     fn nominal_declaration_key(
         &mut self,
         _declaration: scoop_hir::SourceNominalId,

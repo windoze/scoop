@@ -49,6 +49,7 @@ mod const_value;
 mod intrinsics;
 mod lir_bridge;
 mod mir_bridge;
+mod nominal_declarations;
 mod nominal_fields;
 mod source_interface;
 mod type_alias;
@@ -495,7 +496,7 @@ fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
     let foundation = base_hir_foundation();
     let unit = CoreBuiltinNominal::Unit.identity_record().id();
     let interface = interface_with_nominals(vec![
-        NominalInterfaceRecordV1::try_new(
+        crate::nominal_interface_fixture::public_record(
             SourceNominalId::Concrete(unit),
             PublicNominalKindV1::Struct,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -687,8 +688,8 @@ fn add_cross_cone_bridge_sections(
 
 pub(crate) fn empty_cross_cone_hir_interface() -> Vec<u8> {
     vec![
-        0xaa, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80,
-        0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
+        0xaa, 0x01, 0x80, 0x02, 0xa2, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80,
+        0x06, 0x80, 0x07, 0x80, 0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
     ]
 }
 
@@ -882,7 +883,7 @@ fn nominal_surface(
         .unwrap();
     foundation.set_fields(vec![field.clone()]).unwrap();
 
-    let record = NominalInterfaceRecordV1::try_new(
+    let record = crate::nominal_interface_fixture::public_record(
         SourceNominalId::Concrete(nominal.id()),
         PublicNominalKindV1::Struct,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -1095,7 +1096,7 @@ fn enum_variant_callable_surface(
         .unwrap();
     foundation.set_enum_variants(vec![variant.clone()]).unwrap();
 
-    let nominal_record = NominalInterfaceRecordV1::try_new(
+    let nominal_record = crate::nominal_interface_fixture::public_record(
         SourceNominalId::Concrete(nominal.id()),
         PublicNominalKindV1::Enum,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

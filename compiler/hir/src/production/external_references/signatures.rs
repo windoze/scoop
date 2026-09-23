@@ -31,8 +31,11 @@ fn collect_nominals<A, E>(
 where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
-    for (wire_index, record) in (0_u64..).zip(input.nominal_interfaces.records()) {
-        let path = WirePath::root().field(2).index(wire_index);
+    for (partition, wire_index, record) in input.nominal_interfaces.wire_records() {
+        let path = WirePath::root()
+            .field(2)
+            .field(partition)
+            .index(wire_index as u64);
         collect_binders(
             record.type_parameters(),
             accumulator,

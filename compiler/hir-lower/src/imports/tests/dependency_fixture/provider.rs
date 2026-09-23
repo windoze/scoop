@@ -259,7 +259,7 @@ fn nominal_record(
     declaration: PersistentTypeId,
     nested_bindings: Vec<PersistentExportBindingId>,
 ) -> hir::NominalInterfaceRecordV1 {
-    hir::NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         hir::SourceNominalId::Concrete(declaration),
         hir::PublicNominalKindV1::Class,
         hir::CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -276,7 +276,7 @@ fn object_record(
     declaration: PersistentTypeId,
     value: PersistentObjectValueId,
 ) -> hir::NominalInterfaceRecordV1 {
-    hir::NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         hir::SourceNominalId::Concrete(declaration),
         hir::PublicNominalKindV1::Object,
         hir::CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

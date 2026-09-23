@@ -8,9 +8,9 @@ use scoop_hir::{
     CanonicalNominalInterfacesV1, CanonicalPersistentIdsV1, CanonicalPropertyInterfacesV1,
     CanonicalPublicExportBindingsV1, CanonicalPublicMemberRefsV1, CanonicalSignatureTypesV1,
     CanonicalSourceParameterShapesV1, CanonicalTypeAliasInterfacesV1,
-    CrossConeHirInterfaceSectionV1, ExportDefinitionSourceV1, NominalInterfaceRecordV1,
-    NominalSourceShapeV1, PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1,
-    SourceNominalId, SourceParameterShapeV1, StructSourceShapeV1,
+    CrossConeHirInterfaceSectionV1, ExportDefinitionSourceV1, NominalSourceShapeV1,
+    PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, SourceNominalId,
+    SourceParameterShapeV1, StructSourceShapeV1,
 };
 use scoop_identity::{
     CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord, DeclarationScope,
@@ -320,7 +320,7 @@ impl CallableSourceSurface {
         foundation.set_functions(vec![function]).unwrap();
         foundation.set_generic_types(vec![array.clone()]).unwrap();
 
-        let nominal_interface = NominalInterfaceRecordV1::try_new(
+        let nominal_interface = crate::nominal_interface_fixture::public_record(
             SourceNominalId::Concrete(nominal.id()),
             PublicNominalKindV1::Struct,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -337,7 +337,7 @@ impl CallableSourceSurface {
             ),
         )
         .unwrap();
-        let array_interface = NominalInterfaceRecordV1::try_new(
+        let array_interface = crate::nominal_interface_fixture::public_record(
             SourceNominalId::GenericTemplate(array.id()),
             PublicNominalKindV1::Class,
             CanonicalBinderListV1::try_new(vec![scoop_hir::TypeParameterBinderV1::new(

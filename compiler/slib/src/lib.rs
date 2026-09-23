@@ -92,3 +92,6 @@ pub use link_object::*;
 
 mod diagnostic;
 pub use diagnostic::*;
+
+#[cfg(test)]
+mod nominal_interface_fixture;

@@ -118,7 +118,7 @@ impl WireDecode for DecodedPublicMemberRefV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalPublicMemberRefsV1 {
     members: Vec<PublicMemberRefV1>,
 }

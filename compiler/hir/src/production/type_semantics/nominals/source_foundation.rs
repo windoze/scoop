@@ -44,8 +44,14 @@ pub(super) fn project<'a>(
         .map_err(inheritance::source_resources::resource)?;
     let export = output.export.module();
     let local = output.local.module();
-    let public = CanonicalNominalInterfacesV1::from_export_hir(export)
-        .map_err(|error| Error::PublicInterface(error.to_string()))?;
+    let public = CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter).map_err(
+        |error| match error {
+            crate::NominalInterfaceBuildError::Resource(error) => {
+                inheritance::source_resources::resource(error)
+            }
+            other => Error::PublicInterface(other.to_string()),
+        },
+    )?;
     let required = CanonicalSourceNominalIdsV1::from_export_hir(&output.export, meter)?;
     let sources = sources::project(export, &required, meter)?;
     let mut roots = Vec::new();

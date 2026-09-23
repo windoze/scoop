@@ -9,6 +9,11 @@ use scoop_identity::{
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeHirNominalAuthorityError {
+    Resource(scoop_wire::WireError),
+    NominalDeclaration {
+        declaration: SourceNominalId,
+        reason: &'static str,
+    },
     Identity(IdentityReferenceError),
     ForeignDeclaration {
         entity: &'static str,
@@ -109,6 +114,14 @@ pub enum CrossConeHirNominalAuthorityError {
 impl fmt::Display for CrossConeHirNominalAuthorityError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
+            Self::NominalDeclaration {
+                declaration,
+                reason,
+            } => write!(
+                formatter,
+                "invalid nominal declaration {declaration:?}: {reason}"
+            ),
             Self::Identity(error) => error.fmt(formatter),
             Self::ForeignDeclaration {
                 entity,
@@ -267,9 +280,11 @@ impl fmt::Display for CrossConeHirNominalAuthorityError {
 impl std::error::Error for CrossConeHirNominalAuthorityError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(error) => Some(error),
             Self::Identity(error) => Some(error),
             Self::NestedBindingTarget { source, .. } => Some(source.as_ref()),
-            Self::ForeignDeclaration { .. }
+            Self::NominalDeclaration { .. }
+            | Self::ForeignDeclaration { .. }
             | Self::UnreachableProvider { .. }
             | Self::MissingNominalInterface { .. }
             | Self::InvalidNominalDeclarationKind { .. }

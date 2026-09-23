@@ -322,7 +322,7 @@ fn nominal_record(
     declaration: PersistentTypeId,
     nested_bindings: Vec<PersistentExportBindingId>,
 ) -> NominalInterfaceRecordV1 {
-    NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         SourceNominalId::Concrete(declaration),
         PublicNominalKindV1::Class,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
@@ -340,7 +340,7 @@ fn nominal_record_with_shape(
     kind: PublicNominalKindV1,
     shape: NominalSourceShapeV1,
 ) -> NominalInterfaceRecordV1 {
-    NominalInterfaceRecordV1::try_new(
+    crate::nominal_interface_fixture::public_record(
         SourceNominalId::Concrete(declaration),
         kind,
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

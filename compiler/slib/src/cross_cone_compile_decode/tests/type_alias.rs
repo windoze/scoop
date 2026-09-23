@@ -7,11 +7,10 @@ use scoop_hir::{
     CanonicalSignatureTypesV1, CanonicalTypeAliasInterfacesV1, CrossConeHirInterfaceSectionV1,
     ExportBindingSourceV1, ExportDefinitionSourceSemanticValidationError,
     ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceV1,
-    HirOutputContractV1, NominalInterfaceRecordV1, NominalSourceShapeV1,
-    PublicExportBindingRecordV1, PublicLookupAccessV1, PublicNominalKindV1,
-    SignatureTypeSemanticError, SourceNominalId, StructSourceShapeV1, TypeAliasInterfaceRecordV1,
-    TypeAliasInterfaceSemanticValidationError, TypeAliasInterfaceSetSemanticValidationError,
-    TypeAliasTargetV1,
+    HirOutputContractV1, NominalSourceShapeV1, PublicExportBindingRecordV1, PublicLookupAccessV1,
+    PublicNominalKindV1, SignatureTypeSemanticError, SourceNominalId, StructSourceShapeV1,
+    TypeAliasInterfaceRecordV1, TypeAliasInterfaceSemanticValidationError,
+    TypeAliasInterfaceSetSemanticValidationError, TypeAliasTargetV1,
 };
 use scoop_identity::{
     BindableEntity, BindingTarget, CanonicalIdentifier, CapabilityId, CborIdentityRecord,
@@ -391,7 +390,7 @@ impl AliasSurface {
         }
         foundation.set_export_bindings(binding_records).unwrap();
 
-        let nominal_interface = NominalInterfaceRecordV1::try_new(
+        let nominal_interface = crate::nominal_interface_fixture::public_record(
             SourceNominalId::Concrete(nominal.id()),
             PublicNominalKindV1::Struct,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),

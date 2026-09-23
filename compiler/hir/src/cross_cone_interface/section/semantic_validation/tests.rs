@@ -147,6 +147,14 @@ impl NominalSourceShapeSemanticAuthority<Infallible> for EmptyAuthority {
 }
 
 impl NominalInterfaceSemanticAuthority<Infallible> for EmptyAuthority {
+    fn validate_nominal_declaration(
+        &mut self,
+        declaration: &crate::NominalInterfaceRecordV1,
+    ) -> Result<(), Infallible> {
+        self.nominal_declaration_key(declaration.declaration())
+            .map(|_| ())
+    }
+
     fn nominal_declaration_key(
         &mut self,
         _declaration: crate::SourceNominalId,
