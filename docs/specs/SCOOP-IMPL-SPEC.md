@@ -48,6 +48,8 @@ MIR callable inventory 复用共有 nominal 表示与继承闭包检查 owner、
 
 完整 core 源码及新增值类型、接口、类和初始化声明的闭合子集必须通过同一 MIR/LIR export 组装路径；不得用测试手工补入基础类型表代替实际 producer 输出。此修正不改变语言行为、runtime ABI 或 wire 结构。
 
+完整 MIR section 的实际 source 适配器从同次 LocalConcrete 初始化单元读取两个生成函数的完整逻辑签名和 GC effect，并与 sealed MIR 的物化根逐项对应；单元集合不能从候选 section 反推。外部类型用途取实际经过 HIR→MIR 转置的 source-exact 关系，只保留外来 nominal 的实际 provider；外部 callable 按同次 ordinary selected 的完整 provider、declaration、implementation、signature 关系排除已在旧分区的用途，其余实际用途进入新闭包。初始化服务仍按既有语义角色参加共有调用验证，不重复放入新的 nominal-member 分区。该适配器实现已有 section source 接口，完整 section 继续完成独立 export 重放、初始化合同和 terminal dependency 闭包；不新增 wire、来源授权记录或 CORE 豁免。
+
 ## 2. 编译器 pipeline
 
 **模块边界**：stage 之间只通过 IR / meta crate 交换数据——AST、HIR、MIR、LIR 的定义（含各自的 `.slib` meta 格式）独立成 crate，作为 stage 之间的通道。每个 stage crate 只负责把输入变成输出，只依赖其输入/输出的 IR crate，不了解、不依赖上游 stage 的实现。`scoopc`只编排当前一个Cone的stage，umbrella binary `scoop`只经独立`scoopc`进程与`.slib`边界编排多Cone图，program-link只消费artifact（见2.7、2.8）；三者都不得把上游stage实现crate变成跨Cone通信旁路。

@@ -63,3 +63,21 @@ impl mir::MirTypeBridgeSourceSemanticAuthorityV1<Error> for MirTypeBridgeSourceP
         Ok(self.expected.initialization_uses())
     }
 }
+
+impl mir::MirTypeBridgeSectionSourceAuthorityV1<Error> for MirTypeBridgeSourceProjectionV1 {
+    fn committed_external_uses(&self) -> Result<&[mir::MirTypeBridgeDependencyV1], Error> {
+        Ok(&self.uses)
+    }
+
+    fn local_initialization_units(&self) -> Result<&[PersistentInitializationUnitId], Error> {
+        Ok(&self.units.inventory)
+    }
+
+    fn initialization_signature(
+        &self,
+        unit: PersistentInitializationUnitId,
+        role: scoop_identity::InitializationCallableRole,
+    ) -> Result<&mir::MirBridgeCallableSignatureV1, Error> {
+        self.units.signature(unit, role)
+    }
+}

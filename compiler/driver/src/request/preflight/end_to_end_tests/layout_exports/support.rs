@@ -103,24 +103,50 @@ pub(super) fn with_production(
     .unwrap();
     let (graph, core_lir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
     let types = dependencies::mir_types(&mir.strong, &graph);
+    let input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
+        hir: &hir.hir,
+        public: &hir.cross_cone_section,
+        source: &source,
+        mir: &mir.strong,
+        ordinary: &mir.public,
+        identities: &graph,
+    };
+    let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
+        types: &[&types],
+        callables: &[],
+        dispatch: &[],
+    };
     let bridge = scoop_mir_lower::lower_type_bridge_exports(
-        scoop_mir_lower::MirTypeBridgeExportInputV1 {
-            hir: &hir.hir,
-            public: &hir.cross_cone_section,
-            source: &source,
-            mir: &mir.strong,
-            ordinary: &mir.public,
-            identities: &graph,
-        },
-        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
-            types: &[&types],
-            callables: &[],
-            dispatch: &[],
-        },
+        input,
+        dependencies,
         mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
         &mut meter(),
     )
     .unwrap();
+    let projected = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+        input,
+        dependencies,
+        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+        &mut meter(),
+    )
+    .unwrap();
+    bridge
+        .validate_sources(mir.strong.module().cone, &graph, &projected, &mut meter())
+        .unwrap();
+    let uses =
+        mir::MirTypeBridgeSectionSourceAuthorityV1::committed_external_uses(&projected).unwrap();
+    assert!(!uses.is_empty());
+    assert!(
+        uses.iter()
+            .all(|usage| usage.provider() == ConeIdentity::CORE
+                && matches!(usage.target(), mir::MirTypeBridgeTargetV1::Type(_)))
+    );
+    assert_eq!(
+        mir::MirTypeBridgeSectionSourceAuthorityV1::local_initialization_units(&projected)
+            .unwrap()
+            .len(),
+        mir.strong.materialization().initialization_roots().len(),
+    );
     let layouts = dependencies::layouts(&types, &core_lir, &graph, target.lir_target());
     let selected = lir::StrongProductionDependencySelectionV2::empty(
         lir.module().cone,

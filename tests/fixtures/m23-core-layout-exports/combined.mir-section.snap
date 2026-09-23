@@ -1,0 +1,3 @@
+types=80 callables=52 dispatch=23 objects=1 shapes=21 units=2 selected=0
+unit object:CoreLayoutService: Ordinary Managed
+unit top-level:coreLayoutStatus: Ordinary Managed

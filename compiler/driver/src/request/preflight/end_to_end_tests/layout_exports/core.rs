@@ -1,6 +1,7 @@
 use super::*;
 
 mod contracts;
+mod section;
 
 #[test]
 fn ordinary_library_omits_only_source_only_machine_signatures() {
@@ -107,15 +108,16 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
         )
         .unwrap();
         let identities = identity_graph(&hir.hir, &mir.strong, Some(&lir));
+        let mir_input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
+            hir: &hir.hir,
+            public: &hir.cross_cone_section,
+            source: &source,
+            mir: &mir.strong,
+            ordinary: &mir.public,
+            identities: &identities,
+        };
         let bridge = scoop_mir_lower::lower_type_bridge_exports(
-            scoop_mir_lower::MirTypeBridgeExportInputV1 {
-                hir: &hir.hir,
-                public: &hir.cross_cone_section,
-                source: &source,
-                mir: &mir.strong,
-                ordinary: &mir.public,
-                identities: &identities,
-            },
+            mir_input,
             scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
                 types: &[],
                 callables: &[],
@@ -162,6 +164,7 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
             std::fs::write(&snapshot, &dump).unwrap();
         }
         assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+        section::check(name, &fixtures, mir_input, bridge);
     }
 }
 
