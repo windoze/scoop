@@ -379,6 +379,16 @@ impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
             .map_err(|error| {
                 CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
             })?;
+        let mut authority = authority.for_source_declarations();
+        hir_interface
+            .callable_interfaces()
+            .validate_support_semantics(&mut authority)
+            .map_err(|error| {
+                CrossConeHirCallableSurfaceError::CallableInterfaces(Box::new(error))
+            })?;
+        authority
+            .validate_support_callable_origins()
+            .map_err(CrossConeHirCallableSurfaceError::Declarations)?;
         Ok(CallableValidatedCrossConeHirFrontSections(
             ValidatedSurfaceFront {
                 graph,

@@ -1,14 +1,14 @@
 use scoop_identity::{CallableTemplateOrigin, SourceDeclarationKey, SourceDeclarationKind};
 
 use super::*;
-use crate::{CallableImplementationV1, CallableInterfaceRecordV1};
+use crate::{CallableDeclarationRecordV1, CallableImplementationV1};
 
 impl CoreCompilerProtocolSurfaceV1 {
     /// Replays a published intrinsic against its actual source declaration and typed roles.
     pub fn validate_intrinsic_declaration(
         &self,
         source: &SourceDeclarationKey,
-        callable: &CallableInterfaceRecordV1,
+        callable: &CallableDeclarationRecordV1,
     ) -> Result<(), IntrinsicCallableContractError> {
         let CallableImplementationV1::Intrinsic(kind) = callable.effects().implementation() else {
             return Err(IntrinsicCallableContractError::ExpectedIntrinsic);

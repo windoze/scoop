@@ -37,19 +37,20 @@ pub use binders::{
     TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
 };
 pub use callable_interfaces::{
-    CallableDeclarationIdentityShapeV1, CallableImplementationV1, CallableInfixV1,
+    CallableDeclarationIdentityShapeV1, CallableDeclarationInventoryError,
+    CallableDeclarationRecordV1, CallableImplementationV1, CallableInfixV1,
     CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError,
     CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
     CallableInterfaceSemanticValidationError, CallableInterfaceSetBuildError,
     CallableInterfaceSetSemanticValidationError, CallableInterfaceSetValidationError,
     CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1, CallableSafetyV1,
     CallableSourceEffectsBuildError, CallableSourceEffectsV1, CanonicalCallableInterfacesV1,
-    CanonicalSourceParameterShapesV1, DecodedCallableInterfaceRecordV1,
-    DecodedCallableSourceEffectsV1, DecodedCanonicalCallableInterfacesV1,
-    DecodedCanonicalSourceParameterShapesV1, DecodedSourceParameterShapeV1,
-    PropertyDelegateOperatorV1, PublicLookupAccessV1, SourceParameterListBuildError,
-    SourceParameterListValidationError, SourceParameterShapeResolutionError,
-    SourceParameterShapeV1,
+    CanonicalSourceParameterShapesV1, DecodedCallableDeclarationRecordV1,
+    DecodedCallableInterfaceRecordV1, DecodedCallableSourceEffectsV1,
+    DecodedCanonicalCallableInterfacesV1, DecodedCanonicalSourceParameterShapesV1,
+    DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,
+    SourceParameterListBuildError, SourceParameterListValidationError,
+    SourceParameterShapeResolutionError, SourceParameterShapeV1,
 };
 pub use callable_source_interfaces::{
     CallableParameterCallingResolutionError, CallableParameterCallingV1,

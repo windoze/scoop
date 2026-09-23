@@ -10,11 +10,11 @@ use scoop_identity::{
 
 use super::super::*;
 use crate::{
-    CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
-    CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1, CanonicalSignatureTypesV1,
-    CanonicalSourceParameterShapesV1, NominalInterfaceShapeAuthority, NominalTypeParameterBoundsV1,
-    PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1, SourceParameterShapeV1,
-    TypeParameterBinderV1, TypeParameterBoundsV1,
+    CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordV1, CallableModalityV1,
+    CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1,
+    CanonicalSignatureTypesV1, CanonicalSourceParameterShapesV1, NominalInterfaceShapeAuthority,
+    NominalTypeParameterBoundsV1, PublicLookupAccessV1, PublicNominalKindV1, PublicNominalShapeV1,
+    SourceParameterShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
 };
 
 pub(super) struct Fixture {
@@ -93,8 +93,9 @@ impl Fixture {
             parameters(parameter_types),
             result,
             scoop_effects(),
-            CallableModalityV1::Open,
-            PublicLookupAccessV1::PublicSlot,
+            CallableModalityV1::Final,
+            PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap()
     }

@@ -100,6 +100,11 @@ impl CrossConeHirInterfaceSectionV1 {
             .map_err(|error| {
                 CrossConeHirInterfaceSemanticValidationError::CallableInterfaces(Box::new(error))
             })?;
+        self.callable_interfaces()
+            .validate_support_semantics(authority)
+            .map_err(|error| {
+                CrossConeHirInterfaceSemanticValidationError::CallableInterfaces(Box::new(error))
+            })?;
         self.property_interfaces()
             .validate_semantics(authority)
             .map_err(|error| {

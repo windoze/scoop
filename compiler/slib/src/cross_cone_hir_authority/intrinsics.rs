@@ -17,12 +17,12 @@ pub(crate) fn validate_intrinsic_declarations<'a>(
     meter: &mut BudgetMeter,
 ) -> Result<(), CrossConeIntrinsicDeclarationError> {
     let path = WirePath::root();
-    let callables = interface.callable_interfaces().records();
+    let callables = interface.callable_interfaces();
     meter
-        .charge_work(callables.len() as u64, &path)
+        .charge_work(callables.declaration_count() as u64, &path)
         .map_err(CrossConeIntrinsicDeclarationError::Resource)?;
     let mut intrinsics = Vec::new();
-    for callable in callables {
+    for callable in callables.all_declarations() {
         let CallableImplementationV1::Intrinsic(kind) = callable.effects().implementation() else {
             continue;
         };

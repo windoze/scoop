@@ -302,6 +302,7 @@ impl Fixture {
             effects(effect),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap()
     }
@@ -326,6 +327,7 @@ impl Fixture {
             effects(Effect::Ordinary),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap()
     }

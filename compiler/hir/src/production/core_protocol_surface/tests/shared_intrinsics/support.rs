@@ -65,6 +65,7 @@ impl Fixture {
             effects(kind, callable.signature().effect()),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap();
         (source.clone(), record)
@@ -93,6 +94,7 @@ pub(super) fn replace_signature(
         effects(kind, signature.effect()),
         record.modality(),
         record.access(),
+        crate::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap()
 }

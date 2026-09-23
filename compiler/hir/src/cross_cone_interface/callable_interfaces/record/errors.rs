@@ -10,6 +10,10 @@ use crate::CallableSourceEffectsBuildError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CallableInterfaceRecordBuildError {
+    NonPublicDeclaration(CallableTemplateOrigin),
+    InvalidSlotRelations {
+        declaration: CallableTemplateOrigin,
+    },
     MissingTypeParameters(CallableTemplateOrigin),
     UnexpectedTypeParameters(CallableTemplateOrigin),
     MissingExtensionReceiver,
@@ -34,6 +38,14 @@ pub enum CallableInterfaceRecordBuildError {
 impl fmt::Display for CallableInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NonPublicDeclaration(declaration) => write!(
+                formatter,
+                "restricted callable {declaration:?} cannot enter public lookup"
+            ),
+            Self::InvalidSlotRelations { declaration } => write!(
+                formatter,
+                "invalid source slot relations for {declaration:?}"
+            ),
             Self::MissingTypeParameters(declaration) => {
                 write!(
                     formatter,
@@ -88,6 +100,9 @@ impl std::error::Error for CallableInterfaceRecordBuildError {}
 #[derive(Debug)]
 pub enum CallableInterfaceRecordResolutionError<E> {
     Declaration(E),
+    Slots(
+        crate::CanonicalPersistentIdSetValidationError<scoop_identity::PersistentDispatchSlotId, E>,
+    ),
     Owner(E),
     TypeParameters(BinderListValidationError<E>),
     Receiver(E),
@@ -100,6 +115,7 @@ pub enum CallableInterfaceRecordResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for CallableInterfaceRecordResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Slots(error) => write!(formatter, "invalid callable slot relations: {error}"),
             Self::Declaration(error) => write!(formatter, "invalid callable declaration: {error}"),
             Self::Owner(error) => write!(formatter, "invalid callable owner: {error}"),
             Self::TypeParameters(error) => {

@@ -1,0 +1,6 @@
+private class Token {}
+public class Holder private constructor(private val token: Token) {
+    private fun replace(value: Token): Token = value
+    internal fun total(value: Int): Int = value
+    public fun answer(): Int = 42
+}

@@ -3,6 +3,7 @@
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod callables;
 mod index;
 mod storage;
 pub(super) use index::Index;
@@ -65,6 +66,9 @@ impl CanonicalSourceNominalIdsV1 {
                 roots.require(parent, false)?;
             }
             index::visit_bases(export, node.local, |ty| {
+                if roots.complete_children {
+                    roots.require_field_type(export, &index, ty, 1)?;
+                }
                 work(roots.meter, index.nodes.len())?;
                 if matches!(export.types[ty], Type::Class(_)) {
                     roots
@@ -83,6 +87,11 @@ impl CanonicalSourceNominalIdsV1 {
             storage::visit_fields(export, node.local, |ty| {
                 roots.require_field_type(export, &index, ty, 1)
             })?;
+            if roots.complete_children {
+                callables::visit_types(export, node.local, |ty| {
+                    roots.require_field_type(export, &index, ty, 1)
+                })?;
+            }
             work(roots.meter, index.children.len())?;
             if let Some(children) = index.children.get(&owner) {
                 for child in children {

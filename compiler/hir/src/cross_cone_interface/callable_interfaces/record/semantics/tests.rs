@@ -5,9 +5,10 @@ use scoop_identity::{
 
 use super::*;
 use crate::{
-    CallableInterfaceRecordBuildError, CallableModalityV1, NominalBoundSemanticError,
-    PublicLookupAccessV1, SignatureBinderScopeError, SignatureTypeSemanticError,
-    TypeParameterBinderSemanticValidationError, TypeParameterBoundLocation,
+    CallableInterfaceRecordBuildError, CallableInterfaceRecordV1, CallableModalityV1,
+    NominalBoundSemanticError, PublicLookupAccessV1, SignatureBinderScopeError,
+    SignatureTypeSemanticError, TypeParameterBinderSemanticValidationError,
+    TypeParameterBoundLocation,
 };
 
 mod support;
@@ -212,5 +213,6 @@ fn extension_accessor_record(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        crate::CanonicalPersistentIdsV1::empty(),
     )
 }

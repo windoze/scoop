@@ -1,0 +1,169 @@
+use super::*;
+use hir::{CallableDeclarationInventoryError as Error, CanonicalCallableInterfacesV1 as Table};
+use scoop_identity::CallableTemplateOrigin;
+use scoop_wire::{decode_canonical, encode};
+use source_dispatch::with_hir_source;
+
+mod render;
+
+const STANDALONE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/m23-shared-callable-declarations/standalone.scoop"
+));
+const COMBINED: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../tests/fixtures/m23-shared-callable-declarations/combined.scoop"
+));
+
+fn meter() -> BudgetMeter {
+    BudgetMeter::new(DecodeLimits::default())
+}
+
+#[test]
+fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
+    for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
+        with_hir_source(source, |output, _| {
+            let export = output.output().export.module();
+            let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+            let table = Table::from_export_hir_with_budget(export, &mut meter()).unwrap();
+            table
+                .validate_declaration_inventory(&nominals, &mut meter())
+                .unwrap();
+            assert!(!table.support_records().is_empty());
+            for record in table.support_records() {
+                assert!(table.get(record.declaration()).is_none());
+                assert_eq!(table.declaration(record.declaration()), Some(record));
+            }
+            let foundation = hir::CanonicalHirFoundation::from_dependency_output(output).unwrap();
+            let mut identities =
+                source_inventory::identity_closure_for_foundation(output, foundation);
+            let restored: hir::DecodedCanonicalCallableInterfacesV1 =
+                decode_canonical(&encode(&table).unwrap(), DecodeLimits::default()).unwrap();
+            assert_eq!(restored.resolve(&mut identities).unwrap(), table);
+            let rows = render::table(&table, &identities);
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../tests/fixtures/m23-shared-callable-declarations/{case}.snap"
+            ));
+            if std::env::var_os("SCOOP_UPDATE_SHARED_CALLABLE_SNAPSHOTS").is_some() {
+                std::fs::write(&path, &rows).unwrap();
+            }
+            assert_eq!(rows, std::fs::read_to_string(path).unwrap());
+        });
+    }
+}
+
+#[test]
+fn shared_callables_reject_missing_support_and_cross_partition_duplicates() {
+    with_hir_source(COMBINED, |output, _| {
+        let export = output.output().export.module();
+        let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+        let table = Table::from_export_hir(export).unwrap();
+        for removed in table.support_records() {
+            let support = table
+                .support_records()
+                .iter()
+                .filter(|record| record.declaration() != removed.declaration())
+                .cloned()
+                .collect();
+            let missing = Table::with_support(table.records().to_vec(), support).unwrap();
+            assert_eq!(
+                missing.validate_declaration_inventory(&nominals, &mut meter()),
+                Err(Error::Missing(removed.declaration()))
+            );
+        }
+        let public = &table.records()[0];
+        let mut duplicate = table.support_records().to_vec();
+        duplicate.push(public.declaration_data().clone());
+        assert_eq!(
+            Table::with_support(table.records().to_vec(), duplicate),
+            Err(hir::CallableInterfaceSetBuildError::DuplicateDeclaration(
+                public.declaration()
+            ))
+        );
+        let private = table
+            .support_records()
+            .iter()
+            .find(|r| r.declared_visibility() == hir::DeclaredVisibilityV1::Private)
+            .unwrap();
+        assert_eq!(
+            hir::CallableInterfaceRecordV1::from_declaration(
+                private.clone(),
+                hir::PublicLookupAccessV1::DirectOnly
+            ),
+            Err(
+                hir::CallableInterfaceRecordBuildError::NonPublicDeclaration(private.declaration())
+            )
+        );
+    });
+}
+
+#[test]
+fn shared_callables_reject_wrong_owner_and_unrelated_support() {
+    with_hir_source(STANDALONE, |output, _| {
+        let export = output.output().export.module();
+        let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
+        let table = Table::from_export_hir(export).unwrap();
+        let mut support = table.support_records().to_vec();
+        let record = support
+            .iter_mut()
+            .find(|r| matches!(r.declaration(), CallableTemplateOrigin::Function(_)))
+            .unwrap();
+        let declaration = record.declaration();
+        let hir::PublicDeclarationOwnerV1::Nominal(expected) = record.owner() else {
+            panic!("nominal")
+        };
+        *record = hir::CallableDeclarationRecordV1::try_new(
+            declaration,
+            hir::PublicDeclarationOwnerV1::TopLevel,
+            record.type_parameters().clone(),
+            record.receiver().cloned(),
+            record.parameters().clone(),
+            record.result().clone(),
+            record.effects(),
+            record.modality(),
+            record.declared_visibility(),
+            record.slot_relations().clone(),
+        )
+        .unwrap();
+        let invalid = Table::with_support(table.records().to_vec(), support).unwrap();
+        assert_eq!(
+            invalid.validate_declaration_inventory(&nominals, &mut meter()),
+            Err(Error::Owner {
+                declaration,
+                expected,
+                actual: hir::PublicDeclarationOwnerV1::TopLevel
+            })
+        );
+        assert!(matches!(
+            table.validate_declaration_inventory(
+                &hir::CanonicalNominalInterfacesV1::try_new(vec![]).unwrap(),
+                &mut meter()
+            ),
+            Err(Error::UnexpectedSupport(_))
+        ));
+    });
+}
+
+#[test]
+fn shared_callable_projection_uses_cumulative_budget_and_canonical_declarations() {
+    let project = |source: &str| {
+        with_hir_source(source, |output, _| {
+            let export = output.output().export.module();
+            let mut measured = meter();
+            let first = Table::from_export_hir_with_budget(export, &mut measured).unwrap();
+            let mut bounded = BudgetMeter::new(DecodeLimits {
+                validation_work_units: measured.usage().validation_work_units,
+                ..DecodeLimits::default()
+            });
+            Table::from_export_hir_with_budget(export, &mut bounded).unwrap();
+            assert!(Table::from_export_hir_with_budget(export, &mut bounded).is_err());
+            encode(&first).unwrap()
+        })
+    };
+    let prefix = "private class Unrelated {}\n";
+    let padding = format!("//{}\n", " ".repeat(prefix.len() - 3));
+    assert_eq!(
+        project(&format!("{padding}{STANDALONE}")),
+        project(&format!("{prefix}{STANDALONE}"))
+    );
+}

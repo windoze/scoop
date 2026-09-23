@@ -66,13 +66,17 @@ impl CrossConeHirInterfaceSectionV1 {
     {
         let property_interfaces = CanonicalPropertyInterfacesV1::from_export_hir(export)
             .map_err(CrossConeHirInterfaceProductionError::Properties)?;
-        let callable_interfaces = CanonicalCallableInterfacesV1::from_export_hir_with_properties(
+        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+        let nominal_interfaces =
+            CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, &mut meter)
+                .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
+        let callable_interfaces = CanonicalCallableInterfacesV1::from_export_hir_with_nominals(
             export,
             &property_interfaces,
+            &nominal_interfaces,
+            &mut meter,
         )
         .map_err(CrossConeHirInterfaceProductionError::Callables)?;
-        let nominal_interfaces = CanonicalNominalInterfacesV1::from_export_hir(export)
-            .map_err(CrossConeHirInterfaceProductionError::Nominals)?;
         let type_aliases = CanonicalTypeAliasInterfacesV1::from_export_hir(export)
             .map_err(CrossConeHirInterfaceProductionError::TypeAliases)?;
         let source_interfaces =

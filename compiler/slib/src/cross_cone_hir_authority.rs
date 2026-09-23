@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 
 mod callable;
+mod callable_declarations;
 mod callable_source;
 mod const_value;
 mod default_data_flow;

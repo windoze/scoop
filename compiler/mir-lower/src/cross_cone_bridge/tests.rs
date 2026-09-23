@@ -255,6 +255,7 @@ fn callable(declaration: PersistentFunctionId) -> CallableInterfaceRecordV1 {
         .unwrap(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap()
 }

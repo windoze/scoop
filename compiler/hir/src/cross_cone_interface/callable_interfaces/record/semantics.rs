@@ -1,6 +1,6 @@
-use scoop_identity::SignatureTypeKey;
+use scoop_identity::{CallableTemplateOrigin, NominalDeclarationOwner, SignatureTypeKey};
 
-use super::CallableInterfaceRecordV1;
+use super::CallableDeclarationRecordV1;
 use crate::{CallableDeclarationId, NominalInterfaceShapeAuthority, PublicDeclarationOwnerV1};
 
 mod errors;
@@ -70,7 +70,7 @@ pub trait CallableInterfaceSemanticAuthority<E>: NominalInterfaceShapeAuthority<
     ) -> Result<CallableDeclarationIdentityShapeV1, E>;
 }
 
-impl CallableInterfaceRecordV1 {
+impl CallableDeclarationRecordV1 {
     pub fn validate_semantics<A, E>(
         &self,
         authority: &mut A,
@@ -164,7 +164,45 @@ impl CallableInterfaceRecordV1 {
                 );
             }
         }
+        if matches!(
+            self.declaration,
+            CallableTemplateOrigin::Constructor(_) | CallableTemplateOrigin::VariantConstructor(_)
+        ) && !self.has_constructed_result(identity.outer_type_parameter_arity)
+        {
+            return Err(CallableInterfaceSemanticValidationError::ConstructedType {
+                owner: self.owner,
+                actual: Box::new(self.result.clone()),
+            });
+        }
         Ok(())
+    }
+
+    fn has_constructed_result(&self, arity: u32) -> bool {
+        match (self.owner, &self.result) {
+            (
+                PublicDeclarationOwnerV1::Nominal(NominalDeclarationOwner::Concrete(owner)),
+                SignatureTypeKey::Nominal(actual),
+            ) => owner == *actual && arity == 0,
+            (
+                PublicDeclarationOwnerV1::Nominal(NominalDeclarationOwner::GenericTemplate(owner)),
+                SignatureTypeKey::NominalApplication { origin, arguments },
+            ) => {
+                owner == *origin
+                    && arguments.as_slice().len() == arity as usize
+                    && arguments
+                        .as_slice()
+                        .iter()
+                        .enumerate()
+                        .all(|(index, argument)| {
+                            *argument
+                                == SignatureTypeKey::Binder {
+                                    depth: 0,
+                                    index: index as u32,
+                                }
+                        })
+            }
+            _ => false,
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use scoop_identity::{
-    CallableTemplateOrigin, DeclarationScope, DefinitionOwnerAtom, DuplicateSignatureKey,
-    NominalDeclarationOwner, OptionalSignatureType, SourceDeclarationKind,
+    CallableTemplateOrigin, DefinitionOwnerAtom, DuplicateSignatureKey, NominalDeclarationOwner,
+    OptionalSignatureType, SourceDeclarationKind,
 };
 
 use super::{
@@ -8,9 +8,10 @@ use super::{
     CallableProjectionSubject, access, effects, parameters,
 };
 use crate::{
-    CallableInterfaceRecordV1, CallableModalityV1, Function, FunctionGenericity,
-    HirFunctionIdentity, HirSourceFunctionIdentity, InterfaceMemberImplementation,
-    InterfaceMemberRole, MethodDispatch, MethodModifier, PublicDeclarationOwnerV1, TypeParamDecl,
+    CallableDeclarationRecordV1, CallableInterfaceRecordV1, CallableModalityV1, Function,
+    FunctionGenericity, HirFunctionIdentity, HirSourceFunctionIdentity,
+    InterfaceMemberImplementation, InterfaceMemberRole, MethodDispatch, MethodModifier,
+    PublicDeclarationOwnerV1, TypeParamDecl,
 };
 
 pub(super) fn project_all(
@@ -20,16 +21,22 @@ pub(super) fn project_all(
     for &function_id in &projection.export.public_surface.functions {
         let subject = CallableProjectionSubject::Function(super::raw_index(function_id));
         let record = project(projection, function_id)
+            .and_then(|data| {
+                let access = access::project(&projection.export.functions[function_id].access)
+                    .map_err(CallableProjectionError::Access)?;
+                CallableInterfaceRecordV1::from_declaration(data, access)
+                    .map_err(CallableProjectionError::Record)
+            })
             .map_err(|error| CallableInterfaceBuildError::projection(subject, error))?;
         records.push(record);
     }
     Ok(())
 }
 
-fn project(
+pub(super) fn project(
     projection: &CallableProjection<'_>,
     function_id: crate::FunctionId,
-) -> Result<CallableInterfaceRecordV1, CallableProjectionError> {
+) -> Result<CallableDeclarationRecordV1, CallableProjectionError> {
     let function = super::arena_get(&projection.export.functions, function_id)
         .ok_or(CallableProjectionError::UnknownDeclaration)?;
     let identity = projection
@@ -94,9 +101,8 @@ fn project(
     let effects =
         effects::function(projection.export, function).map_err(CallableProjectionError::Effects)?;
     let modality = modality(projection, function_id, function)?;
-    let access = access::project(&function.access).map_err(CallableProjectionError::Access)?;
 
-    CallableInterfaceRecordV1::try_new(
+    CallableDeclarationRecordV1::try_new(
         declaration,
         owner,
         type_parameters,
@@ -105,7 +111,8 @@ fn project(
         result,
         effects,
         modality,
-        access,
+        function.access.declared.into(),
+        super::slots::method(projection.export, function.method)?,
     )
     .map_err(CallableProjectionError::Record)
 }
@@ -119,9 +126,6 @@ fn validate_source_key(
             expected: projection.export.cone,
             actual: key.origin(),
         });
-    }
-    if key.scope() != &DeclarationScope::ConeWide {
-        return Err(CallableProjectionError::InvalidDeclarationScope);
     }
     if key.declaration_kind() != SourceDeclarationKind::Function {
         return Err(CallableProjectionError::InvalidDeclarationKind {

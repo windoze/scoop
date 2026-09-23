@@ -113,6 +113,7 @@ fn inherited_defaults_keep_the_raw_provider_receiver() {
             effects(Effect::Ordinary),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap();
         let mut template = fixture.template(

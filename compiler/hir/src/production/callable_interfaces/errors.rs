@@ -74,7 +74,6 @@ pub enum CallableProjectionError {
         expected: ConeIdentity,
         actual: ConeIdentity,
     },
-    InvalidDeclarationScope,
     InvalidDeclarationKind {
         expected: SourceDeclarationKind,
         actual: SourceDeclarationKind,
@@ -113,6 +112,15 @@ pub enum CallableProjectionError {
 
 #[derive(Debug)]
 pub enum CallableInterfaceBuildError {
+    Inventory(crate::CallableDeclarationInventoryError),
+    InvalidSourceNominal,
+    PublicDeclaration {
+        declaration: crate::CallableDeclarationId,
+        error: CallableInterfaceRecordBuildError,
+    },
+    Nominals(crate::NominalInterfaceBuildError),
+    MissingSupport(crate::CallableDeclarationId),
+    Resource(scoop_wire::WireError),
     PropertyInterfaces(PropertyInterfaceBuildError),
     Projection {
         subject: CallableProjectionSubject,
@@ -230,9 +238,6 @@ impl fmt::Display for CallableProjectionError {
                 formatter,
                 "declaration belongs to Cone {actual}, not current Cone {expected}"
             ),
-            Self::InvalidDeclarationScope => {
-                formatter.write_str("declaration does not have ConeWide scope")
-            }
             Self::InvalidDeclarationKind { expected, actual } => write!(
                 formatter,
                 "declaration kind is {actual:?}, expected {expected:?}"
@@ -290,6 +295,20 @@ impl fmt::Display for CallableProjectionError {
 impl fmt::Display for CallableInterfaceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Inventory(error) => error.fmt(formatter),
+            Self::PublicDeclaration { declaration, error } => write!(
+                formatter,
+                "invalid public declaration {declaration:?}: {error}"
+            ),
+            Self::InvalidSourceNominal => {
+                formatter.write_str("callable support has an invalid nominal owner")
+            }
+            Self::Nominals(error) => write!(formatter, "invalid callable nominal closure: {error}"),
+            Self::MissingSupport(declaration) => write!(
+                formatter,
+                "required callable source declaration {declaration:?} is absent"
+            ),
+            Self::Resource(error) => error.fmt(formatter),
             Self::PropertyInterfaces(source) => {
                 write!(
                     formatter,

@@ -31,6 +31,10 @@ pub enum CallableInterfaceSemanticValidationError<E> {
         expected: Box<SignatureTypeKey>,
         actual: Box<SignatureTypeKey>,
     },
+    ConstructedType {
+        owner: PublicDeclarationOwnerV1,
+        actual: Box<SignatureTypeKey>,
+    },
     TypeParameters(TypeParameterBinderSemanticValidationError<E>),
     Receiver(SignatureTypeSemanticError<E>),
     Parameter {
@@ -67,6 +71,10 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceSemanticValidationError<
             } => write!(
                 formatter,
                 "callable parameter {index} has type {actual:?}, expected identity type {expected:?}"
+            ),
+            Self::ConstructedType { owner, actual } => write!(
+                formatter,
+                "constructor result {actual:?} does not preserve its declared nominal owner {owner:?}"
             ),
             Self::TypeParameters(error) => {
                 write!(formatter, "invalid callable type parameters: {error}")

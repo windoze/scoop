@@ -138,6 +138,7 @@ fn fixture() -> Fixture {
         .unwrap(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let implementation = StrongCallableDefinitionOwner::Function(function.id());

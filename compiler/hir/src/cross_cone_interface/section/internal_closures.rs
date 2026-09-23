@@ -4,8 +4,8 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 use super::CrossConeHirInterfaceSectionV1;
 use crate::{
-    CanonicalDirectPublicSurfaceV1, ExportConstValueClosureValidationError,
-    ExportDefaultTemplateSourceClosureValidationError,
+    CallableDeclarationInventoryError, CanonicalDirectPublicSurfaceV1,
+    ExportConstValueClosureValidationError, ExportDefaultTemplateSourceClosureValidationError,
     ExportDefinitionSourceClosureValidationError, PropertyAccessorClosureValidationError,
     PublicExportBindingDirectSurfaceValidationError,
 };
@@ -24,6 +24,9 @@ impl CrossConeHirInterfaceSectionV1 {
         self.public_bindings()
             .validate_direct_surface(direct_surface)
             .map_err(CrossConeHirInternalClosureValidationError::DirectSurface)?;
+        self.callable_interfaces()
+            .validate_declaration_inventory(self.nominal_interfaces(), meter)
+            .map_err(CrossConeHirInternalClosureValidationError::CallableDeclarations)?;
         self.property_interfaces()
             .validate_accessor_closure(self.callable_interfaces())
             .map_err(CrossConeHirInternalClosureValidationError::PropertyAccessors)?;
@@ -41,6 +44,7 @@ impl CrossConeHirInterfaceSectionV1 {
 #[derive(Debug, Eq, PartialEq)]
 pub enum CrossConeHirInternalClosureValidationError {
     DirectSurface(PublicExportBindingDirectSurfaceValidationError),
+    CallableDeclarations(CallableDeclarationInventoryError),
     PropertyAccessors(PropertyAccessorClosureValidationError),
     DefaultTemplates(ExportDefaultTemplateSourceClosureValidationError),
     Constants(ExportConstValueClosureValidationError),
@@ -51,6 +55,7 @@ impl fmt::Display for CrossConeHirInternalClosureValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (relation, error): (&str, &dyn fmt::Display) = match self {
             Self::DirectSurface(error) => ("direct public surface", error),
+            Self::CallableDeclarations(error) => ("callable declaration inventory", error),
             Self::PropertyAccessors(error) => ("property accessor closure", error),
             Self::DefaultTemplates(error) => ("default template closure", error),
             Self::Constants(error) => ("constant closure", error),

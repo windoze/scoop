@@ -325,6 +325,7 @@ fn callable_record(
         .unwrap(),
         hir::CallableModalityV1::Final,
         hir::PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap()
 }

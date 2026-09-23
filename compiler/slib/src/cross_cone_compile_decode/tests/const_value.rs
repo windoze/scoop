@@ -328,6 +328,7 @@ impl ConstSurface {
             scoop_effects(),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            scoop_hir::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap();
         let constant = ExportConstValueV1::new(

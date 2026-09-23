@@ -14,6 +14,8 @@ mod errors;
 mod functions;
 mod parameters;
 pub(in crate::production) use parameters::project_source as source_parameter_shapes;
+mod slots;
+mod support;
 mod variants;
 
 pub use errors::{
@@ -28,18 +30,33 @@ struct CallableProjection<'a> {
 }
 
 impl CanonicalCallableInterfacesV1 {
-    /// Projects every source callable in the current Cone's foreign-public
-    /// surface. Generated constructor adapters and accessor implementation
-    /// functions deliberately remain outside this declaration interface.
+    /// Projects public callables and the source callables required by shared
+    /// nominal declarations. Generated constructor adapters and accessor
+    /// implementation functions remain outside this declaration interface.
     pub fn from_export_hir(export: &ExportHir) -> Result<Self, CallableInterfaceBuildError> {
-        let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir(export)
-            .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
-        Self::from_export_hir_with_properties(export, &properties)
+        Self::from_export_hir_with_budget(
+            export,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
     }
 
-    pub(in crate::production) fn from_export_hir_with_properties(
+    pub fn from_export_hir_with_budget(
+        export: &ExportHir,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<Self, CallableInterfaceBuildError> {
+        let properties = crate::CanonicalPropertyInterfacesV1::from_export_hir(export)
+            .map_err(CallableInterfaceBuildError::PropertyInterfaces)?;
+        let nominals =
+            crate::CanonicalNominalInterfacesV1::from_export_hir_with_budget(export, meter)
+                .map_err(CallableInterfaceBuildError::Nominals)?;
+        Self::from_export_hir_with_nominals(export, &properties, &nominals, meter)
+    }
+
+    pub(in crate::production) fn from_export_hir_with_nominals(
         export: &ExportHir,
         properties: &crate::CanonicalPropertyInterfacesV1,
+        nominals: &crate::CanonicalNominalInterfacesV1,
+        meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CallableInterfaceBuildError> {
         let projection = CallableProjection {
             export,
@@ -51,7 +68,12 @@ impl CanonicalCallableInterfacesV1 {
         constructors::project_all(&projection, &mut records)?;
         variants::project_all(&projection, &mut records)?;
         accessors::project_all(&projection, &mut records)?;
-        let callables = Self::try_new(records).map_err(CallableInterfaceBuildError::Table)?;
+        let support = support::project(&projection, nominals, &records, meter)?;
+        let callables =
+            Self::with_support(records, support).map_err(CallableInterfaceBuildError::Table)?;
+        callables
+            .validate_declaration_inventory(nominals, meter)
+            .map_err(CallableInterfaceBuildError::Inventory)?;
         projection
             .properties
             .validate_accessor_closure(&callables)

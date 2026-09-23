@@ -147,6 +147,7 @@ impl Fixture {
         };
         AccessorInput {
             accessor,
+            role,
             owner: self.owner,
             receiver: self.receiver.clone(),
             parameters,
@@ -160,6 +161,7 @@ impl Fixture {
 
 pub(super) struct AccessorInput {
     accessor: PersistentPropertyAccessorId,
+    role: AccessorRole,
     pub(super) owner: PublicDeclarationOwnerV1,
     pub(super) receiver: Option<SignatureTypeKey>,
     pub(super) parameters: Vec<SignatureTypeKey>,
@@ -189,6 +191,22 @@ impl AccessorInput {
             self.effects,
             self.modality,
             self.access,
+            crate::CanonicalPersistentIdsV1::try_new(
+                if self.access == PublicLookupAccessV1::PublicSlot {
+                    let key = match self.role {
+                        AccessorRole::Getter => {
+                            scoop_identity::DispatchSlotKey::property_getter(self.accessor)
+                        }
+                        AccessorRole::Setter => {
+                            scoop_identity::DispatchSlotKey::property_setter(self.accessor)
+                        }
+                    };
+                    vec![scoop_identity::PersistentDispatchSlotId::from_key(&key).unwrap()]
+                } else {
+                    vec![]
+                },
+            )
+            .unwrap(),
         )
         .unwrap()
     }

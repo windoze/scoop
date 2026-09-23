@@ -5,15 +5,16 @@ use super::{
     CallableProjectionSubject, effects, parameters,
 };
 use crate::{
-    CallableInterfaceRecordV1, CallableModalityV1, HirSourceNominalIdentity,
-    PublicDeclarationOwnerV1, PublicLookupAccessV1,
+    CallableDeclarationRecordV1, CallableInterfaceRecordV1, CallableModalityV1,
+    HirSourceNominalIdentity, PublicDeclarationOwnerV1, PublicLookupAccessV1,
 };
 
-pub(super) fn project_all(
+pub(super) fn project_selected(
     projection: &CallableProjection<'_>,
-    records: &mut Vec<CallableInterfaceRecordV1>,
+    enums: impl IntoIterator<Item = crate::EnumId>,
+    records: &mut Vec<CallableDeclarationRecordV1>,
 ) -> Result<(), CallableInterfaceBuildError> {
-    for &enum_id in &projection.export.public_surface.enums {
+    for enum_id in enums {
         let Some(enumeration) = super::arena_get(&projection.export.enums, enum_id) else {
             let subject = CallableProjectionSubject::Variant {
                 enumeration: super::raw_index(enum_id),
@@ -152,7 +153,7 @@ pub(super) fn project_all(
                             CallableProjectionError::Effects(source),
                         )
                     })?;
-            let record = CallableInterfaceRecordV1::try_new(
+            let record = CallableDeclarationRecordV1::try_new(
                 CallableTemplateOrigin::VariantConstructor(identity.id()),
                 PublicDeclarationOwnerV1::Nominal(owner),
                 type_parameters.clone(),
@@ -161,7 +162,8 @@ pub(super) fn project_all(
                 result.clone(),
                 effects,
                 CallableModalityV1::Final,
-                PublicLookupAccessV1::DirectOnly,
+                crate::DeclaredVisibilityV1::Public,
+                crate::CanonicalPersistentIdsV1::empty(),
             )
             .map_err(|source| {
                 CallableInterfaceBuildError::projection(
@@ -199,4 +201,29 @@ fn source_owner(
             NominalDeclarationOwner::GenericTemplate(record.id())
         }
     })
+}
+
+pub(super) fn project_all(
+    projection: &CallableProjection<'_>,
+    records: &mut Vec<CallableInterfaceRecordV1>,
+) -> Result<(), CallableInterfaceBuildError> {
+    let mut declarations = Vec::new();
+    project_selected(
+        projection,
+        projection.export.public_surface.enums.iter().copied(),
+        &mut declarations,
+    )?;
+    for declaration in declarations {
+        let subject = declaration.declaration();
+        let record = CallableInterfaceRecordV1::from_declaration(
+            declaration,
+            PublicLookupAccessV1::DirectOnly,
+        )
+        .map_err(|error| CallableInterfaceBuildError::PublicDeclaration {
+            declaration: subject,
+            error,
+        })?;
+        records.push(record);
+    }
+    Ok(())
 }

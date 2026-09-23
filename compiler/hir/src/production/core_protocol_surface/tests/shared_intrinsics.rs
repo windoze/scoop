@@ -156,6 +156,7 @@ fn shared_intrinsic_rejects_own_binder_count_and_non_function_source() {
         record.effects(),
         record.modality(),
         record.access(),
+        crate::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     assert_eq!(

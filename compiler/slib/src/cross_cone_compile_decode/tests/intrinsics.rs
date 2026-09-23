@@ -160,6 +160,7 @@ fn intrinsic_artifact(count: usize) -> Vec<u8> {
                 .unwrap(),
                 record.modality(),
                 record.access(),
+                scoop_hir::CanonicalPersistentIdsV1::empty(),
             )
             .unwrap()
         })

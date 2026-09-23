@@ -164,14 +164,16 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
         let declaration_key = self.source_nominal_key(declaration)?;
         self.require_current("enum variant constructor", declaration_key.origin())?;
         let shape = self.nominal_shape(declaration)?;
-        let record = self
-            .current_interface
-            .nominal_interfaces()
-            .get(declaration)
-            .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
-                origin: self.current,
-                declaration,
-            })?;
+        let nominals = self.current_interface.nominal_interfaces();
+        let record = if self.include_nominal_support {
+            nominals.declaration(declaration)
+        } else {
+            nominals.get(declaration)
+        }
+        .ok_or(CrossConeHirNominalAuthorityError::MissingNominalInterface {
+            origin: self.current,
+            declaration,
+        })?;
         let NominalSourceShapeV1::Enum(source) = record.source_shape() else {
             return Err(
                 CrossConeHirNominalAuthorityError::NominalSourceShapeNotEnum {

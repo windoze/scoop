@@ -146,6 +146,7 @@ fn finish(
         effects,
         modality(property, implementation),
         actual_access,
+        super::slots::accessor(projection.export, implementation)?,
     )
     .map_err(CallableProjectionError::Record)
 }

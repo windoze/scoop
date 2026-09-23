@@ -14,6 +14,10 @@ pub enum CrossConeHirNominalAuthorityError {
         declaration: SourceNominalId,
         reason: &'static str,
     },
+    CallableDeclaration {
+        declaration: CallableTemplateOrigin,
+        reason: &'static str,
+    },
     Identity(IdentityReferenceError),
     ForeignDeclaration {
         entity: &'static str,
@@ -121,6 +125,13 @@ impl fmt::Display for CrossConeHirNominalAuthorityError {
             } => write!(
                 formatter,
                 "invalid nominal declaration {declaration:?}: {reason}"
+            ),
+            Self::CallableDeclaration {
+                declaration,
+                reason,
+            } => write!(
+                formatter,
+                "invalid callable declaration {declaration:?}: {reason}"
             ),
             Self::Identity(error) => error.fmt(formatter),
             Self::ForeignDeclaration {
@@ -284,6 +295,7 @@ impl std::error::Error for CrossConeHirNominalAuthorityError {
             Self::Identity(error) => Some(error),
             Self::NestedBindingTarget { source, .. } => Some(source.as_ref()),
             Self::NominalDeclaration { .. }
+            | Self::CallableDeclaration { .. }
             | Self::ForeignDeclaration { .. }
             | Self::UnreachableProvider { .. }
             | Self::MissingNominalInterface { .. }

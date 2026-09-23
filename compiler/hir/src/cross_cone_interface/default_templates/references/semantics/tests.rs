@@ -146,6 +146,7 @@ fn rejects_mismatched_owner_interface_and_foreign_reference_origin() {
         effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        crate::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
 
@@ -476,6 +477,17 @@ fn owner_interface(fixture: &Fixture, access: PublicLookupAccessV1) -> CallableI
         effects(),
         modality,
         access,
+        crate::CanonicalPersistentIdsV1::try_new(if access == PublicLookupAccessV1::PublicSlot {
+            vec![
+                scoop_identity::PersistentDispatchSlotId::from_key(
+                    &scoop_identity::DispatchSlotKey::virtual_method(fixture.function),
+                )
+                .unwrap(),
+            ]
+        } else {
+            vec![]
+        })
+        .unwrap(),
     )
     .unwrap()
 }

@@ -45,6 +45,7 @@ use crate::{
     },
 };
 
+mod callable_declarations;
 mod const_value;
 mod intrinsics;
 mod lir_bridge;
@@ -688,8 +689,8 @@ fn add_cross_cone_bridge_sections(
 
 pub(crate) fn empty_cross_cone_hir_interface() -> Vec<u8> {
     vec![
-        0xaa, 0x01, 0x80, 0x02, 0xa2, 0x01, 0x80, 0x02, 0x80, 0x03, 0x80, 0x04, 0x80, 0x05, 0x80,
-        0x06, 0x80, 0x07, 0x80, 0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
+        0xaa, 0x01, 0x80, 0x02, 0xa2, 0x01, 0x80, 0x02, 0x80, 0x03, 0xa2, 0x01, 0x80, 0x02, 0x80,
+        0x04, 0x80, 0x05, 0x80, 0x06, 0x80, 0x07, 0x80, 0x08, 0x80, 0x09, 0x80, 0x0a, 0x80,
     ]
 }
 
@@ -925,6 +926,7 @@ fn nominal_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let extension_callable = CallableInterfaceRecordV1::try_new(
@@ -945,6 +947,7 @@ fn nominal_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let constructor_callable = CallableInterfaceRecordV1::try_new(
@@ -957,6 +960,7 @@ fn nominal_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let property_owner = if matching_property_owner {
@@ -974,6 +978,7 @@ fn nominal_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let extension_getter_callable = CallableInterfaceRecordV1::try_new(
@@ -986,6 +991,7 @@ fn nominal_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     let property_record = PropertyInterfaceRecordV1::try_new(
@@ -1127,6 +1133,7 @@ fn enum_variant_callable_surface(
         scoop_effects(),
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
+        scoop_hir::CanonicalPersistentIdsV1::empty(),
     )
     .unwrap();
     (

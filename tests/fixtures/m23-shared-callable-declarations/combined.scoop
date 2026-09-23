@@ -1,0 +1,20 @@
+private interface HiddenBound {}
+public interface Contract {
+    public fun compute(value: Int): Int
+}
+public open class Base {
+    protected open fun seed(value: Int): Int = value
+}
+public class Service : Base(), Contract {
+    public final override fun compute(value: Int): Int = value
+    protected final override fun seed(value: Int): Int = value
+    internal fun total(value: Int): Int = seed(value)
+    private fun <T : HiddenBound> echo(value: T): T = value
+    private class Cell<T> private constructor(private val item: T) {
+        public fun read(): T = item
+    }
+    internal enum Choice<T> { Empty, Value(val item: T) }
+    public object Cache {
+        private fun count(): Int = 1
+    }
+}

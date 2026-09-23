@@ -1,60 +1,129 @@
-use std::fmt;
-
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
-
 use super::{
-    CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
-    CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
-    CallableInterfaceSemanticValidationError, DecodedCallableInterfaceRecordV1,
+    CallableDeclarationRecordV1, CallableInterfaceRecordResolutionError,
+    CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError, DecodedCallableDeclarationRecordV1,
+    DecodedCallableInterfaceRecordV1,
 };
 use crate::CallableDeclarationId;
+use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use std::fmt;
 
+mod decode;
+mod errors;
+pub use decode::DecodedCanonicalCallableInterfacesV1;
+pub use errors::{
+    CallableInterfaceSetBuildError, CallableInterfaceSetSemanticValidationError,
+    CallableInterfaceSetValidationError,
+};
+
+/// Public lookup and necessary source support share one declaration per typed id.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalCallableInterfacesV1 {
     records: Vec<CallableInterfaceRecordV1>,
+    support: Vec<CallableDeclarationRecordV1>,
 }
 
 impl CanonicalCallableInterfacesV1 {
     pub fn try_new(
+        records: Vec<CallableInterfaceRecordV1>,
+    ) -> Result<Self, CallableInterfaceSetBuildError> {
+        Self::with_support(records, Vec::new())
+    }
+
+    pub fn with_support(
         mut records: Vec<CallableInterfaceRecordV1>,
+        mut support: Vec<CallableDeclarationRecordV1>,
     ) -> Result<Self, CallableInterfaceSetBuildError> {
         records.sort_unstable_by_key(CallableInterfaceRecordV1::declaration);
-        if let Some(pair) = records
+        support.sort_unstable_by_key(CallableDeclarationRecordV1::declaration);
+        let duplicate = records
             .windows(2)
             .find(|pair| pair[0].declaration() == pair[1].declaration())
-        {
+            .map(|pair| pair[0].declaration())
+            .or_else(|| {
+                support
+                    .windows(2)
+                    .find(|pair| pair[0].declaration() == pair[1].declaration())
+                    .map(|pair| pair[0].declaration())
+            });
+        if let Some(declaration) = duplicate {
             return Err(CallableInterfaceSetBuildError::DuplicateDeclaration(
-                pair[0].declaration(),
+                declaration,
             ));
         }
-        Ok(Self { records })
+        for record in &support {
+            if records
+                .binary_search_by_key(
+                    &record.declaration(),
+                    CallableInterfaceRecordV1::declaration,
+                )
+                .is_ok()
+            {
+                return Err(CallableInterfaceSetBuildError::DuplicateDeclaration(
+                    record.declaration(),
+                ));
+            }
+        }
+        Ok(Self { records, support })
     }
 
     pub fn records(&self) -> &[CallableInterfaceRecordV1] {
         &self.records
     }
-
+    pub fn support_records(&self) -> &[CallableDeclarationRecordV1] {
+        &self.support
+    }
+    pub fn all_declarations(&self) -> impl Iterator<Item = &CallableDeclarationRecordV1> {
+        self.records
+            .iter()
+            .map(CallableInterfaceRecordV1::declaration_data)
+            .chain(&self.support)
+    }
+    pub fn declaration_count(&self) -> usize {
+        self.records.len() + self.support.len()
+    }
     pub fn get(&self, declaration: CallableDeclarationId) -> Option<&CallableInterfaceRecordV1> {
         self.records
             .binary_search_by_key(&declaration, CallableInterfaceRecordV1::declaration)
             .ok()
             .map(|index| &self.records[index])
     }
-
+    pub fn declaration(
+        &self,
+        declaration: CallableDeclarationId,
+    ) -> Option<&CallableDeclarationRecordV1> {
+        self.get(declaration)
+            .map(CallableInterfaceRecordV1::declaration_data)
+            .or_else(|| {
+                self.support
+                    .binary_search_by_key(&declaration, CallableDeclarationRecordV1::declaration)
+                    .ok()
+                    .map(|index| &self.support[index])
+            })
+    }
     pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
+        self.records.is_empty() && self.support.is_empty()
     }
 
-    pub fn validate_semantics<A, E>(
+    pub fn validate_semantics<A: CallableInterfaceSemanticAuthority<E>, E>(
         &self,
         authority: &mut A,
-    ) -> Result<(), CallableInterfaceSetSemanticValidationError<E>>
-    where
-        A: CallableInterfaceSemanticAuthority<E>,
-    {
+    ) -> Result<(), CallableInterfaceSetSemanticValidationError<E>> {
         for (index, record) in self.records.iter().enumerate() {
             record.validate_semantics(authority).map_err(|error| {
                 CallableInterfaceSetSemanticValidationError::Record { index, error }
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn validate_support_semantics<A: CallableInterfaceSemanticAuthority<E>, E>(
+        &self,
+        authority: &mut A,
+    ) -> Result<(), CallableInterfaceSetSemanticValidationError<E>> {
+        for (index, record) in self.support.iter().enumerate() {
+            record.validate_semantics(authority).map_err(|error| {
+                CallableInterfaceSetSemanticValidationError::SupportRecord { index, error }
             })?;
         }
         Ok(())
@@ -63,148 +132,19 @@ impl CanonicalCallableInterfacesV1 {
 
 impl WireEncode for CanonicalCallableInterfacesV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
         encoder.array(self.records.len() as u64)?;
         for record in &self.records {
             record.encode(encoder)?;
         }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedCanonicalCallableInterfacesV1 {
-    records: Vec<DecodedCallableInterfaceRecordV1>,
-}
-
-impl DecodedCanonicalCallableInterfacesV1 {
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<CanonicalCallableInterfacesV1, CallableInterfaceSetValidationError<E>>
-    where
-        R: CallableInterfaceRecordResolver<E>,
-    {
-        let mut records = Vec::<CallableInterfaceRecordV1>::with_capacity(self.records.len());
-        for (index, record) in self.records.into_iter().enumerate() {
-            let record = record
-                .resolve(resolver)
-                .map_err(|error| CallableInterfaceSetValidationError::Record { index, error })?;
-            if let Some(previous) = records.last() {
-                match previous.declaration().cmp(&record.declaration()) {
-                    std::cmp::Ordering::Equal => {
-                        return Err(CallableInterfaceSetValidationError::DuplicateDeclaration {
-                            index,
-                            declaration: record.declaration(),
-                        });
-                    }
-                    std::cmp::Ordering::Greater => {
-                        return Err(CallableInterfaceSetValidationError::NonCanonicalOrder {
-                            index,
-                        });
-                    }
-                    std::cmp::Ordering::Less => {}
-                }
-            }
-            records.push(record);
-        }
-        Ok(CanonicalCallableInterfacesV1 { records })
-    }
-}
-
-impl WireEncode for DecodedCanonicalCallableInterfacesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.array(self.records.len() as u64)?;
-        for record in &self.records {
+        encoder.field(2)?;
+        encoder.array(self.support.len() as u64)?;
+        for record in &self.support {
             record.encode(encoder)?;
         }
         Ok(())
     }
-}
-
-impl WireDecode for DecodedCanonicalCallableInterfacesV1 {
-    fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder
-            .decode_array(|decoder, _| DecodedCallableInterfaceRecordV1::decode(decoder))
-            .map(|records| Self { records })
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CallableInterfaceSetBuildError {
-    DuplicateDeclaration(CallableDeclarationId),
-}
-
-impl fmt::Display for CallableInterfaceSetBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::DuplicateDeclaration(declaration) => {
-                write!(formatter, "duplicate callable interface {declaration:?}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for CallableInterfaceSetBuildError {}
-
-#[derive(Debug)]
-pub enum CallableInterfaceSetValidationError<E> {
-    Record {
-        index: usize,
-        error: CallableInterfaceRecordResolutionError<E>,
-    },
-    DuplicateDeclaration {
-        index: usize,
-        declaration: CallableDeclarationId,
-    },
-    NonCanonicalOrder {
-        index: usize,
-    },
-}
-
-impl<E: fmt::Display> fmt::Display for CallableInterfaceSetValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Record { index, error } => {
-                write!(formatter, "invalid callable interface {index}: {error}")
-            }
-            Self::DuplicateDeclaration { index, declaration } => write!(
-                formatter,
-                "duplicate callable interface {declaration:?} at index {index}"
-            ),
-            Self::NonCanonicalOrder { index } => write!(
-                formatter,
-                "non-canonical callable interface order at index {index}"
-            ),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for CallableInterfaceSetValidationError<E> {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum CallableInterfaceSetSemanticValidationError<E> {
-    Record {
-        index: usize,
-        error: CallableInterfaceSemanticValidationError<E>,
-    },
-}
-
-impl<E: fmt::Display> fmt::Display for CallableInterfaceSetSemanticValidationError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Record { index, error } => {
-                write!(
-                    formatter,
-                    "invalid callable interface semantics {index}: {error}"
-                )
-            }
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error
-    for CallableInterfaceSetSemanticValidationError<E>
-{
 }
 
 #[cfg(test)]

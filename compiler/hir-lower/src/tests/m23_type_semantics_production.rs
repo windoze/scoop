@@ -15,6 +15,7 @@ mod public_projection;
 use public_projection::public_interface;
 
 mod fact_providers;
+mod shared_callable_declarations;
 mod shared_nominal_declarations;
 mod source_binding;
 mod source_constructor_gc;

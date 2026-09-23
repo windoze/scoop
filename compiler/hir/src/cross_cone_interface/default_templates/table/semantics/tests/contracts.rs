@@ -671,6 +671,7 @@ impl Fixture {
             effects(effect),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap();
         CanonicalCallableInterfacesV1::try_new(vec![callable]).unwrap()

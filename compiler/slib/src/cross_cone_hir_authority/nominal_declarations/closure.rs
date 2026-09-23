@@ -24,6 +24,7 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     .ok_or_else(|| invalid(owner, "invalid source lexical parent"))?;
                 closure.add(parent)?;
             }
+            closure.binders(record.type_parameters())?;
             for ty in record.exact_supertypes().values() {
                 closure.signature(ty)?;
             }
@@ -35,6 +36,33 @@ impl CanonicalCrossConeHirSurfaceAuthority<'_> {
                     for field in variant.fields() {
                         closure.signature(field.value_type())?;
                     }
+                }
+            }
+            for constructor in record.declaration_details().constructors().values() {
+                closure.callable(
+                    owner,
+                    scoop_identity::CallableTemplateOrigin::Constructor(*constructor),
+                )?;
+            }
+            for member in record.declaration_details().members().values() {
+                match member {
+                    scoop_hir::NestedSourceMemberRefV1::Function(id) => closure
+                        .callable(owner, scoop_identity::CallableTemplateOrigin::Function(*id))?,
+                    scoop_hir::NestedSourceMemberRefV1::GenericFunction(id) => closure.callable(
+                        owner,
+                        scoop_identity::CallableTemplateOrigin::GenericFunction(*id),
+                    )?,
+                    scoop_hir::NestedSourceMemberRefV1::Property(_) => {}
+                }
+            }
+            if let NominalSourceShapeV1::Enum(shape) = record.source_shape() {
+                for variant in shape.variants() {
+                    closure.callable(
+                        owner,
+                        scoop_identity::CallableTemplateOrigin::VariantConstructor(
+                            variant.variant(),
+                        ),
+                    )?;
                 }
             }
             for child in record.declaration_details().children().values() {
@@ -108,6 +136,44 @@ impl Closure<'_, '_> {
             .map_err(Error::Resource)?;
         self.required.insert(owner);
         self.pending.push(owner);
+        Ok(())
+    }
+
+    fn callable(
+        &mut self,
+        owner: SourceNominalId,
+        declaration: scoop_identity::CallableTemplateOrigin,
+    ) -> Result<(), Error> {
+        let record = self
+            .world
+            .current_interface
+            .callable_interfaces()
+            .declaration(declaration)
+            .ok_or_else(|| invalid(owner, "required source callable declaration is absent"))?;
+        if record.owner() != scoop_hir::PublicDeclarationOwnerV1::Nominal(owner) {
+            return Err(invalid(owner, "source callable belongs to another nominal"));
+        }
+        self.binders(record.type_parameters())?;
+        if let Some(receiver) = record.receiver() {
+            self.signature(receiver)?;
+        }
+        for parameter in record.parameters().parameters() {
+            self.signature(parameter.value_type())?;
+        }
+        self.signature(record.result())
+    }
+
+    fn binders(&mut self, binders: &scoop_hir::CanonicalBinderListV1) -> Result<(), Error> {
+        for binder in binders.binders() {
+            if let scoop_hir::TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() {
+                if let Some(class) = bounds.class() {
+                    self.signature(class)?;
+                }
+                for interface in bounds.interfaces().values() {
+                    self.signature(interface)?;
+                }
+            }
+        }
         Ok(())
     }
 

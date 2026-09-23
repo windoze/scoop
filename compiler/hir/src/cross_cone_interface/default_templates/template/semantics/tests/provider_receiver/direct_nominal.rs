@@ -45,6 +45,7 @@ fn generic_member_receiver_uses_the_declared_host_frame() {
             effects(Effect::Ordinary),
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
+            crate::CanonicalPersistentIdsV1::empty(),
         )
         .unwrap();
         let source = CallableSourceInterfaceV1::try_new(

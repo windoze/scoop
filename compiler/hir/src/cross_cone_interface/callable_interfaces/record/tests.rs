@@ -18,7 +18,7 @@ fn callable_record_has_fixed_field_wire_and_accessors() {
     let fixture = Fixture::new();
     let record = fixture.record();
     let expected = [
-        b"\xa9\x01".as_slice(),
+        b"\xa2\x01\xaa\x01".as_slice(),
         encode(&record.declaration()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.owner()).unwrap().as_slice(),
@@ -39,6 +39,10 @@ fn callable_record_has_fixed_field_wire_and_accessors() {
         b"\x08".as_slice(),
         encode(&record.modality()).unwrap().as_slice(),
         b"\x09".as_slice(),
+        encode(&record.declared_visibility()).unwrap().as_slice(),
+        b"\x0a".as_slice(),
+        encode(record.slot_relations()).unwrap().as_slice(),
+        b"\x02".as_slice(),
         encode(&record.access()).unwrap().as_slice(),
     ]
     .concat();
@@ -227,8 +231,17 @@ fn reader_replays_effect_and_record_invariants() {
         ))
     ));
 
-    let mut decoded = decode_record(&record);
-    decoded.access = PublicLookupAccessV1::PublicSlot;
+    let invalid_access = [
+        b"\xa2\x01".as_slice(),
+        encode(record.declaration_data()).unwrap().as_slice(),
+        b"\x02".as_slice(),
+        encode(&PublicLookupAccessV1::PublicSlot)
+            .unwrap()
+            .as_slice(),
+    ]
+    .concat();
+    let decoded: DecodedCallableInterfaceRecordV1 =
+        decode_canonical(&invalid_access, DecodeLimits::default()).unwrap();
     let mut authority = fixture.authority();
     assert!(matches!(
         decoded.resolve(&mut authority),
@@ -262,7 +275,7 @@ fn reader_requires_the_exact_record_map_shape() {
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 9,
+            expected: 2,
             actual: 0,
         }
     ));
@@ -359,6 +372,7 @@ fn build_record(
         effects,
         modality,
         access,
+        crate::CanonicalPersistentIdsV1::empty(),
     )
 }
 
@@ -435,7 +449,9 @@ struct InvalidEffectsRecord<'record>(&'record CallableInterfaceRecordV1);
 impl WireEncode for InvalidEffectsRecord<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let record = self.0;
-        encoder.map(9)?;
+        encoder.map(2)?;
+        encoder.field(1)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         record.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -454,7 +470,11 @@ impl WireEncode for InvalidEffectsRecord<'_> {
         encoder.field(8)?;
         record.modality.encode(encoder)?;
         encoder.field(9)?;
-        record.access.encode(encoder)
+        record.declared_visibility().encode(encoder)?;
+        encoder.field(10)?;
+        record.slot_relations().encode(encoder)?;
+        encoder.field(2)?;
+        record.access().encode(encoder)
     }
 }
 

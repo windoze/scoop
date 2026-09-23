@@ -49,6 +49,8 @@ pub(super) fn callable(
         } else {
             PublicLookupAccessV1::PublicSlot
         },
+        crate::CanonicalPersistentIdsV1::try_new(payload.slot_relations().slots().to_vec())
+            .unwrap(),
     )
     .unwrap()
 }

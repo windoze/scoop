@@ -1,6 +1,8 @@
 mod common;
+mod inventory;
 mod record;
 mod table;
+pub use inventory::CallableDeclarationInventoryError;
 
 pub use common::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
@@ -12,10 +14,11 @@ pub use common::{
     SourceParameterShapeV1,
 };
 pub use record::{
-    CallableDeclarationIdentityShapeV1, CallableInterfaceRecordBuildError,
-    CallableInterfaceRecordResolutionError, CallableInterfaceRecordResolver,
-    CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
-    CallableInterfaceSemanticValidationError, DecodedCallableInterfaceRecordV1,
+    CallableDeclarationIdentityShapeV1, CallableDeclarationRecordV1,
+    CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError,
+    CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError, DecodedCallableDeclarationRecordV1,
+    DecodedCallableInterfaceRecordV1,
 };
 pub use table::{
     CallableInterfaceSetBuildError, CallableInterfaceSetSemanticValidationError,
