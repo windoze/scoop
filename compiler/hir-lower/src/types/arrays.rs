@@ -1,6 +1,24 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn require_implicit_array_application(
+        &mut self,
+        span: scoop_ast::Span,
+    ) -> Option<()> {
+        if self
+            .intrinsic_type_owners
+            .contains_key(&hir::IntrinsicTypeKind::Array)
+        {
+            return Some(());
+        }
+        self.error(
+            span,
+            crate::imported_capabilities::ImportedCapabilityRequirement::Generic
+                .diagnostic("implicit array application"),
+        );
+        None
+    }
+
     pub(crate) fn array_class(&self, kind: ArrayKind) -> hir::ClassId {
         let intrinsic = match kind {
             ArrayKind::Immutable => hir::IntrinsicTypeKind::Array,

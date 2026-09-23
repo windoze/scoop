@@ -214,6 +214,7 @@ M22的普通range core源码surface包含四个独立nominal identity：`IntRang
 
 此外归属 HIR 的语义工作：
 
+- 普通依赖模式中，`vararg` 参数和数组字面量隐式引入的 Array application 与显式泛型应用使用同一能力边界。当前 M23-6 未开放跨 Cone generic/ODR 物化，缺少可用的本地数组声明表示时，必须在 `vararg` 关键字或完整数组字面量处报告 `SCOOP_HIR_CROSS_CONE_GENERIC_REQUIRED`，不能跳过入口检查后访问不存在的 intrinsic arena、产生 panic 或补造类型。定义侧已有完整数组声明的正常解析保持；本条不改变数组语言语义、runtime ABI 或 M23-7 的范围。
 - 字符串插值脱糖（spec 6.2）、`?.`/`?:`脱糖（spec 7.3）、完整operator/infix及只求值一次的place展开（spec 9.3）、struct copy update（spec 4.5）与`for`（spec 4.6、8.7、11.8）展开等。安全方法调用的实参/default sink必须只位于`Some`分支；若callee返回`Option<R>`不得展平为单层Option。复合赋值与自增/自减先产生包含typed read/write能力的临时place plan，再正规化为普通call/assignment；MIR不能接收source operator token、候选、copy-update字段名或待重放operand；
 - 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 managed callable reference 都有独立的类型化实体 id。AST 的 `::name` / `receiver::name` 保持中性的函数声明引用表达式，不提前编码 managed/native 运行时类别；HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析，再由期望类型类别直接构造 managed callable reference 或 `FunctionAddress`，不能先构造前者再转换为后者。capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针；
 - 所有成员方法/计算属性 getter 的 `this` 及扩展函数的 extension receiver，在 HIR 中都是隐含的、不可重新绑定的按值参数（spec 3.3），不得用指向调用方 binding 的 place 表示其语义。value receiver 复制完整值，ref receiver 复制 ref value；后者的 HIR 类型仍是完整 ref type，不降级成 raw pointer。捕获 `this` 时捕获的就是该参数值；对 value-type `this` 执行 `addressOf(this)` 则对该 method activation 内物化的私有副本取址；

@@ -1,0 +1,1 @@
+public fun count(vararg values: Int): Int = 1

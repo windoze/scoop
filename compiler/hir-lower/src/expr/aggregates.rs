@@ -53,6 +53,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        self.require_implicit_array_application(span)?;
         let expected_array =
             expected.and_then(|ty| self.array_type_info(ty).map(|array| (ty, array.element)));
         if let Some((array_ty, element_ty)) = expected_array {
