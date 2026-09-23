@@ -135,7 +135,8 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             ..
         } => vec![*array, *index, *value],
         Instruction::EnumWrap { fields, .. } => fields.clone(),
-        Instruction::GlobalLoad { .. }
+        Instruction::MakeZstValue { .. }
+        | Instruction::GlobalLoad { .. }
         | Instruction::GlobalAddress { .. }
         | Instruction::NativeGlobalLoad { .. }
         | Instruction::NativeGlobalAddress { .. }
@@ -180,6 +181,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::IntegerShift { out, .. }
         | Instruction::IntegerConvert { out, .. }
         | Instruction::MakeAggregate { out, .. }
+        | Instruction::MakeZstValue { out, .. }
         | Instruction::ExtractValue { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }

@@ -55,6 +55,7 @@ mod moving_gc;
 mod object_partition;
 mod objects;
 mod platform;
+mod pointers;
 mod scoop_abi;
 mod smoke;
 mod statepoints;

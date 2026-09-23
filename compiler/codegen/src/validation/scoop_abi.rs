@@ -9,6 +9,7 @@ use scoop_lir::{EnumDefId, StructDefId};
 use std::collections::HashSet;
 
 mod boxing;
+mod pointer_storage;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct StorageFacts {
@@ -50,6 +51,7 @@ impl<'a> AbiMetadataValidator<'a> {
             )?;
             self.validate_call_signatures(function)?;
             self.validate_boxing(function)?;
+            self.validate_pointer_storage(function)?;
             for (id, local) in function.locals.iter() {
                 let owner = format!("function @{} local {}", function.symbol(), id.into_raw());
                 match local.storage() {

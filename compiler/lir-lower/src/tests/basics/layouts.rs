@@ -365,7 +365,7 @@ fn compiler_pointer_element_offsets_keep_their_domain_and_dedicated_stride() {
     else {
         panic!("the pointer displacement must stay a dedicated instruction")
     };
-    assert_eq!(*element_size, 4);
+    assert_eq!(element_size.get(), 4);
     assert!(!subtract);
     assert_eq!(
         function.value_ty(&module.globals, *element_offset),

@@ -1,5 +1,7 @@
 # Scoop 实现大纲
 
+M23-6 的 raw pointer lowering 使用与局部存储、Scoop ABI 相同的完备存储分类。receiver、offset、store value 按原顺序先求值；零尺寸 pointee 的 load 产生携带 exact identity/`AbiZst` 的 `MakeZstValue`，store 不产生 payload 写入，plus/minus/load/store offset 不产生地址位移。非零 `RawLoad`/`RawStore` 保存完整 `AbiValue`，`PtrOffset` 保存非零步长；codegen 按这些 LIR 合同重放类型、布局与 scan 后发射，不用 LLVM 空类型猜测是否需要访问。unsafe 地址有效性和跨 Cone ODR 边界保持，内部 typed fixture 验证本地表示语义。
+
 直接 `scoopc build` 与上层构建图使用相同的显式 core 优先规则：manifest 请求先从已加载的 direct/support artifact 字节快照取得共有 manifest summary，只有显式集合中没有 core 时才访问默认 sysroot。summary 按实际 target 复用并使用同一累计预算，不能为发现 core 重读文件或重复解码；summary 只用于发现，不替代完整 Compile/Link 闭包。显式 core 的重复、错误依赖角色、错误版本或损坏产物均走共有诊断，不能回退默认位置掩盖错误。默认补入的 artifact 仍须通过输出隔离与完整依赖校验；single-file 禁止显式 direct/support 的规则保持。
 
 core 是可由用户修改、扩展和重建的普通 library Cone。 core源码中的普通nominal引用按所属provider的公共声明表解析；没有源码声明arena的语言内建Unit/Any仍按typed intrinsic identity解释其固定形状，不要求专用core来源证明。 graph discovery只区分Manifest、prebuilt与single-file节点，不保留TrustedCore节点变体；当前manifest定义core时直接使用该根且不读取默认sysroot。 默认位置解析只返回路径，产物加载不以源码目录或源码manifest存在为前提；driver不另存core artifact authority或ABI副本，也不在通用闭包验证前重复解码envelope/graph；target与ABI由构建请求和所有Cone共用的artifact decoder验证；所有源码manifest使用同一parser，默认core的coordinate/kind匹配使用普通依赖locator规则。源码层面的特殊处理仅限于前端识别 `@Intrinsic`，并把它正规化为既有 typed IR，以及 desugar 通过普通声明引用使用基础库提供的类型和函数。sysroot 是默认查找位置，不是信任边界；源码目录、输出位置、相同 coordinate 或用户修改过的 core 不需要授权 token。metadata 解码、typed identity 一致性、依赖闭包、ABI、缓存失效和 slib fingerprint 使用所有 Cone 共用的规则。不得为 core 另建来源防伪、slot 授权、receipt 信任链或重复 pipeline；既有专用实现须合并或删除，旧文档的冻结条款不阻止此次清理。

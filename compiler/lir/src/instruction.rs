@@ -130,6 +130,11 @@ pub enum Instruction {
         target_kind: IntegerKind,
         operand: Value,
     },
+    /// A logical value whose complete storage contract has zero payload.
+    MakeZstValue {
+        out: TempId,
+        value: LogicalZstValue,
+    },
     /// Build an aggregate value (struct / tuple construction, or the
     /// Unit value with zero elements).
     MakeAggregate {
@@ -256,15 +261,17 @@ pub enum Instruction {
         out: TempId,
         value: Value,
     },
+    /// Read a payload whose complete storage contract is nonzero.
     RawLoad {
         out: TempId,
         pointer: Value,
-        align: u64,
+        pointee: AbiValue,
     },
+    /// Write a payload whose complete storage contract is nonzero.
     RawStore {
         pointer: Value,
         value: Value,
-        align: u64,
+        pointee: AbiValue,
     },
     /// Pointer displacement by `element_offset * element_size`.  The offset
     /// remains either a source pointer index or the compiler-owned
@@ -274,7 +281,7 @@ pub enum Instruction {
         out: TempId,
         pointer: Value,
         element_offset: Value,
-        element_size: u64,
+        element_size: std::num::NonZeroU64,
         subtract: bool,
     },
     LocalAddress {

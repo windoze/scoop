@@ -99,6 +99,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::IntegerShift { out, .. }
         | Instruction::IntegerConvert { out, .. }
         | Instruction::MakeAggregate { out, .. }
+        | Instruction::MakeZstValue { out, .. }
         | Instruction::ExtractValue { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }

@@ -1,25 +1,6 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
-    pub(super) fn offset_pointer(
-        &mut self,
-        pointer: lir::Value,
-        pointee: &mir::Type,
-        offset: lir::Value,
-        subtract: bool,
-    ) -> StorageResult<lir::Value> {
-        let (size, _) = self.value_layout(pointee)?;
-        let out = self.new_temp(lir::RAW_PTR);
-        self.push(lir::Instruction::PtrOffset {
-            out,
-            pointer,
-            element_offset: offset,
-            element_size: size,
-            subtract,
-        });
-        Ok(lir::Value::Temp(out))
-    }
-
     /// The shared trap block for `message` in this function (one per
     /// message, created on first use): calls the runtime trap —
     /// `void scoop_rt_trap(ptr)`, noreturn — with the message global

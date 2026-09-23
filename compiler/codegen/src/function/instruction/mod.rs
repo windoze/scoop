@@ -9,6 +9,7 @@ mod enums;
 mod exceptions;
 mod heap;
 mod operators;
+mod pointers;
 mod values;
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -26,9 +27,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::IntegerCompareTo { .. }
             | Instruction::IntegerShift { .. }
             | Instruction::IntegerConvert { .. } => self.emit_operator_instruction(instruction),
-            Instruction::MakeAggregate { .. } | Instruction::ExtractValue { .. } => {
-                self.emit_aggregate_instruction(instruction)
-            }
+            Instruction::MakeAggregate { .. }
+            | Instruction::MakeZstValue { .. }
+            | Instruction::ExtractValue { .. } => self.emit_aggregate_instruction(instruction),
             Instruction::HeapLoad { .. }
             | Instruction::MachineHeapLoad { .. }
             | Instruction::AtomicLoad { .. }
@@ -43,9 +44,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::ULongToPtr { .. }
             | Instruction::PtrToULong { .. }
-            | Instruction::RawLoad { .. }
-            | Instruction::RawStore { .. }
-            | Instruction::PtrOffset { .. }
             | Instruction::LocalAddress { .. }
             | Instruction::GlobalLoad { .. }
             | Instruction::GlobalStore { .. }
@@ -54,6 +52,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::NativeGlobalStore { .. }
             | Instruction::NativeGlobalAddress { .. }
             | Instruction::Store { .. } => self.emit_address_instruction(instruction),
+            Instruction::RawLoad { .. }
+            | Instruction::RawStore { .. }
+            | Instruction::PtrOffset { .. } => self.emit_raw_pointer_instruction(instruction),
             Instruction::Call { site } => self.emit_call_site(site),
             Instruction::ManagedPoll { site } => self.safepoint_poll(site),
             Instruction::Invoke { site } => self.emit_invoke_site(site),

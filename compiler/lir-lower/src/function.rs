@@ -7,6 +7,7 @@ mod expression;
 mod expression_support;
 mod objects;
 mod places;
+mod pointers;
 mod scalars;
 mod statements;
 

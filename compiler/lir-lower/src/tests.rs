@@ -10,6 +10,7 @@ mod exact_callable_abi;
 mod exact_layouts;
 mod initialization;
 mod native_storage;
+mod pointers;
 mod storage_replay;
 mod zst_places;
 

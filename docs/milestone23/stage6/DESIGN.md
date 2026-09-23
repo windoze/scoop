@@ -1037,6 +1037,8 @@ String、Inline array的所有乘加/alignUp同时检查u64、target size_t和ma
 
 unsafe `Ptr<ZST>` plus/minus/load/store offset的byte displacement恒为0，pointer bits不变；receiver、offset、value仍求值。load/store不访问payload但继续要求non-null/alignment/lifetime和合法逻辑place。`Ptr<Unit>`是opaque void pointer，逐byte arithmetic必须显式使用`Ptr<UInt8>`。
 
+LIR lowering 在全部操作数按源码顺序求值后，按共有存储分类处理 pointee：ZST load 产生携带 exact identity 与 `AbiZst` 的显式 `MakeZstValue`，store 只保留值的求值，偏移直接复用原 pointer。非零 raw load/store 必须携带完整 `AbiValue`，与读写值类型一致；`PtrOffset` 的步长为 `NonZeroU64`，不能表达零步长。codegen 重放这些存储合同后发射操作，不从空 LLVM aggregate 推断或补造 ZST 语义。本条不增加运行时有效性检查或放宽 unsafe 调用者的有效地址责任。
+
 本节是通用表示规则；Ptr exact type和相关generic callable的生产物化仍受1.3 ODR gate约束。不得以“pointer只占8 bytes”为理由本地Strong发TD或绕过specialization。
 
 ### 10.3 C ABI source规则

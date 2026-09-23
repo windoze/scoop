@@ -124,6 +124,13 @@ pub(super) fn dump_instruction(
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+        Instruction::MakeZstValue { out, value } => buf.push_str(&format!(
+            "    t{} = zst_value exact={} align {} : {}\n",
+            out.into_raw(),
+            value.exact(),
+            value.representation().layout().alignment(),
+            value.representation().storage_type().dump()
+        )),
         Instruction::MakeAggregate { out, elements } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
             buf.push_str(&format!(
@@ -362,23 +369,23 @@ pub(super) fn dump_instruction(
         Instruction::RawLoad {
             out,
             pointer,
-            align,
+            pointee,
         } => buf.push_str(&format!(
             "    t{} = raw_load {} align {} : {}\n",
             out.into_raw(),
             value_name(*pointer),
-            align,
+            pointee.layout().alignment(),
             function.temps[*out].ty.dump()
         )),
         Instruction::RawStore {
             pointer,
             value,
-            align,
+            pointee,
         } => buf.push_str(&format!(
             "    raw_store {} {} align {}\n",
             value_name(*pointer),
             value_name(*value),
-            align
+            pointee.layout().alignment()
         )),
         Instruction::PtrOffset {
             out,

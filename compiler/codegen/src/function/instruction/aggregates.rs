@@ -9,6 +9,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let function = self.function;
         match instruction {
+            Instruction::MakeZstValue { out, value } => {
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    value.representation().storage_type(),
+                )?;
+                self.temps.insert(*out, ty.const_zero());
+            }
             Instruction::MakeAggregate { out, elements } => {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let lir_ty = &function.temps[*out].ty;

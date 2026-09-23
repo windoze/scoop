@@ -315,7 +315,12 @@ fn raw_load_rejects_machine_scalar_result() {
         Instruction::RawLoad {
             out,
             pointer: Value::Temp(pointer),
-            align: 8,
+            pointee: abi_value_with_layout(
+                LirType::MachineScalar(MachineScalarKind::EnumTag),
+                8,
+                8,
+                RefScan::None,
+            ),
         },
     ]);
 
@@ -343,7 +348,12 @@ fn raw_store_rejects_machine_scalar_value() {
         Instruction::RawStore {
             pointer: Value::Temp(pointer),
             value: Value::MachineScalar(MachineScalarValue::EnumTag(0)),
-            align: 8,
+            pointee: abi_value_with_layout(
+                LirType::MachineScalar(MachineScalarKind::EnumTag),
+                8,
+                8,
+                RefScan::None,
+            ),
         },
     ]);
 
@@ -396,7 +406,7 @@ fn pointer_element_offset_scales_by_the_declared_element_size() {
             out,
             pointer: Value::Temp(pointer),
             element_offset: Value::MachineScalar(MachineScalarValue::PointerElementOffset(2)),
-            element_size: 8,
+            element_size: std::num::NonZeroU64::new(8).unwrap(),
             subtract: false,
         },
     ]);
