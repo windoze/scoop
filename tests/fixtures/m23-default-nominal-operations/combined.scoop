@@ -1,0 +1,10 @@
+public struct Pair<T, U>(val second: U, val first: T, val both: (T, U))
+public enum Choice<T, U> { Missing, Pair(val first: T, val second: U), Reverse(U, T) }
+public class Outer<T> {
+    public struct Static(val unit: Unit)
+}
+public class Samples {
+    public fun <X, Y> pair(seed: Pair<Y, X>, value: Pair<Y, X> = seed): Pair<Y, X> = value
+    public fun <X, Y> choice(seed: Choice<Y, X>, value: Choice<Y, X> = seed): Choice<Y, X> = value
+    public fun nested(value: Outer.Static = Outer.Static(Unit)): Outer.Static = value
+}

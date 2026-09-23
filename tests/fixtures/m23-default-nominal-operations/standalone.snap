@@ -1,0 +1,13 @@
+box: Class
+cache: Object
+choice.variant0: fields=0
+choice.variant1.field0: index=0
+choice.variant1.field1: index=1
+choice.variant1: fields=2
+choice: Enum
+empty: Struct fields=0
+marker: Interface
+packet.field0: index=0 mutable=False
+packet.field1: index=1 mutable=False
+packet.field2: index=2 mutable=False
+packet: Struct fields=3

@@ -17,6 +17,8 @@ mod errors;
 mod field_index;
 mod inventory;
 mod keys;
+mod operations;
+pub use operations::*;
 mod replay;
 pub use errors::*;
 

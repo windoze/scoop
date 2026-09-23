@@ -235,6 +235,8 @@ M23-6 的默认参数 profile 在完整 source 正文与参数表生产时按参
 
 默认正文操作所需的 Unit、Boolean、八类整数、String、Throwable 和 ForeignCallbackState 均从已导入的完整语言协议取得真实 typed identity；Array、MutableArray、Option 与 ForeignCallback 的应用分类只比较各协议的真实 generic identity，并精确要求一个参数。普通同名或同形类型不被识别为协议应用；未知应用返回未分类，已识别应用的错误 arity 则报错。查询不新增 CORE 资格检查、artifact receipt 或 FQN 回退，不替代通常的类型、来源域和执行检查。分类结果完整保留实参中的 binder、参数、结果与 effects；复制复用默认类型代换的受预算迭代遍历，但不执行 binder 代换。查询、遍历深度、节点、工作量与输出分配均使用调用者预算，空结果也须计费。
 
+默认操作的 nominal shape 查询消费已绑定的完整 nominal 来源表，真实 owner 必须在该 artifact 中存在；不能仅凭共享 graph 能解析某个 id 就借用另一 provider 的声明。查询保留 source nominal kind、直接 owner 自身 arity、struct 字段顺序、enum variant 与字段身份，以及 object value 到 source object 的关系。泛型字段按 owner 的完整实参一次代换，实参中已有的 binder 不再次代换；static nested 的外层 qualifier 不增加 arity。struct 字段按语言 4.1 保持不可变，variant 字段位置来自实际 source 顺序，不从候选字段序号或同形布局推断。普通 struct 构造不得把 intrinsic representation 当作无字段 struct。查询、实参复制、输出集合及逐字段代换共用原预算，空 aggregate 也须计费；这些 shape 仍不授权 receiver、声明访问、generic bound 满足或机器执行。
+
 ### 2.3 MIR
 
 只接收**本Cone**的`LocalConcreteHir`以及由HIR `CrossConeUseSet`选出的**上游Cone MIR meta**（见下）。其输入类型签名不得接受`ExportHir`或未筛选的`.slib`reader结果，负责：

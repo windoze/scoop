@@ -619,6 +619,8 @@ profile reader 的来源前置条件是完整六类 target-domain 绑定：以�
 
 默认操作类型的共有协议查询直接使用已导入的 typed 语言角色：Unit、Boolean、所有整数宽度和符号、String、Throwable、ForeignCallbackState，以及 Array、MutableArray、Option、ForeignCallback 的 generic identity。只识别真实 generic id，已识别应用精确校验一项实参；未知 identity 不按名称、布局或 arity 推断角色。查询与实参复制均纳入 defaults 原预算，复制以既有迭代类型变换引擎的 Copy 分支完成，保留全部 source binder 和函数 effect，不进行实例化或补造 exact type。此查询只提供操作校验所需的类型输入，不证明应用实参合法性、声明访问或执行能力，也不引入额外 core 来源资格门槛。
 
+nominal 操作 shape 由 BoundNominalSourceContractsV1 的实际 artifact 来源重放：nominal type 核验 kind 与自身 arity；普通 struct 与 enum variant 保留声明顺序的完整字段类型；struct field、variant 和 variant field 的 typed key 必须属于所声称的真实 owner，字段位置由 source 顺序独立取得；singleton 则沿实际 object-value key 回到 source object。泛型实参按声明顺序映射至 nominal 自身 binder，使用既有受预算的一次代换，不吞掉开放 binder、不捕获 static nested 的外层参数。struct 字段不可变，intrinsic representation 不能被当作空普通 struct 构造。来源表查询、每次类型复制、输出分配和代换共享原预算，缺少实际 provider 记录、错误 owner/kind/arity 或资源不足均失败；此来源查询不替代参数 bound、receiver、可见性及执行检查。
+
 完整default先从独立checked callable source取得owner/profile证明，即使body没有外部引用、六域reference set全部为空，也不得跳过该分类。reference访问重放仅接收实际typed occurrence、真实receiver上下文及该source证明；独立authority先验证target来源和词法/receiver规则，再返回与同一checked inheritance graph关联的target域，不能读取witness所声称的target域作为预期值。每个实际occurrence随后与wire witness逐项join，并验证完整direct及每个root-slot调用域的coverage。
 
 两分支都重放完整body、binder、source origin、typed target、receiver及源码合法性。GenericSourceMetadata只推迟无法定义的concrete-domain包含证明，不保存假exact或Empty/Universal域，且不产生concrete access资格；所有selected、default展开和物化入口必须显式拒绝该分支。其存在只使GenericTemplate的源元数据在本节完整保存，M23-6的param-free执行门限不变。metadata proof与可执行的ParamFree coverage proof使用不同checked类型，不提供隐式转换。
