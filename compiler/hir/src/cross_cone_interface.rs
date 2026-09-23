@@ -272,11 +272,11 @@ pub use default_templates::{
 };
 pub(crate) use default_templates::{
     DefaultBodyDataFlowAuthority, DefaultBodyNestedAuthority, DefaultBodyOperationAuthority,
-    DefaultBodyValidationInputV1, copy_default_signature_type_metered,
+    DefaultBodyValidationInputV1,
 };
 pub use default_templates::{
     MeteredDefaultTemplateTypeSubstitutionError, MeteredTemplateReceiverSemanticValidationError,
-    MeteredTemplateValueParameterSemanticValidationError,
+    MeteredTemplateValueParameterSemanticValidationError, copy_default_signature_type_metered,
 };
 pub use definition_sources::{
     CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,

@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use crate::Lowerer;
 
 mod bindings;
+mod coverage;
 mod expressions;
 mod shapes;
 mod statements;
@@ -54,25 +55,12 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
         target_kind: &str,
     ) -> hir::ExportDefaultAccessWitness {
-        let direct_ok = self
-            .lowerer
-            .access_domain_is_subset(&self.call_domain.direct.0, &target_domain);
-        let slot_ok = self.call_domain.slot.as_ref().is_none_or(|slot| {
-            self.lowerer
-                .access_domain_is_subset(&slot.0, &target_domain)
-        });
-        if !direct_ok || !slot_ok {
-            let outer_file = self.lowerer.current_file;
-            self.lowerer.current_file =
-                usize::try_from(origin.file).expect("definition file index does not fit usize");
-            self.lowerer.error(
-                origin.span,
-                format!(
-                    "default expression references {target_kind} outside the callable's complete call domain"
-                ),
-            );
-            self.lowerer.current_file = outer_file;
-        }
+        self.lowerer.check_default_reference_access(
+            &self.call_domain,
+            &target_domain,
+            origin,
+            target_kind,
+        );
         hir::ExportDefaultAccessWitness {
             owner: self.owner,
             call_domain: self.call_domain.clone(),

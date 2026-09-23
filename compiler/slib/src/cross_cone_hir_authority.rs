@@ -7,6 +7,7 @@ mod callable_declarations;
 mod callable_source;
 mod const_value;
 mod declaration_origins;
+mod default_call_domains;
 mod default_callable_access;
 mod default_contracts;
 mod default_data_flow;
@@ -27,6 +28,7 @@ mod type_alias;
 
 pub use callable_source::*;
 pub use const_value::*;
+pub use default_call_domains::CrossConeHirDefaultCallDomainError;
 pub use default_callable_access::CrossConeHirDefaultCallableAccessError;
 pub use default_contracts::{
     CrossConeHirDefaultProviderContractError, DefaultMetadataNominalError,

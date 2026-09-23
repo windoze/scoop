@@ -42,6 +42,10 @@ impl<T> NonEmptyVec<T> {
     pub fn as_slice(&self) -> &[T] {
         &self.0
     }
+
+    pub fn into_vec(self) -> Vec<T> {
+        self.0
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

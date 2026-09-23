@@ -2,6 +2,28 @@ use super::*;
 use scoop_identity::PropertyOwner;
 
 impl<'f> DefaultTargetIdentityQueriesV1<'f> {
+    /// The slot key must occur in this provider's original foundation and agree
+    /// with the same identity graph. Inheritance and dispatch remain separate.
+    pub fn source_dispatch_slot_key(
+        &self,
+        slot: PersistentDispatchSlotId,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<&'f DispatchSlotKey, Error> {
+        Query {
+            foundation: self,
+            meter,
+            path: path.clone(),
+        }
+        .key(
+            self.foundation
+                .as_canonical()
+                .type_source_dispatch_records(),
+            slot,
+            || Error::MissingSlot(slot),
+        )
+    }
+
     /// Borrows the provider's actual source key and checks it against the same
     /// identity graph used for the target route. An accessor borrows its logical
     /// property's lexical key; visibility still belongs to the accessor itself.

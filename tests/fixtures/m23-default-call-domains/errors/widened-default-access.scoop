@@ -1,0 +1,8 @@
+public open class RestrictedRoot<T> {
+    protected fun seed(): Int = 1
+    protected open fun choose(value: Int = seed()): Int = value
+}
+public class ExposedChild<T> : RestrictedRoot<T>() {
+    public override fun choose(value: Int): Int = value
+}
+fun main() {}

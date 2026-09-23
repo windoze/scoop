@@ -8,7 +8,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 use crate::SignatureTypeReferenceResolver;
 
 mod metered_substitution;
-pub(crate) use metered_substitution::copy_default_signature_type_metered;
+pub use metered_substitution::copy_default_signature_type_metered;
 mod semantics;
 
 pub use metered_substitution::MeteredDefaultTemplateTypeSubstitutionError;

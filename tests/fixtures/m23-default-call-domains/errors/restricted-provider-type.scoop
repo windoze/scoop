@@ -1,0 +1,7 @@
+public class RestrictedOuter {
+    protected interface Root { public fun choose(value: Int = 1): Int }
+    protected class Child : Root {
+        public override fun choose(value: Int): Int = value
+    }
+}
+fun main() {}

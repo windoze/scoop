@@ -11,23 +11,35 @@ impl DefaultCallableDeclarationV1 {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<ConeIdentity, Error> {
-        let mut route = Route {
+        let declaration = match self {
+            Self::Function(id) => CallableTemplateOrigin::Function(id),
+            Self::GenericFunction(id) => CallableTemplateOrigin::GenericFunction(id),
+            Self::PropertyAccessor(id) => CallableTemplateOrigin::Accessor(id),
+            Self::Generated(_) => return Err(Error::CallableRole(self)),
+        };
+        DefaultTargetIdentityQueriesV1::source_callable_provider(
+            declaration,
             identities,
             meter,
             path,
-        };
-        match self {
-            Self::Function(id) => route.source(id),
-            Self::GenericFunction(id) => route.source(id),
-            Self::PropertyAccessor(id) => {
-                let key = route.key::<_, PropertyAccessorKey>(id)?;
-                match key.owner() {
-                    PropertyOwner::Property(id) => route.source(id),
-                    PropertyOwner::ExtensionProperty(id) => route.source(id),
-                }
-            }
-            Self::Generated(_) => Err(Error::CallableRole(self)),
+        )
+    }
+}
+
+impl DefaultTargetIdentityQueriesV1<'_> {
+    /// Resolves a source callable's actual provider before opening its foundation.
+    pub fn source_callable_provider(
+        declaration: CallableTemplateOrigin,
+        identities: &ValidatedIdentityGraph,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<ConeIdentity, Error> {
+        Route {
+            identities,
+            meter,
+            path,
         }
+        .callable(declaration)
     }
 }
 
@@ -92,6 +104,28 @@ struct Route<'a, 'm> {
 }
 
 impl Route<'_, '_> {
+    fn callable(&mut self, declaration: CallableTemplateOrigin) -> Result<ConeIdentity, Error> {
+        match declaration {
+            CallableTemplateOrigin::Function(id) => self.source(id),
+            CallableTemplateOrigin::GenericFunction(id) => self.source(id),
+            CallableTemplateOrigin::Constructor(id) => self.source(id),
+            CallableTemplateOrigin::Accessor(id) => {
+                let key = self.key::<_, PropertyAccessorKey>(id)?;
+                match key.owner() {
+                    PropertyOwner::Property(id) => self.source(id),
+                    PropertyOwner::ExtensionProperty(id) => self.source(id),
+                }
+            }
+            CallableTemplateOrigin::VariantConstructor(id) => {
+                let key = self.key::<_, EnumVariantIdentityKey>(id)?;
+                let owner = key
+                    .source_owner()
+                    .ok_or(Error::Role(Target::EnumVariant(id)))?;
+                self.nominal(owner)
+            }
+        }
+    }
+
     fn field(&mut self, id: PersistentFieldId, target: Target) -> Result<ConeIdentity, Error> {
         let key = self.key::<_, FieldIdentityKey>(id)?;
         let owner = match key.view() {

@@ -1,0 +1,33 @@
+public interface DomainReader<T> {
+    public fun choose(seed: T, value: T = seed): T
+}
+public interface DomainLeft<U> : DomainReader<(U, U)> {
+    public override fun choose(seed: (U, U), value: (U, U)): (U, U)
+}
+public interface DomainRight<U> : DomainReader<(U, U)> {
+    public override fun choose(seed: (U, U), value: (U, U)): (U, U)
+}
+public class DomainDiamond<V> : DomainLeft<V>, DomainRight<V> {
+    public final override fun choose(seed: (V, V), value: (V, V)): (V, V) = value
+}
+public struct DomainValue<T>() : DomainReader<T> {
+    public override fun choose(seed: T, value: T): T = value
+}
+public open class DomainBase<T> {
+    public open fun read(seed: T, value: T = seed): T = value
+    public fun <U> keep(seed: U, value: U = seed): U = value
+}
+public class DomainChild<U> : DomainBase<(U, U)>() {
+    public final override fun read(seed: (U, U), value: (U, U)): (U, U) = value
+}
+public open class DomainUnused<T> {
+    public open fun number(value: Int = 3): Int = value
+}
+public class DomainUnusedChild<U> : DomainUnused<(U, U)>() {
+    public final override fun number(value: Int): Int = value
+}
+public class DomainOuter<T> {
+    public open class Inner<U> {
+        public open fun nested(seed: U, value: U = seed): U = value
+    }
+}

@@ -51,7 +51,16 @@ impl Lowerer {
         sources.sort();
         sources.dedup();
         match sources.as_slice() {
-            [source] => Some(self.record_inherited_default_source(source.clone())),
+            [source] => {
+                if let InheritedDefaultSource::Export {
+                    expression,
+                    type_arguments,
+                } = source
+                {
+                    self.check_inherited_default_access(function, *expression, type_arguments);
+                }
+                Some(self.record_inherited_default_source(source.clone()))
+            }
             [] => None,
             _ => {
                 let signature = &self.signatures[&function];

@@ -17,7 +17,7 @@ public class DefaultChild: DefaultBase() {
     protected final override fun inherited(seed: Int, value: Int): Int = value
 }
 public class DefaultMulti {
-    protected interface Left { public fun pick(value: Int = 1): Int }
+    public interface Left { public fun pick(value: Int = 1): Int }
     protected interface Right { public fun pick(value: Int): Int }
     protected class Both: Left, Right {
         public override fun pick(value: Int): Int = value

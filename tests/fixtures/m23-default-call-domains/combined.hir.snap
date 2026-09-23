@@ -1,0 +1,16 @@
+Module
+  struct DomainValue<T> : DomainReader<T0>
+  class DomainDiamond<V>() : DomainLeft<T0>, DomainRight<T0>
+  open class DomainBase<T>()
+  class DomainChild<U>()
+  open class DomainUnused<T>()
+  class DomainUnusedChild<U>()
+  class DomainOuter<T>()
+  open class DomainOuter.Inner<U>()
+  interface DomainReader<T>
+    fun choose(seed: T0, value: T0): T0
+  interface DomainLeft<U> : DomainReader<(T0, T0)>
+    fun choose(seed: (T0, T0), value: (T0, T0)): (T0, T0)
+  interface DomainRight<U> : DomainReader<(T0, T0)>
+    fun choose(seed: (T0, T0), value: (T0, T0)): (T0, T0)
+  output library

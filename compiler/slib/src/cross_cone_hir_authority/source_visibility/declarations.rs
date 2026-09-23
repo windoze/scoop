@@ -4,6 +4,22 @@ use scoop_hir::SourceAccessDomainV1;
 use scoop_identity::DefinitionOriginSubject as Subject;
 
 impl CanonicalCrossConeHirSurfaceAuthority<'_> {
+    pub(in crate::cross_cone_hir_authority) fn source_declared_access_domain(
+        &mut self,
+        subject: Subject,
+        key: &SourceDeclarationKey,
+        visibility: DeclaredVisibilityV1,
+        path: &WirePath,
+    ) -> Result<SourceAccessDomainV1, Error> {
+        let mut constraints = Vec::new();
+        self.meter
+            .try_reserve_collection_slots(&mut constraints, 2, path)
+            .map_err(Error::Resource)?;
+        self.visibility_declared(&mut constraints, key, subject, visibility)?;
+        SourceAccessDomainV1::from_constraints(constraints, self.meter, path)
+            .map_err(Error::Resource)
+    }
+
     pub(in crate::cross_cone_hir_authority) fn source_declaration_access_domain(
         &mut self,
         subject: Subject,

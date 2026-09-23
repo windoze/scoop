@@ -33,7 +33,8 @@ enum Transform<'a> {
     },
 }
 
-pub(crate) fn copy_default_signature_type_metered(
+/// Copies a source type through the same bounded traversal used by substitution.
+pub fn copy_default_signature_type_metered(
     signature: &SignatureTypeKey,
     meter: &mut BudgetMeter,
     path: &WirePath,

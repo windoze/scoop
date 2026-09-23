@@ -25,6 +25,7 @@ use super::*;
 use crate::cross_cone_hir_authority::CrossConeHirCallableSourceAuthorityError;
 
 mod default_access;
+mod default_call_domains;
 mod default_callable_access;
 mod default_contracts;
 mod default_data_flow;

@@ -7,24 +7,8 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::LocalFunctionId {
         let mut function = self.local_functions[source].clone();
-        let own_parameters = self.functions[function.function]
-            .type_params()
-            .into_iter()
-            .skip(function.owner_type_arguments.len())
-            .map(|parameter| parameter.id)
-            .collect::<Vec<_>>();
-        let mut bindings = context.bindings.clone();
-        bindings.extend(
-            own_parameters
-                .into_iter()
-                .map(|parameter| (parameter, self.intern_type(Type::Param(parameter)))),
-        );
-        let signature = self.intern_type(Type::Function(function.function_type));
-        let signature = self.instantiate_method_ty(signature, &bindings);
-        let Type::Function(function_type) = self.types[signature] else {
-            unreachable!("local function signature substitution preserves its kind")
-        };
-        function.function_type = function_type;
+        function.function_type =
+            self.instantiate_default_local_signature(source, &context.bindings);
         function.owner_type_arguments = function
             .owner_type_arguments
             .into_iter()

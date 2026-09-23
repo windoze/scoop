@@ -159,7 +159,7 @@ impl<'a> CanonicalCrossConeHirSurfaceAuthority<'a> {
         Ok(())
     }
 
-    fn visibility_nominal(
+    pub(in crate::cross_cone_hir_authority) fn visibility_nominal(
         &mut self,
         declaration: SourceNominalId,
     ) -> Result<(&'a NominalInterfaceRecordV1, SourceDeclarationKey), Error> {

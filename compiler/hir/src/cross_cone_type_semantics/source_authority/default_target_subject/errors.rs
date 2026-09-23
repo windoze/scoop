@@ -12,6 +12,7 @@ pub enum DefaultSourceTargetSubjectError {
     MissingGenerated(PersistentTypeId),
     MissingAdapter(PersistentGeneratedCallableId),
     MissingCallable(PersistentGeneratedCallableId),
+    MissingSlot(PersistentDispatchSlotId),
     CallableRole(DefaultCallableDeclarationV1),
     CallableOrigin(CallableTemplateOrigin),
     EqualityTarget,
@@ -70,6 +71,7 @@ impl std::fmt::Display for Error {
             Self::MissingGenerated(id) => write!(f, "artifact has no generated field owner {id}"),
             Self::MissingAdapter(id) => write!(f, "artifact has no constructor adapter key {id}"),
             Self::MissingCallable(id) => write!(f, "artifact has no generated callable key {id}"),
+            Self::MissingSlot(id) => write!(f, "artifact has no source dispatch slot key {id}"),
             Self::CallableRole(id) => {
                 write!(f, "default callable has incompatible identity role {id:?}")
             }
