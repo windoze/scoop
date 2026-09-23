@@ -18,6 +18,8 @@ M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export �
 
 当前 provider 拥有的语言内建 Unit/Any 必须在 LocalConcrete HIR sealing 前显式保留，并在 HIR → MIR 转置时作为必需类型根沿共有 source-exact 路径处理；不能依赖额外源码引用才获得完整导出。该必需集合依据内建 typed declaration 的真实 origin 判定，外来 consumer 仍只为实际使用引入依赖引用。验收包括不添加类型使用的原始 core 源码基线，完整 MIR/LIR section、Strong V2 registration 和 LLVM 对象发射均须闭合。
 
+layout profile 的对象组装直接消费同次 V2 LLVM 发射结果，必须在释放临时对象目录前取得完整成员 bytes；成员绑定、C bridge envelope、relocation、digest patch、stackmap 与六类 registration 沿现有共有校验执行，type 和 initialization 使用 V2 引用语义。完整 undefined-use 分区先闭合，再计算 callable/descriptor/registration、runtime image 和 Code fingerprint，最终由既有 layout writer 组装 archive。已验证的 V2 production 结果只能按所有权传递，不能复制、降级或替换为未经 layout join 的 section。对象组装结果本身不构成 Compile/Link 发布凭证；最终发布继续要求从这些 bytes 完整重放两个视图与依赖闭包。
+
 ## 1. 总体技术路线
 
 - 编译器实现语言为 **Rust**，LLVM 绑定使用 **inkwell**（feature `llvm22-1`）；个别 inkwell 未覆盖的 LLVM 子系统（statepoint / stackmap 等）可降落到 `llvm-sys`；

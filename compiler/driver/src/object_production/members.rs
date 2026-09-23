@@ -2,6 +2,11 @@
 
 use super::*;
 
+mod codegen;
+pub(super) use codegen::plan_codegen_objects;
+mod finalization;
+pub(super) use finalization::final_members;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuiltinObjectProducerV1 {
     ScoopLir,

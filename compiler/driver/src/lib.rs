@@ -10,7 +10,8 @@ mod trusted_core;
 
 pub use artifact_production::{
     AssembledCrossConeArtifactProductionV1, CrossConeArtifactProductionError,
-    CrossConeStrongArtifactMetadataInputV1,
+    CrossConeLayoutArtifactMetadataInputV1, CrossConeStrongArtifactMetadataInputV1,
+    LayoutArtifactProductionError,
 };
 pub use ir_production::{CrossConeStrongIrArtifactProductionError, CrossConeStrongIrProductionV1};
 pub use object_production::{

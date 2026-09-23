@@ -92,6 +92,7 @@ use scoop_slib::{
 mod cross_cone_pipeline;
 mod errors;
 mod fingerprint_pipeline;
+pub(crate) mod layout;
 mod members;
 mod planned;
 mod registrations;

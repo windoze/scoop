@@ -1,5 +1,6 @@
 use super::*;
 
+mod artifact;
 mod contracts;
 mod layout_section;
 mod section;
@@ -185,7 +186,17 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
         )
         .unwrap();
         layout_section::snapshot(name, &fixtures, &layout_section, &objects);
-        section::check(name, &fixtures, mir_input, bridge);
+        let mir_section = section::check(name, &fixtures, mir_input, bridge);
+        artifact::check(
+            name,
+            directory.path(),
+            &target,
+            mir_input,
+            &lir,
+            &mir_section,
+            &layout_section,
+            objects,
+        );
     }
 }
 

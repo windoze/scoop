@@ -1,12 +1,12 @@
 use super::*;
 use mir::{MirInitializationUnitProofKindV1, MirTypeBridgeLocalAuthorityV1};
 
-pub(super) fn check(
+pub(super) fn check<'a>(
     name: &str,
     fixtures: &Path,
-    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'a>,
     exports: mir::MirTypeBridgeExportConstituentsV1,
-) {
+) -> mir::CrossConeMirTypeBridgeSectionV1<'a> {
     let source = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
         input,
         scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
@@ -116,4 +116,5 @@ pub(super) fn check(
         std::fs::write(&snapshot, &dump).unwrap();
     }
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+    section
 }

@@ -43,59 +43,11 @@ impl PlannedBuiltinObjectProductionV1 {
             return Err(BuiltinObjectProductionError::GeneratedBridgePlanMismatch);
         }
 
-        let mut scoop_lir_sources = Vec::with_capacity(scoop_lir.members().len());
-        for member in scoop_lir.members() {
-            let bytes = std::fs::read(member.path()).map_err(|source| {
-                BuiltinObjectProductionError::ReadObject {
-                    producer: BuiltinObjectProducerV1::ScoopLir,
-                    path: member.path().to_path_buf(),
-                    source,
-                }
-            })?;
-            let digest_patches = match member.kind() {
-                EmittedStrongObjectMemberKindV1::NonCallable { digest_patches, .. } => {
-                    digest_patches
-                        .iter()
-                        .map(|materialization| {
-                            UnboundDigestPatch::from_codegen(
-                                materialization.location(),
-                                materialization.checked_object_offset(),
-                            )
-                        })
-                        .collect()
-                }
-                EmittedStrongObjectMemberKindV1::CallableBody { .. } => Vec::new(),
-            };
-            scoop_lir_sources.push(UnboundScoopLirObject {
-                units: member.units().definition_plans().to_vec(),
-                bytes,
-                digest_patches,
-            });
-        }
-
-        let mut generated_c_bridge_sources = Vec::with_capacity(generated_c_bridge.members().len());
-        for member in generated_c_bridge.members() {
-            let bytes = std::fs::read(member.object_path()).map_err(|source| {
-                BuiltinObjectProductionError::ReadObject {
-                    producer: BuiltinObjectProducerV1::GeneratedCBridge,
-                    path: member.object_path().to_path_buf(),
-                    source,
-                }
-            })?;
-            generated_c_bridge_sources.push(UnboundGeneratedCBridgeObject {
-                unit: member.unit(),
-                bytes,
-            });
-        }
-
-        let bindings = plan_objects(
+        let bindings = plan_codegen_objects(
             scoop_lir.partition().producer_units(),
-            scoop_lir_sources,
-            generated_c_bridge_sources,
+            scoop_lir.members(),
+            generated_c_bridge,
         )?;
-        if bindings.digest_patches.is_empty() {
-            return Err(BuiltinObjectProductionError::EmptyDigestMaterializationSet);
-        }
         let c_bridge_profile = generated_c_bridge.profile().clone();
         let c_bridge_production = generated_c_bridge.production().clone();
         Ok(Self {

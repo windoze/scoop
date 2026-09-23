@@ -12,6 +12,9 @@ use scoop_wire::DecodeLimits;
 
 use crate::CrossConeCodeFingerprintedObjectProductionV1;
 
+mod layout;
+pub use layout::{CrossConeLayoutArtifactMetadataInputV1, LayoutArtifactProductionError};
+
 /// The complete semantic sections paired with one cross-Cone Code proof.
 pub struct CrossConeStrongArtifactMetadataInputV1<'ir> {
     producer: ProducerRecord,

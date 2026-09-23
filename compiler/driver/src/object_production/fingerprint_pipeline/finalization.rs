@@ -89,54 +89,11 @@ pub(in crate::object_production) fn final_link_object_members(
     production: &PlannedBuiltinObjectProductionV1,
     final_objects: &VerifiedEntryPatchSetV1,
 ) -> Result<Vec<SlibMember>, BuiltinObjectProductionError> {
-    let producer = production.member_plan.producer();
-    let mut members = Vec::with_capacity(
-        final_objects.objects().len() + production.generated_c_bridge_members.len(),
-    );
-    for object in final_objects.objects() {
-        let plan = production
-            .member_plan
-            .scoop_lir_members()
-            .iter()
-            .find(|plan| plan.member_id() == object.member())
-            .ok_or(BuiltinObjectProductionError::MissingFinalMemberPlan(
-                object.member(),
-            ))?;
-        let member = SlibMember::new(
-            producer,
-            plan.stable_key().clone(),
-            plan.role().clone(),
-            object.bytes().to_vec(),
-        )
-        .map_err(BuiltinObjectProductionError::FinalMember)?;
-        require_final_member_id(&member, object.member())?;
-        members.push(member);
-    }
-    for object in &production.generated_c_bridge_members {
-        let member = SlibMember::new(
-            producer,
-            object.plan.stable_key().clone(),
-            object.plan.role().clone(),
-            object.bytes.clone(),
-        )
-        .map_err(BuiltinObjectProductionError::FinalMember)?;
-        require_final_member_id(&member, object.plan.member_id())?;
-        members.push(member);
-    }
-    members.sort_unstable_by_key(|member| member.record().id());
-    Ok(members)
-}
-
-fn require_final_member_id(
-    member: &SlibMember,
-    expected: SlibMemberId,
-) -> Result<(), BuiltinObjectProductionError> {
-    let actual = member.record().id();
-    if actual == expected {
-        Ok(())
-    } else {
-        Err(BuiltinObjectProductionError::FinalMemberIdMismatch { expected, actual })
-    }
+    final_members(
+        &production.member_plan,
+        &production.generated_c_bridge_members,
+        final_objects.objects(),
+    )
 }
 
 /// Final LinkObject members plus the unique Code/production-manifest proof.
