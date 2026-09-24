@@ -15,6 +15,7 @@ use crate::{
 };
 
 mod finish;
+mod type_sites;
 
 struct PendingReference<'a> {
     origin: ConeIdentity,
@@ -22,6 +23,7 @@ struct PendingReference<'a> {
     witnessed_roles: BTreeSet<ExternalHirReferenceRoleV1>,
     witnesses: BTreeSet<DependencyBindingWitnessV1>,
     call_sites: Vec<super::calls::PendingCallSite<'a>>,
+    type_sites: Vec<crate::HirDependencyTypeSiteV1>,
 }
 
 impl PendingReference<'_> {
@@ -32,6 +34,7 @@ impl PendingReference<'_> {
             witnessed_roles: BTreeSet::new(),
             witnesses: BTreeSet::new(),
             call_sites: Vec::new(),
+            type_sites: Vec::new(),
         }
     }
 }

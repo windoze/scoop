@@ -2,7 +2,9 @@
 
 mod call_sites;
 mod record;
+mod type_sites;
 pub use call_sites::*;
+pub use type_sites::*;
 mod reexport_closure;
 mod roles;
 mod table;

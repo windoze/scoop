@@ -24,9 +24,10 @@ pub(super) fn check(
     let mut foundation =
         hir::CanonicalHirFoundation::from_type_semantics_output(input.hir).unwrap();
     foundation
-        .complete_cross_cone_source_points(
+        .complete_cross_cone_interface_source_points(
             input.hir.output().export.module(),
-            input.public.definition_sources(),
+            input.public,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
         )
         .unwrap();
     let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();

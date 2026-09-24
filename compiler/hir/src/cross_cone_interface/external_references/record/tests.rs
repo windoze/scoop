@@ -7,11 +7,11 @@ use crate::cross_cone_interface::external_references::test_support::{Fixture, ro
 mod builtin_defaults;
 
 #[test]
-fn record_has_a_fixed_five_field_wire_and_round_trips() {
+fn record_has_a_fixed_six_field_wire_and_round_trips() {
     let fixture = Fixture::new();
     let record = fixture.alias_reference(fixture.first_alias, fixture.first_route.clone());
     let expected = [
-        b"\xa5\x01".as_slice(),
+        b"\xa6\x01".as_slice(),
         encode(&record.origin()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.target()).unwrap().as_slice(),
@@ -19,7 +19,7 @@ fn record_has_a_fixed_five_field_wire_and_round_trips() {
         encode(record.roles()).unwrap().as_slice(),
         b"\x04".as_slice(),
         encode(record.witnesses()).unwrap().as_slice(),
-        b"\x05\x80".as_slice(),
+        b"\x05\x80\x06\x80".as_slice(),
     ]
     .concat();
 
@@ -47,6 +47,7 @@ fn source_name_roles_require_witnesses() {
             roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
             empty,
             Default::default(),
+            Default::default(),
         ),
         Err(ExternalHirReferenceBuildError::MissingWitness)
     );
@@ -64,6 +65,7 @@ fn non_source_name_roles_reject_witnesses_and_mixed_roles_accept_them() {
             roles(&[ExternalHirReferenceRoleV1::SignatureDependency]),
             route_witnesses(),
             Default::default(),
+            Default::default(),
         ),
         Err(ExternalHirReferenceBuildError::UnexpectedWitness)
     );
@@ -76,6 +78,7 @@ fn non_source_name_roles_reject_witnesses_and_mixed_roles_accept_them() {
                 ExternalHirReferenceRoleV1::DefaultDependency,
             ]),
             route_witnesses(),
+            Default::default(),
             Default::default(),
         )
         .is_ok()
@@ -114,7 +117,7 @@ impl WireEncode for RawReference {
         &self,
         encoder: &mut scoop_wire::Encoder,
     ) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.origin.encode(encoder)?;
         encoder.field(2)?;
@@ -124,6 +127,8 @@ impl WireEncode for RawReference {
         encoder.field(4)?;
         self.witnesses.encode(encoder)?;
         encoder.field(5)?;
+        encoder.array(0)?;
+        encoder.field(6)?;
         encoder.array(0)
     }
 }

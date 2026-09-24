@@ -1,0 +1,5 @@
+target=Nominal(Concrete(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114]))) position=ExecutableExpressionPosition { root: CallableMaterialization { template: Function(PersistentFunctionId([147, 18, 162, 208, 200, 110, 215, 111, 242, 18, 68, 170, 245, 162, 42, 161, 139, 17, 1, 200, 102, 29, 226, 241, 31, 8, 73, 242, 93, 152, 187, 14])), context: NoSubstitution }, expression_index: 0 } role=Value exact=50a2d6fa49609beae380c24f224c39175705702808dff6c99bd9bccacd4dbdd3 foreign_definition=false
+type_sites=1
+foreign_definitions=0
+MIR selected=0
+LIR selected=0

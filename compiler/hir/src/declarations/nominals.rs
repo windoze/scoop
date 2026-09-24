@@ -657,6 +657,8 @@ pub struct ClassConstructor {
     pub kind: ClassConstructorKind,
     pub span: Span,
     pub origin: DefinitionOrigin,
+    /// The executable context for operations synthesized into this body.
+    pub evaluation_context: SourceContextId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

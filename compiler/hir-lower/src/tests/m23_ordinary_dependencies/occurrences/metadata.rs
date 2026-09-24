@@ -21,9 +21,10 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
             )
             .unwrap();
             foundation
-                .complete_cross_cone_source_points(
+                .complete_cross_cone_interface_source_points(
                     output.output().export.module(),
-                    interface.definition_sources(),
+                    &interface,
+                    &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
                 )
                 .unwrap();
             let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();

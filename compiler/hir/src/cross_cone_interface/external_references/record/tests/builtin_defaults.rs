@@ -21,6 +21,7 @@ fn builtin_default_dependencies_round_trip_without_source_name_witnesses() {
                 roles(&uses),
                 witnesses(Vec::new()),
                 Default::default(),
+                Default::default(),
             )
             .unwrap();
             let mut identities = PendingIdentityValidation::new();
@@ -55,6 +56,7 @@ fn builtin_default_dependencies_do_not_waive_actual_source_name_roles() {
                     target,
                     roles(&uses),
                     witnesses(Vec::new()),
+                    Default::default(),
                     Default::default(),
                 ),
                 Err(ExternalHirReferenceBuildError::MissingWitness)

@@ -14,8 +14,10 @@ mod call_sites;
 mod declarations;
 mod references;
 mod sources;
+mod type_sites;
 pub use call_sites::CrossConeHirCallSiteOriginError;
 pub use references::CrossConeHirReferenceSurfaceError;
+pub use type_sites::CrossConeHirTypeSiteError;
 
 #[derive(Clone, Copy)]
 pub(crate) struct HirInterfaceValidationInput<'a> {

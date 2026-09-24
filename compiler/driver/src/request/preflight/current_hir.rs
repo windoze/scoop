@@ -22,8 +22,10 @@ impl CurrentConeHirArtifacts {
             .map_err(CurrentConeHirStageError::Input)?;
         let hir = scoop_hir_lower::lower_current_cone(requested, &sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
-        let mut foundation = scoop_hir::CanonicalHirFoundation::from_dependency_output(&hir)
-            .map_err(CurrentConeHirStageError::Foundation)?;
+        let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+        let mut foundation =
+            scoop_hir::CanonicalHirFoundation::from_dependency_output_with_budget(&hir, &mut meter)
+                .map_err(CurrentConeHirStageError::Foundation)?;
         let production_section =
             scoop_hir::CoreBootstrapInterfaceSectionV1::from_export(&hir.output().export)
                 .map_err(CurrentConeHirStageError::ProductionSection)?;
@@ -44,9 +46,10 @@ impl CurrentConeHirArtifacts {
             .nominal_exact_leaf_classifier(cross_cone_section.nominal_interfaces())
             .map_err(CurrentConeHirStageError::NominalClassifier)?;
         foundation
-            .complete_cross_cone_source_points(
+            .complete_cross_cone_interface_source_points(
                 hir.output().export.module(),
-                cross_cone_section.definition_sources(),
+                &cross_cone_section,
+                &mut meter,
             )
             .map_err(CurrentConeHirStageError::Foundation)?;
         Ok(Self {

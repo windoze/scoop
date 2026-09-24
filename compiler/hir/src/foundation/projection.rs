@@ -10,6 +10,7 @@ use crate::{ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir};
 
 mod call_points;
 mod dependency;
+mod interface_points;
 mod source_callable_keys;
 mod source_points;
 mod type_semantics;

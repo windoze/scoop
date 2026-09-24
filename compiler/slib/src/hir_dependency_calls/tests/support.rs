@@ -146,6 +146,7 @@ impl Fixture {
             )])
             .unwrap(),
             CanonicalHirDependencyCallSitesV1::try_new(sites).unwrap(),
+            Default::default(),
         )
         .unwrap();
         selected::empty_interface(vec![reference])

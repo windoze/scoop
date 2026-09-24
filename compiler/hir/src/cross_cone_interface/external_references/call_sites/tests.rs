@@ -7,7 +7,7 @@ use crate::{
     ExternalHirReferenceSetBuildError, ExternalHirReferenceV1,
 };
 
-mod support;
+pub(super) mod support;
 use support::Fixture;
 
 fn meter() -> BudgetMeter {
@@ -136,6 +136,7 @@ fn concrete_function_roles_require_actual_sites_and_valid_witness_indices() {
             CanonicalExternalHirReferenceRolesV1::try_new(vec![role]).unwrap(),
             fixture.witnesses(),
             sites,
+            Default::default(),
         )
     };
     assert_eq!(
@@ -184,6 +185,7 @@ fn old_four_field_references_are_rejected_even_without_calls() {
         .unwrap(),
         fixture.witnesses(),
         Default::default(),
+        Default::default(),
     )
     .unwrap();
     let mut bytes = encode(&record).unwrap();
@@ -194,7 +196,7 @@ fn old_four_field_references_are_rejected_even_without_calls() {
             .unwrap_err()
             .kind(),
         WireErrorKind::InvalidLength {
-            expected: 5,
+            expected: 6,
             actual: 4
         }
     ));
@@ -234,6 +236,7 @@ fn one_executable_position_cannot_claim_two_distinct_targets() {
                 fixture.witnesses(),
                 CanonicalHirDependencyCallSitesV1::try_new(vec![other.site(0, vec![0]).unwrap()])
                     .unwrap(),
+                Default::default(),
             )
             .unwrap()
         })

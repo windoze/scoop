@@ -141,6 +141,12 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                         source: Box::new(source),
                     }
                 })?;
+                input.type_sites(&providers, meter).map_err(|source| {
+                    CrossConeClosureExternalReferenceError::TypeSites {
+                        identity,
+                        source: Box::new(source),
+                    }
+                })?;
             }
         }
 
@@ -150,6 +156,10 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 
 #[derive(Debug)]
 pub enum CrossConeClosureExternalReferenceError {
+    TypeSites {
+        identity: ConeIdentity,
+        source: Box<crate::hir_interface_validation::CrossConeHirTypeSiteError>,
+    },
     CallSites {
         identity: ConeIdentity,
         source: Box<CrossConeHirCallSiteOriginError>,
@@ -168,6 +178,9 @@ pub enum CrossConeClosureExternalReferenceError {
 impl fmt::Display for CrossConeClosureExternalReferenceError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::TypeSites { identity, source } => {
+                write!(formatter, "invalid HIR type sites for {identity}: {source}")
+            }
             Self::CallSites { identity, source } => {
                 write!(formatter, "invalid HIR call sites for {identity}: {source}")
             }
@@ -191,6 +204,7 @@ impl fmt::Display for CrossConeClosureExternalReferenceError {
 impl std::error::Error for CrossConeClosureExternalReferenceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::TypeSites { source, .. } => Some(source.as_ref()),
             Self::CallSites { source, .. } => Some(source.as_ref()),
             Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::AuthorityAllocation { .. } => None,

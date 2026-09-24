@@ -460,6 +460,13 @@ impl Harness {
             source: String::new(),
             canonical_record: None,
         }];
+        for (id, constructor) in self.class_constructors.iter() {
+            let context = source_contexts.alloc(hir::SourceContext::new(
+                scoop_identity::SourceIdentity::single_file(),
+                hir::SourceContextSubject::Constructor(hir::SourceContextConstructor::Class(id)),
+            ));
+            assert_eq!(context, constructor.evaluation_context);
+        }
         let source_context_identities =
             hir::HirSourceContextIdentities::from_contexts(hir::HirSourceContextIdentityInputs {
                 source_files: &source_files,

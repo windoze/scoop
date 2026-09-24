@@ -15,17 +15,19 @@ use crate::{
     ReexportRouteHopV1, ReexportRouteV1,
 };
 
-pub(super) struct Fixture {
-    pub(super) current: ConeIdentity,
-    pub(super) provider: ConeIdentity,
-    pub(super) function: CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
-    pub(super) context: CborIdentityRecord<PersistentSourceContextId, SourceContextKey>,
-    pub(super) unit: PersistentExactTypeId,
-    pub(super) binding: PersistentExportBindingId,
+pub(in crate::cross_cone_interface::external_references) struct Fixture {
+    pub(in crate::cross_cone_interface::external_references) current: ConeIdentity,
+    pub(in crate::cross_cone_interface::external_references) provider: ConeIdentity,
+    pub(in crate::cross_cone_interface::external_references) function:
+        CborIdentityRecord<PersistentFunctionId, SourceDeclarationKey>,
+    pub(in crate::cross_cone_interface::external_references) context:
+        CborIdentityRecord<PersistentSourceContextId, SourceContextKey>,
+    pub(in crate::cross_cone_interface::external_references) unit: PersistentExactTypeId,
+    pub(in crate::cross_cone_interface::external_references) binding: PersistentExportBindingId,
 }
 
 impl Fixture {
-    pub(super) fn new() -> Self {
+    pub(in crate::cross_cone_interface::external_references) fn new() -> Self {
         let current = ConeCoordinate::new("tests", "calls", "1.0.0")
             .unwrap()
             .identity()
@@ -78,7 +80,7 @@ impl Fixture {
         }
     }
 
-    pub(super) fn site(
+    pub(in crate::cross_cone_interface::external_references) fn site(
         &self,
         index: u32,
         indices: Vec<u32>,
@@ -107,11 +109,15 @@ impl Fixture {
         )
     }
 
-    pub(super) fn target(&self) -> ExternalHirTargetV1 {
+    pub(in crate::cross_cone_interface::external_references) fn target(
+        &self,
+    ) -> ExternalHirTargetV1 {
         ExternalHirTargetV1::Callable(CallableTemplateOrigin::Function(self.function.id()))
     }
 
-    pub(super) fn witnesses(&self) -> CanonicalDependencyBindingWitnessesV1 {
+    pub(in crate::cross_cone_interface::external_references) fn witnesses(
+        &self,
+    ) -> CanonicalDependencyBindingWitnessesV1 {
         CanonicalDependencyBindingWitnessesV1::try_new(vec![DependencyBindingWitnessV1::new(
             ReexportRouteV1::try_new(
                 self.current,
@@ -122,7 +128,9 @@ impl Fixture {
         .unwrap()
     }
 
-    pub(super) fn graph(&self) -> ValidatedIdentityGraph {
+    pub(in crate::cross_cone_interface::external_references) fn graph(
+        &self,
+    ) -> ValidatedIdentityGraph {
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(self.current).unwrap();
         pending.register_authority(self.provider).unwrap();

@@ -195,6 +195,7 @@ fn foreign_alias_fixture() -> ForeignAliasFixture {
                 ])
                 .unwrap(),
                 Default::default(),
+                Default::default(),
             )
             .unwrap(),
         ],

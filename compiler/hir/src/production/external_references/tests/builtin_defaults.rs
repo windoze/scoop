@@ -45,6 +45,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
             record.roles().clone(),
             record.witnesses().clone(),
             Default::default(),
+            Default::default(),
         )
         .unwrap();
         assert!(matches!(
@@ -76,6 +77,7 @@ fn builtin_default_dependencies_still_require_an_actual_provider() {
         ])
         .unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
         Default::default(),
     )
     .unwrap();
@@ -116,6 +118,7 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
                 ])
                 .unwrap(),
                 CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+                Default::default(),
                 Default::default(),
             ),
             Err(crate::ExternalHirReferenceBuildError::MissingWitness)

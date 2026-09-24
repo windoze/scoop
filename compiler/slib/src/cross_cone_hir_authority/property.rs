@@ -61,7 +61,7 @@ impl PropertyInterfaceSemanticAuthority<CrossConeHirNominalAuthorityError>
         &mut self,
         declaration: PropertyDeclarationId,
     ) -> Result<PropertyDeclarationSourceShapeV1, CrossConeHirNominalAuthorityError> {
-        // `cross-cone-interface/13` is the persisted definition-side projection;
+        // `cross-cone-interface/14` is the persisted definition-side projection;
         // its writer must derive these facts from typed Export HIR. At read time
         // the exact typed record is therefore the canonical source projection,
         // while the later internal-closure pass cross-checks it against callable

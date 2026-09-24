@@ -75,7 +75,7 @@ pub use cross_cone_hir_authority::{
     CrossConeIntrinsicDeclarationError,
 };
 pub use hir_interface_validation::{
-    CrossConeHirCallSiteOriginError, CrossConeHirReferenceSurfaceError,
+    CrossConeHirCallSiteOriginError, CrossConeHirReferenceSurfaceError, CrossConeHirTypeSiteError,
 };
 
 mod publish;

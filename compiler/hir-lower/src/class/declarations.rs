@@ -137,6 +137,7 @@ impl Lowerer {
                     self.constructor_safety(&source.annotations, source.span)
                 }
             };
+            let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
@@ -151,6 +152,7 @@ impl Lowerer {
                 },
                 span: decl.span,
                 origin: self.definition_origin(decl.span),
+                evaluation_context,
             });
             self.classes[id].constructors.push(constructor);
             self.class_parameter_calling
@@ -189,6 +191,7 @@ impl Lowerer {
             );
             self.constructor_gc_effect(&source.annotations, false);
             let safety = self.constructor_safety(&source.annotations, source.span);
+            let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
                 identity_kind: hir::ClassConstructorIdentityKind::Source,
@@ -208,6 +211,7 @@ impl Lowerer {
                 },
                 span: source.span,
                 origin: self.definition_origin(source.span),
+                evaluation_context,
             });
             self.classes[id].constructors.push(constructor);
             self.class_parameter_calling.insert(constructor, callings);

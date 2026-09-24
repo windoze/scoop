@@ -280,6 +280,7 @@ impl Fixture {
                 roles,
                 witnesses,
                 Default::default(),
+                Default::default(),
             )
             .unwrap(),
         ])

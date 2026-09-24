@@ -465,6 +465,7 @@ impl Lowerer {
             }
         }
         self.classes[backing].fields = fields;
+        let evaluation_context = self.next_class_constructor_context();
         let constructor = self.class_constructors.alloc(hir::ClassConstructor {
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
@@ -479,6 +480,7 @@ impl Lowerer {
             },
             span: source.span(),
             origin: self.definition_origin(source.span()),
+            evaluation_context,
         });
         self.classes[backing].constructors.push(constructor);
         self.class_parameter_calling.insert(constructor, Vec::new());

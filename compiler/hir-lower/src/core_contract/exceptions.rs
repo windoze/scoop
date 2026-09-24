@@ -135,6 +135,7 @@ impl Lowerer {
         let target =
             self.class_constructor_application(source, self.classes[class].self_application);
         let declaration = self.class_constructors[source].clone();
+        let evaluation_context = self.next_class_constructor_context();
         let adapter = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
             identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
@@ -158,6 +159,7 @@ impl Lowerer {
             },
             span,
             origin: declaration.origin,
+            evaluation_context,
         });
         self.classes[class].constructors.push(adapter);
         self.class_parameter_calling.insert(adapter, Vec::new());

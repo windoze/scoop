@@ -837,6 +837,7 @@ pub enum HirFoundationBuildError {
     SourceParameterOrigin(crate::HirDefinitionSourceProjectionError),
     DefaultSourceProduction(Box<crate::NominalDefaultSourceProductionError>),
     DefaultSourceResource(scoop_wire::WireError),
+    SourcePointResource(scoop_wire::WireError),
     SourceCallableReference(Box<crate::DefaultEntityProjectionError>),
     IdentityDerivation {
         table: HirFoundationTable,
@@ -905,6 +906,7 @@ impl fmt::Display for HirFoundationBuildError {
                 write!(formatter, "cannot project default source origins: {error}")
             }
             Self::DefaultSourceResource(error) => error.fmt(formatter),
+            Self::SourcePointResource(error) => error.fmt(formatter),
             Self::SourceCallableReference(error) => write!(
                 formatter,
                 "cannot project source callable-reference identity: {error}"

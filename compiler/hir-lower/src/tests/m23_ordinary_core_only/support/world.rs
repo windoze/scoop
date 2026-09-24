@@ -62,7 +62,11 @@ pub(super) fn project_interface(
     )
     .unwrap();
     foundation
-        .complete_cross_cone_source_points(output.export.module(), interface.definition_sources())
+        .complete_cross_cone_interface_source_points(
+            output.export.module(),
+            &interface,
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
         .unwrap();
     interface
 }

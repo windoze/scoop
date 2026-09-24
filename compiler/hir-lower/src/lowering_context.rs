@@ -5,20 +5,36 @@ impl Lowerer {
     /// Contexts are interned by source and typed subject so arena allocation
     /// order and repeated visits cannot create distinct semantic contexts.
     pub(crate) fn set_source_context(&mut self, subject: hir::SourceContextSubject) {
+        self.current_source_context = Some(self.intern_source_context(subject));
+    }
+
+    fn intern_source_context(
+        &mut self,
+        subject: hir::SourceContextSubject,
+    ) -> hir::SourceContextId {
         let context = hir::SourceContext::new(
             self.intrinsic_sources[self.current_file].identity.clone(),
             subject,
         );
-        let id = self
-            .source_context_by_value
+        self.source_context_by_value
             .get(&context)
             .copied()
             .unwrap_or_else(|| {
                 let id = self.source_contexts.alloc(context.clone());
                 self.source_context_by_value.insert(context, id);
                 id
-            });
-        self.current_source_context = Some(id);
+            })
+    }
+
+    /// Interning a context never allocates constructors, so the next arena
+    /// slot is also the exact typed subject of the following allocation.
+    pub(crate) fn next_class_constructor_context(&mut self) -> hir::SourceContextId {
+        let index = u32::try_from(self.class_constructors.len())
+            .expect("constructor arena indices fit in u32");
+        let constructor = hir::ClassConstructorId::from_raw(index.into());
+        self.intern_source_context(hir::SourceContextSubject::Constructor(
+            hir::SourceContextConstructor::Class(constructor),
+        ))
     }
 
     pub(crate) fn source_context_for_current_file(&self) -> hir::SourceContextId {

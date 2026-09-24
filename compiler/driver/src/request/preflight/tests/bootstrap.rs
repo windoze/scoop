@@ -37,9 +37,10 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
     )
     .unwrap();
     expected_foundation
-        .complete_cross_cone_source_points(
+        .complete_cross_cone_interface_source_points(
             output.hir().export.module(),
-            output.cross_cone_section().definition_sources(),
+            output.cross_cone_section(),
+            &mut scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default()),
         )
         .unwrap();
     assert!(output.foundation() == &expected_foundation);

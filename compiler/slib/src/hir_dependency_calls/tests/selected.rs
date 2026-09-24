@@ -43,6 +43,7 @@ fn mir_selection_requires_the_concrete_selected_role() {
         .unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
         Default::default(),
+        Default::default(),
     )
     .unwrap();
     assert_eq!(

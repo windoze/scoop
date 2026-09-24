@@ -12,9 +12,12 @@ use crate::{
 #[derive(Debug)]
 pub enum ExternalHirReferenceProductionError<E> {
     CallOccurrences(crate::DependencyCallOccurrenceError),
-    CallOrigin(crate::HirDefinitionSourceProjectionError),
+    ExpressionOrigin(crate::HirDefinitionSourceProjectionError),
     CallSite(crate::HirDependencyCallSiteBuildError),
-    CallType {
+    TypeSite(Box<crate::HirDependencyTypeSiteBuildError>),
+    TypeOccurrences(crate::concrete::ExecutableExpressionStructureError),
+    MissingExactType(scoop_identity::PersistentExactTypeId),
+    ExpressionType {
         position: crate::concrete::ExecutableExpressionPosition,
         ty: crate::concrete::TypeId,
     },
@@ -55,11 +58,16 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceProductionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::CallOccurrences(error) => error.fmt(formatter),
-            Self::CallOrigin(error) => error.fmt(formatter),
+            Self::ExpressionOrigin(error) => error.fmt(formatter),
             Self::CallSite(error) => error.fmt(formatter),
-            Self::CallType { position, ty } => write!(
+            Self::TypeSite(error) => error.fmt(formatter),
+            Self::TypeOccurrences(error) => error.fmt(formatter),
+            Self::MissingExactType(exact) => {
+                write!(formatter, "missing actual HIR exact type {exact}")
+            }
+            Self::ExpressionType { position, ty } => write!(
                 formatter,
-                "call {position:?} has no exact identity for type {ty:?}"
+                "expression {position:?} has no exact identity for type {ty:?}"
             ),
             Self::MissingCallWitness(position) => write!(
                 formatter,

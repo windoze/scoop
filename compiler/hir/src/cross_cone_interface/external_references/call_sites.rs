@@ -13,6 +13,8 @@ mod tests;
 pub use decode::{DecodedHirDependencyCallSiteV1, HirDependencyCallSiteResolver};
 pub use errors::{HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutionError};
 pub use table::{CanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyCallSitesV1};
+#[cfg(test)]
+pub(super) use tests::support::Fixture;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HirDependencyCallSiteV1 {

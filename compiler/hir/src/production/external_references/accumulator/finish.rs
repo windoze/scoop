@@ -64,6 +64,10 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                     roles,
                     witnesses,
                     call_sites,
+                    crate::CanonicalHirDependencyTypeSitesV1::try_new(pending.type_sites, meter)
+                        .map_err(|error| {
+                            ExternalHirReferenceProductionError::TypeSite(Box::new(error))
+                        })?,
                 )
                 .map_err(ExternalHirReferenceProductionError::Record)?,
             );

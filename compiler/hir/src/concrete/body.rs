@@ -1,4 +1,6 @@
 use super::*;
+
+mod type_uses;
 use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
 
 #[derive(Debug, Clone)]

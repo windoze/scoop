@@ -27,42 +27,53 @@ impl HirInterfaceValidationInput<'_> {
                     .index(index as u64)
                     .field(5)
                     .index(site_index as u64);
-                let position = site.position();
-                let definition = site.origin().definition();
-                let provider = definition.source().cone();
-                meter.charge_work(dependencies.len() as u64 + 1, &path)?;
-                let foundation = if provider == self.current {
-                    self.foundation
-                } else {
-                    dependencies
-                        .iter()
-                        .find(|view| view.identity == provider)
-                        .map(|view| view.foundation)
-                        .ok_or(CrossConeHirCallSiteOriginError::UnreachableDefinition {
-                            position,
-                            provider,
-                        })?
-                };
-                foundation
-                    .validate_definition_origin_location(provider, definition, meter, &path)
-                    .map_err(|source| CrossConeHirCallSiteOriginError::Definition {
-                        position,
-                        source: Box::new(source),
-                    })?;
-                self.foundation
-                    .validate_executable_evaluation_origin(
-                        self.current,
-                        position.root,
-                        site.origin().evaluation(),
-                        meter,
-                        &path,
-                    )
-                    .map_err(|source| CrossConeHirCallSiteOriginError::Evaluation {
-                        position,
-                        source: Box::new(source),
-                    })?;
+                self.executable_origin(site.position(), site.origin(), dependencies, meter, &path)?;
             }
         }
+        Ok(())
+    }
+
+    pub(super) fn executable_origin(
+        self,
+        position: ExecutableExpressionPosition,
+        origin: &scoop_identity::ConcreteExpressionOrigin,
+        dependencies: &[ValidatedNominalProviderView<'_>],
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), CrossConeHirCallSiteOriginError> {
+        let definition = origin.definition();
+        let provider = definition.source().cone();
+        meter.charge_work(dependencies.len() as u64 + 1, path)?;
+        let foundation = if provider == self.current {
+            self.foundation
+        } else {
+            dependencies
+                .iter()
+                .find(|view| view.identity == provider)
+                .map(|view| view.foundation)
+                .ok_or(CrossConeHirCallSiteOriginError::UnreachableDefinition {
+                    position,
+                    provider,
+                })?
+        };
+        foundation
+            .validate_definition_origin_location(provider, definition, meter, path)
+            .map_err(|source| CrossConeHirCallSiteOriginError::Definition {
+                position,
+                source: Box::new(source),
+            })?;
+        self.foundation
+            .validate_executable_evaluation_origin(
+                self.current,
+                position.root,
+                origin.evaluation(),
+                meter,
+                path,
+            )
+            .map_err(|source| CrossConeHirCallSiteOriginError::Evaluation {
+                position,
+                source: Box::new(source),
+            })?;
         Ok(())
     }
 }
@@ -96,13 +107,13 @@ impl std::fmt::Display for CrossConeHirCallSiteOriginError {
             Self::Resource(source) => source.fmt(f),
             Self::UnreachableDefinition { position, provider } => write!(
                 f,
-                "call {position:?} has an unreachable definition provider {provider}"
+                "expression {position:?} has an unreachable definition provider {provider}"
             ),
             Self::Definition { position, source } => {
-                write!(f, "invalid definition of call {position:?}: {source}")
+                write!(f, "invalid definition of expression {position:?}: {source}")
             }
             Self::Evaluation { position, source } => {
-                write!(f, "invalid evaluation of call {position:?}: {source}")
+                write!(f, "invalid evaluation of expression {position:?}: {source}")
             }
         }
     }

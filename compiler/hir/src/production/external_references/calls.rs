@@ -1,4 +1,4 @@
-use scoop_identity::{ConcreteExpressionOrigin, EvaluationOrigin, PersistentExactTypeId};
+use scoop_identity::{ConcreteExpressionOrigin, PersistentExactTypeId};
 use scoop_wire::{BudgetMeter, WirePath};
 
 use super::ExternalHirReferenceProductionError;
@@ -41,7 +41,7 @@ pub(super) fn project<'a, E>(
         arguments.push(
             exact
                 .get(argument.ty)
-                .ok_or(Error::CallType {
+                .ok_or(Error::ExpressionType {
                     position,
                     ty: argument.ty,
                 })?
@@ -50,41 +50,15 @@ pub(super) fn project<'a, E>(
     }
     let result = exact
         .get(call.result_type())
-        .ok_or(Error::CallType {
+        .ok_or(Error::ExpressionType {
             position,
             ty: call.result_type(),
         })?
         .id();
-    let origin = call.origin();
-    let export = output.output().export.module();
-    for source in [origin.definition.file, origin.evaluation.file] {
-        if let Some(file) = export.source_files.get(source as usize) {
-            meter
-                .charge_owned_bytes(
-                    (file.identity.logical_path().as_str().len() * 2) as u64,
-                    &path,
-                )
-                .map_err(Error::Resource)?;
-        }
-    }
-    let definition = crate::production::project_definition_source(export, origin.definition)
-        .map_err(Error::CallOrigin)?;
-    let evaluation = crate::production::project_definition_source(
-        export,
-        crate::DefinitionOrigin {
-            provider: origin.evaluation.provider,
-            file: origin.evaluation.file,
-            span: origin.evaluation.span,
-            context: origin.evaluation.context,
-        },
-    )
-    .map_err(Error::CallOrigin)?;
+    let origin = super::origins::project(output, call.origin(), meter)?;
     Ok(PendingCallSite {
         position,
-        origin: ConcreteExpressionOrigin::new(
-            definition.origin().clone(),
-            EvaluationOrigin::at_definition(evaluation.origin()),
-        ),
+        origin,
         arguments,
         result,
         binding: call.binding(),

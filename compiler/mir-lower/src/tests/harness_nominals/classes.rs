@@ -133,6 +133,11 @@ impl Harness {
                 span: SPAN,
             })
             .collect();
+        let evaluation_context = hir::SourceContextId::from_raw(
+            u32::try_from(self.class_constructors.len() + 1)
+                .unwrap()
+                .into(),
+        );
         let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
@@ -147,6 +152,7 @@ impl Harness {
             },
             span: SPAN,
             origin: definition_origin(),
+            evaluation_context,
         });
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,

@@ -50,6 +50,7 @@ impl Fixture {
             roles(&[ExternalHirReferenceRoleV1::SignatureDependency]),
             CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
             Default::default(),
+            Default::default(),
         )
         .unwrap()
     }
@@ -64,6 +65,7 @@ impl Fixture {
             ExternalHirTargetV1::TypeAlias(alias),
             roles(&[ExternalHirReferenceRoleV1::AliasTarget]),
             witnesses(vec![route]),
+            Default::default(),
             Default::default(),
         )
         .unwrap()

@@ -13,6 +13,7 @@ pub enum ExternalHirReferenceRoleV1 {
     ConstType,
     ConcreteSelectedUse,
     InheritanceDependency,
+    ExecutableTypeDependency,
 }
 
 impl ExternalHirReferenceRoleV1 {
@@ -21,7 +22,10 @@ impl ExternalHirReferenceRoleV1 {
     pub(crate) fn requires_source_name_witness(self, target: super::ExternalHirTargetV1) -> bool {
         match self {
             Self::ReexportTarget | Self::AliasTarget | Self::ConcreteSelectedUse => true,
-            Self::SignatureDependency | Self::ConstType | Self::InheritanceDependency => false,
+            Self::SignatureDependency
+            | Self::ConstType
+            | Self::InheritanceDependency
+            | Self::ExecutableTypeDependency => false,
             Self::DefaultDependency => {
                 use scoop_identity::{CoreBuiltinNominal, NominalDeclarationOwner};
                 let super::ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(id)) =
@@ -52,6 +56,7 @@ impl WireEncode for ExternalHirReferenceRoleV1 {
             Self::ConstType => 5,
             Self::ConcreteSelectedUse => 6,
             Self::InheritanceDependency => 7,
+            Self::ExecutableTypeDependency => 8,
         })
     }
 }
@@ -66,6 +71,7 @@ impl WireDecode for ExternalHirReferenceRoleV1 {
             5 => Ok(Self::ConstType),
             6 => Ok(Self::ConcreteSelectedUse),
             7 => Ok(Self::InheritanceDependency),
+            8 => Ok(Self::ExecutableTypeDependency),
             tag => Err(WireError::new(
                 WireErrorKind::UnknownTag { tag },
                 decoder.path().clone(),
