@@ -1,0 +1,10 @@
+SharedLayoutBase ManagedObject: instance FixedObject size=24 align=8 scan=None inline=None class prefix=0 fields=[(16, 1)]
+SharedLayoutBase ManagedValue: value size=8 align=8 scan=Some(References([0])) QualifiedPointer(Managed)
+SharedLayoutEmpty ManagedObject: instance BoxedValue size=16 align=8 scan=None inline=None box payload-size=0
+SharedLayoutEmpty ManagedValue: value size=0 align=1 scan=None struct mutable=false fields=[]
+SharedLayoutLeaf ManagedObject: instance FixedObject size=32 align=8 scan=None inline=None class prefix=24 fields=[(16, 1), (24, 8)]
+SharedLayoutLeaf ManagedValue: value size=8 align=8 scan=Some(References([0])) QualifiedPointer(Managed)
+SharedLayoutNode ManagedObject: instance FixedObject size=24 align=8 scan=References([16]) inline=None class prefix=0 fields=[(16, 8)]
+SharedLayoutNode ManagedValue: value size=8 align=8 scan=Some(References([0])) QualifiedPointer(Managed)
+SharedLayoutPair ManagedObject: instance BoxedValue size=16 align=8 scan=None inline=None box payload-size=0
+SharedLayoutPair ManagedValue: value size=0 align=1 scan=None struct mutable=false fields=[(0, 1), (0, 1)]

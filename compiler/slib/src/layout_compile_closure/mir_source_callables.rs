@@ -50,19 +50,19 @@ struct ResolvedMirSourceSections<'input> {
 /// Source callables, object initialization, unit contracts and dispatch agree
 /// with shared HIR. Initialization uses, selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
-    prepared: PreparedCrossConeLayoutMirSections<'input>,
-    mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
-    lir: DecodedCrossConeLayoutLirCandidates,
-    units: Vec<scoop_mir::MirTypeBridgeInitializationUnitV1>,
+    pub(super) prepared: PreparedCrossConeLayoutMirSections<'input>,
+    pub(super) mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
+    pub(super) lir: DecodedCrossConeLayoutLirCandidates,
+    pub(super) units: Vec<scoop_mir::MirTypeBridgeInitializationUnitV1>,
 }
 
 pub struct MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
-    current: ConeIdentity,
-    target: ValidatedLirTargetSelection,
-    direct: Vec<ConeIdentity>,
-    dependency_first: Vec<MirSourceCallablesValidatedCrossConeLayoutSections<'input>>,
-    positions: BTreeMap<ConeIdentity, usize>,
-    dependency_positions: Vec<Vec<usize>>,
+    pub(super) current: ConeIdentity,
+    pub(super) target: ValidatedLirTargetSelection,
+    pub(super) direct: Vec<ConeIdentity>,
+    pub(super) dependency_first: Vec<MirSourceCallablesValidatedCrossConeLayoutSections<'input>>,
+    pub(super) positions: BTreeMap<ConeIdentity, usize>,
+    pub(super) dependency_positions: Vec<Vec<usize>>,
 }
 
 impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {

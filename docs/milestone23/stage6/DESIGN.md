@@ -726,6 +726,8 @@ consumer只能通过 `ExternalExactLayoutRef`取得完整事实，并在本地 a
 
 ### 6.2 storage 与 field layout
 
+M23-6 的共有 Compile reader 直接从已核验的 MIR 类型组成表重算 LIR layout 导出，不接受调用方提供另一份预期表示或来源 factory。每个实际导出的参数自由 nominal 及有限 helper 必需 ManagedValue 与 ManagedObject 两种角色，CLayout struct 另需 CValue；已核验的 ObjectBacking 仅为对应 object 提供完整字段和继承形状，不独立产生布局角色。集合从 MIR 表示决定，不从候选 layout 或 foundation layout 清单反推。无关私有本地定义继续属于完整 Strong production，但不加入导出根。重放使用同一 artifact 的 typed identity、LIR foundation、实际 target 和可达依赖的已检查 layout，按声明序计算 field、variant、base prefix、ZST、GC scan 与既有 CLayout 合同；引用环经 managed value 表示终止，按值或基类循环拒绝。Unit/Any 的固定语言角色保持，其他 intrinsic 均来自已检查的实际 MIR 表示，不按 CORE 来源放行。每条 wire layout 的完整 identity、role、representation、storage/shape、scan 和 definition 与重算结果逐项一致，缺失、多余、乱序及错 provider/target 均失败。图遍历、查询、排序和分配沿用原累计预算。该状态只证明布局组成表，后续 callable ABI、TD/dispatch、实际 selected-use、Strong V2 和 Compile/Link 双视图仍须全部关联后才能发布或消费；原 wire、版本及 runtime ABI 不变。
+
 ```text
 ValueStorageLayout =
     ZeroSized { alignment: NonZeroPow2 }

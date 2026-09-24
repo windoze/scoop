@@ -12,7 +12,7 @@ pub use error::LayoutAbiSectionError;
 use selection::SelectedLayoutAbiEntryV1;
 pub use selection::{SelectedDependencyLayoutAbiRefV1, SelectedDependencyLayoutAbiSetV1};
 pub use source::LayoutAbiSectionSourceAuthorityV1;
-pub use wire::DecodedCrossConeLayoutAbiSectionV1;
+pub use wire::{DecodedCrossConeLayoutAbiSectionV1, LayoutsResolvedCrossConeLayoutAbiSectionV1};
 
 /// Complete target-aware LIR semantic section. Its selected set retains both
 /// terminal semantic records and checked physical imports.

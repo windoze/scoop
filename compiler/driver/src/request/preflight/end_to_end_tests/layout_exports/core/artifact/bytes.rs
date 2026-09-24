@@ -135,6 +135,23 @@ pub(super) fn check(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
     );
+    let layouts = callables
+        .validate_lir_layouts()
+        .unwrap_or_else(|error| panic!("{name} shared LIR layout replay: {error}"));
+    assert_eq!(layouts.current(), ConeIdentity::CORE);
+    assert_eq!(layouts.target_selection(), artifact.target_selection());
+    assert!(layouts.direct_providers().is_empty());
+    assert_eq!(layouts.dependency_count(ConeIdentity::CORE), Some(0));
+    assert_eq!(layouts.dependency_first().count(), 1);
+    let current = layouts.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.layouts(), lir.layouts());
+    assert_eq!(current.types(), mir.types());
+    assert_eq!(current.callables(), mir.callables());
+    assert_eq!(current.initialization_units(), units);
+    assert_eq!(
+        encode(current.lir_layout_abi_wire()).unwrap(),
+        encode(lir).unwrap()
+    );
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

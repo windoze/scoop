@@ -16,6 +16,7 @@ pub enum LayoutAbiSectionError<E> {
     Exports(LayoutAbiExportConstituentsError),
     Semantic(LayoutAbiSemanticClosureError),
     Layout(crate::ExactLayoutTableError),
+    LayoutReplayChanged,
     Descriptor(crate::ExactDescriptorTableError),
     Dispatch(crate::ExactDispatchTableError),
     DescriptorDispatch(scoop_identity::PersistentDispatchTableId),

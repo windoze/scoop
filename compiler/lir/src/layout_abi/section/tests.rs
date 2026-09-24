@@ -3,6 +3,7 @@ use scoop_identity::{PendingIdentityValidation, PersistentTypeId};
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 mod fixture;
+mod layout_replay;
 use fixture::*;
 
 #[test]

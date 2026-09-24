@@ -3,7 +3,7 @@ use crate::{BackendScalarKind, NichePointerKind};
 
 impl ExactValueLayoutV1 {
     /// Replays scalar geometry. The complete section must join `kind` and the
-    /// exact identity to the same trusted-core intrinsic binding.
+    /// exact identity to the same provider's checked intrinsic representation.
     pub fn scalar(
         identity: ExactLayoutIdentityV1,
         kind: ScalarRepresentationKindV1,

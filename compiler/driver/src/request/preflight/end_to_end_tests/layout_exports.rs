@@ -10,6 +10,7 @@ mod core;
 mod dependencies;
 mod private_types;
 mod rejections;
+mod shared_layouts;
 mod source_contracts;
 mod source_uses;
 mod support;
@@ -66,6 +67,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                             panic!("{name}: {error}; callable: {callable:?}; physical layouts absent from MIR exports: {missing:?}")
                         });
                 assertions::actual(input, &result);
+                shared_layouts::check(input, dependencies, &result);
                 rejections::check(input, dependencies);
                 if name == "private-support" {
                     private_types::check_support(input, dependencies, &result);
@@ -97,6 +99,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                     scoop_lir_lower::lower_layout_abi_exports(input, dependencies, &mut meter())
                         .unwrap();
                 private_types::check(input, &result);
+                shared_layouts::check(input, dependencies, &result);
                 assert_eq!(assertions::bytes(&result), expected.unwrap());
             },
         );
