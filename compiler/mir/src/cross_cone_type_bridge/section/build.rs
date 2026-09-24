@@ -44,7 +44,9 @@ pub(super) fn complete<'a, E>(
 ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
     let provider = input.authority.provider();
     input.authority.validate(meter)?;
-    validate_selection_input(provider, &input.selection, meter)?;
+    if let SelectionInput::Reader(records) = &input.selection {
+        validate_selected_records(provider, records, meter)?;
+    }
     input
         .exports
         .validate_sources(provider, graph, source, meter)?;
@@ -89,20 +91,18 @@ pub(super) fn complete<'a, E>(
     })
 }
 
-fn validate_selection_input<E>(
+pub(super) fn validate_selected_records<E>(
     provider: ConeIdentity,
-    selection: &SelectionInput,
+    records: &[MirTypeBridgeDependencyV1],
     meter: &mut BudgetMeter,
 ) -> Result<(), MirTypeBridgeSectionError<E>> {
-    if let SelectionInput::Reader(records) = selection {
-        meter.check_table_entries(records.len() as u64, &WirePath::root())?;
-        meter.charge_work(records.len() as u64, &WirePath::root())?;
-        if let Some(index) = records.windows(2).position(|pair| pair[0] >= pair[1]) {
-            return Err(MirTypeBridgeSectionError::NonCanonicalSelected { index: index + 1 });
-        }
-        if records.iter().any(|record| record.provider() == provider) {
-            return Err(MirTypeBridgeSectionError::SelectedCurrentProvider);
-        }
+    meter.check_table_entries(records.len() as u64, &WirePath::root())?;
+    meter.charge_work(records.len() as u64, &WirePath::root())?;
+    if let Some(index) = records.windows(2).position(|pair| pair[0] >= pair[1]) {
+        return Err(MirTypeBridgeSectionError::NonCanonicalSelected { index: index + 1 });
+    }
+    if records.iter().any(|record| record.provider() == provider) {
+        return Err(MirTypeBridgeSectionError::SelectedCurrentProvider);
     }
     Ok(())
 }

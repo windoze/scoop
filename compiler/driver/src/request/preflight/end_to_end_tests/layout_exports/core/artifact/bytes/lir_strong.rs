@@ -42,4 +42,17 @@ pub(super) fn check(
         }
         assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     }
+    let dependencies = checked
+        .replay_mir_dependency_graph()
+        .unwrap_or_else(|error| panic!("{name} shared MIR dependency graph: {error}"));
+    assert_eq!(dependencies.current(), ConeIdentity::CORE);
+    assert_eq!(dependencies.dependency_first().count(), 1);
+    let current = dependencies.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.initialization_units(), units);
+    assert!(
+        current
+            .mir_dependency_transport()
+            .selected_relations()
+            .is_empty()
+    );
 }

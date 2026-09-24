@@ -1,14 +1,17 @@
 use super::*;
 
+/// Borrowed constituents for dependency graph replay; this is not a selection
+/// handle or evidence that source-use and artifact checks have completed.
 #[derive(Clone, Copy)]
-pub(super) struct LocalView<'a> {
-    pub provider: ConeIdentity,
-    pub exports: &'a MirTypeBridgeExportConstituentsV1,
-    pub units: &'a [MirTypeBridgeInitializationUnitV1],
-    pub legacy: &'a [StrongCallableDefinitionOwner],
+pub struct MirTypeBridgeDependencyViewV1<'a> {
+    pub(super) provider: ConeIdentity,
+    pub(super) exports: &'a MirTypeBridgeExportConstituentsV1,
+    pub(super) units: &'a [MirTypeBridgeInitializationUnitV1],
+    pub(super) legacy: &'a [StrongCallableDefinitionOwner],
 }
+pub(super) type LocalView<'a> = MirTypeBridgeDependencyViewV1<'a>;
 impl<'a> LocalView<'a> {
-    pub fn record(
+    pub(super) fn record(
         self,
         target: MirTypeBridgeTargetV1,
     ) -> Option<MirTypeBridgeSemanticRecordV1<'a>> {
@@ -45,7 +48,7 @@ impl<'a> LocalView<'a> {
                 .map(|index| MirTypeBridgeSemanticRecordV1::InitializationUnit(&self.units[index])),
         }
     }
-    pub fn targets<E>(
+    pub(super) fn targets<E>(
         self,
         mut visit: impl FnMut(MirTypeBridgeTargetV1) -> Result<(), E>,
     ) -> Result<(), E> {

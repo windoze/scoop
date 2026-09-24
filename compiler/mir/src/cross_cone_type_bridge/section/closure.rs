@@ -13,6 +13,11 @@ struct Pending {
     depth: u64,
 }
 
+pub(super) struct ClosedDependency {
+    pub relation: MirTypeBridgeDependencyV1,
+    pub dependency: usize,
+}
+
 pub(super) fn close<'a, E>(
     local: LocalView<'_>,
     dependencies: &[&'a CrossConeMirTypeBridgeSectionV1<'a>],
@@ -21,13 +26,34 @@ pub(super) fn close<'a, E>(
     types: &dyn MirTypeBridgeTypeLookupV1,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<SelectedMirTypeEntryV1<'a>>, MirTypeBridgeSectionError<E>> {
+    let mut views = reserve(dependencies.len(), meter)?;
+    views.extend(dependencies.iter().map(|section| section.view()));
+    let closed = close_views(local, &views, committed, graph, types, meter)?;
+    let mut selected = reserve(closed.len(), meter)?;
+    for entry in closed {
+        selected.push(SelectedMirTypeEntryV1 {
+            relation: entry.relation,
+            terminal: dependencies[entry.dependency],
+        });
+    }
+    Ok(selected)
+}
+
+pub(super) fn close_views<E>(
+    local: LocalView<'_>,
+    dependencies: &[LocalView<'_>],
+    committed: &[MirTypeBridgeDependencyV1],
+    graph: &ValidatedIdentityGraph,
+    types: &dyn MirTypeBridgeTypeLookupV1,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<ClosedDependency>, MirTypeBridgeSectionError<E>> {
     let count = dependencies
         .len()
         .checked_add(1)
         .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
     let mut views = reserve(count, meter)?;
     views.push(local);
-    views.extend(dependencies.iter().map(|section| section.view()));
+    views.extend_from_slice(dependencies);
     let index = TargetIndex::build(&views, meter)?;
     let mut pending = Vec::new();
     local.targets(|target| {
@@ -97,9 +123,9 @@ pub(super) fn close<'a, E>(
             .ok_or(MirTypeBridgeSectionError::MissingTarget(relation))?;
         if node.owner != 0 {
             meter.try_reserve_collection_slots(&mut selected, 1, &path)?;
-            selected.push(SelectedMirTypeEntryV1 {
+            selected.push(ClosedDependency {
                 relation,
-                terminal: dependencies[node.owner - 1],
+                dependency: node.owner - 1,
             });
         }
         let next_depth = node

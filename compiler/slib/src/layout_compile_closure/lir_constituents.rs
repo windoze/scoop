@@ -13,9 +13,10 @@ pub struct LirConstituentsValidatedCrossConeLayoutSections<
     L,
     O = lir::DecodedCrossConeLirBridgeSectionV1,
     S = lir::DecodedStrongProductionSectionV2,
+    M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {
     pub(super) prepared: PreparedCrossConeLayoutMirSections<'input>,
-    pub(super) mir: mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
+    pub(super) mir: M,
     pub(super) units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
     pub(super) strong: S,
     pub(super) ordinary: O,
@@ -27,37 +28,23 @@ pub struct LirConstituentsValidatedCrossConeLayoutClosure<
     L,
     O = lir::DecodedCrossConeLirBridgeSectionV1,
     S = lir::DecodedStrongProductionSectionV2,
+    M = mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
 > {
     pub(super) current: ConeIdentity,
     pub(super) target: lir::ValidatedLirTargetSelection,
     pub(super) direct: Vec<ConeIdentity>,
     pub(super) dependency_first:
-        Vec<LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S>>,
+        Vec<LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S, M>>,
     pub(super) positions: BTreeMap<ConeIdentity, usize>,
     pub(super) dependency_positions: Vec<Vec<usize>>,
 }
 
-impl<L, O, S> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O, S> {
+impl<L, O, S, M> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O, S, M> {
     pub fn identity(&self) -> ConeIdentity {
         self.prepared.provider()
     }
     pub fn coordinate(&self) -> &ConeCoordinate {
         self.prepared.coordinate()
-    }
-    pub fn types(&self) -> &mir::CanonicalParamFreeMirTypeExportsV1 {
-        self.mir.types()
-    }
-    pub fn shape_support(&self) -> &mir::CanonicalMirShapeSupportsV1 {
-        self.mir.shape_support()
-    }
-    pub fn callables(&self) -> &mir::CanonicalMirCallableBindingsV1 {
-        self.mir.callables()
-    }
-    pub fn object_values(&self) -> &mir::CanonicalMirObjectValuesV1 {
-        self.mir.object_values()
-    }
-    pub fn dispatch(&self) -> &mir::CanonicalMirDispatchSchemasV1 {
-        self.mir.dispatch()
     }
     pub fn initialization_units(&self) -> &[mir::MirTypeBridgeInitializationUnitV1] {
         &self.units
@@ -73,7 +60,25 @@ impl<L, O, S> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O, S> {
     }
 }
 
-impl<'input, L, O, S> LirConstituentsValidatedCrossConeLayoutClosure<'input, L, O, S> {
+impl<L, O, S> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O, S> {
+    pub fn types(&self) -> &mir::CanonicalParamFreeMirTypeExportsV1 {
+        self.mir.types()
+    }
+    pub fn shape_support(&self) -> &mir::CanonicalMirShapeSupportsV1 {
+        self.mir.shape_support()
+    }
+    pub fn callables(&self) -> &mir::CanonicalMirCallableBindingsV1 {
+        self.mir.callables()
+    }
+    pub fn object_values(&self) -> &mir::CanonicalMirObjectValuesV1 {
+        self.mir.object_values()
+    }
+    pub fn dispatch(&self) -> &mir::CanonicalMirDispatchSchemasV1 {
+        self.mir.dispatch()
+    }
+}
+
+impl<'input, L, O, S, M> LirConstituentsValidatedCrossConeLayoutClosure<'input, L, O, S, M> {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -85,14 +90,15 @@ impl<'input, L, O, S> LirConstituentsValidatedCrossConeLayoutClosure<'input, L, 
     }
     pub fn dependency_first(
         &self,
-    ) -> impl ExactSizeIterator<Item = &LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S>>
-    {
+    ) -> impl ExactSizeIterator<
+        Item = &LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S, M>,
+    > {
         self.dependency_first.iter()
     }
     pub fn artifact(
         &self,
         provider: ConeIdentity,
-    ) -> Option<&LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S>> {
+    ) -> Option<&LirConstituentsValidatedCrossConeLayoutSections<'input, L, O, S, M>> {
         self.positions
             .get(&provider)
             .map(|&position| &self.dependency_first[position])

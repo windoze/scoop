@@ -12,6 +12,14 @@ impl TargetIndex {
         let path = WirePath::root();
         let mut rows = Vec::new();
         let mut legacy = Vec::new();
+        let mut providers = reserve(views.len(), meter)?;
+        providers.extend(views.iter().map(|view| view.provider));
+        sort_work(providers.len(), meter)?;
+        providers.sort_unstable();
+        meter.charge_work(providers.len() as u64, &path)?;
+        if let Some(pair) = providers.windows(2).find(|pair| pair[0] == pair[1]) {
+            return Err(MirTypeBridgeSectionError::DuplicateProvider(pair[0]));
+        }
         for (owner, view) in views.iter().enumerate() {
             meter.try_reserve_collection_slots(&mut legacy, view.legacy.len(), &path)?;
             legacy.extend_from_slice(view.legacy);

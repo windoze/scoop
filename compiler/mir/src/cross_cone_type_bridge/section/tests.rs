@@ -8,6 +8,7 @@ mod closure;
 mod core;
 mod identity_support;
 mod producer;
+mod resolved_dependencies;
 mod source;
 mod support;
 mod units;

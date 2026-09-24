@@ -11,6 +11,7 @@ mod dependency;
 mod error;
 mod model;
 mod replay;
+mod resolved_dependencies;
 mod selection;
 mod source;
 #[cfg(test)]
@@ -22,12 +23,14 @@ mod wire;
 pub use dependency::MirTypeBridgeDependencyV1;
 pub use error::*;
 pub use model::*;
+pub use resolved_dependencies::DependencyResolvedCrossConeMirTypeBridgeSectionV1;
 pub use selection::{SelectedDependencyMirTypeRefV1, SelectedDependencyMirTypeSetV1};
 pub use source::*;
 pub use units::{
     MirInitializationUnitProofKindV1, MirTypeBridgeInitializationUnitV1,
     replay_source_initialization_units,
 };
+pub use view::MirTypeBridgeDependencyViewV1;
 pub use wire::{
     CallablesResolvedCrossConeMirTypeBridgeSectionV1, DecodedCrossConeMirTypeBridgeSectionV1,
     TypeResolvedCrossConeMirTypeBridgeSectionV1,
