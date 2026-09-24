@@ -78,6 +78,7 @@ impl CanonicalHirFoundation {
         }
         foundation.set_external_source_types(external_source_types.into_iter().collect())?;
         foundation.set_external_generic_types(external_generic_types.into_iter().collect())?;
+        super::call_points::complete(output, &mut foundation, meter)?;
         Ok(foundation)
     }
 }

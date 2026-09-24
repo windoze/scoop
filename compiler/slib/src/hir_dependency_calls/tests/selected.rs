@@ -42,6 +42,7 @@ fn mir_selection_requires_the_concrete_selected_role() {
         ])
         .unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
     .unwrap();
     assert_eq!(
@@ -101,7 +102,9 @@ fn fixture() -> Fixture {
     }
 }
 
-fn empty_interface(references: Vec<ExternalHirReferenceV1>) -> CrossConeHirInterfaceSectionV1 {
+pub(super) fn empty_interface(
+    references: Vec<ExternalHirReferenceV1>,
+) -> CrossConeHirInterfaceSectionV1 {
     CrossConeHirInterfaceSectionV1::new(
         CanonicalPublicExportBindingsV1::try_new(Vec::new()).unwrap(),
         CanonicalNominalInterfacesV1::try_new(Vec::new()).unwrap(),

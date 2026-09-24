@@ -111,6 +111,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
             target,
             CanonicalExternalHirReferenceRolesV1::try_new(vec![role]).unwrap(),
             CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+            Default::default(),
         )
         .unwrap();
         CanonicalExternalHirReferencesV1::try_new(vec![
@@ -146,6 +147,7 @@ fn inherited_defaults_close_foreign_targets_without_source_lookup_witnesses() {
         ])
         .unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
     .unwrap();
     assert!(

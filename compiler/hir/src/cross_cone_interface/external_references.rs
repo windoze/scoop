@@ -1,6 +1,8 @@
 //! Exact foreign-reference closure carried by the cross-Cone HIR interface.
 
+mod call_sites;
 mod record;
+pub use call_sites::*;
 mod reexport_closure;
 mod roles;
 mod table;

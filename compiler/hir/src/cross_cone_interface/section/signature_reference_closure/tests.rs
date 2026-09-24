@@ -735,6 +735,7 @@ fn reference(
         target,
         CanonicalExternalHirReferenceRolesV1::try_new(vec![role]).unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
     .unwrap()
 }

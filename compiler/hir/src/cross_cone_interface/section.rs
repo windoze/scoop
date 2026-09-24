@@ -291,7 +291,7 @@ impl DecodedCrossConeHirInterfaceSectionV1 {
         })?;
         let external_references = self
             .external_references
-            .resolve(resolver)
+            .resolve_metered(resolver, meter, &scoop_wire::WirePath::root().field(10))
             .map_err(|error| {
                 CrossConeHirInterfaceResolutionError::ExternalReferences(Box::new(error))
             })?;

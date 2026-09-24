@@ -194,6 +194,7 @@ fn foreign_alias_fixture() -> ForeignAliasFixture {
                     DependencyBindingWitnessV1::new(witness_route),
                 ])
                 .unwrap(),
+                Default::default(),
             )
             .unwrap(),
         ],

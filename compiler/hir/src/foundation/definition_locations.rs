@@ -1,6 +1,8 @@
 //! Source locations checked against the actual provider's foundation.
 
-use scoop_identity::{ConeIdentity, PersistentSourceContextId};
+use scoop_identity::{
+    ConeIdentity, DefinitionOrigin, PersistentSourceContextId, SourceIdentity, SourceSpan,
+};
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::OdrFreeHirFoundation;
@@ -16,9 +18,37 @@ impl OdrFreeHirFoundation {
         meter: &mut BudgetMeter,
         path: &WirePath,
     ) -> Result<(), DefinitionSourceLocationValidationError> {
+        self.validate_definition_origin_location(provider, source.origin(), meter, path)
+    }
+
+    pub fn validate_definition_origin_location(
+        &self,
+        provider: ConeIdentity,
+        origin: &DefinitionOrigin,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), DefinitionSourceLocationValidationError> {
+        self.validate_source_location(
+            provider,
+            origin.source(),
+            origin.span(),
+            origin.context(),
+            meter,
+            path,
+        )
+    }
+
+    pub(super) fn validate_source_location(
+        &self,
+        provider: ConeIdentity,
+        source: &SourceIdentity,
+        span: SourceSpan,
+        context_id: PersistentSourceContextId,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), DefinitionSourceLocationValidationError> {
         use DefinitionSourceLocationValidationError as Error;
-        let origin = source.origin();
-        let bytes = origin.source().logical_path().as_str().len() as u64;
+        let bytes = source.logical_path().as_str().len() as u64;
         let counts = self.as_canonical().counts();
         meter.check_semantic_leaf(bytes, path)?;
         meter.charge_work(
@@ -26,25 +56,24 @@ impl OdrFreeHirFoundation {
             path,
         )?;
         meter.charge_work(u64::from(counts.source_contexts.max(1).ilog2()) + 1, path)?;
-        if origin.source().cone() != provider {
+        if source.cone() != provider {
             return Err(Error::Provider {
                 expected: provider,
-                actual: origin.source().cone(),
+                actual: source.cone(),
             });
         }
-        let context_id = origin.context();
         let context = self
             .source_context_key(context_id)
             .ok_or(Error::MissingSourceContext {
                 context: context_id,
             })?;
-        if context.source() != origin.source() {
+        if context.source() != source {
             return Err(Error::SourceContextMismatch {
                 context: context_id,
             });
         }
         let record = self
-            .source_record(origin.source())
+            .source_record(source)
             .ok_or(Error::MissingSourceRecord {
                 context: context_id,
             })?;
@@ -53,7 +82,7 @@ impl OdrFreeHirFoundation {
             path,
         )?;
         record
-            .require_points([origin.span().start_byte(), origin.span().end_byte()])
+            .require_points([span.start_byte(), span.end_byte()])
             .map_err(|error| Error::MissingSourcePoint {
                 context: context_id,
                 byte_offset: error.byte_offset,

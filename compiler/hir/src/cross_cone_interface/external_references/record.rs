@@ -1,17 +1,23 @@
 use std::fmt;
 
 use scoop_identity::{ConeIdentity, PersistentExportBindingId, PersistentIdResolver};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
+use scoop_wire::{
+    BudgetMeter, DecodeLimits, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
+};
 
 use super::{
     CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
-    DecodedCanonicalDependencyBindingWitnessesV1, DecodedCanonicalExternalHirReferenceRolesV1,
+    CanonicalHirDependencyCallSitesV1, DecodedCanonicalDependencyBindingWitnessesV1,
+    DecodedCanonicalExternalHirReferenceRolesV1, DecodedCanonicalHirDependencyCallSitesV1,
     DecodedExternalHirTargetV1, DependencyBindingWitnessSetValidationError,
     ExternalHirReferenceRoleSetValidationError, ExternalHirTargetResolutionError,
-    ExternalHirTargetResolver, ExternalHirTargetV1,
+    ExternalHirTargetResolver, ExternalHirTargetV1, HirDependencyCallSiteResolutionError,
+    HirDependencyCallSiteResolver,
 };
 
+mod call_sites;
 mod semantics;
+use call_sites::validate_call_sites;
 
 pub use semantics::{
     ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
@@ -23,6 +29,7 @@ pub struct ExternalHirReferenceV1 {
     target: ExternalHirTargetV1,
     roles: CanonicalExternalHirReferenceRolesV1,
     witnesses: CanonicalDependencyBindingWitnessesV1,
+    call_sites: CanonicalHirDependencyCallSitesV1,
 }
 
 impl ExternalHirReferenceV1 {
@@ -31,13 +38,16 @@ impl ExternalHirReferenceV1 {
         target: ExternalHirTargetV1,
         roles: CanonicalExternalHirReferenceRolesV1,
         witnesses: CanonicalDependencyBindingWitnessesV1,
+        call_sites: CanonicalHirDependencyCallSitesV1,
     ) -> Result<Self, ExternalHirReferenceBuildError> {
         validate_witness_presence(target, &roles, &witnesses)?;
+        validate_call_sites(target, &roles, &witnesses, &call_sites)?;
         Ok(Self {
             origin,
             target,
             roles,
             witnesses,
+            call_sites,
         })
     }
 
@@ -56,11 +66,15 @@ impl ExternalHirReferenceV1 {
     pub const fn witnesses(&self) -> &CanonicalDependencyBindingWitnessesV1 {
         &self.witnesses
     }
+
+    pub const fn call_sites(&self) -> &CanonicalHirDependencyCallSitesV1 {
+        &self.call_sites
+    }
 }
 
 impl WireEncode for ExternalHirReferenceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.origin.encode(encoder)?;
         encoder.field(2)?;
@@ -68,7 +82,9 @@ impl WireEncode for ExternalHirReferenceV1 {
         encoder.field(3)?;
         self.roles.encode(encoder)?;
         encoder.field(4)?;
-        self.witnesses.encode(encoder)
+        self.witnesses.encode(encoder)?;
+        encoder.field(5)?;
+        self.call_sites.encode(encoder)
     }
 }
 
@@ -78,6 +94,7 @@ pub struct DecodedExternalHirReferenceV1 {
     target: DecodedExternalHirTargetV1,
     roles: DecodedCanonicalExternalHirReferenceRolesV1,
     witnesses: DecodedCanonicalDependencyBindingWitnessesV1,
+    call_sites: DecodedCanonicalHirDependencyCallSitesV1,
 }
 
 impl DecodedExternalHirReferenceV1 {
@@ -88,6 +105,19 @@ impl DecodedExternalHirReferenceV1 {
     where
         R: ExternalHirReferenceResolver<E>,
     {
+        self.resolve_metered(
+            resolver,
+            &mut BudgetMeter::new(DecodeLimits::default()),
+            &WirePath::root(),
+        )
+    }
+
+    pub fn resolve_metered<R: ExternalHirReferenceResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<ExternalHirReferenceV1, ExternalHirReferenceResolutionError<E>> {
         let origin = <R as PersistentIdResolver<ConeIdentity>>::resolve(resolver, self.origin)
             .map_err(ExternalHirReferenceResolutionError::Origin)?;
         let target = self
@@ -102,14 +132,18 @@ impl DecodedExternalHirReferenceV1 {
             .witnesses
             .resolve(resolver)
             .map_err(ExternalHirReferenceResolutionError::Witnesses)?;
-        ExternalHirReferenceV1::try_new(origin, target, roles, witnesses)
+        let call_sites = self
+            .call_sites
+            .resolve(resolver, meter, &path.clone().field(5))
+            .map_err(|source| ExternalHirReferenceResolutionError::CallSites(Box::new(source)))?;
+        ExternalHirReferenceV1::try_new(origin, target, roles, witnesses, call_sites)
             .map_err(ExternalHirReferenceResolutionError::Shape)
     }
 }
 
 impl WireEncode for DecodedExternalHirReferenceV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
+        encoder.map(5)?;
         encoder.field(1)?;
         self.origin.encode(encoder)?;
         encoder.field(2)?;
@@ -117,18 +151,21 @@ impl WireEncode for DecodedExternalHirReferenceV1 {
         encoder.field(3)?;
         self.roles.encode(encoder)?;
         encoder.field(4)?;
-        self.witnesses.encode(encoder)
+        self.witnesses.encode(encoder)?;
+        encoder.field(5)?;
+        self.call_sites.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedExternalHirReferenceV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
+        decoder.expect_map(5)?;
         Ok(Self {
             origin: decoder.field(1, scoop_identity::DecodedPersistentId::decode)?,
             target: decoder.field(2, DecodedExternalHirTargetV1::decode)?,
             roles: decoder.field(3, DecodedCanonicalExternalHirReferenceRolesV1::decode)?,
             witnesses: decoder.field(4, DecodedCanonicalDependencyBindingWitnessesV1::decode)?,
+            call_sites: decoder.field(5, DecodedCanonicalHirDependencyCallSitesV1::decode)?,
         })
     }
 }
@@ -137,6 +174,7 @@ pub trait ExternalHirReferenceResolver<E>:
     ExternalHirTargetResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>
     + PersistentIdResolver<PersistentExportBindingId, Error = E>
+    + HirDependencyCallSiteResolver<E>
 {
 }
 
@@ -144,6 +182,7 @@ impl<R, E> ExternalHirReferenceResolver<E> for R where
     R: ExternalHirTargetResolver<E>
         + PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentIdResolver<PersistentExportBindingId, Error = E>
+        + HirDependencyCallSiteResolver<E>
 {
 }
 
@@ -167,18 +206,29 @@ fn validate_witness_presence(
 pub enum ExternalHirReferenceBuildError {
     MissingWitness,
     UnexpectedWitness,
+    MissingCallSites,
+    UnexpectedCallSites,
+    CallWitnessIndex { site: usize, index: u32 },
 }
 
 impl fmt::Display for ExternalHirReferenceBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::MissingWitness => {
-                "external HIR reference role requires a dependency binding witness"
+        match self {
+            Self::MissingWitness => formatter
+                .write_str("external HIR reference role requires a dependency binding witness"),
+            Self::UnexpectedWitness => formatter.write_str(
+                "external HIR reference has no source-name role for its binding witness",
+            ),
+            Self::MissingCallSites => {
+                formatter.write_str("selected external callable has no actual HIR call sites")
             }
-            Self::UnexpectedWitness => {
-                "external HIR reference has no source-name role for its binding witness"
-            }
-        })
+            Self::UnexpectedCallSites => formatter
+                .write_str("external reference has call sites without a concrete callable use"),
+            Self::CallWitnessIndex { site, index } => write!(
+                formatter,
+                "call site {site} names missing binding witness {index}"
+            ),
+        }
     }
 }
 
@@ -190,6 +240,7 @@ pub enum ExternalHirReferenceResolutionError<E> {
     Target(ExternalHirTargetResolutionError<E>),
     Roles(ExternalHirReferenceRoleSetValidationError),
     Witnesses(DependencyBindingWitnessSetValidationError<E>),
+    CallSites(Box<HirDependencyCallSiteResolutionError<E>>),
     Shape(ExternalHirReferenceBuildError),
 }
 
@@ -200,6 +251,7 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceResolutionError<E> {
             Self::Target(error) => error.fmt(formatter),
             Self::Roles(error) => error.fmt(formatter),
             Self::Witnesses(error) => error.fmt(formatter),
+            Self::CallSites(error) => error.fmt(formatter),
             Self::Shape(error) => error.fmt(formatter),
         }
     }

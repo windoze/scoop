@@ -57,6 +57,14 @@ impl std::error::Error for CrossConeClosureMirBridgeError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeMirClosureRelationError {
+    CallRoot {
+        position: scoop_hir::concrete::ExecutableExpressionPosition,
+    },
+    CallSignature {
+        position: Box<scoop_hir::concrete::ExecutableExpressionPosition>,
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+    },
     NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
     NominalClassification(scoop_hir::NominalCallableClassificationError),
     Resource(scoop_wire::WireError),
@@ -119,6 +127,18 @@ pub enum CrossConeMirClosureRelationError {
 impl fmt::Display for CrossConeMirClosureRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CallRoot { position } => write!(
+                formatter,
+                "HIR call {position:?} has no strong MIR executable root"
+            ),
+            Self::CallSignature {
+                position,
+                provider,
+                declaration,
+            } => write!(
+                formatter,
+                "HIR call {position:?} disagrees with the logical signature of {provider}:{declaration:?}"
+            ),
             Self::NominalClassifier(source) => source.fmt(formatter),
             Self::NominalClassification(source) => source.fmt(formatter),
             Self::Resource(source) => source.fmt(formatter),

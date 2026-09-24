@@ -10,9 +10,11 @@ use crate::cross_cone_hir_authority::{
     CanonicalCrossConeHirSurfaceAuthority, ValidatedNominalProviderView,
 };
 
+mod call_sites;
 mod declarations;
 mod references;
 mod sources;
+pub use call_sites::CrossConeHirCallSiteOriginError;
 pub use references::CrossConeHirReferenceSurfaceError;
 
 #[derive(Clone, Copy)]

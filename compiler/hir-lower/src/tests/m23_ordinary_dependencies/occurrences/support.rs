@@ -8,6 +8,13 @@ use super::*;
 use crate::tests::m23_ordinary_core_only::support::parsed_ordinary_text;
 
 pub(super) fn lower(source: &str) -> hir::DependencyHirOutput {
+    with_output(source, |output, _| output)
+}
+
+pub(super) fn with_output<T>(
+    source: &str,
+    inspect: impl FnOnce(hir::DependencyHirOutput, &hir::ImportedSemanticWorld<'_>) -> T,
+) -> T {
     let mut core = trusted_core();
     let hir::ImportedTarget::Type(boolean) = core.type_binding("Boolean").target() else {
         panic!("Boolean is nominal")
@@ -50,8 +57,9 @@ pub(super) fn lower(source: &str) -> hir::DependencyHirOutput {
     .unwrap();
     let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
     let input = CurrentConeSources::try_new(&ordinary, core_inputs, &world).unwrap();
-    lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
-        .unwrap_or_else(|errors| panic!("{errors:?}"))
+    let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
+        .unwrap_or_else(|errors| panic!("{errors:?}"));
+    inspect(output, &world)
 }
 
 fn package(parts: &[&str]) -> PackagePath {

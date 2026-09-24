@@ -8,6 +8,8 @@ use super::{
     ExternalHirReferenceSemanticValidationError, ExternalHirReferenceV1, ExternalHirTargetV1,
 };
 
+mod positions;
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalExternalHirReferencesV1 {
     records: Vec<ExternalHirReferenceV1>,
@@ -15,8 +17,25 @@ pub struct CanonicalExternalHirReferencesV1 {
 
 impl CanonicalExternalHirReferencesV1 {
     pub fn try_new(
-        mut records: Vec<ExternalHirReferenceV1>,
+        records: Vec<ExternalHirReferenceV1>,
     ) -> Result<Self, ExternalHirReferenceSetBuildError> {
+        Self::try_new_metered(
+            records,
+            &mut BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+        )
+    }
+
+    pub(crate) fn try_new_metered(
+        mut records: Vec<ExternalHirReferenceV1>,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ExternalHirReferenceSetBuildError> {
+        let count = records.len() as u64;
+        meter
+            .charge_work(
+                count.saturating_mul(u64::from(count.max(1).ilog2()) + 2),
+                &WirePath::root(),
+            )
+            .map_err(ExternalHirReferenceSetBuildError::Resource)?;
         records.sort_unstable_by_key(ExternalHirReferenceV1::target);
         if let Some(target) = records
             .windows(2)
@@ -25,6 +44,7 @@ impl CanonicalExternalHirReferencesV1 {
         {
             return Err(ExternalHirReferenceSetBuildError::DuplicateTarget(target));
         }
+        positions::validate(&records, meter, &WirePath::root())?;
         Ok(Self { records })
     }
 
@@ -105,10 +125,33 @@ impl DecodedCanonicalExternalHirReferencesV1 {
     where
         R: ExternalHirReferenceResolver<E>,
     {
-        let mut records = Vec::<ExternalHirReferenceV1>::with_capacity(self.records.len());
+        self.resolve_metered(
+            resolver,
+            &mut BudgetMeter::new(scoop_wire::DecodeLimits::default()),
+            &WirePath::root(),
+        )
+    }
+
+    pub fn resolve_metered<R: ExternalHirReferenceResolver<E>, E>(
+        self,
+        resolver: &mut R,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<CanonicalExternalHirReferencesV1, ExternalHirReferenceSetValidationError<E>> {
+        let mut records = Vec::<ExternalHirReferenceV1>::new();
+        meter
+            .charge_owned_bytes(
+                (self.records.len() as u64)
+                    .saturating_mul(std::mem::size_of::<ExternalHirReferenceV1>() as u64),
+                path,
+            )
+            .map_err(ExternalHirReferenceSetValidationError::Resource)?;
+        meter
+            .try_reserve_collection_slots(&mut records, self.records.len(), path)
+            .map_err(ExternalHirReferenceSetValidationError::Resource)?;
         for (index, record) in self.records.into_iter().enumerate() {
             let record = record
-                .resolve(resolver)
+                .resolve_metered(resolver, meter, &path.clone().index(index as u64))
                 .map_err(|error| ExternalHirReferenceSetValidationError::Record { index, error })?;
             if let Some(previous) = records.last() {
                 match previous.target().cmp(&record.target()) {
@@ -128,6 +171,8 @@ impl DecodedCanonicalExternalHirReferencesV1 {
             }
             records.push(record);
         }
+        positions::validate(&records, meter, path)
+            .map_err(ExternalHirReferenceSetValidationError::CallPositions)?;
         Ok(CanonicalExternalHirReferencesV1 { records })
     }
 }
@@ -150,9 +195,11 @@ impl WireDecode for DecodedCanonicalExternalHirReferencesV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExternalHirReferenceSetBuildError {
     DuplicateTarget(ExternalHirTargetV1),
+    DuplicateCallPosition(crate::concrete::ExecutableExpressionPosition),
+    Resource(WireError),
 }
 
 impl fmt::Display for ExternalHirReferenceSetBuildError {
@@ -161,6 +208,11 @@ impl fmt::Display for ExternalHirReferenceSetBuildError {
             Self::DuplicateTarget(target) => {
                 write!(formatter, "duplicate external HIR target {target:?}")
             }
+            Self::DuplicateCallPosition(position) => write!(
+                formatter,
+                "multiple external targets claim HIR call position {position:?}"
+            ),
+            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
@@ -169,6 +221,8 @@ impl std::error::Error for ExternalHirReferenceSetBuildError {}
 
 #[derive(Debug)]
 pub enum ExternalHirReferenceSetValidationError<E> {
+    Resource(WireError),
+    CallPositions(ExternalHirReferenceSetBuildError),
     Record {
         index: usize,
         error: ExternalHirReferenceResolutionError<E>,
@@ -185,6 +239,8 @@ pub enum ExternalHirReferenceSetValidationError<E> {
 impl<E: fmt::Display> fmt::Display for ExternalHirReferenceSetValidationError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(error) => error.fmt(formatter),
+            Self::CallPositions(error) => error.fmt(formatter),
             Self::Record { index, error } => {
                 write!(formatter, "invalid external HIR reference {index}: {error}")
             }

@@ -8,6 +8,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits};
 use super::*;
 use crate::{ExportHir, HirNativeBoundaryTypeDefinitions, LocalConcreteHir};
 
+mod call_points;
 mod dependency;
 mod source_callable_keys;
 mod source_points;

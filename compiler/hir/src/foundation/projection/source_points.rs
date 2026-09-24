@@ -17,6 +17,22 @@ pub(super) fn source_records(
     interface_sources: &[crate::ExportDefinitionSourceV1],
     existing: &[SourceRecord],
 ) -> Result<Vec<SourceRecord>, HirFoundationBuildError> {
+    source_records_with_locations(
+        source_files,
+        definitions,
+        interface_sources,
+        existing,
+        std::iter::empty(),
+    )
+}
+
+pub(super) fn source_records_with_locations<'a>(
+    source_files: &[crate::SourceFileMetadata],
+    definitions: &[DefinitionOriginRecord],
+    interface_sources: &[crate::ExportDefinitionSourceV1],
+    existing: &[SourceRecord],
+    locations: impl IntoIterator<Item = (&'a SourceIdentity, [u64; 2])>,
+) -> Result<Vec<SourceRecord>, HirFoundationBuildError> {
     let mut required = BTreeMap::<SourceIdentity, RequiredSourcePoints>::new();
     for record in existing {
         required.insert(
@@ -56,6 +72,16 @@ pub(super) fn source_records(
         points.offsets.extend([span.start_byte(), span.end_byte()]);
     }
 
+    for (source, offsets) in locations {
+        required
+            .entry(source.clone())
+            .or_insert_with(|| RequiredSourcePoints {
+                offsets: Vec::new(),
+                first_origin: RequiredSourceOrigin::CrossConeInterface,
+            })
+            .offsets
+            .extend(offsets);
+    }
     let mut records = Vec::with_capacity(source_files.len());
     for source in source_files {
         let points = required

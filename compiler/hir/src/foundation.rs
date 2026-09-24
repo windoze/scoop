@@ -30,6 +30,7 @@ pub use wire::{
 mod counts;
 mod default_origins;
 mod definition_locations;
+mod evaluation_locations;
 mod imported;
 mod imported_protocols;
 mod projection;
@@ -37,6 +38,7 @@ mod strong_profile;
 pub use counts::HirFoundationCounts;
 pub use default_origins::DefaultTemplateRootOriginValidationError;
 pub use definition_locations::DefinitionSourceLocationValidationError;
+pub use evaluation_locations::ExecutableEvaluationValidationError;
 mod type_source_keys;
 pub use imported::{ImportedHirFoundation, ImportedHirId, ImportedHirNominal};
 pub use imported_protocols::{
@@ -799,6 +801,7 @@ pub enum HirFoundationOrderIssue {
 
 #[derive(Debug)]
 pub enum HirFoundationBuildError {
+    DependencyCalls(Box<crate::DependencyCallOccurrenceError>),
     DependencyOrder {
         table: HirFoundationTable,
         issue: HirFoundationOrderIssue,
@@ -844,6 +847,7 @@ pub enum HirFoundationBuildError {
 impl fmt::Display for HirFoundationBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DependencyCalls(error) => error.fmt(formatter),
             Self::DependencyOrder { table, .. } => {
                 write!(
                     formatter,

@@ -68,12 +68,15 @@ mod cross_cone_closure;
 pub use cross_cone_closure::*;
 
 mod cross_cone_hir_authority;
+mod hir_dependency_calls;
 mod hir_interface_validation;
 pub use cross_cone_hir_authority::{
     CrossConeHirIntrinsicTypeError, CrossConeHirNominalAuthorityError,
     CrossConeIntrinsicDeclarationError,
 };
-pub use hir_interface_validation::CrossConeHirReferenceSurfaceError;
+pub use hir_interface_validation::{
+    CrossConeHirCallSiteOriginError, CrossConeHirReferenceSurfaceError,
+};
 
 mod publish;
 pub use publish::*;

@@ -49,7 +49,7 @@ impl CrossConeHirInterfaceSectionV1 {
         complete_witness_uses.extend_from_slice(output.concrete_dependency_witness_uses());
         Self::from_parts(
             output.output().export.module(),
-            Some(output.imported_dependencies()),
+            Some(output),
             &complete_witness_uses,
             authority,
         )
@@ -57,13 +57,15 @@ impl CrossConeHirInterfaceSectionV1 {
 
     fn from_parts<A, E>(
         export: &ExportHir,
-        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
+        dependency_output: Option<&DependencyHirOutput>,
         witness_uses: &[ExternalHirBindingWitnessUse],
         authority: &mut A,
     ) -> Result<Self, CrossConeHirInterfaceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {
+        let imported_dependencies =
+            dependency_output.map(DependencyHirOutput::imported_dependencies);
         let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let roots =
             super::nominal_interfaces::SharedSourceRoots::from_export_hir(export, &mut meter)
@@ -124,7 +126,7 @@ impl CrossConeHirInterfaceSectionV1 {
                     &constants,
                 ),
                 witness_uses,
-                imported_dependencies,
+                dependency_output,
                 authority,
             )
             .map_err(CrossConeHirInterfaceProductionError::ExternalReferences)?;

@@ -22,7 +22,9 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
         ] {
             assert!(accumulator.observe(target, role).unwrap());
         }
-        let references = accumulator.finish::<AuthorityError>().unwrap();
+        let references = accumulator
+            .finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default()))
+            .unwrap();
         assert_eq!(references.records().len(), 1);
         let record = references.get(target).unwrap();
         assert_eq!(record.origin(), provider);
@@ -42,6 +44,7 @@ fn builtin_default_dependencies_preserve_actual_provider_and_dependency_uses() {
             target,
             record.roles().clone(),
             record.witnesses().clone(),
+            Default::default(),
         )
         .unwrap();
         assert!(matches!(
@@ -73,6 +76,7 @@ fn builtin_default_dependencies_still_require_an_actual_provider() {
         ])
         .unwrap(),
         CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+        Default::default(),
     )
     .unwrap();
     assert!(matches!(
@@ -98,7 +102,7 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
             .observe(target, ExternalHirReferenceRoleV1::DefaultDependency)
             .unwrap();
         assert!(matches!(
-            accumulator.finish::<AuthorityError>(),
+            accumulator.finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default())),
             Err(ExternalHirReferenceProductionError::MissingWitnessUse {
                 target: actual, role: ExternalHirReferenceRoleV1::DefaultDependency,
             }) if actual == target
@@ -112,6 +116,7 @@ fn builtin_default_dependencies_do_not_grant_same_name_or_provider_exemptions() 
                 ])
                 .unwrap(),
                 CanonicalDependencyBindingWitnessesV1::try_new(Vec::new()).unwrap(),
+                Default::default(),
             ),
             Err(crate::ExternalHirReferenceBuildError::MissingWitness)
         );

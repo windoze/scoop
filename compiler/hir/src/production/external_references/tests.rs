@@ -97,7 +97,9 @@ fn signature_collection_deduplicates_foreign_nominal_leaves() {
         )
         .unwrap();
 
-    let references = accumulator.finish::<AuthorityError>().unwrap();
+    let references = accumulator
+        .finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default()))
+        .unwrap();
     assert_eq!(references.records().len(), 1);
     assert_eq!(references.records()[0].target(), target);
     assert_eq!(
@@ -122,7 +124,7 @@ fn source_name_roles_require_an_actual_selected_witness() {
         .unwrap();
 
     assert!(matches!(
-        accumulator.finish::<AuthorityError>(),
+        accumulator.finish::<AuthorityError>(&mut BudgetMeter::new(DecodeLimits::default())),
         Err(ExternalHirReferenceProductionError::MissingWitnessUse {
             target: actual,
             role: ExternalHirReferenceRoleV1::AliasTarget,

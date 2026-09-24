@@ -14,20 +14,24 @@ use crate::{
     cross_cone_interface::SignatureNominalWalker,
 };
 
-struct PendingReference {
+mod finish;
+
+struct PendingReference<'a> {
     origin: ConeIdentity,
     roles: BTreeSet<ExternalHirReferenceRoleV1>,
     witnessed_roles: BTreeSet<ExternalHirReferenceRoleV1>,
     witnesses: BTreeSet<DependencyBindingWitnessV1>,
+    call_sites: Vec<super::calls::PendingCallSite<'a>>,
 }
 
-impl PendingReference {
+impl PendingReference<'_> {
     fn new(origin: ConeIdentity, role: ExternalHirReferenceRoleV1) -> Self {
         Self {
             origin,
             roles: BTreeSet::from([role]),
             witnessed_roles: BTreeSet::new(),
             witnesses: BTreeSet::new(),
+            call_sites: Vec::new(),
         }
     }
 }
@@ -36,7 +40,7 @@ pub(super) struct ExternalReferenceAccumulator<'authority, A> {
     current: ConeIdentity,
     authority: &'authority mut A,
     origins: BTreeMap<ExternalHirTargetV1, ConeIdentity>,
-    references: BTreeMap<ExternalHirTargetV1, PendingReference>,
+    references: BTreeMap<ExternalHirTargetV1, PendingReference<'authority>>,
 }
 
 impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
@@ -160,40 +164,52 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         }
     }
 
-    pub(super) fn finish<E>(
-        self,
-    ) -> Result<CanonicalExternalHirReferencesV1, ExternalHirReferenceProductionError<E>> {
-        let mut records = Vec::with_capacity(self.references.len());
-        for (target, pending) in self.references {
-            for role in [
-                ExternalHirReferenceRoleV1::AliasTarget,
-                ExternalHirReferenceRoleV1::DefaultDependency,
-                ExternalHirReferenceRoleV1::ConcreteSelectedUse,
-            ] {
-                if pending.roles.contains(&role)
-                    && role.requires_source_name_witness(target)
-                    && !pending.witnessed_roles.contains(&role)
-                {
-                    return Err(ExternalHirReferenceProductionError::MissingWitnessUse {
-                        target,
-                        role,
-                    });
-                }
+    pub(super) fn add_call_sites<E>(
+        &mut self,
+        output: &'authority crate::DependencyHirOutput,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), ExternalHirReferenceProductionError<E>>
+    where
+        A: ExternalHirReferenceSemanticAuthority<E>,
+    {
+        use ExternalHirReferenceProductionError as Error;
+        let role = ExternalHirReferenceRoleV1::ConcreteSelectedUse;
+        let path = WirePath::root();
+        for call in output
+            .committed_dependency_call_occurrences(meter)
+            .map_err(Error::CallOccurrences)?
+        {
+            let target = ExternalHirTargetV1::Callable(call.callable().interface().declaration());
+            let projected = super::calls::project(output, call, meter)?;
+            let pending = self
+                .observe_pending(target, role)?
+                .ok_or(Error::CurrentWitnessTarget { target, role })?;
+            for source in call.binding().sources() {
+                meter
+                    .charge_owned_bytes(
+                        (std::mem::size_of::<DependencyBindingWitnessV1>()
+                            + std::mem::size_of_val(source.witness().route().hops()))
+                            as u64,
+                        &path,
+                    )
+                    .map_err(Error::Resource)?;
+                pending
+                    .witnesses
+                    .insert(source.witness().dependency().clone());
             }
-            let roles =
-                CanonicalExternalHirReferenceRolesV1::try_new(pending.roles.into_iter().collect())
-                    .map_err(ExternalHirReferenceProductionError::Roles)?;
-            let witnesses = CanonicalDependencyBindingWitnessesV1::try_new(
-                pending.witnesses.into_iter().collect(),
-            )
-            .map_err(ExternalHirReferenceProductionError::Witnesses)?;
-            records.push(
-                ExternalHirReferenceV1::try_new(pending.origin, target, roles, witnesses)
-                    .map_err(ExternalHirReferenceProductionError::Record)?,
-            );
+            pending.witnessed_roles.insert(role);
+            meter
+                .charge_owned_bytes(
+                    std::mem::size_of::<super::calls::PendingCallSite<'_>>() as u64,
+                    &path,
+                )
+                .map_err(Error::Resource)?;
+            meter
+                .try_reserve_collection_slots(&mut pending.call_sites, 1, &path)
+                .map_err(Error::Resource)?;
+            pending.call_sites.push(projected);
         }
-        CanonicalExternalHirReferencesV1::try_new(records)
-            .map_err(ExternalHirReferenceProductionError::Table)
+        Ok(())
     }
 
     fn target_origin<E>(
@@ -223,7 +239,7 @@ impl<'authority, A> ExternalReferenceAccumulator<'authority, A> {
         &mut self,
         target: ExternalHirTargetV1,
         role: ExternalHirReferenceRoleV1,
-    ) -> Result<Option<&mut PendingReference>, ExternalHirReferenceProductionError<E>>
+    ) -> Result<Option<&mut PendingReference<'authority>>, ExternalHirReferenceProductionError<E>>
     where
         A: ExternalHirReferenceSemanticAuthority<E>,
     {

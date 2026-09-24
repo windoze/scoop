@@ -14,7 +14,10 @@ use super::{
     },
     surface_validation::transitive_dependency_positions,
 };
-use crate::{ConstValidatedCrossConeHirClosure, ConstValidatedCrossConeHirFrontSections};
+use crate::{
+    ConstValidatedCrossConeHirClosure, ConstValidatedCrossConeHirFrontSections,
+    CrossConeHirCallSiteOriginError,
+};
 
 /// A route-validated closure whose complete export-derived external HIR
 /// reference set has been reconstructed and checked artifact by artifact.
@@ -93,7 +96,9 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                         requested_slots,
                     }
                 })?;
-                let (identities, interface, meter) = current.hir_semantic_parts();
+                let (input, meter) = current.hir_reference_validation_parts();
+                let identities = input.identities;
+                let interface = input.interface;
                 let mut authority = CanonicalCrossConeRouteAuthority::try_new(
                     identity,
                     identities,
@@ -114,6 +119,28 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
                         identity,
                         source: Box::new(source),
                     })?;
+                let mut providers = Vec::new();
+                meter
+                    .try_reserve_collection_slots(
+                        &mut providers,
+                        reachable.len(),
+                        &WirePath::root(),
+                    )
+                    .map_err(|source| CrossConeClosureExternalReferenceError::CallSites {
+                        identity,
+                        source: Box::new(CrossConeHirCallSiteOriginError::Resource(source)),
+                    })?;
+                providers.extend(
+                    reachable
+                        .iter()
+                        .map(|&index| previous[index].nominal_provider_view()),
+                );
+                input.call_sites(&providers, meter).map_err(|source| {
+                    CrossConeClosureExternalReferenceError::CallSites {
+                        identity,
+                        source: Box::new(source),
+                    }
+                })?;
             }
         }
 
@@ -123,6 +150,10 @@ impl<'input> PublicRouteValidatedCrossConeHirClosure<'input> {
 
 #[derive(Debug)]
 pub enum CrossConeClosureExternalReferenceError {
+    CallSites {
+        identity: ConeIdentity,
+        source: Box<CrossConeHirCallSiteOriginError>,
+    },
     AuthorityAllocation {
         identity: ConeIdentity,
         requested_slots: usize,
@@ -137,6 +168,9 @@ pub enum CrossConeClosureExternalReferenceError {
 impl fmt::Display for CrossConeClosureExternalReferenceError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CallSites { identity, source } => {
+                write!(formatter, "invalid HIR call sites for {identity}: {source}")
+            }
             Self::AuthorityAllocation {
                 identity,
                 requested_slots,
@@ -157,6 +191,7 @@ impl fmt::Display for CrossConeClosureExternalReferenceError {
 impl std::error::Error for CrossConeClosureExternalReferenceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::CallSites { source, .. } => Some(source.as_ref()),
             Self::Artifact { source, .. } => Some(source.as_ref()),
             Self::AuthorityAllocation { .. } => None,
         }

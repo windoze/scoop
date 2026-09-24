@@ -20,9 +20,31 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
     assert_eq!(projected.len(), selected_count);
-    scoop_mir_lower::lower_current_cone(&hir.hir, projected).unwrap();
+    let with_initialization = |selected| {
+        if hir
+            .hir
+            .output()
+            .local
+            .module()
+            .initialization_units
+            .is_empty()
+        {
+            selected
+        } else {
+            closure
+                .select_initialization_cycle(
+                    selected,
+                    inputs
+                        .protocols()
+                        .exceptions()
+                        .initialization_cycle_thrower(),
+                )
+                .unwrap()
+        }
+    };
+    scoop_mir_lower::lower_current_cone(&hir.hir, with_initialization(projected)).unwrap();
     let consumer = hir.hir.output().local.module().cone;
-    let result = if selected_count == 0 {
+    let incorrect = if selected_count == 0 {
         let source = hir.hir.imported_dependencies().callables().next().unwrap();
         let capability = source.capability();
         let record = scoop_mir::SelectedDependencyMirCallableV1::try_new(
@@ -32,16 +54,11 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
             capability.signature().clone(),
         )
         .unwrap();
-        scoop_mir_lower::lower_current_cone(
-            &hir.hir,
-            scoop_mir::SelectedExternalMirSet::try_from_callables(consumer, vec![record]).unwrap(),
-        )
+        scoop_mir::SelectedExternalMirSet::try_from_callables(consumer, vec![record]).unwrap()
     } else {
-        scoop_mir_lower::lower_current_cone(
-            &hir.hir,
-            scoop_mir::SelectedExternalMirSet::empty(consumer),
-        )
+        scoop_mir::SelectedExternalMirSet::empty(consumer)
     };
+    let result = scoop_mir_lower::lower_current_cone(&hir.hir, with_initialization(incorrect));
     let Err(error) = result else {
         panic!("incorrect machine selection was accepted")
     };

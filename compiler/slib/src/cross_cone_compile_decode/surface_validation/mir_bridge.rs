@@ -105,7 +105,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
     ) -> Result<MirBridgeValidatedCrossConeHirFrontSections<'input>, CrossConeMirFrontValidationError>
     {
         let ValidatedSurfaceFront {
-            graph,
+            mut graph,
             mut identities,
             foundations,
             hir_core_production,
@@ -128,6 +128,13 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
         let mir_cross_cone_bridge = mir_cross_cone_bridge
             .validate(graph.identity(), &mut identities, &foundations.mir)
             .map_err(CrossConeMirFrontValidationError::DependencyBridge)?;
+        crate::hir_dependency_calls::validate_executable_hir_calls(
+            &hir_interface,
+            mir_core_production.strong_callable_bridges(),
+            &mir_cross_cone_bridge,
+            graph.envelope.meter_mut(),
+        )
+        .map_err(|source| CrossConeMirFrontValidationError::CallSites(Box::new(source)))?;
 
         Ok(MirBridgeValidatedCrossConeHirFrontSections {
             graph,
@@ -145,6 +152,7 @@ impl<'input> ConstValidatedCrossConeHirFrontSections<'input> {
 
 #[derive(Debug)]
 pub enum CrossConeMirFrontValidationError {
+    CallSites(Box<crate::CrossConeMirClosureRelationError>),
     CoreProduction(MirProductionValidationError),
     CrossLayer(StrongProfileRelationError),
     DependencyBridge(CrossConeMirBridgeValidationError),
@@ -153,6 +161,7 @@ pub enum CrossConeMirFrontValidationError {
 impl std::fmt::Display for CrossConeMirFrontValidationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::CallSites(error) => write!(formatter, "invalid HIR/MIR call sites: {error}"),
             Self::CoreProduction(error) => {
                 write!(formatter, "invalid legacy MIR production: {error}")
             }
@@ -169,6 +178,7 @@ impl std::fmt::Display for CrossConeMirFrontValidationError {
 impl std::error::Error for CrossConeMirFrontValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::CallSites(error) => Some(error.as_ref()),
             Self::CoreProduction(error) => Some(error),
             Self::CrossLayer(error) => Some(error),
             Self::DependencyBridge(error) => Some(error),

@@ -5,6 +5,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits};
 use crate::{CanonicalExternalHirReferencesV1, ExternalHirReferenceSemanticAuthority};
 
 mod accumulator;
+mod calls;
 mod defaults;
 mod dispatch;
 mod errors;
@@ -35,7 +36,7 @@ impl CanonicalExternalHirReferencesV1 {
     pub(crate) fn from_interface_parts_with_dependencies<A, E>(
         input: ExternalHirReferenceProductionInput<'_>,
         witness_uses: &[ExternalHirBindingWitnessUse],
-        imported_dependencies: Option<&crate::SelectedImportedDependencySet>,
+        dependency_output: Option<&crate::DependencyHirOutput>,
         authority: &mut A,
     ) -> Result<Self, ExternalHirReferenceProductionError<E>>
     where
@@ -53,11 +54,12 @@ impl CanonicalExternalHirReferencesV1 {
         for use_ in witness_uses {
             accumulator.add_witness_use(use_)?;
         }
-        if let Some(dependencies) = imported_dependencies {
-            accumulator.add_implicit_dependency_witnesses(dependencies);
+        if let Some(output) = dependency_output {
+            accumulator.add_implicit_dependency_witnesses(output.imported_dependencies());
+            accumulator.add_call_sites(output, &mut meter)?;
         }
 
-        accumulator.finish()
+        accumulator.finish(&mut meter)
     }
 }
 

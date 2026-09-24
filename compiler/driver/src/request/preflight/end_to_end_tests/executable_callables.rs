@@ -57,6 +57,7 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
         ("evaluated", 1),
         ("routes", 1),
         ("uninstantiated", 0),
+        ("metadata", 3),
     ] {
         let root = sysroot.path().join(case);
         write_manifest_cone(&root, "dev.example", case, "library", &source(case));
@@ -123,15 +124,57 @@ fn published_machine_callables_follow_actual_bodies_and_default_evaluation() {
             })
             .count();
         assert_eq!(concrete, selected);
+        if case == "metadata" {
+            let sites = references
+                .iter()
+                .flat_map(|record| record.call_sites().records())
+                .collect::<Vec<_>>();
+            assert_eq!(sites.len(), 8);
+            assert_eq!(
+                sites
+                    .iter()
+                    .filter(|site| site.origin().definition().source().cone() != identity)
+                    .count(),
+                2
+            );
+            assert!(
+                sites
+                    .iter()
+                    .all(|site| site.origin().evaluation().source().cone() == identity)
+            );
+            for site in &sites {
+                let expected_routes = if site.origin().definition().source().cone() == identity {
+                    1
+                } else {
+                    2
+                };
+                assert_eq!(site.witness_indices().len(), expected_routes);
+            }
+            assert!(
+                sites.iter().any(|site| site.arguments().len() == 2
+                    && site.arguments()[0] == site.arguments()[1])
+            );
+        }
         let defaults = production
             .hir_interface()
             .default_templates()
             .records()
             .len();
         assert_eq!(defaults, usize::from(case != "uninstantiated"));
-        let dump = format!(
+        let mut dump = format!(
             "default_templates={defaults}\nhir_concrete={concrete}\nmir_selected={selected}\nlir_selected={selected}\nlink_imports={selected}\n"
         );
+        for reference in references {
+            for site in reference.call_sites().records() {
+                dump.push_str(&format!(
+                    "call={:?} arguments={} witnesses={:?} foreign_definition={}\n",
+                    site.position(),
+                    site.arguments().len(),
+                    site.witness_indices(),
+                    site.origin().definition().source().cone() != identity,
+                ));
+            }
+        }
         if let Some(directory) = std::env::var_os("SCOOP_EXECUTABLE_CALLABLE_SNAPSHOT_DIR") {
             std::fs::create_dir_all(&directory).unwrap();
             std::fs::write(Path::new(&directory).join(format!("{case}.snap")), dump).unwrap();

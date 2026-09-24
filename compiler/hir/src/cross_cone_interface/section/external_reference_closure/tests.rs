@@ -185,6 +185,7 @@ impl Fixture {
             self.target,
             CanonicalExternalHirReferenceRolesV1::try_new(vec![role]).unwrap(),
             CanonicalDependencyBindingWitnessesV1::try_new(witnesses).unwrap(),
+            Default::default(),
         )
         .unwrap();
         empty_section(CanonicalExternalHirReferencesV1::try_new(vec![reference]).unwrap())

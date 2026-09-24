@@ -274,7 +274,14 @@ impl Fixture {
         )
         .unwrap();
         CanonicalExternalHirReferencesV1::try_new(vec![
-            ExternalHirReferenceV1::try_new(origin, self.target, roles, witnesses).unwrap(),
+            ExternalHirReferenceV1::try_new(
+                origin,
+                self.target,
+                roles,
+                witnesses,
+                Default::default(),
+            )
+            .unwrap(),
         ])
         .unwrap()
     }

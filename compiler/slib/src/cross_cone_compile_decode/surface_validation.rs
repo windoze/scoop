@@ -146,6 +146,12 @@ impl_surface_front_accessors!(SourceInterfaceValidatedCrossConeHirFrontSections)
 impl_surface_front_accessors!(ConstValidatedCrossConeHirFrontSections);
 
 impl ConstValidatedCrossConeHirFrontSections<'_> {
+    pub(crate) fn hir_reference_validation_parts(
+        &mut self,
+    ) -> (HirInterfaceValidationInput<'_>, &mut BudgetMeter) {
+        self.0.hir_validation_parts()
+    }
+
     pub(crate) const fn identity_graph(&self) -> &ValidatedIdentityGraph {
         &self.0.identities
     }

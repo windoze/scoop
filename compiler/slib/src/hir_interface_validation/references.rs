@@ -51,7 +51,9 @@ impl HirInterfaceValidationInput<'_> {
             .map_err(|error| CrossConeHirReferenceSurfaceError::Routes(Box::new(error)))?;
         self.interface
             .validate_external_reference_closure(&mut authority, meter, &path)
-            .map_err(|error| CrossConeHirReferenceSurfaceError::External(Box::new(error)))
+            .map_err(|error| CrossConeHirReferenceSurfaceError::External(Box::new(error)))?;
+        self.call_sites(dependencies, meter)
+            .map_err(|error| CrossConeHirReferenceSurfaceError::CallSites(Box::new(error)))
     }
 }
 
@@ -61,6 +63,7 @@ pub enum CrossConeHirReferenceSurfaceError {
         requested_slots: usize,
     },
     Resource(WireError),
+    CallSites(Box<CrossConeHirCallSiteOriginError>),
     Routes(Box<PublicExportBindingClosureValidationError>),
     External(
         Box<CrossConeHirExternalReferenceValidationError<CrossConeHirReferenceAuthorityError>>,
@@ -77,6 +80,7 @@ impl std::fmt::Display for CrossConeHirReferenceSurfaceError {
                 )
             }
             Self::Resource(error) => error.fmt(f),
+            Self::CallSites(error) => error.fmt(f),
             Self::Routes(error) => error.fmt(f),
             Self::External(error) => error.fmt(f),
         }
