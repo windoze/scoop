@@ -25,6 +25,7 @@ pub enum LayoutAbiSectionError<E> {
     Callable(crate::ExactCallableAbiTableError),
     CallableReplayChanged,
     ShapeSupport,
+    ShapeSupportTable(crate::ParamFreeShapeSupportTableError),
     Physical(crate::ShapeLinkError),
     Dependency(LayoutAbiDependencyError),
     Identity(IdentityReferenceError),
@@ -48,6 +49,7 @@ from_error!(crate::ExactLayoutTableError, Layout);
 from_error!(crate::ExactDescriptorTableError, Descriptor);
 from_error!(crate::ExactDispatchTableError, Dispatch);
 from_error!(crate::ExactCallableAbiTableError, Callable);
+from_error!(crate::ParamFreeShapeSupportTableError, ShapeSupportTable);
 from_error!(crate::ShapeLinkError, Physical);
 from_error!(LayoutAbiDependencyError, Dependency);
 from_error!(IdentityReferenceError, Identity);

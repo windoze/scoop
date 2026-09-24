@@ -25,16 +25,18 @@ impl ParamFreeShapeSupportExportV1 {
     ) -> Result<Self, ParamFreeShapeSupportExportError> {
         meter.charge_work(1, &WirePath::root())?;
         validate_inputs(source, layouts, descriptors, foundation)?;
+        let path = WirePath::root();
+        scoop_wire::encode_canonical_temporary_with_meter(source, meter, &path)?;
         let nominal = PersistentTypeId::from_source_declaration(source)?;
         let exact = exact(ExactTypeKey::Nominal(nominal))?;
-        let source_support = support(nominal, exact, layouts, descriptors)?;
-        validate_source_representation(source.declaration_kind(), exact, descriptors)?;
+        let source_support = support(nominal, exact, layouts, descriptors, meter)?;
+        validate_source_representation(source.declaration_kind(), exact, descriptors, meter)?;
 
         let boxed = match source.declaration_kind() {
             SourceDeclarationKind::Struct | SourceDeclarationKind::Enum => {
                 let key = GeneratedNominalKey::BoxedValue { payload: exact };
-                let generated = generated_support(&key, layouts, descriptors)?;
-                validate_boxed(exact, generated.exact(), descriptors)?;
+                let generated = generated_support(&key, layouts, descriptors, meter)?;
+                validate_boxed(exact, generated.exact(), descriptors, meter)?;
                 ShapeSupportAvailabilityV1::Available(generated)
             }
             SourceDeclarationKind::Class
@@ -46,7 +48,7 @@ impl ParamFreeShapeSupportExportV1 {
             _ => return Err(ParamFreeShapeSupportExportError::NonNominalSource),
         };
         let step_key = GeneratedNominalKey::CoroutineStep { result: exact };
-        let step = generated_support(&step_key, layouts, descriptors)?;
+        let step = generated_support(&step_key, layouts, descriptors, meter)?;
         validate_helper(
             &step_key,
             [
@@ -57,9 +59,10 @@ impl ParamFreeShapeSupportExportV1 {
             exact,
             step.exact(),
             descriptors,
+            meter,
         )?;
         let slot_key = GeneratedNominalKey::CoroutineSlot { value: exact };
-        let slot = generated_support(&slot_key, layouts, descriptors)?;
+        let slot = generated_support(&slot_key, layouts, descriptors, meter)?;
         validate_helper(
             &slot_key,
             [
@@ -70,6 +73,7 @@ impl ParamFreeShapeSupportExportV1 {
             exact,
             slot.exact(),
             descriptors,
+            meter,
         )?;
         let roles = ParamFreeShapeSupportRolesV1::from_artifact(ParamFreeShapeSupportRolePartsV1 {
             source_nominal: ShapeSupportAvailabilityV1::Available(nominal),
@@ -124,6 +128,7 @@ fn generated_support(
     key: &GeneratedNominalKey,
     layouts: &CanonicalExactLayoutExportsV1,
     descriptors: &CanonicalExactDescriptorExportsV1,
+    meter: &mut BudgetMeter,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportExportError> {
     let nominal = PersistentTypeId::from_generated_key(key)?;
     support(
@@ -131,6 +136,7 @@ fn generated_support(
         exact(ExactTypeKey::Nominal(nominal))?,
         layouts,
         descriptors,
+        meter,
     )
 }
 
@@ -139,13 +145,13 @@ fn support(
     exact: PersistentExactTypeId,
     layouts: &CanonicalExactLayoutExportsV1,
     descriptors: &CanonicalExactDescriptorExportsV1,
+    meter: &mut BudgetMeter,
 ) -> Result<StrongExactShapeSupportV1, ParamFreeShapeSupportExportError> {
-    let descriptor = descriptors
-        .get(exact)
-        .ok_or(ParamFreeShapeSupportExportError::MissingDescriptor(exact))?;
+    let descriptor = descriptor(exact, descriptors, meter)?;
     if descriptor.exact_record().key() != &ExactTypeKey::Nominal(nominal) {
         return Err(ParamFreeShapeSupportExportError::ExactIdentity(exact));
     }
+    meter.charge_work(layouts.records().len() as u64, &WirePath::root())?;
     let record = layouts
         .find_exact_role(exact, RepresentationRole::ManagedValue)
         .ok_or(ParamFreeShapeSupportExportError::MissingValueLayout(exact))?;
@@ -170,10 +176,9 @@ fn validate_source_representation(
     kind: SourceDeclarationKind,
     exact: PersistentExactTypeId,
     descriptors: &CanonicalExactDescriptorExportsV1,
+    meter: &mut BudgetMeter,
 ) -> Result<(), ParamFreeShapeSupportExportError> {
-    let descriptor = descriptors
-        .get(exact)
-        .ok_or(ParamFreeShapeSupportExportError::MissingDescriptor(exact))?;
+    let descriptor = descriptor(exact, descriptors, meter)?;
     let representation = descriptor.value_layout().representation().kind();
     let valid = match kind {
         SourceDeclarationKind::Struct => {
@@ -206,4 +211,18 @@ fn validate_source_representation(
 
 fn exact(key: ExactTypeKey) -> Result<PersistentExactTypeId, ParamFreeShapeSupportExportError> {
     Ok(PersistentExactTypeId::from_key(&key)?)
+}
+
+fn descriptor<'a>(
+    exact: PersistentExactTypeId,
+    descriptors: &'a CanonicalExactDescriptorExportsV1,
+    meter: &mut BudgetMeter,
+) -> Result<&'a crate::ExactDescriptorExportV1, ParamFreeShapeSupportExportError> {
+    meter.charge_work(
+        u64::from(descriptors.records().len().max(1).ilog2()) + 1,
+        &WirePath::root(),
+    )?;
+    descriptors
+        .get(exact)
+        .ok_or(ParamFreeShapeSupportExportError::MissingDescriptor(exact))
 }

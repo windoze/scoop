@@ -1,11 +1,7 @@
 use super::*;
 use scoop_wire::encode_canonical_temporary_with_meter;
 
-impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
-    pub const fn descriptors(&self) -> &crate::CanonicalExactDescriptorExportsV1 {
-        &self.descriptors
-    }
-
+impl ExportsResolvedCrossConeLayoutAbiSectionV1 {
     pub fn validate<'a, E>(
         self,
         expected: &LayoutAbiExportConstituentsV1,
@@ -15,16 +11,16 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
         identities: &mut ValidatedIdentityGraph,
         meter: &mut BudgetMeter,
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
-        if self.layouts.provider() != expected.provider()
-            || self.layouts.target() != expected.target_profile()
-            || !same_bytes(&self.layouts, expected.layouts(), meter)?
+        if self.exports.provider() != expected.provider()
+            || self.exports.target_profile() != expected.target_profile()
+            || !same_bytes(self.exports.layouts(), expected.layouts(), meter)?
         {
             return Err(LayoutAbiSectionError::LayoutReplayChanged);
         }
-        if !same_bytes(&self.callables, expected.callables(), meter)? {
+        if !same_bytes(self.exports.callables(), expected.callables(), meter)? {
             return Err(LayoutAbiSectionError::CallableReplayChanged);
         }
-        if !same_bytes(&self.dispatch, expected.dispatch(), meter)? {
+        if !same_bytes(self.exports.dispatch(), expected.dispatch(), meter)? {
             return Err(LayoutAbiSectionError::DispatchReplayChanged);
         }
         let dependencies = dependencies::complete(
@@ -35,19 +31,16 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
         )?;
         let physical_imports =
             crate::CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports, meter)?;
-        if !same_bytes(&self.descriptors, expected.descriptors(), meter)? {
+        if !same_bytes(self.exports.descriptors(), expected.descriptors(), meter)? {
             return Err(LayoutAbiSectionError::DescriptorReplayChanged);
         }
-        if !same_bytes(&self.shape_support, expected.shape_support(), meter)? {
+        if !same_bytes(
+            self.exports.shape_support(),
+            expected.shape_support(),
+            meter,
+        )? {
             return Err(LayoutAbiSectionError::ShapeSupport);
         }
-        let exports = LayoutAbiExportConstituentsV1::try_new(
-            self.layouts,
-            self.descriptors,
-            self.dispatch,
-            self.callables,
-            expected.shape_support().clone(),
-        )?;
         let mut semantic = reserve(self.selected.semantic.len(), meter)?;
         for relation in self.selected.semantic {
             semantic.push(relation.resolve(identities, meter)?);
@@ -57,7 +50,7 @@ impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
             .physical
             .validate_against(&physical_imports, meter)?;
         build::complete(
-            exports,
+            self.exports,
             dependencies,
             physical_imports,
             build::SelectionInput::Reader(semantic),

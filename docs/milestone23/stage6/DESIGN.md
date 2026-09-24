@@ -827,7 +827,9 @@ abstract class仍有完整FixedObject instance布局供derived prefix和initiali
 
 ### 7.2 普通 Cone shape-support
 
-ordinary producer 的 `ParamFreeShapeSupportExportV1` 使用M23-3八role的closed product，语义和field顺序不变，provider限制从新section的当前producer证明取得。core只从旧record取得同一role集合，新表必须为空；两条authority不复制彼此的root/role记录：
+M23-6 的共有 Compile reader 继续从已通过 HIR 声明关联的 MIR 有限 shape-support 源码根重建 LIR 八角色表。每个 source 的 canonical declaration key 从同一已验证 identity graph 按 typed id 查询，保留实际 provider；不扫描候选 LIR 表、foundation 清单或无关类型 arena 来补根。共有重放从已检查的 layout、TD 与 definition 重算 SourceNominal、ValueLayout、RefScan、TypeDescriptor、TypeRegistration、BoxedValue、CoroutineStep、CoroutineSlot，逐项验证 helper 的 generated nominal/variant/field identity、payload layout、ZST、GC scan 与 registration；helper 不再成为新的 source root。reference nominal 仅允许既有的无需装箱角色，value nominal 必须具有完整 box。完整有序 wire、provider、target 与八个角色必须精确一致，漏项、多项、重复、错序或换用其他类型的角色均拒绝。此步骤按所有权汇合五张已检查 LIR 导出表，保留原始 selected/physical transport；后续最终验证不得替换任何已检查表，Strong V2、实际使用、对象与双 view 关联仍须继续完成。所有源码 key 复制、索引、重放、排序、wire 比较与临时分配使用原 artifact 累计预算，不增加授权表、调用方 factory、wire 字段或 runtime ABI。
+
+所有 producer 的 `ParamFreeShapeSupportExportV1` 共用 M23-3 八 role 的 closed product，语义和 field 顺序不变；provider 从实际 typed source 声明及同一产物的 MIR/LIR 组成表核对。core 与普通 Cone 使用同一完整表，不保留独立 core root/role 副本或空表豁免：
 
 ```text
 SourceNominal / ValueLayout / RefScan / TypeDescriptor / TypeRegistration

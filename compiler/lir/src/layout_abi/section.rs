@@ -15,7 +15,7 @@ pub use source::LayoutAbiSectionSourceAuthorityV1;
 pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
     DescriptorsResolvedCrossConeLayoutAbiSectionV1, DispatchResolvedCrossConeLayoutAbiSectionV1,
-    LayoutsResolvedCrossConeLayoutAbiSectionV1,
+    ExportsResolvedCrossConeLayoutAbiSectionV1, LayoutsResolvedCrossConeLayoutAbiSectionV1,
 };
 
 /// Complete target-aware LIR semantic section. Its selected set retains both

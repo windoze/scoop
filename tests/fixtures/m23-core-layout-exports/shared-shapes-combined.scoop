@@ -1,0 +1,16 @@
+public struct SharedShapeEmpty()
+public interface SharedShapeReadable {
+    public fun read(): Int
+}
+public struct SharedShapeValue(val text: String, val empty: SharedShapeEmpty): SharedShapeReadable {
+    public override fun read(): Int = 7
+}
+public enum SharedShapeChoice { Empty, Value(SharedShapeValue), Reference(SharedShapeReference) }
+public open class SharedShapeBase(val value: SharedShapeValue): SharedShapeReadable {
+    public override fun read(): Int = value.read()
+    protected struct NestedToken()
+}
+public class SharedShapeReference(value: SharedShapeValue): SharedShapeBase(value)
+public object SharedShapeService: SharedShapeBase(SharedShapeValue("finite", SharedShapeEmpty())) {}
+public class SharedShapeDeferred<T>(val item: T)
+public struct SharedShapeSourceOnly(val item: SharedShapeDeferred<Int>)

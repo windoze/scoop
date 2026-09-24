@@ -24,6 +24,7 @@ mod lir_constituents;
 mod lir_descriptors;
 mod lir_dispatch;
 mod lir_layouts;
+mod lir_shape_support;
 mod mir_dispatch;
 mod mir_source_callables;
 mod mir_types;
@@ -52,6 +53,11 @@ pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,
     LirLayoutsValidatedCrossConeLayoutSections, SharedLirLayoutValidationError,
     replay_shared_mir_layouts,
+};
+pub use lir_shape_support::{
+    CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,
+    LirExportsValidatedCrossConeLayoutSections, SharedLirShapeSupportValidationError,
+    replay_shared_mir_shape_support,
 };
 pub use mir_dispatch::{
     SharedMirDispatchComponent, SharedMirDispatchValidationError, validate_shared_mir_dispatch,

@@ -118,6 +118,11 @@ fn shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituen
     check_core_layout_exports(&["shared-td-standalone", "shared-td-combined"]);
 }
 
+#[test]
+fn shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots() {
+    check_core_layout_exports(&["shared-shapes-standalone", "shared-shapes-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
@@ -264,6 +269,10 @@ fn check_core_layout_exports(names: &[&str]) {
         shared_descriptors::check(input, &result);
         if name.starts_with("shared-td-") {
             shared_descriptors::probe(input, &result);
+        }
+        shared_shapes::check(input, &result);
+        if name.starts_with("shared-shapes-") {
+            shared_shapes::probe(input, &result);
         }
         let mut dump = contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);

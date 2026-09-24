@@ -1,6 +1,7 @@
 use scoop_identity::SourceDeclarationKey;
 use scoop_wire::{
-    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath, encode,
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath,
+    encode_canonical_temporary_with_meter,
 };
 
 use super::*;
@@ -25,8 +26,10 @@ impl DecodedParamFreeShapeSupportExportV1 {
         meter: &mut BudgetMeter,
     ) -> Result<ParamFreeShapeSupportExportV1, ParamFreeShapeSupportWireError> {
         meter.charge_work(1, &WirePath::root())?;
-        let actual = encode(&self).map_err(ParamFreeShapeSupportWireError::Encode)?;
-        let expected_bytes = encode(expected).map_err(ParamFreeShapeSupportWireError::Encode)?;
+        let path = WirePath::root();
+        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
+        let expected_bytes = encode_canonical_temporary_with_meter(expected, meter, &path)?;
+        meter.charge_work(actual.len() as u64, &path)?;
         if actual != expected_bytes {
             return Err(ParamFreeShapeSupportWireError::RecordMismatch);
         }
@@ -69,7 +72,6 @@ impl DecodedCanonicalParamFreeShapeSupportExportsV1 {
         let path = WirePath::root();
         meter.check_table_entries(self.records.len() as u64, &path)?;
         meter.charge_work(self.records.len() as u64, &path)?;
-        let actual = encode(&self)?;
         let expected = CanonicalParamFreeShapeSupportExportsV1::from_sources(
             sources,
             layouts,
@@ -77,10 +79,23 @@ impl DecodedCanonicalParamFreeShapeSupportExportsV1 {
             foundation,
             meter,
         )?;
-        if actual != encode(&expected)? {
+        self.validate_against(&expected, meter)
+    }
+
+    pub fn validate_against(
+        self,
+        expected: &CanonicalParamFreeShapeSupportExportsV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<CanonicalParamFreeShapeSupportExportsV1, ParamFreeShapeSupportTableError> {
+        let path = WirePath::root();
+        meter.check_table_entries(self.records.len() as u64, &path)?;
+        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
+        let expected_bytes = encode_canonical_temporary_with_meter(expected, meter, &path)?;
+        meter.charge_work(actual.len() as u64, &path)?;
+        if actual != expected_bytes {
             return Err(ParamFreeShapeSupportTableError::Coverage);
         }
-        Ok(expected)
+        Ok(expected.clone())
     }
 }
 

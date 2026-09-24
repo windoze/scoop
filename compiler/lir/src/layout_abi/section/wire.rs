@@ -2,7 +2,10 @@ use super::*;
 
 mod complete;
 mod descriptors;
+mod shapes;
 mod stages;
+
+pub use shapes::ExportsResolvedCrossConeLayoutAbiSectionV1;
 
 pub type DecodedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<
     crate::DecodedCanonicalExactLayoutExportsV1,

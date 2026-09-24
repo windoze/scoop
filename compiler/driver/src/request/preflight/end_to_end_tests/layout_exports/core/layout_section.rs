@@ -106,11 +106,27 @@ pub(super) fn check(
         exports.shape_support().clone(),
     )
     .unwrap();
+    let missing_shapes = lir::LayoutAbiExportConstituentsV1::try_new(
+        exports.layouts().clone(),
+        exports.descriptors().clone(),
+        exports.dispatch().clone(),
+        exports.callables().clone(),
+        lir::CanonicalParamFreeShapeSupportExportsV1::from_sources(
+            &[],
+            exports.layouts(),
+            exports.descriptors(),
+            input.lir.foundation(),
+            &mut meter(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     for (index, altered) in [
         &missing,
         &missing_callables,
         &missing_dispatch,
         &missing_descriptors,
+        &missing_shapes,
     ]
     .into_iter()
     .enumerate()
@@ -124,6 +140,11 @@ pub(super) fn check(
             .validate_dispatch(exports.dispatch(), &mut meter())
             .unwrap()
             .validate_descriptors(exports.descriptors(), &mut meter())
+            .unwrap()
+            .validate_shape_support::<std::convert::Infallible>(
+                exports.shape_support(),
+                &mut meter(),
+            )
             .unwrap();
         let error = checked
             .validate(altered, &[], vec![], &source, &mut identities, &mut meter())
@@ -146,6 +167,7 @@ pub(super) fn check(
                 error,
                 lir::LayoutAbiSectionError::DescriptorReplayChanged
             )),
+            4 => assert!(matches!(error, lir::LayoutAbiSectionError::ShapeSupport)),
             _ => unreachable!(),
         }
     }
