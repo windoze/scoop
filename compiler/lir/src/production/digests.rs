@@ -10,6 +10,7 @@ use scoop_identity::{
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
+pub(super) mod budget;
 mod validation;
 pub use validation::DigestPlanError;
 use validation::{

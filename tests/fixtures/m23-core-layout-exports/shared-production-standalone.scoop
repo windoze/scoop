@@ -1,0 +1,3 @@
+public val sharedProductionSeed: Int = 17
+public val sharedProductionNext: Int = sharedProductionSeed + 1
+public fun sharedProductionRead(): Int = sharedProductionNext

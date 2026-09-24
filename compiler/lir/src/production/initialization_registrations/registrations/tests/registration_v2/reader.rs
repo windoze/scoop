@@ -1,6 +1,7 @@
 use super::*;
 use crate::StrongRegistrationProductionValidationError as Error;
 
+mod local_catalog;
 mod surface;
 
 fn meter() -> BudgetMeter {

@@ -74,6 +74,12 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             .identities
             .validate(foundation, digests)
             .map_err(StrongRegistrationProductionValidationError::Identities)?;
+        let initialization_definitions = initialization_definitions.with_local_foundation(
+            foundation,
+            &identities,
+            digests,
+            meter,
+        )?;
         let safepoints = validate_safepoints(self.safepoints, foundation, &identities)?;
         let callable_runtime_scans =
             validate_callable_runtime_scans(self.callable_runtime_scans, foundation)?;
@@ -102,7 +108,7 @@ impl DecodedStrongRegistrationProductionSurfaceV2 {
             foundation,
             &identities,
             storages,
-            initialization_definitions,
+            &initialization_definitions,
             digests,
             meter,
         )?;

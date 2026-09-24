@@ -1,6 +1,7 @@
 use super::*;
 
 mod lir_exports;
+mod lir_strong;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn check(

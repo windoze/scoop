@@ -13,15 +13,18 @@ pub(super) fn charge_replay(
     let path = WirePath::root();
     let definitions = foundation.definition_plans().len() as u64;
     let atoms = foundation.definition_atoms().len() as u64;
+    let symbols = foundation.symbol_requests().len() as u64;
+    let layouts = foundation.layouts().len() as u64;
+    let scans = foundation.scans().len() as u64;
     let nodes = digests.nodes().len() as u64;
     let source_count = sources.len() as u64;
     let entries = definitions
         .saturating_add(direct_dependencies.len() as u64)
         .saturating_add(atoms)
         .saturating_add(nodes)
-        .saturating_add(foundation.symbol_requests().len() as u64)
-        .saturating_add(foundation.layouts().len() as u64)
-        .saturating_add(foundation.scans().len() as u64)
+        .saturating_add(symbols)
+        .saturating_add(layouts)
+        .saturating_add(scans)
         .saturating_add(foundation.bridge_units().len() as u64)
         .saturating_add(foundation.bridge_atoms().len() as u64)
         .saturating_add(source_count);
@@ -40,16 +43,37 @@ pub(super) fn charge_replay(
             .saturating_add(edges.saturating_mul(4)),
         &path,
     )?;
-    // Covers per-plan atom scans, digest graph indexes, root role lookup and
-    // definition/bridge canonical sorting. The constructors retain no input
-    // bytes and never inspect dependency bodies.
+    // Object, symbol and generated-bridge plans group atoms in indexes. Their
+    // three construction passes and sorting are linear-logarithmic; only the
+    // primary-symbol check scans the symbol table for every definition.
     meter.charge_work(
         entries
-            .saturating_mul(entries.saturating_add(edges).saturating_add(1))
-            .saturating_mul(16),
+            .saturating_mul(12 * 64)
+            .saturating_add(definitions.saturating_mul(symbols)),
         &path,
     )?;
-    meter.charge_stable_kahn(nodes, edges, &path)?;
+    crate::production::digests::budget::charge_validation(digests.nodes(), foundation, meter)?;
+    // Each source has at most four exact shapes. Every shape queries one
+    // value layout/scan and four definition, atom and symbol relations.
+    let shapes = source_count.saturating_mul(4);
+    let shape_search = (foundation.materialized_exact_types().len() as u64)
+        .saturating_add(layouts)
+        .saturating_add(scans)
+        .saturating_add(definitions)
+        .saturating_add(
+            definitions
+                .saturating_add(atoms)
+                .saturating_add(symbols)
+                .saturating_mul(4),
+        );
+    meter.charge_work(shapes.saturating_mul(shape_search), &path)?;
+    meter.charge_collection_slots(
+        shapes.saturating_mul(layouts.saturating_add(scans).saturating_add(atoms)),
+        &path,
+    )?;
+    // Image and executable-entry construction perform a fixed set of role
+    // queries, independent of the number of unrelated production records.
+    meter.charge_work(entries.saturating_add(edges).saturating_mul(24), &path)?;
     for source in sources {
         // Source keys may contain owned declaration names. Charge canonical
         // hashing and copies before the shape support closure uses them.

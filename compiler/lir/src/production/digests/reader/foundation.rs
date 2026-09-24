@@ -28,15 +28,7 @@ impl DecodedStrongDigestFinalizationPlanV1 {
         let entries = nodes.saturating_add(edges).saturating_add(patches);
         meter.charge_collection_slots(entries.saturating_mul(8), &path)?;
         meter.charge_owned_bytes(entries.saturating_mul(1024), &path)?;
-        let search = (foundation.callable_bodies().len() as u64)
-            .saturating_add(foundation.layouts().len() as u64)
-            .saturating_add(foundation.scans().len() as u64)
-            .saturating_add(foundation.definition_atoms().len() as u64)
-            .saturating_add(foundation.definition_plans().len() as u64)
-            .saturating_add(foundation.safepoint_sites().len() as u64)
-            .saturating_add(entries)
-            .saturating_add(1);
-        meter.charge_work(entries.saturating_mul(search).saturating_mul(8), &path)?;
+        crate::production::digests::budget::charge_resolution(&self, foundation, meter)?;
         let length = encoded_length(&self).map_err(|_| StrongDigestPlanReplayError::Encoding)?;
         meter.charge_sha256(length.saturating_mul(4), &path)?;
         meter.charge_stable_kahn(nodes, edges, &path)?;

@@ -1,4 +1,4 @@
-//! Charge shared legacy reconstruction before it allocates or traverses tables.
+//! Charge each registration role before it allocates or traverses tables.
 
 use super::*;
 
@@ -19,42 +19,88 @@ pub(super) fn charge_replay(
         decoded.initialization_units.len(),
         decoded.callable_runtime_scans.len(),
     ];
-    let mut records = foundation.definition_plans().len() as u64;
+    let definitions = foundation.definition_plans().len() as u64;
+    let atoms = foundation.definition_atoms().len() as u64;
+    let symbols = foundation.symbol_requests().len() as u64;
+    let nodes = digests.nodes().len() as u64;
+    let bodies = foundation.callable_bodies().len() as u64;
+    let mut records = 0_u64;
     for count in counts {
         meter.check_table_entries(count as u64, &path)?;
         records = records.saturating_add(count as u64);
     }
-    meter.charge_nodes(records, &path)?;
-    let mut search = (foundation.definition_plans().len() as u64)
-        .saturating_add(foundation.definition_atoms().len() as u64)
-        .saturating_add(foundation.symbol_requests().len() as u64)
-        .saturating_add(foundation.layouts().len() as u64)
-        .saturating_add(foundation.scans().len() as u64)
-        .saturating_add(foundation.callable_bodies().len() as u64)
-        .saturating_add(foundation.safepoint_sites().len() as u64)
-        .saturating_add(foundation.safepoint_mappings().len() as u64)
-        .saturating_add(external.bridges().len() as u64)
-        .saturating_add(digests.nodes().len() as u64)
-        .saturating_add(records);
-    meter.charge_work(digests.nodes().len() as u64, &path)?;
+    meter.charge_nodes(records.saturating_add(definitions), &path)?;
+    meter.charge_work(nodes, &path)?;
+    let mut digest_entries = nodes;
     for node in digests.nodes() {
-        search = search
+        digest_entries = digest_entries
             .saturating_add(node.direct_inputs().len() as u64)
             .saturating_add(node.patch_intents().len() as u64);
     }
-    // Includes identity-table sorting, per-registration physical lookup and
-    // the sets of direct digest inputs/patch writers rebuilt by each plan.
+    let physical = definitions
+        .saturating_add(atoms)
+        .saturating_add(symbols)
+        .saturating_add(digest_entries)
+        .saturating_add(1);
+    let search = physical
+        .saturating_add(foundation.layouts().len() as u64)
+        .saturating_add(foundation.scans().len() as u64)
+        .saturating_add(bodies)
+        .saturating_add(foundation.safepoint_sites().len() as u64)
+        .saturating_add(foundation.safepoint_mappings().len() as u64)
+        .saturating_add(external.bridges().len() as u64)
+        .saturating_add(records);
+    // Identity replay scans all definitions but looks up only one digest
+    // per registration role. Sorting compares fixed-size typed identities.
     meter.charge_work(
-        records
-            .saturating_mul(search.saturating_add(1))
-            .saturating_mul(64),
+        definitions
+            .saturating_mul(nodes.saturating_add(64))
+            .saturating_add(records.saturating_mul(64)),
         &path,
     )?;
-    meter.charge_collection_slots(records.saturating_mul(search.saturating_add(16)), &path)?;
+    meter.charge_collection_slots(
+        records
+            .saturating_mul(search.saturating_add(16))
+            .saturating_add(definitions.saturating_mul(4)),
+        &path,
+    )?;
+    // Type and initialization constituents charge their physical plan
+    // reconstruction, including the final surface pass, in their own meters.
+    // Other roles have a fixed number of physical queries per registration.
+    let callables = bodies.max(decoded.callables.len() as u64);
+    meter.charge_work(callables.saturating_mul(physical.saturating_mul(8)), &path)?;
+    let safepoint_search = physical
+        .saturating_mul(8)
+        .saturating_add((foundation.safepoint_sites().len() as u64).saturating_mul(2))
+        .saturating_add((foundation.safepoint_mappings().len() as u64).saturating_mul(2));
+    meter.charge_work(
+        (decoded.safepoints.len() as u64).saturating_mul(safepoint_search),
+        &path,
+    )?;
+    let immortal_search = physical
+        .saturating_mul(16)
+        .saturating_add(decoded.types.len() as u64)
+        .saturating_add(external.bridges().len() as u64);
+    meter.charge_work(
+        (decoded.immortal_objects.len() as u64).saturating_mul(immortal_search),
+        &path,
+    )?;
+    let storage_search = physical
+        .saturating_mul(16)
+        .saturating_add((foundation.layouts().len() as u64).saturating_mul(2))
+        .saturating_add((foundation.scans().len() as u64).saturating_mul(2));
+    meter.charge_work(
+        (decoded.static_storages.len() as u64).saturating_mul(storage_search),
+        &path,
+    )?;
+    meter.charge_work(
+        (decoded.callable_runtime_scans.len() as u64).saturating_mul(bodies.saturating_add(64)),
+        &path,
+    )?;
     for callable in &decoded.callable_runtime_scans {
-        let atoms = callable.atoms.len() as u64;
-        meter.charge_collection_slots(atoms.saturating_mul(4), &path)?;
-        meter.charge_work(atoms.saturating_mul(search.saturating_add(1)), &path)?;
+        let count = callable.atoms.len() as u64;
+        meter.charge_collection_slots(count.saturating_mul(4), &path)?;
+        meter.charge_work(count.saturating_mul(atoms.saturating_add(64)), &path)?;
         for atom in &callable.atoms {
             charge_scan(&atom.scan, 1, meter)?;
         }
@@ -69,7 +115,16 @@ pub(super) fn charge_replay(
             meter.charge_owned_bytes((initial_template.len() as u64).saturating_mul(3), &path)?;
             let relocations = immortal_relocations.len() as u64;
             meter.charge_collection_slots(relocations.saturating_mul(4), &path)?;
-            meter.charge_work(relocations.saturating_mul(search.saturating_add(16)), &path)?;
+            let relocation_search = (decoded.immortal_objects.len() as u64)
+                .saturating_add(symbols)
+                .saturating_add(atoms)
+                .saturating_add(16);
+            meter.charge_work(
+                relocations
+                    .saturating_mul(relocation_search)
+                    .saturating_mul(2),
+                &path,
+            )?;
         }
     }
     Ok(())

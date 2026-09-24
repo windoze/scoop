@@ -137,6 +137,14 @@ impl PreparedCrossConeLayoutMirSections<'_> {
         self.graph.coordinate()
     }
 
+    pub(crate) fn lir_foundation(&self) -> &OdrFreeLirFoundation {
+        &self.foundations.lir
+    }
+
+    pub(crate) fn hir_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+        &self.hir_core
+    }
+
     pub(crate) fn semantic_parts(&mut self) -> PreparedLayoutMirSemanticParts<'_> {
         PreparedLayoutMirSemanticParts {
             identities: &mut self.identities,

@@ -65,6 +65,7 @@ pub(super) fn check(
             "shared-callables-combined" => vec!["SharedCallableImpl"],
             "shared-equality-standalone" => vec!["SharedEqualityHidden"],
             "shared-units-combined" => vec!["SharedUnitHidden"],
+            "shared-production-combined" => vec!["SharedProductionPrivate"],
             _ => vec![],
         }
     );

@@ -48,6 +48,7 @@ pub enum StrongExternalLirBridgeValidationError {
 
 #[derive(Debug)]
 pub enum StrongExternalLirBridgeReconstructionError {
+    Resource(scoop_wire::WireError),
     Callable(crate::SelectedDependencyLirCallableResolutionError),
     TypeDescriptor(ExternalTypeDescriptorDecodeError),
     Surface(StrongExternalLirBridgeBuildError),
@@ -65,6 +66,7 @@ impl fmt::Display for StrongExternalLirBridgeReconstructionError {
 impl std::error::Error for StrongExternalLirBridgeReconstructionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::Resource(error) => error,
             Self::Callable(error) => error,
             Self::TypeDescriptor(error) => error,
             Self::Surface(error) => error,

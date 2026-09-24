@@ -122,4 +122,5 @@ pub(super) fn check(
     );
     assert_eq!(current.lir_exports().layouts(), lir.layouts());
     assert_eq!(current.initialization_units(), units);
+    super::lir_strong::check(name, complete, units, lir);
 }

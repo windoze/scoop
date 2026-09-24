@@ -3,6 +3,8 @@ use scoop_wire::{BudgetMeter, Encoder, WireEncode, WireError, WirePath};
 
 use super::*;
 
+mod local;
+
 /// Available checked definitions, not a substitute for an artifact closure.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongInitializationDefinitionCatalogV2 {
@@ -151,6 +153,7 @@ impl WireEncode for ResolvedInitializationDependenciesV2 {
 #[derive(Debug)]
 pub enum InitializationDependencyResolutionError {
     Resource(WireError),
+    CurrentConeDefinition(PersistentInitializationUnitId),
     DuplicateDefinition(PersistentInitializationUnitId),
     NonCanonicalOrder { index: usize },
     SelfDependency(PersistentInitializationUnitId),

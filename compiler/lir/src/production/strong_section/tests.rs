@@ -10,6 +10,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
 
+mod budgets;
 mod complete_image;
 mod digests;
 mod initialization;

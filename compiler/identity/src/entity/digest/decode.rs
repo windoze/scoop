@@ -164,6 +164,23 @@ pub struct DecodedDigestNodeKey {
 }
 
 impl DecodedDigestNodeKey {
+    /// The lookup role comes from the typed owner, before the declared kind
+    /// has been checked against it.
+    pub const fn owner_kind(self) -> DigestKind {
+        match self.owner_and_role {
+            DecodedDigestOwnerAndRoleKey::SourceSignature(_) => DigestKind::SourceSignature,
+            DecodedDigestOwnerAndRoleKey::Layout(_) => DigestKind::Layout,
+            DecodedDigestOwnerAndRoleKey::Scan(_) => DigestKind::Scan,
+            DecodedDigestOwnerAndRoleKey::LirDefinition(_) => DigestKind::LirDefinition,
+            DecodedDigestOwnerAndRoleKey::ObjectSupport(_) => DigestKind::ObjectSupport,
+            DecodedDigestOwnerAndRoleKey::ObjectDefinition(_) => DigestKind::ObjectDefinition,
+            DecodedDigestOwnerAndRoleKey::StackmapRecord(_) => DigestKind::StackmapRecord,
+            DecodedDigestOwnerAndRoleKey::OdrDefinition(_) => DigestKind::OdrDefinition,
+            DecodedDigestOwnerAndRoleKey::StrongRegistration(_) => DigestKind::StrongRegistration,
+            DecodedDigestOwnerAndRoleKey::RuntimeImage(_) => DigestKind::RuntimeImage,
+        }
+    }
+
     pub fn resolve<R, E>(
         self,
         resolver: &mut R,

@@ -138,6 +138,11 @@ fn shared_strong_digests_replay_complete_runtime_registration_roles() {
     check_core_layout_exports(&["shared-digests-standalone", "shared-digests-combined"]);
 }
 
+#[test]
+fn shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes() {
+    check_core_layout_exports(&["shared-production-standalone", "shared-production-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

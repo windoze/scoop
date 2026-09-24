@@ -1,0 +1,18 @@
+public struct SharedProductionToken()
+public struct SharedProductionMessage(val text: String, val token: SharedProductionToken)
+public interface SharedProductionReader {
+    public fun read(): SharedProductionMessage
+}
+public object SharedProductionService: SharedProductionReader {
+    public var text: String = "production"
+    public override fun read(): SharedProductionMessage = SharedProductionMessage(text, SharedProductionToken())
+}
+public class SharedProductionOwner {
+    public companion object {
+        public val message: SharedProductionMessage = SharedProductionService.read()
+    }
+}
+private class SharedProductionPrivate(val value: Int)
+private fun sharedProductionPrivate(): Int = SharedProductionPrivate(19).value
+public val sharedProductionValue: SharedProductionMessage = SharedProductionOwner.message
+public fun sharedProductionCount(): Int = sharedProductionPrivate()
