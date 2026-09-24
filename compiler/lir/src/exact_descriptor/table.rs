@@ -83,6 +83,8 @@ impl CanonicalExactDescriptorExportsV1 {
 
 #[derive(Debug)]
 pub enum ExactDescriptorTableError {
+    LayoutProvider,
+    LayoutTarget,
     CountOverflow,
     Count,
     Duplicate(PersistentExactTypeId),

@@ -18,6 +18,8 @@ pub enum ExactDescriptorError {
     InlineScan(PersistentExactTypeId),
     MissingInlineLayout(PersistentLayoutId),
     DispatchTable(PersistentDispatchTableId),
+    DispatchInventory(PersistentExactTypeId),
+    NonCanonicalInterfaces(PersistentExactTypeId),
     DuplicateDispatchTable(PersistentDispatchTableId),
     DuplicateInterface(PersistentExactTypeId),
     DiagnosticName(PersistentExactTypeId),
@@ -34,6 +36,7 @@ pub enum ExactDescriptorError {
     RegistrationExact(PersistentExactTypeId),
     RegistrationFingerprint(PersistentExactTypeId),
     RegistrationFingerprintHash(scoop_wire::HashError),
+    IdentityHash(scoop_wire::HashError),
     Resource(WireError),
 }
 
@@ -50,6 +53,7 @@ macro_rules! from_error {
 from_error!(scoop_identity::ExactTypeDiagnosticError, Diagnostic);
 from_error!(crate::StrongShapeDefinitionError, Definition);
 from_error!(WireError, Resource);
+from_error!(scoop_wire::HashError, IdentityHash);
 
 impl std::fmt::Display for ExactDescriptorError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

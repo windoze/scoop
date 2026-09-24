@@ -119,3 +119,43 @@ fn staged_dispatch_replay_keeps_wire_and_rejects_a_different_provider() {
         .unwrap();
     assert_eq!(encode(&complete).unwrap(), bytes);
 }
+
+#[test]
+fn staged_descriptor_replay_keeps_wire_and_requires_the_layout_provider() {
+    let expected = empty_exports(cone("descriptor-stage"));
+    let source = Source::default();
+    let section = section(expected.clone(), &[], &source).unwrap();
+    let bytes = encode(&section).unwrap();
+    let decode = || {
+        decode_canonical::<DecodedCrossConeLayoutAbiSectionV1>(&bytes, DecodeLimits::default())
+            .unwrap()
+            .validate_layouts(expected.layouts(), &mut meter())
+            .unwrap()
+            .validate_callables(expected.callables(), &mut meter())
+            .unwrap()
+            .validate_dispatch(expected.dispatch(), &mut meter())
+            .unwrap()
+    };
+    let changed = empty_exports(cone("different-descriptor-stage"));
+    assert!(matches!(
+        decode().validate_descriptors(changed.descriptors(), &mut meter()),
+        Err(crate::ExactDescriptorTableError::LayoutProvider)
+    ));
+    let checked = decode()
+        .validate_descriptors(expected.descriptors(), &mut meter())
+        .unwrap();
+    assert_eq!(checked.descriptors(), expected.descriptors());
+    assert_eq!(encode(&checked).unwrap(), bytes);
+    let mut identities = PendingIdentityValidation::new().finish().unwrap();
+    let complete = checked
+        .validate(
+            &expected,
+            &[],
+            vec![],
+            &source,
+            &mut identities,
+            &mut meter(),
+        )
+        .unwrap();
+    assert_eq!(encode(&complete).unwrap(), bytes);
+}

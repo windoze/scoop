@@ -113,6 +113,11 @@ fn shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis() {
     ]);
 }
 
+#[test]
+fn shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents() {
+    check_core_layout_exports(&["shared-td-standalone", "shared-td-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
@@ -255,6 +260,10 @@ fn check_core_layout_exports(names: &[&str]) {
         );
         if name.starts_with("shared-lir-dispatch-") {
             shared_dispatch::probe(input, &result);
+        }
+        shared_descriptors::check(input, &result);
+        if name.starts_with("shared-td-") {
+            shared_descriptors::probe(input, &result);
         }
         let mut dump = contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);

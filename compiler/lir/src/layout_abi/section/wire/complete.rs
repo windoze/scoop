@@ -1,9 +1,9 @@
 use super::*;
 use scoop_wire::encode_canonical_temporary_with_meter;
 
-impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
-    pub const fn dispatch(&self) -> &crate::CanonicalExactDispatchExportsV1 {
-        &self.dispatch
+impl DescriptorsResolvedCrossConeLayoutAbiSectionV1 {
+    pub const fn descriptors(&self) -> &crate::CanonicalExactDescriptorExportsV1 {
+        &self.descriptors
     }
 
     pub fn validate<'a, E>(
@@ -35,15 +35,15 @@ impl DispatchResolvedCrossConeLayoutAbiSectionV1 {
         )?;
         let physical_imports =
             crate::CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports, meter)?;
-        let descriptors = self
-            .descriptors
-            .validate_against(expected.descriptors(), meter)?;
+        if !same_bytes(&self.descriptors, expected.descriptors(), meter)? {
+            return Err(LayoutAbiSectionError::DescriptorReplayChanged);
+        }
         if !same_bytes(&self.shape_support, expected.shape_support(), meter)? {
             return Err(LayoutAbiSectionError::ShapeSupport);
         }
         let exports = LayoutAbiExportConstituentsV1::try_new(
             self.layouts,
-            descriptors,
+            self.descriptors,
             self.dispatch,
             self.callables,
             expected.shape_support().clone(),

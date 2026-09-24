@@ -92,9 +92,28 @@ pub(super) fn check(
         exports.shape_support().clone(),
     )
     .unwrap();
-    for (index, altered) in [&missing, &missing_callables, &missing_dispatch]
-        .into_iter()
-        .enumerate()
+    let missing_descriptors = lir::LayoutAbiExportConstituentsV1::try_new(
+        exports.layouts().clone(),
+        lir::CanonicalExactDescriptorExportsV1::try_new(
+            input.lir.module().meta.target_profile,
+            input.lir.foundation(),
+            vec![],
+            &mut meter(),
+        )
+        .unwrap(),
+        exports.dispatch().clone(),
+        exports.callables().clone(),
+        exports.shape_support().clone(),
+    )
+    .unwrap();
+    for (index, altered) in [
+        &missing,
+        &missing_callables,
+        &missing_dispatch,
+        &missing_descriptors,
+    ]
+    .into_iter()
+    .enumerate()
     {
         let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
         let checked = wire
@@ -103,6 +122,8 @@ pub(super) fn check(
             .validate_callables(exports.callables(), &mut meter())
             .unwrap()
             .validate_dispatch(exports.dispatch(), &mut meter())
+            .unwrap()
+            .validate_descriptors(exports.descriptors(), &mut meter())
             .unwrap();
         let error = checked
             .validate(altered, &[], vec![], &source, &mut identities, &mut meter())
@@ -120,6 +141,10 @@ pub(super) fn check(
             2 => assert!(matches!(
                 error,
                 lir::LayoutAbiSectionError::DispatchReplayChanged
+            )),
+            3 => assert!(matches!(
+                error,
+                lir::LayoutAbiSectionError::DescriptorReplayChanged
             )),
             _ => unreachable!(),
         }

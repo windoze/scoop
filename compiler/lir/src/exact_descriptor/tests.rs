@@ -10,6 +10,23 @@ mod shape_link;
 use fixture::Fixture;
 
 #[test]
+fn shared_constituents_replay_the_same_complete_descriptor() {
+    let fixture = Fixture::new();
+    let replayed = fixture.replay_shared(&mut fixture.meter()).unwrap();
+    assert_eq!(replayed, fixture.replay(fixture.semantic()).unwrap());
+    let wire = decode_canonical::<DecodedExactDescriptorExportV1>(
+        &encode(&replayed).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        wire.validate_against(&replayed, &mut fixture.meter())
+            .unwrap(),
+        replayed
+    );
+}
+
+#[test]
 fn replay_joins_layout_shape_dispatch_diagnostic_and_physical_definition() {
     let fixture = Fixture::new();
     let descriptor = fixture.replay(fixture.semantic()).unwrap();

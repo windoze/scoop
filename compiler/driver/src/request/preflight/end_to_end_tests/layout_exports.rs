@@ -11,6 +11,7 @@ mod dependencies;
 mod private_types;
 mod rejections;
 mod shared_abis;
+mod shared_descriptors;
 mod shared_dispatch;
 mod shared_layouts;
 mod source_contracts;
@@ -72,6 +73,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                 shared_layouts::check(input, dependencies, &result);
                 shared_abis::check(input, dependencies, &result);
                 shared_dispatch::check(input, dependencies, &result);
+                shared_descriptors::check(input, &result);
                 rejections::check(input, dependencies);
                 if name == "private-support" {
                     private_types::check_support(input, dependencies, &result);
@@ -106,6 +108,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                 shared_layouts::check(input, dependencies, &result);
                 shared_abis::check(input, dependencies, &result);
                 shared_dispatch::check(input, dependencies, &result);
+                shared_descriptors::check(input, &result);
                 assert_eq!(assertions::bytes(&result), expected.unwrap());
             },
         );

@@ -189,6 +189,22 @@ pub(super) fn check(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
     );
+    let descriptors = dispatch
+        .validate_lir_descriptors()
+        .unwrap_or_else(|error| panic!("{name} shared LIR descriptor replay: {error}"));
+    assert_eq!(descriptors.current(), ConeIdentity::CORE);
+    assert_eq!(descriptors.target_selection(), artifact.target_selection());
+    assert_eq!(descriptors.dependency_first().count(), 1);
+    let current = descriptors.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.layouts(), lir.layouts());
+    assert_eq!(current.callable_abis(), lir.callables());
+    assert_eq!(current.lir_dispatch(), lir.dispatch());
+    assert_eq!(current.descriptors(), lir.descriptors());
+    assert_eq!(current.initialization_units(), units);
+    assert_eq!(
+        encode(current.lir_layout_abi_wire()).unwrap(),
+        encode(lir).unwrap()
+    );
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

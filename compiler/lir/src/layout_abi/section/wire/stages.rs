@@ -36,7 +36,7 @@ impl DecodedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl<C, D> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutExportsV1, C, D> {
+impl<C, D, T> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutExportsV1, C, D, T> {
     pub const fn layouts(&self) -> &crate::CanonicalExactLayoutExportsV1 {
         &self.layouts
     }
@@ -91,11 +91,12 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl<D>
+impl<D, T>
     UnselectedCrossConeLayoutAbiSectionV1<
         crate::CanonicalExactLayoutExportsV1,
         crate::CanonicalExactCallableAbiExportsV1,
         D,
+        T,
     >
 {
     pub const fn callables(&self) -> &crate::CanonicalExactCallableAbiExportsV1 {

@@ -175,7 +175,7 @@ pub(crate) fn class_type_descriptor(
             .collect(),
     )
     .expect("validated class exact type must derive a vtable identity");
-    let itables = def
+    let mut itables: Vec<_> = def
         .itables
         .iter()
         .filter_map(|record| {
@@ -194,6 +194,7 @@ pub(crate) fn class_type_descriptor(
             .into()
         })
         .collect();
+    itables.sort_unstable_by_key(|table| table.identity_record().key().interface());
     Ok(lir::TypeDescriptor {
         diagnostic_name: def.name.clone(),
         identity,

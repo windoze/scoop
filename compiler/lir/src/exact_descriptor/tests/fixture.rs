@@ -4,6 +4,9 @@ use scoop_wire::{BudgetMeter, DecodeLimits};
 use super::super::*;
 use crate::*;
 
+mod diagnostics;
+use diagnostics::Graph;
+
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;
 
 pub(super) struct Fixture {
@@ -174,6 +177,38 @@ impl Fixture {
         )
     }
 
+    pub(super) fn replay_shared(
+        &self,
+        meter: &mut BudgetMeter,
+    ) -> Result<ExactDescriptorExportV1, ExactDescriptorError> {
+        let identity =
+            CborIdentityRecord::from_key(DispatchTableKey::vtable(self.exact())).unwrap();
+        let table = ExactDispatchExportV1::replay_from_schema(
+            TARGET,
+            &identity,
+            &[],
+            &self.foundation,
+            meter,
+        )
+        .expect("the fixture has an empty physical vtable");
+        let dispatch =
+            CanonicalExactDispatchExportsV1::try_new(TARGET, &self.foundation, vec![table], meter)
+                .expect("the fixture dispatch definition belongs to its foundation");
+        ExactDescriptorExportV1::replay_from_constituents(
+            TARGET,
+            ExactDescriptorSourceInputV1 {
+                exact: self.exact(),
+                parent: None,
+                interfaces: &[],
+            },
+            &self.layouts,
+            &dispatch,
+            &self.diagnostics,
+            &self.foundation,
+            meter,
+        )
+    }
+
     fn semantic_parts(
         &self,
         name: String,
@@ -281,51 +316,4 @@ fn add_subject(
     let id = plan.id();
     plans.push(plan);
     id
-}
-
-struct Graph {
-    exact: PersistentExactTypeId,
-    exact_key: ExactTypeKey,
-    nominal: PersistentTypeId,
-    source: SourceDeclarationKey,
-    coordinate: ConeCoordinate,
-}
-
-impl Graph {
-    fn new(source: SourceDeclarationKey, exact_key: ExactTypeKey) -> Self {
-        let nominal = PersistentTypeId::from_source_declaration(&source).unwrap();
-        let exact = PersistentExactTypeId::from_key(&exact_key).unwrap();
-        Self {
-            exact,
-            exact_key,
-            nominal,
-            source,
-            coordinate: ConeCoordinate::reserved_single_file(),
-        }
-    }
-}
-
-impl ExactTypeDiagnosticGraph for Graph {
-    fn exact_type_key(&self, id: PersistentExactTypeId) -> Option<&ExactTypeKey> {
-        (id == self.exact).then_some(&self.exact_key)
-    }
-
-    fn source_type_declaration(&self, id: PersistentTypeId) -> Option<&SourceDeclarationKey> {
-        (id == self.nominal).then_some(&self.source)
-    }
-
-    fn generated_nominal_key(&self, _id: PersistentTypeId) -> Option<&GeneratedNominalKey> {
-        None
-    }
-
-    fn source_generic_type_declaration(
-        &self,
-        _id: PersistentGenericTypeId,
-    ) -> Option<&SourceDeclarationKey> {
-        None
-    }
-
-    fn cone_coordinate(&self, id: ConeIdentity) -> Option<&ConeCoordinate> {
-        (id == ConeIdentity::SINGLE_FILE).then_some(&self.coordinate)
-    }
 }

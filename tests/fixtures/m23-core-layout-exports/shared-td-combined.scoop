@@ -1,0 +1,16 @@
+public struct SharedTdEmpty()
+public interface SharedTdRoot {
+    public fun text(): String
+}
+public interface SharedTdLeft: SharedTdRoot {}
+public interface SharedTdRight: SharedTdRoot {}
+public interface SharedTdDiamond: SharedTdLeft, SharedTdRight {}
+public struct SharedTdPayload(val name: String, val empty: SharedTdEmpty): SharedTdDiamond {
+    public final override fun text(): String = name
+}
+public enum SharedTdChoice { Empty, Value(SharedTdPayload) }
+public open class SharedTdBase(val value: SharedTdPayload): SharedTdRoot {
+    public override fun text(): String = value.name
+}
+public class SharedTdChild(value: SharedTdPayload): SharedTdBase(value), SharedTdDiamond
+public object SharedTdObject: SharedTdBase(SharedTdPayload("object", SharedTdEmpty())), SharedTdDiamond {}
