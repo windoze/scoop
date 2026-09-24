@@ -641,6 +641,8 @@ interface provider之间的MIR独立核验只比较父子表仍共同保留的sl
 
 slot调用签名与实现签名不同的任何合法情况必须由已有 typed adaptation relation闭合，不能用 LLVM function-pointer bitcast消除差异。没有语义允许的 adaptation时，在 HIR拒绝 override。
 
+MIR dispatch 的共有 reader 在完整 HIR 继承、槽 schema 与源码选择重放后，独立取得当前 provider 的必需 owner 集合、原始槽顺序和每个实际目标；object/backing 共享同一源码选择，内建 Any 仅按其 canonical typed identity 保留空 class vtable。槽调用签名从共有 HIR 根声明投影，interface 表只替换 receiver；抽象 class 入口沿真实 base 链选择最近的同槽抽象声明，interface obligation 使用该槽的原声明，不能从候选 trap target 反推。引用 receiver 采用 canonical Identity/ReferenceDispatch；值类型 interface 表机械选择既有 BoxingAdjust identity，并核对其实际源码 target、语义签名与 Managed wrapper 签名。缺失或额外 owner、table、slot、适配入口，顺序、位置、目标种类、receiver、effect、GC 或 generated key 漂移均拒绝。共有 MIR transport 在 dependency-first callable 解析时使用同一依赖 type/callable/schema 索引验证 dispatch 一次，后续直接借用 canonical 结果；独立源码重放和所有索引、签名比较、继承遍历继续消耗原 artifact 的累计预算，不新增来源副本、caller factory 或 wire 字段。有限 BoxedValue 的 MIR base-and-interfaces 复用同一次源码类型导出中 payload 的直接接口集合，不能把机器 class 的传递接口闭包写入该字段；实际 descriptor/itable 仍沿 payload schema 保留完整闭包。有限 helper producer 必须取得 sealed source shape root 对应的源码类型记录，缺失或 origin 不符立即拒绝。derived equality、实际 initialization-use、selected、LIR 和双 view artifact 的剩余义务仍分别完成。
+
 ### 5.4 object value 与初始化
 
 `ParamFreeMirObjectValueV1` 保存 object-value identity、backing exact class、provider-owned unit、ensure callable和value读取入口/已授权storage关系。consumer按普通语义先 ensure，再取得值；不复制 singleton allocation、init cell、failure root或 backing storage。top-level/delegated property继续经唯一 accessor；“有布局”不授权直接读取 private backing field。

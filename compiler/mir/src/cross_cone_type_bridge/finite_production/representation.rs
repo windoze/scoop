@@ -9,6 +9,7 @@ type Projection = (
 
 pub(super) fn project(
     input: &SingleConeStrongMirInput,
+    source: &ParamFreeMirTypeExportV1,
     location: GeneratedExactTypeLocation,
     role: &GeneratedNominalKey,
     meter: &mut BudgetMeter,
@@ -33,16 +34,12 @@ pub(super) fn project(
             let [payload] = fields else {
                 unreachable!("validated boxes have exactly one payload field")
             };
-            let interfaces = &module.classes[class].interfaces;
+            let interfaces = &source.base_and_interfaces().interfaces;
             reserve(&mut bases.interfaces, interfaces.len(), meter)?;
-            for interface in interfaces {
-                bases
-                    .interfaces
-                    .push(exact(module, &Type::Interface(*interface), meter)?);
-            }
-            charge_sort(bases.interfaces.len(), meter)?;
-            bases.interfaces.sort_unstable();
-            bases.interfaces.dedup();
+            meter
+                .charge_work(interfaces.len() as u64, &WirePath::root())
+                .map_err(MirTypeBridgeError::Resource)?;
+            bases.interfaces.extend_from_slice(interfaces);
             (
                 MirTypeFactsV1::try_new(
                     MirValueKindV1::Reference,

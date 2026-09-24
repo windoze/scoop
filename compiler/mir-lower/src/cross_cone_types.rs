@@ -20,10 +20,11 @@ pub fn lower_type_exports(
     identities: &ValidatedIdentityGraph,
     meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalParamFreeMirTypeExportsV1, SourceMirTypeProductionError> {
-    let mut records = lower_source_type_exports(hir, input, identities, meter)?.into_records();
+    let source = lower_source_type_exports(hir, input, identities, meter)?;
     let finite = mir::CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
-        input, identities, meter,
+        input, &source, identities, meter,
     )?;
+    let mut records = source.into_records();
     reserve(&mut records, finite.records().len(), meter)?;
     records.extend(finite.into_records());
     resources::sort(records.len(), meter)?;

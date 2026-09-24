@@ -4,7 +4,6 @@ use mir::MirTypeRepresentationV1 as Repr;
 pub(super) fn check(replay: &Replay<'_, '_>, combined: bool) {
     structs(replay);
     classes(replay);
-    helpers(replay);
     if combined {
         variants(replay);
         object_backing(replay);
@@ -171,36 +170,6 @@ fn classes(replay: &Replay<'_, '_>) {
             record.exact(),
         );
     }
-}
-
-fn helpers(replay: &Replay<'_, '_>) {
-    let interface = replay
-        .section
-        .types()
-        .records()
-        .iter()
-        .find(|record| matches!(record.representation(), Repr::Interface))
-        .unwrap()
-        .exact();
-    let helper = replay
-        .section
-        .types()
-        .records()
-        .iter()
-        .find(|record| matches!(record.representation(), Repr::CoroutineStep { .. }))
-        .unwrap();
-    let mut bases = helper.base_and_interfaces().clone();
-    bases.interfaces.push(interface);
-    component(
-        replay.reject(replay.replace(
-            helper,
-            helper.representation().clone(),
-            helper.facts(),
-            bases,
-        )),
-        Component::Interfaces,
-        helper.exact(),
-    );
 }
 
 fn variants(replay: &Replay<'_, '_>) {

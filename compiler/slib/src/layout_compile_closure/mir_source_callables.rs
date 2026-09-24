@@ -7,7 +7,8 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_mir::{
     CallablesResolvedCrossConeMirTypeBridgeSectionV1, CanonicalMirCallableBindingsV1,
-    CanonicalMirObjectValuesV1, CanonicalMirShapeSupportsV1, CanonicalParamFreeMirTypeExportsV1,
+    CanonicalMirDispatchSchemasV1, CanonicalMirObjectValuesV1, CanonicalMirShapeSupportsV1,
+    CanonicalParamFreeMirTypeExportsV1,
 };
 use scoop_wire::WirePath;
 
@@ -37,9 +38,9 @@ pub use objects::{
 };
 pub use validation::validate_shared_mir_source_callables;
 
-/// Source functions/accessors, constructors and object initialization entries
-/// agree with shared HIR. Other generated callables, dispatch, initialization
-/// uses, selected uses and LIR remain unvalidated.
+/// Source functions/accessors, constructors, object initialization and dispatch
+/// agree with shared HIR. Derived equality, initialization uses, selected uses
+/// and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     prepared: PreparedCrossConeLayoutMirSections<'input>,
     mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
@@ -84,9 +85,10 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                 let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
                 let mir = mir.resolve_callables::<Infallible>(
                     parts.mir_foundation,
-                    reachable
-                        .iter()
-                        .map(|position| resolved[*position].mir.types()),
+                    reachable.iter().map(|position| {
+                        let mir = &resolved[*position].mir;
+                        (mir.types(), mir.callables(), mir.dispatch())
+                    }),
                     parts.identities,
                     parts.meter,
                 )?;
@@ -116,6 +118,7 @@ fn validate_sources(
     dependency_positions: &[Vec<usize>],
 ) -> Result<(), CrossConeLayoutMirSourceCallablesError> {
     let mut checked: Vec<CheckedSharedTypeFoundationV1<'_>> = Vec::new();
+    let mut checked_callables: Vec<&CanonicalMirCallableBindingsV1> = Vec::new();
     for (position, artifact) in artifacts.iter_mut().enumerate() {
         let provider = artifact.identity();
         let parts = artifact.prepared.semantic_parts();
@@ -128,6 +131,17 @@ fn validate_sources(
                 &WirePath::root(),
             )?;
             dependencies.extend(reachable.iter().map(|position| checked[*position]));
+            let mut dependency_callables = Vec::new();
+            parts.meter.try_reserve_collection_slots(
+                &mut dependency_callables,
+                reachable.len(),
+                &WirePath::root(),
+            )?;
+            dependency_callables.extend(
+                reachable
+                    .iter()
+                    .map(|position| checked_callables[*position]),
+            );
             let source = parts.hir_types.validate_shared_foundation(
                 SharedTypeMetadataV1 {
                     provider,
@@ -157,14 +171,29 @@ fn validate_sources(
                 parts.meter,
             )
             .map_err(|error| Error::Objects(Box::new(error)))?;
+            super::mir_dispatch::validate_shared_mir_dispatch(
+                source,
+                &dependencies,
+                artifact.mir.callables(),
+                &dependency_callables,
+                artifact.mir.dispatch(),
+                parts.meter,
+            )
+            .map_err(|error| Error::Dispatch(Box::new(error)))?;
             parts
                 .meter
                 .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;
+            parts.meter.try_reserve_collection_slots(
+                &mut checked_callables,
+                1,
+                &WirePath::root(),
+            )?;
             Ok(source)
         };
         let source = validate()
             .map_err(|source| CrossConeLayoutMirSourceCallablesError::new(provider, source))?;
         checked.push(source);
+        checked_callables.push(artifact.mir.callables());
     }
     Ok(())
 }
@@ -187,6 +216,9 @@ impl MirSourceCallablesValidatedCrossConeLayoutSections<'_> {
     }
     pub fn object_values(&self) -> &CanonicalMirObjectValuesV1 {
         self.mir.object_values()
+    }
+    pub fn dispatch(&self) -> &CanonicalMirDispatchSchemasV1 {
+        self.mir.dispatch()
     }
     pub fn lir_strong_production_wire(&self) -> &scoop_lir::DecodedStrongProductionSectionV2 {
         &self.lir.strong

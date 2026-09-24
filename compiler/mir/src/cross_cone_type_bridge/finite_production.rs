@@ -11,6 +11,7 @@ impl CanonicalParamFreeMirTypeExportsV1 {
     /// environments are not part of this export surface.
     pub fn from_finite_shape_support(
         input: &SingleConeStrongMirInput,
+        sources: &CanonicalParamFreeMirTypeExportsV1,
         identities: &ValidatedIdentityGraph,
         meter: &mut BudgetMeter,
     ) -> Result<Self, MirTypeBridgeError> {
@@ -28,6 +29,18 @@ impl CanonicalParamFreeMirTypeExportsV1 {
         )?;
         for root in plan.shape_support() {
             let exact = root.shape().exact();
+            meter
+                .charge_work(
+                    u64::from(sources.records().len().checked_ilog2().unwrap_or(0)) + 1,
+                    &path,
+                )
+                .map_err(MirTypeBridgeError::Resource)?;
+            let source = sources
+                .get(exact)
+                .ok_or(MirTypeBridgeError::MissingShapeSupportSource { exact })?;
+            if source.origin() != &MirTypeOriginV1::SourceNominal(root.shape().source()) {
+                return Err(MirTypeBridgeError::ExactOriginMismatch { exact });
+            }
             let boxed = match root.boxed() {
                 StrongBoxedShapeSupportRoot::Available(boxed) => {
                     Some((boxed, GeneratedNominalKey::BoxedValue { payload: exact }))
@@ -53,7 +66,7 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                     .charge_work(1, &path)
                     .map_err(MirTypeBridgeError::Resource)?;
                 let (facts, representation, bases) =
-                    representation::project(input, helper.location(), &role, meter)?;
+                    representation::project(input, source, helper.location(), &role, meter)?;
                 records.push(ParamFreeMirTypeExportV1::try_new(
                     authority,
                     helper.exact(),

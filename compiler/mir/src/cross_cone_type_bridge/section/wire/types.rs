@@ -97,7 +97,9 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
         self.resolve_callables(
             authority.foundation(),
-            dependencies.iter().map(|section| section.types()),
+            dependencies
+                .iter()
+                .map(|section| (section.types(), section.callables(), section.dispatch())),
             graph,
             meter,
         )?

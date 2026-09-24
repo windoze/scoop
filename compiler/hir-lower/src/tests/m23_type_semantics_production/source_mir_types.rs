@@ -11,6 +11,7 @@ mod dependencies;
 mod dispatch;
 mod equality;
 mod exports;
+mod finite;
 mod identities;
 mod interior_mutability;
 mod objects;
@@ -101,6 +102,7 @@ fn source_mir_types_cover_actual_source_representations_and_finite_helpers() {
             identities::source_members(output, table);
             let finite = CanonicalParamFreeMirTypeExportsV1::from_finite_shape_support(
                 strong,
+                table,
                 graph,
                 &mut BudgetMeter::new(DecodeLimits::default()),
             )

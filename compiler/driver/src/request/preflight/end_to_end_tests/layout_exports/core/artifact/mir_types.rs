@@ -4,6 +4,7 @@ use super::*;
 use scoop_identity::PersistentExactTypeId;
 use scoop_slib::{SharedMirTypeComponent as Component, SharedMirTypeValidationError as Error};
 
+mod helpers;
 mod inventory;
 mod representation;
 
@@ -34,6 +35,7 @@ pub(super) fn check(
             .unwrap();
             inventory::check(&replay);
             representation::check(&replay, name == "shared-mir-combined");
+            helpers::check(&replay, name == "shared-dispatch-combined");
             for limits in [
                 DecodeLimits {
                     validation_work_units: 0,

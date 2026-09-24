@@ -80,6 +80,11 @@ fn shared_object_inventory_replays_singletons_companions_and_initialization_entr
     check_core_layout_exports(&["shared-objects-standalone", "shared-objects-combined"]);
 }
 
+#[test]
+fn shared_dispatch_replays_slot_order_targets_reabstraction_and_boxing() {
+    check_core_layout_exports(&["shared-dispatch-standalone", "shared-dispatch-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
