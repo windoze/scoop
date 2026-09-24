@@ -1,0 +1,3 @@
+SharedCallableToken.keep: Public Final NoGc slots=0 layout-eligible=true ordinary=false (SharedCallableToken) -> SharedCallableToken
+SharedCallableToken.privateHelper: Private Final Managed slots=0 layout-eligible=false ordinary=false (SharedCallableToken) -> SharedCallableToken
+TopLevel.sharedCallablePass: Public Final Managed slots=0 layout-eligible=true ordinary=true (SharedCallableToken) -> SharedCallableToken

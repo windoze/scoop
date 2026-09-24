@@ -23,7 +23,6 @@ pub(super) fn combine<const N: usize>(
     let combined =
         mir::CanonicalMirCallableBindingsV1::try_new(records).map_err(Error::Callables)?;
     let mut records = reserve(count, meter)?;
-    let mut retained_ordinary = 0;
     for record in combined.into_entries() {
         meter.charge_work(
             u64::from(ordinary.exports().len().checked_ilog2().unwrap_or(0)) + 1,
@@ -50,16 +49,9 @@ pub(super) fn combine<const N: usize>(
             {
                 return Err(Error::OrdinaryCallableMismatch(record.implementation()));
             }
-            retained_ordinary += 1;
         } else {
             records.push(record);
         }
-    }
-    if retained_ordinary != ordinary.exports().len() {
-        return Err(Error::IncompleteOrdinaryCallables {
-            expected: ordinary.exports().len(),
-            actual: retained_ordinary,
-        });
     }
     // Filtering preserves the canonical order, but the public constructor
     // deliberately checks it again at the final table boundary.
@@ -69,4 +61,54 @@ pub(super) fn combine<const N: usize>(
         &WirePath::root(),
     )?;
     mir::CanonicalMirCallableBindingsV1::try_new(records).map_err(Error::Callables)
+}
+
+pub(super) fn validate_ordinary(
+    input: MirTypeBridgeExportInputV1<'_>,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
+    let expected = hir::select_ordinary_source_callables(
+        input.mir.module().cone,
+        input.public,
+        input.nominal_classifier,
+        input.identities,
+        meter,
+    )
+    .map_err(|error| match error {
+        hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
+        error => Error::OrdinarySource(Box::new(error)),
+    })?;
+    if expected.len() != input.ordinary.exports().len() {
+        return Err(Error::IncompleteOrdinaryCallables {
+            expected: expected.len(),
+            actual: input.ordinary.exports().len(),
+        });
+    }
+    for (declaration, source) in expected {
+        meter.charge_work(
+            1 + u64::from(input.ordinary.exports().len().max(1).ilog2()),
+            &WirePath::root(),
+        )?;
+        let classified = input
+            .nominal_classifier
+            .classify_callable_metered(source, meter, &WirePath::root())
+            .map_err(Error::OrdinaryClassification)?
+            .ok_or(Error::OrdinaryCallableMismatch(
+                declaration.implementation(),
+            ))?;
+        let actual = input
+            .ordinary
+            .export(declaration)
+            .ok_or(Error::OrdinaryCallableMismatch(
+                declaration.implementation(),
+            ))?;
+        if actual.implementation() != declaration.implementation()
+            || actual.signature() != classified.signature()
+        {
+            return Err(Error::OrdinaryCallableMismatch(
+                declaration.implementation(),
+            ));
+        }
+    }
+    Ok(())
 }

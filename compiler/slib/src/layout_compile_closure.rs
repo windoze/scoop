@@ -19,6 +19,7 @@ use crate::{
 mod declarations;
 mod foundations;
 mod hir;
+mod mir_source_callables;
 mod mir_types;
 mod type_foundations;
 pub use declarations::{
@@ -26,6 +27,12 @@ pub use declarations::{
     HirDeclarationsValidatedCrossConeLayoutClosure,
 };
 pub use hir::CrossConeLayoutClosureHirResolutionError;
+pub use mir_source_callables::{
+    CrossConeLayoutMirSourceCallablesError, MirSourceCallablesValidatedCrossConeLayoutClosure,
+    MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirSourceCallableComponent,
+    SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
+    validate_shared_mir_source_callables,
+};
 pub use mir_types::{
     CrossConeLayoutMirTypesError, MirTypesValidatedCrossConeLayoutClosure,
     MirTypesValidatedCrossConeLayoutSections, SharedMirTypeComponent, SharedMirTypeValidationError,

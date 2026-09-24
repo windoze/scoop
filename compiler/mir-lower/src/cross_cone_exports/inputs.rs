@@ -8,6 +8,7 @@ pub struct MirTypeBridgeExportInputV1<'a> {
     pub source: &'a hir::CrossConeTypeSemanticsProductionV1,
     pub mir: &'a mir::SingleConeStrongMirInput,
     pub ordinary: &'a mir::CrossConeMirBridgeSectionV1,
+    pub nominal_classifier: &'a hir::NominalExactLeafClassifierV1,
     pub identities: &'a ValidatedIdentityGraph,
 }
 
@@ -33,6 +34,7 @@ impl MirTypeBridgeExportInputV1<'_> {
         {
             return Err(Error::ProviderMismatch);
         }
+        super::callables::validate_ordinary(self, meter)?;
         let roots = self.mir.materialization().initialization_roots();
         let mut units = reserve(roots.len(), meter)?;
         units.extend(roots.iter().map(|root| root.identity()));

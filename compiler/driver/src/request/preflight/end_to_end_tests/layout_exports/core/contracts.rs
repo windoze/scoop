@@ -3,6 +3,7 @@ use scoop_identity::{CallableTemplateOrigin, ExactTypeKey, StrongCallableDefinit
 use scoop_lir_lower::LayoutAbiExportInputV1;
 
 pub(super) fn check(
+    name: &str,
     hir: &current_hir::CurrentConeHirArtifacts,
     source: &hir::CrossConeTypeSemanticsProductionV1,
     input: LayoutAbiExportInputV1<'_>,
@@ -41,20 +42,33 @@ pub(super) fn check(
     }
     source_only_callable(hir, input);
     reject_missing_string_vtable(input);
-    let names = source_only_descriptors(&hir.cross_cone_section, input, result);
+    let (names, local_only) = source_only_descriptors(&hir.cross_cone_section, input, result);
+    let mut expected = vec![
+        "ArithmeticException",
+        "ClassCastException",
+        "Exception",
+        "IllegalStateException",
+        "IndexOutOfBoundsException",
+        "UnwrapException",
+    ];
+    if name == "shared-callables-combined" {
+        expected.push("SharedSourceOnlyHolder");
+        expected.sort();
+    }
+    assert_eq!(names, expected);
     assert_eq!(
-        names,
-        [
-            "ArithmeticException",
-            "ClassCastException",
-            "Exception",
-            "IllegalStateException",
-            "IndexOutOfBoundsException",
-            "UnwrapException",
-        ]
+        local_only,
+        if name == "shared-callables-combined" {
+            vec!["SharedCallableImpl"]
+        } else {
+            vec![]
+        }
     );
     for name in names {
         dump.push_str(&format!("source-only descriptor {name}\n"));
+    }
+    for name in local_only {
+        dump.push_str(&format!("local-only descriptor {name}\n"));
     }
     dump
 }
@@ -92,7 +106,7 @@ fn source_only_descriptors(
     public: &hir::CrossConeHirInterfaceSectionV1,
     input: LayoutAbiExportInputV1<'_>,
     result: &lir::LayoutAbiExportConstituentsV1,
-) -> Vec<String> {
+) -> (Vec<String>, Vec<String>) {
     let closure = hir::NominalMaterializationClosure::from_declarations(
         public.nominal_interfaces(),
         public.callable_interfaces(),
@@ -100,6 +114,7 @@ fn source_only_descriptors(
     )
     .unwrap();
     let mut names = Vec::new();
+    let mut local_only = Vec::new();
     let mut exported = 0;
     for (_, descriptor) in input.lir.module().meta.type_descriptors.iter() {
         let exact = descriptor.identity.exact_type();
@@ -109,6 +124,22 @@ fn source_only_descriptors(
             .meta
             .source_exact_types
             .get_by_identity(exact);
+        if let Some(local) = local {
+            if let (ExactTypeKey::Nominal(nominal), mir::Type::Class(class)) =
+                (local.identity_record().key(), local.ty())
+            {
+                if public
+                    .nominal_interfaces()
+                    .declaration(hir::SourceNominalId::Concrete(*nominal))
+                    .is_none()
+                {
+                    assert!(input.bridge.types().get(exact).is_none());
+                    assert!(result.descriptors().get(exact).is_none());
+                    local_only.push(input.mir.module().classes[*class].name.clone());
+                    continue;
+                }
+            }
+        }
         let source_only = local.is_some_and(|local| {
             let ExactTypeKey::Nominal(nominal) = local.identity_record().key() else {
                 return false;
@@ -127,13 +158,17 @@ fn source_only_descriptors(
             };
             names.push(input.mir.module().classes[*class].name.clone());
         } else {
-            assert!(result.descriptors().get(exact).is_some(), "missing {exact}");
+            assert!(
+                result.descriptors().get(exact).is_some(),
+                "missing {exact}: {local:?}"
+            );
             exported += 1;
         }
     }
     assert_eq!(result.descriptors().records().len(), exported);
     names.sort();
-    names
+    local_only.sort();
+    (names, local_only)
 }
 
 fn reject_missing_string_vtable(input: LayoutAbiExportInputV1<'_>) {

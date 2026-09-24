@@ -26,7 +26,8 @@ pub use selection::{SelectedDependencyMirTypeRefV1, SelectedDependencyMirTypeSet
 pub use source::*;
 pub use units::{MirInitializationUnitProofKindV1, MirTypeBridgeInitializationUnitV1};
 pub use wire::{
-    DecodedCrossConeMirTypeBridgeSectionV1, TypeResolvedCrossConeMirTypeBridgeSectionV1,
+    CallablesResolvedCrossConeMirTypeBridgeSectionV1, DecodedCrossConeMirTypeBridgeSectionV1,
+    TypeResolvedCrossConeMirTypeBridgeSectionV1,
 };
 
 fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, WireError> {

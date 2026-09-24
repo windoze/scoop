@@ -57,6 +57,11 @@ fn shared_accessor_forms_select_only_actual_source_machine_bodies() {
     check_core_layout_exports(&["shared-accessors-standalone", "shared-accessors-combined"]);
 }
 
+#[test]
+fn shared_source_callable_inventory_replays_bodies_and_abstract_overrides() {
+    check_core_layout_exports(&["shared-callables-standalone", "shared-callables-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
@@ -131,6 +136,7 @@ fn check_core_layout_exports(names: &[&str]) {
             source: &source,
             mir: &mir.strong,
             ordinary: &mir.public,
+            nominal_classifier: &hir.nominal_classifier,
             identities: &identities,
         };
         let bridge = scoop_mir_lower::lower_type_bridge_exports(
@@ -175,7 +181,7 @@ fn check_core_layout_exports(names: &[&str]) {
             &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} LIR exports: {error}"));
-        let mut dump = contracts::check(&hir, &source, input, &result);
+        let mut dump = contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);
         if matches!(name, "standalone" | "combined") {
             assertions::zero_sized_abi(&result);

@@ -19,6 +19,7 @@ mod shared_foundation;
 mod slot_contracts;
 mod slot_schemas;
 mod source_authority;
+mod source_callable_selection;
 mod wire;
 
 pub use access::*;
@@ -39,3 +40,6 @@ pub use shared_foundation::{
 pub use slot_contracts::*;
 pub use slot_schemas::*;
 pub use source_authority::*;
+pub use source_callable_selection::{
+    select_ordinary_source_callables, select_param_free_source_callables,
+};

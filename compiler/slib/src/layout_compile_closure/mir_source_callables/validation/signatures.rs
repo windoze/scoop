@@ -1,0 +1,127 @@
+use super::*;
+use scoop_identity::{ExactCallableSignature, SignatureTypeKey};
+
+pub(super) fn exact(
+    declaration: Declaration,
+    metadata: hir::SharedTypeMetadataV1<'_>,
+    source: &hir::CallableDeclarationRecordV1,
+    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
+    signature: &ExactCallableSignature,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
+    Error::require(
+        declaration,
+        Component::Execution,
+        signature.effect() == source.effects().execution(),
+    )?;
+    let receiver = match source.owner().nominal_owner() {
+        Some(hir::SourceNominalId::Concrete(owner)) => {
+            let exact = metadata.signature_exact_type(&SignatureTypeKey::Nominal(owner), meter)?;
+            lookup(inheritance.node_count(), meter)?;
+            Error::require(
+                declaration,
+                Component::Receiver,
+                source.receiver().is_none() && inheritance.get(exact).is_some(),
+            )?;
+            Some(exact)
+        }
+        Some(hir::SourceNominalId::GenericTemplate(_)) => {
+            return Err(Error::Mismatch {
+                declaration,
+                component: Component::Receiver,
+            });
+        }
+        None => source
+            .receiver()
+            .map(|ty| metadata.signature_exact_type(ty, meter))
+            .transpose()?,
+    };
+    Error::require(
+        declaration,
+        Component::Receiver,
+        signature.receiver().into_option() == receiver,
+    )?;
+    let parameters = source.parameters().parameters();
+    Error::require(
+        declaration,
+        Component::ParameterCount,
+        signature.parameters().len() == parameters.len(),
+    )?;
+    for (index, (actual, source)) in signature.parameters().iter().zip(parameters).enumerate() {
+        let expected = metadata.signature_exact_type(source.value_type(), meter)?;
+        Error::require(
+            declaration,
+            Component::Parameter { index },
+            *actual == expected,
+        )?;
+    }
+    let expected = metadata.signature_exact_type(source.result(), meter)?;
+    Error::require(
+        declaration,
+        Component::Result,
+        signature.result() == expected,
+    )
+}
+
+pub(super) fn binding(
+    declaration: Declaration,
+    metadata: hir::SharedTypeMetadataV1<'_>,
+    source: &hir::CallableDeclarationRecordV1,
+    inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
+    binding: &mir::ParamFreeMirCallableBindingV1,
+    meter: &mut BudgetMeter,
+) -> Result<(), Error> {
+    meter.charge_work(
+        scoop_wire::encoded_length(binding).map_err(Error::Encoding)?,
+        &WirePath::root(),
+    )?;
+    let semantic = binding.semantic_signature();
+    Error::require(
+        declaration,
+        Component::Implementation,
+        binding.implementation() == declaration.implementation(),
+    )?;
+    Error::require(
+        declaration,
+        Component::LoweredSignature,
+        binding.lowered_signature() == semantic,
+    )?;
+    exact(
+        declaration,
+        metadata,
+        source,
+        inheritance,
+        semantic.exact(),
+        meter,
+    )?;
+    let gc = match source.effects().gc_effect() {
+        scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
+        scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
+    };
+    Error::require(declaration, Component::GcEffect, semantic.gc_effect() == gc)?;
+    if source.modality() == hir::CallableModalityV1::Abstract {
+        let mir::MirCallableLoweringRoleV1::PureVirtualTrap { slot } = binding.lowering_role()
+        else {
+            return Err(Error::Mismatch {
+                declaration,
+                component: Component::LoweringRole,
+            });
+        };
+        lookup(source.slot_relations().values().len(), meter)?;
+        Error::require(
+            declaration,
+            Component::TrapSlot,
+            source.slot_relations().values().binary_search(slot).is_ok(),
+        )
+    } else {
+        let role = match declaration {
+            Declaration::Function(_) => mir::MirCallableLoweringRoleV1::Ordinary,
+            Declaration::PropertyAccessor(_) => mir::MirCallableLoweringRoleV1::Accessor,
+        };
+        Error::require(
+            declaration,
+            Component::LoweringRole,
+            *binding.lowering_role() == role,
+        )
+    }
+}

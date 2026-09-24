@@ -2,16 +2,12 @@
 
 use scoop_hir as hir;
 use scoop_identity::{
-    CallableMaterializationContext, CallableTemplateOrigin, CallableTemplateOwner,
-    DependencyCallableDeclarationId, ExactCallableSignature, ValidatedIdentityGraph,
+    CallableMaterializationContext, CallableTemplateOwner, DependencyCallableDeclarationId,
+    ExactCallableSignature, ValidatedIdentityGraph,
 };
 use scoop_mir as mir;
 use scoop_wire::{BudgetMeter, WireError, WirePath};
-use std::collections::BTreeMap;
-
-mod accessors;
 mod binding;
-mod inventory;
 mod roles;
 
 /// Produces ordinary source bodies, accessors and actual class trap bodies.
@@ -26,8 +22,17 @@ pub fn lower_source_callable_bindings(
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
-    let mut required = inventory::collect(public, source, meter)?;
-    accessors::project(public, source, &mut required, meter)?;
+    let mut required = hir::select_param_free_source_callables(
+        input.module().cone,
+        public,
+        source.section(),
+        identities,
+        meter,
+    )
+    .map_err(|error| match error {
+        hir::SharedTypeMetadataError::Resource(error) => Error::Resource(error),
+        error => Error::SharedSource(Box::new(error)),
+    })?;
     let mut records = Vec::new();
     reserve(&mut records, required.len(), meter)?;
     let local = output.output().local.module();
@@ -42,9 +47,10 @@ pub fn lower_source_callable_bindings(
             CallableTemplateOwner::Accessor(id) => Declaration::PropertyAccessor(id),
             _ => continue,
         };
-        let Some(contract) = required.remove(&declaration) else {
+        let Some(source) = required.remove(&declaration) else {
             continue;
         };
+        let contract = SourceContract::new(source.effects(), source.modality());
         if function.materialization.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::OdrRequired(declaration));
         }
@@ -107,10 +113,8 @@ impl SourceContract {
 pub enum SourceMirCallableProductionError {
     Resource(WireError),
     Encoding(scoop_wire::cbor::EncodeError),
-    Materialization(hir::NominalMaterializationClosureError),
+    SharedSource(Box<hir::SharedTypeMetadataError>),
     Bridge(mir::MirCallableBridgeError),
-    ConflictingSource(DependencyCallableDeclarationId),
-    MissingSourceContract(DependencyCallableDeclarationId),
     MissingSourceMaterialization(DependencyCallableDeclarationId),
     MissingMirMaterialization(DependencyCallableDeclarationId),
     MissingSignature(DependencyCallableDeclarationId),

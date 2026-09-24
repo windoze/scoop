@@ -103,8 +103,8 @@ fn missing_ordinary_source(
             &mut meter()
         ),
         Err(Error::IncompleteOrdinaryCallables {
-            expected: 2,
-            actual: 1
+            expected: 1,
+            actual: 2
         })
     ));
 }

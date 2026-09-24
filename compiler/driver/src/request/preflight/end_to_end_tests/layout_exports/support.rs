@@ -109,6 +109,7 @@ pub(super) fn with_production(
         source: &source,
         mir: &mir.strong,
         ordinary: &mir.public,
+        nominal_classifier: &hir.nominal_classifier,
         identities: &graph,
     };
     let dependencies = scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {

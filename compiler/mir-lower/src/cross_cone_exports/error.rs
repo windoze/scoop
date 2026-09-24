@@ -19,6 +19,8 @@ pub enum MirTypeBridgeExportProductionError {
     InitializationUse(mir::MirObjectBridgeError),
     MissingInitializationUnit(PersistentInitializationUnitId),
     OrdinaryCallableMismatch(StrongCallableDefinitionOwner),
+    OrdinarySource(Box<hir::SharedTypeMetadataError>),
+    OrdinaryClassification(hir::NominalCallableClassificationError),
     IncompleteOrdinaryCallables { expected: usize, actual: usize },
 }
 

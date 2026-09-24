@@ -3,13 +3,13 @@ use super::*;
 /// Owned intermediate transport. Type identities and finite shape relations
 /// have been resolved; source replay and the remaining section are unvalidated.
 pub struct TypeResolvedCrossConeMirTypeBridgeSectionV1 {
-    types: CanonicalParamFreeMirTypeExportsV1,
-    callables: DecodedCanonicalMirCallableBindingsV1,
-    dispatch: DecodedCanonicalMirDispatchSchemasV1,
-    object_values: DecodedCanonicalMirObjectValuesV1,
-    shape_support: CanonicalMirShapeSupportsV1,
-    initialization_uses: DecodedCanonicalMirExternalInitializationUsesV1,
-    selected: Vec<DecodedMirTypeBridgeDependencyV1>,
+    pub(super) types: CanonicalParamFreeMirTypeExportsV1,
+    pub(super) callables: DecodedCanonicalMirCallableBindingsV1,
+    pub(super) dispatch: DecodedCanonicalMirDispatchSchemasV1,
+    pub(super) object_values: DecodedCanonicalMirObjectValuesV1,
+    pub(super) shape_support: CanonicalMirShapeSupportsV1,
+    pub(super) initialization_uses: DecodedCanonicalMirExternalInitializationUsesV1,
+    pub(super) selected: Vec<DecodedMirTypeBridgeDependencyV1>,
 }
 
 impl DecodedCrossConeMirTypeBridgeSectionV1 {
@@ -95,55 +95,12 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
         graph: &mut ValidatedIdentityGraph,
         meter: &mut BudgetMeter,
     ) -> Result<CrossConeMirTypeBridgeSectionV1<'a>, MirTypeBridgeSectionError<E>> {
-        let type_index = dependencies::types(&self.types, &dependencies, meter)?;
-        let callables =
-            self.callables
-                .validate(graph, authority.foundation(), &type_index, meter)?;
-        let count = dependencies
-            .len()
-            .checked_add(1)
-            .ok_or(MirTypeBridgeSectionError::ArithmeticOverflow)?;
-        let mut callable_tables = reserve(count, meter)?;
-        callable_tables.push(&callables);
-        callable_tables.extend(dependencies.iter().map(|section| section.callables()));
-        let callable_index = MirTypeBridgeCallableIndexV1::try_new(&callable_tables, meter)?;
-        let mut schemas = reserve(dependencies.len(), meter)?;
-        schemas.extend(dependencies.iter().map(|section| section.dispatch()));
-        let dispatch = self.dispatch.validate_with_dependencies(
-            graph,
-            &type_index,
-            &callable_index,
-            &schemas,
-            meter,
-        )?;
-        let object_values =
-            self.object_values
-                .validate(graph, &type_index, &callable_index, meter)?;
-        let initialization_uses =
-            self.initialization_uses
-                .validate(authority.provider(), graph, meter)?;
-        let mut selected = reserve(self.selected.len(), meter)?;
-        for decoded in self.selected {
-            selected.push(decoded.resolve(graph, meter)?);
-        }
-        let exports = MirTypeBridgeExportConstituentsV1::new(
-            self.types,
-            callables,
-            dispatch,
-            object_values,
-            self.shape_support,
-            initialization_uses,
-        );
-        build::complete(
-            build::SectionInput {
-                authority,
-                exports,
-                dependencies,
-                selection: build::SelectionInput::Reader(selected),
-            },
-            source,
+        self.resolve_callables(
+            authority.foundation(),
+            dependencies.iter().map(|section| section.types()),
             graph,
             meter,
-        )
+        )?
+        .complete(authority, dependencies, source, graph, meter)
     }
 }

@@ -1,8 +1,10 @@
 use super::dependency::DecodedMirTypeBridgeDependencyV1;
 use super::*;
 
+mod callables;
 mod types;
 
+pub use callables::CallablesResolvedCrossConeMirTypeBridgeSectionV1;
 pub use types::TypeResolvedCrossConeMirTypeBridgeSectionV1;
 
 /// Untrusted seven-field transport. Resolution alone does not create selection.

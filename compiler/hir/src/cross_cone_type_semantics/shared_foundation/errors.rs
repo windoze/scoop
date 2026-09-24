@@ -40,6 +40,7 @@ pub enum SharedTypeMetadataError {
     InheritanceDomains(AccessDomainSemanticError),
     DeclarationMetadata(DefinitionOriginSubject),
     CallableContract(CallableTemplateOrigin),
+    CallableClassification(crate::NominalCallableClassificationError),
     ConstructorInventory(PersistentExactTypeId),
     ProtectedMemberInventory(PersistentExactTypeId),
     ProtectedMember(ProtectedDeclarationRefV1),

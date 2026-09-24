@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn check(
     name: &str,
     artifact: &scoop_slib::AssembledCrossConeLayoutStrongArtifactV1,
@@ -8,6 +9,7 @@ pub(super) fn check(
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
     hir_core: &hir::CoreBootstrapInterfaceSectionV1,
     mir_foundation: &mir::OdrFreeMirFoundation,
+    ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
     let hir_bytes = encode(&hir.index_for_wire(&mut meter()).unwrap()).unwrap();
     let open = || {
@@ -91,6 +93,7 @@ pub(super) fn check(
     );
     super::type_foundations::check(checked[0]);
     super::mir_types::check(name, checked[0], hir_core, mir_foundation, mir);
+    super::mir_source_callables::check(name, checked[0], mir_foundation, ordinary, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }
@@ -103,6 +106,22 @@ pub(super) fn check(
     let current = types.artifact(ConeIdentity::CORE).unwrap();
     assert_eq!(current.types(), mir.types());
     assert_eq!(current.shape_support(), mir.shape_support());
+    assert_eq!(
+        encode(current.lir_layout_abi_wire()).unwrap(),
+        encode(lir).unwrap()
+    );
+    let callables = types
+        .validate_source_callables()
+        .unwrap_or_else(|error| panic!("{name} shared source callable replay: {error}"));
+    assert_eq!(callables.current(), ConeIdentity::CORE);
+    assert_eq!(callables.target_selection(), artifact.target_selection());
+    assert!(callables.direct_providers().is_empty());
+    assert_eq!(callables.dependency_count(ConeIdentity::CORE), Some(0));
+    assert_eq!(callables.dependency_first().count(), 1);
+    let current = callables.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.types(), mir.types());
+    assert_eq!(current.shape_support(), mir.shape_support());
+    assert_eq!(current.callables(), mir.callables());
     assert_eq!(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
