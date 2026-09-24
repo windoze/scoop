@@ -634,7 +634,8 @@ pub(super) fn complete_artifact(corrupt_final_image_digest: bool) -> Vec<u8> {
             .unwrap(),
         ])
         .unwrap();
-    let (lir_foundation, _) = strong_production_fixture(cone().coordinate().clone());
+    let (lir_foundation, _) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let lir_proof =
         OdrFreeLirFoundation::try_new(cone().identity(), lir_foundation.clone()).unwrap();
     let (strong_production, final_objects, defined_symbols, undefined_symbols) =
@@ -924,7 +925,8 @@ fn build_artifact(
     ];
     let mut complete_lir_sections = Vec::new();
     if include_lir_foundation {
-        let (foundation, _) = strong_production_fixture(cone().coordinate().clone());
+        let (foundation, _) =
+            strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
         complete_lir_sections.push(
             MetadataSection::new(
                 MetadataLocation::Lir,
@@ -940,9 +942,18 @@ fn build_artifact(
     let compatibility =
         CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::SINGLE_CONE_STRONG)
             .unwrap();
+    let dependencies = vec![
+        DependencyRecord::new(
+            ConeCoordinate::reserved_core(),
+            HirFingerprint::from_array([1; 32]),
+            crate::MirFingerprint::from_array([2; 32]),
+            crate::LirFingerprint::from_array([3; 32]),
+        )
+        .unwrap(),
+    ];
     let semantic = SemanticFingerprintRecord::from_metadata_sections(
         &compatibility,
-        &[],
+        &dependencies,
         &known_sections(&hir_sections),
         &known_sections(&mir_sections),
         &known_sections(&complete_lir_sections),
@@ -1003,7 +1014,7 @@ fn build_artifact(
         ProducerRecord::new("test").unwrap(),
         compatibility,
         cone(),
-        Vec::new(),
+        dependencies,
         &members,
         semantic,
         manifest_sections,
@@ -1069,11 +1080,12 @@ fn closure_section() -> MetadataSection {
 }
 
 pub(crate) fn strong_production() -> StrongProductionSectionV1 {
-    strong_production_fixture(cone().coordinate().clone()).1
+    strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]).1
 }
 
 pub(crate) fn strong_production_fixture(
     coordinate: ConeCoordinate,
+    direct_dependencies: &[ConeIdentity],
 ) -> (CanonicalLirFoundation, StrongProductionSectionV1) {
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
@@ -1123,6 +1135,7 @@ pub(crate) fn strong_production_fixture(
     let initialization_cycle_abi = None;
     let production = StrongProductionSectionV1::new(
         coordinate,
+        direct_dependencies,
         &foundation,
         external,
         digests,
@@ -1221,7 +1234,8 @@ fn empty_hir_library_section() -> Vec<u8> {
 }
 
 fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
-    let (canonical, _) = strong_production_fixture(cone().coordinate().clone());
+    let (canonical, _) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();
     let units = crate::CanonicalScoopLirObjectUnitSetV1::new(
@@ -1239,7 +1253,8 @@ struct LinkObjectFixture {
 }
 
 fn link_object_fixture() -> LinkObjectFixture {
-    let (canonical, production) = strong_production_fixture(cone().coordinate().clone());
+    let (canonical, production) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let surface = StrongObjectSymbolSurfaceV1::from_odr_free_foundation(&foundation).unwrap();
     let plan = link_object_plan();
@@ -1357,7 +1372,8 @@ fn finalized_link_object_fixture_for_profile(
     FinalizedFixtureRequirements,
 ) {
     let fixture = link_object_fixture();
-    let (canonical, production) = strong_production_fixture(cone().coordinate().clone());
+    let (canonical, production) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), canonical).unwrap();
     let objects = [crate::ScoopLirObjectCandidateV1::new(
         fixture.plan.scoop_lir_members()[0].member_id(),

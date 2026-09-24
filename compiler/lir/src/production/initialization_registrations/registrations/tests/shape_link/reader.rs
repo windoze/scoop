@@ -100,6 +100,7 @@ fn replay(fixture: &ProviderFixture) -> ReplayedStrongProductionSectionV2 {
     let producer = fixture.source.foundation.producer();
     raw.replay(
         ConeCoordinate::reserved_single_file(),
+        &[],
         TARGET,
         &fixture.source.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),

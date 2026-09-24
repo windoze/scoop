@@ -169,8 +169,10 @@ impl LayoutLirSourceAuthorityFactoryV1 for RecordingLirFactory {
             .map(|dependency| dependency.mir() as *const _ as usize)
             .collect();
 
-        let (_, production) =
-            crate::link_decode::strong_production_fixture_for_test(context.coordinate().clone());
+        let (_, production) = crate::link_decode::strong_production_fixture_for_test(
+            context.coordinate().clone(),
+            &self.observation.direct,
+        );
         let mut meter = meter();
         let strong = LayoutLirStrongReplayAuthorityV2::new(
             production.external_bridges().clone(),

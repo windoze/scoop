@@ -58,7 +58,8 @@ fn cross_cone_graph_validates_the_complete_final_link_view() {
 #[test]
 fn cross_cone_link_reader_rejects_the_legacy_profile() {
     let bytes = complete_artifact(false);
-    let (foundation, _) = strong_production_fixture(cone().coordinate().clone());
+    let (foundation, _) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let foundation = OdrFreeLirFoundation::try_new(cone().identity(), foundation).unwrap();
     let lir_bridge =
         CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap();
@@ -128,7 +129,8 @@ fn complete_cross_cone_artifact() -> (Vec<u8>, CrossConeLirBridgeSectionV1) {
     )
     .unwrap();
 
-    let (lir_foundation, _) = strong_production_fixture(cone().coordinate().clone());
+    let (lir_foundation, _) =
+        strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]);
     let lir_proof = OdrFreeLirFoundation::try_new(cone().identity(), lir_foundation).unwrap();
     let lir_cross_cone =
         CrossConeLirBridgeSectionV1::try_new(&lir_proof, Vec::new(), Vec::new()).unwrap();

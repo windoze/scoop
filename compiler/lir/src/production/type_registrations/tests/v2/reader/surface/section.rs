@@ -20,6 +20,7 @@ fn complete_fixture() -> Fixture {
 fn section(fixture: &Fixture) -> StrongProductionSectionV2 {
     StrongProductionSectionV2::from_parts(
         ConeCoordinate::reserved_single_file(),
+        &[],
         &fixture.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         fixture.digests.clone(),
@@ -41,6 +42,7 @@ fn replay_section(
         decode_canonical(bytes, DecodeLimits::default()).unwrap();
     decoded.replay(
         ConeCoordinate::reserved_single_file(),
+        &[],
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
@@ -174,6 +176,7 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
     );
     let production = StrongProductionSectionV2::from_parts(
         coordinate,
+        &[],
         &fixture.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
         fixture.digests.clone(),

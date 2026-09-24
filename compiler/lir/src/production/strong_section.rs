@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use scoop_identity::{ConeCoordinate, SourceDeclarationKey, ValidatedIdentityGraph};
+use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, ValidatedIdentityGraph};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, encode};
 
 use crate::{
@@ -54,6 +54,7 @@ impl StrongProductionSectionV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         foundation: &OdrFreeLirFoundation,
         external_bridges: StrongExternalLirBridgeSurfaceV1,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
@@ -64,6 +65,7 @@ impl StrongProductionSectionV1 {
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
+            direct_dependencies,
             foundation,
             external_bridges,
             digest_finalization_plan,
@@ -79,6 +81,7 @@ impl StrongProductionSectionV2 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         foundation: &OdrFreeLirFoundation,
         external_bridges: StrongExternalLirBridgeSurfaceV1,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
@@ -89,6 +92,7 @@ impl StrongProductionSectionV2 {
     ) -> Result<Self, StrongProductionSectionBuildError> {
         Self::from_parts(
             coordinate,
+            direct_dependencies,
             foundation,
             external_bridges,
             digest_finalization_plan,
@@ -104,6 +108,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_parts(
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         foundation: &OdrFreeLirFoundation,
         external_bridges: StrongExternalLirBridgeSurfaceV1,
         digest_finalization_plan: StrongDigestFinalizationPlanV1,
@@ -132,6 +137,7 @@ impl<D, C, I> StrongProductionSection<D, C, I> {
         .map_err(StrongProductionSectionBuildError::InitializationAbi)?;
         let image_plan = ConeImagePlanV1::new(
             coordinate,
+            direct_dependencies,
             foundation,
             registration_production.identities(),
             &digest_finalization_plan,
@@ -251,6 +257,7 @@ impl DecodedStrongProductionSectionV1 {
     pub fn validate(
         self,
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         expected_external_bridges: &StrongExternalLirBridgeSurfaceV1,
@@ -282,6 +289,7 @@ impl DecodedStrongProductionSectionV1 {
             .map_err(StrongProductionSectionValidationError::InitializationAbi)?;
         let expected = StrongProductionSectionV1::new(
             coordinate,
+            direct_dependencies,
             foundation,
             expected_external_bridges.clone(),
             digest_finalization_plan,

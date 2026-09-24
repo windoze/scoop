@@ -29,13 +29,16 @@ fn layout_code_fingerprint_binds_v2_both_imports_and_the_unchanged_manifest_wire
     let producer = cone.identity();
     let objects =
         crate::link_decode::tests::layout_link_support::verified_layout_code_link_object_members();
-    let (canonical, v1) =
-        crate::link_decode::tests::strong_production_fixture(cone.coordinate().clone());
+    let (canonical, v1) = crate::link_decode::tests::strong_production_fixture(
+        cone.coordinate().clone(),
+        &[scoop_identity::ConeIdentity::CORE],
+    );
     let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
     let target = LirTargetProfile::DARWIN_AARCH64;
     let layout = empty_section(producer);
     let v2 = StrongProductionSectionV2::new(
         cone.coordinate().clone(),
+        v1.image_plan().dependencies(),
         &foundation,
         v1.external_bridges().clone(),
         v1.digest_finalization_plan().clone(),

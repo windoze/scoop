@@ -443,7 +443,7 @@ impl AliasSurface {
 
     fn artifact(&self) -> Vec<u8> {
         let (mut hir, mut mir, mut lir) = required_sections();
-        retarget_lir_sections(&self.cone, &mut lir);
+        retarget_lir_sections(&self.cone, &[], &mut lir);
         replace_section(
             &mut hir,
             hir_identity_foundation_capability(),

@@ -36,10 +36,8 @@ impl VerifiedSingleConeProductionCodeProjectionV2 {
     }
 }
 
-/// Verifies the M23-6 production projection while preserving the M23 runtime
-/// image dependency contract. Ordinary dependencies are represented by the
-/// Strong V2 semantic refs and layout Link closure, not copied into the image
-/// descriptor before multi-image startup is implemented.
+/// Verifies the layout image against the artifact's complete direct dependency
+/// inventory before accepting its object and runtime fingerprint projection.
 pub fn verify_cross_cone_layout_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
@@ -51,16 +49,10 @@ pub fn verify_cross_cone_layout_production_code_projection_v1(
         .iter()
         .map(DependencyRecord::identity)
         .collect::<Vec<_>>();
-    let image_dependencies = if cone.identity() == scoop_identity::ConeIdentity::CORE {
-        Vec::new()
-    } else {
-        vec![scoop_identity::ConeIdentity::CORE]
-    };
     let strong_production = strong_production.into_section();
     let projection = verify_production_code_projection_common(
         cone,
         &dependency_identities,
-        &image_dependencies,
         source_count,
         &strong_production,
         &link_objects,

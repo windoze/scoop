@@ -939,11 +939,12 @@ pub(crate) mod tests;
 #[cfg(test)]
 pub(crate) fn strong_production_fixture_for_test(
     coordinate: ConeCoordinate,
+    direct_dependencies: &[ConeIdentity],
 ) -> (
     scoop_lir::CanonicalLirFoundation,
     scoop_lir::StrongProductionSectionV1,
 ) {
-    tests::strong_production_fixture(coordinate)
+    tests::strong_production_fixture(coordinate, direct_dependencies)
 }
 
 #[cfg(test)]

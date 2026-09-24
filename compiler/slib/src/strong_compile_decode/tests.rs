@@ -403,7 +403,7 @@ pub(crate) fn required_sections() -> (
     Vec<MetadataSection>,
 ) {
     let (lir_foundation, lir_production) =
-        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone());
+        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone(), &[]);
     let mut hir_foundation = CanonicalHirFoundation::empty();
     hir_foundation
         .set_types(vec![

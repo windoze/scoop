@@ -305,6 +305,7 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
         .strong_lir_output()
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_core(),
+            &[],
             scoop_lir::EntryProductionSourceV1::Library,
         )
         .unwrap();

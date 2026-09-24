@@ -163,8 +163,13 @@ fn artifact_bytes_with_candidates(
         ),
     ]);
 
-    let (foundation, production) =
-        crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone());
+    let (foundation, production) = crate::link_decode::strong_production_fixture_for_test(
+        cone.coordinate().clone(),
+        &dependencies
+            .iter()
+            .map(DependencyRecord::identity)
+            .collect::<Vec<_>>(),
+    );
     let foundation_section = lir
         .iter_mut()
         .find(|section| section.capability() == &lir_identity_foundation_capability())

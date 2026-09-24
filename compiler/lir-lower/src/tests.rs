@@ -264,6 +264,7 @@ fn lower_production(module: mir::Module) -> lir::StrongProductionSectionV1 {
     output
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
+            &[scoop_identity::ConeIdentity::CORE],
             entry_source,
         )
         .unwrap()

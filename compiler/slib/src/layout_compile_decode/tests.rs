@@ -313,7 +313,7 @@ fn layout_sections(
 
     lir.retain(|section| section.capability() != &lir_strong_production_capability());
     let (_, production) =
-        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone());
+        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone(), &[]);
     lir.extend([
         section(
             MetadataLocation::Lir,

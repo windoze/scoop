@@ -19,6 +19,7 @@ impl DecodedStrongProductionSectionV2 {
     pub fn replay(
         self,
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         expected_external_bridges: StrongExternalLirBridgeSurfaceV1,
@@ -33,6 +34,7 @@ impl DecodedStrongProductionSectionV2 {
         let path = WirePath::root();
         budget::charge_replay(
             foundation,
+            direct_dependencies,
             &expected_digests,
             shape_sources,
             expected_initialization_abi.as_deref(),
@@ -53,6 +55,7 @@ impl DecodedStrongProductionSectionV2 {
             .map_err(StrongProductionSectionValidationError::Registrations)?;
         let section = StrongProductionSectionV2::from_parts(
             coordinate,
+            direct_dependencies,
             foundation,
             expected_external_bridges,
             expected_digests,

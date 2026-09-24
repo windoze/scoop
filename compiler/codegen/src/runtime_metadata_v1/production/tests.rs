@@ -234,6 +234,7 @@ fn production() -> (
     let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
     let production = StrongProductionSectionV1::new(
         coordinate,
+        &[scoop_identity::ConeIdentity::CORE],
         &foundation,
         external,
         digests,
@@ -304,6 +305,7 @@ fn production_v2() -> (
     let external = StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
     let production = StrongProductionSectionV2::new(
         coordinate,
+        &[scoop_identity::ConeIdentity::CORE],
         &foundation,
         external,
         digests,

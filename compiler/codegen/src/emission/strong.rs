@@ -133,13 +133,14 @@ impl RenderedStrongObjectModuleV1 {
 pub fn emit_object_set(
     input: &scoop_lir::SingleConeStrongLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
+    direct_dependencies: &[scoop_lir::ConeIdentity],
     entry_source: scoop_lir::EntryProductionSourceV1,
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedStrongObjectSetV1, CodegenError> {
     validate_object_set_input(input, profile)?;
     let production = input
-        .build_production_section(coordinate.clone(), entry_source)
+        .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
@@ -330,6 +331,7 @@ fn validate_production_binding(
 pub fn render_llvm_ir_members(
     input: &scoop_lir::SingleConeStrongLirOutput,
     coordinate: &scoop_lir::ConeCoordinate,
+    direct_dependencies: &[scoop_lir::ConeIdentity],
     entry_source: scoop_lir::EntryProductionSourceV1,
     profile: ValidatedBackendProfile,
 ) -> Result<Vec<RenderedStrongObjectModuleV1>, CodegenError> {
@@ -337,7 +339,7 @@ pub fn render_llvm_ir_members(
     validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     let production = input
-        .build_production_section(coordinate.clone(), entry_source)
+        .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
         .map_err(|error| {
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;

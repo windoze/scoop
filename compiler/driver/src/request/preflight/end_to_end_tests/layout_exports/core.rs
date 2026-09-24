@@ -138,6 +138,7 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
         let registration = lir
             .build_production_section_v2(
                 coordinates[0].clone(),
+                &[],
                 lir::EntryProductionSourceV1::Library,
                 &selected,
                 &[],

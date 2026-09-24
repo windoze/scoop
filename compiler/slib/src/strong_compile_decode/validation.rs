@@ -127,6 +127,11 @@ pub(crate) fn validate_strong_profile_lir_with_shape_sources(
     let lir = lir
         .validate(
             graph.coordinate().clone(),
+            &graph
+                .direct_dependencies()
+                .iter()
+                .map(crate::DependencyRecord::identity)
+                .collect::<Vec<_>>(),
             graph.target_selection().target(),
             front.lir_foundation,
             expected_external_bridges,

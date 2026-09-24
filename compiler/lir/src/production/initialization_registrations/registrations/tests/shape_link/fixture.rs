@@ -56,6 +56,7 @@ impl ProviderFixture {
         .unwrap();
         let section = StrongProductionSectionV2::from_parts(
             coordinate,
+            &[],
             &source.foundation,
             StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
             source.digests.clone(),

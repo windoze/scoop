@@ -157,6 +157,7 @@ pub(super) fn with_production(
     let registration = lir
         .build_production_section_v2(
             coordinate.clone(),
+            &[scoop_identity::ConeIdentity::CORE],
             lir::EntryProductionSourceV1::Library,
             &selected,
             &[],

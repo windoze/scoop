@@ -59,8 +59,10 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         objects.final_objects().objects()[0].bytes().to_vec(),
     )
     .unwrap();
-    let (canonical, v1) =
-        crate::link_decode::tests::strong_production_fixture(cone.coordinate().clone());
+    let (canonical, v1) = crate::link_decode::tests::strong_production_fixture(
+        cone.coordinate().clone(),
+        &[scoop_identity::ConeIdentity::CORE],
+    );
     let foundation = OdrFreeLirFoundation::try_new(producer, canonical).unwrap();
     let ordinary = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap();
     let mismatched_ordinary = nonempty_ordinary(&foundation);
@@ -71,6 +73,7 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let mismatched_layout = mismatch_provider.consumer(producer);
     let v2 = StrongProductionSectionV2::new(
         cone.coordinate().clone(),
+        v1.image_plan().dependencies(),
         &foundation,
         v1.external_bridges().clone(),
         v1.digest_finalization_plan().clone(),

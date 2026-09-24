@@ -137,6 +137,7 @@ fn exercise_dependency_production(provider: Provider) {
     let pending = output
         .build_production_section_v2(
             consumer_coordinate.clone(),
+            &[provider.identity],
             EntryProductionSourceV1::Library,
             &selected,
             &[initialization_use],
@@ -205,6 +206,7 @@ fn exercise_dependency_production(provider: Provider) {
     let replayed = decoded
         .replay(
             consumer_coordinate.clone(),
+            &[provider.identity],
             TARGET,
             output.foundation(),
             section.external_bridges().clone(),

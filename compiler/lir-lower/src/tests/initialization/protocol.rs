@@ -144,6 +144,7 @@ fn ordinary_lowering_materializes_and_calls_the_initialization_protocol() {
     let production = output
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
+            &[scoop_identity::ConeIdentity::CORE],
             lir::EntryProductionSourceV1::Library,
         )
         .unwrap();

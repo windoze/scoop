@@ -425,7 +425,7 @@ mod tests {
     fn empty_bridge(name: &str) -> scoop_lir::CrossConeLirBridgeSectionV1 {
         let cone = crate::strong_compile_decode::tests::cone_named(name);
         let (foundation, _) =
-            crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone());
+            crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone(), &[]);
         let foundation =
             scoop_lir::OdrFreeLirFoundation::try_new(cone.identity(), foundation).unwrap();
         scoop_lir::CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new())

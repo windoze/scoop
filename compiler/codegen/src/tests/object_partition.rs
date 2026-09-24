@@ -104,6 +104,7 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
     let rendered = render_llvm_ir_members(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
+        &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         host_profile(),
     )
@@ -137,6 +138,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
     let emitted = emit_object_set(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
+        &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         parent.path(),
         host_profile(),
@@ -212,6 +214,7 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
     let emitted = emit_object_set(
         &input,
         &scoop_lir::ConeCoordinate::reserved_single_file(),
+        &[scoop_identity::ConeIdentity::CORE],
         scoop_lir::EntryProductionSourceV1::Library,
         parent.path(),
         host_profile(),

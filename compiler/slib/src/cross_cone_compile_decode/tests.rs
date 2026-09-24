@@ -576,7 +576,7 @@ pub(crate) fn cross_cone_artifact_for(
     hir_interface: Vec<u8>,
 ) -> Vec<u8> {
     let (mut hir, mut mir, mut lir) = required_sections();
-    retarget_lir_sections(&cone, &mut lir);
+    retarget_lir_sections(&cone, &dependencies, &mut lir);
     hir.push(section(
         MetadataLocation::Hir,
         hir_cross_cone_interface_capability(),
@@ -602,7 +602,7 @@ pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
     hir_interface: Vec<u8>,
 ) -> Vec<u8> {
     let (mut hir, mut mir, mut lir) = required_sections();
-    retarget_lir_sections(&cone, &mut lir);
+    retarget_lir_sections(&cone, &dependencies, &mut lir);
     let foundation = hir
         .iter_mut()
         .find(|section| section.capability() == &hir_identity_foundation_capability())
@@ -631,7 +631,11 @@ pub(crate) fn cross_cone_artifact_for_with_hir_foundation(
     )
 }
 
-fn retarget_lir_sections(cone: &ConeRecord, lir: &mut [crate::MetadataSection]) {
+fn retarget_lir_sections(
+    cone: &ConeRecord,
+    dependencies: &[DependencyRecord],
+    lir: &mut [crate::MetadataSection],
+) {
     if cone.identity() == scoop_identity::ConeIdentity::CORE {
         let foundation_section = lir
             .iter_mut()
@@ -646,8 +650,13 @@ fn retarget_lir_sections(cone: &ConeRecord, lir: &mut [crate::MetadataSection]) 
         return;
     }
 
-    let (foundation, production) =
-        crate::link_decode::strong_production_fixture_for_test(cone.coordinate().clone());
+    let (foundation, production) = crate::link_decode::strong_production_fixture_for_test(
+        cone.coordinate().clone(),
+        &dependencies
+            .iter()
+            .map(DependencyRecord::identity)
+            .collect::<Vec<_>>(),
+    );
     let foundation_section = lir
         .iter_mut()
         .find(|section| section.capability() == &lir_identity_foundation_capability())

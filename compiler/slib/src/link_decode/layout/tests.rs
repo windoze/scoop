@@ -139,8 +139,10 @@ fn layout_artifact(
         lir.retain(|item| item.capability() != &capability);
     }
     if include_v1_production {
-        let (_, production) =
-            crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone());
+        let (_, production) = crate::link_decode::strong_production_fixture_for_test(
+            cone().coordinate().clone(),
+            &[],
+        );
         lir.push(section(
             MetadataLocation::Lir,
             lir_strong_production_capability(),
@@ -197,7 +199,7 @@ fn layout_sections(
 
     lir.retain(|item| item.capability() != &lir_strong_production_capability());
     let (_, production) =
-        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone());
+        crate::link_decode::strong_production_fixture_for_test(cone().coordinate().clone(), &[]);
     lir.extend([
         section(
             MetadataLocation::Lir,

@@ -2,6 +2,8 @@
 
 core与其他library Cone使用相同image、registration与ABI检查。runtime和linker只关心实际typed表示及调用契约，不检查core源码来自哪个目录，不消费core专用授权token或缓存receipt；用户重建core后按普通依赖fingerprint更新产物。
 
+每个 Cone image 的依赖表与该 artifact 的完整直接依赖集合一致，按 ConeIdentity 严格排序，拒绝自身、重复、缺失或额外项；core image 同样使用实际集合。编译器、artifact reader 和 Link object verifier 在登记与 fingerprint 前闭合这项关系，不能将普通依赖移出 image 表。此规则复用已有 descriptor 字段和 RuntimeImage 编码，不改变 C ABI，也不在 M23-6 执行多 image startup。
+
 版本：0.6（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）。本文引用其章节号。

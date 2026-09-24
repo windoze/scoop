@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use scoop_identity::{ConeCoordinate, SourceDeclarationKey};
+use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey};
 use scoop_wire::BudgetMeter;
 
 use crate::{
@@ -100,6 +100,7 @@ impl SingleConeStrongLirOutput {
     pub fn build_production_section(
         &self,
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
     ) -> Result<StrongProductionSectionV1, StrongProductionWriterError> {
         let external_bridges = StrongExternalLirBridgeSurfaceV1::from_module(&self.module)
@@ -115,6 +116,7 @@ impl SingleConeStrongLirOutput {
         .map_err(StrongProductionWriterError::Registrations)?;
         StrongProductionSectionV1::new(
             coordinate,
+            direct_dependencies,
             &self.foundation,
             external_bridges,
             digests,
@@ -132,6 +134,7 @@ impl SingleConeStrongLirOutput {
     pub fn build_production_section_v2(
         &self,
         coordinate: ConeCoordinate,
+        direct_dependencies: &[ConeIdentity],
         entry_source: EntryProductionSourceV1,
         selected: &crate::StrongProductionDependencySelectionV2<'_>,
         external_initialization_uses: &[crate::StrongExternalInitializationUseV2],
@@ -158,6 +161,7 @@ impl SingleConeStrongLirOutput {
         .map_err(StrongProductionWriterError::Registrations)?;
         StrongProductionSectionV2::new(
             coordinate,
+            direct_dependencies,
             &self.foundation,
             external_bridges,
             digests,

@@ -531,7 +531,14 @@ mod tests {
         let (foundation, digests) = image_fixture(coordinate.clone(), Some(unit_exact_type()));
         let registrations =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-        let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
+        let plan = ConeImagePlanV1::new(
+            coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digests,
+        )
+        .unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
@@ -601,7 +608,8 @@ mod tests {
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
         let registrations =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-        let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
+        let plan =
+            ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digests).unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);
@@ -619,7 +627,14 @@ mod tests {
         let (foundation, digests) = image_fixture(coordinate.clone(), None);
         let registrations =
             StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-        let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digests).unwrap();
+        let plan = ConeImagePlanV1::new(
+            coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digests,
+        )
+        .unwrap();
         let context = Context::create();
         let llvm = context.create_module("image");
         let (bounds_message, array_size_message) = trap_messages(&context, &llvm, &plan);

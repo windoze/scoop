@@ -90,6 +90,7 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
             emit_object_set(
                 &input,
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
+                &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 &output,
                 profile,
@@ -106,6 +107,7 @@ fn assert_public_entries_reject(module: Module, expected: &str, fixture: &str) {
             render_llvm_ir_members(
                 &input,
                 &scoop_lir::ConeCoordinate::reserved_single_file(),
+                &[scoop_identity::ConeIdentity::CORE],
                 scoop_lir::EntryProductionSourceV1::Library,
                 profile,
             )

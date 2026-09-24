@@ -33,6 +33,7 @@ fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
     .unwrap();
     let current = StrongProductionSectionV2::from_parts(
         coordinate.clone(),
+        &[],
         &foundation,
         external.clone(),
         digests.clone(),
@@ -44,6 +45,7 @@ fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
     .unwrap();
     let old = StrongProductionSectionV1::new(
         coordinate,
+        &[],
         &foundation,
         external,
         digests.clone(),

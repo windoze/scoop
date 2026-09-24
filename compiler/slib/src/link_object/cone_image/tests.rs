@@ -326,7 +326,14 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
     let digest_plan = StrongDigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
-    let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan).unwrap();
+    let plan = ConeImagePlanV1::new(
+        coordinate,
+        &[scoop_identity::ConeIdentity::CORE],
+        &foundation,
+        &registrations,
+        &digest_plan,
+    )
+    .unwrap();
 
     let bridge_plan = GeneratedBridgePlanSetV1::from_odr_free_foundation(&foundation).unwrap();
     let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundation).unwrap();

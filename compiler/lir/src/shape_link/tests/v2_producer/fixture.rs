@@ -51,6 +51,7 @@ impl Provider {
         let section = output
             .build_production_section_v2(
                 coordinate,
+                &[],
                 EntryProductionSourceV1::Library,
                 &empty,
                 &[],

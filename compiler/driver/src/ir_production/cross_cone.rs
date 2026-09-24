@@ -96,6 +96,10 @@ impl CrossConeStrongIrProductionV1 {
         let scoop_objects = scoop_codegen::emit_object_set(
             &lir,
             cone.coordinate(),
+            &direct_dependencies
+                .iter()
+                .map(DependencyRecord::identity)
+                .collect::<Vec<_>>(),
             entry_source,
             temporary_parent,
             backend,

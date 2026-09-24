@@ -151,9 +151,11 @@ fn an_ordinary_provider_supplies_string_and_initialization_through_shared_record
     let production = output
         .build_production_section(
             scoop_identity::ConeCoordinate::reserved_single_file(),
+            &[provider],
             lir::EntryProductionSourceV1::Library,
         )
         .unwrap();
+    assert_eq!(production.image_plan().dependencies(), &[provider]);
     assert_eq!(production.external_bridges().bridges().len(), 2);
     assert!(
         production

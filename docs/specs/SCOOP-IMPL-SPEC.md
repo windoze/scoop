@@ -18,6 +18,8 @@ M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export �
 
 当前 provider 拥有的语言内建 Unit/Any 必须在 LocalConcrete HIR sealing 前显式保留，并在 HIR → MIR 转置时作为必需类型根沿共有 source-exact 路径处理；不能依赖额外源码引用才获得完整导出。该必需集合依据内建 typed declaration 的真实 origin 判定，外来 consumer 仍只为实际使用引入依赖引用。验收包括不添加类型使用的原始 core 源码基线，完整 MIR/LIR section、Strong V2 registration 和 LLVM 对象发射均须闭合。
 
+M23-6 的 Cone image dependency 表使用当前 artifact 的完整直接依赖集合，包含显式与前端发现后纳入 manifest 的普通 provider，按 ConeIdentity 严格排序；生产入口必须显式传入该集合，不能从当前 Cone 是否为 CORE 推断空表或固定 core 单项。构造与读取拒绝 self-dependency、重复、缺失及多余依赖；Compile reader 从已验证 manifest 重建预期 image plan，Link reader 与生产 Code projection 逐项关联同一集合，再验证实际 object bytes、依赖 atom、RuntimeImage 与 Code fingerprint。仅因运行时尚未执行多 image startup，不能丢弃已经声明的依赖元数据。既有 image wire field、identity、runtime C ABI 与 fingerprint 编码不变，新的实际依赖通过已有字段进入 fingerprint；该修正不提前开放 M23-8 startup、M23-9 program-link 或后续 ODR 能力。
+
 layout profile 的对象组装直接消费同次 V2 LLVM 发射结果，必须在释放临时对象目录前取得完整成员 bytes；成员绑定、C bridge envelope、relocation、digest patch、stackmap 与六类 registration 沿现有共有校验执行，type 和 initialization 使用 V2 引用语义。完整 undefined-use 分区先闭合，再计算 callable/descriptor/registration、runtime image 和 Code fingerprint，最终由既有 layout writer 组装 archive。已验证的 V2 production 结果只能按所有权传递，不能复制、降级或替换为未经 layout join 的 section。对象组装结果本身不构成 Compile/Link 发布凭证；最终发布继续要求从这些 bytes 完整重放两个视图与依赖闭包。
 
 ## 1. 总体技术路线

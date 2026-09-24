@@ -29,6 +29,7 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
     .unwrap();
     let section = StrongProductionSectionV1::new(
         coordinate.clone(),
+        &[],
         &foundation,
         external.clone(),
         digests,
@@ -48,6 +49,7 @@ fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {
     let validated = decoded
         .validate(
             coordinate,
+            &[],
             LirTargetProfile::DARWIN_AARCH64,
             &foundation,
             &external,

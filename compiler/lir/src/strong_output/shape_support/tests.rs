@@ -186,11 +186,16 @@ fn v2_writer_preserves_legacy_relation_bytes_for_a_final_lir_module() {
     let output = crate::SingleConeStrongLirOutput::try_new(module, Vec::new(), None).unwrap();
     let selected = empty_production_selection(output.foundation().producer());
     let v1 = output
-        .build_production_section(coordinate.clone(), crate::EntryProductionSourceV1::Library)
+        .build_production_section(
+            coordinate.clone(),
+            &[scoop_identity::ConeIdentity::CORE],
+            crate::EntryProductionSourceV1::Library,
+        )
         .unwrap();
     let v2 = output
         .build_production_section_v2(
             coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
             crate::EntryProductionSourceV1::Library,
             &selected,
             &[],
@@ -247,6 +252,7 @@ fn v2_writer_rejects_an_external_descriptor_without_selected_terminal_authority(
     assert!(matches!(
         output.build_production_section_v2(
             coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
             crate::EntryProductionSourceV1::Library,
             &selected,
             &[],

@@ -80,7 +80,7 @@ impl<'provider> Consumer<'provider> {
         let consumer = coordinate.identity().unwrap();
         let section = provider.consumer(consumer);
         let (canonical, old) =
-            crate::link_decode::tests::strong_production_fixture(coordinate.clone());
+            crate::link_decode::tests::strong_production_fixture(coordinate.clone(), &[]);
         let foundation = OdrFreeLirFoundation::try_new(consumer, canonical).unwrap();
         let production = replay(&old, coordinate, &foundation, &section);
         let ordinary = CrossConeLirBridgeSectionV1::try_new(&foundation, vec![], vec![]).unwrap();
@@ -146,6 +146,7 @@ pub(super) fn replay_provider_production(
     let external = provider.production.external_bridges().clone();
     let old = StrongProductionSectionV1::new(
         coordinate.clone(),
+        &[scoop_identity::ConeIdentity::CORE],
         &provider.foundation,
         external,
         digests.clone(),
@@ -170,6 +171,7 @@ fn replay(
         decode_canonical(&encode(old).unwrap(), DecodeLimits::default()).unwrap();
     raw.replay(
         coordinate,
+        old.image_plan().dependencies(),
         TARGET,
         foundation,
         old.external_bridges().clone(),

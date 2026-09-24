@@ -1,0 +1,3 @@
+package image.unused
+
+public fun unused(): Int = 1

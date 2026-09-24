@@ -76,6 +76,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
             crate::StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap();
         let section = crate::StrongProductionSectionV2::from_parts(
             coordinate.clone(),
+            &[],
             &fixture.foundation,
             external.clone(),
             fixture.digests.clone(),
@@ -90,6 +91,7 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
         let complete = decoded
             .replay(
                 coordinate,
+                &[],
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 external,

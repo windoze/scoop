@@ -21,7 +21,7 @@ impl Provider {
         let coordinate = ConeCoordinate::new("test", "layout-link-provider", "1.0.0").unwrap();
         let provider = coordinate.identity().unwrap();
         let (mut canonical, image) =
-            crate::link_decode::tests::strong_production_fixture(coordinate.clone());
+            crate::link_decode::tests::strong_production_fixture(coordinate.clone(), &[]);
         let source = SourceDeclarationKey::nominal(
             SourceDeclarationSite::new(
                 provider,
@@ -111,6 +111,7 @@ impl Provider {
         let digests = image.digest_finalization_plan().clone();
         let old = StrongProductionSectionV1::new(
             coordinate.clone(),
+            &[scoop_identity::ConeIdentity::CORE],
             &foundation,
             external.clone(),
             digests.clone(),
@@ -125,6 +126,7 @@ impl Provider {
         let production = raw
             .replay(
                 coordinate,
+                old.image_plan().dependencies(),
                 TARGET,
                 &foundation,
                 external,

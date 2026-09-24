@@ -187,6 +187,28 @@ public fun invoke(value: Number): Int {
         .direct_provider(facade_identity)
         .unwrap()
         .production();
+    assert_eq!(
+        facade_production.lir_strong().image_plan().dependencies(),
+        expected_facade_dependencies,
+    );
+    assert_eq!(
+        closure
+            .current_compile()
+            .production()
+            .lir_strong()
+            .image_plan()
+            .dependencies(),
+        expected_consumer_dependencies,
+    );
+    assert_eq!(
+        closure
+            .current_link()
+            .production()
+            .lir()
+            .image_plan()
+            .dependencies(),
+        expected_consumer_dependencies,
+    );
     assert!(facade_production.lir_cross_cone().exports().is_empty());
     assert!(facade_production.lir_cross_cone().selected().is_empty());
 

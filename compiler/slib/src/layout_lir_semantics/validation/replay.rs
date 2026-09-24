@@ -124,10 +124,26 @@ where
         type_definitions,
         initialization_definitions,
     ) = strong.into_parts();
+    let mut direct_dependencies = Vec::new();
+    front
+        .meter
+        .try_reserve_collection_slots(
+            &mut direct_dependencies,
+            direct.len(),
+            &scoop_wire::WirePath::root(),
+        )
+        .map_err(
+            |source| CrossConeLayoutLirSemanticClosureError::StrongReplay {
+                provider: front.provider,
+                source: Box::new(source.into()),
+            },
+        )?;
+    direct_dependencies.extend(direct.iter().map(|dependency| dependency.provider()));
     let replayed = front
         .strong
         .replay(
             front.coordinate,
+            &direct_dependencies,
             target.target(),
             front.foundation,
             external_bridges,

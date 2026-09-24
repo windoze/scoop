@@ -4,6 +4,7 @@ use super::*;
 
 pub(super) fn charge_replay(
     foundation: &OdrFreeLirFoundation,
+    direct_dependencies: &[ConeIdentity],
     digests: &StrongDigestFinalizationPlanV1,
     sources: &[SourceDeclarationKey],
     initialization_abi: Option<&CallableAbiRecordV1>,
@@ -15,6 +16,7 @@ pub(super) fn charge_replay(
     let nodes = digests.nodes().len() as u64;
     let source_count = sources.len() as u64;
     let entries = definitions
+        .saturating_add(direct_dependencies.len() as u64)
         .saturating_add(atoms)
         .saturating_add(nodes)
         .saturating_add(foundation.symbol_requests().len() as u64)

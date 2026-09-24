@@ -21,6 +21,7 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
+        &[scoop_identity::ConeIdentity::CORE],
         &foundation,
         &registrations,
         &digest_plan,
@@ -46,7 +47,13 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
     let decoded: DecodedConeImagePlanV1 =
         decode_canonical(&bytes, DecodeLimits::default()).unwrap();
     let validated = decoded
-        .validate(&coordinate, &foundation, &registrations, &digest_plan)
+        .validate(
+            &coordinate,
+            &[ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digest_plan,
+        )
         .unwrap();
     assert_eq!(encode(&validated).unwrap(), bytes);
     assert_eq!(
@@ -56,12 +63,13 @@ fn single_file_image_plan_binds_coordinate_core_dependency_and_empty_tables() {
 }
 
 #[test]
-fn core_image_has_no_dependency_edge() {
+fn core_image_preserves_an_explicit_empty_dependency_set() {
     let coordinate = ConeCoordinate::reserved_core();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
     let registrations =
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
-    let plan = ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan).unwrap();
+    let plan =
+        ConeImagePlanV1::new(coordinate, &[], &foundation, &registrations, &digest_plan).unwrap();
 
     assert!(plan.dependencies().is_empty());
 }
@@ -88,7 +96,13 @@ fn image_requires_every_registration_fingerprint_as_a_direct_input() {
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
-        ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan),
+        ConeImagePlanV1::new(
+            coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digest_plan
+        ),
         Err(ConeImagePlanBuildError::RegistrationInputs { .. })
     ));
 }
@@ -101,6 +115,7 @@ fn reader_rejects_a_coordinate_from_another_cone() {
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
     let plan = ConeImagePlanV1::new(
         coordinate.clone(),
+        &[scoop_identity::ConeIdentity::CORE],
         &foundation,
         &registrations,
         &digest_plan,
@@ -113,6 +128,7 @@ fn reader_rejects_a_coordinate_from_another_cone() {
         decoded
             .validate(
                 &ConeCoordinate::reserved_core(),
+                &[],
                 &foundation,
                 &registrations,
                 &digest_plan,
@@ -129,7 +145,13 @@ fn image_rejects_the_obsolete_primary_only_atom_shape() {
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
-        ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan),
+        ConeImagePlanV1::new(
+            coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digest_plan
+        ),
         Err(ConeImagePlanBuildError::AtomSet { .. })
     ));
 }
@@ -171,12 +193,18 @@ fn image_rejects_non_registration_direct_inputs() {
         StrongRegistrationIdentitySurfaceV1::from_foundation(&foundation, &digest_plan).unwrap();
 
     assert!(matches!(
-        ConeImagePlanV1::new(coordinate, &foundation, &registrations, &digest_plan),
+        ConeImagePlanV1::new(
+            coordinate,
+            &[scoop_identity::ConeIdentity::CORE],
+            &foundation,
+            &registrations,
+            &digest_plan
+        ),
         Err(ConeImagePlanBuildError::RegistrationInputs { .. })
     ));
 }
 
-fn image_fixture(
+pub(super) fn image_fixture(
     coordinate: ConeCoordinate,
     registration: Option<PersistentExactTypeId>,
     image_depends_on_registration: bool,

@@ -307,17 +307,14 @@ pub fn verify_single_cone_production_code_projection_v1(
     verify_production_code_projection_v1(
         cone,
         &dependency_identities,
-        &dependency_identities,
         source_count,
         strong_production,
         link_objects,
     )
 }
 
-/// Verifies the M23-5 production projection without changing the frozen
-/// M23-3 image-plan dependency contract. Ordinary direct dependencies belong
-/// to the artifact graph and semantic/link closures; the legacy runtime image
-/// descriptor continues to name only the implicit trusted-core dependency.
+/// Verifies the ordinary cross-Cone image against the same direct dependency
+/// inventory used by the artifact graph and semantic/link closures.
 pub fn verify_cross_cone_production_code_projection_v1(
     cone: &ConeRecord,
     direct_dependencies: &[DependencyRecord],
@@ -325,19 +322,9 @@ pub fn verify_cross_cone_production_code_projection_v1(
     strong_production: StrongProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
 ) -> Result<VerifiedSingleConeProductionCodeProjectionV1, ProductionCodeProjectionError> {
-    let dependency_identities = direct_dependencies
-        .iter()
-        .map(DependencyRecord::identity)
-        .collect::<Vec<_>>();
-    let legacy_image_dependencies = if cone.identity() == scoop_identity::ConeIdentity::CORE {
-        Vec::new()
-    } else {
-        vec![scoop_identity::ConeIdentity::CORE]
-    };
-    verify_production_code_projection_v1(
+    verify_single_cone_production_code_projection_v1(
         cone,
-        &dependency_identities,
-        &legacy_image_dependencies,
+        direct_dependencies,
         source_count,
         strong_production,
         link_objects,
@@ -347,7 +334,6 @@ pub fn verify_cross_cone_production_code_projection_v1(
 fn verify_production_code_projection_v1(
     cone: &ConeRecord,
     dependency_identities: &[scoop_identity::ConeIdentity],
-    expected_image_dependencies: &[scoop_identity::ConeIdentity],
     source_count: usize,
     strong_production: StrongProductionSectionV1,
     link_objects: VerifiedCodeLinkObjectMemberSetV1,
@@ -355,7 +341,6 @@ fn verify_production_code_projection_v1(
     let projection = verify_production_code_projection_common(
         cone,
         dependency_identities,
-        expected_image_dependencies,
         source_count,
         &strong_production,
         &link_objects,
@@ -370,7 +355,6 @@ fn verify_production_code_projection_v1(
 pub(super) fn verify_production_code_projection_common<D, C, I>(
     cone: &ConeRecord,
     dependency_identities: &[scoop_identity::ConeIdentity],
-    expected_image_dependencies: &[scoop_identity::ConeIdentity],
     source_count: usize,
     strong_production: &StrongProductionSection<D, C, I>,
     link_objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
@@ -417,7 +401,7 @@ where
         return Err(ProductionCodeProjectionError::RegistrationIdentityMismatch);
     }
 
-    if expected_image_dependencies != strong_production.image_plan().dependencies() {
+    if dependency_identities != strong_production.image_plan().dependencies() {
         return Err(ProductionCodeProjectionError::DependencyMismatch);
     }
 
