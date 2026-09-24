@@ -32,7 +32,19 @@ pub struct SharedTypeMetadataV1<'a> {
     pub public: &'a CrossConeHirInterfaceSectionV1,
 }
 
-impl SharedTypeMetadataV1<'_> {
+impl<'a> SharedTypeMetadataV1<'a> {
+    /// Borrows the original source unit table without implying materialization.
+    pub fn source_initialization_units(
+        self,
+    ) -> &'a [scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentInitializationUnitId,
+        scoop_identity::InitializationUnitKey,
+    >] {
+        self.foundation
+            .as_canonical()
+            .type_source_initialization_records()
+    }
+
     /// Resolves a parameter-free source signature through this artifact's
     /// canonical identity graph, including each structural component.
     pub fn signature_exact_type(

@@ -90,6 +90,11 @@ fn shared_equality_replays_materialized_source_applications_and_default_only_key
     check_core_layout_exports(&["shared-equality-standalone", "shared-equality-combined"]);
 }
 
+#[test]
+fn shared_initialization_units_replay_source_keys_and_complete_strong_pairs() {
+    check_core_layout_exports(&["shared-units-standalone", "shared-units-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

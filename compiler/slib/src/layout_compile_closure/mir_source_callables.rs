@@ -24,6 +24,7 @@ mod constructors;
 mod equality;
 mod errors;
 mod objects;
+mod replay;
 mod validation;
 use SharedMirSourceCallableValidationError as Error;
 pub use constructors::{
@@ -40,13 +41,19 @@ pub use objects::{
 };
 pub use validation::validate_shared_mir_source_callables;
 
-/// Source functions/accessors, constructors, generated equality, object
-/// initialization and dispatch agree with shared HIR. Initialization uses,
-/// selected uses and LIR remain unvalidated.
+struct ResolvedMirSourceSections<'input> {
+    prepared: PreparedCrossConeLayoutMirSections<'input>,
+    mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
+    lir: DecodedCrossConeLayoutLirCandidates,
+}
+
+/// Source callables, object initialization, unit contracts and dispatch agree
+/// with shared HIR. Initialization uses, selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     prepared: PreparedCrossConeLayoutMirSections<'input>,
     mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
     lir: DecodedCrossConeLayoutLirCandidates,
+    units: Vec<scoop_mir::MirTypeBridgeInitializationUnitV1>,
 }
 
 pub struct MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
@@ -73,8 +80,7 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
             positions,
             dependency_positions,
         } = self;
-        let mut resolved: Vec<MirSourceCallablesValidatedCrossConeLayoutSections<'input>> =
-            Vec::new();
+        let mut resolved: Vec<ResolvedMirSourceSections<'input>> = Vec::new();
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
             let resolve = || -> Result<_, Error> {
@@ -97,115 +103,47 @@ impl<'input> MirTypesValidatedCrossConeLayoutClosure<'input> {
                 parts
                     .meter
                     .try_reserve_collection_slots(&mut resolved, 1, &WirePath::root())?;
-                Ok(MirSourceCallablesValidatedCrossConeLayoutSections { prepared, mir, lir })
+                Ok(ResolvedMirSourceSections { prepared, mir, lir })
             };
             let artifact = resolve()
                 .map_err(|source| CrossConeLayoutMirSourceCallablesError::new(provider, source))?;
             resolved.push(artifact);
         }
-        validate_sources(&mut resolved, &dependency_positions)?;
+        let units = replay::validate_sources(&mut resolved, &dependency_positions)?;
+        let mut complete = Vec::new();
+        for (
+            ResolvedMirSourceSections {
+                mut prepared,
+                mir,
+                lir,
+            },
+            units,
+        ) in resolved.into_iter().zip(units)
+        {
+            let provider = prepared.provider();
+            prepared
+                .semantic_parts()
+                .meter
+                .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())
+                .map_err(|source| {
+                    CrossConeLayoutMirSourceCallablesError::new(provider, source.into())
+                })?;
+            complete.push(MirSourceCallablesValidatedCrossConeLayoutSections {
+                prepared,
+                mir,
+                lir,
+                units,
+            });
+        }
         Ok(MirSourceCallablesValidatedCrossConeLayoutClosure {
             current,
             target,
             direct,
-            dependency_first: resolved,
+            dependency_first: complete,
             positions,
             dependency_positions,
         })
     }
-}
-
-fn validate_sources(
-    artifacts: &mut [MirSourceCallablesValidatedCrossConeLayoutSections<'_>],
-    dependency_positions: &[Vec<usize>],
-) -> Result<(), CrossConeLayoutMirSourceCallablesError> {
-    let mut checked: Vec<CheckedSharedTypeFoundationV1<'_>> = Vec::new();
-    let mut checked_callables: Vec<&CanonicalMirCallableBindingsV1> = Vec::new();
-    for (position, artifact) in artifacts.iter_mut().enumerate() {
-        let provider = artifact.identity();
-        let parts = artifact.prepared.semantic_parts();
-        let mut validate = || -> Result<_, Error> {
-            let reachable = transitive_positions(position, dependency_positions, parts.meter)?;
-            let mut dependencies = Vec::new();
-            parts.meter.try_reserve_collection_slots(
-                &mut dependencies,
-                reachable.len(),
-                &WirePath::root(),
-            )?;
-            dependencies.extend(reachable.iter().map(|position| checked[*position]));
-            let mut dependency_callables = Vec::new();
-            parts.meter.try_reserve_collection_slots(
-                &mut dependency_callables,
-                reachable.len(),
-                &WirePath::root(),
-            )?;
-            dependency_callables.extend(
-                reachable
-                    .iter()
-                    .map(|position| checked_callables[*position]),
-            );
-            let source = parts.hir_types.validate_shared_foundation(
-                SharedTypeMetadataV1 {
-                    provider,
-                    identities: parts.identities,
-                    foundation: parts.hir_foundation,
-                    public: parts.hir_interface,
-                },
-                &dependencies,
-                parts.meter,
-            )?;
-            source.with_inheritance_graph(&dependencies, parts.meter, |graph, meter| {
-                validate_shared_mir_source_callables(
-                    source,
-                    &dependencies,
-                    graph,
-                    parts.mir_ordinary,
-                    artifact.mir.callables(),
-                    meter,
-                )
-            })??;
-            validate_shared_mir_constructors(source, artifact.mir.callables(), parts.meter)
-                .map_err(|error| Error::Constructors(Box::new(error)))?;
-            validate_shared_mir_objects(
-                source,
-                artifact.mir.callables(),
-                artifact.mir.object_values(),
-                parts.meter,
-            )
-            .map_err(|error| Error::Objects(Box::new(error)))?;
-            validate_shared_mir_equality(
-                source,
-                &dependencies,
-                parts.mir_core.strong_callable_bridges(),
-                artifact.mir.callables(),
-                parts.meter,
-            )
-            .map_err(|error| Error::Equality(Box::new(error)))?;
-            super::mir_dispatch::validate_shared_mir_dispatch(
-                source,
-                &dependencies,
-                artifact.mir.callables(),
-                &dependency_callables,
-                artifact.mir.dispatch(),
-                parts.meter,
-            )
-            .map_err(|error| Error::Dispatch(Box::new(error)))?;
-            parts
-                .meter
-                .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;
-            parts.meter.try_reserve_collection_slots(
-                &mut checked_callables,
-                1,
-                &WirePath::root(),
-            )?;
-            Ok(source)
-        };
-        let source = validate()
-            .map_err(|source| CrossConeLayoutMirSourceCallablesError::new(provider, source))?;
-        checked.push(source);
-        checked_callables.push(artifact.mir.callables());
-    }
-    Ok(())
 }
 
 impl MirSourceCallablesValidatedCrossConeLayoutSections<'_> {
@@ -229,6 +167,9 @@ impl MirSourceCallablesValidatedCrossConeLayoutSections<'_> {
     }
     pub fn dispatch(&self) -> &CanonicalMirDispatchSchemasV1 {
         self.mir.dispatch()
+    }
+    pub fn initialization_units(&self) -> &[scoop_mir::MirTypeBridgeInitializationUnitV1] {
+        &self.units
     }
     pub fn lir_strong_production_wire(&self) -> &scoop_lir::DecodedStrongProductionSectionV2 {
         &self.lir.strong

@@ -4,6 +4,9 @@ use super::*;
 pub enum MirTypeBridgeUnitProblemV1 {
     WrongProvider,
     MissingRole,
+    MissingSource,
+    GenericSource,
+    DefinitionRole,
     Signature,
     ProducerInventory,
     ProducerRole,

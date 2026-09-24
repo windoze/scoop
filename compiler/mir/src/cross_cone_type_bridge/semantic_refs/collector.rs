@@ -21,6 +21,7 @@ pub enum MirTypeBridgeReferenceError {
     MissingType(PersistentExactTypeId),
     StructuralExecutionGate(PersistentExactTypeId),
     GenericUnitGate(PersistentInitializationUnitId),
+    Initialization(Box<MirObjectBridgeError>),
     GeneratedExecutionGate,
     NonMemberCallableTarget(StrongCallableDefinitionOwner),
 }

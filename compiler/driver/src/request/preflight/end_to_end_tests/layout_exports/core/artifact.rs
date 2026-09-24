@@ -7,6 +7,7 @@ mod mir_equality;
 mod mir_objects;
 mod mir_source_callables;
 mod mir_types;
+mod mir_units;
 mod type_foundations;
 
 #[allow(clippy::too_many_arguments)]

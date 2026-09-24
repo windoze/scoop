@@ -34,8 +34,8 @@ impl MirTypeBridgeSemanticReferencesV1 {
         collector.finish()
     }
 
-    /// The unit's callable roles and bodies are separately joined with the
-    /// sealed materialization roots; deriving its source edges is not proof.
+    /// Unit ownership is an identity relation, not a type-layout export edge.
+    /// Callable roles and bodies are joined with their sealed materialization.
     pub fn of_initialization_unit(
         unit: PersistentInitializationUnitId,
         graph: &ValidatedIdentityGraph,
@@ -63,18 +63,16 @@ impl Collector<'_> {
         &mut self,
         unit: PersistentInitializationUnitId,
     ) -> Result<(), MirTypeBridgeReferenceError> {
-        self.meter.charge_work(1, &WirePath::root())?;
+        self.meter.charge_work(3, &WirePath::root())?;
         let key = self.graph.canonical_key::<_, InitializationUnitKey>(unit)?;
-        match key.as_ref() {
-            InitializationUnitKey::Object(object) | InitializationUnitKey::Companion(object) => {
-                self.nominal(*object)?;
-            }
-            InitializationUnitKey::TopLevelProperty(_)
-            | InitializationUnitKey::ExtensionProperty(_) => {}
-            InitializationUnitKey::GenericDelegatedExtensionApplication { .. } => {
-                return Err(MirTypeBridgeReferenceError::GenericUnitGate(unit));
-            }
+        if matches!(
+            key.as_ref(),
+            InitializationUnitKey::GenericDelegatedExtensionApplication { .. }
+        ) {
+            return Err(MirTypeBridgeReferenceError::GenericUnitGate(unit));
         }
+        super::super::super::objects::unit_provider(self.graph, unit)
+            .map_err(|error| MirTypeBridgeReferenceError::Initialization(Box::new(error)))?;
         Ok(())
     }
 }

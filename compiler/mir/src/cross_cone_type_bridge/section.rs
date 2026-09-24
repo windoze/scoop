@@ -24,7 +24,10 @@ pub use error::*;
 pub use model::*;
 pub use selection::{SelectedDependencyMirTypeRefV1, SelectedDependencyMirTypeSetV1};
 pub use source::*;
-pub use units::{MirInitializationUnitProofKindV1, MirTypeBridgeInitializationUnitV1};
+pub use units::{
+    MirInitializationUnitProofKindV1, MirTypeBridgeInitializationUnitV1,
+    replay_source_initialization_units,
+};
 pub use wire::{
     CallablesResolvedCrossConeMirTypeBridgeSectionV1, DecodedCrossConeMirTypeBridgeSectionV1,
     TypeResolvedCrossConeMirTypeBridgeSectionV1,

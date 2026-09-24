@@ -1,0 +1,101 @@
+use super::*;
+use scoop_identity::{CoreBuiltinNominal, SignatureTypeKey};
+
+mod mutations;
+
+pub(super) fn check(
+    name: &str,
+    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    foundation: &mir::OdrFreeMirFoundation,
+    strong: &mir::StrongCallableBridgeSurfaceV1,
+    section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+) -> Vec<mir::MirTypeBridgeInitializationUnitV1> {
+    let metadata = source.metadata();
+    let unit_result = metadata
+        .signature_exact_type(
+            &SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+            &mut meter(),
+        )
+        .unwrap();
+    let replay = Replay {
+        metadata,
+        foundation,
+        strong,
+        unit_result,
+    };
+    let units = replay.run(&mut meter()).unwrap();
+    assert_eq!(units.len(), section.initialization_units().len());
+    for (unit, producer) in units.iter().zip(section.initialization_units()) {
+        assert_eq!(unit.unit(), producer.unit());
+        assert_eq!(unit.initializer(), producer.initializer());
+        assert_eq!(unit.ensure(), producer.ensure());
+        assert_eq!(unit.signature(), producer.signature());
+        assert_eq!(
+            unit.proof_kind(),
+            mir::MirInitializationUnitProofKindV1::ReaderSemanticReplay
+        );
+    }
+    if name.starts_with("shared-units-") {
+        assert!(!units.is_empty());
+        mutations::check(&replay, &units);
+        let dump = format!(
+            "source-units={} materialized-units={}\n{}",
+            metadata.source_initialization_units().len(),
+            units.len(),
+            units
+                .iter()
+                .map(|unit| format!(
+                    "unit {}: initializer={:?} ensure={:?} {:?} {:?}\n",
+                    unit.unit(),
+                    unit.initializer().callable_owner(),
+                    unit.ensure().callable_owner(),
+                    unit.signature().exact().effect(),
+                    unit.signature().gc_effect()
+                ))
+                .collect::<String>(),
+        );
+        let snapshot = crate::workspace_root().join(format!(
+            "tests/fixtures/m23-core-layout-exports/{name}.units.snap"
+        ));
+        if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
+            std::fs::write(&snapshot, &dump).unwrap();
+        }
+        assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+        if name.ends_with("standalone") {
+            assert_eq!(
+                (metadata.source_initialization_units().len(), units.len()),
+                (3, 2)
+            );
+        } else {
+            assert_eq!(units.len(), 5);
+        }
+    }
+    units
+}
+
+struct Replay<'a> {
+    metadata: hir::SharedTypeMetadataV1<'a>,
+    foundation: &'a mir::OdrFreeMirFoundation,
+    strong: &'a mir::StrongCallableBridgeSurfaceV1,
+    unit_result: scoop_identity::PersistentExactTypeId,
+}
+
+impl Replay<'_> {
+    fn run(
+        &self,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<
+        Vec<mir::MirTypeBridgeInitializationUnitV1>,
+        mir::MirTypeBridgeSectionError<std::convert::Infallible>,
+    > {
+        mir::replay_source_initialization_units(
+            self.metadata.provider,
+            self.metadata.source_initialization_units(),
+            self.foundation,
+            self.strong,
+            self.metadata.identities,
+            self.unit_result,
+            meter,
+        )
+    }
+}

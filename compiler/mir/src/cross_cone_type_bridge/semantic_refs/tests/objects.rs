@@ -33,9 +33,21 @@ fn object_edges_keep_source_backing_ensure_and_unit_separate() {
         &mut meter(),
     )
     .unwrap();
+    assert!(references.targets().is_empty());
+    let references = MirTypeBridgeSemanticReferencesV1::of_initialization_contract(
+        record.unit(),
+        fixture
+            .callables
+            .get(record.ensure())
+            .unwrap()
+            .semantic_signature(),
+        &fixture.graph,
+        &mut meter(),
+    )
+    .unwrap();
     assert_eq!(
         references.targets(),
-        &[MirTypeBridgeTargetV1::Type(record.read().object())]
+        &[MirTypeBridgeTargetV1::Type(fixture.unit_exact)]
     );
 }
 

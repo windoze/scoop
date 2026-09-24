@@ -1,0 +1,13 @@
+public fun sharedUnitSeed(): Int = 7
+public val sharedUnitEager: Int = sharedUnitSeed()
+public object SharedUnitLazy {
+    public val value: Int = sharedUnitEager
+}
+public interface SharedUnitDeferredApi {
+    public suspend fun read(): Int
+}
+public object SharedUnitDeferred: SharedUnitDeferredApi {
+    public val value: Int = sharedUnitSeed()
+    public override suspend fun read(): Int = value
+}
+public fun sharedUnitRead(): Int = SharedUnitLazy.value

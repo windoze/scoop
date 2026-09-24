@@ -3,7 +3,9 @@ use scoop_identity::{
     GeneratedCallableKey, InitializationCallableRole, PersistentGeneratedCallableId,
 };
 
+mod shared;
 mod validation;
+pub use shared::replay_source_initialization_units;
 
 /// Reader replay is a semantic proof, never evidence of an emitted body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

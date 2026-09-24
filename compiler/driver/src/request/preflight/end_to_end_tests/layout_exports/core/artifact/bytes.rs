@@ -99,6 +99,7 @@ pub(super) fn check(
     super::mir_objects::check(name, checked[0], mir);
     super::mir_dispatch::check(name, checked[0], mir_foundation, mir);
     super::mir_equality::check(name, checked[0], mir_foundation, strong, mir);
+    let units = super::mir_units::check(name, checked[0], mir_foundation, strong, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }
@@ -129,6 +130,7 @@ pub(super) fn check(
     assert_eq!(current.callables(), mir.callables());
     assert_eq!(current.object_values(), mir.object_values());
     assert_eq!(current.dispatch(), mir.dispatch());
+    assert_eq!(current.initialization_units(), units);
     assert_eq!(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
