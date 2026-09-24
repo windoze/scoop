@@ -10,6 +10,23 @@ pub(super) fn with_production(
         scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
     ),
 ) {
+    with_inspection(sysroot, target, core_bytes, source, |_, _| {}, run);
+}
+
+pub(super) fn with_inspection(
+    sysroot: &Path,
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    core_bytes: &[u8],
+    source: &str,
+    inspect: impl FnOnce(
+        scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+        &scoop_mir_lower::MirTypeBridgeSourceProjectionV1,
+    ),
+    run: impl FnOnce(
+        scoop_lir_lower::LayoutAbiExportInputV1<'_>,
+        scoop_lir_lower::LayoutAbiExportDependenciesV1<'_>,
+    ),
+) {
     let root = sysroot.join("layout-library");
     write_manifest_cone(&root, "dev.example", "layout-library", "library", source);
     let loaded = build_manifest_request(
@@ -148,6 +165,7 @@ pub(super) fn with_production(
             .len(),
         mir.strong.materialization().initialization_roots().len(),
     );
+    inspect(input, &projected);
     let layouts = dependencies::layouts(&types, &core_lir, &graph, target.lir_target());
     let selected = lir::StrongProductionDependencySelectionV2::empty(
         lir.module().cone,

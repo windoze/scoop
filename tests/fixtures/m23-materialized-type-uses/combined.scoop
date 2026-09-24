@@ -1,0 +1,21 @@
+struct Packet(val pair: (Boolean, String))
+
+enum Envelope {
+    Empty,
+    Present(Packet)
+}
+
+interface Reader {
+    fun read(): String
+}
+
+class Cell(val data: Envelope): Reader {
+    override fun read(): String = "cell"
+}
+
+fun capture(value: Packet): () -> String {
+    val text = "captured"
+    return { text }
+}
+
+fun matches(value: Any): Boolean = value is Cell

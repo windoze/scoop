@@ -1,0 +1,1 @@
+fun primitiveTest(value: Any): Boolean = value is Int8

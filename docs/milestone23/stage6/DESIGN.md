@@ -598,6 +598,8 @@ MIR section 保留 terminal dependency section 的借用及本地 source-join �
 
 本节不遍历 callable body，因而不会把 body 内的旧 ordinary/core 调用重新登记为新边。slot declaration、dispatch 的 source implementation 及 adjust 的 source target 必须由 canonical source key 证明为 nominal member：直接 owner 是 param-free type，source receiver 不是 extension receiver；generated dispatch target 则仅接受已支持的 adjust/derived role。object ensure 仅指向同 unit 的 generated ensure。它们与旧 TopLevel/Extension callable 分区不相交；普通 accessor 的 initialization cause 仍只贡献既有 unit relation。将旧 callable 显式放入本节 export/selected，或把顶层/extension callable 伪装为 slot/adjust target，均拒绝。
 
+M23-6 的 MIR 外来类型来源投影从同一次 sealed LocalConcrete HIR 的实际物化根重算，不能把 MIR source-exact 表或候选 selected 集合当作源码使用证明。根包括实际函数与构造器签名、正文局部值和表达式、已物化的存储及名义表示、显式 shape-support 要求；表达式中的类型测试、sizeOf/alignOf 及函数签名等非结果类型同样保留。闭包沿原 HIR 的字段、variant payload、继承、类型实参与结构化类型子项查询，不扫描 primitive/exact type arena 来增加根，未物化的默认正文与无关 source-only 声明不产生依赖。class constructor 配对的 initializer 保留其 Unit 返回类型；实际初始化 unit 的 ensure 消息按现有 lowering 合同使用同一 HIR String 类型，不能因源码没有字面量而省略。外来 nominal 的 exact id 和 provider 分别读取原 HIR 完备类型关系与共有 canonical 声明 key；只在最后对实际 provider/typed target 去重。查询、遍历、索引及分配消耗同一累计预算；本次查询是临时物化类型闭包，不另存来源表，也不代替各次使用的访问、绑定、support parent、完整 selected-use 与最终 artifact 重放。
+
 ### 5.2 callable 与 constructor
 
 `ParamFreeMirCallableBindingV1` 保存 `{ source_or_generated_origin, implementation, semantic_signature, lowered_signature, lowering_role }`。implementation 只接受既有 `StrongCallableDefinitionOwner`；lowering role 为 ordinary、class initializer、struct value constructor、accessor、dispatch adjust、boxing adjust、object ensure/value 等已有 typed role，不根据 name 推断。

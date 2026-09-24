@@ -10,6 +10,8 @@ core 是可由用户修改、扩展和重建的普通 library Cone。 core源码
 
 M23-6 的 MIR export 由同一 `mir-lower` 入口完整组装六张组成表；所有局部生产和依赖索引共用预算，当前 Cone 与实际 Strong root 一致，外来定义只借用。普通 callable、constructor、object 初始化、boxing adjust 与 derived equality 合入一个完整 callable 表后再生产 dispatch。旧 callable bridge 的实际 typed implementation 经完整签名核对后只保留原归属，不能重复进入新表，也不按 CORE 或名称划分。已提交的 initialization-use 显式输入并核对实际 local unit；完整 source/selected 与 artifact 闭包继续由 stage6 第 5.1 节规定的通用入口验证，不增设来源授权框架。
 
+M23-6 的 MIR 外来类型来源投影从同一次 sealed LocalConcrete HIR 的实际物化根重算，不能把 MIR source-exact 表或候选 selected 集合当作源码使用证明。根包括实际函数与构造器签名、正文局部值和表达式、已物化的存储及名义表示、显式 shape-support 要求；表达式中的类型测试、sizeOf/alignOf 及函数签名等非结果类型同样保留。闭包沿原 HIR 的字段、variant payload、继承、类型实参与结构化类型子项查询，不扫描 primitive/exact type arena 来增加根，未物化的默认正文与无关 source-only 声明不产生依赖。class constructor 配对的 initializer 保留其 Unit 返回类型；实际初始化 unit 的 ensure 消息按现有 lowering 合同使用同一 HIR String 类型，不能因源码没有字面量而省略。外来 nominal 的 exact id 和 provider 分别读取原 HIR 完备类型关系与共有 canonical 声明 key；只在最后对实际 provider/typed target 去重。查询、遍历、索引及分配消耗同一累计预算；本次查询是临时物化类型闭包，不另存来源表，也不代替各次使用的访问、绑定、support parent、完整 selected-use 与最终 artifact 重放。
+
 配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
 
 M23-6 的 LIR export 组装消费同一次 sealed MIR/LIR、完整 MIR export 组成表和实际 Strong V2 registration，统一生产 layout、descriptor、dispatch、callable ABI 与有限 shape-support 五表。布局覆盖 MIR 导出闭包中实际发射的本地根，descriptor 逐项对应实际 registration；callable 使用 MIR lowered signature 查询唯一的 ManagedValue layout，保留 receiver、重复参数和 Unit result 的逻辑位置。dispatch 从实际 LIR table 读取物理 callable，按 MIR schema 的声明序 slot 重放；BoxedValue 通过明确 payload 关系使用源码 value schema，step/slot 的无成员关系只允许实际空表。依赖表只借用，不能复制成局部定义；错误 provider、target、缺失或重复关系直接失败，所有查询与构造共用预算。完整 selected-use、source 与最终 artifact 闭包仍须单独闭合，此组装不新增来源授权体系，也不放开 ODR。

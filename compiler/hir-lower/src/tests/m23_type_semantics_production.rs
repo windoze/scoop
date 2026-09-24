@@ -18,6 +18,7 @@ mod default_callable_access;
 mod default_type_access;
 mod default_value_access;
 mod fact_providers;
+mod materialized_type_uses;
 mod setter_domains;
 mod shape_demands;
 mod shared_accessor_forms;

@@ -50,6 +50,8 @@ pub enum MirTypeBridgeSourceProjectionError {
     MissingSource(mir::MirTypeBridgeSourceRecordV1),
     MissingInitializationUnit(PersistentInitializationUnitId),
     InitializationInventory,
+    MaterializedTypes(hir::MaterializedTypeClosureError),
+    Identity(scoop_identity::IdentityReferenceError),
 }
 impl From<WireError> for MirTypeBridgeSourceProjectionError {
     fn from(error: WireError) -> Self {

@@ -9,22 +9,31 @@ pub(super) fn mir_types(
     graph: &ValidatedIdentityGraph,
 ) -> mir::CanonicalParamFreeMirTypeExportsV1 {
     let mut records = Vec::new();
-    for (ty, intrinsic, value_kind, gc) in [
+    for (ty, representation, value_kind, gc) in [
         (
             mir::Type::Unit,
-            mir::MirParamFreeIntrinsicV1::Unit,
+            mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Unit),
             mir::MirValueKindV1::ZeroSizedValue,
             mir::MirGcKindV1::GcFree,
         ),
         (
             mir::Type::Boolean,
-            mir::MirParamFreeIntrinsicV1::Boolean,
+            mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::Boolean),
             mir::MirValueKindV1::NonZeroValue,
             mir::MirGcKindV1::GcFree,
         ),
         (
             mir::Type::String,
-            mir::MirParamFreeIntrinsicV1::String,
+            mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::String),
+            mir::MirValueKindV1::Reference,
+            mir::MirGcKindV1::ContainsManagedReferences,
+        ),
+        (
+            mir::Type::Any,
+            mir::MirTypeRepresentationV1::Class {
+                kind: mir::MirClassKindV1::Open,
+                declared_fields: vec![],
+            },
             mir::MirValueKindV1::Reference,
             mir::MirGcKindV1::ContainsManagedReferences,
         ),
@@ -44,7 +53,7 @@ pub(super) fn mir_types(
                 record.identity_record().id(),
                 mir::MirTypeOriginV1::SourceNominal(nominal),
                 mir::MirTypeFactsV1::try_new(value_kind, gc).unwrap(),
-                mir::MirTypeRepresentationV1::Intrinsic(intrinsic),
+                representation,
                 mir::MirBaseAndInterfacesV1 {
                     base: mir::MirBaseClassV1::None,
                     interfaces: vec![],
@@ -84,7 +93,8 @@ pub(super) fn layouts(
                     &mut meter(),
                 )
             }
-            mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::String) => {
+            mir::MirTypeRepresentationV1::Intrinsic(mir::MirParamFreeIntrinsicV1::String)
+            | mir::MirTypeRepresentationV1::Class { .. } => {
                 lir::ExactValueLayoutV1::qualified_pointer(
                     identity,
                     lir::NichePointerKind::Managed,

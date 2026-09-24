@@ -8,16 +8,27 @@ pub(super) fn project(
     let module = input.mir.module();
     let path = WirePath::root();
     let mut uses = Vec::new();
-    meter.charge_work(module.meta.source_exact_types.len() as u64, &path)?;
-    for source in module.meta.source_exact_types.iter() {
-        if let mir::SourceExactTypeOwner::Cone(provider) = source.owner()
-            && provider != module.cone
-        {
+    let local = &input.hir.output().local;
+    for ty in local
+        .materialized_type_closure(meter)
+        .map_err(Error::MaterializedTypes)?
+    {
+        meter.charge_work(1, &path)?;
+        let exact = &local.exact_type_identities[ty];
+        let scoop_identity::ExactTypeKey::Nominal(source) = exact.key() else {
+            continue;
+        };
+        let declaration = input
+            .identities
+            .canonical_key::<_, scoop_identity::SourceDeclarationKey>(*source)
+            .map_err(Error::Identity)?;
+        let provider = declaration.origin();
+        if provider != module.cone {
             push(
                 &mut uses,
                 mir::MirTypeBridgeDependencyV1::new(
                     provider,
-                    mir::MirTypeBridgeTargetV1::Type(source.identity_record().id()),
+                    mir::MirTypeBridgeTargetV1::Type(exact.id()),
                 ),
                 meter,
             )?;

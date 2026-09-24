@@ -11,6 +11,7 @@ mod dependencies;
 mod private_types;
 mod rejections;
 mod source_contracts;
+mod source_uses;
 mod support;
 
 fn meter() -> BudgetMeter {

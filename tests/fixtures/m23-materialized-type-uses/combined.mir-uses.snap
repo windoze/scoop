@@ -1,0 +1,4 @@
+type Any
+type Boolean
+type String
+type Unit

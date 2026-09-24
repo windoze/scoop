@@ -152,6 +152,9 @@ pub enum LocalConeOutputKind {
 mod shape_support;
 pub use shape_support::*;
 
+mod materialized_types;
+pub use materialized_types::MaterializedTypeClosureError;
+
 /// LocalConcrete HIR paired with its closed output branch.
 #[derive(Debug, Clone)]
 pub struct LocalConcreteHirOutput {
