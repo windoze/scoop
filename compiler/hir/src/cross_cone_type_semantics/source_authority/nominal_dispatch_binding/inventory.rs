@@ -36,6 +36,14 @@ pub(super) fn validate(
                 .constructors()
                 .constructor_source(*id)
                 .map_err(NominalNestedBindingError::from)?;
+            let owners = record.declaration_access().lexical_owners();
+            meter.charge_work(owners.len() as u64, &path)?;
+            if owners
+                .iter()
+                .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)))
+            {
+                continue;
+            }
             if matches!(
                 record.declaration_access().declared_visibility(),
                 DeclaredVisibilityV1::Public | DeclaredVisibilityV1::Protected

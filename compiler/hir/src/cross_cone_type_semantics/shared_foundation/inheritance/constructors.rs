@@ -9,8 +9,25 @@ pub(super) fn validate(
     provider: CheckedSharedTypeFoundationV1<'_>,
     nominal: &NominalInterfaceRecordV1,
     record: &NominalInheritanceInterfaceV1,
+    context: &Context<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
+    contracts::lookup(context.sources.len(), meter)?;
+    let owners = context
+        .source(nominal.declaration())?
+        .access
+        .lexical_owners();
+    meter.charge_work(owners.len() as u64, &WirePath::root())?;
+    if owners
+        .iter()
+        .any(|owner| matches!(owner, SourceNominalId::GenericTemplate(_)))
+    {
+        return if record.constructors().records().is_empty() {
+            Ok(())
+        } else {
+            Err(Error::ConstructorInventory(record.owner()))
+        };
+    }
     let metadata = provider.metadata;
     let required = nominal.declaration_details().constructors().values();
     meter.charge_work(

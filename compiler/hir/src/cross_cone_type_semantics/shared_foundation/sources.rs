@@ -52,6 +52,17 @@ pub(super) fn source_access(
             _ => return Err(Error::DeclarationMetadata(subject)),
         });
     }
+    let source = definition_source(metadata, subject, meter)?;
+    DeclarationAccessSourceV1::try_new(visibility, lexical, source)
+        .map_err(|_| Error::DeclarationMetadata(subject))
+}
+
+pub(super) fn definition_source(
+    metadata: SharedTypeMetadataV1<'_>,
+    subject: DefinitionOriginSubject,
+    meter: &mut BudgetMeter,
+) -> Result<ExportDefinitionSourceV1, Error> {
+    let path = WirePath::root();
     let origin = metadata
         .foundation
         .definition_origin(subject)
@@ -65,6 +76,5 @@ pub(super) fn source_access(
         .foundation
         .validate_definition_source_location(metadata.provider, &source, meter, &path)
         .map_err(|_| Error::DeclarationMetadata(subject))?;
-    DeclarationAccessSourceV1::try_new(visibility, lexical, source)
-        .map_err(|_| Error::DeclarationMetadata(subject))
+    Ok(source)
 }

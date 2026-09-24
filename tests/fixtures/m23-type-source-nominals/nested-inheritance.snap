@@ -1,6 +1,6 @@
 Cache Protected constructors=0 protected=0 slots=1
 Choice Protected constructors=0 protected=0 slots=0
-ConcreteChild Protected constructors=1 protected=0 slots=1
+ConcreteChild Protected constructors=0 protected=0 slots=1
 Derived Public constructors=0 protected=0 slots=0
 Entry Protected constructors=1 protected=4 slots=5
 Envelope Public constructors=0 protected=6 slots=0

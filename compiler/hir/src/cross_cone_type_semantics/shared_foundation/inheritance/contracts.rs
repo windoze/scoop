@@ -7,6 +7,8 @@ use scoop_identity::{
 };
 use scoop_wire::WireEncode;
 
+mod variants;
+
 pub(super) fn callable<'a>(
     metadata: SharedTypeMetadataV1<'a>,
     declaration: CallableTemplateOrigin,
@@ -81,7 +83,7 @@ pub(super) fn callable_access(
                 identities.canonical_key::<_, SourceDeclarationKey>(property)?,
             )
         }
-        VariantConstructor(_) => return Err(Error::CallableContract(source.declaration())),
+        VariantConstructor(id) => return variants::access(metadata, source, id, meter),
     };
     super::super::sources::source_access(
         metadata,

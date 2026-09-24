@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     CanonicalProtectedDeclarationRefsV1, DeclaredVisibilityV1, NestedSourceMemberRefV1,
     NominalInheritanceInterfaceV1, NominalInterfaceRecordV1, ProtectedCallableDeclarationRefV1,
-    ProtectedDeclarationInterfaceV1, ProtectedDeclarationRefV1,
+    ProtectedDeclarationRefV1,
 };
 use scoop_identity::{CallableTemplateOrigin, DefinitionOriginSubject, PropertyOwner};
 
@@ -17,51 +17,6 @@ pub(super) fn validate(
     contracts::charge_compare(record.protected_members(), &required, meter)?;
     if record.protected_members() != &required {
         return Err(Error::ProtectedMemberInventory(record.owner()));
-    }
-    let table = provider.section.protected_declarations();
-    for reference in required.values() {
-        contracts::lookup(table.records().len(), meter)?;
-        let declaration = table
-            .get(*reference)
-            .ok_or(Error::ProtectedMember(*reference))?;
-        if declaration
-            .declaration_access()
-            .lexical_owners()
-            .last()
-            .copied()
-            != Some(nominal.declaration())
-        {
-            return Err(Error::ProtectedMember(*reference));
-        }
-        match declaration {
-            ProtectedDeclarationInterfaceV1::Callable(callable) => {
-                contracts::validate_callable(
-                    provider.metadata,
-                    callable.declaration(),
-                    callable.declaration_access(),
-                    callable.payload(),
-                    meter,
-                )?;
-            }
-            ProtectedDeclarationInterfaceV1::Property(property) => {
-                let expected = property_access(provider.metadata, property.declaration(), meter)?;
-                contracts::charge_compare(property.declaration_access(), &expected, meter)?;
-                if property.declaration_access() != &expected {
-                    return Err(Error::ProtectedMember(*reference));
-                }
-            }
-            ProtectedDeclarationInterfaceV1::NestedNominal(nested) => {
-                contracts::lookup(context.sources.len(), meter)?;
-                let expected = &context.source(nested.declaration())?.access;
-                contracts::charge_compare(nested.declaration_access(), expected, meter)?;
-                if nested.declaration_access() != expected {
-                    return Err(Error::ProtectedMember(*reference));
-                }
-            }
-            ProtectedDeclarationInterfaceV1::Constructor(_) => {
-                return Err(Error::ProtectedMember(*reference));
-            }
-        }
     }
     Ok(())
 }
@@ -147,22 +102,4 @@ fn push_callable(
         references.push(ProtectedDeclarationRefV1::Callable(reference));
     }
     Ok(())
-}
-
-fn property_access(
-    metadata: SharedTypeMetadataV1<'_>,
-    id: scoop_identity::PersistentPropertyId,
-    meter: &mut BudgetMeter,
-) -> Result<DeclarationAccessSourceV1, Error> {
-    contracts::lookup(metadata.identities.identity_count(), meter)?;
-    let key = metadata
-        .identities
-        .canonical_key::<_, SourceDeclarationKey>(id)?;
-    super::super::sources::source_access(
-        metadata,
-        DefinitionOriginSubject::Property(id),
-        &key,
-        DeclaredVisibilityV1::Protected,
-        meter,
-    )
 }

@@ -22,7 +22,7 @@ pub(in crate::production::type_semantics) fn project(
         .map_err(resource)?;
     let protected = members::project(export, meter)?;
     for nominal in nominals {
-        let constructors = constructors(export, nominal)?;
+        let constructors = constructors(export, nominal, meter)?;
         let required = protected
             .get(&SourceNominalId::Concrete(nominal.owner))
             .map(Vec::as_slice)
@@ -51,7 +51,18 @@ pub(in crate::production::type_semantics) fn project(
 fn constructors(
     export: &ExportHir,
     nominal: &ConcreteNominal<'_>,
+    meter: &mut BudgetMeter,
 ) -> Result<CanonicalPersistentIdsV1<PersistentConstructorId>, Error> {
+    let owners = nominal.source.declaration().owners().owners();
+    meter
+        .charge_work(owners.len() as u64, &WirePath::root())
+        .map_err(resource)?;
+    if owners
+        .iter()
+        .any(|owner| matches!(owner, scoop_identity::DefinitionOwnerAtom::GenericType(_)))
+    {
+        return Ok(CanonicalPersistentIdsV1::empty());
+    }
     let mut constructors = Vec::new();
     match nominal.local {
         NominalLocalId::Struct(id) => {
