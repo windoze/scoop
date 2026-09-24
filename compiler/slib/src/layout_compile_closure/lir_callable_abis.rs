@@ -1,44 +1,42 @@
-//! Layout replay in the same owned Compile closure as shared HIR and MIR.
+//! Source-derived ABI replay after shared MIR and layout validation.
 
 use scoop_lir as lir;
 use scoop_wire::WirePath;
 
 use super::{
-    MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections,
+    LirLayoutsValidatedCrossConeLayoutClosure, LirLayoutsValidatedCrossConeLayoutSections,
     lir_constituents::{
         LirConstituentsValidatedCrossConeLayoutClosure,
         LirConstituentsValidatedCrossConeLayoutSections,
     },
 };
-use crate::{
-    dependency_reachability::transitive_positions,
-    layout_compile_decode::DecodedCrossConeLayoutLirCandidates,
-};
+use crate::dependency_reachability::transitive_positions;
 
 mod errors;
 mod replay;
-pub use errors::{CrossConeLayoutLirLayoutsError, SharedLirLayoutValidationError};
-pub use replay::replay_shared_mir_layouts;
+pub use errors::{CrossConeLayoutLirCallableAbisError, SharedLirCallableAbiValidationError};
+pub use replay::replay_shared_mir_callable_abis;
 
-/// HIR, MIR source constituents and LIR layouts agree. Selected-use, remaining
-/// LIR exports, Strong production and final object joins remain mandatory.
-pub type LirLayoutsValidatedCrossConeLayoutSections<'input> =
+/// Layouts and callable ABIs agree with shared MIR. Remaining semantic,
+/// selected-use, registration and object joins are not implied by this state.
+pub type LirCallableAbisValidatedCrossConeLayoutSections<'input> =
     LirConstituentsValidatedCrossConeLayoutSections<
         'input,
-        lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
+        lir::CallablesResolvedCrossConeLayoutAbiSectionV1,
     >;
-pub type LirLayoutsValidatedCrossConeLayoutClosure<'input> =
+pub type LirCallableAbisValidatedCrossConeLayoutClosure<'input> =
     LirConstituentsValidatedCrossConeLayoutClosure<
         'input,
-        lir::LayoutsResolvedCrossConeLayoutAbiSectionV1,
+        lir::CallablesResolvedCrossConeLayoutAbiSectionV1,
     >;
 
-impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
-    pub fn validate_lir_layouts(
+impl<'input> LirLayoutsValidatedCrossConeLayoutClosure<'input> {
+    pub fn validate_lir_callable_abis(
         self,
-    ) -> Result<LirLayoutsValidatedCrossConeLayoutClosure<'input>, CrossConeLayoutLirLayoutsError>
-    {
+    ) -> Result<
+        LirCallableAbisValidatedCrossConeLayoutClosure<'input>,
+        CrossConeLayoutLirCallableAbisError,
+    > {
         let Self {
             current,
             target,
@@ -47,15 +45,17 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
             positions,
             dependency_positions,
         } = self;
-        let mut complete: Vec<LirLayoutsValidatedCrossConeLayoutSections<'input>> = Vec::new();
+        let mut complete: Vec<LirCallableAbisValidatedCrossConeLayoutSections<'input>> = Vec::new();
         for (position, artifact) in dependency_first.into_iter().enumerate() {
             let provider = artifact.identity();
-            let resolve = || -> Result<_, SharedLirLayoutValidationError> {
-                let MirSourceCallablesValidatedCrossConeLayoutSections {
+            let resolve = || -> Result<_, SharedLirCallableAbiValidationError> {
+                let LirLayoutsValidatedCrossConeLayoutSections {
                     mut prepared,
                     mir,
-                    lir,
                     units,
+                    strong,
+                    ordinary,
+                    layout,
                 } = artifact;
                 let parts = prepared.semantic_parts();
                 let reachable = transitive_positions(position, &dependency_positions, parts.meter)?;
@@ -70,24 +70,19 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
                         .iter()
                         .map(|&position| complete[position].layouts()),
                 );
-                let expected = replay_shared_mir_layouts(
+                let expected = replay_shared_mir_callable_abis(
                     target.target(),
-                    mir.types(),
-                    parts.lir_foundation,
-                    parts.identities,
+                    mir.callables(),
+                    layout.layouts(),
                     &dependencies,
+                    parts.lir_foundation,
                     parts.meter,
                 )?;
-                let DecodedCrossConeLayoutLirCandidates {
-                    strong,
-                    ordinary,
-                    layout,
-                } = lir;
-                let layout = layout.validate_layouts(&expected, parts.meter)?;
+                let layout = layout.validate_callables(&expected, parts.meter)?;
                 parts
                     .meter
                     .try_reserve_collection_slots(&mut complete, 1, &WirePath::root())?;
-                Ok(LirLayoutsValidatedCrossConeLayoutSections {
+                Ok(LirCallableAbisValidatedCrossConeLayoutSections {
                     prepared,
                     mir,
                     units,
@@ -97,10 +92,10 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
                 })
             };
             let artifact = resolve()
-                .map_err(|source| CrossConeLayoutLirLayoutsError::new(provider, source))?;
+                .map_err(|source| CrossConeLayoutLirCallableAbisError::new(provider, source))?;
             complete.push(artifact);
         }
-        Ok(LirLayoutsValidatedCrossConeLayoutClosure {
+        Ok(LirCallableAbisValidatedCrossConeLayoutClosure {
             current,
             target,
             direct,
@@ -111,8 +106,11 @@ impl<'input> MirSourceCallablesValidatedCrossConeLayoutClosure<'input> {
     }
 }
 
-impl LirLayoutsValidatedCrossConeLayoutSections<'_> {
+impl LirCallableAbisValidatedCrossConeLayoutSections<'_> {
     pub fn layouts(&self) -> &lir::CanonicalExactLayoutExportsV1 {
         self.layout.layouts()
+    }
+    pub fn callable_abis(&self) -> &lir::CanonicalExactCallableAbiExportsV1 {
+        self.layout.callables()
     }
 }

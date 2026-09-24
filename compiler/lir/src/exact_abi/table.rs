@@ -89,6 +89,8 @@ impl CanonicalExactCallableAbiExportsV1 {
 
 #[derive(Debug)]
 pub enum ExactCallableAbiTableError {
+    LayoutProvider,
+    LayoutTarget,
     CountOverflow,
     Count,
     Duplicate(StrongCallableDefinitionOwner),

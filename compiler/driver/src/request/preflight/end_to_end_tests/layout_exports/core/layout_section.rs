@@ -64,6 +64,43 @@ pub(super) fn check(
         )
         .unwrap();
     assert_eq!(encode(&replayed).unwrap(), bytes);
+    let missing_callables = lir::LayoutAbiExportConstituentsV1::try_new(
+        exports.layouts().clone(),
+        exports.descriptors().clone(),
+        exports.dispatch().clone(),
+        lir::CanonicalExactCallableAbiExportsV1::try_new(
+            input.lir.module().meta.target_profile,
+            input.lir.foundation(),
+            vec![],
+            &mut meter(),
+        )
+        .unwrap(),
+        exports.shape_support().clone(),
+    )
+    .unwrap();
+    for (altered, layout_changed) in [(&missing, true), (&missing_callables, false)] {
+        let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
+        let checked = wire
+            .validate_layouts(exports.layouts(), &mut meter())
+            .unwrap()
+            .validate_callables(exports.callables(), &mut meter())
+            .unwrap();
+        let error = checked
+            .validate(altered, &[], vec![], &source, &mut identities, &mut meter())
+            .err()
+            .expect("a checked constituent cannot be replaced before final validation");
+        if layout_changed {
+            assert!(matches!(
+                error,
+                lir::LayoutAbiSectionError::LayoutReplayChanged
+            ));
+        } else {
+            assert!(matches!(
+                error,
+                lir::LayoutAbiSectionError::CallableReplayChanged
+            ));
+        }
+    }
     assert!(section.selected().is_empty());
     assert!(section.selected().physical_imports().records().is_empty());
     section

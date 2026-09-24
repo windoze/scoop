@@ -44,3 +44,40 @@ fn staged_layout_replay_preserves_the_remaining_wire_and_requires_the_same_layou
         Err(LayoutAbiSectionError::LayoutReplayChanged)
     ));
 }
+
+#[test]
+fn staged_callable_replay_preserves_wire_and_rejects_a_different_layout_provider() {
+    let expected = empty_exports(cone("abi-stage"));
+    let source = Source::default();
+    let section = section(expected.clone(), &[], &source).unwrap();
+    let bytes = encode(&section).unwrap();
+    let decode = || {
+        decode_canonical::<DecodedCrossConeLayoutAbiSectionV1>(&bytes, DecodeLimits::default())
+            .unwrap()
+            .validate_layouts(expected.layouts(), &mut meter())
+            .unwrap()
+    };
+    let changed = empty_exports(cone("different-abi-stage"));
+    assert!(matches!(
+        decode().validate_callables(changed.callables(), &mut meter()),
+        Err(crate::ExactCallableAbiTableError::LayoutProvider)
+    ));
+    let checked = decode()
+        .validate_callables(expected.callables(), &mut meter())
+        .unwrap();
+    assert_eq!(checked.layouts(), expected.layouts());
+    assert_eq!(checked.callables(), expected.callables());
+    assert_eq!(encode(&checked).unwrap(), bytes);
+    let mut identities = PendingIdentityValidation::new().finish().unwrap();
+    let complete = checked
+        .validate(
+            &expected,
+            &[],
+            vec![],
+            &source,
+            &mut identities,
+            &mut meter(),
+        )
+        .unwrap();
+    assert_eq!(encode(&complete).unwrap(), bytes);
+}

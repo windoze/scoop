@@ -19,6 +19,8 @@ use crate::{
 mod declarations;
 mod foundations;
 mod hir;
+mod lir_callable_abis;
+mod lir_constituents;
 mod lir_layouts;
 mod mir_dispatch;
 mod mir_source_callables;
@@ -29,6 +31,11 @@ pub use declarations::{
     HirDeclarationsValidatedCrossConeLayoutClosure,
 };
 pub use hir::CrossConeLayoutClosureHirResolutionError;
+pub use lir_callable_abis::{
+    CrossConeLayoutLirCallableAbisError, LirCallableAbisValidatedCrossConeLayoutClosure,
+    LirCallableAbisValidatedCrossConeLayoutSections, SharedLirCallableAbiValidationError,
+    replay_shared_mir_callable_abis,
+};
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,
     LirLayoutsValidatedCrossConeLayoutSections, SharedLirLayoutValidationError,

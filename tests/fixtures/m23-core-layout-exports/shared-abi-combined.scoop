@@ -1,0 +1,20 @@
+public struct SharedAbiEmpty() {
+    @NoGC public fun drop(value: SharedAbiEmpty) {}
+    @NoGC public fun empty(first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiEmpty = first
+    public fun wide(value: SharedAbiWide, marker: SharedAbiEmpty): SharedAbiWide = value
+}
+@CLayout(aligned = 16, packed = 2)
+public struct SharedAbiPacket(val marker: UInt8, val payload: Long)
+public struct SharedAbiWide(val packet: SharedAbiPacket, val value: Long)
+public interface SharedAbiSource {
+    public fun packet(first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiPacket
+}
+public struct SharedAbiValue(val stored: SharedAbiPacket): SharedAbiSource {
+    public final override fun packet(first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiPacket = stored
+}
+public class SharedAbiHolder public constructor(public val stored: SharedAbiPacket): SharedAbiSource {
+    public override fun packet(first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiPacket = stored
+}
+public object SharedAbiAccess {
+    public fun pass(value: SharedAbiWide, first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiWide = value
+}

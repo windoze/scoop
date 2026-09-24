@@ -1,0 +1,6 @@
+public struct SharedAbiEmpty() {
+    @NoGC public fun drop(value: SharedAbiEmpty) {}
+    @NoGC public fun empty(first: SharedAbiEmpty, second: SharedAbiEmpty): SharedAbiEmpty = first
+    public fun wide(value: SharedAbiWide, marker: SharedAbiEmpty): SharedAbiWide = value
+}
+public struct SharedAbiWide(val first: Long, val second: Long, val third: Long)

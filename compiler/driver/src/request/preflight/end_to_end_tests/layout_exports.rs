@@ -10,6 +10,7 @@ mod core;
 mod dependencies;
 mod private_types;
 mod rejections;
+mod shared_abis;
 mod shared_layouts;
 mod source_contracts;
 mod source_uses;
@@ -68,6 +69,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                         });
                 assertions::actual(input, &result);
                 shared_layouts::check(input, dependencies, &result);
+                shared_abis::check(input, dependencies, &result);
                 rejections::check(input, dependencies);
                 if name == "private-support" {
                     private_types::check_support(input, dependencies, &result);
@@ -100,6 +102,7 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                         .unwrap();
                 private_types::check(input, &result);
                 shared_layouts::check(input, dependencies, &result);
+                shared_abis::check(input, dependencies, &result);
                 assert_eq!(assertions::bytes(&result), expected.unwrap());
             },
         );
