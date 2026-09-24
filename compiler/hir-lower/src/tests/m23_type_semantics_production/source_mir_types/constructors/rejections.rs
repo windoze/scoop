@@ -97,20 +97,20 @@ pub(super) fn secondary_is_not_field_assembly(
 
 pub(super) fn check(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    public: &hir::CrossConeHirInterfaceSectionV1,
     input: &scoop_mir::SingleConeStrongMirInput,
     graph: &scoop_identity::ValidatedIdentityGraph,
     types: &CanonicalParamFreeMirTypeExportsV1,
     unit: &CanonicalParamFreeMirTypeExportsV1,
 ) {
     assert!(matches!(
-        lower_constructor_bindings(output, source, input, graph, types, &mut meter()),
+        lower_constructor_bindings(output, public, input, graph, types, &mut meter()),
         Err(Error::Bridge(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
         ))
     ));
     assert!(matches!(
-        lower_constructor_bindings(output, source, input, graph, unit, &mut meter()),
+        lower_constructor_bindings(output, public, input, graph, unit, &mut meter()),
         Err(Error::Bridge(
             scoop_mir::MirCallableBridgeError::MissingType { .. }
         ))
@@ -120,7 +120,7 @@ pub(super) fn check(
         "public class Other public constructor()",
         |other, other_input, _, _, _| {
             assert!(matches!(
-                lower_constructor_bindings(other, source, input, graph, &index, &mut meter()),
+                lower_constructor_bindings(other, public, input, graph, &index, &mut meter()),
                 Err(Error::IncompleteConstructors {
                     expected: 1,
                     actual: 0
@@ -129,7 +129,7 @@ pub(super) fn check(
             assert!(matches!(
                 lower_constructor_bindings(
                     output,
-                    source,
+                    public,
                     other_input,
                     graph,
                     &index,
@@ -140,22 +140,22 @@ pub(super) fn check(
         },
     );
     let mut measured = meter();
-    lower_constructor_bindings(output, source, input, graph, &index, &mut measured).unwrap();
+    lower_constructor_bindings(output, public, input, graph, &index, &mut measured).unwrap();
     let usage = measured.usage();
     assert!(usage.validation_work_units > 0 && usage.owned_bytes > 0);
     let mut shared = BudgetMeter::new(DecodeLimits {
         validation_work_units: usage.validation_work_units,
         ..DecodeLimits::default()
     });
-    lower_constructor_bindings(output, source, input, graph, &index, &mut shared).unwrap();
+    lower_constructor_bindings(output, public, input, graph, &index, &mut shared).unwrap();
     assert!(matches!(
-        lower_constructor_bindings(output, source, input, graph, &index, &mut shared),
+        lower_constructor_bindings(output, public, input, graph, &index, &mut shared),
         Err(Error::Resource(_))
     ));
     assert!(matches!(
         lower_constructor_bindings(
             output,
-            source,
+            public,
             input,
             graph,
             &index,

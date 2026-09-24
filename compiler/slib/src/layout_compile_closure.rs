@@ -29,9 +29,10 @@ pub use declarations::{
 pub use hir::CrossConeLayoutClosureHirResolutionError;
 pub use mir_source_callables::{
     CrossConeLayoutMirSourceCallablesError, MirSourceCallablesValidatedCrossConeLayoutClosure,
-    MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirSourceCallableComponent,
+    MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirConstructorComponent,
+    SharedMirConstructorValidationError, SharedMirSourceCallableComponent,
     SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
-    validate_shared_mir_source_callables,
+    validate_shared_mir_constructors, validate_shared_mir_source_callables,
 };
 pub use mir_types::{
     CrossConeLayoutMirTypesError, MirTypesValidatedCrossConeLayoutClosure,

@@ -29,6 +29,7 @@ pub enum SharedMirSourceCallableComponent {
 #[derive(Debug)]
 pub enum SharedMirSourceCallableValidationError {
     Resource(WireError),
+    Constructors(Box<super::SharedMirConstructorValidationError>),
     Shared(Box<hir::SharedTypeMetadataError>),
     MirTransport(Box<MirTypeBridgeSectionError<Infallible>>),
     Classifier(hir::NominalExactLeafClassifierBuildError),

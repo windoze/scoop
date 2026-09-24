@@ -1,6 +1,7 @@
 use super::*;
 
 mod bytes;
+mod mir_constructors;
 mod mir_source_callables;
 mod mir_types;
 mod type_foundations;

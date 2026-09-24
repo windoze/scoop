@@ -42,7 +42,7 @@ pub fn lower_type_bridge_exports(
     .map_err(Error::SourceCallables)?;
     let constructors = crate::lower_constructor_bindings(
         input.hir,
-        input.source,
+        input.public,
         input.mir,
         input.identities,
         &type_index,

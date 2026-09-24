@@ -94,6 +94,7 @@ pub(super) fn check(
     super::type_foundations::check(checked[0]);
     super::mir_types::check(name, checked[0], hir_core, mir_foundation, mir);
     super::mir_source_callables::check(name, checked[0], mir_foundation, ordinary, mir);
+    super::mir_constructors::check(name, checked[0], mir_foundation, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }

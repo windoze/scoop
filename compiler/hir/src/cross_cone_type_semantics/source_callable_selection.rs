@@ -14,10 +14,12 @@ use crate::{
     SharedTypeMetadataError as Error,
 };
 
+mod constructors;
 mod identity;
 mod ordinary;
 mod properties;
 mod signatures;
+pub use constructors::select_param_free_source_constructors;
 pub use ordinary::select_ordinary_source_callables;
 
 /// Selects only source functions/accessors with a closed machine signature.

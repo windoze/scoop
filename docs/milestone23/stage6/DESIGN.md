@@ -614,6 +614,8 @@ class construction 固定为 exact allocation一次、同一 receiver direct调�
 
 普通 member、extension、value constructor和adjust thunk都执行按值 receiver/参数语义。`@InteriorMutable` 或 `addressOf(this)`可观察时必须有方法局部 copy；即使 physical ABI使用 pointer，也不能把 caller/box内存变成方法的可修改 `this`。
 
+MIR source constructor 的必需集合直接从共有 nominal/callable 声明的参数自由物化闭包查询，限于当前 provider 的公开或 protected 构造器；完整声明中的 private/internal、generic/source-only owner 与 object 隐式初始化入口不因存在于源码表而成为构造器导出根。查询仅返回有预算的借用索引，producer 与 reader 共用，不新增 wire 来源清单。reader 从同一共有声明逐项核对完整语义签名、GC effect 与实际 owner：class initializer 把源码返回值转换为同一 owner 的 initializing receiver，并返回 canonical Unit；struct 唯一 primary 的参数类型序列与完整声明字段序列相同，既有 constructor duplicate-signature identity 保证同一 owner 下该签名唯一，其 lowered 角色为 PrimaryValueConstructor、GC effect 为 NoGc；其余 struct constructor 保持 ValueConstructor 与源码 GC effect。缺失、额外、错 owner、错参数、错 receiver/result、错误主次角色或 GC 漂移均拒绝。枚举变体仍使用 representation construction plan，generated callable、dispatch、初始化、selected 和完整 LIR/artifact 闭包继续按各自合同核验。
+
 ### 5.3 dispatch schema 与 table 构造
 
 `ParamFreeMirDispatchSchemaV1` 按 exact owner 保存 class vtable schema 与按 exact interface排序的 itable schema。每条 entry包含 `{ slot, position, slot_signature, implementation }`；implementation是 `AbstractObligation { declaration, trap_target, receiver_adaptation } | DirectStrongTarget | InterfaceDefaultTarget | AdjustThunkTarget`。abstract分支沿用当前MIR的typed pure-virtual trap body，使用实际abstract声明对应的Strong callable identity与完整signature；interface obligation使用原interface declaration，class再次抽象化可使用保留同一slot的derived abstract override；它有明确fatal出口，不留下null/未解析function，也不授予源码direct call权限。

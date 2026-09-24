@@ -23,6 +23,7 @@ mod shape_demands;
 mod shared_accessor_forms;
 mod shared_callable_declarations;
 mod shared_callable_selection;
+mod shared_constructor_selection;
 mod shared_nominal_declarations;
 mod shared_property_declarations;
 mod shared_source_domains;

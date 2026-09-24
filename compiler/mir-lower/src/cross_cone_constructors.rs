@@ -16,22 +16,22 @@ use binding::Producer;
 /// type interface. Imported types stay borrowed through the shared lookup.
 pub fn lower_constructor_bindings(
     output: &hir::DependencyHirOutput,
-    source: &hir::CrossConeTypeSemanticsProductionV1,
+    public: &hir::CrossConeHirInterfaceSectionV1,
     input: &mir::SingleConeStrongMirInput,
     identities: &ValidatedIdentityGraph,
     types: &dyn mir::MirTypeBridgeTypeLookupV1,
     meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirConstructorProductionError> {
     let local = output.output().local.module();
-    let mut producer = Producer::new(source, input, identities, types, meter)?;
+    let mut producer = Producer::new(public, input, identities, types, meter)?;
     for (id, constructor) in local.class_constructors.iter() {
-        let Some(source) = producer.source(constructor.materialization)? else {
+        let Some((declaration, source)) = producer.source(constructor.materialization)? else {
             continue;
         };
         producer.signature_cost(local.types.len(), constructor.parameters.len())?;
         let lowered = crate::source_callables::exact_class_initializer_signature(local, id);
         let owner = lowered.receiver().into_option().ok_or(
-            SourceMirConstructorProductionError::InvalidClassSignature(source.declaration()),
+            SourceMirConstructorProductionError::InvalidClassSignature(declaration),
         )?;
         let semantic = ExactCallableSignature::new(
             lowered.effect(),
@@ -40,6 +40,7 @@ pub fn lower_constructor_bindings(
             owner,
         );
         producer.record(
+            declaration,
             source,
             semantic,
             lowered,
@@ -47,13 +48,14 @@ pub fn lower_constructor_bindings(
         )?;
     }
     for (id, constructor) in local.struct_constructors.iter() {
-        let Some(source) = producer.source(constructor.materialization)? else {
+        let Some((declaration, source)) = producer.source(constructor.materialization)? else {
             continue;
         };
         producer.signature_cost(local.types.len(), constructor.parameters.len())?;
         let lowered = crate::source_callables::exact_struct_constructor_signature(local, id);
         let owner = lowered.result();
         producer.record(
+            declaration,
             source,
             lowered.clone(),
             lowered,
@@ -73,6 +75,7 @@ pub fn lower_constructor_bindings(
 #[derive(Debug)]
 pub enum SourceMirConstructorProductionError {
     Resource(WireError),
+    Shared(Box<hir::SharedTypeMetadataError>),
     Bridge(mir::MirCallableBridgeError),
     IncompleteConstructors { expected: usize, actual: usize },
     MissingMaterialization(PersistentConstructorId),
@@ -84,6 +87,14 @@ pub enum SourceMirConstructorProductionError {
 impl From<WireError> for SourceMirConstructorProductionError {
     fn from(error: WireError) -> Self {
         Self::Resource(error)
+    }
+}
+impl From<hir::SharedTypeMetadataError> for SourceMirConstructorProductionError {
+    fn from(error: hir::SharedTypeMetadataError) -> Self {
+        match error {
+            hir::SharedTypeMetadataError::Resource(error) => Self::Resource(error),
+            error => Self::Shared(Box::new(error)),
+        }
     }
 }
 impl From<mir::MirCallableBridgeError> for SourceMirConstructorProductionError {

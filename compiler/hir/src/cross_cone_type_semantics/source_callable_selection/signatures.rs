@@ -66,7 +66,7 @@ impl<'a> MaterializableSignatures<'a> {
         Ok(true)
     }
 
-    fn owner(
+    pub(super) fn owner(
         &self,
         owner: Option<SourceNominalId>,
         meter: &mut BudgetMeter,

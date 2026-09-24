@@ -18,9 +18,15 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
         let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
             let unit = dependencies::unit(input, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit], &mut meter()).unwrap();
-            let bindings =
-                lower_constructor_bindings(output, hir, input, graph, &index, &mut meter())
-                    .unwrap();
+            let bindings = lower_constructor_bindings(
+                output,
+                &public_interface(output),
+                input,
+                graph,
+                &index,
+                &mut meter(),
+            )
+            .unwrap();
             assertions::actual(output, hir, input, &bindings);
             rejections::primary_effects(input, graph, &index, &bindings);
             let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
@@ -37,13 +43,19 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
         });
         with_production(
             &format!("private class Unrelated() {{}}\n{source}"),
-            |output, input, hir, graph, types| {
+            |output, input, _hir, graph, types| {
                 let unit = dependencies::unit(input, graph);
                 let index =
                     MirTypeBridgeTypeIndexV1::try_new(&[types, &unit], &mut meter()).unwrap();
-                let bindings =
-                    lower_constructor_bindings(output, hir, input, graph, &index, &mut meter())
-                        .unwrap();
+                let bindings = lower_constructor_bindings(
+                    output,
+                    &public_interface(output),
+                    input,
+                    graph,
+                    &index,
+                    &mut meter(),
+                )
+                .unwrap();
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
@@ -67,19 +79,33 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
 fn actual_constructor_bindings_reject_missing_inputs_and_exhausted_budgets() {
     with_production(
         "public class Container public constructor()",
-        |output, input, hir, graph, types| {
+        |output, input, _hir, graph, types| {
             let unit = dependencies::unit(input, graph);
-            rejections::check(output, hir, input, graph, types, &unit);
+            rejections::check(
+                output,
+                &public_interface(output),
+                input,
+                graph,
+                types,
+                &unit,
+            );
         },
     );
     with_production(
         "public interface Empty {}",
-        |output, input, hir, graph, types| {
+        |output, input, _hir, graph, types| {
             assert!(
-                lower_constructor_bindings(output, hir, input, graph, types, &mut meter())
-                    .unwrap()
-                    .entries()
-                    .is_empty()
+                lower_constructor_bindings(
+                    output,
+                    &public_interface(output),
+                    input,
+                    graph,
+                    types,
+                    &mut meter()
+                )
+                .unwrap()
+                .entries()
+                .is_empty()
             );
         },
     );
@@ -88,15 +114,29 @@ fn actual_constructor_bindings_reject_missing_inputs_and_exhausted_budgets() {
 #[test]
 fn actual_constructor_bindings_reject_source_and_body_gc_disagreement() {
     let source = "public struct Empty() { @NoGC public constructor(value: Empty): this() {} }";
-    with_production(source, |output, input, hir, graph, types| {
-        let bindings =
-            lower_constructor_bindings(output, hir, input, graph, types, &mut meter()).unwrap();
+    with_production(source, |output, input, _hir, graph, types| {
+        let bindings = lower_constructor_bindings(
+            output,
+            &public_interface(output),
+            input,
+            graph,
+            types,
+            &mut meter(),
+        )
+        .unwrap();
         rejections::secondary_is_not_field_assembly(input, graph, types, &bindings);
         with_production(
             &source.replace("@NoGC ", ""),
             |_, input, _, graph, types| {
                 assert!(matches!(
-                    lower_constructor_bindings(output, hir, input, graph, types, &mut meter()),
+                    lower_constructor_bindings(
+                        output,
+                        &public_interface(output),
+                        input,
+                        graph,
+                        types,
+                        &mut meter()
+                    ),
                     Err(Error::Bridge(
                         scoop_mir::MirCallableBridgeError::SignatureMismatch
                     ))

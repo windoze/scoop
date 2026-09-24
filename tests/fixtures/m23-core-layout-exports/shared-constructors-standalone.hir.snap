@@ -1,0 +1,4 @@
+SharedConstructorBox(SharedConstructorToken): Public Managed exported=true
+SharedConstructorPair(): Public NoGc exported=true
+SharedConstructorPair(SharedConstructorToken,SharedConstructorToken): Public Managed exported=true
+SharedConstructorToken(): Public Managed exported=true

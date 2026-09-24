@@ -19,16 +19,21 @@ use crate::{
     },
 };
 
+mod constructors;
 mod errors;
 mod validation;
 use SharedMirSourceCallableValidationError as Error;
+pub use constructors::{
+    SharedMirConstructorComponent, SharedMirConstructorValidationError,
+    validate_shared_mir_constructors,
+};
 pub use errors::{
     CrossConeLayoutMirSourceCallablesError, SharedMirSourceCallableComponent,
     SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
 };
 pub use validation::validate_shared_mir_source_callables;
 
-/// Source functions/accessors agree with shared HIR. Constructor/generated
+/// Source functions/accessors and constructors agree with shared HIR. Generated
 /// callables, dispatch, initialization, selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     prepared: PreparedCrossConeLayoutMirSections<'input>,
@@ -138,6 +143,8 @@ fn validate_sources(
                     meter,
                 )
             })??;
+            validate_shared_mir_constructors(source, artifact.mir.callables(), parts.meter)
+                .map_err(|error| Error::Constructors(Box::new(error)))?;
             parts
                 .meter
                 .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;

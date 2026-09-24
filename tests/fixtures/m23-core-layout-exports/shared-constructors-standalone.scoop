@@ -1,0 +1,5 @@
+public struct SharedConstructorToken()
+public struct SharedConstructorPair(val left: SharedConstructorToken, val right: SharedConstructorToken) {
+    @NoGC public constructor(): this(SharedConstructorToken(), SharedConstructorToken()) {}
+}
+public class SharedConstructorBox public constructor(public val token: SharedConstructorToken)

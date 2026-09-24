@@ -1,7 +1,8 @@
 use super::*;
+use std::collections::BTreeMap;
 
 pub(super) struct Producer<'a, 'm> {
-    source: &'a hir::CanonicalInheritanceSourceConstructorsV1,
+    source: BTreeMap<PersistentConstructorId, &'a hir::CallableDeclarationRecordV1>,
     input: &'a mir::SingleConeStrongMirInput,
     authority: mir::MirCallableBridgeAuthority<'a>,
     records: Vec<mir::ParamFreeMirCallableBindingV1>,
@@ -9,24 +10,25 @@ pub(super) struct Producer<'a, 'm> {
 }
 impl<'a, 'm> Producer<'a, 'm> {
     pub(super) fn new(
-        source: &'a hir::CrossConeTypeSemanticsProductionV1,
+        public: &'a hir::CrossConeHirInterfaceSectionV1,
         input: &'a mir::SingleConeStrongMirInput,
         identities: &'a ValidatedIdentityGraph,
         types: &'a dyn mir::MirTypeBridgeTypeLookupV1,
         meter: &'m mut BudgetMeter,
     ) -> Result<Self, Error> {
-        let source = source.source_constructors();
+        let source = hir::select_param_free_source_constructors(
+            input.module().cone,
+            public,
+            identities,
+            meter,
+        )?;
         let mut records = Vec::new();
         meter.charge_owned_bytes(
-            (source.records().len() as u64)
+            (source.len() as u64)
                 .saturating_mul(std::mem::size_of::<mir::ParamFreeMirCallableBindingV1>() as u64),
             &WirePath::root(),
         )?;
-        meter.try_reserve_collection_slots(
-            &mut records,
-            source.records().len(),
-            &WirePath::root(),
-        )?;
+        meter.try_reserve_collection_slots(&mut records, source.len(), &WirePath::root())?;
         Ok(Self {
             source,
             input,
@@ -43,22 +45,28 @@ impl<'a, 'm> Producer<'a, 'm> {
     pub(super) fn source(
         &mut self,
         materialization: CallableMaterialization,
-    ) -> Result<Option<&'a hir::NominalSupportConstructorInterfaceV1>, Error> {
+    ) -> Result<
+        Option<(
+            PersistentConstructorId,
+            &'a hir::CallableDeclarationRecordV1,
+        )>,
+        Error,
+    > {
         self.meter.charge_nodes(1, &WirePath::root())?;
         self.meter.charge_work(
-            u64::from(self.source.records().len().checked_ilog2().unwrap_or(0)) + 1,
+            u64::from(self.source.len().checked_ilog2().unwrap_or(0)) + 1,
             &WirePath::root(),
         )?;
         let CallableTemplateOwner::Constructor(declaration) = materialization.template() else {
             return Ok(None);
         };
-        let Some(source) = self.source.get(declaration) else {
+        let Some(&source) = self.source.get(&declaration) else {
             return Ok(None);
         };
         if materialization.context() != CallableMaterializationContext::NoSubstitution {
             return Err(Error::OdrRequired(declaration));
         }
-        Ok(Some(source))
+        Ok(Some((declaration, source)))
     }
 
     pub(super) fn signature_cost(&mut self, types: usize, parameters: usize) -> Result<(), Error> {
@@ -79,12 +87,12 @@ impl<'a, 'm> Producer<'a, 'm> {
 
     pub(super) fn record(
         &mut self,
-        source: &hir::NominalSupportConstructorInterfaceV1,
+        declaration: PersistentConstructorId,
+        source: &hir::CallableDeclarationRecordV1,
         semantic: ExactCallableSignature,
         lowered: ExactCallableSignature,
         role: mir::MirCallableLoweringRoleV1,
     ) -> Result<(), Error> {
-        let declaration = source.declaration();
         let roots = self.input.materialization().callable_roots();
         let signatures = &self.input.module().meta.callable_signatures;
         let type_work = u64::from(
@@ -112,7 +120,7 @@ impl<'a, 'm> Producer<'a, 'm> {
         if actual.signature() != &lowered {
             return Err(Error::SourceSignatureMismatch(declaration));
         }
-        let source_gc = match source.payload().effects().gc_effect() {
+        let source_gc = match source.effects().gc_effect() {
             scoop_identity::GcEffect::Managed => mir::GcEffect::Managed,
             scoop_identity::GcEffect::NoGc => mir::GcEffect::NoGc,
         };
@@ -132,9 +140,9 @@ impl<'a, 'm> Producer<'a, 'm> {
     }
 
     pub(super) fn finish(self) -> Result<mir::CanonicalMirCallableBindingsV1, Error> {
-        if self.records.len() != self.source.records().len() {
+        if self.records.len() != self.source.len() {
             return Err(Error::IncompleteConstructors {
-                expected: self.source.records().len(),
+                expected: self.source.len(),
                 actual: self.records.len(),
             });
         }

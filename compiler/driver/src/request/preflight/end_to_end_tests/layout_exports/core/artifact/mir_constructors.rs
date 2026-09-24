@@ -1,0 +1,122 @@
+use super::*;
+use scoop_identity::{
+    ExactCallableSignature, PersistentConstructorId, StrongCallableDefinitionOwner,
+};
+use scoop_slib::{
+    SharedMirConstructorComponent as Component, SharedMirConstructorValidationError as Error,
+};
+
+mod inventory;
+mod mutations;
+
+pub(super) fn check(
+    name: &str,
+    source: hir::CheckedSharedTypeFoundationV1<'_>,
+    foundation: &mir::OdrFreeMirFoundation,
+    section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
+) {
+    let replay = Replay {
+        source,
+        foundation,
+        section,
+    };
+    replay.validate(section.callables(), &mut meter()).unwrap();
+    if !name.starts_with("shared-constructors-") {
+        return;
+    }
+    inventory::check(&replay, name.ends_with("combined"));
+    mutations::check(&replay);
+    let mut measured = meter();
+    replay.validate(section.callables(), &mut measured).unwrap();
+    let mut shared = scoop_wire::BudgetMeter::new(DecodeLimits {
+        validation_work_units: measured.usage().validation_work_units,
+        ..DecodeLimits::default()
+    });
+    replay.validate(section.callables(), &mut shared).unwrap();
+    assert!(matches!(
+        replay.validate(section.callables(), &mut shared),
+        Err(Error::Resource(_))
+    ));
+    for limits in [
+        DecodeLimits {
+            validation_work_units: 0,
+            ..DecodeLimits::default()
+        },
+        DecodeLimits {
+            logical_heap_bytes: 0,
+            ..DecodeLimits::default()
+        },
+    ] {
+        assert!(matches!(
+            replay.validate(
+                section.callables(),
+                &mut scoop_wire::BudgetMeter::new(limits)
+            ),
+            Err(Error::Resource(_))
+        ));
+    }
+}
+
+struct Replay<'a> {
+    source: hir::CheckedSharedTypeFoundationV1<'a>,
+    foundation: &'a mir::OdrFreeMirFoundation,
+    section: &'a mir::CrossConeMirTypeBridgeSectionV1<'a>,
+}
+
+impl Replay<'_> {
+    fn validate(
+        &self,
+        bindings: &mir::CanonicalMirCallableBindingsV1,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<(), Error> {
+        scoop_slib::validate_shared_mir_constructors(self.source, bindings, meter)
+    }
+
+    fn reject(&self, records: Vec<mir::ParamFreeMirCallableBindingV1>) -> Error {
+        let records = mir::CanonicalMirCallableBindingsV1::try_new(records).unwrap();
+        self.validate(&records, &mut meter())
+            .expect_err("constructor bindings must agree with the retained shared HIR declarations")
+    }
+
+    fn replace(
+        &self,
+        changed: mir::ParamFreeMirCallableBindingV1,
+    ) -> Vec<mir::ParamFreeMirCallableBindingV1> {
+        self.section
+            .callables()
+            .entries()
+            .iter()
+            .map(|binding| {
+                if binding.implementation() == changed.implementation() {
+                    changed.clone()
+                } else {
+                    binding.clone()
+                }
+            })
+            .collect()
+    }
+
+    fn fixture_bindings(&self) -> impl Iterator<Item = &mir::ParamFreeMirCallableBindingV1> {
+        self.section.callables().entries().iter().filter(|binding| {
+            let mir::MirCallableOriginV1::Constructor(id) = binding.origin() else { return false };
+            let key = self.source.metadata().identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(*id).unwrap();
+            let Some(scoop_identity::DefinitionOwnerAtom::Type(owner)) = key.owners().owners().last() else { return false };
+            let owner = self.source.metadata().identities.canonical_key::<_, scoop_identity::SourceDeclarationKey>(*owner).unwrap();
+            matches!(owner.name(), scoop_identity::DeclarationName::Named(name) if name.as_str().starts_with("SharedConstructor"))
+        })
+    }
+}
+
+fn declaration(binding: &mir::ParamFreeMirCallableBindingV1) -> PersistentConstructorId {
+    let mir::MirCallableOriginV1::Constructor(id) = binding.origin() else {
+        panic!("fixture binding is a source constructor")
+    };
+    *id
+}
+
+fn component(error: Error, expected: Component, id: PersistentConstructorId) {
+    assert!(
+        matches!(error, Error::Mismatch { declaration, component } if declaration == id && component == expected),
+        "expected {expected:?}, got {error:?}"
+    );
+}
