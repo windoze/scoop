@@ -117,10 +117,9 @@ impl<'a> FunctionLowerer<'a> {
                     &self.module.classes[*class_id],
                 )?;
                 let offset = offsets[*index as usize];
-                let field_lir_ty = self.value_type(field_ty);
                 let object = self.lower_expr(object)?;
                 let value = self.lower_expr(value)?;
-                self.store_at_offset(object, offset, value, field_lir_ty);
+                self.store_heap_value(object, offset, value, field_ty)?;
             }
             mir::StatementKind::AtomicFieldStore {
                 kind,

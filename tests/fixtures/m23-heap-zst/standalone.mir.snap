@@ -1,0 +1,76 @@
+Module
+  struct HeapEmpty ()
+  enum CoroutineStep<HeapCell>
+    Completed(value: HeapCell)
+    Suspended()
+  enum CoroutineSlot<HeapCell>
+    Empty()
+    Value(value: HeapCell)
+  enum CoroutineStep<HeapEmpty>
+    Completed(value: HeapEmpty)
+    Suspended()
+  enum CoroutineSlot<HeapEmpty>
+    Empty()
+    Value(value: HeapEmpty)
+  class HeapCell vtable=0 itables=0
+  class box<HeapEmpty> vtable=0 itables=0
+  generated_exact_type get0 location=enum0 nominal_id=6ccea2f80541667f3fa5c6cdf51a304c6f08d73fe816f45ce077e2b2fad8b960 exact_id=0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904
+  generated_exact_type get1 location=enum3 nominal_id=c93471b4459deed984e45d9ca5093d69303daca66de74fde7fbc9a28fd9497b6 exact_id=4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad
+  generated_exact_type get2 location=enum1 nominal_id=e33f25c0db78b3d67e75e3e384617e1faf5cc4489f8d0d7cf8f49e0f1be32996 exact_id=4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217
+  generated_exact_type get3 location=class1 nominal_id=fffde6270412d52196774a1c507eb3992d6c71265caa71f23e5f8c8cc8ddea85 exact_id=b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e
+  generated_exact_type get4 location=enum2 nominal_id=1e45a2a74a412e786e7b4a6ff7caeb0a26734fb2654e80430738ad99827f54bb exact_id=ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246
+  fun heapEmptySource @fn0() -> HeapEmpty
+    bb0 entry
+      call $call.1: HeapEmpty = @fn4 direct
+      return
+        Type HeapEmpty
+        Local $call.1
+  fun heapCellSource @fn1() -> HeapCell
+    bb0 entry
+      call $argument.0: HeapEmpty = @fn0 direct
+      val $parameter.empty: HeapEmpty
+        Type HeapEmpty
+        Local $argument.0
+      assign $new.1
+        Type HeapCell
+        ClassAlloc HeapCell
+      call @fn3 direct
+        Type HeapCell
+        Local $new.1
+        Type HeapEmpty
+        Local $parameter.empty
+      return
+        Type HeapCell
+        Local $new.1
+  fun heapFieldRoundtrip @fn2() -> HeapEmpty
+    bb0 entry
+      call cell: HeapCell = @fn1 direct
+      call $call.1: HeapEmpty = @fn0 direct
+      field_set 0
+        Type HeapCell
+        Local cell
+        Type HeapEmpty
+        Local $call.1
+      return
+        Type HeapEmpty
+        FieldAccess 0
+          Type HeapCell
+          Local cell
+  fun init.HeapCell.$c0 @fn3(this: HeapCell, empty: HeapEmpty) -> Unit
+    bb0 entry
+      field_set 0
+        Type HeapCell
+        Local this
+        Type HeapEmpty
+        Local empty
+      return
+  fun ctor.HeapEmpty.$c0 @fn4() -> HeapEmpty <no-gc>
+    bb0 entry
+      return
+        Type HeapEmpty
+        StructInit HeapEmpty
+  coroutine_step cs0 CoroutineStep<HeapCell> result=HeapCell
+  coroutine_step cs1 CoroutineStep<HeapEmpty> result=HeapEmpty
+  coroutine_slot cl0 CoroutineSlot<HeapCell> value=HeapCell
+  coroutine_slot cl1 CoroutineSlot<HeapEmpty> value=HeapEmpty
+  output library

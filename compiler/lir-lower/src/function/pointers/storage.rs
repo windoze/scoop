@@ -26,7 +26,7 @@ impl FunctionLowerer<'_> {
         abi::classify_argument(self.context, storage, self.structs, self.enums)
     }
 
-    pub(super) fn logical_zst_value(
+    pub(in crate::function) fn logical_zst_value(
         &mut self,
         ty: &mir::Type,
         representation: lir::AbiZst,

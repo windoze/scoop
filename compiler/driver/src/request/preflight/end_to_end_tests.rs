@@ -21,6 +21,7 @@ mod default_type_access;
 mod default_value_access;
 mod dependency_preflight;
 mod executable_callables;
+mod heap_zst;
 mod image_dependencies;
 mod layout_exports;
 mod nominal_signatures;

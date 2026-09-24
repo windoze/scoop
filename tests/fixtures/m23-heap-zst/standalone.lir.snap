@@ -1,0 +1,62 @@
+Module
+  enum CoroutineStep<HeapCell> niche(kind=managed,payload_variant=0)
+  enum CoroutineSlot<HeapCell> niche(kind=managed,payload_variant=1)
+  enum CoroutineStep<HeapEmpty> tagged size=8 align=8 variants=(struct0)@8+0 ()@8+0
+  enum CoroutineSlot<HeapEmpty> tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
+  fun @scoop$1$cb$7a0db015f7855a7d4e77bbcaf84ea4a5c3563cedf60a7e8bf653f8db6ff2aff1() -> elided-zst<struct0 size=0 align=1>
+    local %0 $call.1: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn4()
+    store t0 -> local0
+    ret local0
+  fun @scoop$1$cb$bd3d5129dc38345866f37494e80d63e709d8ae2d4a72fcebaa823b1d15491d46() -> ptr<managed>
+    local %0 $argument.0: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
+    local %1 $parameter.empty: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
+    local %2 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn0()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
+    store t1 -> local2
+    call managed-void-target0 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>, elided-zst<struct0 size=0 align=1>) local-fn3(local2, elided-zst local1)
+    t2 = aggregate () : {}
+    ret local2
+  fun @scoop$1$cb$b26c83d3d15e667539c74d7f9bab33593e709d6ab8422f6a2df114fa11b24000() -> elided-zst<struct0 size=0 align=1>
+    local %0 cell: ptr<managed>
+    local %1 $call.1: struct0 <logical-zst 165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn1()
+    store t0 -> local0
+    call managed-elided-zst-target0 sp<managed-call:1> live=[] t1 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> local-fn0()
+    store t1 -> local1
+    t2 = zst_value exact=165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6 align 1 : struct0
+    ret t2
+  fun @scoop$1$cb$e5838c3d7f49ce4f4d0c66fbf485e8e1be3b8baf3832907867035a9812ebcc5e(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$60862380fe25338f7af6e2699fcd449604386fdee2f2b8b49fedaa0078f745bb() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  block entry
+    t0 = aggregate () : struct0
+    ret t0
+  td td0 HeapCell @scoop$1$td$59ef07552b21a7abd651fb41d86d390e908c366ab9c851c217edf7ad43a02526 type-id=6232308157493779620 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td1 box<HeapEmpty> @scoop$1$td$b828c2b2c1f9a7b8f939219f1d04ebb658fe88ee1ce9887c0eb88e6c3d4ba58e type-id=12560702906009081739 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td2 HeapEmpty @scoop$1$td$165bb32c6a79b75559c448c5a2e3b000e05d7ddabfe892f3b21c4d48a0af3ef6 type-id=13920687771323353398 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td3 CoroutineStep<HeapCell> @scoop$1$td$0079a0c1cf6b0bcdc146e3023b1088db0ae8471b6f6e3c8ba4ef14d96b74f904 type-id=11000316599803413075 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 CoroutineSlot<HeapEmpty> @scoop$1$td$4da99289a0ee784743980979db3a745fed25590c5e1bdef6514c939e7a8b04ad type-id=5876496404907966599 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 CoroutineSlot<HeapCell> @scoop$1$td$4ddb91dffa51a25688791b7e85709d2384297866918845ddb4055b7a54ac4217 type-id=14756216878542636231 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 CoroutineStep<HeapEmpty> @scoop$1$td$ee1b2bc054225237ad343b741a521c55d7eea392fca16e4704a93122539cb246 type-id=6053613819786720778 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout HeapEmpty size=0 align=1 refs=[]
+  layout CoroutineStep<HeapCell> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot<HeapCell> size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep<HeapEmpty> size=8 align=8 enum-scan=none
+  layout CoroutineSlot<HeapEmpty> size=8 align=8 enum-scan=none
+  layout HeapCell value size=8 align=8 refs=[0]
+  layout HeapCell size=16 align=8 refs=[]
+  layout box<HeapEmpty> value size=8 align=8 refs=[0]
+  layout box<HeapEmpty> size=16 align=8 refs=[]
+  output library

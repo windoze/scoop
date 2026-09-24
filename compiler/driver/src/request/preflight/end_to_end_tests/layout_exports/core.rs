@@ -62,6 +62,11 @@ fn shared_source_callable_inventory_replays_bodies_and_abstract_overrides() {
     check_core_layout_exports(&["shared-callables-standalone", "shared-callables-combined"]);
 }
 
+#[test]
+fn heap_zst_fields_produce_valid_layout_objects_and_shared_metadata() {
+    check_core_layout_exports(&["heap-zst-storage"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

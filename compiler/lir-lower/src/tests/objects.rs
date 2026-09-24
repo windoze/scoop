@@ -7,3 +7,4 @@ mod class_prefix;
 mod dispatch;
 mod memory;
 mod runtime;
+mod zst_fields;

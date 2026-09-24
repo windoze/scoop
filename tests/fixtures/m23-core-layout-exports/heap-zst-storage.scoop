@@ -1,0 +1,9 @@
+public struct HeapBridgeEmpty()
+public open class HeapBridgeBase(public var base: HeapBridgeEmpty)
+public class HeapBridgeDerived(public var value: HeapBridgeEmpty, public var number: Int) : HeapBridgeBase(HeapBridgeEmpty())
+
+public fun heapBridgeRead(value: HeapBridgeDerived): HeapBridgeEmpty = value.base
+
+public fun heapBridgeWrite(value: HeapBridgeDerived, empty: HeapBridgeEmpty) {
+    value.value = empty
+}

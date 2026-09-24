@@ -1,0 +1,453 @@
+Module
+  global0 heapEffects: Int managed initial=encoded(Int:0x0)
+  global1 $singleton$HeapSingleton: HeapSingleton managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:HeapSingleton singleton lazy global1 initializer=@fn0 ensure=@fn1 failure=2 deps=[]
+  struct HeapEmpty ()
+  struct HeapPair (first: HeapEmpty, second: HeapEmpty)
+  enum CoroutineStep<HeapCell>
+    Completed(value: HeapCell)
+    Suspended()
+  enum CoroutineSlot<HeapCell>
+    Empty()
+    Value(value: HeapCell)
+  enum CoroutineStep<HeapEmpty>
+    Completed(value: HeapEmpty)
+    Suspended()
+  enum CoroutineSlot<HeapEmpty>
+    Empty()
+    Value(value: HeapEmpty)
+  enum CoroutineStep<HeapDerived>
+    Completed(value: HeapDerived)
+    Suspended()
+  enum CoroutineSlot<HeapDerived>
+    Empty()
+    Value(value: HeapDerived)
+  enum CoroutineStep<HeapPair>
+    Completed(value: HeapPair)
+    Suspended()
+  enum CoroutineSlot<HeapPair>
+    Empty()
+    Value(value: HeapPair)
+  enum CoroutineStep<HeapSingleton>
+    Completed(value: HeapSingleton)
+    Suspended()
+  enum CoroutineSlot<HeapSingleton>
+    Empty()
+    Value(value: HeapSingleton)
+  enum CoroutineStep<HeapBase>
+    Completed(value: HeapBase)
+    Suspended()
+  enum CoroutineSlot<HeapBase>
+    Empty()
+    Value(value: HeapBase)
+  class HeapCell vtable=0 itables=0
+  class HeapBase vtable=0 itables=0
+  class HeapDerived vtable=0 itables=0
+  class HeapSingleton vtable=0 itables=0
+  class box<HeapEmpty> vtable=0 itables=0
+  class box<HeapPair> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@fn5 captures=1
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn6 captures=1
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn7 captures=1
+  generated_exact_type get0 location=enum8 nominal_id=981f1503d64db886acecc0e1b4d18f93ca9eb09b9e6f712e82ea0ad956e44aea exact_id=1246064da34f404a04d2149173683262d56a7032e82bbedced0b1df768b52f10
+  generated_exact_type get1 location=class5 nominal_id=925a77258bc47ca36b176c940ff137420b2508d0482cec835e2e5ce3cc893f3b exact_id=1636256d1cd8085ef47cbc8f948ae25692ebe04ef446f4c562a242e196d18509
+  generated_exact_type get2 location=enum7 nominal_id=7e4f7bef1d89e471476a0a751fbe7aa0da2abccf60e3a5448fbd3639b8c56f37 exact_id=1860ba9cf317626950e6a5a7fcc5a5a4dcb85b628950c7f85519b5c5983c320f
+  generated_exact_type get3 location=enum2 nominal_id=d052ecd2cd631e94907cf63f68ef6c835f93a581a40cca301e10d86fa1fa2335 exact_id=1c6d8fe1f10c417fe9d2d0a6aac6b98ceafdd5c199248868b871398bb37ff177
+  generated_exact_type get4 location=closure0 nominal_id=1628eef54727f901eca0c11cde7c492508a5da3420dec4a3ee500a4bbff09710 exact_id=2e6c609e7d301fef574d5de11437ca50acdacc5ecfbbfb63e81cc7d6667a25b5
+  generated_exact_type get5 location=enum5 nominal_id=665885659effae17c5bdd7ce40105925f2f746addae13015795c5fd91f715e68 exact_id=3d695ee88b8ba7d61a635fd168083c1d4a80d00278d8e239cd70d4a7faf44b22
+  generated_exact_type get6 location=closure3 nominal_id=5192790e9de135232cd11383a35e7156d8289be210ae6f87d931293856da2391 exact_id=70c4cb4a746a3ee105fbaf09b3fdfbe68225d42be7d65abd9cfb95dbc4f30a02
+  generated_exact_type get7 location=class4 nominal_id=69ff3ebaec7a1e2f7aa13df6d85de42b440ea3d0f7b2a3115c5c737f78edb359 exact_id=79d270a6c76ecae41fc664603953fac40d1f5c9707be51ac4161f4ac919e4fe0
+  generated_exact_type get8 location=enum9 nominal_id=bd21bc578520b43e87625c755e89b7372823b6f7bc7c41ea4b09a2e96c7ba784 exact_id=a5cc6aefdb872aa6caf05f4b29f2b8333164ae1847a9a4925e5e23a503e5d822
+  generated_exact_type get9 location=closure1 nominal_id=7bf8768fbc9f247f311153dd0519e58426e2e2eac3eec50cd096367ff2cdd444 exact_id=aa06db1d47dacc901eed5ba19a97541a3b1aab48c8ff491bf95d0b67c9d29259
+  generated_exact_type get10 location=closure2 nominal_id=ddb4d29abc1bfc98c9a29122f200a57614994d187785bc5c0d88fdd3ce6f0d9a exact_id=aacdc5618df706cfc55dac80def9efb796cf98c1e17efd710a54d9d087fe132b
+  generated_exact_type get11 location=enum6 nominal_id=8a864bf192f1e10a4572893c06aa49dde7c00e19bffa78c823b1fdcbc235615a exact_id=b866b7ed30799ecd30cd09679dec0d3d6cc33bd5e23ac34a36e0cbf36e858511
+  generated_exact_type get12 location=enum0 nominal_id=3420b1c58a2f9b9e4360d6a782fe56451a6e02e01b966c4746956ef16d2567ac exact_id=c28067e6ee47333860a06d83663a8406c26ed06482fd1b50b6c6a1b7130a06f6
+  generated_exact_type get13 location=enum3 nominal_id=530e9d639ee2c0e4ab03f8017edc8c1e9dc752049193f9c15d02f5de3ab7ca8d exact_id=c96c1c1448e5a37de10f480341a079d5b6a9dccb705e683b2088b673ddba61dd
+  generated_exact_type get14 location=enum4 nominal_id=ae440f4ac336d6ae00be92187988c85900fddb4b98b4871aaaac85bdb2220611 exact_id=cbaf2bb2431692912ad7c9a2b5e9ffe9b78605d941ecb67cae17f76d3abb6444
+  generated_exact_type get15 location=enum11 nominal_id=4f58082a59a0cf093b0dd080504cfbb27bd34f4b41ea2844e839e25287addf7c exact_id=da12dc561777ef24dbe0f7d8caf6493c7d3f1d9f4cbae09d7cf264bd1007522e
+  generated_exact_type get16 location=enum1 nominal_id=d1e7e9de197ef8667609027649d331cd0f626d26e7852fc8ca76a464591b6d99 exact_id=e8c882ace32b43568046aa9062fefe73dd6e1e28ed88fcfd039360c510eda335
+  generated_exact_type get17 location=enum10 nominal_id=eb9e633080f99eb44794d5826011b0de92e0d809cdcfe75cd7176e28ff8d9982 exact_id=fc26628b4e460544a10489447b5be8fd95027b31414de6b0c59b3ef701728e33
+  fun $init$body$0 @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type HeapSingleton
+        ClassAlloc HeapSingleton
+      call @fn11 direct
+        Type HeapSingleton
+        Local $new.1
+      global_assign $singleton$HeapSingleton
+        Type HeapSingleton
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn1() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:HeapSingleton
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn0 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:HeapSingleton
+      goto bb10
+    bb12 try.catch.12
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          CaughtException
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call $init.materialized: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        Local $init.caught
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:HeapSingleton
+        Type Any
+        Local $init.materialized
+      throw unwind bb6
+        Type Any
+        Local $init.materialized
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:HeapSingleton
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:HeapSingleton
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun heapEmptySource @fn2() -> HeapEmpty
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        GlobalRead heapEffects
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      global_assign heapEffects
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $call.1: HeapEmpty = @fn12 direct
+      return
+        Type HeapEmpty
+        Local $call.1
+  fun heapClosureRoundtrip @fn3() -> HeapEmpty
+    bb0 entry
+      call empty: HeapEmpty = @fn2 direct
+      val $argument.0: HeapEmpty
+        Type HeapEmpty
+        Local empty
+      call $argument.1: HeapEmpty = @fn12 direct
+      val $parameter.first: HeapEmpty
+        Type HeapEmpty
+        Local $argument.0
+      val $parameter.second: HeapEmpty
+        Type HeapEmpty
+        Local $argument.1
+      call pair: HeapPair = @fn13 direct
+        Type HeapEmpty
+        Local $parameter.first
+        Type HeapEmpty
+        Local $parameter.second
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.1: HeapPair
+        Type HeapPair
+        Local pair
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      val $parameter.pair: HeapPair
+        Type HeapPair
+        Local $argument.1
+      assign $new.1
+        Type HeapDerived
+        ClassAlloc HeapDerived
+      call @fn10 direct
+        Type HeapDerived
+        Local $new.1
+        Type Int
+        Local $parameter.number
+        Type HeapPair
+        Local $parameter.pair
+      val derived: HeapDerived
+        Type HeapDerived
+        Local $new.1
+      val $argument.0: HeapEmpty
+        Type HeapEmpty
+        Local empty
+      val $parameter.empty: HeapEmpty
+        Type HeapEmpty
+        Local $argument.0
+      assign $new.2
+        Type HeapCell
+        ClassAlloc HeapCell
+      call @fn8 direct
+        Type HeapCell
+        Local $new.2
+        Type HeapEmpty
+        Local $parameter.empty
+      val changing: HeapCell
+        Type HeapCell
+        Local $new.2
+      val readEmpty: () -> HeapEmpty
+        Type () -> HeapEmpty
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type HeapEmpty
+            Local empty
+      val readPair: () -> HeapPair
+        Type () -> HeapPair
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type HeapPair
+            Local pair
+      val readReference: () -> HeapDerived
+        Type () -> HeapDerived
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type HeapDerived
+            Local derived
+      val readChanging: () -> HeapEmpty
+        Type () -> HeapEmpty
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type HeapCell
+            Local changing
+      call $call.3: HeapEmpty = @fn2 direct
+      field_set 0
+        Type HeapCell
+        Local changing
+        Type HeapEmpty
+        Local $call.3
+      call $call.4: HeapDerived = <closure:function_type2> closure[function_type2]
+        Type () -> HeapDerived
+        Local readReference
+      call $call.5: HeapPair = <closure:function_type1> closure[function_type1]
+        Type () -> HeapPair
+        Local readPair
+      field_set 2
+        Type HeapDerived
+        Local $call.4
+        Type HeapPair
+        Local $call.5
+      call $call.6: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local readEmpty
+      field_set 0
+        Type HeapDerived
+        Local derived
+        Type HeapEmpty
+        Local $call.6
+      call @fn1 direct
+      call $call.7: HeapEmpty = <closure:function_type0> closure[function_type0]
+        Type () -> HeapEmpty
+        Local readChanging
+      field_set 0
+        Type HeapSingleton
+        GlobalRead $singleton$HeapSingleton
+        Type HeapEmpty
+        Local $call.7
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type HeapDerived
+          Local derived
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead heapEffects
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 1
+        Type HeapDerived
+        Local derived
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call @fn1 direct
+      return
+        Type HeapEmpty
+        FieldAccess 0
+          Type HeapSingleton
+          GlobalRead $singleton$HeapSingleton
+  fun $lambda.0 @fn4($closure: () -> HeapEmpty) -> HeapEmpty
+    bb0 entry
+      return
+        Type HeapEmpty
+        ClosureCapture cc0 0
+          Type () -> HeapEmpty
+          Local $closure
+  fun $lambda.1 @fn5($closure: () -> HeapPair) -> HeapPair
+    bb0 entry
+      return
+        Type HeapPair
+        ClosureCapture cc1 0
+          Type () -> HeapPair
+          Local $closure
+  fun $lambda.2 @fn6($closure: () -> HeapDerived) -> HeapDerived
+    bb0 entry
+      return
+        Type HeapDerived
+        ClosureCapture cc2 0
+          Type () -> HeapDerived
+          Local $closure
+  fun $lambda.3 @fn7($closure: () -> HeapEmpty) -> HeapEmpty
+    bb0 entry
+      return
+        Type HeapEmpty
+        FieldAccess 0
+          Type HeapCell
+          ClosureCapture cc3 0
+            Type () -> HeapEmpty
+            Local $closure
+  fun init.HeapCell.$c0 @fn8(this: HeapCell, empty: HeapEmpty) -> Unit
+    bb0 entry
+      field_set 0
+        Type HeapCell
+        Local this
+        Type HeapEmpty
+        Local empty
+      return
+  fun init.HeapBase.$c1 @fn9(this: HeapBase, first: HeapEmpty) -> Unit
+    bb0 entry
+      field_set 0
+        Type HeapBase
+        Local this
+        Type HeapEmpty
+        Local first
+      return
+  fun init.HeapDerived.$c2 @fn10(this: HeapDerived, number: Int, pair: HeapPair) -> Unit
+    bb0 entry
+      call $argument.0: HeapEmpty = @fn12 direct
+      val $parameter.first: HeapEmpty
+        Type HeapEmpty
+        Local $argument.0
+      call @fn9 direct
+        Type HeapBase
+        Retype HeapBase
+          Type HeapDerived
+          Local this
+        Type HeapEmpty
+        Local $parameter.first
+      field_set 1
+        Type HeapDerived
+        Local this
+        Type Int
+        Local number
+      field_set 2
+        Type HeapDerived
+        Local this
+        Type HeapPair
+        Local pair
+      return
+  fun init.HeapSingleton.$c3 @fn11(this: HeapSingleton) -> Unit
+    bb0 entry
+      call $call.1: HeapEmpty = @fn2 direct
+      field_set 0
+        Type HeapSingleton
+        Local this
+        Type HeapEmpty
+        Local $call.1
+      return
+  fun ctor.HeapEmpty.$c0 @fn12() -> HeapEmpty <no-gc>
+    bb0 entry
+      return
+        Type HeapEmpty
+        StructInit HeapEmpty
+  fun ctor.HeapPair.$c1 @fn13(first: HeapEmpty, second: HeapEmpty) -> HeapPair <no-gc>
+    bb0 entry
+      return
+        Type HeapPair
+        StructInit HeapPair
+          Type HeapEmpty
+          Local first
+          Type HeapEmpty
+          Local second
+  coroutine_step cs0 CoroutineStep<HeapCell> result=HeapCell
+  coroutine_step cs1 CoroutineStep<HeapEmpty> result=HeapEmpty
+  coroutine_step cs2 CoroutineStep<HeapDerived> result=HeapDerived
+  coroutine_step cs3 CoroutineStep<HeapPair> result=HeapPair
+  coroutine_step cs4 CoroutineStep<HeapSingleton> result=HeapSingleton
+  coroutine_step cs5 CoroutineStep<HeapBase> result=HeapBase
+  coroutine_slot cl0 CoroutineSlot<HeapCell> value=HeapCell
+  coroutine_slot cl1 CoroutineSlot<HeapEmpty> value=HeapEmpty
+  coroutine_slot cl2 CoroutineSlot<HeapDerived> value=HeapDerived
+  coroutine_slot cl3 CoroutineSlot<HeapPair> value=HeapPair
+  coroutine_slot cl4 CoroutineSlot<HeapSingleton> value=HeapSingleton
+  coroutine_slot cl5 CoroutineSlot<HeapBase> value=HeapBase
+  output library

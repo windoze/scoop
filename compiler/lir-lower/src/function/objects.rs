@@ -1,5 +1,7 @@
 use super::*;
 
+mod storage;
+
 impl FunctionLowerer<'_> {
     pub(super) fn lower_class_alloc(
         &mut self,
@@ -79,9 +81,8 @@ impl FunctionLowerer<'_> {
                 !std::mem::replace(&mut initialized[field], true),
                 "ClosureAlloc initializes each physical field once"
             );
-            let capture_lir_ty = self.value_type(capture_ty);
             let value = self.lower_expr(capture.value())?;
-            self.store_at_offset(object, capture_offsets[field], value, capture_lir_ty);
+            self.store_heap_value(object, capture_offsets[field], value, capture_ty)?;
         }
         assert!(
             initialized.into_iter().all(|initialized| initialized),
@@ -105,9 +106,7 @@ impl FunctionLowerer<'_> {
         );
         let (capture_offsets, _, _, _) = closure_shape(self.context, self.module, self.enums, def)?;
         let closure = self.lower_expr(closure)?;
-        let out_ty = self.value_type(ty);
-        let out = self.load_at_offset(closure, capture_offsets[*index as usize], out_ty);
-        Ok(lir::Value::Temp(out))
+        self.load_heap_value(closure, capture_offsets[*index as usize], ty)
     }
 
     pub(super) fn lower_field_access(
@@ -122,25 +121,24 @@ impl FunctionLowerer<'_> {
             assert_eq!(ty, field_ty, "a field access has its declared field type");
         }
         let receiver = self.lower_expr(receiver)?;
-        let out_ty = self.value_type(ty);
-        let out = if let mir::Type::Class(class_id) = receiver_ty {
+        if let mir::Type::Class(class_id) = receiver_ty {
             let (offsets, _, _) = class_shape(
                 self.context,
                 self.module,
                 self.enums,
                 &self.module.classes[class_id],
             )?;
-            self.load_at_offset(receiver, offsets[*index as usize], out_ty)
+            self.load_heap_value(receiver, offsets[*index as usize], ty)
         } else {
+            let out_ty = self.value_type(ty);
             let out = self.new_temp(out_ty);
             self.push(lir::Instruction::ExtractValue {
                 out,
                 aggregate: receiver,
                 index: *index,
             });
-            out
-        };
-        Ok(lir::Value::Temp(out))
+            Ok(lir::Value::Temp(out))
+        }
     }
 
     pub(super) fn lower_atomic_field_load(

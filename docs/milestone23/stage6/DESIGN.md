@@ -884,6 +884,8 @@ LIR区分 `LogicalZstValue { exact }`、`AddressableZstPlace { place, exact, ali
 
 parameter/local/value `this`真正取址时分配non-null、至少1-byte、满足alignment的token。有效期重叠的不同semantic place不得共址；重复取同place地址稳定。token不能标成可合并的 `unnamed_addr` 常量，也不能通过共享零地址/singleton实现；不重叠lifetime允许复用。普通SSA ZST、field和array element不自动取得token。
 
+class 字段与 closure capture 的 ZST payload 读写在 MIR→LIR 阶段消除。lowering 先按既有顺序完整求值 receiver、capture initializer 和 assignment RHS，再使用同一 storage 分类区分零大小与非零存储；零大小读取显式产生携带 exact type 与 AbiZst 的 LogicalZstValue，零大小写入在保留求值后结束。不得向 codegen 传递 offset 0 的伪 payload HeapLoad/HeapStore，也不能让 codegen 根据空 LLVM aggregate 猜测语义。closure invoke pointer、非零字段和 compiler-owned state 继续使用各自已验证的偏移与指令；ZST 不改变对象头、继承 prefix、GC scan 或字段身份。
+
 ### 9.2 box/unbox执行路径
 
 ```text
