@@ -5,7 +5,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 use super::{
     CrossConeHirInterfaceSectionV1, ExternalHirAliasClosureValidationError,
     ExternalHirConstTypeClosureValidationError, ExternalHirDefaultClosureValidationError,
-    ExternalHirSignatureClosureValidationError,
+    ExternalHirInheritanceClosureValidationError, ExternalHirSignatureClosureValidationError,
 };
 use crate::{
     ExternalHirReexportClosureValidationError, ExternalHirReferenceSemanticAuthority,
@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl CrossConeHirInterfaceSectionV1 {
-    /// Validates every external reference record and the five export roles
+    /// Validates every external reference record and the six export roles
     /// that can be reconstructed from fields 1 through 8.
     ///
     /// `ConcreteSelectedUse` is intentionally not reconstructed here. Its
@@ -55,6 +55,10 @@ impl CrossConeHirInterfaceSectionV1 {
         self.validate_const_type_reference_closure(authority, meter, path)
             .map_err(|error| {
                 CrossConeHirExternalReferenceValidationError::ConstTypes(Box::new(error))
+            })?;
+        self.validate_inheritance_reference_closure(authority, meter, path)
+            .map_err(|error| {
+                CrossConeHirExternalReferenceValidationError::Inheritance(Box::new(error))
             })
     }
 }
@@ -67,6 +71,7 @@ pub enum CrossConeHirExternalReferenceValidationError<E> {
     Aliases(Box<ExternalHirAliasClosureValidationError<E>>),
     Defaults(Box<ExternalHirDefaultClosureValidationError<E>>),
     ConstTypes(Box<ExternalHirConstTypeClosureValidationError<E>>),
+    Inheritance(Box<ExternalHirInheritanceClosureValidationError<E>>),
 }
 
 impl<E: fmt::Display> fmt::Display for CrossConeHirExternalReferenceValidationError<E> {
@@ -78,6 +83,7 @@ impl<E: fmt::Display> fmt::Display for CrossConeHirExternalReferenceValidationEr
             Self::Aliases(error) => ("type-alias closure", error.as_ref()),
             Self::Defaults(error) => ("default dependency closure", error.as_ref()),
             Self::ConstTypes(error) => ("constant type closure", error.as_ref()),
+            Self::Inheritance(error) => ("inheritance dependency closure", error.as_ref()),
         };
         write!(
             formatter,

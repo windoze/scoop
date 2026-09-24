@@ -1,7 +1,6 @@
 use super::*;
 
 pub(super) fn insert(
-    owner: PersistentExactTypeId,
     selections: &mut Selections,
     slot: PersistentDispatchSlotId,
     selection: Selection,
@@ -14,10 +13,9 @@ pub(super) fn insert(
     meter.charge_collection_slots(1, &path).map_err(resource)?;
     if let Some(previous) = selections.get(&slot) {
         if *previous != selection {
-            return Err(Error::InvalidInheritance {
-                exact: owner,
-                reason: "one source slot has conflicting implementation selections".into(),
-            });
+            return Err(invalid(
+                "one source slot has conflicting implementation selections",
+            ));
         }
     } else {
         meter
@@ -43,14 +41,6 @@ mod tests {
             DeclarationScope::ConeWide,
         )
         .unwrap();
-        let owner = PersistentTypeId::from_source_declaration(&SourceDeclarationKey::nominal(
-            site.clone(),
-            CanonicalIdentifier::new("Owner").unwrap(),
-            SourceNominalKind::Class,
-            0,
-        ))
-        .unwrap();
-        let owner = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap();
         let function =
             PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
                 site,
@@ -67,7 +57,6 @@ mod tests {
         let mut meter = BudgetMeter::new(DecodeLimits::default());
         for _ in 0..2 {
             insert(
-                owner,
                 &mut selections,
                 slot,
                 Selection::Concrete(callable),
@@ -78,8 +67,8 @@ mod tests {
         assert_eq!(selections.len(), 1);
         for conflicting in [Selection::Abstract, Selection::InterfaceDefault(callable)] {
             assert!(
-                matches!(insert(owner, &mut selections, slot, conflicting, &mut meter),
-                Err(Error::InvalidInheritance { exact, reason }) if exact == owner && reason.contains("conflicting implementation selections"))
+                matches!(insert(&mut selections, slot, conflicting, &mut meter),
+                Err(Error::InvalidSourceDeclaration(reason)) if reason.contains("conflicting implementation selections"))
             );
             assert_eq!(selections[&slot], Selection::Concrete(callable));
         }
@@ -89,7 +78,6 @@ mod tests {
         });
         assert!(matches!(
             insert(
-                owner,
                 &mut selections,
                 slot,
                 Selection::Concrete(callable),

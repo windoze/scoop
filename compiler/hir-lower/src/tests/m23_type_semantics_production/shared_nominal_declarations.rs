@@ -118,6 +118,7 @@ fn shared_nominal_declarations_reject_omitted_private_relationships() {
                     details.children().clone()
                 },
                 details.dispatch_order().clone(),
+                details.dispatch_selections().clone(),
             );
             *record = replace_details(record, replacement);
             let corrupt = hir::CanonicalNominalInterfacesV1::with_support(

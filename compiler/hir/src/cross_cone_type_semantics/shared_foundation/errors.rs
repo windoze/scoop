@@ -61,6 +61,7 @@ pub enum SharedTypeMetadataError {
     SlotOrder(PersistentExactTypeId),
     SlotSchemas(Box<crate::InheritanceSlotSchemaSemanticError<SharedTypeMetadataError>>),
     SlotCallable(crate::InheritanceCallableDeclarationV1),
+    SlotSelectionInventory(PersistentExactTypeId),
     SlotSelection {
         owner: PersistentExactTypeId,
         slot: PersistentDispatchSlotId,

@@ -33,30 +33,25 @@ pub(super) fn collect<'a>(
         if !schemas.orders.contains_key(&owner) {
             continue;
         }
-        let (declaration, key) = identity(schemas, metadata, source.declaration(), meter)?;
+        let declaration = identity(schemas, metadata, source.declaration(), meter)?;
         let access = contracts::callable_access(metadata, source, meter)?;
         let length = scoop_wire::encoded_length(access.definition_origin())
             .map_err(|e| Error::Key(e.to_string()))?;
         meter.charge_owned_bytes(length, &WirePath::root())?;
-        meter.charge_collection_slots(3, &WirePath::root())?;
+        meter.charge_collection_slots(2, &WirePath::root())?;
         meter.charge_work(
             (length + 1).saturating_mul(1 + u64::from(data.members.len().max(1).ilog2())),
             &WirePath::root(),
         )?;
         data.origins.insert(access.definition_origin().clone());
-        let members = data.owners.entry(owner).or_default();
-        meter.try_reserve_collection_slots(members, 1, &WirePath::root())?;
-        members.push(declaration);
         if data
             .members
             .insert(
                 declaration,
                 Member {
-                    declaration,
                     owner,
                     metadata,
                     source,
-                    key,
                     access,
                 },
             )
@@ -73,7 +68,7 @@ fn identity(
     metadata: SharedTypeMetadataV1<'_>,
     declaration: CallableTemplateOrigin,
     meter: &mut BudgetMeter,
-) -> Result<(Declaration, Arc<SourceDeclarationKey>), Error> {
+) -> Result<Declaration, Error> {
     contracts::lookup(metadata.identities.identity_count(), meter)?;
     match declaration {
         CallableTemplateOrigin::Function(id) => {
@@ -81,8 +76,8 @@ fn identity(
                 .identities
                 .canonical_key::<_, SourceDeclarationKey>(id)?;
             meter.charge_collection_slots(1, &WirePath::root())?;
-            schemas.functions.insert(id, key.clone());
-            Ok((Declaration::Function(id), key))
+            schemas.functions.insert(id, key);
+            Ok(Declaration::Function(id))
         }
         CallableTemplateOrigin::Accessor(id) => {
             let accessor = metadata
@@ -100,36 +95,10 @@ fn identity(
                 AccessorRole::Setter => Declaration::Setter(id),
             };
             meter.charge_collection_slots(2, &WirePath::root())?;
-            schemas.properties.insert(property, key.clone());
+            schemas.properties.insert(property, key);
             schemas.accessors.insert(id, accessor);
-            Ok((declaration, key))
+            Ok(declaration)
         }
         _ => Err(Error::CallableContract(declaration)),
     }
-}
-
-pub(super) fn matches(
-    left: &Member<'_>,
-    right: &Member<'_>,
-    meter: &mut BudgetMeter,
-) -> Result<bool, Error> {
-    contracts::charge_compare(left.source, right.source, meter)?;
-    contracts::charge_compare(left.key.name(), right.key.name(), meter)?;
-    let (a, b) = (left.source, right.source);
-    let (x, y) = (a.effects(), b.effects());
-    Ok(
-        std::mem::discriminant(&left.declaration) == std::mem::discriminant(&right.declaration)
-            && left.key.name() == right.key.name()
-            && a.parameters()
-                .parameters()
-                .iter()
-                .map(|p| p.value_type())
-                .eq(b.parameters().parameters().iter().map(|p| p.value_type()))
-            && a.result() == b.result()
-            && x.execution() == y.execution()
-            && x.safety() == y.safety()
-            && x.gc_effect() == y.gc_effect()
-            && x.operator_role() == y.operator_role()
-            && x.infix() == y.infix(),
-    )
 }

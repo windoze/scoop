@@ -49,24 +49,13 @@ impl Projection<'_, '_> {
     }
 
     pub(super) fn class_chain(&mut self, class: ClassId) -> Result<Vec<ClassId>, Error> {
-        let mut result = Vec::new();
-        let mut seen = BTreeSet::new();
-        let mut current = class;
-        loop {
-            self.depth(result.len() + 1)?;
-            self.search(seen.len())?;
-            if !seen.insert(current) {
-                return Err(self.invalid("cycle in the source class base chain"));
+        let result = crate::production::nominal_dispatch::Projection::new(self.export, self.meter)
+            .class_chain(class)?;
+        for class in &result {
+            if let Some(base) = self.export.classes[*class].base_class {
+                exact(self.export, base)?;
             }
-            self.push(&mut result, current)?;
-            let Some(base) = self.export.classes[current].base_class else {
-                return Ok(result);
-            };
-            exact(self.export, base)?;
-            let Type::Class(application) = self.export.types[base] else {
-                return Err(self.invalid("class base does not resolve to a class application"));
-            };
-            current = self.export.class_applications[application].template;
         }
+        Ok(result)
     }
 }

@@ -42,9 +42,15 @@ pub(in crate::production::nominal_interfaces) fn project_required(
         // Source contracts are consumed here; the wire owns only the resulting
         // shared nominal record, not a parallel source-contract transcript.
         let order = dispatch_order::project(export, local, meter)?;
-        let record =
-            NominalInterfaceRecordV1::from_source_contract(contract, visibility.into(), order)
-                .map_err(invalid)?;
+        let selections =
+            crate::production::nominal_dispatch::project(export, local.owner(), meter)?;
+        let record = NominalInterfaceRecordV1::from_source_contract(
+            contract,
+            visibility.into(),
+            order,
+            selections,
+        )
+        .map_err(invalid)?;
         meter.charge_collection_slots(1, &path).map_err(resource)?;
         work(meter, records.len())?;
         if records.insert(owner, record).is_some() {

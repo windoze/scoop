@@ -30,6 +30,7 @@ pub(in super::super) fn restrict(
                     details.members().clone(),
                     details.children().clone(),
                     details.dispatch_order().clone(),
+                    details.dispatch_selections().clone(),
                 ),
             )
             .unwrap();

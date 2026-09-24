@@ -43,6 +43,7 @@ mod external_references;
 pub use external_references::*;
 mod default_templates;
 pub use default_templates::*;
+mod nominal_dispatch;
 mod nominal_interfaces;
 pub use nominal_interfaces::*;
 mod property_interfaces;

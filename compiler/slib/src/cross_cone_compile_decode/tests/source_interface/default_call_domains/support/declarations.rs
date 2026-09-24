@@ -73,6 +73,7 @@ impl Nominal {
                 } else {
                     scoop_hir::NominalDispatchOrderV1::empty(self.kind.public())
                 },
+                scoop_hir::CanonicalNominalDispatchSelectionsV1::empty(),
             ),
         )
         .unwrap()

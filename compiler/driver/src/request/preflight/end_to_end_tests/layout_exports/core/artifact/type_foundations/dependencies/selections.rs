@@ -9,6 +9,7 @@ use hir::{
 use scoop_identity::{CallableTemplateOrigin, SourceDeclarationKey};
 
 mod claims;
+mod shared;
 mod snapshot;
 
 pub(super) fn check(
@@ -47,6 +48,7 @@ pub(super) fn check(
                 })
         ));
         claims::check(checked, core);
+        shared::check(checked, core);
         let dump = snapshot::render(checked);
         let golden = fixtures.join(format!("{case}.snap"));
         if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_FOUNDATIONS").is_some() {

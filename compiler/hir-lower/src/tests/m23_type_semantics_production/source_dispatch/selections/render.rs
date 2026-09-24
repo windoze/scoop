@@ -4,6 +4,37 @@ pub(super) fn render(
     output: &hir::DependencyHirOutput,
     table: &hir::CanonicalInheritanceSourceSlotSelectionsV1,
 ) -> String {
+    let (callables, slots) = labels(output);
+    let mut result = String::new();
+    for (name, owner) in super::super::support::owners(output) {
+        result.push_str(&format!("{name}\n"));
+        let mut lines = table
+            .records()
+            .iter()
+            .filter(|record| record.owner() == owner)
+            .map(|record| {
+                let selection = match record.selection() {
+                    Selection::Abstract => "abstract".to_owned(),
+                    Selection::Concrete(callable) => format!("concrete {}", callables[&callable]),
+                    Selection::InterfaceDefault(callable) => {
+                        format!("default {}", callables[&callable])
+                    }
+                };
+                format!("  {} -> {selection}\n", slots[&record.slot()])
+            })
+            .collect::<Vec<_>>();
+        lines.sort();
+        result.extend(lines);
+    }
+    result
+}
+
+pub(super) fn labels(
+    output: &hir::DependencyHirOutput,
+) -> (
+    BTreeMap<Callable, &str>,
+    BTreeMap<PersistentDispatchSlotId, &str>,
+) {
     let export = output.output().export.module();
     let mut callables = BTreeMap::new();
     let mut slots = BTreeMap::new();
@@ -44,26 +75,5 @@ pub(super) fn render(
             }
         }
     }
-    let mut result = String::new();
-    for (name, owner) in super::super::support::owners(output) {
-        result.push_str(&format!("{name}\n"));
-        let mut lines = table
-            .records()
-            .iter()
-            .filter(|record| record.owner() == owner)
-            .map(|record| {
-                let selection = match record.selection() {
-                    Selection::Abstract => "abstract".to_owned(),
-                    Selection::Concrete(callable) => format!("concrete {}", callables[&callable]),
-                    Selection::InterfaceDefault(callable) => {
-                        format!("default {}", callables[&callable])
-                    }
-                };
-                format!("  {} -> {selection}\n", slots[&record.slot()])
-            })
-            .collect::<Vec<_>>();
-        lines.sort();
-        result.extend(lines);
-    }
-    result
+    (callables, slots)
 }

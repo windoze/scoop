@@ -52,6 +52,7 @@ pub(crate) fn public_record(
         } else {
             hir::NominalDispatchOrderV1::empty(kind)
         },
+        hir::CanonicalNominalDispatchSelectionsV1::empty(),
     );
     hir::NominalInterfaceRecordV1::try_new(
         declaration,

@@ -31,6 +31,8 @@ mod const_type_reference_closure;
 mod default_reference_closure;
 mod definition_source_closure;
 mod external_reference_closure;
+mod inheritance_reference_closure;
+pub use inheritance_reference_closure::ExternalHirInheritanceClosureValidationError;
 mod internal_closures;
 mod semantic_validation;
 pub(crate) mod signature_nominal_walk;

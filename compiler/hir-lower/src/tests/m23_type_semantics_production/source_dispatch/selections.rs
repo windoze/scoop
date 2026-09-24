@@ -6,6 +6,7 @@ use scoop_identity::CallableTemplateOwner;
 
 mod concrete;
 mod render;
+mod shared;
 
 const SELECTIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

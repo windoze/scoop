@@ -9,6 +9,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     members: Vec<DecodedNestedSourceMemberRefV1>,
     children: Vec<DecodedSourceNominalId>,
     dispatch_order: DecodedNominalDispatchOrderV1,
+    dispatch_selections: DecodedCanonicalNominalDispatchSelectionsV1,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -45,13 +46,16 @@ impl DecodedNominalDeclarationDetailsV1 {
             self.dispatch_order
                 .resolve(resolver)
                 .map_err(Error::DispatchOrder)?,
+            self.dispatch_selections
+                .resolve(resolver)
+                .map_err(Error::DispatchSelections)?,
         ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_, '_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(7)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -63,6 +67,8 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
                 d.decode_array(|d, _| DecodedSourceNominalId::decode(d))
             })?,
             dispatch_order: decoder.field(6, DecodedNominalDispatchOrderV1::decode)?,
+            dispatch_selections: decoder
+                .field(7, DecodedCanonicalNominalDispatchSelectionsV1::decode)?,
         };
         // Reserve the resolution/ordering work in the artifact's decode meter
         // before any external identity resolver can be called.
@@ -80,7 +86,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -98,13 +104,16 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
             value.encode(encoder)?;
         }
         encoder.field(6)?;
-        self.dispatch_order.encode(encoder)
+        self.dispatch_order.encode(encoder)?;
+        encoder.field(7)?;
+        self.dispatch_selections.encode(encoder)
     }
 }
 
 #[derive(Debug)]
 pub enum NominalDeclarationDetailsResolutionError<E> {
     DispatchOrder(NominalDispatchOrderResolutionError<E>),
+    DispatchSelections(NominalDispatchSelectionResolutionError<E>),
     Constructors(CanonicalPersistentIdSetValidationError<PersistentConstructorId, E>),
     Reference(E),
     Order(NestedSourceBuildError),
@@ -114,6 +123,7 @@ impl<E: std::fmt::Display> std::fmt::Display for NominalDeclarationDetailsResolu
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::DispatchOrder(e) => e.fmt(f),
+            Self::DispatchSelections(e) => e.fmt(f),
             Self::Constructors(e) => e.fmt(f),
             Self::Reference(e) => e.fmt(f),
             Self::Order(e) => e.fmt(f),

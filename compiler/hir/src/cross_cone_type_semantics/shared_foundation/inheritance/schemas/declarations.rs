@@ -28,9 +28,13 @@ pub(super) fn collect<'a>(
             .declaration(node.source())
             .ok_or(Error::InheritanceSource(node.source()))?;
         let order = declaration.declaration_details().dispatch_order();
-        meter.charge_collection_slots(2, &path)?;
+        meter.charge_collection_slots(3, &path)?;
         contracts::lookup(context.orders.len(), meter)?;
         context.orders.insert(owner, order);
+        context.selections.insert(
+            owner,
+            declaration.declaration_details().dispatch_selections(),
+        );
         context.schemas.insert(owner, record.slot_schemas());
         for slot in order
             .declared_slots()

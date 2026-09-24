@@ -82,12 +82,6 @@ impl Projection<'_, '_> {
             .map_err(resource)
     }
 
-    fn depth(&mut self, depth: usize) -> Result<(), Error> {
-        self.meter
-            .check_semantic_depth(depth as u64, &WirePath::root())
-            .map_err(resource)
-    }
-
     fn search(&mut self, length: usize) -> Result<(), Error> {
         self.work(length.max(1).ilog2() as usize + 1)?;
         self.meter

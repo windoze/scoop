@@ -14,6 +14,7 @@ fn declaration_details_reject_modality_incompatible_with_nominal_kind() {
         details.members().clone(),
         details.children().clone(),
         details.dispatch_order().clone(),
+        details.dispatch_selections().clone(),
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -35,6 +36,7 @@ fn public_constructor_must_belong_to_the_complete_declaration() {
         details.members().clone(),
         details.children().clone(),
         details.dispatch_order().clone(),
+        details.dispatch_selections().clone(),
     );
     assert_eq!(
         rebuild(&record, corrupt),
@@ -55,6 +57,7 @@ fn public_member_must_belong_to_the_complete_declaration() {
         CanonicalNestedMemberRefsV1::try_new(vec![]).unwrap(),
         details.children().clone(),
         details.dispatch_order().clone(),
+        details.dispatch_selections().clone(),
     );
     assert_eq!(
         rebuild(&record, corrupt),

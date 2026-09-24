@@ -61,17 +61,11 @@ fn reject(
     nominal: &NominalInterfaceRecordV1,
     order: NominalDispatchOrderV1,
 ) -> Error {
-    let source = checked.metadata().public;
     let details = nominal.declaration_details();
-    let replacement = NominalInterfaceRecordV1::try_new(
-        nominal.declaration(),
-        nominal.kind(),
-        nominal.type_parameters().clone(),
-        nominal.exact_supertypes().clone(),
-        nominal.constructors().clone(),
-        nominal.members().clone(),
-        nominal.nested_bindings().clone(),
-        nominal.source_shape().clone(),
+    super::reject_nominal(
+        checked,
+        core,
+        nominal,
         hir::NominalDeclarationDetailsV1::new(
             details.modality(),
             details.declared_visibility(),
@@ -79,49 +73,7 @@ fn reject(
             details.members().clone(),
             details.children().clone(),
             order,
+            details.dispatch_selections().clone(),
         ),
     )
-    .unwrap();
-    let replace = |record: &NominalInterfaceRecordV1| {
-        if record.declaration() == nominal.declaration() {
-            replacement.clone()
-        } else {
-            record.clone()
-        }
-    };
-    let table = hir::CanonicalNominalInterfacesV1::with_support(
-        source
-            .nominal_interfaces()
-            .records()
-            .iter()
-            .map(replace)
-            .collect(),
-        source
-            .nominal_interfaces()
-            .support_records()
-            .iter()
-            .map(replace)
-            .collect(),
-    )
-    .unwrap();
-    let public = hir::CrossConeHirInterfaceSectionV1::new(
-        source.public_bindings().clone(),
-        table,
-        source.callable_interfaces().clone(),
-        source.property_interfaces().clone(),
-        source.type_aliases().clone(),
-        source.source_interfaces().clone(),
-        source.default_templates().clone(),
-        source.constants().clone(),
-        source.definition_sources().clone(),
-        source.external_references().clone(),
-    );
-    let mut metadata = checked.metadata();
-    metadata.public = &public;
-    checked
-        .section()
-        .validate_shared_foundation(metadata, &[core], &mut meter())
-        .unwrap()
-        .with_inheritance_graph(&[core], &mut meter(), |_, _| ())
-        .expect_err("shared declaration changes must be reflected in the emitted schema")
 }

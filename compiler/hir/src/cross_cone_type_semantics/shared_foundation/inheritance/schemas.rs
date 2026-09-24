@@ -37,6 +37,7 @@ pub(super) fn validate(
 
 #[derive(Default)]
 struct SchemaDeclarations<'a> {
+    selections: BTreeMap<PersistentExactTypeId, &'a crate::CanonicalNominalDispatchSelectionsV1>,
     schemas: BTreeMap<PersistentExactTypeId, &'a CanonicalInheritanceSlotSchemasV1>,
     orders: BTreeMap<PersistentExactTypeId, &'a NominalDispatchOrderV1>,
     interfaces: BTreeMap<PersistentExactTypeId, InterfaceSourceDispatchV1>,

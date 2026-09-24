@@ -6,6 +6,7 @@ use crate::{CanonicalExternalHirReferencesV1, ExternalHirReferenceSemanticAuthor
 
 mod accumulator;
 mod defaults;
+mod dispatch;
 mod errors;
 mod input;
 mod signatures;
@@ -45,6 +46,7 @@ impl CanonicalExternalHirReferencesV1 {
 
         surface::collect_reexports(input, &mut accumulator)?;
         signatures::collect(input, &mut accumulator, &mut meter)?;
+        dispatch::collect(input, &mut accumulator, &mut meter)?;
         surface::collect_aliases(input, &mut accumulator, &mut meter)?;
         defaults::collect(input, &mut accumulator, &mut meter)?;
         surface::collect_constants(input, &mut accumulator, &mut meter)?;

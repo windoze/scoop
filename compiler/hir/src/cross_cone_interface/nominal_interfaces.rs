@@ -19,6 +19,7 @@ mod declaration;
 mod dispatch;
 mod errors;
 mod field_inventory;
+mod selections;
 mod semantics;
 mod table;
 
@@ -29,6 +30,7 @@ pub use declaration::{
 pub use dispatch::*;
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
 pub use field_inventory::NominalSourceFieldInventoryError;
+pub use selections::*;
 pub use semantics::{
     ExactSupertypeSemanticError, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError,

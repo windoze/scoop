@@ -1,18 +1,15 @@
-//! Resolve implementations from shared declarations before checking wire claims.
+//! Join implementation claims to the shared declaration's actual selections.
 
 use super::*;
 use crate::{
-    CallableDeclarationRecordV1, CallableModalityV1, DeclaredVisibilityV1,
+    CallableDeclarationRecordV1, DeclaredVisibilityV1,
     InheritanceCallableDeclarationV1 as Declaration, InheritanceCallableSignatureV1,
-    InheritanceSlotContractV1, InheritanceSlotSourceSemanticAuthority,
-    InheritanceSourceSlotSelectionV1 as Selection,
+    InheritanceSlotSourceSemanticAuthority, InheritanceSourceSlotSelectionV1 as Selection,
 };
-use scoop_identity::{CallableTemplateOrigin, ExactCallableSignature, SourceDeclarationKind};
+use scoop_identity::{CallableTemplateOrigin, ExactCallableSignature};
 
 mod authority;
 mod declarations;
-mod interfaces;
-mod selection;
 mod signatures;
 
 pub(super) fn validate<'a>(
@@ -29,13 +26,23 @@ pub(super) fn validate<'a>(
     }
     for provider in std::iter::once(current).chain(dependencies.iter().copied()) {
         for nominal in provider.section.inheritance().records() {
-            for slot in nominal.slots().records() {
-                let chosen =
-                    selection::select(&data, schemas, graph, nominal.owner(), slot, meter)?;
-                meter.charge_collection_slots(1, &WirePath::root())?;
-                contracts::lookup(data.selections.len(), meter)?;
-                data.selections
-                    .insert((nominal.owner(), slot.slot()), chosen);
+            contracts::lookup(schemas.selections.len(), meter)?;
+            let choices = schemas
+                .selections
+                .get(&nominal.owner())
+                .ok_or(Error::SlotSelectionInventory(nominal.owner()))?;
+            let slots = nominal.slots().records();
+            meter.charge_work(slots.len() as u64, &WirePath::root())?;
+            if choices.records().len() != slots.len()
+                || !choices
+                    .records()
+                    .iter()
+                    .map(|choice| choice.slot())
+                    .eq(slots.iter().map(|slot| slot.slot()))
+            {
+                return Err(Error::SlotSelectionInventory(nominal.owner()));
+            }
+            for slot in slots {
                 signatures::project(&mut data, slot.declaration(), dependencies, meter)?;
                 if let Some(target) = slot.implementation().target() {
                     signatures::project(&mut data, target.declaration(), dependencies, meter)?;
@@ -74,58 +81,18 @@ pub(super) fn validate<'a>(
 #[derive(Default)]
 struct Data<'a> {
     members: BTreeMap<Declaration, Member<'a>>,
-    owners: BTreeMap<PersistentExactTypeId, Vec<Declaration>>,
     origins: BTreeSet<ExportDefinitionSourceV1>,
     signatures: BTreeMap<Declaration, InheritanceCallableSignatureV1>,
     exacts: BTreeMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
-    selections: BTreeMap<(PersistentExactTypeId, PersistentDispatchSlotId), Selection>,
 }
 
 struct Member<'a> {
-    declaration: Declaration,
     owner: PersistentExactTypeId,
     metadata: SharedTypeMetadataV1<'a>,
     source: &'a CallableDeclarationRecordV1,
-    key: Arc<SourceDeclarationKey>,
     access: DeclarationAccessSourceV1,
-}
-
-impl Data<'_> {
-    fn member(
-        &self,
-        declaration: Declaration,
-        meter: &mut BudgetMeter,
-    ) -> Result<&Member<'_>, Error> {
-        contracts::lookup(self.members.len(), meter)?;
-        self.members
-            .get(&declaration)
-            .ok_or(Error::SlotCallable(declaration))
-    }
-
-    fn owner_members(
-        &self,
-        owner: PersistentExactTypeId,
-        meter: &mut BudgetMeter,
-    ) -> Result<&[Declaration], Error> {
-        contracts::lookup(self.owners.len(), meter)?;
-        Ok(self
-            .owners
-            .get(&owner)
-            .map(Vec::as_slice)
-            .unwrap_or_default())
-    }
 }
 
 fn selection_error(owner: PersistentExactTypeId, slot: PersistentDispatchSlotId) -> Error {
     Error::SlotSelection { owner, slot }
-}
-
-fn selected(member: &Member<'_>) -> Selection {
-    match member.source.modality() {
-        CallableModalityV1::Abstract => Selection::Abstract,
-        CallableModalityV1::InterfaceDefault => Selection::InterfaceDefault(member.declaration),
-        CallableModalityV1::Final | CallableModalityV1::Open => {
-            Selection::Concrete(member.declaration)
-        }
-    }
 }

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v9_preserves_dispatch_order_and_rejects_retired_majors() {
+fn source_interface_v10_preserves_dispatch_selections_and_rejects_retired_majors() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        9,
+        10,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

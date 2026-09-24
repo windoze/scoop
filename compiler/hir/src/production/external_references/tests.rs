@@ -20,6 +20,7 @@ use crate::{
 };
 
 mod builtin_defaults;
+mod dispatch;
 
 #[test]
 fn producer_unions_reexport_and_selected_roles_with_one_canonical_witness() {

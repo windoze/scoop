@@ -302,14 +302,16 @@ pub use external_references::{
     ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
 };
 pub use nominal_interfaces::{
-    CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
+    CanonicalNominalDispatchSelectionsV1, CanonicalNominalInterfacesV1,
+    DecodedCanonicalNominalDispatchSelectionsV1, DecodedCanonicalNominalInterfacesV1,
     DecodedNominalDeclarationDetailsV1, DecodedNominalDispatchOrderV1,
     DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError,
     NominalDeclarationDetailsResolutionError, NominalDeclarationDetailsV1,
     NominalDeclarationInventoryError, NominalDispatchDeclarationError, NominalDispatchOrderError,
-    NominalDispatchOrderResolutionError, NominalDispatchOrderV1, NominalInterfaceRecordBuildError,
-    NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
-    NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
+    NominalDispatchOrderResolutionError, NominalDispatchOrderV1, NominalDispatchSelectionError,
+    NominalDispatchSelectionResolutionError, NominalDispatchSelectionV1,
+    NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError,
+    NominalInterfaceRecordResolver, NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
     NominalSourceFieldInventoryError,
@@ -357,9 +359,9 @@ pub use section::{
     ExportDefinitionSourceUseSiteV1, ExternalHirAliasClosureValidationError,
     ExternalHirAliasUseSiteV1, ExternalHirConstTypeClosureValidationError,
     ExternalHirDefaultClosureValidationError, ExternalHirDefaultOriginMismatch,
-    ExternalHirDefaultUseSiteV1, ExternalHirSignatureClosureValidationError,
-    ExternalHirSignatureOriginMismatch, ExternalHirSignatureUseSiteV1,
-    IndexedCrossConeHirInterfaceSectionV1,
+    ExternalHirDefaultUseSiteV1, ExternalHirInheritanceClosureValidationError,
+    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
+    ExternalHirSignatureUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
 };
 pub use type_alias_interfaces::{
     CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
