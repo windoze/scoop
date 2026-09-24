@@ -29,6 +29,7 @@ pub(in super::super) fn restrict(
                     details.constructors().clone(),
                     details.members().clone(),
                     details.children().clone(),
+                    details.dispatch_order().clone(),
                 ),
             )
             .unwrap();

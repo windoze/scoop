@@ -4,6 +4,7 @@ use super::*;
 
 mod constructors;
 mod decoded;
+mod dispatch;
 use decoded::DecodedTypes;
 
 pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
@@ -75,6 +76,7 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     }
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     constructors::check(core, directory.path(), &target, &fixtures);
+    dispatch::check(core, directory.path(), &target, &fixtures);
 }
 
 fn lower(

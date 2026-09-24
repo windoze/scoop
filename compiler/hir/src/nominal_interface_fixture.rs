@@ -44,6 +44,14 @@ pub(crate) fn public_record(
         constructors.clone(),
         hir::CanonicalNestedMemberRefsV1::try_new(declared).unwrap(),
         hir::CanonicalNestedNominalRefsV1::default(),
+        if kind == hir::PublicNominalKindV1::Interface {
+            hir::NominalDispatchOrderV1::Interface {
+                parents: supertypes.values().to_vec(),
+                members: Vec::new(),
+            }
+        } else {
+            hir::NominalDispatchOrderV1::empty(kind)
+        },
     );
     hir::NominalInterfaceRecordV1::try_new(
         declaration,

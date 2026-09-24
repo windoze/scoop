@@ -10,6 +10,7 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
+    DispatchOrder(super::NominalDispatchOrderError),
     Modality {
         kind: PublicNominalKindV1,
         modality: crate::NominalInheritanceModalityV1,
@@ -29,6 +30,7 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::DispatchOrder(error) => error.fmt(formatter),
             Self::Modality { kind, modality } => write!(
                 formatter,
                 "{modality:?} is not a valid modality for {kind:?}"

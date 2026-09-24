@@ -9,6 +9,16 @@ pub(super) struct DecodedTypes {
 }
 
 impl DecodedTypes {
+    pub(super) fn resolve_dispatch_order(
+        &mut self,
+        order: &hir::NominalDispatchOrderV1,
+    ) -> Result<
+        hir::NominalDispatchOrderV1,
+        hir::NominalDispatchOrderResolutionError<scoop_identity::IdentityReferenceError>,
+    > {
+        let decoded: hir::DecodedNominalDispatchOrderV1 = decoded(order);
+        decoded.resolve(&mut self.identities)
+    }
     pub(super) fn read(
         mut input: current_hir::CurrentConeHirArtifacts,
         coordinate: &ConeCoordinate,

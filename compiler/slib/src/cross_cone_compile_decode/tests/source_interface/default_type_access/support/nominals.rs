@@ -136,6 +136,7 @@ pub(in super::super) fn hidden(
                     details.constructors().clone(),
                     details.members().clone(),
                     CanonicalNestedNominalRefsV1::try_new(vec![hidden]).unwrap(),
+                    details.dispatch_order().clone(),
                 ),
             )
             .unwrap()

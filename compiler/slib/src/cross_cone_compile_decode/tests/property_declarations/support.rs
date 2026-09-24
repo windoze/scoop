@@ -188,6 +188,7 @@ impl Fixture {
                 ])
                 .unwrap(),
                 CanonicalNestedNominalRefsV1::default(),
+                scoop_hir::NominalDispatchOrderV1::empty(PublicNominalKindV1::Class),
             ),
         )
         .unwrap();

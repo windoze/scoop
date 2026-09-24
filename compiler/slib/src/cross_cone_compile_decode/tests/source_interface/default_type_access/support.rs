@@ -135,6 +135,7 @@ fn nominal_record(
             CanonicalPersistentIdsV1::empty(),
             CanonicalNestedMemberRefsV1::try_new(vec![]).unwrap(),
             CanonicalNestedNominalRefsV1::try_new(children).unwrap(),
+            scoop_hir::NominalDispatchOrderV1::empty(PublicNominalKindV1::Class),
         ),
     )
     .unwrap()

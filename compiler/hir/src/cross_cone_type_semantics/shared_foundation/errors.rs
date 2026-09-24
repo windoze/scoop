@@ -1,6 +1,6 @@
 use scoop_identity::{
     CallableTemplateOrigin, ConeIdentity, DefinitionOriginSubject, IdentityReferenceError,
-    PersistentExactTypeId, PersistentTypeId,
+    PersistentDispatchSlotId, PersistentExactTypeId, PersistentTypeId,
 };
 use scoop_wire::WireError;
 
@@ -43,6 +43,10 @@ pub enum SharedTypeMetadataError {
     ConstructorInventory(PersistentExactTypeId),
     ProtectedMemberInventory(PersistentExactTypeId),
     ProtectedMember(ProtectedDeclarationRefV1),
+    DispatchDeclarations(crate::NominalDispatchDeclarationError),
+    SlotSource(PersistentDispatchSlotId),
+    SlotOrder(PersistentExactTypeId),
+    SlotSchemas(Box<crate::InheritanceSlotSchemaSemanticError<SharedTypeMetadataError>>),
 }
 
 impl From<WireError> for SharedTypeMetadataError {

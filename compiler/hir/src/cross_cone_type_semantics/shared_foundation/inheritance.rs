@@ -19,6 +19,7 @@ mod constructors;
 mod contracts;
 mod edges;
 mod members;
+mod schemas;
 mod source;
 
 impl CheckedSharedTypeFoundationV1<'_> {
@@ -77,6 +78,7 @@ impl CheckedSharedTypeFoundationV1<'_> {
                 members::validate(provider, declaration, record, &context, meter)?;
             }
         }
+        schemas::validate(self, dependencies, &graph, meter)?;
         Ok(use_graph(&graph, meter))
     }
 }

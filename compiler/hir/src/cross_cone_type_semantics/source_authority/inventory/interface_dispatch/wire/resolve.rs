@@ -1,6 +1,48 @@
 use super::*;
 use scoop_identity::PersistentIdResolver;
 
+impl DecodedInterfaceSourceMemberV1 {
+    pub(crate) fn charge_member_resolution(
+        &self,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<(), WireError> {
+        self.overrides
+            .charge_resolution_at(meter, &path.clone().field(2))
+    }
+    pub(crate) fn resolve_member<
+        R: PersistentIdResolver<PersistentDispatchSlotId, Error = E>,
+        E,
+    >(
+        self,
+        resolver: &mut R,
+    ) -> Result<InterfaceSourceMemberV1, InterfaceSourceMemberResolutionError<E>> {
+        Ok(InterfaceSourceMemberV1::new(
+            resolver
+                .resolve(self.slot)
+                .map_err(InterfaceSourceMemberResolutionError::Reference)?,
+            self.overrides
+                .resolve(resolver)
+                .map_err(InterfaceSourceMemberResolutionError::Overrides)?,
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub enum InterfaceSourceMemberResolutionError<E> {
+    Reference(E),
+    Overrides(crate::CanonicalPersistentIdSetValidationError<PersistentDispatchSlotId, E>),
+}
+impl<E: fmt::Display> fmt::Display for InterfaceSourceMemberResolutionError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reference(e) => e.fmt(f),
+            Self::Overrides(e) => e.fmt(f),
+        }
+    }
+}
+impl<E: std::error::Error + 'static> std::error::Error for InterfaceSourceMemberResolutionError<E> {}
+
 impl DecodedInterfaceSourceDispatchV1 {
     pub fn resolve<R, E: fmt::Display>(
         self,

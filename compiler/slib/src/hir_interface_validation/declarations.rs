@@ -73,6 +73,10 @@ impl<'a> HirInterfaceValidationInput<'a> {
         dependencies: Vec<ValidatedNominalProviderView<'a>>,
         meter: &'a mut BudgetMeter,
     ) -> Result<(), CrossConeHirCallableSurfaceError> {
+        self.interface
+            .nominal_interfaces()
+            .validate_dispatch_declarations(self.interface.callable_interfaces(), meter)
+            .map_err(CrossConeHirCallableSurfaceError::Dispatch)?;
         crate::cross_cone_hir_authority::validate_intrinsic_declarations(
             self.interface,
             self.identities,

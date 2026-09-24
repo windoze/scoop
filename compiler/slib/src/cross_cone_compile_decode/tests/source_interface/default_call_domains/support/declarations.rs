@@ -65,6 +65,14 @@ impl Nominal {
                 CanonicalPersistentIdsV1::empty(),
                 CanonicalNestedMemberRefsV1::try_new(self.members.clone()).unwrap(),
                 CanonicalNestedNominalRefsV1::try_new(children).unwrap(),
+                if self.kind.public() == PublicNominalKindV1::Interface {
+                    scoop_hir::NominalDispatchOrderV1::Interface {
+                        parents: self.parents.clone(),
+                        members: Vec::new(),
+                    }
+                } else {
+                    scoop_hir::NominalDispatchOrderV1::empty(self.kind.public())
+                },
             ),
         )
         .unwrap()

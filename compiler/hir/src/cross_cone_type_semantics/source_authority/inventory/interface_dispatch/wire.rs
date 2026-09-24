@@ -5,6 +5,7 @@ use scoop_identity::DecodedPersistentId;
 use scoop_wire::{Decoder, WireDecode, WireError};
 
 mod resolve;
+pub use resolve::InterfaceSourceMemberResolutionError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedInterfaceSourceMemberV1 {

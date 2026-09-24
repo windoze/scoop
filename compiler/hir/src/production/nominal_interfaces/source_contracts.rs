@@ -11,6 +11,7 @@ type Error = CrossConeTypeSemanticsProductionError;
 
 mod constructors;
 mod declarations;
+mod dispatch_order;
 pub(super) use declarations::project_required as project_required_declarations;
 pub(super) use declarations::project_roots as project_root_declarations;
 mod members;

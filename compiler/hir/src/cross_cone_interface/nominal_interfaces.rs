@@ -16,6 +16,7 @@ use super::{
 use crate::BinderListValidationError;
 
 mod declaration;
+mod dispatch;
 mod errors;
 mod field_inventory;
 mod semantics;
@@ -25,6 +26,7 @@ pub use declaration::{
     DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError,
     NominalDeclarationDetailsV1, NominalDeclarationInventoryError,
 };
+pub use dispatch::*;
 pub use errors::{NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError};
 pub use field_inventory::NominalSourceFieldInventoryError;
 pub use semantics::{
@@ -86,6 +88,10 @@ impl NominalInterfaceRecordV1 {
         }
         validate_member_partition(&members)?;
         details.validate(kind, &constructors, &members)?;
+        details
+            .dispatch_order()
+            .validate_kind(kind)
+            .map_err(NominalInterfaceRecordBuildError::DispatchOrder)?;
         Ok(Self {
             declaration,
             kind,

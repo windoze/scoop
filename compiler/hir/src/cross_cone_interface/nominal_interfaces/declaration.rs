@@ -18,6 +18,7 @@ pub struct NominalDeclarationDetailsV1 {
     constructors: CanonicalPersistentIdsV1<PersistentConstructorId>,
     members: CanonicalNestedMemberRefsV1,
     children: CanonicalNestedNominalRefsV1,
+    dispatch_order: NominalDispatchOrderV1,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -27,6 +28,7 @@ impl NominalDeclarationDetailsV1 {
         constructors: CanonicalPersistentIdsV1<PersistentConstructorId>,
         members: CanonicalNestedMemberRefsV1,
         children: CanonicalNestedNominalRefsV1,
+        dispatch_order: NominalDispatchOrderV1,
     ) -> Self {
         Self {
             modality,
@@ -34,6 +36,7 @@ impl NominalDeclarationDetailsV1 {
             constructors,
             members,
             children,
+            dispatch_order,
         }
     }
 
@@ -51,6 +54,9 @@ impl NominalDeclarationDetailsV1 {
     }
     pub const fn children(&self) -> &CanonicalNestedNominalRefsV1 {
         &self.children
+    }
+    pub const fn dispatch_order(&self) -> &NominalDispatchOrderV1 {
+        &self.dispatch_order
     }
 
     pub(super) fn validate(
@@ -120,7 +126,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -130,7 +136,9 @@ impl WireEncode for NominalDeclarationDetailsV1 {
         encoder.field(4)?;
         self.members.encode(encoder)?;
         encoder.field(5)?;
-        self.children.encode(encoder)
+        self.children.encode(encoder)?;
+        encoder.field(6)?;
+        self.dispatch_order.encode(encoder)
     }
 }
 
@@ -157,6 +165,7 @@ impl NominalInterfaceRecordV1 {
     pub(crate) fn from_source_contract(
         source: crate::NominalSourceContractV1,
         visibility: DeclaredVisibilityV1,
+        dispatch_order: NominalDispatchOrderV1,
     ) -> Result<Self, NominalInterfaceRecordBuildError> {
         let details = NominalDeclarationDetailsV1::new(
             source.modality(),
@@ -164,6 +173,7 @@ impl NominalInterfaceRecordV1 {
             source.constructors().clone(),
             source.members().clone(),
             source.children().clone(),
+            dispatch_order,
         );
         Self::try_new(
             source.owner(),

@@ -303,11 +303,13 @@ pub use external_references::{
 };
 pub use nominal_interfaces::{
     CanonicalNominalInterfacesV1, DecodedCanonicalNominalInterfacesV1,
-    DecodedNominalDeclarationDetailsV1, DecodedNominalInterfaceRecordV1,
-    ExactSupertypeSemanticError, NominalDeclarationDetailsResolutionError,
-    NominalDeclarationDetailsV1, NominalDeclarationInventoryError,
-    NominalInterfaceRecordBuildError, NominalInterfaceRecordResolutionError,
-    NominalInterfaceRecordResolver, NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
+    DecodedNominalDeclarationDetailsV1, DecodedNominalDispatchOrderV1,
+    DecodedNominalInterfaceRecordV1, ExactSupertypeSemanticError,
+    NominalDeclarationDetailsResolutionError, NominalDeclarationDetailsV1,
+    NominalDeclarationInventoryError, NominalDispatchDeclarationError, NominalDispatchOrderError,
+    NominalDispatchOrderResolutionError, NominalDispatchOrderV1, NominalInterfaceRecordBuildError,
+    NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
+    NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
     NominalSourceFieldInventoryError,

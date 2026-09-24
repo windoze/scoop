@@ -49,6 +49,7 @@ pub enum CrossConeHirPropertySurfaceError {
 
 #[derive(Debug)]
 pub enum CrossConeHirCallableSurfaceError {
+    Dispatch(scoop_hir::NominalDispatchDeclarationError),
     Declarations(CrossConeHirNominalAuthorityError),
     Intrinsics(Box<crate::CrossConeIntrinsicDeclarationError>),
     CallableInterfaces(
@@ -122,6 +123,7 @@ impl std::error::Error for CrossConeHirPropertySurfaceError {
 impl std::fmt::Display for CrossConeHirCallableSurfaceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Dispatch(error) => error.fmt(f),
             Self::Declarations(error) => error.fmt(f),
             Self::CallableInterfaces(error) => error.fmt(f),
             Self::Intrinsics(error) => error.fmt(f),
@@ -132,6 +134,7 @@ impl std::fmt::Display for CrossConeHirCallableSurfaceError {
 impl std::error::Error for CrossConeHirCallableSurfaceError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Dispatch(error) => Some(error),
             Self::Declarations(error) => Some(error),
             Self::CallableInterfaces(error) => Some(error.as_ref()),
             Self::Intrinsics(error) => Some(error.as_ref()),

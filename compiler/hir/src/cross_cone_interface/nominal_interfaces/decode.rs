@@ -114,6 +114,7 @@ pub trait NominalInterfaceRecordResolver<E>:
     + PublicMemberRefResolver<E>
     + NominalSourceShapeResolver<E>
     + PersistentIdResolver<PersistentExportBindingId, Error = E>
+    + PersistentIdResolver<scoop_identity::PersistentDispatchSlotId, Error = E>
 {
 }
 
@@ -122,5 +123,6 @@ impl<R, E> NominalInterfaceRecordResolver<E> for R where
         + PublicMemberRefResolver<E>
         + NominalSourceShapeResolver<E>
         + PersistentIdResolver<PersistentExportBindingId, Error = E>
+        + PersistentIdResolver<scoop_identity::PersistentDispatchSlotId, Error = E>
 {
 }
