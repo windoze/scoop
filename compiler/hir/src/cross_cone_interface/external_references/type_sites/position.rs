@@ -15,6 +15,10 @@ pub enum HirDependencyTypePositionV1 {
     LocalValue(PersistentLocalValueId),
     BackingStorage(PropertyOwner),
     DelegateStorage(PropertyOwner),
+    FieldStorage(PersistentFieldId),
+    EnumVariantFieldStorage(PersistentEnumVariantFieldId),
+    ConstructorInitializerResult(CallableMaterialization),
+    InitializationCycleMessage(PersistentInitializationUnitId),
 }
 
 impl WireEncode for HirCallableTypePositionV1 {

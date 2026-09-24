@@ -79,10 +79,12 @@ impl Concretizer<'_> {
         let fields: Vec<concrete::Field> = source
             .fields
             .iter()
-            .map(|field| &self.source.class_fields[*field])
             .map(|field| concrete::Field {
-                name: self.source.properties[field.property].name.clone(),
-                ty: self.lower_type(field.ty, &arguments),
+                identity: self.source.field_identities[*field].id(),
+                name: self.source.properties[self.source.class_fields[*field].property]
+                    .name
+                    .clone(),
+                ty: self.lower_type(self.source.class_fields[*field].ty, &arguments),
             })
             .collect();
         let method_owner = self.object_by_backing_class.get(&source_id).map_or(

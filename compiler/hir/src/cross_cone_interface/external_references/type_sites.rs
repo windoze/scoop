@@ -2,11 +2,13 @@
 
 use crate::concrete::ExecutableExpressionPosition;
 use scoop_identity::{
-    CallableMaterialization, ConcreteExpressionOrigin, PersistentExactTypeId,
+    CallableMaterialization, ConcreteExpressionOrigin, PersistentEnumVariantFieldId,
+    PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId,
     PersistentLocalValueId, PropertyOwner,
 };
 
 mod decode;
+mod dependencies;
 mod errors;
 mod expression;
 mod nominals;
@@ -47,6 +49,22 @@ pub enum HirDependencyTypeSiteV1 {
         property: PropertyOwner,
         exact: PersistentExactTypeId,
     },
+    FieldStorage {
+        field: PersistentFieldId,
+        exact: PersistentExactTypeId,
+    },
+    EnumVariantFieldStorage {
+        field: PersistentEnumVariantFieldId,
+        exact: PersistentExactTypeId,
+    },
+    ConstructorInitializerResult {
+        constructor: CallableMaterialization,
+        exact: PersistentExactTypeId,
+    },
+    InitializationCycleMessage {
+        unit: PersistentInitializationUnitId,
+        exact: PersistentExactTypeId,
+    },
 }
 
 impl HirDependencyTypeSiteV1 {
@@ -67,7 +85,11 @@ impl HirDependencyTypeSiteV1 {
             Self::CallableSignature { exact, .. }
             | Self::LocalValue { exact, .. }
             | Self::BackingStorage { exact, .. }
-            | Self::DelegateStorage { exact, .. } => *exact,
+            | Self::DelegateStorage { exact, .. }
+            | Self::FieldStorage { exact, .. }
+            | Self::EnumVariantFieldStorage { exact, .. }
+            | Self::ConstructorInitializerResult { exact, .. }
+            | Self::InitializationCycleMessage { exact, .. } => *exact,
         }
     }
 
@@ -77,7 +99,11 @@ impl HirDependencyTypeSiteV1 {
             Self::CallableSignature { .. }
             | Self::LocalValue { .. }
             | Self::BackingStorage { .. }
-            | Self::DelegateStorage { .. } => None,
+            | Self::DelegateStorage { .. }
+            | Self::FieldStorage { .. }
+            | Self::EnumVariantFieldStorage { .. }
+            | Self::ConstructorInitializerResult { .. }
+            | Self::InitializationCycleMessage { .. } => None,
         }
     }
 
@@ -95,6 +121,16 @@ impl HirDependencyTypeSiteV1 {
             }
             Self::DelegateStorage { property, .. } => {
                 HirDependencyTypePositionV1::DelegateStorage(*property)
+            }
+            Self::FieldStorage { field, .. } => HirDependencyTypePositionV1::FieldStorage(*field),
+            Self::EnumVariantFieldStorage { field, .. } => {
+                HirDependencyTypePositionV1::EnumVariantFieldStorage(*field)
+            }
+            Self::ConstructorInitializerResult { constructor, .. } => {
+                HirDependencyTypePositionV1::ConstructorInitializerResult(*constructor)
+            }
+            Self::InitializationCycleMessage { unit, .. } => {
+                HirDependencyTypePositionV1::InitializationCycleMessage(*unit)
             }
         }
     }

@@ -1,0 +1,13 @@
+declaration=ConstructorInitializerResult(CallableMaterialization { template: Constructor(PersistentConstructorId([107, 191, 98, 186, 15, 157, 16, 92, 252, 83, 219, 34, 239, 204, 113, 118, 183, 144, 110, 36, 122, 66, 184, 127, 0, 28, 50, 117, 164, 168, 97, 52])), context: NoSubstitution }) exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc
+signature_sites=0
+local_sites=0
+backing_sites=0
+delegate_sites=0
+field_sites=0
+variant_field_sites=0
+initializer_result_sites=1
+cycle_message_sites=0
+type_sites=0
+foreign_definitions=0
+MIR selected=0
+LIR selected=0

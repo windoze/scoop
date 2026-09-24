@@ -11,8 +11,13 @@ use scoop_wire::{BudgetMeter, WireError, WireErrorKind, WirePath};
 use std::collections::BTreeMap;
 
 mod constructors;
+mod storage;
 
-pub(super) fn collect<E>(module: &Module, meter: &mut BudgetMeter) -> Result<Vec<Site>, Error<E>> {
+pub(super) fn collect<E>(
+    local: &crate::LocalConcreteHirOutput,
+    meter: &mut BudgetMeter,
+) -> Result<Vec<Site>, Error<E>> {
+    let module = local.module();
     let mut output = Collector {
         module,
         meter,
@@ -59,6 +64,7 @@ pub(super) fn collect<E>(module: &Module, meter: &mut BudgetMeter) -> Result<Vec
         }
     }
     constructors::collect(&mut output)?;
+    storage::collect(local, &mut output)?;
     for (_, global) in module.globals.iter() {
         output.add(global.ty, |exact| match global.storage_owner {
             PropertyStorageOwner::Backing(property) => Site::BackingStorage { property, exact },

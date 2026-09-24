@@ -32,6 +32,8 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
         "combined",
         "declaration-standalone",
         "declaration-combined",
+        "storage-standalone",
+        "storage-combined",
     ] {
         let root = sysroot.path().join(name);
         write_manifest_cone(&root, "dev.example", name, "library", &source(name));
@@ -71,7 +73,7 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
         let mut roles = std::collections::BTreeSet::new();
         let mut foreign_definitions = 0;
         let mut sites = 0;
-        let mut declarations = [0_usize; 4];
+        let mut declarations = [0_usize; 8];
         for reference in references {
             assert_eq!(
                 reference
@@ -81,45 +83,30 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
             );
             for site in reference.type_sites().records() {
                 use scoop_hir::HirDependencyTypeSiteV1 as Site;
-                let site = match site {
-                    Site::Expression(site) => site,
-                    Site::CallableSignature { .. } => {
-                        declarations[0] += 1;
-                        dump.push_str(&format!(
-                            "declaration={:?} exact={}\n",
-                            site.position(),
-                            site.exact()
-                        ));
-                        continue;
-                    }
-                    Site::LocalValue { .. } => {
-                        declarations[1] += 1;
-                        dump.push_str(&format!(
-                            "declaration={:?} exact={}\n",
-                            site.position(),
-                            site.exact()
-                        ));
-                        continue;
-                    }
-                    Site::BackingStorage { .. } => {
-                        declarations[2] += 1;
-                        dump.push_str(&format!(
-                            "declaration={:?} exact={}\n",
-                            site.position(),
-                            site.exact()
-                        ));
-                        continue;
-                    }
-                    Site::DelegateStorage { .. } => {
-                        declarations[3] += 1;
-                        dump.push_str(&format!(
-                            "declaration={:?} exact={}\n",
-                            site.position(),
-                            site.exact()
-                        ));
-                        continue;
-                    }
-                };
+                let expression = site.as_expression();
+                if let Some(expression) = expression {
+                    roles.insert(expression.role());
+                } else {
+                    let index = match site {
+                        Site::CallableSignature { .. } => 0,
+                        Site::LocalValue { .. } => 1,
+                        Site::BackingStorage { .. } => 2,
+                        Site::DelegateStorage { .. } => 3,
+                        Site::FieldStorage { .. } => 4,
+                        Site::EnumVariantFieldStorage { .. } => 5,
+                        Site::ConstructorInitializerResult { .. } => 6,
+                        Site::InitializationCycleMessage { .. } => 7,
+                        Site::Expression(_) => unreachable!("expression branch handled above"),
+                    };
+                    declarations[index] += 1;
+                    dump.push_str(&format!(
+                        "declaration={:?} exact={}\n",
+                        site.position(),
+                        site.exact()
+                    ));
+                    continue;
+                }
+                let site = expression.unwrap();
                 roles.insert(site.role());
                 sites += 1;
                 let foreign = site.origin().definition().source().cone() != current;
@@ -136,11 +123,15 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
         }
         if name == "declaration-standalone" {
             assert_eq!(sites, 0);
-            assert_eq!(declarations, [2, 1, 0, 0]);
+            assert_eq!(declarations, [2, 1, 0, 0, 0, 0, 0, 0]);
         } else if name == "declaration-combined" {
             assert!(sites > 0);
             assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
             assert!(declarations[3] > 0);
+        } else if name == "storage-standalone" {
+            assert_eq!(declarations[4..], [0, 0, 1, 0]);
+        } else if name == "storage-combined" {
+            assert!(declarations[4..].iter().all(|count| *count > 0));
         } else if name == "standalone" {
             assert_eq!(sites, 1);
             assert_eq!(
@@ -155,10 +146,21 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 std::collections::BTreeSet::from([HirExpressionTypeRoleV1::Value])
             );
         }
-        dump.push_str(&format!(
-            "signature_sites={}\nlocal_sites={}\nbacking_sites={}\ndelegate_sites={}\n",
-            declarations[0], declarations[1], declarations[2], declarations[3]
-        ));
+        for (name, count) in [
+            "signature",
+            "local",
+            "backing",
+            "delegate",
+            "field",
+            "variant_field",
+            "initializer_result",
+            "cycle_message",
+        ]
+        .into_iter()
+        .zip(declarations)
+        {
+            dump.push_str(&format!("{name}_sites={count}\n"));
+        }
         dump.push_str(&format!("type_sites={sites}\nforeign_definitions={foreign_definitions}\nMIR selected={}\nLIR selected={}\n",
             production.mir_cross_cone().selected().len(), production.lir_cross_cone().selected().len()));
         let path = fixtures.join(format!("{name}.snap"));

@@ -34,6 +34,24 @@ pub(super) fn project(
             )?;
         }
     }
+    inventory::sort_cost(uses.len(), meter)?;
+    uses.sort_unstable();
+    uses.dedup();
+    let shared = input
+        .public
+        .external_references()
+        .materialized_type_dependencies(module.cone, input.identities, meter)
+        .map_err(|source| Error::SharedTypeOccurrences(Box::new(source)))?;
+    meter.charge_work(uses.len() as u64 + shared.len() as u64, &path)?;
+    if !uses
+        .iter()
+        .map(|usage| (usage.provider(), usage.target()))
+        .eq(shared
+            .into_iter()
+            .map(|(provider, exact)| (provider, mir::MirTypeBridgeTargetV1::Type(exact))))
+    {
+        return Err(Error::TypeOccurrenceInventory);
+    }
     for root in input.mir.materialization().external_callable_roots() {
         meter.charge_work(input.ordinary.selected().len() as u64 + 1, &path)?;
         if root.role() == mir::CallableRole::InitializationCycle

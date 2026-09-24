@@ -51,6 +51,8 @@ pub enum MirTypeBridgeSourceProjectionError {
     MissingInitializationUnit(PersistentInitializationUnitId),
     InitializationInventory,
     MaterializedTypes(hir::MaterializedTypeClosureError),
+    SharedTypeOccurrences(Box<hir::HirDependencyTypeRelationError>),
+    TypeOccurrenceInventory,
     Identity(scoop_identity::IdentityReferenceError),
 }
 impl From<WireError> for MirTypeBridgeSourceProjectionError {

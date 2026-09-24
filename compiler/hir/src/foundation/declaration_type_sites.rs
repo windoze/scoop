@@ -11,6 +11,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 mod errors;
 mod signature;
+mod storage;
 pub use errors::DeclarationTypeSiteValidationError;
 type Error = DeclarationTypeSiteValidationError;
 
@@ -40,6 +41,16 @@ impl OdrFreeHirFoundation {
             }
             HirDependencyTypePositionV1::BackingStorage(property)
             | HirDependencyTypePositionV1::DelegateStorage(property) => input.property(property),
+            HirDependencyTypePositionV1::FieldStorage(field) => input.field(field),
+            HirDependencyTypePositionV1::EnumVariantFieldStorage(field) => {
+                input.variant_field(field)
+            }
+            HirDependencyTypePositionV1::ConstructorInitializerResult(root) => {
+                input.constructor_initializer(root)
+            }
+            HirDependencyTypePositionV1::InitializationCycleMessage(unit) => {
+                input.initialization(unit)
+            }
         }
     }
 }

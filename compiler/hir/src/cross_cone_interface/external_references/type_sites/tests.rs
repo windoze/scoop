@@ -11,6 +11,7 @@ use crate::{
 mod declarations;
 mod nominals;
 mod relations;
+mod storage;
 
 fn meter() -> BudgetMeter {
     BudgetMeter::new(DecodeLimits::default())

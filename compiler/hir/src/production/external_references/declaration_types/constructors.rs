@@ -8,6 +8,10 @@ pub(super) fn collect<E>(output: &mut Collector<'_>) -> Result<(), Error<E>> {
         let root = constructor.materialization;
         let result = module.classes[constructor.class].canonical_type;
         output.signature(root, Part::Result, result)?;
+        output.add(module.unit, |exact| Site::ConstructorInitializerResult {
+            constructor: root,
+            exact,
+        })?;
         output.local(values.class_receiver(id).id(), result)?;
         for (index, parameter) in constructor.parameters.iter().enumerate() {
             output.signature(root, Part::Parameter(parameter_index(index)?), parameter.ty)?;

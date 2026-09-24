@@ -6,6 +6,7 @@ use hir::{
 use source_dispatch::with_hir_source;
 
 mod signatures;
+mod storage;
 
 fn source(name: &str) -> String {
     std::fs::read_to_string(

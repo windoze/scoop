@@ -11,6 +11,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum ExternalHirReferenceProductionError<E> {
+    MaterializedTypes(crate::MaterializedTypeClosureError),
     CallOccurrences(crate::DependencyCallOccurrenceError),
     ExpressionOrigin(crate::HirDefinitionSourceProjectionError),
     CallSite(crate::HirDependencyCallSiteBuildError),
@@ -60,6 +61,7 @@ pub enum ExternalHirReferenceProductionError<E> {
 impl<E: fmt::Display> fmt::Display for ExternalHirReferenceProductionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MaterializedTypes(error) => error.fmt(formatter),
             Self::CallOccurrences(error) => error.fmt(formatter),
             Self::ExpressionOrigin(error) => error.fmt(formatter),
             Self::CallSite(error) => error.fmt(formatter),

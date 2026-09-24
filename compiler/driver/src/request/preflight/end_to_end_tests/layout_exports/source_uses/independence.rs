@@ -72,4 +72,41 @@ pub(super) fn check(
         actual.committed_external_uses().unwrap(),
         expected.committed_external_uses().unwrap()
     );
+    reject_missing_shared_occurrences(input, &types);
+}
+
+fn reject_missing_shared_occurrences(
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+    types: &mir::CanonicalParamFreeMirTypeExportsV1,
+) {
+    let public = input.public;
+    let incomplete = scoop_hir::CrossConeHirInterfaceSectionV1::new(
+        public.public_bindings().clone(),
+        public.nominal_interfaces().clone(),
+        public.callable_interfaces().clone(),
+        public.property_interfaces().clone(),
+        public.type_aliases().clone(),
+        public.source_interfaces().clone(),
+        public.default_templates().clone(),
+        public.constants().clone(),
+        public.definition_sources().clone(),
+        scoop_hir::CanonicalExternalHirReferencesV1::default(),
+    );
+    let result = scoop_mir_lower::MirTypeBridgeSourceProjectionV1::from_input(
+        scoop_mir_lower::MirTypeBridgeExportInputV1 {
+            public: &incomplete,
+            ..input
+        },
+        scoop_mir_lower::MirTypeBridgeDependencyTablesV1 {
+            types: &[types],
+            callables: &[],
+            dispatch: &[],
+        },
+        mir::CanonicalMirExternalInitializationUsesV1::try_new(vec![], &mut meter()).unwrap(),
+        &mut meter(),
+    );
+    assert!(matches!(
+        result,
+        Err(scoop_mir_lower::MirTypeBridgeSourceProjectionError::TypeOccurrenceInventory)
+    ));
 }

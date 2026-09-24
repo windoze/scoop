@@ -1,10 +1,11 @@
 use super::*;
 
 #[test]
-fn source_interface_v15_requires_declaration_type_occurrences_and_rejects_retired_majors() {
+fn source_interface_v16_requires_materialized_storage_type_occurrences_and_rejects_retired_majors()
+{
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        15,
+        16,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

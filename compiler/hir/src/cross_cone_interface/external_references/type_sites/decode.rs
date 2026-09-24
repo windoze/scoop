@@ -8,11 +8,16 @@ use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireErro
 use super::*;
 use crate::HirDependencyCallSiteResolver;
 
+mod encoding;
+
 pub trait HirDependencyTypeSiteResolver<E>:
     HirDependencyCallSiteResolver<E>
     + PersistentIdResolver<PersistentLocalValueId, Error = E>
     + PersistentIdResolver<PersistentPropertyId, Error = E>
     + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
+    + PersistentIdResolver<PersistentFieldId, Error = E>
+    + PersistentIdResolver<PersistentEnumVariantFieldId, Error = E>
+    + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
 {
 }
 
@@ -21,6 +26,9 @@ impl<R, E> HirDependencyTypeSiteResolver<E> for R where
         + PersistentIdResolver<PersistentLocalValueId, Error = E>
         + PersistentIdResolver<PersistentPropertyId, Error = E>
         + PersistentIdResolver<PersistentExtensionPropertyId, Error = E>
+        + PersistentIdResolver<PersistentFieldId, Error = E>
+        + PersistentIdResolver<PersistentEnumVariantFieldId, Error = E>
+        + PersistentIdResolver<PersistentInitializationUnitId, Error = E>
 {
 }
 
@@ -48,6 +56,22 @@ pub enum DecodedHirDependencyTypeSiteV1 {
     },
     DelegateStorage {
         property: DecodedPropertyOwner,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
+    FieldStorage {
+        field: DecodedPersistentId<PersistentFieldId>,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
+    EnumVariantFieldStorage {
+        field: DecodedPersistentId<PersistentEnumVariantFieldId>,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
+    ConstructorInitializerResult {
+        constructor: DecodedCallableMaterialization,
+        exact: DecodedPersistentId<PersistentExactTypeId>,
+    },
+    InitializationCycleMessage {
+        unit: DecodedPersistentId<PersistentInitializationUnitId>,
         exact: DecodedPersistentId<PersistentExactTypeId>,
     },
 }
@@ -111,57 +135,29 @@ impl DecodedHirDependencyTypeSiteV1 {
                 property: property.resolve(resolver).map_err(Error::Identity)?,
                 exact: resolver.resolve(exact).map_err(Error::Identity)?,
             },
+            Self::FieldStorage { field, exact } => HirDependencyTypeSiteV1::FieldStorage {
+                field: resolver.resolve(field).map_err(Error::Identity)?,
+                exact: resolver.resolve(exact).map_err(Error::Identity)?,
+            },
+            Self::EnumVariantFieldStorage { field, exact } => {
+                HirDependencyTypeSiteV1::EnumVariantFieldStorage {
+                    field: resolver.resolve(field).map_err(Error::Identity)?,
+                    exact: resolver.resolve(exact).map_err(Error::Identity)?,
+                }
+            }
+            Self::ConstructorInitializerResult { constructor, exact } => {
+                HirDependencyTypeSiteV1::ConstructorInitializerResult {
+                    constructor: constructor.resolve(resolver).map_err(Error::Identity)?,
+                    exact: resolver.resolve(exact).map_err(Error::Identity)?,
+                }
+            }
+            Self::InitializationCycleMessage { unit, exact } => {
+                HirDependencyTypeSiteV1::InitializationCycleMessage {
+                    unit: resolver.resolve(unit).map_err(Error::Identity)?,
+                    exact: resolver.resolve(exact).map_err(Error::Identity)?,
+                }
+            }
         })
-    }
-}
-
-impl WireEncode for DecodedHirDependencyTypeSiteV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match self {
-            Self::Expression {
-                root,
-                expression_index,
-                origin,
-                role,
-                exact,
-            } => {
-                encoder.map(6)?;
-                encoder.field(0)?;
-                encoder.unsigned(1)?;
-                encoder.field(1)?;
-                root.encode(encoder)?;
-                encoder.field(2)?;
-                encoder.unsigned(u64::from(*expression_index))?;
-                encoder.field(3)?;
-                origin.encode(encoder)?;
-                encoder.field(4)?;
-                role.encode(encoder)?;
-                encoder.field(5)?;
-                exact.encode(encoder)
-            }
-            Self::CallableSignature {
-                root,
-                position,
-                exact,
-            } => {
-                encoder.map(4)?;
-                encoder.field(0)?;
-                encoder.unsigned(2)?;
-                encoder.field(1)?;
-                root.encode(encoder)?;
-                encoder.field(2)?;
-                position.encode(encoder)?;
-                encoder.field(3)?;
-                exact.encode(encoder)
-            }
-            Self::LocalValue { local, exact } => super::wire::declaration(encoder, 3, local, exact),
-            Self::BackingStorage { property, exact } => {
-                super::wire::declaration(encoder, 4, property, exact)
-            }
-            Self::DelegateStorage { property, exact } => {
-                super::wire::declaration(encoder, 5, property, exact)
-            }
-        }
     }
 }
 
@@ -212,6 +208,34 @@ impl WireDecode for DecodedHirDependencyTypeSiteV1 {
                 super::wire::require_fields(decoder, fields, 3)?;
                 Ok(Self::DelegateStorage {
                     property: decoder.field(1, DecodedPropertyOwner::decode)?,
+                    exact: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            6 => {
+                super::wire::require_fields(decoder, fields, 3)?;
+                Ok(Self::FieldStorage {
+                    field: decoder.field(1, DecodedPersistentId::decode)?,
+                    exact: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            7 => {
+                super::wire::require_fields(decoder, fields, 3)?;
+                Ok(Self::EnumVariantFieldStorage {
+                    field: decoder.field(1, DecodedPersistentId::decode)?,
+                    exact: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            8 => {
+                super::wire::require_fields(decoder, fields, 3)?;
+                Ok(Self::ConstructorInitializerResult {
+                    constructor: decoder.field(1, DecodedCallableMaterialization::decode)?,
+                    exact: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
+            9 => {
+                super::wire::require_fields(decoder, fields, 3)?;
+                Ok(Self::InitializationCycleMessage {
+                    unit: decoder.field(1, DecodedPersistentId::decode)?,
                     exact: decoder.field(2, DecodedPersistentId::decode)?,
                 })
             }

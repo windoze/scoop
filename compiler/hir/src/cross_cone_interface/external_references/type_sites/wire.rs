@@ -37,6 +37,14 @@ impl WireEncode for HirDependencyTypeSiteV1 {
             Self::LocalValue { local, exact } => declaration(encoder, 3, local, exact),
             Self::BackingStorage { property, exact } => declaration(encoder, 4, property, exact),
             Self::DelegateStorage { property, exact } => declaration(encoder, 5, property, exact),
+            Self::FieldStorage { field, exact } => declaration(encoder, 6, field, exact),
+            Self::EnumVariantFieldStorage { field, exact } => declaration(encoder, 7, field, exact),
+            Self::ConstructorInitializerResult { constructor, exact } => {
+                declaration(encoder, 8, constructor, exact)
+            }
+            Self::InitializationCycleMessage { unit, exact } => {
+                declaration(encoder, 9, unit, exact)
+            }
         }
     }
 }

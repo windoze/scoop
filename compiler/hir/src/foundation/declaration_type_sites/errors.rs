@@ -8,6 +8,7 @@ pub enum DeclarationTypeSiteValidationError {
     ExpressionPosition,
     Materialization(CallableMaterialization),
     SignaturePosition(CallableMaterialization, HirCallableTypePositionV1),
+    StoragePosition(crate::HirDependencyTypePositionV1),
     MissingIdentity {
         kind: &'static str,
         id: [u8; 32],

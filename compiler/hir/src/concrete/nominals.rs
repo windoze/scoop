@@ -504,6 +504,8 @@ pub struct VariantField {
 
 #[derive(Debug, Clone)]
 pub struct Field {
+    /// Declaration identity retained through concretization, including object storage.
+    pub identity: PersistentFieldId,
     pub name: String,
     pub ty: TypeId,
 }

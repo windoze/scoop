@@ -14,7 +14,7 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
         let module = output.output().local.module();
         let identities = &module.exact_type_identities;
         let path = WirePath::root();
-        for site in super::super::declaration_types::collect(module, meter)? {
+        for site in super::super::declaration_types::collect(&output.output().local, meter)? {
             let owners = collect_type_site_nominals(
                 site.exact(),
                 |exact| {

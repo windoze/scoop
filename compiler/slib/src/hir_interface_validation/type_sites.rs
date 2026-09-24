@@ -4,6 +4,7 @@ use super::*;
 use scoop_wire::WirePath;
 
 mod errors;
+mod generated;
 pub use errors::CrossConeHirTypeSiteError;
 
 impl HirInterfaceValidationInput<'_> {
@@ -58,6 +59,7 @@ impl HirInterfaceValidationInput<'_> {
                         )
                         .map_err(|error| CrossConeHirTypeSiteError::Declaration(Box::new(error)))?,
                 }
+                self.generated_type_site(reference.origin(), site, dependencies, meter, &path)?;
             }
         }
         Ok(())
