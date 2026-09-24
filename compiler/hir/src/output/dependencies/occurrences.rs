@@ -1,6 +1,6 @@
 //! Actual call sites borrow the winning route from their executable HIR node.
 
-use scoop_wire::{BudgetMeter, DecodeLimits, WireError, WirePath};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::*;
 use crate::{
@@ -12,12 +12,17 @@ use concrete::{ExecutableExpressionOccurrence, ExecutableExpressionPosition};
 #[derive(Clone, Copy, Debug)]
 pub struct CommittedDependencyCallOccurrence<'a> {
     occurrence: ExecutableExpressionOccurrence<'a>,
+    callee: concrete::ImportedDependencyCallableUseId,
     binding: &'a DirectImportedTargetBinding,
     callable: &'a SelectedImportedDependencyCallable,
     arguments: &'a [concrete::Expr],
 }
 
 impl<'a> CommittedDependencyCallOccurrence<'a> {
+    pub const fn callee(self) -> concrete::ImportedDependencyCallableUseId {
+        self.callee
+    }
+
     pub const fn position(self) -> ExecutableExpressionPosition {
         self.occurrence.position
     }
@@ -64,19 +69,7 @@ impl DependencyHirOutput {
     }
 }
 
-pub(super) fn validate(
-    output: &crate::Output,
-    selected: &crate::SelectedImportedDependencySet,
-) -> Result<(), DependencyCallOccurrenceError> {
-    visit(
-        output,
-        selected,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-        |_, _| Ok(()),
-    )
-}
-
-fn visit<'a>(
+pub(super) fn visit<'a>(
     output: &'a crate::Output,
     selected: &'a crate::SelectedImportedDependencySet,
     meter: &mut BudgetMeter,
@@ -115,6 +108,7 @@ fn visit<'a>(
             visitor(
                 CommittedDependencyCallOccurrence {
                     occurrence,
+                    callee: *callee,
                     binding,
                     callable,
                     arguments: args,

@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use scoop_hir::{
-    CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
-    ImportedDependencySelectionPlan, TypeAliasClosureAuthority, TypeAliasInterfaceRecordV1,
+    CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1, TypeAliasClosureAuthority,
+    TypeAliasInterfaceRecordV1,
 };
 use scoop_identity::{
     ConeIdentity, CoreBuiltinNominal, PersistentTypeAliasId, SemanticIdentitySession,
@@ -69,23 +69,13 @@ fn semantic_commit_accepts_the_valid_empty_core_closure() {
     assert_eq!(world.provider_count(), 0);
     assert!(world.direct_provider(ConeIdentity::CORE).is_none());
 
-    let hir_selection = ImportedDependencySelectionPlan::empty(ConeIdentity::CORE).finish();
-    let mir_selection = committed
-        .project_dependency_callables_to_mir(&hir_selection)
-        .unwrap();
-    assert_eq!(mir_selection.consumer(), ConeIdentity::CORE);
-    assert!(mir_selection.is_empty());
+    let mir_selection = scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE);
     let lir_selection = committed
         .project_dependency_callables_to_lir(&mir_selection)
         .unwrap();
     assert_eq!(lir_selection.consumer(), ConeIdentity::CORE);
     assert!(lir_selection.is_empty());
 
-    let foreign_hir = ImportedDependencySelectionPlan::empty(ConeIdentity::SINGLE_FILE).finish();
-    assert!(matches!(
-        committed.project_dependency_callables_to_mir(&foreign_hir),
-        Err(crate::CrossConeMirSelectionProjectionError::ConsumerMismatch { .. })
-    ));
     let foreign_mir = scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::SINGLE_FILE);
     assert!(matches!(
         committed.project_dependency_callables_to_lir(&foreign_mir),

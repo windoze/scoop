@@ -87,15 +87,14 @@ fn lower_dependency_callables(
     HashMap<hir::ImportedDependencyCallableUseId, mir::ExternalCallableUseId>,
     CurrentConeMirLoweringError,
 > {
-    let hir = output.output().local.module();
-    let selected_hir = output.imported_dependencies();
     let mut mapping = HashMap::new();
-    for (source_id, source) in hir.imported_dependency_callables.iter() {
-        let selected = selected_hir.resolve_callable(source.reference()).ok_or(
-            CurrentConeMirLoweringError::ForeignDependencyHirCallable {
-                index: source_id.into_raw().into_u32(),
-            },
-        )?;
+    let mut meter = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default());
+    let executable = output
+        .executable_dependency_callables(&mut meter)
+        .map_err(CurrentConeMirLoweringError::Occurrences)?;
+    for use_ in executable {
+        let source_id = use_.callee();
+        let selected = use_.callable();
         let capability = selected.capability();
         let id = imported
             .callable_for(selected.provider(), capability.declaration())
@@ -139,15 +138,13 @@ fn lower_dependency_callables(
 
 #[derive(Debug)]
 pub enum CurrentConeMirLoweringError {
+    Occurrences(scoop_hir::DependencyCallOccurrenceError),
     InvalidInitializationCycleThrower,
     MissingInitializationCycleThrower,
     InitializationCycleThrowerMismatch,
     ForeignExternalMirSelection {
         expected: mir::ConeIdentity,
         actual: mir::ConeIdentity,
-    },
-    ForeignDependencyHirCallable {
-        index: u32,
     },
     MissingDependencyMirCallable {
         index: u32,
@@ -177,6 +174,7 @@ impl std::fmt::Display for CurrentConeMirLoweringError {
 impl std::error::Error for CurrentConeMirLoweringError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Occurrences(error) => Some(error),
             Self::InvalidOutput(error) => Some(error),
             _ => None,
         }

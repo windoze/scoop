@@ -1,7 +1,8 @@
 //! Stage-specific projection of committed dependency selections.
 
-use scoop_hir::SelectedImportedDependencySet;
+use scoop_hir::DependencyHirOutput;
 use scoop_mir::{SelectedDependencyMirCallableV1, SelectedExternalMirSet};
+use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 
 use super::{ValidatedCrossConeSemanticClosure, world::provider_certificate};
 
@@ -14,24 +15,39 @@ pub use errors::*;
 pub use protocols::{CrossConeInitializationSelectionError, CrossConeProtocolImportError};
 
 impl ValidatedCrossConeSemanticClosure<'_> {
-    /// Projects the exact HIR winners into the matching provider MIR exports.
+    /// Projects actual executable HIR calls into matching provider MIR exports.
     ///
     /// Constants have already been inlined into HIR and therefore do not
     /// produce MIR roots. Every callable is checked against both its retained
     /// artifact certificate and the terminal provider's canonical export.
     pub fn project_dependency_callables_to_mir(
         &self,
-        selected: &SelectedImportedDependencySet,
+        hir: &DependencyHirOutput,
     ) -> Result<SelectedExternalMirSet, CrossConeMirSelectionProjectionError> {
-        if selected.consumer() != self.current {
+        let consumer = hir.output().local.module().cone;
+        if consumer != self.current {
             return Err(CrossConeMirSelectionProjectionError::ConsumerMismatch {
                 closure: self.current,
-                selected: selected.consumer(),
+                selected: consumer,
             });
         }
 
-        let mut projected = Vec::with_capacity(selected.callable_count());
-        for callable in selected.callables() {
+        let mut meter = BudgetMeter::new(DecodeLimits::default());
+        let selected = hir
+            .executable_dependency_callables(&mut meter)
+            .map_err(CrossConeMirSelectionProjectionError::Occurrences)?;
+        let mut projected = Vec::new();
+        meter
+            .charge_owned_bytes(
+                (selected.len() * std::mem::size_of::<SelectedDependencyMirCallableV1>()) as u64,
+                &WirePath::root(),
+            )
+            .map_err(CrossConeMirSelectionProjectionError::Resource)?;
+        meter
+            .try_reserve_collection_slots(&mut projected, selected.len(), &WirePath::root())
+            .map_err(CrossConeMirSelectionProjectionError::Resource)?;
+        for use_ in selected {
+            let callable = use_.callable();
             let provider = callable.provider();
             let artifact = self
                 .provider(provider)

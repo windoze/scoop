@@ -20,6 +20,7 @@ mod default_reference_closure;
 mod default_type_access;
 mod default_value_access;
 mod dependency_preflight;
+mod executable_callables;
 mod image_dependencies;
 mod layout_exports;
 mod nominal_signatures;

@@ -1,0 +1,3 @@
+package dependency.api
+
+public fun run(): Boolean = true

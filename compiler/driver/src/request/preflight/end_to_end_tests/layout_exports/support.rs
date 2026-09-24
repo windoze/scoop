@@ -43,7 +43,7 @@ pub(super) fn with_production(
     )
     .unwrap();
     let selected = closure
-        .project_dependency_callables_to_mir(hir.hir.imported_dependencies())
+        .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
     let selected = if hir
         .hir

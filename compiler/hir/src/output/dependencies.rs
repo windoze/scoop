@@ -3,7 +3,10 @@ use std::fmt;
 
 use crate::concrete;
 
+mod callables;
 mod occurrences;
+mod witnesses;
+pub use callables::ExecutableDependencyCallableUse;
 pub use occurrences::{
     CommittedDependencyCallOccurrence, DependencyCallOccurrenceError, DependencyCallOrigin,
 };
@@ -32,10 +35,8 @@ impl DependencyHirOutput {
         let export = output.export.module();
         let local = output.local.module();
         validate_imported_dependency_projection(export, local, &imported_dependencies)?;
-        occurrences::validate(&output, &imported_dependencies)
+        let concrete_dependency_witness_uses = witnesses::collect(&output, &imported_dependencies)
             .map_err(DependencyHirOutputError::CallOccurrence)?;
-        let concrete_dependency_witness_uses =
-            concrete_dependency_witness_uses(&imported_dependencies);
         binding_witness_uses.sort_unstable();
         binding_witness_uses.dedup();
 
@@ -61,9 +62,9 @@ impl DependencyHirOutput {
         &self.binding_witness_uses
     }
 
-    /// Canonical source-name proofs for every committed ordinary-dependency
-    /// HIR use. These are derived from the winner-only selection transaction,
-    /// never reconstructed from transient local-concrete nodes.
+    /// Canonical source-name proofs for concrete ordinary-dependency uses.
+    /// Callable routes come from actual executable nodes; source-only
+    /// default references retain their separate source metadata roles.
     pub fn concrete_dependency_witness_uses(&self) -> &[crate::ExternalHirBindingWitnessUse] {
         &self.concrete_dependency_witness_uses
     }
@@ -71,43 +72,6 @@ impl DependencyHirOutput {
     pub fn into_parts(self) -> (crate::Output, crate::SelectedImportedDependencySet) {
         (self.output, self.imported_dependencies)
     }
-}
-
-fn concrete_dependency_witness_uses(
-    selected: &crate::SelectedImportedDependencySet,
-) -> Vec<crate::ExternalHirBindingWitnessUse> {
-    let mut uses = Vec::new();
-    for callable in selected.callables() {
-        let target = crate::ExternalHirTargetV1::Callable(callable.interface().declaration());
-        append_concrete_dependency_witnesses(&mut uses, target, callable.binding());
-    }
-    for constant in selected.constants() {
-        let target = crate::ExternalHirTargetV1::Property(scoop_identity::PropertyOwner::Property(
-            constant.record().property(),
-        ));
-        append_concrete_dependency_witnesses(&mut uses, target, constant.binding());
-    }
-    for alias in selected.type_aliases() {
-        let target = crate::ExternalHirTargetV1::TypeAlias(alias.interface().alias());
-        append_concrete_dependency_witnesses(&mut uses, target, alias.binding());
-    }
-    uses.sort_unstable();
-    uses.dedup();
-    uses
-}
-
-fn append_concrete_dependency_witnesses(
-    uses: &mut Vec<crate::ExternalHirBindingWitnessUse>,
-    target: crate::ExternalHirTargetV1,
-    binding: &crate::DirectImportedTargetBinding,
-) {
-    uses.extend(binding.sources().map(|source| {
-        crate::ExternalHirBindingWitnessUse::new(
-            target,
-            crate::ExternalHirBindingWitnessRole::ConcreteSelectedUse,
-            source.witness().dependency().clone(),
-        )
-    }));
 }
 
 fn validate_imported_dependency_projection(

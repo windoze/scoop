@@ -17,7 +17,7 @@ impl ValidatedCompilerProtocols {
         let selected = request
             .dependencies()
             .semantic()
-            .project_dependency_callables_to_mir(hir.hir.imported_dependencies())
+            .project_dependency_callables_to_mir(&hir.hir)
             .map_err(CurrentConeMirStageError::DependencyProjection)
             .map_err(CurrentConeProductionFailure::Mir)?;
         let (selected, runtime_string) = match self {

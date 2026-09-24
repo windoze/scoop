@@ -4,6 +4,8 @@ use scoop_identity::{CallableRole, ConeIdentity, DependencyCallableDeclarationId
 
 #[derive(Debug)]
 pub enum CrossConeMirSelectionProjectionError {
+    Resource(scoop_wire::WireError),
+    Occurrences(scoop_hir::DependencyCallOccurrenceError),
     ConsumerMismatch {
         closure: ConeIdentity,
         selected: ConeIdentity,
@@ -33,6 +35,8 @@ pub enum CrossConeMirSelectionProjectionError {
 impl fmt::Display for CrossConeMirSelectionProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resource(source) => source.fmt(formatter),
+            Self::Occurrences(source) => source.fmt(formatter),
             Self::ConsumerMismatch { closure, selected } => write!(
                 formatter,
                 "dependency HIR selection belongs to consumer {selected}, not closure {closure}"
@@ -81,6 +85,8 @@ impl fmt::Display for CrossConeMirSelectionProjectionError {
 impl std::error::Error for CrossConeMirSelectionProjectionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
+            Self::Occurrences(source) => Some(source),
             Self::Record(source) => Some(source),
             Self::Selection(source) => Some(source),
             Self::ConsumerMismatch { .. }

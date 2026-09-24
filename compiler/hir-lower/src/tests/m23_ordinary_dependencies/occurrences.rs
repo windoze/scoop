@@ -5,6 +5,7 @@ use scoop_wire::{BudgetMeter, DecodeLimits};
 
 use super::*;
 
+mod executed;
 mod rejection;
 mod support;
 use support::{lower, root_name};
