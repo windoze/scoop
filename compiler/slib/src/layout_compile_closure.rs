@@ -34,10 +34,11 @@ pub use mir_dispatch::{
 pub use mir_source_callables::{
     CrossConeLayoutMirSourceCallablesError, MirSourceCallablesValidatedCrossConeLayoutClosure,
     MirSourceCallablesValidatedCrossConeLayoutSections, SharedMirConstructorComponent,
-    SharedMirConstructorValidationError, SharedMirObjectComponent, SharedMirObjectValidationError,
-    SharedMirSourceCallableComponent, SharedMirSourceCallablePartition,
-    SharedMirSourceCallableValidationError, validate_shared_mir_constructors,
-    validate_shared_mir_objects, validate_shared_mir_source_callables,
+    SharedMirConstructorValidationError, SharedMirEqualityValidationError,
+    SharedMirObjectComponent, SharedMirObjectValidationError, SharedMirSourceCallableComponent,
+    SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
+    validate_shared_mir_constructors, validate_shared_mir_equality, validate_shared_mir_objects,
+    validate_shared_mir_source_callables,
 };
 pub use mir_types::{
     CrossConeLayoutMirTypesError, MirTypesValidatedCrossConeLayoutClosure,

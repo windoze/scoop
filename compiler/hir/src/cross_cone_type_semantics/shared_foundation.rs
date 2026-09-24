@@ -10,6 +10,7 @@ use crate::{
     CrossConeTypeSemanticsSectionV1, NominalMaterializationClosure, OdrFreeHirFoundation,
 };
 
+mod equality_applications;
 mod errors;
 mod facts;
 mod inheritance;

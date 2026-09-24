@@ -9,6 +9,7 @@ pub(super) fn check(
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
     hir_core: &hir::CoreBootstrapInterfaceSectionV1,
     mir_foundation: &mir::OdrFreeMirFoundation,
+    strong: &mir::StrongCallableBridgeSurfaceV1,
     ordinary: &mir::CrossConeMirBridgeSectionV1,
 ) {
     let hir_bytes = encode(&hir.index_for_wire(&mut meter()).unwrap()).unwrap();
@@ -97,6 +98,7 @@ pub(super) fn check(
     super::mir_constructors::check(name, checked[0], mir_foundation, mir);
     super::mir_objects::check(name, checked[0], mir);
     super::mir_dispatch::check(name, checked[0], mir_foundation, mir);
+    super::mir_equality::check(name, checked[0], mir_foundation, strong, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }

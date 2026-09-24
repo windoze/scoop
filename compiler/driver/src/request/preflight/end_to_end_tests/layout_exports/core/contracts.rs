@@ -58,10 +58,10 @@ pub(super) fn check(
     assert_eq!(names, expected);
     assert_eq!(
         local_only,
-        if name == "shared-callables-combined" {
-            vec!["SharedCallableImpl"]
-        } else {
-            vec![]
+        match name {
+            "shared-callables-combined" => vec!["SharedCallableImpl"],
+            "shared-equality-standalone" => vec!["SharedEqualityHidden"],
+            _ => vec![],
         }
     );
     for name in names {
@@ -125,17 +125,16 @@ fn source_only_descriptors(
             .source_exact_types
             .get_by_identity(exact);
         if let Some(local) = local {
-            if let (ExactTypeKey::Nominal(nominal), mir::Type::Class(class)) =
-                (local.identity_record().key(), local.ty())
-            {
+            if let ExactTypeKey::Nominal(nominal) = local.identity_record().key() {
                 if public
                     .nominal_interfaces()
                     .declaration(hir::SourceNominalId::Concrete(*nominal))
                     .is_none()
+                    && !matches!(local.ty(), mir::Type::Unit | mir::Type::Any)
                 {
                     assert!(input.bridge.types().get(exact).is_none());
                     assert!(result.descriptors().get(exact).is_none());
-                    local_only.push(input.mir.module().classes[*class].name.clone());
+                    local_only.push(mir::type_name(input.mir.module(), local.ty()));
                     continue;
                 }
             }

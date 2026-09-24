@@ -3,6 +3,7 @@ use super::*;
 mod bytes;
 mod mir_constructors;
 mod mir_dispatch;
+mod mir_equality;
 mod mir_objects;
 mod mir_source_callables;
 mod mir_types;
@@ -68,6 +69,7 @@ pub(super) fn check(
         layout,
         &production,
         input.mir.foundation(),
+        input.mir.production().strong_callable_bridges(),
         input.ordinary,
     );
 }

@@ -21,6 +21,7 @@ use crate::{
 };
 
 mod constructors;
+mod equality;
 mod errors;
 mod objects;
 mod validation;
@@ -29,6 +30,7 @@ pub use constructors::{
     SharedMirConstructorComponent, SharedMirConstructorValidationError,
     validate_shared_mir_constructors,
 };
+pub use equality::{SharedMirEqualityValidationError, validate_shared_mir_equality};
 pub use errors::{
     CrossConeLayoutMirSourceCallablesError, SharedMirSourceCallableComponent,
     SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
@@ -38,9 +40,9 @@ pub use objects::{
 };
 pub use validation::validate_shared_mir_source_callables;
 
-/// Source functions/accessors, constructors, object initialization and dispatch
-/// agree with shared HIR. Derived equality, initialization uses, selected uses
-/// and LIR remain unvalidated.
+/// Source functions/accessors, constructors, generated equality, object
+/// initialization and dispatch agree with shared HIR. Initialization uses,
+/// selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     prepared: PreparedCrossConeLayoutMirSections<'input>,
     mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
@@ -171,6 +173,14 @@ fn validate_sources(
                 parts.meter,
             )
             .map_err(|error| Error::Objects(Box::new(error)))?;
+            validate_shared_mir_equality(
+                source,
+                &dependencies,
+                parts.mir_core.strong_callable_bridges(),
+                artifact.mir.callables(),
+                parts.meter,
+            )
+            .map_err(|error| Error::Equality(Box::new(error)))?;
             super::mir_dispatch::validate_shared_mir_dispatch(
                 source,
                 &dependencies,

@@ -85,6 +85,11 @@ fn shared_dispatch_replays_slot_order_targets_reabstraction_and_boxing() {
     check_core_layout_exports(&["shared-dispatch-standalone", "shared-dispatch-combined"]);
 }
 
+#[test]
+fn shared_equality_replays_materialized_source_applications_and_default_only_keys() {
+    check_core_layout_exports(&["shared-equality-standalone", "shared-equality-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

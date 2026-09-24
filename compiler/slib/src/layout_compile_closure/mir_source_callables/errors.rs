@@ -32,6 +32,7 @@ pub enum SharedMirSourceCallableValidationError {
     Constructors(Box<super::SharedMirConstructorValidationError>),
     Objects(Box<super::SharedMirObjectValidationError>),
     Dispatch(Box<crate::SharedMirDispatchValidationError>),
+    Equality(Box<super::SharedMirEqualityValidationError>),
     Shared(Box<hir::SharedTypeMetadataError>),
     MirTransport(Box<MirTypeBridgeSectionError<Infallible>>),
     Classifier(hir::NominalExactLeafClassifierBuildError),

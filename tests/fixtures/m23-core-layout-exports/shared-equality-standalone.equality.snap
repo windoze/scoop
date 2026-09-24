@@ -1,0 +1,6 @@
+hir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityDeferred): application=2c9f0005926c49c152921396f0ada186e38e653cd9e1f3b707c8f7a828286d98, strong=false, exported=false
+hir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityHidden): application=5bb7191cff54a4955c540a96e3fd6a2eaa31e35677b2f0e7a8e148ba05300c57, strong=true, exported=false
+hir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityToken): application=7189696ed36ec9164f2189184ae35cc802c60705487cafbe220a35ca0695e6ad, strong=true, exported=true
+hir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit): application=0d79dfdbc72d245cbe4288d1d7942253dc15649082828f40fb67a56b2f1cb208, strong=true, exported=true
+mir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityToken): Managed Ordinary, receiver=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityToken), parameter=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=SharedEqualityToken), result=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)
+mir n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit): Managed Ordinary, receiver=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit), parameter=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Unit), result=n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)
