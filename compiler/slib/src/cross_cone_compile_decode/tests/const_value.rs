@@ -1,4 +1,9 @@
 use scoop_hir::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
+use scoop_hir::{
     CallableInterfaceRecordV1, CallableModalityV1, CanonicalBinderListV1, CanonicalBooleanV1,
     CanonicalCallableInterfacesV1, CanonicalCallableSourceInterfacesV1, CanonicalConstValueV1,
     CanonicalExportConstValuesV1, CanonicalExportDefaultTemplatesV1,
@@ -8,10 +13,9 @@ use scoop_hir::{
     CanonicalSourceParameterShapesV1, CanonicalTypeAliasInterfacesV1,
     CrossConeHirInterfaceSectionV1, ExportConstValueSemanticValidationError,
     ExportConstValueSetSemanticValidationError, ExportConstValueV1, ExportDefinitionSourceV1,
-    NominalInterfaceRecordV1, NominalSourceShapeV1, PropertyCapabilityV1,
-    PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
-    PublicDeclarationOwnerV1, PublicLookupAccessV1, PublicNominalKindV1, SourceNominalId,
-    StructSourceShapeV1,
+    NominalInterfaceRecordV1, NominalSourceShapeV1, PropertyInterfaceRecordV1,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PublicDeclarationOwnerV1,
+    PublicLookupAccessV1, PublicNominalKindV1, SourceNominalId, StructSourceShapeV1,
 };
 use scoop_identity::{
     AccessorRole, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord,
@@ -314,9 +318,10 @@ impl ConstSurface {
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
             None,
             SignatureTypeKey::Nominal(value_type.id()),
-            PropertyCapabilityV1::read_only(getter.id()),
+            Accessors::read_only(AccessorSource::new(getter.id(), AccessorForm::Constant)),
             PropertyRepresentationV1::Const,
             PropertyPublicAccessV1::DirectOnly,
+            scoop_hir::PropertySetterPublicAccessV1::Restricted,
         )
         .unwrap();
         let getter_interface = CallableInterfaceRecordV1::try_new(

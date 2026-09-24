@@ -3,6 +3,11 @@ use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PropertyAccessorClosureValidationError {
+    SourceForm {
+        accessor: PersistentPropertyAccessorId,
+        implementation: crate::PropertyAccessorImplementationV1,
+        modality: CallableModalityV1,
+    },
     Resource(scoop_wire::WireError),
     MissingSourceAccessor {
         property: PropertyDeclarationId,
@@ -83,12 +88,19 @@ pub enum PropertyAccessorClosureValidationError {
         expected: CallableModalityV1,
         actual: CallableModalityV1,
     },
-    RuntimeOnlyAbstractAccessors(PropertyDeclarationId),
 }
 
 impl fmt::Display for PropertyAccessorClosureValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::SourceForm {
+                accessor,
+                implementation,
+                modality,
+            } => write!(
+                formatter,
+                "property accessor {accessor} source form {implementation:?} disagrees with callable modality {modality:?} or dispatch slots"
+            ),
             Self::Resource(error) => error.fmt(formatter),
             Self::MissingSourceAccessor {
                 property,
@@ -213,10 +225,6 @@ impl fmt::Display for PropertyAccessorClosureValidationError {
             } => write!(
                 formatter,
                 "property accessor {accessor} modality {actual:?} does not match {expected:?}"
-            ),
-            Self::RuntimeOnlyAbstractAccessors(property) => write!(
-                formatter,
-                "runtime property {property:?} has only abstract accessors"
             ),
         }
     }

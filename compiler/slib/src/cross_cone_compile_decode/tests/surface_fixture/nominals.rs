@@ -1,3 +1,8 @@
+use scoop_hir::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use super::*;
 
 pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
@@ -307,9 +312,10 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         SignatureTypeKey::Nominal(nominal.id()),
-        PropertyCapabilityV1::read_only(getter.id()),
+        Accessors::read_only(AccessorSource::new(getter.id(), AccessorForm::Body)),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        scoop_hir::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let extension_property_record = PropertyInterfaceRecordV1::try_new(
@@ -322,14 +328,14 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         .unwrap(),
         Some(SignatureTypeKey::Nominal(nominal.id())),
         SignatureTypeKey::Binder { depth: 0, index: 0 },
-        PropertyCapabilityV1::try_read_write(
-            extension_getter.id(),
-            extension_setter.id(),
-            PropertySetterPublicAccessV1::Restricted,
+        Accessors::try_read_write(
+            AccessorSource::new(extension_getter.id(), AccessorForm::Body),
+            AccessorSource::new(extension_setter.id(), AccessorForm::Body),
         )
         .unwrap(),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        scoop_hir::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let restricted_setter = scoop_hir::CallableDeclarationRecordV1::try_new(

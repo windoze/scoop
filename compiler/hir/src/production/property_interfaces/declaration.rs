@@ -1,5 +1,8 @@
 use super::*;
-use crate::{PropertyAccessorsV1, PropertyDeclarationRecordV1, PropertyId};
+use crate::{
+    PropertyAccessorImplementationV1, PropertyAccessorSourceV1, PropertyAccessorsV1,
+    PropertyDeclarationRecordV1, PropertyId,
+};
 use scoop_identity::AccessorRole;
 
 pub(super) fn project(
@@ -31,13 +34,23 @@ pub(super) fn project(
             },
         });
     }
+    let getter = PropertyAccessorSourceV1::new(
+        accessors.getter_id,
+        PropertyAccessorImplementationV1::from_source(accessors.getter.implementation),
+    );
     let identities = match accessors.setter {
-        None => PropertyAccessorsV1::read_only(accessors.getter_id),
-        Some(setter) => PropertyAccessorsV1::try_read_write(accessors.getter_id, setter.id)
-            .map_err(|source| Error::Capability {
-                property: declaration,
-                source,
-            })?,
+        None => PropertyAccessorsV1::read_only(getter),
+        Some(setter) => PropertyAccessorsV1::try_read_write(
+            getter,
+            PropertyAccessorSourceV1::new(
+                setter.id,
+                PropertyAccessorImplementationV1::from_source(setter.declaration.implementation),
+            ),
+        )
+        .map_err(|source| Error::Capability {
+            property: declaration,
+            source,
+        })?,
     };
     let representation = accessors::project_representation(
         property,

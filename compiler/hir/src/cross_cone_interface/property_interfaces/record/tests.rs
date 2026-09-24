@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use scoop_identity::{
     AccessorRole, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionOwnerAtom, DefinitionOwnerChain, IdentityReferenceError, NominalDeclarationOwner,
@@ -9,6 +14,8 @@ use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 use crate::{TypeParameterBinderV1, TypeParameterBoundsV1};
+
+mod source_forms;
 
 #[test]
 fn property_record_has_fixed_field_wire_and_accessors() {
@@ -357,9 +364,13 @@ impl Fixture {
             empty_binders(),
             None,
             SignatureTypeKey::Nominal(self.nominal.id()),
-            read_only(self.ordinary_getter.id()),
+            Accessors::read_only(AccessorSource::new(
+                self.ordinary_getter.id(),
+                AccessorForm::AbstractSlot,
+            )),
             PropertyRepresentationV1::AbstractSlot,
             PropertyPublicAccessV1::PublicSlot,
+            crate::PropertySetterPublicAccessV1::Restricted,
         )
         .unwrap()
     }
@@ -404,9 +415,25 @@ fn build_record(
         type_parameters,
         receiver,
         binder(),
-        capability,
+        {
+            let form = match representation {
+                PropertyRepresentationV1::Const => AccessorForm::Constant,
+                PropertyRepresentationV1::RuntimeAccessor => AccessorForm::Body,
+                PropertyRepresentationV1::AbstractSlot => AccessorForm::AbstractSlot,
+            };
+            let getter = AccessorSource::new(capability.getter(), form);
+            match capability.setter() {
+                None => Accessors::read_only(getter),
+                Some(setter) => {
+                    Accessors::try_read_write(getter, AccessorSource::new(setter, form)).unwrap()
+                }
+            }
+        },
         representation,
         access,
+        capability
+            .setter_access()
+            .unwrap_or(crate::PropertySetterPublicAccessV1::Restricted),
     )
 }
 

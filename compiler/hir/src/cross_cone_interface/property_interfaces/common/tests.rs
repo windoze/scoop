@@ -10,6 +10,8 @@ use scoop_wire::{DecodeLimits, WireErrorKind, decode_canonical, encode};
 
 use super::*;
 
+mod source_forms;
+
 #[test]
 fn property_leaf_enums_have_fixed_wire() {
     assert_eq!(

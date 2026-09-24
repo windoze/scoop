@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use scoop_identity::{
     AccessorRole, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord, ConeIdentity,
     CoreBuiltinNominal, DeclarationScope, DefinitionOwnerAtom, DefinitionOwnerChain, Effect,
@@ -144,9 +149,26 @@ impl Fixture {
             empty_binders(),
             self.receiver.clone(),
             self.value_type.clone(),
-            capability,
+            {
+                let form = match representation {
+                    PropertyRepresentationV1::Const => AccessorForm::Constant,
+                    PropertyRepresentationV1::RuntimeAccessor => AccessorForm::Body,
+                    PropertyRepresentationV1::AbstractSlot => AccessorForm::AbstractSlot,
+                };
+                let getter = AccessorSource::new(capability.getter(), form);
+                match capability.setter() {
+                    None => Accessors::read_only(getter),
+                    Some(setter) => {
+                        Accessors::try_read_write(getter, AccessorSource::new(setter, form))
+                            .unwrap()
+                    }
+                }
+            },
             representation,
             access,
+            capability
+                .setter_access()
+                .unwrap_or(crate::PropertySetterPublicAccessV1::Restricted),
         )
         .unwrap()
     }

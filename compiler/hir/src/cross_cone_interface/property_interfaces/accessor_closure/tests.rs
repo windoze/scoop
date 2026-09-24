@@ -1,15 +1,22 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use scoop_identity::{AccessorRole, Effect, SourceNominalKind};
 
 use super::PropertyAccessorClosureValidationError;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableModalityV1, CallableOperatorRoleV1,
     CallableOperatorV1, CanonicalCallableInterfacesV1, CanonicalPropertyInterfacesV1,
-    DeclaredVisibilityV1, PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
+    DeclaredVisibilityV1, PropertyInterfaceRecordV1, PropertyPublicAccessV1,
     PropertyRepresentationV1, PropertySetterPublicAccessV1, PublicDeclarationOwnerV1,
     PublicLookupAccessV1,
 };
 
+mod source_forms;
 mod support;
+use source_forms::with_source_forms;
 
 use support::*;
 
@@ -134,9 +141,10 @@ fn rejects_duplicate_accessor_claims_and_orphan_callable_records() {
         empty_binders(),
         None,
         second.value_type.clone(),
-        PropertyCapabilityV1::read_only(first.getter),
+        Accessors::read_only(AccessorSource::new(first.getter, AccessorForm::Body)),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let properties =
@@ -427,11 +435,11 @@ fn runtime_properties_require_a_concrete_accessor_in_either_lookup_partition() {
     getter.access = PublicLookupAccessV1::PublicSlot;
     assert_eq!(
         validate(vec![read_only], vec![getter.build()]),
-        Err(
-            PropertyAccessorClosureValidationError::RuntimeOnlyAbstractAccessors(
-                fixture.declaration
-            )
-        )
+        Err(PropertyAccessorClosureValidationError::SourceForm {
+            accessor: fixture.getter,
+            implementation: AccessorForm::Body,
+            modality: CallableModalityV1::Abstract,
+        })
     );
 
     let read_write = fixture.property(
@@ -446,7 +454,14 @@ fn runtime_properties_require_a_concrete_accessor_in_either_lookup_partition() {
     setter.modality = CallableModalityV1::InterfaceDefault;
     setter.access = PublicLookupAccessV1::PublicSlot;
     assert_eq!(
-        validate(vec![read_write], vec![getter.build(), setter.build()]),
+        validate(
+            vec![with_source_forms(
+                read_write,
+                AccessorForm::AbstractSlot,
+                Some(AccessorForm::Body)
+            )],
+            vec![getter.build(), setter.build()]
+        ),
         Ok(())
     );
 
@@ -460,7 +475,11 @@ fn runtime_properties_require_a_concrete_accessor_in_either_lookup_partition() {
     getter.access = PublicLookupAccessV1::PublicSlot;
     assert_eq!(
         validate_support(
-            vec![restricted],
+            vec![with_source_forms(
+                restricted,
+                AccessorForm::AbstractSlot,
+                Some(AccessorForm::Body)
+            )],
             vec![getter.build()],
             vec![
                 fixture

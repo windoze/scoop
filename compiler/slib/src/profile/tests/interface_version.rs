@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v12_requires_declared_mutability_and_rejects_retired_majors() {
+fn source_interface_v13_requires_accessor_forms_and_rejects_retired_majors() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        12,
+        13,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

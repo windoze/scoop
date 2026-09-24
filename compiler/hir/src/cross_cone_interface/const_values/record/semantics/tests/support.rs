@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -11,9 +16,8 @@ use scoop_identity::{
 use super::super::*;
 use crate::{
     CanonicalBinderListV1, CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
-    CanonicalIntegerConstantV1, ExportDefinitionSourceV1, IntegerKind, PropertyCapabilityV1,
-    PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
-    PublicDeclarationOwnerV1,
+    CanonicalIntegerConstantV1, ExportDefinitionSourceV1, IntegerKind, PropertyInterfaceRecordV1,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PublicDeclarationOwnerV1,
 };
 
 pub(super) struct Fixture {
@@ -224,9 +228,17 @@ pub(super) fn property_interface_with_type(
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         value_type,
-        PropertyCapabilityV1::read_only(getter),
+        Accessors::read_only(AccessorSource::new(
+            getter,
+            match representation {
+                PropertyRepresentationV1::Const => AccessorForm::Constant,
+                PropertyRepresentationV1::RuntimeAccessor => AccessorForm::Body,
+                PropertyRepresentationV1::AbstractSlot => AccessorForm::AbstractSlot,
+            },
+        )),
         representation,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap()
 }

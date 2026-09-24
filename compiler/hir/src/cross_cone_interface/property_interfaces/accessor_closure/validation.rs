@@ -85,7 +85,19 @@ pub(super) fn validate_source_accessor(
         PropertyRepresentationV1::Const
         | PropertyRepresentationV1::RuntimeAccessor
         | PropertyRepresentationV1::AbstractSlot => Ok(()),
+    }?;
+    use crate::PropertyAccessorImplementationV1 as Form;
+    if (expectation.implementation == Form::AbstractSlot)
+        != (callable.modality() == CallableModalityV1::Abstract)
+        || (!expectation.implementation.requires_body() && !callable.slot_relations().is_empty())
+    {
+        return Err(PropertyAccessorClosureValidationError::SourceForm {
+            accessor,
+            implementation: expectation.implementation,
+            modality: callable.modality(),
+        });
     }
+    Ok(())
 }
 
 fn validate_parameters(
@@ -113,49 +125,6 @@ fn validate_parameters(
             expected: Box::new(expectation.property.value_type().clone()),
             actual: Box::new(parameter.value_type().clone()),
         });
-    }
-    Ok(())
-}
-
-pub(super) fn validate_runtime_modality(
-    property: &PropertyDeclarationRecordV1,
-    callables: &CanonicalCallableInterfacesV1,
-) -> Result<(), PropertyAccessorClosureValidationError> {
-    if property.representation() != PropertyRepresentationV1::RuntimeAccessor {
-        return Ok(());
-    }
-    let getter_id = property.accessors().getter();
-    let getter = callables
-        .declaration(CallableTemplateOrigin::Accessor(getter_id))
-        .ok_or(
-            PropertyAccessorClosureValidationError::MissingSourceAccessor {
-                property: property.declaration(),
-                role: AccessorRole::Getter,
-                accessor: getter_id,
-            },
-        )?;
-    let getter_abstract = getter.modality() == CallableModalityV1::Abstract;
-    let setter_abstract = if let Some(setter) = property.accessors().setter() {
-        callables
-            .declaration(CallableTemplateOrigin::Accessor(setter))
-            .ok_or(
-                PropertyAccessorClosureValidationError::MissingSourceAccessor {
-                    property: property.declaration(),
-                    role: AccessorRole::Setter,
-                    accessor: setter,
-                },
-            )?
-            .modality()
-            == CallableModalityV1::Abstract
-    } else {
-        true
-    };
-    if getter_abstract && setter_abstract {
-        return Err(
-            PropertyAccessorClosureValidationError::RuntimeOnlyAbstractAccessors(
-                property.declaration(),
-            ),
-        );
     }
     Ok(())
 }

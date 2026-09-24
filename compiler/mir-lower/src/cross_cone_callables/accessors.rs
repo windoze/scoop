@@ -3,60 +3,46 @@ use scoop_identity::PersistentPropertyAccessorId;
 use std::collections::BTreeSet;
 
 pub(super) fn project(
-    export: &hir::ExportHir,
+    public: &hir::CrossConeHirInterfaceSectionV1,
     source: &hir::CrossConeTypeSemanticsProductionV1,
     required: &mut BTreeMap<Declaration, SourceContract>,
     meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
     let mut extra = property_accessors(source, meter)?;
-    for (declaration, implementation, attributes) in export
-        .property_getters
-        .iter()
-        .map(|(id, getter)| {
-            (
-                export.property_accessor_identities[id].id(),
-                getter.implementation,
-                getter.attributes,
-            )
-        })
-        .chain(export.property_setters.iter().map(|(id, setter)| {
-            (
-                export.property_accessor_identities[id].id(),
-                setter.implementation,
-                setter.attributes,
-            )
-        }))
-    {
-        let key = Declaration::PropertyAccessor(declaration);
-        work(
-            u64::from(extra.len().checked_ilog2().unwrap_or(0))
-                + u64::from(required.len().checked_ilog2().unwrap_or(0))
-                + 3,
-            meter,
-        )?;
-        let selected = extra.remove(&declaration) || required.contains_key(&key);
-        if !selected {
-            continue;
-        }
-        let function = match implementation {
-            hir::PropertyAccessorImplementation::Storage
-            | hir::PropertyAccessorImplementation::Constant => {
+    let callables = public.callable_interfaces();
+    for property in public.property_interfaces().all_declarations() {
+        for accessor in std::iter::once(property.accessors().getter_source())
+            .chain(property.accessors().setter_source())
+        {
+            let declaration = accessor.accessor();
+            let key = Declaration::PropertyAccessor(declaration);
+            work(
+                u64::from(extra.len().checked_ilog2().unwrap_or(0))
+                    + u64::from(required.len().checked_ilog2().unwrap_or(0))
+                    + 3,
+                meter,
+            )?;
+            if !extra.remove(&declaration) && !required.contains_key(&key) {
+                continue;
+            }
+            if !accessor.implementation().requires_body() {
                 required.remove(&key);
                 continue;
             }
-            hir::PropertyAccessorImplementation::Body(function)
-            | hir::PropertyAccessorImplementation::AbstractSlot(function) => function,
-        };
-        let function = &export.functions[function];
-        let contract = SourceContract {
-            execution: scoop_identity::Effect::Ordinary,
-            gc: match attributes.gc_effect {
-                hir::GcEffect::Managed => mir::GcEffect::Managed,
-                hir::GcEffect::NoGc => mir::GcEffect::NoGc,
-            },
-            modality: modality(export, function),
-        };
-        inventory::insert(required, key, contract, meter)?;
+            work(
+                u64::from(callables.declaration_count().max(1).ilog2()) + 1,
+                meter,
+            )?;
+            let callable = callables
+                .declaration(CallableTemplateOrigin::Accessor(declaration))
+                .ok_or(Error::MissingSourceContract(key))?;
+            inventory::insert(
+                required,
+                key,
+                SourceContract::new(callable.effects(), callable.modality()),
+                meter,
+            )?;
+        }
     }
     if let Some(missing) = extra.first() {
         return Err(Error::MissingSourceContract(Declaration::PropertyAccessor(
@@ -64,23 +50,6 @@ pub(super) fn project(
         )));
     }
     Ok(())
-}
-
-fn modality(export: &hir::ExportHir, function: &hir::Function) -> hir::CallableModalityV1 {
-    let Some(method) = function.method else {
-        return hir::CallableModalityV1::Final;
-    };
-    if let hir::MethodDispatch::Interface(id) = method.dispatch {
-        return match export.interface_methods[id].implementation {
-            hir::InterfaceMemberImplementation::Body => hir::CallableModalityV1::InterfaceDefault,
-            hir::InterfaceMemberImplementation::AbstractSlot => hir::CallableModalityV1::Abstract,
-        };
-    }
-    match method.modifier {
-        hir::MethodModifier::Final => hir::CallableModalityV1::Final,
-        hir::MethodModifier::Open => hir::CallableModalityV1::Open,
-        hir::MethodModifier::Abstract => hir::CallableModalityV1::Abstract,
-    }
 }
 
 fn property_accessors(

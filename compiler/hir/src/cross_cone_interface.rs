@@ -333,7 +333,8 @@ pub use nominal_shapes::{
 pub use property_interfaces::{
     CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,
     DecodedPropertyAccessorsV1, DecodedPropertyCapabilityV1, DecodedPropertyDeclarationRecordV1,
-    DecodedPropertyInterfaceRecordV1, PropertyAccessorClosureValidationError, PropertyAccessorsV1,
+    DecodedPropertyInterfaceRecordV1, PropertyAccessorClosureValidationError,
+    PropertyAccessorImplementationV1, PropertyAccessorSourceV1, PropertyAccessorsV1,
     PropertyCapabilityBuildError, PropertyCapabilityResolutionError, PropertyCapabilityV1,
     PropertyDeclarationIdentityShapeV1, PropertyDeclarationInventoryError,
     PropertyDeclarationRecordV1, PropertyDeclarationSourceShapeV1,

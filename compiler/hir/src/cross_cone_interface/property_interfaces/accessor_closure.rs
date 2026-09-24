@@ -17,13 +17,14 @@ use std::collections::BTreeMap;
 mod errors;
 mod validation;
 pub use errors::PropertyAccessorClosureValidationError;
-use validation::{validate_runtime_modality, validate_source_accessor};
+use validation::validate_source_accessor;
 
 #[derive(Clone, Copy)]
 struct AccessorExpectation<'property> {
     property: &'property PropertyDeclarationRecordV1,
     role: AccessorRole,
     public: Option<PublicLookupAccessV1>,
+    implementation: crate::PropertyAccessorImplementationV1,
 }
 
 impl CanonicalPropertyInterfacesV1 {
@@ -55,9 +56,9 @@ impl CanonicalPropertyInterfacesV1 {
                 PropertyPublicAccessV1::PublicSlot => PublicLookupAccessV1::PublicSlot,
             });
             let accessors = property.accessors();
-            for (accessor, role, public) in
-                std::iter::once((accessors.getter(), AccessorRole::Getter, access)).chain(
-                    accessors.setter().map(|setter| {
+            for (source, role, public) in
+                std::iter::once((accessors.getter_source(), AccessorRole::Getter, access)).chain(
+                    accessors.setter_source().map(|setter| {
                         let setter_access = public
                             .filter(|p| {
                                 p.capability().setter_access()
@@ -68,6 +69,7 @@ impl CanonicalPropertyInterfacesV1 {
                     }),
                 )
             {
+                let accessor = source.accessor();
                 meter
                     .check_table_entries(expected.len() as u64 + 1, &path)
                     .map_err(Error::Resource)?;
@@ -83,6 +85,7 @@ impl CanonicalPropertyInterfacesV1 {
                         property,
                         role,
                         public,
+                        implementation: source.implementation(),
                     },
                 ) {
                     return Err(Error::DuplicateAccessorClaim {
@@ -164,15 +167,6 @@ impl CanonicalPropertyInterfacesV1 {
                     Error::OrphanSourceAccessor(accessor)
                 });
             }
-        }
-        for property in self.all_declarations() {
-            meter
-                .charge_work(
-                    2 * (u64::from(callables.declaration_count().max(1).ilog2()) + 1),
-                    &path,
-                )
-                .map_err(Error::Resource)?;
-            validate_runtime_modality(property, callables)?;
         }
         Ok(())
     }

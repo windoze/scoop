@@ -6,9 +6,10 @@ mod table;
 
 pub use accessor_closure::PropertyAccessorClosureValidationError;
 pub use common::{
-    DecodedPropertyAccessorsV1, DecodedPropertyCapabilityV1, PropertyAccessorsV1,
-    PropertyCapabilityBuildError, PropertyCapabilityResolutionError, PropertyCapabilityV1,
-    PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
+    DecodedPropertyAccessorsV1, DecodedPropertyCapabilityV1, PropertyAccessorImplementationV1,
+    PropertyAccessorSourceV1, PropertyAccessorsV1, PropertyCapabilityBuildError,
+    PropertyCapabilityResolutionError, PropertyCapabilityV1, PropertyPublicAccessV1,
+    PropertyRepresentationV1, PropertySetterPublicAccessV1,
 };
 pub use inventory::PropertyDeclarationInventoryError;
 pub use record::{

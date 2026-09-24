@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -155,9 +160,10 @@ fn fixture(name: &str) -> Fixture {
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         SignatureTypeKey::Nominal(value_type.id()),
-        capability,
+        Accessors::read_only(AccessorSource::new(getter.id(), AccessorForm::Body)),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     Fixture {

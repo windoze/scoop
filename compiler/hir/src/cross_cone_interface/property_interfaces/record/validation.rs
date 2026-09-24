@@ -91,7 +91,29 @@ pub(super) fn validate_source_representation(
                 );
             }
         }
-        PropertyRepresentationV1::RuntimeAccessor => return Ok(()),
+        PropertyRepresentationV1::RuntimeAccessor => {}
     }
-    Ok(())
+    let forms = || {
+        std::iter::once(accessors.getter_source())
+            .chain(accessors.setter_source())
+            .map(|source| source.implementation())
+    };
+    use crate::PropertyAccessorImplementationV1 as Form;
+    let valid = match representation {
+        PropertyRepresentationV1::Const => {
+            accessors.is_read_only() && accessors.getter_source().implementation() == Form::Constant
+        }
+        PropertyRepresentationV1::AbstractSlot => forms().all(|form| form == Form::AbstractSlot),
+        PropertyRepresentationV1::RuntimeAccessor => {
+            forms().all(|form| form != Form::Constant)
+                && forms().any(|form| form != Form::AbstractSlot)
+        }
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(PropertyInterfaceRecordBuildError::AccessorImplementations(
+            declaration,
+        ))
+    }
 }

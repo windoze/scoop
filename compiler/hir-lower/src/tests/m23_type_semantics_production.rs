@@ -20,6 +20,7 @@ mod default_value_access;
 mod fact_providers;
 mod setter_domains;
 mod shape_demands;
+mod shared_accessor_forms;
 mod shared_callable_declarations;
 mod shared_nominal_declarations;
 mod shared_property_declarations;

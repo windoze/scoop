@@ -7,6 +7,7 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PropertyInterfaceRecordBuildError {
+    AccessorImplementations(PropertyDeclarationId),
     NonPublicDeclaration(crate::DeclaredVisibilityV1),
     MissingSetterLookup(PropertyDeclarationId),
     UnexpectedExtensionOwner(PropertyDeclarationId),
@@ -36,6 +37,10 @@ pub enum PropertyInterfaceRecordBuildError {
 impl fmt::Display for PropertyInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::AccessorImplementations(declaration) => write!(
+                formatter,
+                "property {declaration:?} accessor implementations disagree with its source representation"
+            ),
             Self::NonPublicDeclaration(visibility) => write!(
                 formatter,
                 "property declaration with visibility {visibility:?} cannot enter public lookup"

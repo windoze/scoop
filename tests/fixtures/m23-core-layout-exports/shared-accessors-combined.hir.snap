@@ -1,0 +1,14 @@
+AccessorBase.hidden: Private getter=Body setter=None lookup=false
+AccessorBase.mixed: Public getter=Storage setter=Some(Body) lookup=true
+AccessorBase.protectedBody: Protected getter=Body setter=None lookup=false
+AccessorBase.protectedStorage: Protected getter=Storage setter=Some(Storage) lookup=false
+AccessorBase.stored: Public getter=Storage setter=Some(Storage) lookup=true
+AccessorBox.content: Public getter=Storage setter=Some(Storage) lookup=true
+AccessorImpl.slot: Public getter=Body setter=Some(Body) lookup=true
+AccessorObject.computed: Public getter=Body setter=None lookup=true
+AccessorObject.objectStorage: Public getter=Storage setter=Some(Storage) lookup=true
+AccessorView.defaulted: Public getter=Body setter=None lookup=true
+AccessorView.slot: Public getter=AbstractSlot setter=Some(AbstractSlot) lookup=true
+Extension.extension: Public getter=Body setter=None lookup=true
+TopLevel.accessorGlobal: Public getter=Storage setter=Some(Storage) lookup=true
+TopLevel.accessorMarker: Public getter=Constant setter=None lookup=true

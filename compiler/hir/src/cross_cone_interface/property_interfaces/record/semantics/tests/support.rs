@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -118,9 +123,14 @@ impl Fixture {
             type_parameters,
             receiver,
             value_type,
-            self.capability(),
+            Accessors::try_read_write(
+                AccessorSource::new(self.getter, AccessorForm::Body),
+                AccessorSource::new(self.setter, AccessorForm::Body),
+            )
+            .unwrap(),
             PropertyRepresentationV1::RuntimeAccessor,
             PropertyPublicAccessV1::DirectOnly,
+            crate::PropertySetterPublicAccessV1::Public,
         )
         .unwrap()
     }
@@ -243,9 +253,10 @@ pub(super) fn generic_member_fixture() -> (PropertyInterfaceRecordV1, TestAuthor
         empty_binders(),
         None,
         own_binder(0),
-        capability,
+        Accessors::read_only(AccessorSource::new(getter, AccessorForm::Body)),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::PublicSlot,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let authority = TestAuthority {
@@ -290,9 +301,10 @@ pub(super) fn const_object_fixture() -> (PropertyInterfaceRecordV1, TestAuthorit
         empty_binders(),
         None,
         SignatureTypeKey::Nominal(value),
-        capability,
+        Accessors::read_only(AccessorSource::new(getter, AccessorForm::Constant)),
         PropertyRepresentationV1::Const,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let authority = TestAuthority {

@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -656,9 +661,10 @@ fn property_interfaces(
         ),
         Some(signature(receiver)),
         signature(value),
-        crate::PropertyCapabilityV1::read_only(getter),
+        Accessors::read_only(AccessorSource::new(getter, AccessorForm::Body)),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     CanonicalPropertyInterfacesV1::try_new(vec![record]).unwrap()

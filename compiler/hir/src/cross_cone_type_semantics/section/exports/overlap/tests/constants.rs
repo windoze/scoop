@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use super::*;
 use scoop_identity::{AccessorRole, SourceNominalKind};
 
@@ -49,9 +54,17 @@ fn constant_overlap_requires_property_owner_representation_and_type_alongside_va
             CanonicalBinderListV1::try_new(vec![]).unwrap(),
             None,
             value_type,
-            PropertyCapabilityV1::read_only(getter),
+            Accessors::read_only(AccessorSource::new(
+                getter,
+                match representation {
+                    PropertyRepresentationV1::Const => AccessorForm::Constant,
+                    PropertyRepresentationV1::RuntimeAccessor => AccessorForm::Body,
+                    PropertyRepresentationV1::AbstractSlot => AccessorForm::AbstractSlot,
+                },
+            )),
             representation,
             PropertyPublicAccessV1::DirectOnly,
+            crate::PropertySetterPublicAccessV1::Restricted,
         )
         .unwrap()
     };

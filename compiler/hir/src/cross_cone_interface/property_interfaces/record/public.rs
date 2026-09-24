@@ -15,9 +15,10 @@ impl PropertyInterfaceRecordV1 {
         type_parameters: CanonicalBinderListV1,
         receiver: Option<SignatureTypeKey>,
         value_type: SignatureTypeKey,
-        capability: PropertyCapabilityV1,
+        accessors: PropertyAccessorsV1,
         representation: PropertyRepresentationV1,
         access: PropertyPublicAccessV1,
+        setter_access: PropertySetterPublicAccessV1,
     ) -> Result<Self, PropertyInterfaceRecordBuildError> {
         validate_declaration_shape(declaration, owner, &type_parameters, receiver.is_some())?;
         validate_access_shape(declaration, owner, access)?;
@@ -27,17 +28,11 @@ impl PropertyInterfaceRecordV1 {
             type_parameters,
             receiver,
             value_type,
-            PropertyAccessorsV1::from_capability(capability),
+            accessors,
             representation,
             DeclaredVisibilityV1::Public,
         )?;
-        Self::from_declaration(
-            data,
-            access,
-            capability
-                .setter_access()
-                .unwrap_or(PropertySetterPublicAccessV1::Restricted),
-        )
+        Self::from_declaration(data, access, setter_access)
     }
 
     pub fn from_declaration(

@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use std::collections::BTreeMap;
 
 use scoop_identity::{
@@ -15,9 +20,8 @@ use crate::{
     CanonicalBinderListV1, CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
     CanonicalPropertyInterfacesV1, ConstPropertyDeclarationSourceV1,
     ExportConstValueClosureValidationError, ExportConstValueSemanticAuthority,
-    ExportConstValueSemanticValidationError, ExportDefinitionSourceV1, PropertyCapabilityV1,
-    PropertyInterfaceRecordV1, PropertyPublicAccessV1, PropertyRepresentationV1,
-    PublicDeclarationOwnerV1,
+    ExportConstValueSemanticValidationError, ExportDefinitionSourceV1, PropertyInterfaceRecordV1,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PublicDeclarationOwnerV1,
 };
 
 #[test]
@@ -400,9 +404,17 @@ fn property_interface(
         CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
         None,
         SignatureTypeKey::Nominal(value_type),
-        PropertyCapabilityV1::read_only(getter),
+        Accessors::read_only(AccessorSource::new(
+            getter,
+            match representation {
+                PropertyRepresentationV1::Const => AccessorForm::Constant,
+                PropertyRepresentationV1::RuntimeAccessor => AccessorForm::Body,
+                PropertyRepresentationV1::AbstractSlot => AccessorForm::AbstractSlot,
+            },
+        )),
         representation,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap()
 }

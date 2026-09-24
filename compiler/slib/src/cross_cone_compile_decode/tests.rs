@@ -12,7 +12,7 @@ use scoop_hir::{
     EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalInterfaceRecordV1,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetSemanticValidationError,
     NominalSourceFieldV1, NominalSourceShapeV1, PropertyAccessorClosureValidationError,
-    PropertyCapabilityV1, PropertyInterfaceRecordV1, PropertyInterfaceSemanticValidationError,
+    PropertyInterfaceRecordV1, PropertyInterfaceSemanticValidationError,
     PropertyInterfaceSetSemanticValidationError, PropertyPublicAccessV1, PropertyRepresentationV1,
     PropertySetterPublicAccessV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
     PublicMemberRefV1, PublicNominalKindV1, SourceNominalId, SourceParameterShapeV1,

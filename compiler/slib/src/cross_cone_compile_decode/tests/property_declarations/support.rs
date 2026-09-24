@@ -97,13 +97,26 @@ impl Fixture {
         };
         let hidden_property = property(
             PropertyOwner::Property(hidden.id()),
-            PropertyAccessorsV1::read_only(hidden_getter.id()),
+            PropertyAccessorsV1::read_only(scoop_hir::PropertyAccessorSourceV1::new(
+                hidden_getter.id(),
+                scoop_hir::PropertyAccessorImplementationV1::Body,
+            )),
             DeclaredVisibilityV1::Private,
         );
         let exposed_property = PropertyInterfaceRecordV1::from_declaration(
             property(
                 PropertyOwner::Property(exposed.id()),
-                PropertyAccessorsV1::try_read_write(getter.id(), setter.id()).unwrap(),
+                PropertyAccessorsV1::try_read_write(
+                    scoop_hir::PropertyAccessorSourceV1::new(
+                        getter.id(),
+                        scoop_hir::PropertyAccessorImplementationV1::Body,
+                    ),
+                    scoop_hir::PropertyAccessorSourceV1::new(
+                        setter.id(),
+                        scoop_hir::PropertyAccessorImplementationV1::Body,
+                    ),
+                )
+                .unwrap(),
                 DeclaredVisibilityV1::Public,
             ),
             PropertyPublicAccessV1::DirectOnly,

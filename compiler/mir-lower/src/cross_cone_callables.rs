@@ -27,12 +27,7 @@ pub fn lower_source_callable_bindings(
     meter: &mut BudgetMeter,
 ) -> Result<mir::CanonicalMirCallableBindingsV1, SourceMirCallableProductionError> {
     let mut required = inventory::collect(public, source, meter)?;
-    accessors::project(
-        output.output().export.module(),
-        source,
-        &mut required,
-        meter,
-    )?;
+    accessors::project(public, source, &mut required, meter)?;
     let mut records = Vec::new();
     reserve(&mut records, required.len(), meter)?;
     let local = output.output().local.module();

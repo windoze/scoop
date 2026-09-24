@@ -4,6 +4,7 @@ mod artifact;
 mod contracts;
 mod layout_section;
 mod section;
+mod shared_accessors;
 
 #[test]
 fn ordinary_library_omits_only_source_only_machine_signatures() {
@@ -49,6 +50,11 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
 #[test]
 fn shared_mir_types_replay_standalone_and_combined_source_policies() {
     check_core_layout_exports(&["shared-mir-standalone", "shared-mir-combined"]);
+}
+
+#[test]
+fn shared_accessor_forms_select_only_actual_source_machine_bodies() {
+    check_core_layout_exports(&["shared-accessors-standalone", "shared-accessors-combined"]);
 }
 
 fn check_core_layout_exports(names: &[&str]) {
@@ -138,6 +144,7 @@ fn check_core_layout_exports(names: &[&str]) {
             &mut meter(),
         )
         .unwrap_or_else(|error| panic!("{name} MIR exports: {error}"));
+        shared_accessors::check(name, mir_input, &bridge);
         let selected = lir::StrongProductionDependencySelectionV2::empty(
             ConeIdentity::CORE,
             target.lir_target(),

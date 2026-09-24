@@ -1,3 +1,8 @@
+use crate::{
+    PropertyAccessorImplementationV1 as AccessorForm, PropertyAccessorSourceV1 as AccessorSource,
+    PropertyAccessorsV1 as Accessors,
+};
+
 use super::*;
 use scoop_identity::AccessorRole;
 
@@ -21,14 +26,14 @@ fn restricted_setter_overlap_does_not_grant_getter_or_owner_access() {
         CanonicalBinderListV1::try_new(vec![]).unwrap(),
         None,
         unit(),
-        PropertyCapabilityV1::try_read_write(
-            getter_id,
-            setter_id,
-            PropertySetterPublicAccessV1::Restricted,
+        Accessors::try_read_write(
+            AccessorSource::new(getter_id, AccessorForm::Body),
+            AccessorSource::new(setter_id, AccessorForm::Body),
         )
         .unwrap(),
         PropertyRepresentationV1::RuntimeAccessor,
         PropertyPublicAccessV1::DirectOnly,
+        crate::PropertySetterPublicAccessV1::Restricted,
     )
     .unwrap();
     let public = public_with_properties(
