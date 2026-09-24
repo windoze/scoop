@@ -19,6 +19,7 @@ pub enum LayoutAbiSectionError<E> {
     LayoutReplayChanged,
     Descriptor(crate::ExactDescriptorTableError),
     Dispatch(crate::ExactDispatchTableError),
+    DispatchReplayChanged,
     DescriptorDispatch(scoop_identity::PersistentDispatchTableId),
     Callable(crate::ExactCallableAbiTableError),
     CallableReplayChanged,

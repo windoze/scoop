@@ -1,5 +1,4 @@
 use super::*;
-use scoop_wire::encode_canonical_temporary_with_meter;
 
 impl DecodedCrossConeLayoutAbiSectionV1 {
     pub fn validate_layouts(
@@ -37,7 +36,7 @@ impl DecodedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl<C> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutExportsV1, C> {
+impl<C, D> UnselectedCrossConeLayoutAbiSectionV1<crate::CanonicalExactLayoutExportsV1, C, D> {
     pub const fn layouts(&self) -> &crate::CanonicalExactLayoutExportsV1 {
         &self.layouts
     }
@@ -92,9 +91,38 @@ impl LayoutsResolvedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
+impl<D>
+    UnselectedCrossConeLayoutAbiSectionV1<
+        crate::CanonicalExactLayoutExportsV1,
+        crate::CanonicalExactCallableAbiExportsV1,
+        D,
+    >
+{
     pub const fn callables(&self) -> &crate::CanonicalExactCallableAbiExportsV1 {
         &self.callables
+    }
+}
+
+impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
+    pub fn validate_dispatch(
+        self,
+        expected: &crate::CanonicalExactDispatchExportsV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<DispatchResolvedCrossConeLayoutAbiSectionV1, crate::ExactDispatchTableError> {
+        if self.layouts.provider() != expected.provider() {
+            return Err(crate::ExactDispatchTableError::LayoutProvider);
+        }
+        if self.layouts.target() != expected.target() {
+            return Err(crate::ExactDispatchTableError::LayoutTarget);
+        }
+        Ok(DispatchResolvedCrossConeLayoutAbiSectionV1 {
+            layouts: self.layouts,
+            descriptors: self.descriptors,
+            dispatch: self.dispatch.validate_against(expected, meter)?,
+            callables: self.callables,
+            shape_support: self.shape_support,
+            selected: self.selected,
+        })
     }
 
     pub fn validate<'a, E>(
@@ -108,62 +136,17 @@ impl CallablesResolvedCrossConeLayoutAbiSectionV1 {
     ) -> Result<CrossConeLayoutAbiSectionV1<'a>, LayoutAbiSectionError<E>> {
         if self.layouts.provider() != expected.provider()
             || self.layouts.target() != expected.target_profile()
-            || !same_bytes(&self.layouts, expected.layouts(), meter)?
         {
             return Err(LayoutAbiSectionError::LayoutReplayChanged);
         }
-        if !same_bytes(&self.callables, expected.callables(), meter)? {
-            return Err(LayoutAbiSectionError::CallableReplayChanged);
-        }
-        let dependencies = dependencies::complete(
-            expected.provider(),
-            expected.target_profile(),
-            dependencies,
-            meter,
-        )?;
-        let physical_imports =
-            crate::CanonicalExternalShapeLinkImportsV1::from_checked(physical_imports, meter)?;
-        let descriptors = self
-            .descriptors
-            .validate_against(expected.descriptors(), meter)?;
-        let dispatch = self.dispatch.validate_against(expected.dispatch(), meter)?;
-        if !same_bytes(&self.shape_support, expected.shape_support(), meter)? {
-            return Err(LayoutAbiSectionError::ShapeSupport);
-        }
-        let exports = LayoutAbiExportConstituentsV1::try_new(
-            self.layouts,
-            descriptors,
-            dispatch,
-            self.callables,
-            expected.shape_support().clone(),
-        )?;
-        let mut semantic = reserve(self.selected.semantic.len(), meter)?;
-        for relation in self.selected.semantic {
-            semantic.push(relation.resolve(identities, meter)?);
-        }
-        let physical_imports = self
-            .selected
-            .physical
-            .validate_against(&physical_imports, meter)?;
-        build::complete(
-            exports,
-            dependencies,
-            physical_imports,
-            build::SelectionInput::Reader(semantic),
-            source,
-            meter,
-        )
+        self.validate_dispatch(expected.dispatch(), meter)?
+            .validate(
+                expected,
+                dependencies,
+                physical_imports,
+                source,
+                identities,
+                meter,
+            )
     }
-}
-
-fn same_bytes(
-    actual: &impl WireEncode,
-    expected: &impl WireEncode,
-    meter: &mut BudgetMeter,
-) -> Result<bool, WireError> {
-    let path = WirePath::root();
-    let actual = encode_canonical_temporary_with_meter(actual, meter, &path)?;
-    let expected = encode_canonical_temporary_with_meter(expected, meter, &path)?;
-    meter.charge_work(actual.len() as u64, &path)?;
-    Ok(actual == expected)
 }

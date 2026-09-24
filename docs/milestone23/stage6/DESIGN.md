@@ -803,6 +803,8 @@ scan完全复用runtime spec 2.2，普通node的offset相对明确的base：
 
 ### 7.1 descriptor record
 
+M23-6 的共有 Compile reader 从已核验的 MIR 类型角色与 dispatch schema、同一闭包已重放的 callable ABI/layout 重建 LIR dispatch 导出。除 ObjectBacking 仅供源码形状外，每个实际类型必须具有自身 vtable；普通值类型、interface 和 CoroutineStep/CoroutineSlot 的物理 vtable 按既有表示规则为空，class、object 与 String 使用原源码 class schema，BoxedValue 沿实际 payload 使用其完整 schema 与 boxing adjustment。只有具有实例 dispatch 的 class/object/String/BoxedValue 导出 schema 中的完整 interface table 集合；值类型的接口实现由对应 box helper 承载，不能从候选 TD/table 的存在与否反推集合。每条输入保留原 position、typed slot、完整调用签名、implementation kind 与 receiver adjustment，从唯一实际 provider 的 callable ABI 取得 body 引用；本地与外来 target 使用相同规则，不按 CORE 来源分支。共有 canonical 重放核对 target、签名、GC effect、receiver layout、foundation key 和 Strong definition；原 producer 在此结果上继续逐项核对实际 LIR slots 和物理 callable 引用。reader 按所有权保留其余 wire，完整有序 dispatch 表与重放结果必须一致，漏表、多表、重复、错序、目标或签名漂移均拒绝；后续验证也不能替换已检查的表。所有遍历、签名复制和集合操作计入原 artifact 预算。该组成表状态不代替 descriptor、selected-use、Strong registration 或机器对象关联，不修改 wire、capability 版本或 runtime ABI。
+
 `ExactDescriptorExportV1` 保存 `{ exact, value_layout, instance_layout, shape, object_scan, ancestry, dispatch, diagnostic_name, definition, registration }`。两个layout引用分别指向该exact的ManagedValue与ManagedObject记录；shape/object_scan是跨record关系证明，必须与instance layout逐字段相等，不是可独立修改的第二authority。shape只接受下列checked sum；ancestry/table edge使用 typed external/local ref，不保存地址。
 
 | shape | allocation/inline规则 | object scan |

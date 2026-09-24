@@ -170,6 +170,25 @@ pub(super) fn check(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
     );
+    let dispatch = abis
+        .validate_lir_dispatch()
+        .unwrap_or_else(|error| panic!("{name} shared LIR dispatch replay: {error}"));
+    assert_eq!(dispatch.current(), ConeIdentity::CORE);
+    assert_eq!(dispatch.target_selection(), artifact.target_selection());
+    assert!(dispatch.direct_providers().is_empty());
+    assert_eq!(dispatch.dependency_count(ConeIdentity::CORE), Some(0));
+    assert_eq!(dispatch.dependency_first().count(), 1);
+    let current = dispatch.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.layouts(), lir.layouts());
+    assert_eq!(current.callable_abis(), lir.callables());
+    assert_eq!(current.lir_dispatch(), lir.dispatch());
+    assert_eq!(current.types(), mir.types());
+    assert_eq!(current.dispatch(), mir.dispatch());
+    assert_eq!(current.initialization_units(), units);
+    assert_eq!(
+        encode(current.lir_layout_abi_wire()).unwrap(),
+        encode(lir).unwrap()
+    );
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

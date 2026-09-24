@@ -56,6 +56,8 @@ impl std::error::Error for ExactDispatchError {}
 
 #[derive(Debug)]
 pub enum ExactDispatchTableError {
+    LayoutProvider,
+    LayoutTarget,
     CountOverflow,
     Count {
         expected: usize,

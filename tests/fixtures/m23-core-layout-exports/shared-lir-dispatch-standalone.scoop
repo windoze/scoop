@@ -1,0 +1,14 @@
+public struct SharedLirDispatchToken()
+public open class SharedLirDispatchBase {
+    public open fun zeta(value: SharedLirDispatchToken): SharedLirDispatchToken = value
+    public open fun alpha(): SharedLirDispatchToken = SharedLirDispatchToken()
+}
+public class SharedLirDispatchChild: SharedLirDispatchBase() {
+    public override fun alpha(): SharedLirDispatchToken = SharedLirDispatchToken()
+}
+public abstract class SharedLirDispatchPending: SharedLirDispatchBase() {
+    public abstract override fun alpha(): SharedLirDispatchToken
+}
+public object SharedLirDispatchObject: SharedLirDispatchBase() {
+    public override fun zeta(value: SharedLirDispatchToken): SharedLirDispatchToken = value
+}

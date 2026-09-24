@@ -21,6 +21,7 @@ mod foundations;
 mod hir;
 mod lir_callable_abis;
 mod lir_constituents;
+mod lir_dispatch;
 mod lir_layouts;
 mod mir_dispatch;
 mod mir_source_callables;
@@ -35,6 +36,11 @@ pub use lir_callable_abis::{
     CrossConeLayoutLirCallableAbisError, LirCallableAbisValidatedCrossConeLayoutClosure,
     LirCallableAbisValidatedCrossConeLayoutSections, SharedLirCallableAbiValidationError,
     replay_shared_mir_callable_abis,
+};
+pub use lir_dispatch::{
+    CrossConeLayoutLirDispatchError, LirDispatchValidatedCrossConeLayoutClosure,
+    LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchAbiInputsV1,
+    SharedLirDispatchValidationError, replay_shared_mir_dispatch,
 };
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,

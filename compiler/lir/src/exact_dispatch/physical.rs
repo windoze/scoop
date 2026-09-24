@@ -1,9 +1,41 @@
 use scoop_identity::{CborIdentityRecord, DispatchTableKey, PersistentDispatchTableId};
-use scoop_wire::{BudgetMeter, WireError};
+use scoop_wire::{BudgetMeter, WireError, WirePath};
 
+use super::{ExactDispatchEntryInputV1, ExactDispatchError, ExactDispatchExportV1};
 use crate::{
     CallableRef, DispatchEntry, ItableRecord, StrongTypeDispatchCallableRefV2, VtableRecord,
 };
+
+impl ExactDispatchExportV1 {
+    pub fn replay(
+        target: crate::LirTargetProfile,
+        physical: ExactDispatchPhysicalTableV1<'_>,
+        inputs: &[ExactDispatchEntryInputV1<'_>],
+        foundation: &crate::OdrFreeLirFoundation,
+        resolver: &mut impl ExactDispatchPhysicalCallableResolverV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<Self, ExactDispatchError> {
+        if physical.slots().len() != inputs.len() {
+            return Err(ExactDispatchError::SlotCount {
+                expected: physical.slots().len(),
+                actual: inputs.len(),
+            });
+        }
+        let replayed =
+            Self::replay_from_schema(target, physical.identity(), inputs, foundation, meter)?;
+        for (entry, emitted) in replayed.entries().iter().zip(physical.slots()) {
+            meter.charge_work(1, &WirePath::root())?;
+            let position = entry.position().into_u32();
+            let actual = resolver
+                .resolve(emitted.callable, meter)?
+                .ok_or(ExactDispatchError::MissingPhysicalCallable(position))?;
+            if actual != entry.abi() {
+                return Err(ExactDispatchError::PhysicalCallable(position));
+            }
+        }
+        Ok(replayed)
+    }
+}
 
 /// Borrowed proof that the dispatch payload comes from an actual LIR table.
 /// Its fields stay private so an identity and an unrelated slot slice cannot

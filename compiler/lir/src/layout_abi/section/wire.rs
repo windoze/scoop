@@ -1,27 +1,36 @@
 use super::*;
 
+mod complete;
 mod stages;
 
 pub type DecodedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<
     crate::DecodedCanonicalExactLayoutExportsV1,
     crate::DecodedCanonicalExactCallableAbiExportsV1,
+    crate::DecodedCanonicalExactDispatchExportsV1,
 >;
 pub type LayoutsResolvedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<
     crate::CanonicalExactLayoutExportsV1,
     crate::DecodedCanonicalExactCallableAbiExportsV1,
+    crate::DecodedCanonicalExactDispatchExportsV1,
 >;
 pub type CallablesResolvedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<
     crate::CanonicalExactLayoutExportsV1,
     crate::CanonicalExactCallableAbiExportsV1,
+    crate::DecodedCanonicalExactDispatchExportsV1,
+>;
+pub type DispatchResolvedCrossConeLayoutAbiSectionV1 = UnselectedCrossConeLayoutAbiSectionV1<
+    crate::CanonicalExactLayoutExportsV1,
+    crate::CanonicalExactCallableAbiExportsV1,
+    crate::CanonicalExactDispatchExportsV1,
 >;
 
 /// Each type parameter records a checked constituent. Remaining exports,
 /// selected uses and physical imports always retain their untrusted wire.
 #[derive(Debug)]
-pub struct UnselectedCrossConeLayoutAbiSectionV1<L, C> {
+pub struct UnselectedCrossConeLayoutAbiSectionV1<L, C, D> {
     layouts: L,
     descriptors: crate::DecodedCanonicalExactDescriptorExportsV1,
-    dispatch: crate::DecodedCanonicalExactDispatchExportsV1,
+    dispatch: D,
     callables: C,
     shape_support: crate::DecodedCanonicalParamFreeShapeSupportExportsV1,
     selected: DecodedSelectedDependencyLayoutAbiSetV1,
@@ -52,7 +61,9 @@ impl WireDecode for DecodedCrossConeLayoutAbiSectionV1 {
     }
 }
 
-impl<L: WireEncode, C: WireEncode> WireEncode for UnselectedCrossConeLayoutAbiSectionV1<L, C> {
+impl<L: WireEncode, C: WireEncode, D: WireEncode> WireEncode
+    for UnselectedCrossConeLayoutAbiSectionV1<L, C, D>
+{
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(6)?;
         field(encoder, 1, &self.layouts)?;

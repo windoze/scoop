@@ -78,27 +78,50 @@ pub(super) fn check(
         exports.shape_support().clone(),
     )
     .unwrap();
-    for (altered, layout_changed) in [(&missing, true), (&missing_callables, false)] {
+    let missing_dispatch = lir::LayoutAbiExportConstituentsV1::try_new(
+        exports.layouts().clone(),
+        exports.descriptors().clone(),
+        lir::CanonicalExactDispatchExportsV1::try_new(
+            input.lir.module().meta.target_profile,
+            input.lir.foundation(),
+            vec![],
+            &mut meter(),
+        )
+        .unwrap(),
+        exports.callables().clone(),
+        exports.shape_support().clone(),
+    )
+    .unwrap();
+    for (index, altered) in [&missing, &missing_callables, &missing_dispatch]
+        .into_iter()
+        .enumerate()
+    {
         let wire: lir::DecodedCrossConeLayoutAbiSectionV1 = decoded(&section);
         let checked = wire
             .validate_layouts(exports.layouts(), &mut meter())
             .unwrap()
             .validate_callables(exports.callables(), &mut meter())
+            .unwrap()
+            .validate_dispatch(exports.dispatch(), &mut meter())
             .unwrap();
         let error = checked
             .validate(altered, &[], vec![], &source, &mut identities, &mut meter())
             .err()
             .expect("a checked constituent cannot be replaced before final validation");
-        if layout_changed {
-            assert!(matches!(
+        match index {
+            0 => assert!(matches!(
                 error,
                 lir::LayoutAbiSectionError::LayoutReplayChanged
-            ));
-        } else {
-            assert!(matches!(
+            )),
+            1 => assert!(matches!(
                 error,
                 lir::LayoutAbiSectionError::CallableReplayChanged
-            ));
+            )),
+            2 => assert!(matches!(
+                error,
+                lir::LayoutAbiSectionError::DispatchReplayChanged
+            )),
+            _ => unreachable!(),
         }
     }
     assert!(section.selected().is_empty());

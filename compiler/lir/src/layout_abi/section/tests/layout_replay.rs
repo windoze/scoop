@@ -81,3 +81,41 @@ fn staged_callable_replay_preserves_wire_and_rejects_a_different_layout_provider
         .unwrap();
     assert_eq!(encode(&complete).unwrap(), bytes);
 }
+
+#[test]
+fn staged_dispatch_replay_keeps_wire_and_rejects_a_different_provider() {
+    let expected = empty_exports(cone("dispatch-stage"));
+    let source = Source::default();
+    let section = section(expected.clone(), &[], &source).unwrap();
+    let bytes = encode(&section).unwrap();
+    let decode = || {
+        decode_canonical::<DecodedCrossConeLayoutAbiSectionV1>(&bytes, DecodeLimits::default())
+            .unwrap()
+            .validate_layouts(expected.layouts(), &mut meter())
+            .unwrap()
+            .validate_callables(expected.callables(), &mut meter())
+            .unwrap()
+    };
+    let changed = empty_exports(cone("different-dispatch-stage"));
+    assert!(matches!(
+        decode().validate_dispatch(changed.dispatch(), &mut meter()),
+        Err(crate::ExactDispatchTableError::LayoutProvider)
+    ));
+    let checked = decode()
+        .validate_dispatch(expected.dispatch(), &mut meter())
+        .unwrap();
+    assert_eq!(checked.dispatch(), expected.dispatch());
+    assert_eq!(encode(&checked).unwrap(), bytes);
+    let mut identities = PendingIdentityValidation::new().finish().unwrap();
+    let complete = checked
+        .validate(
+            &expected,
+            &[],
+            vec![],
+            &source,
+            &mut identities,
+            &mut meter(),
+        )
+        .unwrap();
+    assert_eq!(encode(&complete).unwrap(), bytes);
+}

@@ -10,6 +10,7 @@ use crate::{
 mod fixtures;
 use fixtures::*;
 
+mod canonical;
 mod replay;
 mod table;
 mod wire;

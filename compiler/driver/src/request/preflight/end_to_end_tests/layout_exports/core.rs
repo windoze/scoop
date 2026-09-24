@@ -105,6 +105,14 @@ fn shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments()
     check_core_layout_exports(&["shared-abi-standalone", "shared-abi-combined"]);
 }
 
+#[test]
+fn shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis() {
+    check_core_layout_exports(&[
+        "shared-lir-dispatch-standalone",
+        "shared-lir-dispatch-combined",
+    ]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
@@ -239,6 +247,14 @@ fn check_core_layout_exports(names: &[&str]) {
         );
         if name.starts_with("shared-abi-") {
             shared_abis::probe(input, &result);
+        }
+        shared_dispatch::check(
+            input,
+            scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
+            &result,
+        );
+        if name.starts_with("shared-lir-dispatch-") {
+            shared_dispatch::probe(input, &result);
         }
         let mut dump = contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);

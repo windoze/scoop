@@ -14,7 +14,7 @@ pub use selection::{SelectedDependencyLayoutAbiRefV1, SelectedDependencyLayoutAb
 pub use source::LayoutAbiSectionSourceAuthorityV1;
 pub use wire::{
     CallablesResolvedCrossConeLayoutAbiSectionV1, DecodedCrossConeLayoutAbiSectionV1,
-    LayoutsResolvedCrossConeLayoutAbiSectionV1,
+    DispatchResolvedCrossConeLayoutAbiSectionV1, LayoutsResolvedCrossConeLayoutAbiSectionV1,
 };
 
 /// Complete target-aware LIR semantic section. Its selected set retains both
