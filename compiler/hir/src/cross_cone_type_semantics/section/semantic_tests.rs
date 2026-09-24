@@ -6,6 +6,7 @@ use scoop_identity::*;
 use scoop_wire::{BudgetMeter, DecodeLimits, WirePath};
 use std::collections::BTreeMap;
 
+mod builtins;
 mod closure;
 mod defaults;
 mod dispatch;

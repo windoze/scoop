@@ -26,10 +26,12 @@ fn terminal_selection_retains_provider_and_deduplicates_targets_after_each_sourc
             .records()
             .is_empty()
     );
-    assert_eq!(
-        checked.selected()[0].target().inheritance().owner(),
-        owner.exact
-    );
+    let CheckedTypeSelectionDefinitionV1::SourceNominal { inheritance, .. } =
+        checked.selected()[0].target().definition()
+    else {
+        panic!("a source class must retain its inheritance record");
+    };
+    assert_eq!(inheritance.owner(), owner.exact);
 }
 
 #[test]

@@ -51,12 +51,19 @@ impl Fixture {
                     .values()
                     .iter()
                     .map(|exact| {
-                        ExactTypeFactsV1::try_new(
-                            *exact,
-                            ExactTypeKindV1::Reference,
-                            ExactTypeGcV1::ContainsManagedReferences,
-                        )
-                        .unwrap()
+                        let (kind, gc) = match self.shapes[exact] {
+                            ExactTypeFactShapeV1::Unit => (
+                                ExactTypeKindV1::Value {
+                                    zst: ZstStatus::ZeroSized,
+                                },
+                                ExactTypeGcV1::GcFree,
+                            ),
+                            _ => (
+                                ExactTypeKindV1::Reference,
+                                ExactTypeGcV1::ContainsManagedReferences,
+                            ),
+                        };
+                        ExactTypeFactsV1::try_new(*exact, kind, gc).unwrap()
                     })
                     .collect(),
             )

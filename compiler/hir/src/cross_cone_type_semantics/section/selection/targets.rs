@@ -49,12 +49,10 @@ pub(super) fn validate<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
             direct_edge(local, provider, derived, edge, meter, path)?
         }
     };
-    let (nominal, inheritance, facts) =
-        nominal::resolve(provider, exact, request, foundation, meter, path)?;
+    let (definition, facts) = nominal::resolve(provider, exact, request, foundation, meter, path)?;
     Ok(CheckedTypeSelectionTargetV1 {
         request,
-        nominal,
-        inheritance,
+        definition,
         facts,
         public: provider.public,
         declarations: provider.protected,

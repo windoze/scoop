@@ -9,6 +9,7 @@ pub enum TypeSelectionValidationError<E> {
     Encoding(scoop_wire::cbor::EncodeError),
     MissingProvider(ConeIdentity),
     MissingTarget(SelectedExternalTypeUseV1),
+    BuiltinFacts(CoreBuiltinNominal),
     RequiresOdr(PersistentExactTypeId),
     GenericDefault,
     DefaultOrigin,
@@ -40,6 +41,10 @@ impl<E: fmt::Display> fmt::Display for TypeSelectionValidationError<E> {
             Self::MissingTarget(target) => write!(
                 f,
                 "selected type target is absent from its terminal section: {target:?}"
+            ),
+            Self::BuiltinFacts(builtin) => write!(
+                f,
+                "selected language builtin {builtin:?} has inconsistent exact facts"
             ),
             Self::RequiresOdr(exact) => {
                 write!(f, "selected type {exact} needs M23-7 ODR capability")

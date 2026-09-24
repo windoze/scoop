@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{ConeIdentity, PersistentExactTypeId};
+use scoop_identity::{ConeIdentity, CoreBuiltinNominal, PersistentExactTypeId};
 use scoop_wire::{BudgetMeter, WirePath};
 
 mod closure;
@@ -88,22 +88,30 @@ impl<'a> TypeSectionUseContextV1<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct CheckedTypeSelectionTargetV1<'a> {
     pub(super) request: SelectedExternalTypeUseV1,
-    pub(super) nominal: &'a NominalRepresentationSupportV1,
-    pub(super) inheritance: &'a NominalInheritanceInterfaceV1,
+    pub(super) definition: CheckedTypeSelectionDefinitionV1<'a>,
     pub(super) facts: CheckedExactTypeFactV1<'a>,
     pub(super) public: CheckedTypeSectionPublicSupportV1<'a>,
     pub(super) declarations: CheckedProtectedDeclarationSourcesV1<'a>,
 }
+
+/// Language builtins have complete facts but no source representation or
+/// inheritance records. Source nominals must retain both records together.
+#[derive(Clone, Copy, Debug)]
+pub enum CheckedTypeSelectionDefinitionV1<'a> {
+    LanguageBuiltin(CoreBuiltinNominal),
+    SourceNominal {
+        representation: &'a NominalRepresentationSupportV1,
+        inheritance: &'a NominalInheritanceInterfaceV1,
+    },
+}
+
 impl<'a> CheckedTypeSelectionTargetV1<'a> {
     pub const fn request(self) -> SelectedExternalTypeUseV1 {
         self.request
     }
-    /// The defining nominal, which can differ from a member/slot receiver.
-    pub const fn nominal(self) -> &'a NominalRepresentationSupportV1 {
-        self.nominal
-    }
-    pub const fn inheritance(self) -> &'a NominalInheritanceInterfaceV1 {
-        self.inheritance
+    /// The defining type, which can differ from a member/slot receiver.
+    pub const fn definition(self) -> CheckedTypeSelectionDefinitionV1<'a> {
+        self.definition
     }
     pub const fn facts(self) -> CheckedExactTypeFactV1<'a> {
         self.facts

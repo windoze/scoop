@@ -9,8 +9,7 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     path: &WirePath,
 ) -> Result<
     (
-        &'a NominalRepresentationSupportV1,
-        &'a NominalInheritanceInterfaceV1,
+        CheckedTypeSelectionDefinitionV1<'a>,
         CheckedExactTypeFactV1<'a>,
     ),
     Error<E>,
@@ -20,6 +19,50 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     let ExactTypeKey::Nominal(owner) = key else {
         return Err(Error::RequiresOdr(exact));
     };
+    let facts = provider
+        .facts
+        .get_checked(exact)
+        .ok_or(Error::MissingTarget(request))?;
+    for builtin in [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any] {
+        meter.charge_work(1, path)?;
+        let declaration = builtin.identity_record();
+        if *owner != declaration.id() {
+            continue;
+        }
+        if declaration.key().origin() != request.provider()
+            || provider.provider != request.provider()
+        {
+            return Err(Error::DeclarationOwner);
+        }
+        if !matches!(
+            request.usage(),
+            SelectedTypeUseV1::Signature { .. }
+                | SelectedTypeUseV1::Representation { .. }
+                | SelectedTypeUseV1::TypeTest { .. }
+                | SelectedTypeUseV1::ShapeSupport { .. }
+        ) {
+            return Err(Error::MissingTarget(request));
+        }
+        let (kind, gc) = match builtin {
+            CoreBuiltinNominal::Unit => (
+                ExactTypeKindV1::Value {
+                    zst: ZstStatus::ZeroSized,
+                },
+                ExactTypeGcV1::GcFree,
+            ),
+            CoreBuiltinNominal::Any => (
+                ExactTypeKindV1::Reference,
+                ExactTypeGcV1::ContainsManagedReferences,
+            ),
+        };
+        if facts.record().kind() != kind || facts.record().gc() != gc {
+            return Err(Error::BuiltinFacts(builtin));
+        }
+        return Ok((
+            CheckedTypeSelectionDefinitionV1::LanguageBuiltin(builtin),
+            facts,
+        ));
+    }
     let nominal = provider
         .representations
         .get(*owner)
@@ -28,10 +71,6 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
         .inheritance
         .table()
         .get(exact)
-        .ok_or(Error::MissingTarget(request))?;
-    let facts = provider
-        .facts
-        .get_checked(exact)
         .ok_or(Error::MissingTarget(request))?;
     let source = provider
         .graph
@@ -42,5 +81,11 @@ pub(super) fn resolve<'a, F: TypeSectionFoundationSemanticAuthority<E>, E>(
     {
         return Err(Error::DeclarationOwner);
     }
-    Ok((nominal, inheritance, facts))
+    Ok((
+        CheckedTypeSelectionDefinitionV1::SourceNominal {
+            representation: nominal,
+            inheritance,
+        },
+        facts,
+    ))
 }

@@ -39,7 +39,12 @@ fn local_derived_slot_and_direct_inheritance_resolve_to_terminal_root_provider()
     .unwrap();
     assert_eq!(checked.selected().len(), 2);
     for selected in checked.selected() {
-        assert_eq!(selected.target().inheritance().owner(), base.exact);
+        let CheckedTypeSelectionDefinitionV1::SourceNominal { inheritance, .. } =
+            selected.target().definition()
+        else {
+            panic!("a source slot must retain its defining nominal");
+        };
+        assert_eq!(inheritance.owner(), base.exact);
     }
     assert_eq!(candidate.definition_sources().sources().len(), 2);
     let mut missing_origin = candidate.clone();

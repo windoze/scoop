@@ -60,6 +60,8 @@ LIR初始化服务与普通依赖使用同一`SelectedExternalLirSet`，完整�
 
 MIR type bridge 的本地类型导出必须包含由当前 provider 拥有的语言内建 Unit/Any，即使它们没有普通源码声明 arena 或 nominal representation-support 记录。HIR facts 先完整发布当前 provider 拥有的 Unit/Any 固定语义，不能仅依赖普通 nominal roots 或源码签名触发它们。MIR 生产器从同次 sealed MIR 的 typed source-exact 引用与 HIR exact facts 投影其固定表示，并核对语言内建 nominal identity 及声明 provider；Unit 保持 ZST/GcFree，Any 保持根类型的 reference 语义，MIR 使用无成员、无 base 的 abstract class 表示和空 class dispatch schema，并由 LIR 生成既有 abstract-reference 布局；其 class-kind identity 不变。外来 Unit/Any 继续由依赖类型表提供，不能在每个 consumer 中重复发布，也不能将这一规则推广为 CORE 来源的任意类型豁免。
 
+HIR selected 目标以封闭分支区分语言内建类型与普通源码 nominal：普通分支必须同时借用已验证的表示和继承记录；Unit/Any 分支按固定 typed declaration identity 及其真实 origin 核对 terminal provider，并借用该 provider 的完整 exact facts，分别保持 ZST/GcFree 与 reference/managed 语义，不补造源码表示或继承记录。内建分支可承载 Signature、Representation、TypeTest 和 ShapeSupport 目标存在性检查；实际 shape-support 及机器使用仍由既有完整闭包验证。构造、成员、槽、单例和直接继承仍须各自真实声明与关系，不因内建身份获得操作资格。每次实际使用、语义边、来源、依赖可达性、selected 精确覆盖和累计预算仍经过共有检查；该区分不增加 wire tag 或新的来源证明表。
+
 MIR callable inventory 复用共有 nominal 表示与继承闭包检查 owner、receiver、参数和结果；依赖 source-only nominal 的未物化声明保留完整源码接口，不要求不存在的机器正文，可物化声明缺失及实际使用的能力门保持错误。
 
 有限 shape-support 的装箱也从值类型的实际 typed 声明读取全部接口，并生成同一套 adjust thunk/itable；不能把 Integer/Boolean 的 intrinsic 表示当作没有接口。String 的 intrinsic 表示保持其源码 class 的 vtable/itable 要求，使用相同的 owner kind、receiver、slot 与 target 校验。LIR shape-support 的 source-kind 检查允许 struct 对应普通字段表示、intrinsic scalar 或固定 Unit value；具体 intrinsic family 仍由完整 HIR/MIR/layout join 核对，不能从 CORE 来源推断。
