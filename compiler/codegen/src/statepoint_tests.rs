@@ -11,6 +11,9 @@ use super::{
 };
 use crate::{CodegenError, ValidatedBackendProfile};
 
+#[path = "statepoint_tests/no_gc.rs"]
+mod no_gc;
+
 fn verify_rewritten(
     module: &Module<'_>,
     expected: &ExpectedSafepoints,

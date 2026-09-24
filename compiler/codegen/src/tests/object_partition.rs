@@ -4,6 +4,8 @@ use object::{Object, ObjectSymbol};
 
 use super::*;
 
+mod no_gc;
+
 #[test]
 fn partitions_each_callable_body_away_from_non_callable_definitions() {
     let mut module = exceptions_module();

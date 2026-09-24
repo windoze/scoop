@@ -15,6 +15,12 @@ pub(super) fn verify_function_policies(
             ))
         })?;
         let gc = gc_strategy(function)?;
+        verify_string_attribute(
+            function,
+            symbol,
+            "frame-pointer",
+            profile.frame_pointer_attribute(),
+        )?;
         match effect {
             GcEffect::Managed => {
                 if gc != GC_STRATEGY {
@@ -25,22 +31,17 @@ pub(super) fn verify_function_policies(
                 verify_string_attribute(
                     function,
                     symbol,
-                    "frame-pointer",
-                    profile.frame_pointer_attribute(),
-                )?;
-                verify_string_attribute(
-                    function,
-                    symbol,
                     "disable-tail-calls",
                     profile.disable_tail_calls_attribute(),
                 )?;
             }
-            GcEffect::NoGc if !gc.is_empty() => {
-                return Err(CodegenError(format!(
-                    "NoGc function `{symbol}` unexpectedly has GC strategy `{gc}`"
-                )));
+            GcEffect::NoGc => {
+                if !gc.is_empty() {
+                    return Err(CodegenError(format!(
+                        "NoGc function `{symbol}` unexpectedly has GC strategy `{gc}`"
+                    )));
+                }
             }
-            GcEffect::NoGc => {}
         }
     }
     for function in module.get_functions() {
@@ -82,7 +83,7 @@ fn verify_string_attribute(
         .get_string_attribute(AttributeLoc::Function, key)
         .ok_or_else(|| {
             CodegenError(format!(
-                "managed function `{symbol}` lacks required `{key}` attribute"
+                "function `{symbol}` lacks required `{key}` attribute"
             ))
         })?;
     let actual = attribute.get_string_value().to_str().map_err(|error| {
@@ -92,7 +93,7 @@ fn verify_string_attribute(
     })?;
     if actual != expected {
         return Err(CodegenError(format!(
-            "managed function `{symbol}` has `{key}`=`{actual}`, expected `{expected}`"
+            "function `{symbol}` has `{key}`=`{actual}`, expected `{expected}`"
         )));
     }
     Ok(())

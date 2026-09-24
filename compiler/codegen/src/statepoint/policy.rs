@@ -8,12 +8,12 @@ pub(crate) fn configure_function(
     effect: GcEffect,
     profile: ValidatedBackendProfile,
 ) {
+    function.add_attribute(
+        AttributeLoc::Function,
+        context.create_string_attribute("frame-pointer", profile.frame_pointer_attribute()),
+    );
     if effect == GcEffect::Managed {
         function.set_gc(GC_STRATEGY);
-        function.add_attribute(
-            AttributeLoc::Function,
-            context.create_string_attribute("frame-pointer", profile.frame_pointer_attribute()),
-        );
         function.add_attribute(
             AttributeLoc::Function,
             context.create_string_attribute(

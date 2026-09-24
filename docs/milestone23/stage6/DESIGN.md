@@ -858,6 +858,8 @@ canonical signature原样复用M23-2的 `CanonicalScoopAbiFunctionSignature`：f
 
 当前Darwin/AArch64 classifier：scalar、qualified pointer、niche enum为Direct；非ZST tuple/ordinary struct/tagged enum/exception record为Indirect；ZST input为ElidedZst；Unit result为UnitVoid，其他ZST result为ElidedZst。不得按aggregate大小或system C classifier另选pass mode。
 
+validated LLVM backend profile 的 frame-pointer=all 策略适用于全部 Scoop callable，包括 NoGc 函数；GC strategy 的设置仍由 typed GC effect 独立决定，NoGc 不得因 frame 策略而加入 statepoint GC。LLVM producer 与 rewritten-module verifier 必须同时应用和核对该 frame 策略，使 NoGc 次构造器等包含普通调用的函数保持 canonical frame，避免因遗漏 profile 属性而产生预定 associated-atom 闭包外的 unwind-only EH frame。managed 的 tail-call 与精确根规则继续按既有 profile 执行；associated section、CIE/FDE、compact unwind、LSDA 和对象范围的完整校验仍然必需，不能通过忽略额外 backend section 接受不完整定义。
+
 ### 8.2 physical signature与调用
 
 BoxingAdjust 的 MIR receiver、对应 local 与正文必须保留实际接口类型，和既有 exact callable signature 逐项相同。不得通过 Any 擦除再豁免 nominal signature 校验；接口 receiver 的物理表示仍由共有 managed-reference ABI 处理。
