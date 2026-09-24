@@ -4,8 +4,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 use super::SharedLirCallableAbiValidationError as Error;
 
-mod layouts;
-use layouts::Layouts;
+use super::super::lir_callable_layouts::{Layouts, clone_signature};
 
 /// Replays the complete ABI constituent from HIR-joined MIR bindings and
 /// already checked layouts. This does not authorize a selected use or import.
@@ -51,40 +50,18 @@ fn replay(
     foundation: &lir::OdrFreeLirFoundation,
     meter: &mut BudgetMeter,
 ) -> Result<lir::ExactCallableAbiExportV1, lir::ExactCallableAbiError> {
-    let path = WirePath::root();
     let exact = signature.exact();
-    meter.charge_work(exact.parameters().len() as u64 + 2, &path)?;
-    meter.charge_edges(exact.parameters().len() as u64 + 2, &path)?;
-    let receiver = match exact.receiver().into_option() {
-        None => lir::CallableAbiReceiverInputV1::NoReceiver,
-        Some(exact) => lir::CallableAbiReceiverInputV1::Receiver(layouts.value(exact, meter)?),
-    };
-    let mut parameters = Vec::new();
-    meter.try_reserve_collection_slots(&mut parameters, exact.parameters().len(), &path)?;
-    for exact in exact.parameters() {
-        parameters.push(layouts.value(*exact, meter)?);
-    }
-    let result = layouts.value(exact.result(), meter)?;
+    let inputs = layouts.signature(exact, meter)?;
     let protocol = match signature.gc_effect() {
         mir::GcEffect::Managed => lir::ExactCallableProtocolV1::OrdinaryManaged,
         mir::GcEffect::NoGc => lir::ExactCallableProtocolV1::OrdinaryNoGc,
     };
-    meter.charge_collection_slots(exact.parameters().len() as u64, &path)?;
-    meter.charge_owned_bytes(
-        (exact.parameters().len() as u64)
-            .saturating_mul(std::mem::size_of::<scoop_identity::PersistentExactTypeId>() as u64),
-        &path,
-    )?;
     lir::ExactCallableAbiExportV1::replay(
         target,
         implementation,
-        exact.clone(),
+        clone_signature(exact, meter)?,
         protocol,
-        lir::CallableAbiLayoutInputsV1 {
-            receiver,
-            parameters: &parameters,
-            result,
-        },
+        inputs.inputs(),
         foundation,
         meter,
     )

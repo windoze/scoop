@@ -51,10 +51,13 @@ pub(super) fn check(
         "IndexOutOfBoundsException",
         "UnwrapException",
     ];
-    if name == "shared-callables-combined" {
-        expected.push("SharedSourceOnlyHolder");
-        expected.sort();
-    }
+    let source_only: &[&str] = match name {
+        "shared-callables-combined" => &["SharedSourceOnlyHolder"],
+        "shared-ordinary-combined" => &["SharedOrdinaryDeferred", "SharedOrdinaryDeferredValue"],
+        _ => &[],
+    };
+    expected.extend_from_slice(source_only);
+    expected.sort();
     assert_eq!(names, expected);
     assert_eq!(
         local_only,
@@ -140,7 +143,7 @@ fn source_only_descriptors(
                 }
             }
         }
-        let source_only = local.is_some_and(|local| {
+        let source_only = local.filter(|local| {
             let ExactTypeKey::Nominal(nominal) = local.identity_record().key() else {
                 return false;
             };
@@ -150,13 +153,10 @@ fn source_only_descriptors(
                 .is_some()
                 && !closure.contains(*nominal)
         });
-        if source_only {
+        if let Some(local) = source_only {
             assert!(input.bridge.types().get(exact).is_none());
             assert!(result.descriptors().get(exact).is_none());
-            let mir::Type::Class(class) = local.unwrap().ty() else {
-                panic!("the actual core's unexported local types are exception classes")
-            };
-            names.push(input.mir.module().classes[*class].name.clone());
+            names.push(mir::type_name(input.mir.module(), local.ty()));
         } else {
             assert!(
                 result.descriptors().get(exact).is_some(),

@@ -11,6 +11,7 @@ use crate::{
 };
 
 mod errors;
+mod replay;
 mod selection;
 mod validation;
 mod wire;
@@ -185,16 +186,7 @@ impl CrossConeLirBridgeSectionV1 {
         mut exports: Vec<ParamFreeLirCallableExportV1>,
         mut selected: Vec<SelectedDependencyLirCallableV1>,
     ) -> Result<Self, CrossConeLirBridgeBuildError> {
-        exports.sort_unstable_by_key(ParamFreeLirCallableExportV1::declaration);
-        validation::reject_duplicate_exports(&exports)
-            .map_err(CrossConeLirBridgeBuildError::DuplicateExport)?;
-        selected.sort_unstable_by_key(SelectedDependencyLirCallableV1::sort_key);
-        validation::reject_duplicate_selected(&selected).map_err(|(provider, declaration)| {
-            CrossConeLirBridgeBuildError::DuplicateSelected {
-                provider,
-                declaration,
-            }
-        })?;
+        validation::canonical_order(&mut exports, &mut selected)?;
         validation::validate_section_relations(foundation, &exports, &selected)
             .map_err(CrossConeLirBridgeBuildError::Relation)?;
         Ok(Self {

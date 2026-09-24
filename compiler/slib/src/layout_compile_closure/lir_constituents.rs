@@ -8,25 +8,33 @@ use scoop_mir as mir;
 
 use crate::layout_compile_decode::PreparedCrossConeLayoutMirSections;
 
-pub struct LirConstituentsValidatedCrossConeLayoutSections<'input, L> {
+pub struct LirConstituentsValidatedCrossConeLayoutSections<
+    'input,
+    L,
+    O = lir::DecodedCrossConeLirBridgeSectionV1,
+> {
     pub(super) prepared: PreparedCrossConeLayoutMirSections<'input>,
     pub(super) mir: mir::CallablesResolvedCrossConeMirTypeBridgeSectionV1,
     pub(super) units: Vec<mir::MirTypeBridgeInitializationUnitV1>,
     pub(super) strong: lir::DecodedStrongProductionSectionV2,
-    pub(super) ordinary: lir::DecodedCrossConeLirBridgeSectionV1,
+    pub(super) ordinary: O,
     pub(super) layout: L,
 }
 
-pub struct LirConstituentsValidatedCrossConeLayoutClosure<'input, L> {
+pub struct LirConstituentsValidatedCrossConeLayoutClosure<
+    'input,
+    L,
+    O = lir::DecodedCrossConeLirBridgeSectionV1,
+> {
     pub(super) current: ConeIdentity,
     pub(super) target: lir::ValidatedLirTargetSelection,
     pub(super) direct: Vec<ConeIdentity>,
-    pub(super) dependency_first: Vec<LirConstituentsValidatedCrossConeLayoutSections<'input, L>>,
+    pub(super) dependency_first: Vec<LirConstituentsValidatedCrossConeLayoutSections<'input, L, O>>,
     pub(super) positions: BTreeMap<ConeIdentity, usize>,
     pub(super) dependency_positions: Vec<Vec<usize>>,
 }
 
-impl<L> LirConstituentsValidatedCrossConeLayoutSections<'_, L> {
+impl<L, O> LirConstituentsValidatedCrossConeLayoutSections<'_, L, O> {
     pub fn identity(&self) -> ConeIdentity {
         self.prepared.provider()
     }
@@ -54,7 +62,7 @@ impl<L> LirConstituentsValidatedCrossConeLayoutSections<'_, L> {
     pub fn lir_strong_production_wire(&self) -> &lir::DecodedStrongProductionSectionV2 {
         &self.strong
     }
-    pub fn lir_cross_cone_bridge_wire(&self) -> &lir::DecodedCrossConeLirBridgeSectionV1 {
+    pub fn lir_cross_cone_bridge_wire(&self) -> &O {
         &self.ordinary
     }
     pub const fn lir_layout_abi_wire(&self) -> &L {
@@ -62,7 +70,7 @@ impl<L> LirConstituentsValidatedCrossConeLayoutSections<'_, L> {
     }
 }
 
-impl<'input, L> LirConstituentsValidatedCrossConeLayoutClosure<'input, L> {
+impl<'input, L, O> LirConstituentsValidatedCrossConeLayoutClosure<'input, L, O> {
     pub const fn current(&self) -> ConeIdentity {
         self.current
     }
@@ -74,14 +82,14 @@ impl<'input, L> LirConstituentsValidatedCrossConeLayoutClosure<'input, L> {
     }
     pub fn dependency_first(
         &self,
-    ) -> impl ExactSizeIterator<Item = &LirConstituentsValidatedCrossConeLayoutSections<'input, L>>
+    ) -> impl ExactSizeIterator<Item = &LirConstituentsValidatedCrossConeLayoutSections<'input, L, O>>
     {
         self.dependency_first.iter()
     }
     pub fn artifact(
         &self,
         provider: ConeIdentity,
-    ) -> Option<&LirConstituentsValidatedCrossConeLayoutSections<'input, L>> {
+    ) -> Option<&LirConstituentsValidatedCrossConeLayoutSections<'input, L, O>> {
         self.positions
             .get(&provider)
             .map(|&position| &self.dependency_first[position])

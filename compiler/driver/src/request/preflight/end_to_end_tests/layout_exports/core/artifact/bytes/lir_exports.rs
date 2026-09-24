@@ -95,4 +95,15 @@ pub(super) fn check(
         encode(current.lir_layout_abi_wire()).unwrap(),
         encode(lir).unwrap()
     );
+    let expected_ordinary = encode(current.lir_cross_cone_bridge_wire()).unwrap();
+    let complete = complete
+        .validate_ordinary_lir_bridges()
+        .unwrap_or_else(|error| panic!("{name} shared ordinary LIR bridge replay: {error}"));
+    let current = complete.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.lir_exports().layouts(), lir.layouts());
+    assert_eq!(current.lir_exports().shape_support(), lir.shape_support());
+    assert_eq!(
+        encode(current.lir_cross_cone_bridge()).unwrap(),
+        expected_ordinary
+    );
 }

@@ -120,6 +120,15 @@ impl<'input> HirProductionValidatedCrossConeLayoutSections<'input> {
 }
 
 impl PreparedCrossConeLayoutMirSections<'_> {
+    pub(crate) fn shared_metadata(&self) -> scoop_hir::SharedTypeMetadataV1<'_> {
+        scoop_hir::SharedTypeMetadataV1 {
+            provider: self.graph.identity(),
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+            public: &self.hir_interface,
+        }
+    }
+
     pub(crate) fn provider(&self) -> scoop_identity::ConeIdentity {
         self.graph.identity()
     }

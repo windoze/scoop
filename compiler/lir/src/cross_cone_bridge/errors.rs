@@ -172,6 +172,9 @@ impl std::error::Error for CrossConeLirBridgeRelationError {
 
 #[derive(Debug)]
 pub enum CrossConeLirBridgeBuildError {
+    Callable(crate::CallableAbiValidationError),
+    Physical(crate::StrongShapeDefinitionError),
+    Resource(scoop_wire::WireError),
     DuplicateExport(DependencyCallableDeclarationId),
     DuplicateSelected {
         provider: ConeIdentity,
@@ -189,6 +192,9 @@ impl fmt::Display for CrossConeLirBridgeBuildError {
 impl std::error::Error for CrossConeLirBridgeBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Callable(source) => Some(source),
+            Self::Physical(source) => Some(source),
+            Self::Resource(source) => Some(source),
             Self::Relation(source) => Some(source),
             Self::DuplicateExport(_) | Self::DuplicateSelected { .. } => None,
         }
@@ -197,6 +203,7 @@ impl std::error::Error for CrossConeLirBridgeBuildError {
 
 #[derive(Debug)]
 pub enum CrossConeLirBridgeValidationError {
+    Resource(scoop_wire::WireError),
     Encode(scoop_wire::cbor::EncodeError),
     Export {
         index: usize,
@@ -234,6 +241,7 @@ impl fmt::Display for CrossConeLirBridgeValidationError {
 impl std::error::Error for CrossConeLirBridgeValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(source) => Some(source),
             Self::Encode(source) => Some(source),
             Self::Export { source, .. } => Some(source),
             Self::Selected { source, .. } => Some(source),

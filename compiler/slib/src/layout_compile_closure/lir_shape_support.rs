@@ -92,7 +92,13 @@ impl<'input> LirDescriptorsValidatedCrossConeLayoutClosure<'input> {
     }
 }
 
-impl LirExportsValidatedCrossConeLayoutSections<'_> {
+impl<O>
+    LirConstituentsValidatedCrossConeLayoutSections<
+        '_,
+        lir::ExportsResolvedCrossConeLayoutAbiSectionV1,
+        O,
+    >
+{
     pub const fn lir_exports(&self) -> &lir::LayoutAbiExportConstituentsV1 {
         self.layout.exports()
     }

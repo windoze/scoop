@@ -53,6 +53,13 @@ pub(super) fn validate_section_relations(
     for (index, export) in exports.iter().enumerate() {
         validate_export(index, export, foundation, &definitions)?;
     }
+    validate_selected(producer, selected)
+}
+
+pub(super) fn validate_selected(
+    producer: ConeIdentity,
+    selected: &[SelectedDependencyLirCallableV1],
+) -> Result<(), CrossConeLirBridgeRelationError> {
     for (index, selected) in selected.iter().enumerate() {
         if selected.provider == producer {
             return Err(CrossConeLirBridgeRelationError::SelectedCurrentProvider {
@@ -77,6 +84,23 @@ pub(super) fn validate_section_relations(
             })?;
     }
     Ok(())
+}
+
+pub(super) fn canonical_order(
+    exports: &mut [ParamFreeLirCallableExportV1],
+    selected: &mut [SelectedDependencyLirCallableV1],
+) -> Result<(), super::CrossConeLirBridgeBuildError> {
+    use super::CrossConeLirBridgeBuildError as Error;
+
+    exports.sort_unstable_by_key(ParamFreeLirCallableExportV1::declaration);
+    reject_duplicate_exports(exports).map_err(Error::DuplicateExport)?;
+    selected.sort_unstable_by_key(SelectedDependencyLirCallableV1::sort_key);
+    reject_duplicate_selected(selected).map_err(|(provider, declaration)| {
+        Error::DuplicateSelected {
+            provider,
+            declaration,
+        }
+    })
 }
 
 fn validate_export(

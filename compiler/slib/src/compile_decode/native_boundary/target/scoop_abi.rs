@@ -18,8 +18,7 @@ use crate::{
 };
 
 mod dependencies;
-pub(crate) use dependencies::AbiReplayDependency;
-pub(super) use dependencies::{AbiReplayTypes, collect as collect_abi_types};
+pub(crate) use dependencies::{AbiReplayDependency, AbiReplayTypes, collect as collect_abi_types};
 #[cfg(test)]
 mod tests;
 
@@ -82,49 +81,62 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
     gc_effect: GcEffect,
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
     let types = dependencies::collect(current, dependencies, meter)?;
-    let callable_applications =
-        HashMap::<PersistentCallableApplicationId, Arc<CallableApplicationKey>>::new();
-    let initialization_units =
-        HashMap::<PersistentInitializationUnitId, Arc<InitializationUnitKey>>::new();
-    let mut normalizer = NativeBoundaryNormalizer::new(
-        target,
-        meter,
-        &types.exact,
-        &callable_applications,
-        &initialization_units,
-        &types.definitions,
-    );
+    types.replay(target, signature, gc_effect, meter)
+}
 
-    let argument_count =
-        signature.parameters().len() + usize::from(signature.receiver().is_present());
-    let mut arguments = metered_vec(normalizer.meter, argument_count, &WirePath::root().field(3))?;
-    for exact in signature
-        .receiver()
-        .into_option()
-        .into_iter()
-        .chain(signature.parameters().iter().copied())
-    {
-        arguments.push(normalizer.scoop_argument(exact)?);
+impl AbiReplayTypes<'_> {
+    pub(crate) fn replay(
+        &self,
+        target: scoop_lir::LirTargetProfile,
+        signature: &ExactCallableSignature,
+        gc_effect: GcEffect,
+        meter: &mut BudgetMeter,
+    ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
+        let callable_applications =
+            HashMap::<PersistentCallableApplicationId, Arc<CallableApplicationKey>>::new();
+        let initialization_units =
+            HashMap::<PersistentInitializationUnitId, Arc<InitializationUnitKey>>::new();
+        let mut normalizer = NativeBoundaryNormalizer::new(
+            target,
+            meter,
+            &self.exact,
+            &callable_applications,
+            &initialization_units,
+            &self.definitions,
+        );
+
+        let argument_count =
+            signature.parameters().len() + usize::from(signature.receiver().is_present());
+        let mut arguments =
+            metered_vec(normalizer.meter, argument_count, &WirePath::root().field(3))?;
+        for exact in signature
+            .receiver()
+            .into_option()
+            .into_iter()
+            .chain(signature.parameters().iter().copied())
+        {
+            arguments.push(normalizer.scoop_argument(exact)?);
+        }
+        let result = if normalizer.is_unit(signature.result()) {
+            ScoopAbiReturn::unit_void()
+        } else {
+            normalizer.scoop_return(signature.result())?
+        };
+        let parameters = signature.parameters().len() as u64;
+        let path = WirePath::root().field(3);
+        normalizer
+            .meter
+            .charge_collection_slots(parameters, &path)
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        normalizer
+            .meter
+            .charge_owned_bytes(
+                parameters.saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
+                &path,
+            )
+            .map_err(NativeBoundaryCompileError::Resource)?;
+        CanonicalScoopAbiFunctionSignature::new(signature.clone(), arguments, result, gc_effect)
+            .map_err(NativeBoundaryTargetError::ScoopAbi)
+            .map_err(Into::into)
     }
-    let result = if normalizer.is_unit(signature.result()) {
-        ScoopAbiReturn::unit_void()
-    } else {
-        normalizer.scoop_return(signature.result())?
-    };
-    let parameters = signature.parameters().len() as u64;
-    let path = WirePath::root().field(3);
-    normalizer
-        .meter
-        .charge_collection_slots(parameters, &path)
-        .map_err(NativeBoundaryCompileError::Resource)?;
-    normalizer
-        .meter
-        .charge_owned_bytes(
-            parameters.saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
-            &path,
-        )
-        .map_err(NativeBoundaryCompileError::Resource)?;
-    CanonicalScoopAbiFunctionSignature::new(signature.clone(), arguments, result, gc_effect)
-        .map_err(NativeBoundaryTargetError::ScoopAbi)
-        .map_err(Into::into)
 }

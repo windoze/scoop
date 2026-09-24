@@ -1,0 +1,4 @@
+@NoGC public fun sharedOrdinaryCount(value: Int): Int = value
+public fun sharedOrdinaryText(value: String): String = value
+public val sharedOrdinaryReady: Boolean
+    get() = true

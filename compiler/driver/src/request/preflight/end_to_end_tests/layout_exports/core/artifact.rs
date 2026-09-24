@@ -34,6 +34,7 @@ pub(super) fn check(
         hir::CoreBootstrapInterfaceSectionV1::from_export(&input.hir.output().export).unwrap();
     let ordinary =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
+    shared_ordinary::check(name, input, &foundation, lir, layout, &ordinary);
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())
             .unwrap();

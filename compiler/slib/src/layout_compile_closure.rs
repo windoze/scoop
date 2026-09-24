@@ -20,10 +20,12 @@ mod declarations;
 mod foundations;
 mod hir;
 mod lir_callable_abis;
+mod lir_callable_layouts;
 mod lir_constituents;
 mod lir_descriptors;
 mod lir_dispatch;
 mod lir_layouts;
+mod lir_ordinary;
 mod lir_shape_support;
 mod mir_dispatch;
 mod mir_source_callables;
@@ -53,6 +55,11 @@ pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,
     LirLayoutsValidatedCrossConeLayoutSections, SharedLirLayoutValidationError,
     replay_shared_mir_layouts,
+};
+pub use lir_ordinary::{
+    CrossConeLayoutOrdinaryLirBridgeError, OrdinaryLirBridgeValidatedCrossConeLayoutClosure,
+    OrdinaryLirBridgeValidatedCrossConeLayoutSections, SharedOrdinaryLirBridgeDependenciesV1,
+    SharedOrdinaryLirBridgeValidationError, replay_shared_ordinary_lir_bridge,
 };
 pub use lir_shape_support::{
     CrossConeLayoutLirShapeSupportError, LirExportsValidatedCrossConeLayoutClosure,

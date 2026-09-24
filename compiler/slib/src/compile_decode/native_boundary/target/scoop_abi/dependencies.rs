@@ -13,6 +13,17 @@ pub(crate) struct AbiReplayDependency<'a> {
     pub nominals: &'a CanonicalNominalInterfacesV1,
 }
 
+impl<'a> From<scoop_hir::SharedTypeMetadataV1<'a>> for AbiReplayDependency<'a> {
+    fn from(source: scoop_hir::SharedTypeMetadataV1<'a>) -> Self {
+        Self {
+            identity: source.provider,
+            identities: source.identities,
+            foundation: source.foundation,
+            nominals: source.public.nominal_interfaces(),
+        }
+    }
+}
+
 pub(crate) fn collect<'a>(
     current: AbiReplayDependency<'a>,
     dependencies: &[AbiReplayDependency<'a>],
@@ -90,6 +101,8 @@ fn insert_definition<'a>(
 }
 
 pub(crate) struct AbiReplayTypes<'a> {
-    pub exact: HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
-    pub definitions: HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
+    pub(in crate::compile_decode::native_boundary::target) exact:
+        HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
+    pub(in crate::compile_decode::native_boundary::target) definitions:
+        HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
 }

@@ -26,8 +26,9 @@ pub use commit::{
 pub(crate) use commit::{charge_identity_import, commit_identity_graph, semantic_identity_import};
 mod native_boundary;
 pub(crate) use native_boundary::{
-    AbiReplayDependency, NativeBoundaryFoundationView, replay_canonical_scoop_abi,
-    validate_native_boundary_parts, validate_shared_native_boundary_parts,
+    AbiReplayDependency, NativeBoundaryFoundationView, collect_abi_types,
+    replay_canonical_scoop_abi, validate_native_boundary_parts,
+    validate_shared_native_boundary_parts,
 };
 pub use native_boundary::{
     NativeBoundaryCompileError, NativeBoundarySourceValidatedFoundations,

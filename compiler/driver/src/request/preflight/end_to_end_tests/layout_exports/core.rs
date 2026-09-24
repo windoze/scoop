@@ -123,6 +123,11 @@ fn shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots() {
     check_core_layout_exports(&["shared-shapes-standalone", "shared-shapes-combined"]);
 }
 
+#[test]
+fn shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis() {
+    check_core_layout_exports(&["shared-ordinary-standalone", "shared-ordinary-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

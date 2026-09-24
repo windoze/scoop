@@ -27,7 +27,7 @@ use crate::ValidatedGraphArtifact;
 mod errors;
 mod target;
 pub use errors::NativeBoundaryCompileError;
-pub(crate) use target::{AbiReplayDependency, replay_canonical_scoop_abi};
+pub(crate) use target::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
 pub use target::{NativeBoundaryTargetError, NativeBoundaryValidatedFoundations};
 
 /// Structurally valid foundations whose native-boundary source witnesses are

@@ -1,10 +1,7 @@
-use scoop_identity::{
-    CallableBodyKey, CanonicalScoopStorage, PersistentExactTypeId, RepresentationRole,
-    ScoopAbiReturn, ScoopAbiValueShape,
-};
+use scoop_identity::{CallableBodyKey, PersistentExactTypeId, RepresentationRole};
 
 use super::*;
-use crate::{ExactRepresentationKindV1, ExternalStrongShapeSubjectV1, IntrinsicValueFamilyV1};
+use crate::ExternalStrongShapeSubjectV1;
 
 pub(super) fn callable(
     target_profile: LirTargetProfile,
@@ -86,19 +83,9 @@ pub(super) fn signature(
         .into_iter()
         .chain(parameters.iter().map(AsRef::as_ref))
     {
-        arguments.push(canonical_scoop_abi_argument(
-            target_profile,
-            storage(value),
-        )?);
+        arguments.push(value.scoop_abi_argument(target_profile)?);
     }
-    let result_passing = if matches!(
-        result.representation().kind(),
-        ExactRepresentationKindV1::IntrinsicValue(IntrinsicValueFamilyV1::Unit)
-    ) {
-        ScoopAbiReturn::unit_void()
-    } else {
-        canonical_scoop_abi_value_return(target_profile, storage(&result))?
-    };
+    let result_passing = result.scoop_abi_return(target_profile)?;
     let signature = CanonicalScoopAbiFunctionSignature::new(
         signature,
         arguments,
@@ -132,25 +119,6 @@ fn value(
     layout
         .value_handle()
         .ok_or(ExactCallableAbiError::LayoutRole)
-}
-
-fn storage(value: &ExactValueLayoutV1) -> CanonicalScoopStorage {
-    let shape = match value.representation().kind() {
-        ExactRepresentationKindV1::Scalar(_)
-        | ExactRepresentationKindV1::QualifiedPointer(_)
-        | ExactRepresentationKindV1::NicheEnum(_) => ScoopAbiValueShape::Scalar,
-        ExactRepresentationKindV1::Struct(_)
-        | ExactRepresentationKindV1::Tuple(_)
-        | ExactRepresentationKindV1::TaggedEnum(_)
-        | ExactRepresentationKindV1::IntrinsicValue(_) => ScoopAbiValueShape::Aggregate,
-    };
-    let storage = value.value().storage();
-    CanonicalScoopStorage::new(
-        value.identity().exact(),
-        storage.byte_size(),
-        storage.alignment().as_nonzero(),
-        shape,
-    )
 }
 
 #[derive(Debug)]

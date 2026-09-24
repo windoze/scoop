@@ -107,6 +107,28 @@ pub struct DecodedCrossConeLirBridgeSectionV1 {
 }
 
 impl DecodedCrossConeLirBridgeSectionV1 {
+    /// Compares the entire untrusted table with a source-derived replay. The
+    /// candidate never supplies roots or replaces the expected constituent.
+    pub fn validate_against(
+        self,
+        expected: CrossConeLirBridgeSectionV1,
+        meter: &mut scoop_wire::BudgetMeter,
+    ) -> Result<CrossConeLirBridgeSectionV1, CrossConeLirBridgeValidationError> {
+        use scoop_wire::{WirePath, encode_canonical_temporary_with_meter};
+        let path = WirePath::root();
+        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)
+            .map_err(CrossConeLirBridgeValidationError::Resource)?;
+        let bytes = encode_canonical_temporary_with_meter(&expected, meter, &path)
+            .map_err(CrossConeLirBridgeValidationError::Resource)?;
+        meter
+            .charge_work(actual.len().min(bytes.len()) as u64, &path)
+            .map_err(CrossConeLirBridgeValidationError::Resource)?;
+        if actual != bytes {
+            return Err(CrossConeLirBridgeValidationError::SectionMismatch);
+        }
+        Ok(expected)
+    }
+
     pub fn validate(
         self,
         identities: &mut ValidatedIdentityGraph,

@@ -102,7 +102,7 @@ pub(super) fn with_inspection(
     .unwrap();
     let coordinate = ConeCoordinate::new("dev.example", "layout-library", "0.1.0").unwrap();
     let coordinates = [front.coordinate().clone(), coordinate.clone()];
-    let (source_graph, _) = identities(&hir.hir, &mir.strong, None, &front);
+    let (source_graph, _, _) = identities(&hir.hir, &mir.strong, None, &front);
     let diagnostics = scoop_identity::ExactTypeDiagnosticCatalog::try_new(
         &source_graph,
         &coordinates,
@@ -118,7 +118,7 @@ pub(super) fn with_inspection(
         &mut meter(),
     )
     .unwrap();
-    let (graph, core_lir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
+    let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
     let types = dependencies::mir_types(&mir.strong, &graph);
     let input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
         hir: &hir.hir,
@@ -196,6 +196,30 @@ pub(super) fn with_inspection(
         callables: &[],
     };
     source_contracts::check(input, dependencies);
+    let foundation = hir::OdrFreeHirFoundation::try_new(
+        hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
+    )
+    .unwrap();
+    let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
+    shared_ordinary::check_dependency_uses(
+        hir::SharedTypeMetadataV1 {
+            provider: input.mir.module().cone,
+            identities: &graph,
+            foundation: &foundation,
+            public: &hir.cross_cone_section,
+        },
+        &mir.public,
+        input,
+        dependencies,
+        core.production().lir_cross_cone(),
+        hir::SharedTypeMetadataV1 {
+            provider: core.identity(),
+            identities: &graph,
+            foundation: &core_hir,
+            public: core.production().hir_interface(),
+        },
+        &core_lir,
+    );
     run(input, dependencies);
 }
 
@@ -204,7 +228,11 @@ fn identities(
     mir: &mir::SingleConeStrongMirInput,
     lir: Option<&lir::SingleConeStrongLirOutput>,
     core: &scoop_slib::DecodedCrossConeHirFrontSections<'_>,
-) -> (ValidatedIdentityGraph, lir::OdrFreeLirFoundation) {
+) -> (
+    ValidatedIdentityGraph,
+    lir::OdrFreeLirFoundation,
+    hir::OdrFreeHirFoundation,
+) {
     let mut pending = PendingIdentityValidation::new();
     pending.register_authority(ConeIdentity::CORE).unwrap();
     core.hir_foundation_wire()
@@ -226,6 +254,13 @@ fn identities(
         .resolve_identities(&mut pending)
         .unwrap();
     let mut core_graph = pending.finish().unwrap();
+    let core_hir: hir::DecodedHirFoundation = decoded(core.hir_foundation_wire());
+    let core_hir = hir::OdrFreeHirFoundation::from_validated(
+        core_hir
+            .validate(core.coordinate(), &mut core_graph, &mut meter())
+            .unwrap(),
+    )
+    .unwrap();
     let core_lir: lir::DecodedLirFoundation = decoded(core.lir_foundation_wire());
     let core_lir = lir::OdrFreeLirFoundation::from_validated(
         core_lir
@@ -255,5 +290,5 @@ fn identities(
     if let Some(foundation) = &lir_foundation {
         foundation.resolve_identities(&mut pending).unwrap();
     }
-    (pending.finish().unwrap(), core_lir)
+    (pending.finish().unwrap(), core_lir, core_hir)
 }

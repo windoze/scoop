@@ -45,7 +45,7 @@ mod scoop_abi;
 use physical::*;
 
 use scoop_abi::exact_type_records;
-pub(crate) use scoop_abi::{AbiReplayDependency, replay_canonical_scoop_abi};
+pub(crate) use scoop_abi::{AbiReplayDependency, collect_abi_types, replay_canonical_scoop_abi};
 
 /// Foundation payloads whose source closure and every target-specific native
 /// ABI leaf were independently recomputed from canonical identities.
