@@ -8,7 +8,8 @@ use super::fixture::{
     CallableProviderFixture, ProviderFixture, certificate, coordinate, empty_alias_expansions,
     identifiers, import_foundation, package,
 };
-use crate::CoreClosedExactLeafClassifierV1;
+
+mod nominals;
 
 #[test]
 fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
@@ -43,8 +44,7 @@ fn selection_owns_callable_and_route_proofs_after_world_views_are_gone() {
         Vec::new(),
     )
     .unwrap();
-    let classifier = classifier(unit);
-    let plan = world.dependency_selection_plan(&classifier).unwrap();
+    let plan = world.dependency_selection_plan().unwrap();
     let binding = world
         .resolve_direct_exact(&identifiers(&["demo", "run"]), BindingNamespace::Value)
         .unwrap()
@@ -134,9 +134,8 @@ fn selection_rejects_semantic_only_and_foreign_projection_candidates() {
         Vec::new(),
     )
     .unwrap();
-    let classifier = classifier(unit);
-    let mut first = world.dependency_selection_plan(&classifier).unwrap();
-    let mut second = world.dependency_selection_plan(&classifier).unwrap();
+    let mut first = world.dependency_selection_plan().unwrap();
+    let mut second = world.dependency_selection_plan().unwrap();
     let binding = world
         .resolve_direct_exact(&identifiers(&["demo", "raw"]), BindingNamespace::Value)
         .unwrap()
@@ -204,7 +203,7 @@ fn cloned_plans_keep_candidate_ids_stable_across_different_probe_orders() {
         Vec::new(),
     )
     .unwrap();
-    let plan = world.dependency_selection_plan(&classifier(unit)).unwrap();
+    let plan = world.dependency_selection_plan().unwrap();
     let first = callable_candidate(&world, &plan, &["first", "run"]);
     let second = callable_candidate(&world, &plan, &["second", "run"]);
 
@@ -225,10 +224,6 @@ fn cloned_plans_keep_candidate_ids_stable_across_different_probe_orders() {
             .resolve_callable(first_reference)
             .is_none()
     );
-}
-
-fn classifier(source: scoop_identity::PersistentTypeId) -> CoreClosedExactLeafClassifierV1 {
-    CoreClosedExactLeafClassifierV1::from_exact_leaves_for_test(vec![(source, exact(source))])
 }
 
 fn exact(source: scoop_identity::PersistentTypeId) -> PersistentExactTypeId {

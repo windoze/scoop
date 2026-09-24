@@ -78,7 +78,7 @@ impl SlibDiagnostic for NativeBoundaryCompileError {
             Self::TypeDefinition(_) => {
                 SlibDiagnosticRecord::new(SlibErrorCode::BridgeMismatch, WirePath::root().field(34))
             }
-            Self::IntrinsicProvider { owner, .. } => {
+            Self::NominalProvider { owner, .. } => {
                 native_owner_diagnostic(SlibErrorCode::ReferenceInvalid, *owner)
             }
             Self::Resource(error) => error.diagnostic(),

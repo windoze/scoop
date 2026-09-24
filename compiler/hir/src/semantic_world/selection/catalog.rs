@@ -14,9 +14,9 @@ use super::{
 };
 use crate::semantic_world::{DirectImportedTargetBinding, ImportedProvider, ImportedSemanticWorld};
 use crate::{
-    CallableInterfaceRecordV1, CallableSourceInterfaceV1, CoreClosedExactLeafClassifierV1,
+    CallableInterfaceRecordV1, CallableSourceInterfaceV1, CanonicalNominalInterfacesV1,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
+    ImportedProviderCertificate, ImportedTarget, ParamFreeNominalCallableV1,
     PropertyInterfaceRecordV1, TypeAliasInterfaceRecordV1,
 };
 
@@ -26,7 +26,7 @@ pub(super) struct CallableCatalogEntry {
     pub(super) name: super::intrinsics::CallableCatalogName,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
-    pub(super) capability: Option<ParamFreeCoreClosedCallableV1>,
+    pub(super) capability: Option<ParamFreeNominalCallableV1>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
@@ -73,8 +73,10 @@ pub(super) struct DependencyCatalog {
 impl ImportedSemanticWorld<'_> {
     pub fn dependency_selection_plan(
         &self,
-        classifier: &CoreClosedExactLeafClassifierV1,
     ) -> Result<ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError> {
+        let classifier = self
+            .nominal_exact_leaf_classifier(&CanonicalNominalInterfacesV1::default())
+            .map_err(ImportedDependencySelectionPlanBuildError::NominalClassifier)?;
         let projection = DependencyProjectionId(next_id(&NEXT_PROJECTION, "dependency projection"));
         let mut callables = BTreeMap::new();
         let mut properties = BTreeMap::new();

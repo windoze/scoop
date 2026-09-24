@@ -7,7 +7,7 @@ pub(super) struct CurrentConeMachineHir<'a> {
     pub output: &'a scoop_hir::DependencyHirOutput,
     pub production: &'a scoop_hir::CoreBootstrapInterfaceSectionV1,
     pub public: &'a scoop_hir::CrossConeHirInterfaceSectionV1,
-    pub classifier: &'a scoop_hir::CoreClosedExactLeafClassifierV1,
+    pub classifier: &'a scoop_hir::NominalExactLeafClassifierV1,
 }
 
 pub(super) struct CurrentConeMirArtifacts {

@@ -34,7 +34,9 @@ use crate::ValidatedGraphArtifact;
 
 mod errors;
 mod layout;
+mod nominals;
 pub use errors::NativeBoundaryTargetError;
+use nominals::AbiNominalDefinition;
 mod physical;
 mod scoop_abi;
 use physical::*;
@@ -138,12 +140,7 @@ pub(super) fn validate_target_normalization(
         meter,
         &WirePath::root().field(9),
     )?;
-    let definitions = index_records(
-        view.type_definitions,
-        NativeBoundaryTypeDefinitionRecord::owner,
-        meter,
-        &WirePath::root().field(34),
-    )?;
+    let definitions = nominals::native_definitions(view.type_definitions, meter)?;
 
     let actual_contracts = index_records(
         view.native_contracts,
@@ -447,7 +444,7 @@ struct NativeBoundaryNormalizer<'a> {
     callable_applications:
         &'a HashMap<PersistentCallableApplicationId, Arc<CallableApplicationKey>>,
     initialization_units: &'a HashMap<PersistentInitializationUnitId, Arc<InitializationUnitKey>>,
-    definitions: &'a HashMap<NativeBoundaryNominalOwner, &'a NativeBoundaryTypeDefinitionRecord>,
+    definitions: &'a HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
     expected_signatures:
         HashMap<CanonicalCAbiSignatureFingerprint, CanonicalCAbiSignatureFingerprintRecord>,
     expected_layouts: HashMap<CanonicalCAbiLayoutFingerprint, CanonicalCAbiLayoutFingerprintRecord>,
@@ -471,10 +468,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
             PersistentInitializationUnitId,
             Arc<InitializationUnitKey>,
         >,
-        definitions: &'a HashMap<
-            NativeBoundaryNominalOwner,
-            &'a NativeBoundaryTypeDefinitionRecord,
-        >,
+        definitions: &'a HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
     ) -> Self {
         Self {
             target,

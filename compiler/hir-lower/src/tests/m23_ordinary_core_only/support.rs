@@ -164,7 +164,7 @@ pub(super) fn trusted_core_from_source(
     let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(canonical).unwrap();
     let foundation =
         scoop_hir::ImportedHirFoundation::from_odr_free(source_foundation.clone(), hir);
-    let classifier = scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
+    let classifier = scoop_hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(
         general_interface.nominal_interfaces().records(),
     )
     .unwrap();

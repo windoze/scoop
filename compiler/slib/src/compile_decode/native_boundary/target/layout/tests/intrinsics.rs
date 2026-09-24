@@ -56,7 +56,10 @@ fn with_intrinsic(
         NativeBoundaryNominalShape::Intrinsic(NominalIntrinsicRepresentationV1::new(family)),
     )
     .unwrap();
-    let definitions = HashMap::from([(definition.owner(), &definition)]);
+    let definitions = HashMap::from([(
+        definition.owner(),
+        AbiNominalDefinition::native(&definition),
+    )]);
     let callable_applications = HashMap::new();
     let initialization_units = HashMap::new();
     let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
@@ -185,7 +188,10 @@ fn a_fixed_core_scalar_identity_needs_its_actual_representation_witness() {
     let initialization_units = HashMap::new();
     for definitions in [
         HashMap::new(),
-        HashMap::from([(definition.owner(), &definition)]),
+        HashMap::from([(
+            definition.owner(),
+            AbiNominalDefinition::native(&definition),
+        )]),
     ] {
         let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
         let mut normalizer = NativeBoundaryNormalizer::new(

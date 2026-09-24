@@ -7,7 +7,8 @@ use scoop_hir::{
 use scoop_identity::ConeIdentity;
 use scoop_wire::{BudgetMeter, WirePath};
 
-use super::{HirDeclarationsValidatedCrossConeLayoutClosure, reachability::transitive_positions};
+use super::HirDeclarationsValidatedCrossConeLayoutClosure;
+use crate::dependency_reachability::transitive_positions;
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
     /// Borrows checked records from the artifacts themselves. Fact,

@@ -71,11 +71,7 @@ pub(super) fn project_interface(
 fn compiler_operations_come_from_shared_callable_declarations() {
     let core = super::trusted_core();
     let world = core.world(ConeIdentity::SINGLE_FILE);
-    let classifier = hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
-        core.general_interface.nominal_interfaces().records(),
-    )
-    .unwrap();
-    let selection = world.dependency_selection_plan(&classifier).unwrap();
+    let selection = world.dependency_selection_plan().unwrap();
     for kind in hir::intrinsic_function_kinds() {
         let Some(effect) = kind.integer_gc_effect() else {
             continue;

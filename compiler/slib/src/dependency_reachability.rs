@@ -2,7 +2,7 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 /// The validated graph puts every dependency before its user. A reverse walk
 /// therefore closes reachability without a second, potentially repeated queue.
-pub(super) fn transitive_positions(
+pub(crate) fn transitive_positions(
     position: usize,
     dependencies: &[Vec<usize>],
     meter: &mut BudgetMeter,

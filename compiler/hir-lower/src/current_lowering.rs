@@ -15,25 +15,12 @@ pub fn lower_current_cone(
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     let (files, sources) = materialize_current_sources(input.sources());
     let world = input.semantic_world();
-    let nominals = world
-        .direct_provider(scoop_identity::ConeIdentity::CORE)
-        .map(|provider| provider.nominal_interfaces().records())
-        .unwrap_or_default();
-    let classifier = hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to classify core ABI leaves: {error}"),
-            )]
-        })?;
-    let dependency_selection = world
-        .dependency_selection_plan(&classifier)
-        .map_err(|error| {
-            vec![Diagnostic::at(
-                Span { start: 0, end: 0 },
-                format!("failed to prepare dependency selection: {error}"),
-            )]
-        })?;
+    let dependency_selection = world.dependency_selection_plan().map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to prepare dependency selection: {error}"),
+        )]
+    })?;
     let lowerer = Lowerer::new()
         .with_intrinsic_sources(sources, IntrinsicDeclarationPolicy::CoreOnly)
         .with_imported_dependencies(dependency_selection);

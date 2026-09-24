@@ -127,3 +127,4 @@ fn ordinary_callable_abi_replays_intrinsics_from_mixed_actual_providers() {
 }
 
 mod intrinsic_sources;
+mod shared_sources;

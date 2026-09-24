@@ -38,7 +38,7 @@ fn with_exports<R>(
             .unwrap()
             .nominal_interfaces();
         let classifier =
-            hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records())
+            hir::NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records())
                 .unwrap();
         let ordinary = scoop_mir_lower::lower_cross_cone_bridge_section(
             input.module().cone,

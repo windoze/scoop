@@ -105,7 +105,11 @@ impl Fixture {
     }
 
     fn with_normalizer<T>(&self, run: impl FnOnce(&mut NativeBoundaryNormalizer<'_>) -> T) -> T {
-        let definitions = self.records.iter().map(|r| (r.owner(), r)).collect();
+        let definitions = self
+            .records
+            .iter()
+            .map(|r| (r.owner(), AbiNominalDefinition::native(r)))
+            .collect();
         let callable_applications = HashMap::new();
         let initialization_units = HashMap::new();
         let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());

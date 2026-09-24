@@ -19,7 +19,6 @@ use crate::{
 mod declarations;
 mod foundations;
 mod hir;
-mod reachability;
 mod type_foundations;
 pub use declarations::{
     CrossConeHirDeclarationValidationError, CrossConeLayoutHirDeclarationError,

@@ -17,7 +17,7 @@ mod selected;
 
 pub use errors::*;
 
-use eligibility::{core_classifier, validate_export_surface};
+use eligibility::validate_export_surfaces;
 use selected::validate_selected_closure;
 
 /// A semantic closure whose provider MIR exports, consumer selections, HIR
@@ -91,7 +91,7 @@ impl MirBridgeValidatedCrossConeHirClosure<'_> {
 
 impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
     /// Validates each artifact's MIR production locally, derives the maximal
-    /// core-closed export set from HIR, and closes every selected use against
+    /// param-free nominal export set from HIR, and closes every selected use against
     /// both its HIR route witness and terminal provider export.
     pub fn validate_mir_bridges(
         self,
@@ -124,22 +124,8 @@ impl<'input> TypeAliasExpandedCrossConeHirClosure<'input> {
             })?);
         }
 
-        if !validated.is_empty() {
-            let core_position = positions
-                .get(&ConeIdentity::CORE)
-                .copied()
-                .ok_or(CrossConeClosureMirBridgeError::MissingTrustedCore)?;
-            let classifier = core_classifier(&validated[core_position])?;
-            for front in &validated {
-                validate_export_surface(front, &classifier).map_err(|source| {
-                    CrossConeClosureMirBridgeError::Relation {
-                        identity: front.identity(),
-                        source: Box::new(source),
-                    }
-                })?;
-            }
-            validate_selected_closure(&validated, &positions, &dependency_positions)?;
-        }
+        validate_export_surfaces(&mut validated, &dependency_positions)?;
+        validate_selected_closure(&validated, &positions, &dependency_positions)?;
 
         Ok(MirBridgeValidatedCrossConeHirClosure {
             current,

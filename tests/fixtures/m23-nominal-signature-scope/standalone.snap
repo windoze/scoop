@@ -1,0 +1,2 @@
+parameters=0 arguments=[] result=elided-zst(0,1,Aggregate)
+parameters=1 arguments=[elided-zst(0,1,Aggregate)] result=elided-zst(0,1,Aggregate)

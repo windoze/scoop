@@ -22,6 +22,7 @@ mod default_value_access;
 mod dependency_preflight;
 mod image_dependencies;
 mod layout_exports;
+mod nominal_signatures;
 mod publication;
 mod setter_domains;
 mod shape_materialization;

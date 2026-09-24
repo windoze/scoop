@@ -1,0 +1,2 @@
+parameters=2 arguments=[direct(8,8,Scalar), direct(8,8,Scalar)] result=indirect(1,1,Aggregate)
+parameters=2 arguments=[indirect(16,8,Aggregate), elided-zst(0,1,Aggregate)] result=indirect(16,8,Aggregate)

@@ -11,7 +11,7 @@ use scoop_identity::{
 };
 use scoop_wire::{BudgetMeter, WirePath};
 
-use super::{NativeBoundaryNormalizer, metered_vec};
+use super::{AbiNominalDefinition, NativeBoundaryNormalizer, metered_vec};
 use crate::{
     NativeBoundaryCompileError, NativeBoundaryTargetError, ValidatedGraphArtifact,
     compile_decode::native_boundary::records_by_id,
@@ -81,7 +81,6 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
     gc_effect: GcEffect,
 ) -> Result<CanonicalScoopAbiFunctionSignature, NativeBoundaryCompileError> {
     let types = dependencies::collect(current, dependencies, meter)?;
-    let definitions = types.definition_refs(meter)?;
     let callable_applications =
         HashMap::<PersistentCallableApplicationId, Arc<CallableApplicationKey>>::new();
     let initialization_units =
@@ -92,7 +91,7 @@ pub(crate) fn replay_canonical_scoop_abi_parts(
         &types.exact,
         &callable_applications,
         &initialization_units,
-        &definitions,
+        &types.definitions,
     );
 
     let argument_count =

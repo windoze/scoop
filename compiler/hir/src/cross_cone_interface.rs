@@ -5,13 +5,13 @@ mod callable_interfaces;
 mod callable_source_interfaces;
 mod canonical_ids;
 mod const_values;
-mod core_closed_callables;
 mod declaration_common;
 mod declaration_references;
 mod default_templates;
 mod definition_sources;
 mod external_references;
 mod metered_resolution;
+mod nominal_callables;
 mod nominal_interfaces;
 mod nominal_shapes;
 mod property_interfaces;
@@ -86,10 +86,6 @@ pub use const_values::{
     ExportConstValueSemanticValidationError, ExportConstValueSetBuildError,
     ExportConstValueSetSemanticValidationError, ExportConstValueSetValidationError,
     ExportConstValueV1,
-};
-pub use core_closed_callables::{
-    CoreClosedCallableClassificationError, CoreClosedExactLeafClassifierBuildError,
-    CoreClosedExactLeafClassifierV1, ParamFreeCoreClosedCallableV1,
 };
 pub use declaration_common::{
     DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,
@@ -300,6 +296,10 @@ pub use external_references::{
     ExternalHirReferenceSetBuildError, ExternalHirReferenceSetSemanticValidationError,
     ExternalHirReferenceSetValidationError, ExternalHirReferenceV1,
     ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
+};
+pub use nominal_callables::{
+    NominalCallableClassificationError, NominalExactLeafClassifierBuildError,
+    NominalExactLeafClassifierV1, ParamFreeNominalCallableV1,
 };
 pub use nominal_interfaces::{
     CanonicalNominalDispatchSelectionsV1, CanonicalNominalInterfacesV1,

@@ -12,12 +12,10 @@ pub enum CrossConeClosureMirBridgeError {
     Allocation {
         requested_slots: usize,
     },
-    CoreExactTypeIdentity(scoop_wire::HashError),
     Artifact {
         identity: ConeIdentity,
         source: Box<CrossConeMirFrontValidationError>,
     },
-    MissingTrustedCore,
     Relation {
         identity: ConeIdentity,
         source: Box<CrossConeMirClosureRelationError>,
@@ -31,17 +29,11 @@ impl fmt::Display for CrossConeClosureMirBridgeError {
                 formatter,
                 "cannot allocate {requested_slots} cross-Cone MIR bridge validation slots"
             ),
-            Self::CoreExactTypeIdentity(source) => {
-                write!(formatter, "cannot derive a nominal exact type: {source}")
-            }
             Self::Artifact { identity, source } => {
                 write!(
                     formatter,
                     "invalid MIR bridge payload for {identity}: {source}"
                 )
-            }
-            Self::MissingTrustedCore => {
-                formatter.write_str("cross-Cone MIR bridge closure has no trusted-core provider")
             }
             Self::Relation { identity, source } => {
                 write!(
@@ -57,15 +49,17 @@ impl std::error::Error for CrossConeClosureMirBridgeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source.as_ref()),
-            Self::CoreExactTypeIdentity(source) => Some(source),
             Self::Relation { source, .. } => Some(source.as_ref()),
-            Self::Allocation { .. } | Self::MissingTrustedCore => None,
+            Self::Allocation { .. } => None,
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeMirClosureRelationError {
+    NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
+    NominalClassification(scoop_hir::NominalCallableClassificationError),
+    Resource(scoop_wire::WireError),
     Allocation {
         requested_slots: usize,
     },
@@ -125,6 +119,9 @@ pub enum CrossConeMirClosureRelationError {
 impl fmt::Display for CrossConeMirClosureRelationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NominalClassifier(source) => source.fmt(formatter),
+            Self::NominalClassification(source) => source.fmt(formatter),
+            Self::Resource(source) => source.fmt(formatter),
             Self::Allocation { requested_slots } => write!(
                 formatter,
                 "cannot allocate {requested_slots} MIR bridge relation slots"

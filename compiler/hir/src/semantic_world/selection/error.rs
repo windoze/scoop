@@ -6,11 +6,12 @@ use scoop_identity::{
 };
 
 use super::super::{DirectImportedTargetMergeError, ImportedTarget};
-use crate::CoreClosedCallableClassificationError;
+use crate::NominalCallableClassificationError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ImportedDependencySelectionPlanBuildError {
-    Classification(CoreClosedCallableClassificationError),
+    NominalClassifier(crate::NominalExactLeafClassifierBuildError),
+    Classification(NominalCallableClassificationError),
     DuplicateCallable(CallableTemplateOrigin),
     MissingCallableSourceName(CallableTemplateOrigin),
     TooManyCallables {
@@ -43,6 +44,7 @@ pub enum ImportedDependencySelectionPlanBuildError {
 impl fmt::Display for ImportedDependencySelectionPlanBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NominalClassifier(error) => error.fmt(formatter),
             Self::Classification(error) => error.fmt(formatter),
             Self::DuplicateCallable(declaration) => write!(
                 formatter,
@@ -102,6 +104,7 @@ impl fmt::Display for ImportedDependencySelectionPlanBuildError {
 impl std::error::Error for ImportedDependencySelectionPlanBuildError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::NominalClassifier(error) => Some(error),
             Self::Classification(error) => Some(error),
             Self::DirectBindingMerge { source, .. } => Some(source),
             Self::DuplicateCallable(_)
@@ -250,11 +253,11 @@ impl fmt::Display for ImportedDependencySelectionError {
             }
             Self::CapabilityUnavailable { target } => write!(
                 formatter,
-                "imported callable {target:?} is not executable by the M23-5 core-closed bridge"
+                "imported callable {target:?} has no executable param-free nominal bridge"
             ),
             Self::ConstantCapabilityUnavailable { target } => write!(
                 formatter,
-                "imported constant {target:?} is not executable by the M23-5 core-closed constant bridge"
+                "imported constant {target:?} has no executable nominal constant bridge"
             ),
             Self::RouteMerge(error) => write!(
                 formatter,

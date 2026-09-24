@@ -1,53 +1,24 @@
-//! Classification of the M23-5 executable dependency-callable subset.
+//! Nominal signature classification shared by dependency callable bridges.
 
 use std::fmt;
 
 use scoop_identity::{
-    CallableTemplateOrigin, CoreBuiltinNominal, DependencyCallableDeclarationId, Effect,
-    ExactCallableSignature, ExactTypeKey, GcEffect, PersistentExactTypeId, PersistentTypeId,
-    SignatureTypeKey,
+    CallableTemplateOrigin, DependencyCallableDeclarationId, Effect, ExactCallableSignature,
+    GcEffect, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
 };
 
-use crate::{
-    CallableImplementationV1, CallableInterfaceRecordV1, NominalInterfaceRecordV1,
-    PublicDeclarationOwnerV1, SourceNominalId,
-};
+use crate::{CallableImplementationV1, CallableInterfaceRecordV1, PublicDeclarationOwnerV1};
 
-/// Maps the shared nominal declaration surface to exact leaves accepted by
-/// the current core-closed cross-Cone callable bridge.
+mod leaves;
+
+/// Resolves exact nominal signatures from the actual declaration scope.
+/// Machine availability, access and layout are checked by their own stages.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CoreClosedExactLeafClassifierV1 {
+pub struct NominalExactLeafClassifierV1 {
     leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
 }
 
-impl CoreClosedExactLeafClassifierV1 {
-    pub fn try_from_nominal_interfaces(
-        nominals: &[NominalInterfaceRecordV1],
-    ) -> Result<Self, CoreClosedExactLeafClassifierBuildError> {
-        let target_count = nominals.len();
-        let mut leaves = Vec::new();
-        leaves.try_reserve_exact(target_count + 1).map_err(|_| {
-            CoreClosedExactLeafClassifierBuildError::Allocation {
-                requested_slots: target_count + 1,
-            }
-        })?;
-        let unit = CoreBuiltinNominal::Unit.identity_record().id();
-        let unit_exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
-            .map_err(CoreClosedExactLeafClassifierBuildError::Identity)?;
-        leaves.push((unit, unit_exact));
-        for nominal in nominals {
-            let SourceNominalId::Concrete(source) = nominal.declaration() else {
-                continue;
-            };
-            let exact = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(source))
-                .map_err(CoreClosedExactLeafClassifierBuildError::Identity)?;
-            leaves.push((source, exact));
-        }
-        leaves.sort_unstable_by_key(|(source, _)| *source);
-        leaves.dedup_by_key(|(source, _)| *source);
-        Ok(Self { leaves })
-    }
-
+impl NominalExactLeafClassifierV1 {
     /// Returns the exact identity of a concrete nominal in the supplied
     /// public surface, or the language builtin Unit. ABI and runtime shape
     /// requirements are validated by the later MIR/LIR bridge checks.
@@ -61,38 +32,53 @@ impl CoreClosedExactLeafClassifierV1 {
             .map(|index| self.leaves[index].1)
     }
 
-    #[cfg(test)]
-    pub(crate) fn from_exact_leaves_for_test(
-        mut leaves: Vec<(PersistentTypeId, PersistentExactTypeId)>,
-    ) -> Self {
-        leaves.sort_unstable_by_key(|(source, _)| *source);
-        leaves.dedup_by_key(|(source, _)| *source);
-        Self { leaves }
-    }
-
-    /// Refines one public callable interface into the complete executable
-    /// M23-5 bridge shape, or reports that it remains semantic-only.
+    /// Resolves the signature of an ordinary param-free top-level callable or
+    /// extension. This does not establish its implementation or ABI.
     pub fn classify_callable(
         &self,
         callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ParamFreeCoreClosedCallableV1>, CoreClosedCallableClassificationError> {
+    ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
         let Some(declaration) = eligible_declaration(callable) else {
             return Ok(None);
         };
         let Some(signature) = self.exact_signature(callable)? else {
             return Ok(None);
         };
-        Ok(Some(ParamFreeCoreClosedCallableV1 {
+        Ok(Some(ParamFreeNominalCallableV1 {
             declaration,
             signature,
             gc_effect: callable.effects().gc_effect(),
         }))
     }
 
+    pub fn classify_callable_metered(
+        &self,
+        callable: &CallableInterfaceRecordV1,
+        meter: &mut scoop_wire::BudgetMeter,
+        path: &scoop_wire::WirePath,
+    ) -> Result<Option<ParamFreeNominalCallableV1>, NominalCallableClassificationError> {
+        let parameters = callable.parameters().parameters().len() as u64;
+        let lookups = parameters.saturating_add(2);
+        let depth = 1 + u64::from(self.leaves.len().max(1).ilog2());
+        meter
+            .charge_work(lookups.saturating_mul(depth), path)
+            .map_err(NominalCallableClassificationError::Resource)?;
+        meter
+            .charge_collection_slots(parameters, path)
+            .map_err(NominalCallableClassificationError::Resource)?;
+        meter
+            .charge_owned_bytes(
+                parameters.saturating_mul(std::mem::size_of::<PersistentExactTypeId>() as u64),
+                path,
+            )
+            .map_err(NominalCallableClassificationError::Resource)?;
+        self.classify_callable(callable)
+    }
+
     fn exact_signature(
         &self,
         callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ExactCallableSignature>, CoreClosedCallableClassificationError> {
+    ) -> Result<Option<ExactCallableSignature>, NominalCallableClassificationError> {
         let receiver = match callable.receiver() {
             Some(receiver) => match self.classify(receiver) {
                 Some(exact) => Some(exact),
@@ -103,7 +89,7 @@ impl CoreClosedExactLeafClassifierV1 {
         let parameter_count = callable.parameters().parameters().len();
         let mut parameters = Vec::new();
         parameters.try_reserve_exact(parameter_count).map_err(|_| {
-            CoreClosedCallableClassificationError::Allocation {
+            NominalCallableClassificationError::Allocation {
                 requested_slots: parameter_count,
             }
         })?;
@@ -150,15 +136,15 @@ fn eligible_declaration(
     }
 }
 
-/// Complete HIR proof needed to emit one M23-5 dependency callable use.
+/// Resolved nominal signature of a param-free dependency callable.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ParamFreeCoreClosedCallableV1 {
+pub struct ParamFreeNominalCallableV1 {
     declaration: DependencyCallableDeclarationId,
     signature: ExactCallableSignature,
     gc_effect: GcEffect,
 }
 
-impl ParamFreeCoreClosedCallableV1 {
+impl ParamFreeNominalCallableV1 {
     pub const fn declaration(&self) -> DependencyCallableDeclarationId {
         self.declaration
     }
@@ -180,13 +166,13 @@ impl ParamFreeCoreClosedCallableV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreClosedExactLeafClassifierBuildError {
-    Allocation { requested_slots: usize },
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NominalExactLeafClassifierBuildError {
+    Resource(scoop_wire::WireError),
     Identity(scoop_wire::HashError),
 }
 
-impl fmt::Display for CoreClosedExactLeafClassifierBuildError {
+impl fmt::Display for NominalExactLeafClassifierBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
@@ -195,23 +181,24 @@ impl fmt::Display for CoreClosedExactLeafClassifierBuildError {
     }
 }
 
-impl std::error::Error for CoreClosedExactLeafClassifierBuildError {}
+impl std::error::Error for NominalExactLeafClassifierBuildError {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CoreClosedCallableClassificationError {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NominalCallableClassificationError {
     Allocation { requested_slots: usize },
+    Resource(scoop_wire::WireError),
 }
 
-impl fmt::Display for CoreClosedCallableClassificationError {
+impl fmt::Display for NominalCallableClassificationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "failed to classify a core-closed dependency callable: {self:?}"
+            "failed to classify a nominal dependency callable: {self:?}"
         )
     }
 }
 
-impl std::error::Error for CoreClosedCallableClassificationError {}
+impl std::error::Error for NominalCallableClassificationError {}
 
 #[cfg(test)]
 mod tests;

@@ -3,8 +3,8 @@
 use std::fmt;
 
 use scoop_hir::{
-    CallableInterfaceRecordV1, CoreClosedCallableClassificationError,
-    CoreClosedExactLeafClassifierV1, CrossConeHirInterfaceSectionV1,
+    CallableInterfaceRecordV1, CrossConeHirInterfaceSectionV1, NominalCallableClassificationError,
+    NominalExactLeafClassifierV1,
 };
 use scoop_mir::{
     CrossConeMirBridgeBuildError, CrossConeMirBridgeSectionV1, OdrFreeMirFoundation,
@@ -20,15 +20,15 @@ use scoop_identity::{
 /// Projects the exact producer export surface and the already-validated
 /// consumer selections into the M23-5 MIR bridge section.
 ///
-/// Export eligibility is derived from the HIR interface and trusted-core
-/// exact-leaf classifier. A public callable is exported only when the current
+/// Export eligibility is derived from the HIR interface and nominal signatures
+/// resolved within the actual provider scope. A public callable is exported only when the current
 /// MIR foundation also contains its strong implementation. The selected side
 /// is copied only from the branded request-local selection set; this function
 /// never scans MIR bodies or symbols to reconstruct dependency use.
 pub fn lower_cross_cone_bridge_section(
     artifact: ConeIdentity,
     hir: &CrossConeHirInterfaceSectionV1,
-    classifier: &CoreClosedExactLeafClassifierV1,
+    classifier: &NominalExactLeafClassifierV1,
     foundation: &OdrFreeMirFoundation,
     selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError> {
@@ -49,7 +49,7 @@ fn lower_cross_cone_bridge_with_classifier<C>(
     selected: &SelectedExternalMirSet,
 ) -> Result<CrossConeMirBridgeSectionV1, CrossConeMirBridgeLoweringError>
 where
-    C: CoreClosedCallableClassifier,
+    C: NominalCallableClassifier,
 {
     if selected.consumer() != artifact {
         return Err(CrossConeMirBridgeLoweringError::ForeignSelection {
@@ -78,20 +78,20 @@ fn clone_selected(
     Ok(records)
 }
 
-trait CoreClosedCallableClassifier {
+trait NominalCallableClassifier {
     fn classify_callable(
         &self,
         callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError>;
+    ) -> Result<Option<ClassifiedCallable>, NominalCallableClassificationError>;
 }
 
-impl CoreClosedCallableClassifier for CoreClosedExactLeafClassifierV1 {
+impl NominalCallableClassifier for NominalExactLeafClassifierV1 {
     fn classify_callable(
         &self,
         callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError> {
+    ) -> Result<Option<ClassifiedCallable>, NominalCallableClassificationError> {
         Ok(
-            CoreClosedExactLeafClassifierV1::classify_callable(self, callable)?.map(|classified| {
+            NominalExactLeafClassifierV1::classify_callable(self, callable)?.map(|classified| {
                 ClassifiedCallable {
                     declaration: classified.declaration(),
                     implementation: classified.implementation(),
@@ -115,7 +115,7 @@ fn derive_exports<C>(
     classifier: &C,
 ) -> Result<Vec<ParamFreeMirCallableExportV1>, CrossConeMirBridgeLoweringError>
 where
-    C: CoreClosedCallableClassifier,
+    C: NominalCallableClassifier,
 {
     let mut exports = Vec::new();
     exports
@@ -173,7 +173,7 @@ pub enum CrossConeMirBridgeLoweringError {
     },
     Classification {
         declaration: scoop_identity::CallableTemplateOrigin,
-        source: CoreClosedCallableClassificationError,
+        source: NominalCallableClassificationError,
     },
     StrongSignatureMismatch {
         declaration: DependencyCallableDeclarationId,

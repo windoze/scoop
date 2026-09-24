@@ -8,7 +8,7 @@ pub(super) struct CurrentConeHirArtifacts {
     pub foundation: scoop_hir::CanonicalHirFoundation,
     pub production_section: scoop_hir::CoreBootstrapInterfaceSectionV1,
     pub cross_cone_section: scoop_hir::CrossConeHirInterfaceSectionV1,
-    pub core_classifier: scoop_hir::CoreClosedExactLeafClassifierV1,
+    pub nominal_classifier: scoop_hir::NominalExactLeafClassifierV1,
 }
 
 impl CurrentConeHirArtifacts {
@@ -40,18 +40,9 @@ impl CurrentConeHirArtifacts {
             )
             .map_err(|error| CurrentConeHirStageError::CrossConeSection(Box::new(error)))?
         };
-        let nominals = match &hir.output().local.module().core_protocols {
-            scoop_hir::concrete::ConcreteCoreProtocols::Defined(_) => {
-                cross_cone_section.nominal_interfaces().records()
-            }
-            scoop_hir::concrete::ConcreteCoreProtocols::Imported(_) => world
-                .direct_provider(scoop_identity::ConeIdentity::CORE)
-                .map(|provider| provider.nominal_interfaces().records())
-                .unwrap_or_default(),
-        };
-        let core_classifier =
-            scoop_hir::CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals)
-                .map_err(CurrentConeHirStageError::CoreClassifier)?;
+        let nominal_classifier = world
+            .nominal_exact_leaf_classifier(cross_cone_section.nominal_interfaces())
+            .map_err(CurrentConeHirStageError::NominalClassifier)?;
         foundation
             .complete_cross_cone_source_points(
                 hir.output().export.module(),
@@ -63,7 +54,7 @@ impl CurrentConeHirArtifacts {
             foundation,
             production_section,
             cross_cone_section,
-            core_classifier,
+            nominal_classifier,
         })
     }
 
@@ -72,7 +63,7 @@ impl CurrentConeHirArtifacts {
             output: &self.hir,
             production: &self.production_section,
             public: &self.cross_cone_section,
-            classifier: &self.core_classifier,
+            classifier: &self.nominal_classifier,
         }
     }
 

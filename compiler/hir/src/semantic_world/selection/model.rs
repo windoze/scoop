@@ -10,7 +10,7 @@ use scoop_identity::{
 use crate::{
     CallableInterfaceRecordV1, CallableSourceInterfaceV1, DirectImportedTargetBinding,
     ExportConstValueV1, ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1,
-    ImportedProviderCertificate, ImportedTarget, ParamFreeCoreClosedCallableV1,
+    ImportedProviderCertificate, ImportedTarget, ParamFreeNominalCallableV1,
     PropertyInterfaceRecordV1, SourceRecord, TypeAliasInterfaceRecordV1,
 };
 
@@ -78,7 +78,7 @@ pub struct ImportedDependencyCallableCandidate {
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
-    pub(super) capability: Option<ParamFreeCoreClosedCallableV1>,
+    pub(super) capability: Option<ParamFreeNominalCallableV1>,
     pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
 }
@@ -104,7 +104,7 @@ impl ImportedDependencyCallableCandidate {
         self.source.as_ref()
     }
 
-    pub const fn capability(&self) -> Option<&ParamFreeCoreClosedCallableV1> {
+    pub const fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
         self.capability.as_ref()
     }
 
@@ -266,7 +266,7 @@ pub struct SelectedImportedDependencyCallable {
     pub(super) certificate: ImportedProviderCertificate,
     pub(super) interface: CallableInterfaceRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
-    pub(super) capability: ParamFreeCoreClosedCallableV1,
+    pub(super) capability: ParamFreeNominalCallableV1,
 }
 
 impl SelectedImportedDependencyCallable {
@@ -286,7 +286,7 @@ impl SelectedImportedDependencyCallable {
         self.source.as_ref()
     }
 
-    pub const fn capability(&self) -> &ParamFreeCoreClosedCallableV1 {
+    pub const fn capability(&self) -> &ParamFreeNominalCallableV1 {
         &self.capability
     }
 

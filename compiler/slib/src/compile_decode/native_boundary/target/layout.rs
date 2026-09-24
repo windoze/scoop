@@ -413,7 +413,7 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         exact: PersistentExactTypeId,
     ) -> Result<
         (
-            &'a NativeBoundaryTypeDefinitionRecord,
+            &'a AbiNominalDefinition<'a>,
             Vec<Vec<PersistentExactTypeId>>,
         ),
         NativeBoundaryCompileError,
@@ -437,7 +437,6 @@ impl<'a> NativeBoundaryNormalizer<'a> {
         charge_relations(self.meter, 1, &path)?;
         self.definitions
             .get(&owner)
-            .copied()
             .map(|definition| (definition, binders))
             .ok_or(NativeBoundaryCompileError::ClosureRequired { owner })
     }

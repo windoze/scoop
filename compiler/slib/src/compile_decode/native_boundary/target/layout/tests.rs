@@ -122,9 +122,12 @@ fn recomputes_packed_and_overaligned_c_struct_layout() {
     let callable_applications = HashMap::new();
     let initialization_units = HashMap::new();
     let definitions = HashMap::from([
-        (definition.owner(), &definition),
-        (u8.owner(), &u8),
-        (u64.owner(), &u64),
+        (
+            definition.owner(),
+            AbiNominalDefinition::native(&definition),
+        ),
+        (u8.owner(), AbiNominalDefinition::native(&u8)),
+        (u64.owner(), AbiNominalDefinition::native(&u64)),
     ]);
     let mut meter = BudgetMeter::new(scoop_wire::DecodeLimits::default());
     let mut normalizer = NativeBoundaryNormalizer::new(

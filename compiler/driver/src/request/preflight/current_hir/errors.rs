@@ -24,7 +24,7 @@ impl std::error::Error for CurrentConeStrongProfileError {
 #[derive(Debug)]
 pub enum CurrentConeHirStageError {
     SemanticWorld(scoop_hir::ImportedSemanticWorldBuildError),
-    CoreClassifier(scoop_hir::CoreClosedExactLeafClassifierBuildError),
+    NominalClassifier(scoop_hir::NominalExactLeafClassifierBuildError),
     Input(scoop_hir_lower::CurrentConeSourceError),
     Lowering(Vec<scoop_ast::Diagnostic>),
     Foundation(scoop_hir::HirFoundationBuildError),
@@ -42,7 +42,7 @@ impl fmt::Display for CurrentConeHirStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SemanticWorld(source) => source.fmt(formatter),
-            Self::CoreClassifier(source) => source.fmt(formatter),
+            Self::NominalClassifier(source) => source.fmt(formatter),
             Self::Input(source) => source.fmt(formatter),
             Self::Lowering(diagnostics) => write!(
                 formatter,
@@ -60,7 +60,7 @@ impl std::error::Error for CurrentConeHirStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::SemanticWorld(source) => Some(source),
-            Self::CoreClassifier(source) => Some(source),
+            Self::NominalClassifier(source) => Some(source),
             Self::Input(source) => Some(source),
             Self::Lowering(_) => None,
             Self::Foundation(source) => Some(source),

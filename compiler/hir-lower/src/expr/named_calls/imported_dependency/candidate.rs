@@ -22,7 +22,7 @@ impl ImportedCallableCandidate {
         }
     }
 
-    pub(super) fn capability(&self) -> Option<&hir::ParamFreeCoreClosedCallableV1> {
+    pub(super) fn capability(&self) -> Option<&hir::ParamFreeNominalCallableV1> {
         match self {
             Self::Binding(source) => source.capability(),
             Self::Member(_) => None,

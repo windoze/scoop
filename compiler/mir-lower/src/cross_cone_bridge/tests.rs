@@ -16,7 +16,7 @@ use scoop_mir::{
 };
 
 use super::{
-    ClassifiedCallable, CoreClosedCallableClassifier, CrossConeMirBridgeLoweringError,
+    ClassifiedCallable, CrossConeMirBridgeLoweringError, NominalCallableClassifier,
     lower_cross_cone_bridge_with_classifier,
 };
 
@@ -157,11 +157,13 @@ fn lowering_preserves_classifier_failures_with_the_declaration() {
     let declaration = source_function(artifact, "exported");
     let foundation = OdrFreeMirFoundation::try_new(CanonicalMirFoundation::empty()).unwrap();
     let selected = SelectedExternalMirSet::empty(artifact);
-    let source =
-        scoop_hir::CoreClosedCallableClassificationError::Allocation { requested_slots: 7 };
+    let source = scoop_hir::NominalCallableClassificationError::Allocation { requested_slots: 7 };
     let classifier = FixtureClassifier {
         classified: Vec::new(),
-        failure: Some((CallableTemplateOrigin::Function(declaration), source)),
+        failure: Some((
+            CallableTemplateOrigin::Function(declaration),
+            source.clone(),
+        )),
     };
 
     assert_eq!(
@@ -184,19 +186,19 @@ struct FixtureClassifier {
     classified: Vec<ClassifiedCallable>,
     failure: Option<(
         CallableTemplateOrigin,
-        scoop_hir::CoreClosedCallableClassificationError,
+        scoop_hir::NominalCallableClassificationError,
     )>,
 }
 
-impl CoreClosedCallableClassifier for FixtureClassifier {
+impl NominalCallableClassifier for FixtureClassifier {
     fn classify_callable(
         &self,
         callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, scoop_hir::CoreClosedCallableClassificationError> {
-        if let Some((declaration, source)) = self.failure
+    ) -> Result<Option<ClassifiedCallable>, scoop_hir::NominalCallableClassificationError> {
+        if let Some((declaration, ref source)) = self.failure
             && declaration == callable.declaration()
         {
-            return Err(source);
+            return Err(source.clone());
         }
         Ok(self
             .classified

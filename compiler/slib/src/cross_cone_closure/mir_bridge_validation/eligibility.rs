@@ -1,100 +1,41 @@
 //! Maximal provider export derivation from validated HIR and MIR surfaces.
 
-use scoop_hir::{
-    CallableInterfaceRecordV1, CoreClosedCallableClassificationError,
-    CoreClosedExactLeafClassifierBuildError, CoreClosedExactLeafClassifierV1,
-};
-use scoop_identity::{DependencyCallableDeclarationId, ExactCallableSignature};
+use scoop_hir::{CallableInterfaceRecordV1, NominalExactLeafClassifierV1};
+use scoop_identity::DependencyCallableDeclarationId;
 use scoop_mir::{
     CrossConeMirBridgeSectionV1, ParamFreeMirCallableExportV1, StrongCallableBridgeSurfaceV1,
 };
+use scoop_wire::{BudgetMeter, WirePath};
 
-use super::{CrossConeClosureMirBridgeError, CrossConeMirClosureRelationError};
-use crate::MirBridgeValidatedCrossConeHirFrontSections;
+use super::CrossConeMirClosureRelationError;
 
-pub(super) fn core_classifier(
-    core: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
-) -> Result<CoreClosedExactLeafClassifierV1, CrossConeClosureMirBridgeError> {
-    CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(
-        core.hir_interface().nominal_interfaces().records(),
-    )
-    .map_err(|error| match error {
-        CoreClosedExactLeafClassifierBuildError::Allocation { requested_slots } => {
-            CrossConeClosureMirBridgeError::Allocation { requested_slots }
-        }
-        CoreClosedExactLeafClassifierBuildError::Identity(source) => {
-            CrossConeClosureMirBridgeError::CoreExactTypeIdentity(source)
-        }
-    })
-}
+mod scope;
+pub(super) use scope::validate_export_surfaces;
 
-trait CoreClosedCallableClassifier {
-    fn classify_callable(
-        &self,
-        callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError>;
-}
-
-impl CoreClosedCallableClassifier for CoreClosedExactLeafClassifierV1 {
-    fn classify_callable(
-        &self,
-        callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError> {
-        Ok(
-            CoreClosedExactLeafClassifierV1::classify_callable(self, callable)?.map(|eligible| {
-                ClassifiedCallable {
-                    declaration: eligible.declaration(),
-                    signature: eligible.signature().clone(),
-                }
-            }),
-        )
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct ClassifiedCallable {
-    declaration: DependencyCallableDeclarationId,
-    signature: ExactCallableSignature,
-}
-
-pub(super) fn validate_export_surface(
-    front: &MirBridgeValidatedCrossConeHirFrontSections<'_>,
-    classifier: &CoreClosedExactLeafClassifierV1,
-) -> Result<(), CrossConeMirClosureRelationError> {
-    validate_export_relation(
-        front.hir_interface().callable_interfaces().records(),
-        front.mir_core_production().strong_callable_bridges(),
-        front.mir_cross_cone_bridge(),
-        classifier,
-    )
-}
-
-fn validate_export_relation<C>(
+fn validate_export_relation(
     callable_records: &[CallableInterfaceRecordV1],
     strong_bridges: &StrongCallableBridgeSurfaceV1,
     dependency_bridge: &CrossConeMirBridgeSectionV1,
-    classifier: &C,
-) -> Result<(), CrossConeMirClosureRelationError>
-where
-    C: CoreClosedCallableClassifier,
-{
+    classifier: &NominalExactLeafClassifierV1,
+    meter: &mut BudgetMeter,
+) -> Result<(), CrossConeMirClosureRelationError> {
+    let path = WirePath::root();
     let mut expected = Vec::new();
-    expected
-        .try_reserve_exact(callable_records.len())
-        .map_err(|_| CrossConeMirClosureRelationError::Allocation {
-            requested_slots: callable_records.len(),
-        })?;
+    meter
+        .try_reserve_collection_slots(&mut expected, callable_records.len(), &path)
+        .map_err(CrossConeMirClosureRelationError::Resource)?;
     for callable in callable_records {
-        let Some(eligible) = classifier.classify_callable(callable).map_err(
-            |CoreClosedCallableClassificationError::Allocation { requested_slots }| {
-                CrossConeMirClosureRelationError::Allocation { requested_slots }
-            },
-        )?
+        let Some(eligible) = classifier
+            .classify_callable_metered(callable, meter, &path)
+            .map_err(CrossConeMirClosureRelationError::NominalClassification)?
         else {
             continue;
         };
-        let declaration = eligible.declaration;
+        let declaration = eligible.declaration();
         let implementation = declaration.implementation().callable_owner();
+        meter
+            .charge_work(strong_bridges.bridges().len() as u64, &path)
+            .map_err(CrossConeMirClosureRelationError::Resource)?;
         let Some(strong) = strong_bridges
             .bridges()
             .iter()
@@ -102,29 +43,36 @@ where
         else {
             continue;
         };
-        if strong.signature() != &eligible.signature {
+        if strong.signature() != eligible.signature() {
             return Err(CrossConeMirClosureRelationError::StrongSignatureMismatch { declaration });
         }
-        expected.push((declaration, eligible.signature));
+        expected.push(eligible);
     }
-    expected.sort_unstable_by_key(|(declaration, _)| *declaration);
-
     let actual = dependency_bridge.exports();
-    for (declaration, signature) in &expected {
-        let export = find_export(actual, *declaration).ok_or(
-            CrossConeMirClosureRelationError::MissingMaximalExport {
-                declaration: *declaration,
-            },
-        )?;
-        if export.signature() != signature {
-            return Err(CrossConeMirClosureRelationError::ExportSignatureMismatch {
-                declaration: *declaration,
-            });
+    let expected_len = expected.len() as u64;
+    let actual_len = actual.len() as u64;
+    let expected_depth = 1 + u64::from(expected_len.max(1).ilog2());
+    let actual_depth = 1 + u64::from(actual_len.max(1).ilog2());
+    meter
+        .charge_work(
+            expected_len
+                .saturating_mul(expected_depth + actual_depth)
+                .saturating_add(actual_len.saturating_mul(expected_depth)),
+            &path,
+        )
+        .map_err(CrossConeMirClosureRelationError::Resource)?;
+    expected.sort_unstable_by_key(scoop_hir::ParamFreeNominalCallableV1::declaration);
+    for eligible in &expected {
+        let declaration = eligible.declaration();
+        let export = find_export(actual, declaration)
+            .ok_or(CrossConeMirClosureRelationError::MissingMaximalExport { declaration })?;
+        if export.signature() != eligible.signature() {
+            return Err(CrossConeMirClosureRelationError::ExportSignatureMismatch { declaration });
         }
     }
     for export in actual {
         if expected
-            .binary_search_by_key(&export.declaration(), |(declaration, _)| *declaration)
+            .binary_search_by_key(&export.declaration(), |eligible| eligible.declaration())
             .is_err()
         {
             return Err(CrossConeMirClosureRelationError::UnexpectedExport {

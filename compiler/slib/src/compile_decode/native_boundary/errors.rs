@@ -5,7 +5,7 @@ pub enum NativeBoundaryCompileError {
     Identity(IdentityValidationError),
     Reference(scoop_identity::IdentityReferenceError),
     TypeDefinition(scoop_hir::NativeBoundaryDefinitionError),
-    IntrinsicProvider {
+    NominalProvider {
         owner: NativeBoundaryNominalOwner,
         declared: scoop_identity::ConeIdentity,
         provider: scoop_identity::ConeIdentity,
@@ -42,13 +42,13 @@ impl fmt::Display for NativeBoundaryCompileError {
             Self::Identity(error) => error.fmt(formatter),
             Self::Reference(error) => error.fmt(formatter),
             Self::TypeDefinition(error) => error.fmt(formatter),
-            Self::IntrinsicProvider {
+            Self::NominalProvider {
                 owner,
                 declared,
                 provider,
             } => write!(
                 formatter,
-                "ABI intrinsic {owner:?} belongs to {declared}, not its supplied provider {provider}"
+                "ABI nominal {owner:?} belongs to {declared}, not its supplied provider {provider}"
             ),
             Self::Resource(error) => error.fmt(formatter),
             Self::Encoding(error) => error.fmt(formatter),

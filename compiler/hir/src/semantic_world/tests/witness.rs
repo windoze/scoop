@@ -170,11 +170,7 @@ fn diamond_reexports_fold_target_and_preserve_canonical_routes() {
         assert_eq!(route.terminal().binding(), terminal.outer_binding.unwrap());
     }
 
-    let classifier = crate::CoreClosedExactLeafClassifierV1::from_exact_leaves_for_test(Vec::new());
-    let selected = world
-        .dependency_selection_plan(&classifier)
-        .unwrap()
-        .finish();
+    let selected = world.dependency_selection_plan().unwrap().finish();
     drop(world);
     let target =
         crate::ExternalHirTargetV1::from(scoop_identity::BindableEntity::Type(terminal_type));

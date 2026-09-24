@@ -4,7 +4,8 @@ use scoop_identity::ConeIdentity;
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_wire::{BudgetMeter, WirePath};
 
-use super::{HirProductionValidatedCrossConeLayoutClosure, reachability::transitive_positions};
+use super::HirProductionValidatedCrossConeLayoutClosure;
+use crate::dependency_reachability::transitive_positions;
 use crate::{
     DefinitionSourceProviderView, HirProductionValidatedCrossConeLayoutSections,
     cross_cone_hir_authority::ValidatedNominalProviderView,

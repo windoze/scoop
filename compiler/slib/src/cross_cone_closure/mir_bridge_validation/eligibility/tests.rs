@@ -1,8 +1,8 @@
 use scoop_hir::{
     CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordV1, CallableModalityV1,
     CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1,
-    CanonicalSourceParameterShapesV1, CoreClosedCallableClassificationError,
-    PublicDeclarationOwnerV1, PublicLookupAccessV1,
+    CanonicalSourceParameterShapesV1, NominalExactLeafClassifierV1, PublicDeclarationOwnerV1,
+    PublicLookupAccessV1,
 };
 use scoop_identity::{
     CallableOwner, CallableTemplateOrigin, CanonicalIdentifier, CborIdentityRecord, ConeCoordinate,
@@ -16,10 +16,40 @@ use scoop_mir::{
     StrongCallableBridgeSurfaceV1, StrongCallableBridgeV1,
 };
 
-use super::{
-    ClassifiedCallable, CoreClosedCallableClassifier, CrossConeMirClosureRelationError,
-    validate_export_relation,
-};
+use super::{CrossConeMirClosureRelationError, validate_export_relation};
+
+#[test]
+fn empty_bridge_scope_needs_no_special_provider() {
+    super::validate_export_surfaces(&mut [], &[]).unwrap();
+}
+
+#[test]
+fn signature_replay_uses_the_artifact_budget() {
+    let fixture = fixture();
+    let bridge = CrossConeMirBridgeSectionV1::try_new(
+        fixture.artifact,
+        &fixture.foundation,
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let mut budget = scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits {
+        validation_work_units: 0,
+        ..scoop_wire::DecodeLimits::default()
+    });
+    assert!(matches!(
+        validate_export_relation(
+            std::slice::from_ref(&fixture.callable),
+            &fixture.strong,
+            &bridge,
+            &fixture.classifier,
+            &mut budget,
+        ),
+        Err(CrossConeMirClosureRelationError::NominalClassification(
+            scoop_hir::NominalCallableClassificationError::Resource(_)
+        ))
+    ));
+}
 
 #[test]
 fn eligible_callable_is_required_in_the_maximal_export_set() {
@@ -37,6 +67,7 @@ fn eligible_callable_is_required_in_the_maximal_export_set() {
             &fixture.strong,
             &empty,
             &fixture.classifier,
+            &mut meter(),
         ),
         Err(CrossConeMirClosureRelationError::MissingMaximalExport {
             declaration: fixture.declaration,
@@ -61,7 +92,13 @@ fn bridge_cannot_export_a_callable_absent_from_the_public_hir_surface() {
     )
     .unwrap();
     assert_eq!(
-        validate_export_relation(&[], &fixture.strong, &bridge, &fixture.classifier,),
+        validate_export_relation(
+            &[],
+            &fixture.strong,
+            &bridge,
+            &fixture.classifier,
+            &mut meter()
+        ),
         Err(CrossConeMirClosureRelationError::UnexpectedExport {
             declaration: fixture.declaration,
         })
@@ -75,24 +112,7 @@ struct Fixture {
     signature: ExactCallableSignature,
     foundation: OdrFreeMirFoundation,
     strong: StrongCallableBridgeSurfaceV1,
-    classifier: TestClassifier,
-}
-
-struct TestClassifier {
-    declaration: DependencyCallableDeclarationId,
-    signature: ExactCallableSignature,
-}
-
-impl CoreClosedCallableClassifier for TestClassifier {
-    fn classify_callable(
-        &self,
-        _callable: &CallableInterfaceRecordV1,
-    ) -> Result<Option<ClassifiedCallable>, CoreClosedCallableClassificationError> {
-        Ok(Some(ClassifiedCallable {
-            declaration: self.declaration,
-            signature: self.signature.clone(),
-        }))
-    }
+    classifier: NominalExactLeafClassifierV1,
 }
 
 fn fixture() -> Fixture {
@@ -154,10 +174,7 @@ fn fixture() -> Fixture {
         signature.clone(),
     )])
     .unwrap();
-    let classifier = TestClassifier {
-        declaration,
-        signature: signature.clone(),
-    };
+    let classifier = NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap();
     Fixture {
         artifact,
         declaration,
@@ -167,4 +184,8 @@ fn fixture() -> Fixture {
         strong,
         classifier,
     }
+}
+
+fn meter() -> scoop_wire::BudgetMeter {
+    scoop_wire::BudgetMeter::new(scoop_wire::DecodeLimits::default())
 }

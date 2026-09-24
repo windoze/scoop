@@ -41,7 +41,7 @@ fn public_intrinsic_projection_rejects_a_foreign_provider_and_conflicting_witnes
     foreign.identity = ConeIdentity::SINGLE_FILE;
     assert!(matches!(
         replay(&current, &[foreign], &signature, &mut meter()),
-        Err(NativeBoundaryCompileError::IntrinsicProvider {
+        Err(NativeBoundaryCompileError::NominalProvider {
             declared: ConeIdentity::CORE,
             provider: ConeIdentity::SINGLE_FILE,
             ..

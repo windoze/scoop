@@ -5,12 +5,14 @@ use scoop_identity::{
     SourceDeclarationSite, SourceNominalKind,
 };
 
-use super::CoreClosedExactLeafClassifierV1;
+use super::NominalExactLeafClassifierV1;
 use crate::{
     CallableImplementationV1, CallableInfixV1, CallableInterfaceRecordV1, CallableModalityV1,
     CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsV1, CanonicalBinderListV1,
     CanonicalSourceParameterShapesV1, PublicDeclarationOwnerV1, PublicLookupAccessV1,
 };
+
+mod resources;
 
 #[test]
 fn only_known_nominal_leaves_are_classified() {
@@ -50,7 +52,7 @@ fn shared_nominal_surface_supplies_exact_leaves_without_a_core_sidecar() {
     ])
     .unwrap();
     let classifier =
-        CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records()).unwrap();
+        NominalExactLeafClassifierV1::try_from_nominal_interfaces(nominals.records()).unwrap();
     let signature = SignatureTypeKey::Nominal(concrete);
     let expected =
         scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(concrete)).unwrap();
@@ -162,7 +164,7 @@ fn unsupported_execution_and_signature_shapes_remain_semantic_only() {
 }
 
 fn classifier() -> (
-    CoreClosedExactLeafClassifierV1,
+    NominalExactLeafClassifierV1,
     scoop_identity::PersistentTypeId,
     scoop_identity::PersistentExactTypeId,
 ) {
@@ -170,7 +172,7 @@ fn classifier() -> (
     let exact = scoop_identity::PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit))
         .expect("core Unit exact identity is valid");
     (
-        CoreClosedExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap(),
+        NominalExactLeafClassifierV1::try_from_nominal_interfaces(&[]).unwrap(),
         unit,
         exact,
     )
