@@ -333,6 +333,9 @@ impl std::error::Error for StrongProductionSectionBuildError {}
 
 #[derive(Debug)]
 pub enum StrongProductionSectionValidationError {
+    DigestReplay(Box<crate::StrongDigestPlanReplayError>),
+    DigestProjection(Box<crate::StrongDigestProjectionError>),
+    DigestMismatch,
     Encode(scoop_wire::cbor::EncodeError),
     Resource(WireError),
     DigestPlan(StrongDigestPlanValidationError),

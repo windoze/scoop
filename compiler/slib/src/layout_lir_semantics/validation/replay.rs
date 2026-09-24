@@ -117,7 +117,6 @@ where
     }
     let (
         external_bridges,
-        digests,
         entry,
         shape_sources,
         initialization_abi,
@@ -147,7 +146,6 @@ where
             target.target(),
             front.foundation,
             external_bridges,
-            digests,
             entry,
             &shape_sources,
             initialization_abi,

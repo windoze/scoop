@@ -175,7 +175,6 @@ fn replay(
         TARGET,
         foundation,
         old.external_bridges().clone(),
-        old.digest_finalization_plan().clone(),
         EntryProductionSourceV1::Library,
         &[],
         old.initialization_cycle_abi().cloned().map(Box::new),

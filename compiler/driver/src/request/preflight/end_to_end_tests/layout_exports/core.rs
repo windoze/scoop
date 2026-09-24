@@ -133,6 +133,11 @@ fn shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contr
     check_core_layout_exports(&["shared-init-abi-standalone", "shared-init-abi-combined"]);
 }
 
+#[test]
+fn shared_strong_digests_replay_complete_runtime_registration_roles() {
+    check_core_layout_exports(&["shared-digests-standalone", "shared-digests-combined"]);
+}
+
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");

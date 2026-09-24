@@ -57,6 +57,7 @@ fn layout_schema_retains_ten_fields_and_the_shared_initialization_payload() {
     .unwrap();
     let bytes = encode(&current).unwrap();
     super::initialization::check(&current);
+    super::digests::check(&current, &foundation);
     assert_eq!(bytes[0], 0xaa);
     assert_initialization_field(&bytes);
     assert_eq!(bytes, encode(&old).unwrap());

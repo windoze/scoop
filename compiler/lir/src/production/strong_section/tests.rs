@@ -11,9 +11,11 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 
 mod complete_image;
+mod digests;
 mod initialization;
 use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
 pub(in crate::production) use complete_image::attach_image;
+pub(in crate::production) use digests::without_image_input;
 
 #[test]
 fn strong_section_has_ten_closed_fields_and_rebuilds_from_authority() {

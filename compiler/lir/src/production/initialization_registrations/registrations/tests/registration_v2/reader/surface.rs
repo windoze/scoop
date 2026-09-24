@@ -95,7 +95,6 @@ fn full_surface_replays_foreign_initialization_and_local_storage_and_callables()
                 LirTargetProfile::DARWIN_AARCH64,
                 &fixture.foundation,
                 external,
-                fixture.digests.clone(),
                 crate::EntryProductionSourceV1::Library,
                 &[],
                 None,

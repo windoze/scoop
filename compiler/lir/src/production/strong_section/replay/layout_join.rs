@@ -109,6 +109,10 @@ impl ValidatedStrongProductionSectionV2 {
         self.replayed.digest_finalization_plan()
     }
 
+    pub fn registration_production(&self) -> &crate::StrongRegistrationProductionSurfaceV2 {
+        self.replayed.section.registration_production()
+    }
+
     pub fn registration_identities(&self) -> &crate::StrongRegistrationIdentitySurfaceV1 {
         self.replayed.registration_identities()
     }

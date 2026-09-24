@@ -12,9 +12,9 @@ pub use view::ReplayedStrongProductionSectionV2;
 impl<I: WireEncode>
     DecodedStrongProductionSection<crate::DecodedStrongRegistrationProductionSurfaceV2, I>
 {
-    /// Replays the whole section using independently reconstructed digest and
-    /// initialization ABI records. Their identities and foundation relations remain
-    /// checked by the existing strong plan constructors. The result must be
+    /// Replays the whole section using the actual foundation and registration
+    /// semantics. Candidate digests are resolved only for the registration
+    /// relation checks, then replaced by the shared canonical projection. The result must be
     /// joined with the complete layout/ABI source and selected closure before
     /// it becomes a production section; this API publishes no such authority.
     #[allow(clippy::too_many_arguments)]
@@ -25,7 +25,6 @@ impl<I: WireEncode>
         target: crate::LirTargetProfile,
         foundation: &OdrFreeLirFoundation,
         expected_external_bridges: StrongExternalLirBridgeSurfaceV1,
-        expected_digests: StrongDigestFinalizationPlanV1,
         entry_source: EntryProductionSourceV1,
         shape_sources: &[SourceDeclarationKey],
         expected_initialization_abi: Option<Box<CallableAbiRecordV1>>,
@@ -34,27 +33,48 @@ impl<I: WireEncode>
         meter: &mut BudgetMeter,
     ) -> Result<ReplayedStrongProductionSectionV2, StrongProductionSectionValidationError> {
         let path = WirePath::root();
+        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
+        let digests = self
+            .digest_finalization_plan
+            .resolve_foundation(foundation, meter)
+            .map_err(|source| {
+                StrongProductionSectionValidationError::DigestReplay(Box::new(source))
+            })?;
         budget::charge_replay(
             foundation,
             direct_dependencies,
-            &expected_digests,
+            &digests,
             shape_sources,
             expected_initialization_abi.as_deref(),
             meter,
         )?;
-        let actual = encode_canonical_temporary_with_meter(&self, meter, &path)?;
         let registrations = self
             .registration_production
             .replay(
                 target,
                 foundation,
-                &expected_digests,
+                &digests,
                 &expected_external_bridges,
                 type_definitions,
                 initialization_definitions,
                 meter,
             )
             .map_err(StrongProductionSectionValidationError::Registrations)?;
+        let expected_digests = crate::replay_strong_digest_finalization_plan_v2(
+            foundation,
+            &registrations.surface,
+            &entry_source,
+            meter,
+        )
+        .map_err(|source| {
+            StrongProductionSectionValidationError::DigestProjection(Box::new(source))
+        })?;
+        let original = encode_canonical_temporary_with_meter(&digests, meter, &path)?;
+        let canonical = encode_canonical_temporary_with_meter(&expected_digests, meter, &path)?;
+        meter.charge_work(original.len().min(canonical.len()) as u64, &path)?;
+        if original != canonical {
+            return Err(StrongProductionSectionValidationError::DigestMismatch);
+        }
         let section = StrongProductionSectionV2::from_parts(
             coordinate,
             direct_dependencies,
@@ -67,7 +87,9 @@ impl<I: WireEncode>
             expected_initialization_abi,
         )
         .map_err(StrongProductionSectionValidationError::Expected)?;
-        if actual != encode_canonical_temporary_with_meter(&section, meter, &path)? {
+        let canonical = encode_canonical_temporary_with_meter(&section, meter, &path)?;
+        meter.charge_work(actual.len().min(canonical.len()) as u64, &path)?;
+        if actual != canonical {
             return Err(StrongProductionSectionValidationError::SectionMismatch);
         }
         Ok(ReplayedStrongProductionSectionV2 { section })

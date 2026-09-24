@@ -4,10 +4,9 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, Validat
 use scoop_lir::{
     CallableAbiRecordV1, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     EntryProductionSourceV1, ExternalShapeLinkImportV1, LayoutAbiExportConstituentsV1,
-    LayoutAbiSectionSourceAuthorityV1, OdrFreeLirFoundation, StrongDigestFinalizationPlanV1,
-    StrongExternalLirBridgeSurfaceV1, StrongInitializationDefinitionCatalogV2,
-    StrongTypeReferenceDefinitionsV2, ValidatedLirTargetSelection,
-    ValidatedStrongProductionSectionV2,
+    LayoutAbiSectionSourceAuthorityV1, OdrFreeLirFoundation, StrongExternalLirBridgeSurfaceV1,
+    StrongInitializationDefinitionCatalogV2, StrongTypeReferenceDefinitionsV2,
+    ValidatedLirTargetSelection, ValidatedStrongProductionSectionV2,
 };
 
 use crate::CheckedCrossConeLayoutMirProviderV1;
@@ -16,7 +15,6 @@ use crate::CheckedCrossConeLayoutMirProviderV1;
 /// section. Every field is required; a candidate section cannot fill gaps.
 pub struct LayoutLirStrongReplayAuthorityV2 {
     external_bridges: StrongExternalLirBridgeSurfaceV1,
-    digests: StrongDigestFinalizationPlanV1,
     entry: EntryProductionSourceV1,
     shape_sources: Vec<SourceDeclarationKey>,
     initialization_abi: Option<Box<CallableAbiRecordV1>>,
@@ -28,7 +26,6 @@ impl LayoutLirStrongReplayAuthorityV2 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         external_bridges: StrongExternalLirBridgeSurfaceV1,
-        digests: StrongDigestFinalizationPlanV1,
         entry: EntryProductionSourceV1,
         shape_sources: Vec<SourceDeclarationKey>,
         initialization_abi: Option<Box<CallableAbiRecordV1>>,
@@ -37,7 +34,6 @@ impl LayoutLirStrongReplayAuthorityV2 {
     ) -> Self {
         Self {
             external_bridges,
-            digests,
             entry,
             shape_sources,
             initialization_abi,
@@ -50,7 +46,6 @@ impl LayoutLirStrongReplayAuthorityV2 {
         self,
     ) -> (
         StrongExternalLirBridgeSurfaceV1,
-        StrongDigestFinalizationPlanV1,
         EntryProductionSourceV1,
         Vec<SourceDeclarationKey>,
         Option<Box<CallableAbiRecordV1>>,
@@ -59,7 +54,6 @@ impl LayoutLirStrongReplayAuthorityV2 {
     ) {
         (
             self.external_bridges,
-            self.digests,
             self.entry,
             self.shape_sources,
             self.initialization_abi,

@@ -12,6 +12,7 @@ mod private_types;
 mod rejections;
 mod shared_abis;
 mod shared_descriptors;
+mod shared_digests;
 mod shared_dispatch;
 mod shared_initialization;
 mod shared_layouts;

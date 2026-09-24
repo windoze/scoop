@@ -210,7 +210,6 @@ fn exercise_dependency_production(provider: Provider) {
             TARGET,
             output.foundation(),
             section.external_bridges().clone(),
-            section.digest_finalization_plan().clone(),
             EntryProductionSourceV1::Library,
             &[],
             None,

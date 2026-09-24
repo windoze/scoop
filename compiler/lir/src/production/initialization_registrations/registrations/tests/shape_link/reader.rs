@@ -104,7 +104,6 @@ fn replay(fixture: &ProviderFixture) -> ReplayedStrongProductionSectionV2 {
         TARGET,
         &fixture.source.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(producer, Vec::new()).unwrap(),
-        fixture.source.digests.clone(),
         EntryProductionSourceV1::Library,
         &[],
         None,

@@ -1,0 +1,6 @@
+Layout: nodes=92 inputs=0 patches=94
+Scan: nodes=4 inputs=0 patches=6
+ObjectDefinition: nodes=507 inputs=152 patches=159
+StackmapRecord: nodes=152 inputs=0 patches=152
+StrongRegistration: nodes=328 inputs=760 patches=328
+RuntimeImage: nodes=1 inputs=328 patches=1

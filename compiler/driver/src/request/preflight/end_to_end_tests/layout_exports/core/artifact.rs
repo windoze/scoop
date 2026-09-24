@@ -35,6 +35,7 @@ pub(super) fn check(
     let ordinary =
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
     shared_ordinary::check(name, input, &foundation, lir, layout, &ordinary);
+    shared_digests::check(name, lir.foundation(), objects.production());
     shared_initialization::check(
         name,
         input.mir.production(),

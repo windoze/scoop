@@ -176,7 +176,6 @@ impl LayoutLirSourceAuthorityFactoryV1 for RecordingLirFactory {
         let mut meter = meter();
         let strong = LayoutLirStrongReplayAuthorityV2::new(
             production.external_bridges().clone(),
-            production.digest_finalization_plan().clone(),
             EntryProductionSourceV1::Library,
             Vec::new(),
             production.initialization_cycle_abi().cloned().map(Box::new),

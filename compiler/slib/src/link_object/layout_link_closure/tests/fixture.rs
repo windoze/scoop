@@ -130,7 +130,6 @@ impl Provider {
                 TARGET,
                 &foundation,
                 external,
-                digests,
                 EntryProductionSourceV1::Library,
                 &[],
                 None,

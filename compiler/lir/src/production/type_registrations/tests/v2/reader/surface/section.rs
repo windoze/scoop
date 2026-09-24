@@ -46,7 +46,6 @@ fn replay_section(
         crate::LirTargetProfile::DARWIN_AARCH64,
         &fixture.foundation,
         StrongExternalLirBridgeSurfaceV1::try_new(ConeIdentity::SINGLE_FILE, Vec::new()).unwrap(),
-        fixture.digests.clone(),
         EntryProductionSourceV1::Library,
         &[],
         None,
@@ -148,6 +147,20 @@ fn ten_field_section_replay_uses_one_cumulative_budget() {
     assert!(matches!(
         replay_section(&fixture, &bytes, &definitions, &mut shared),
         Err(SectionError::Resource(_))
+    ));
+}
+
+#[test]
+fn ten_field_section_rejects_a_valid_digest_graph_missing_a_registration_input() {
+    let fixture = complete_fixture();
+    let bytes = crate::production::strong_section::tests::without_image_input(
+        &section(&fixture),
+        &fixture.foundation,
+    );
+    let definitions = catalog(&semantics(&fixture, Some(ConeIdentity::CORE)));
+    assert!(matches!(
+        replay_section(&fixture, &bytes, &definitions, &mut meter()),
+        Err(SectionError::DigestMismatch)
     ));
 }
 
