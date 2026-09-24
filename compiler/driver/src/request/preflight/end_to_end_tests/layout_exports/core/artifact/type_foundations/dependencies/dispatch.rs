@@ -89,7 +89,7 @@ pub(super) fn check(
         Err(hir::NominalDispatchOrderResolutionError::Order(hir::NominalDispatchOrderError::DuplicateSlot(actual))) if actual == slot));
 }
 
-fn reject_section(
+pub(super) fn reject_section(
     checked: CheckedSharedTypeFoundationV1<'_>,
     core: CheckedSharedTypeFoundationV1<'_>,
     records: Vec<NominalInheritanceInterfaceV1>,

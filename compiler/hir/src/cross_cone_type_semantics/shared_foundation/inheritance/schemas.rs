@@ -13,10 +13,12 @@ use scoop_identity::{
 mod classes;
 mod declarations;
 mod keys;
+mod slots;
 
 pub(super) fn validate(
     current: CheckedSharedTypeFoundationV1<'_>,
     dependencies: &[CheckedSharedTypeFoundationV1<'_>],
+    sources: &Context<'_>,
     graph: &CheckedNominalInheritanceGraphV1<'_>,
     meter: &mut BudgetMeter,
 ) -> Result<(), Error> {
@@ -30,7 +32,7 @@ pub(super) fn validate(
             .validate_slot_schemas(*owner, &context, meter)
             .map_err(|error| Error::SlotSchemas(Box::new(error)))?;
     }
-    Ok(())
+    slots::validate(current, dependencies, sources, &mut context, graph, meter)
 }
 
 #[derive(Default)]

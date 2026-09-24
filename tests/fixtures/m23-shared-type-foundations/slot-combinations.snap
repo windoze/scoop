@@ -1,0 +1,39 @@
+Choice Root.evaluate -> concrete Choice.evaluate
+Choice Root.value.get -> default Root.value.get
+Complete Obligation.evaluate -> concrete Complete.evaluate
+Complete Refined.evaluate -> concrete Complete.evaluate
+Complete Root.evaluate -> concrete Complete.evaluate
+Complete Root.value.get -> default Root.value.get
+Final Virtual.compute -> concrete Final.compute
+MutableRoot MutableRoot.size.get -> default MutableRoot.size.get
+MutableRoot MutableRoot.size.set -> default MutableRoot.size.set
+MutableSpecific MutableSpecific.size.get -> default MutableSpecific.size.get
+MutableSpecific MutableSpecific.size.set -> default MutableSpecific.size.set
+MutableWinner MutableRoot.size.get -> concrete MutableWinner.size.get
+MutableWinner MutableRoot.size.set -> concrete MutableWinner.size.set
+MutableWinner MutableSpecific.size.get -> concrete MutableWinner.size.get
+MutableWinner MutableSpecific.size.set -> concrete MutableWinner.size.set
+Obligation Obligation.evaluate -> abstract
+Obligation Root.value.get -> default Root.value.get
+Pending Obligation.evaluate -> abstract
+Pending Refined.evaluate -> abstract
+Pending Root.evaluate -> abstract
+Pending Root.value.get -> default Root.value.get
+Reabstract Virtual.compute -> abstract
+Refined Refined.evaluate -> default Refined.evaluate
+Refined Root.value.get -> default Root.value.get
+Root Root.evaluate -> default Root.evaluate
+Root Root.value.get -> default Root.value.get
+Singleton Refined.evaluate -> concrete Winner.evaluate
+Singleton Root.evaluate -> concrete Winner.evaluate
+Singleton Root.value.get -> concrete Winner.value.get
+Singleton Winner.evaluate -> concrete Winner.evaluate
+Singleton Winner.value.get -> concrete Winner.value.get
+Value Root.evaluate -> concrete Value.evaluate
+Value Root.value.get -> default Root.value.get
+Virtual Virtual.compute -> concrete Virtual.compute
+Winner Refined.evaluate -> concrete Winner.evaluate
+Winner Root.evaluate -> concrete Winner.evaluate
+Winner Root.value.get -> concrete Winner.value.get
+Winner Winner.evaluate -> concrete Winner.evaluate
+Winner Winner.value.get -> concrete Winner.value.get

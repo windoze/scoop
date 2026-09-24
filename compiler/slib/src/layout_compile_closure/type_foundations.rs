@@ -11,8 +11,8 @@ use super::{HirDeclarationsValidatedCrossConeLayoutClosure, reachability::transi
 
 impl HirDeclarationsValidatedCrossConeLayoutClosure<'_> {
     /// Borrows checked records from the artifacts themselves. Fact,
-    /// representation, inheritance-graph and nominal-domain replay share the
-    /// original artifact budget; slot/default/selected joins remain pending.
+    /// representation, inheritance, slot and default replay share the original
+    /// artifact budget. The complete selected-use join remains pending.
     pub fn validate_type_foundations(
         &mut self,
     ) -> Result<Vec<CheckedSharedTypeFoundationV1<'_>>, CrossConeLayoutTypeFoundationError> {

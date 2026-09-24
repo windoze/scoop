@@ -81,7 +81,7 @@ impl CheckedSharedTypeFoundationV1<'_> {
                 members::validate(provider, declaration, record, &context, meter)?;
             }
         }
-        schemas::validate(self, dependencies, &graph, meter)?;
+        schemas::validate(self, dependencies, &context, &graph, meter)?;
         for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
             provider
                 .section

@@ -8,6 +8,7 @@ mod defaults;
 mod dispatch;
 mod protected;
 mod protocols;
+mod selections;
 use decoded::DecodedTypes;
 
 pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
@@ -80,6 +81,7 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     constructors::check(core, directory.path(), &target, &fixtures);
     dispatch::check(core, directory.path(), &target, &fixtures);
+    selections::check(core, directory.path(), &target, &fixtures);
     protected::check(core, directory.path(), &target, &fixtures);
     protocols::check(core, directory.path(), &target, &fixtures);
     defaults::check(core, directory.path(), &target, &fixtures);
