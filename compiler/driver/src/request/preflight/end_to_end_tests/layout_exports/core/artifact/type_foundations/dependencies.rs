@@ -6,6 +6,7 @@ mod constructors;
 mod decoded;
 mod dispatch;
 mod protected;
+mod protocols;
 use decoded::DecodedTypes;
 
 pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
@@ -79,6 +80,7 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     constructors::check(core, directory.path(), &target, &fixtures);
     dispatch::check(core, directory.path(), &target, &fixtures);
     protected::check(core, directory.path(), &target, &fixtures);
+    protocols::check(core, directory.path(), &target, &fixtures);
 }
 
 fn lower(

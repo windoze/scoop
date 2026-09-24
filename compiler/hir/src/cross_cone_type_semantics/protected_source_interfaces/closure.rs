@@ -8,6 +8,7 @@ use scoop_wire::{BudgetMeter, WirePath};
 
 mod collect;
 mod errors;
+mod shared;
 mod source;
 pub use errors::*;
 
@@ -85,7 +86,7 @@ impl CanonicalProtectedCallableSourceInterfacesV1 {
         A: ProtectedSourceProtocolSemanticAuthority<E>,
     {
         use ProtectedSourceClosureError as Error;
-        let sources = collect::sources(protected, inheritance, meter)?;
+        let sources = collect::sources(protected.table(), inheritance.table(), meter)?;
         meter
             .charge_work(
                 (sources.len() as u64 + self.records().len() as u64).saturating_mul(64),

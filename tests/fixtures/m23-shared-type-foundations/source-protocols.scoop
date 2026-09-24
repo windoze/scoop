@@ -1,0 +1,27 @@
+package dependency.sourceProtocols
+
+public interface Bound {}
+public fun exported(): Int = 0
+public open class Envelope protected constructor(seed: Int = 1) {
+    protected fun none(): Int = 1
+    protected fun paired(left: Int, right: Long): Int = left
+    protected fun parameters(required: Int, optional: Int = 2): Int = required
+    protected fun <T> generic(value: T): T = value
+    protected class Box<T> private constructor(private val stored: T, count: Int = 2) {
+        public constructor(value: T): this(value, 3) {}
+        internal fun <U : Bound> combine(value: T, other: U, count: Int = 1): T = value
+        private fun hidden(value: Int = 3): Int = value
+        public class Static public constructor(value: Int = 5)
+    }
+    protected enum Choice<T> {
+        Empty,
+        Value(val item: T, val count: Int = 1)
+    }
+}
+public class Defaults public constructor(first: Int, second: Int = first)
+public open class Base {
+    protected open fun inherited(value: Int = 4): Int = value
+}
+public class Derived : Base() {
+    protected override fun inherited(value: Int): Int = value
+}

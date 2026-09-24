@@ -1,22 +1,23 @@
 use super::{source::Source, *};
 use crate::{
+    CanonicalNominalInheritanceInterfacesV1, CanonicalProtectedDeclarationInterfacesV1,
     NestedSourceSupportV1, ProtectedDeclarationInterfaceV1, ProtectedNestedSourceInterfaceV1,
 };
 
 pub(super) fn sources<'a, E>(
-    protected: CheckedProtectedDeclarationSourcesV1<'a>,
-    inheritance: CheckedNominalInheritanceInterfacesV1<'a>,
+    protected: &'a CanonicalProtectedDeclarationInterfacesV1,
+    inheritance: &'a CanonicalNominalInheritanceInterfacesV1,
     meter: &mut BudgetMeter,
 ) -> Result<Vec<Source<'a>>, ProtectedSourceClosureError<E>> {
     use ProtectedSourceClosureError as Error;
     let path = WirePath::root();
     let mut records = Vec::new();
     let mut pending: Vec<(&ProtectedNestedSourceInterfaceV1, u64)> = Vec::new();
-    reserve(&mut records, protected.table().records().len(), meter)?;
+    reserve(&mut records, protected.records().len(), meter)?;
     meter
-        .try_reserve_collection_slots(&mut pending, protected.table().records().len(), &path)
+        .try_reserve_collection_slots(&mut pending, protected.records().len(), &path)
         .map_err(Error::Resource)?;
-    for record in protected.table().records() {
+    for record in protected.records() {
         meter.charge_nodes(1, &path).map_err(Error::Resource)?;
         match record {
             ProtectedDeclarationInterfaceV1::Callable(record) => {
@@ -31,7 +32,7 @@ pub(super) fn sources<'a, E>(
             }
         }
     }
-    for owner in inheritance.table().records() {
+    for owner in inheritance.records() {
         meter.charge_nodes(1, &path).map_err(Error::Resource)?;
         reserve(&mut records, owner.constructors().records().len(), meter)?;
         for constructor in owner.constructors().records() {

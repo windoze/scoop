@@ -81,6 +81,12 @@ impl CheckedSharedTypeFoundationV1<'_> {
             }
         }
         schemas::validate(self, dependencies, &graph, meter)?;
+        for provider in std::iter::once(self).chain(dependencies.iter().copied()) {
+            provider
+                .section
+                .protected_source_interfaces()
+                .validate_shared_declarations(provider.section, provider.metadata, meter)?;
+        }
         Ok(use_graph(&graph, meter))
     }
 }

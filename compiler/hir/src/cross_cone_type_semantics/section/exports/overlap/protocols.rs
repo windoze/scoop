@@ -50,6 +50,17 @@ pub(super) fn equal(
     Ok(true)
 }
 
+impl ProtectedCallableSourceInterfaceV1 {
+    pub(in crate::cross_cone_type_semantics) fn matches_shared_interface(
+        &self,
+        shared: &CallableSourceInterfaceV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<bool, WireError> {
+        equal(self, shared, meter, path)
+    }
+}
+
 fn calling(
     new: &ProtectedParameterCallingV1,
     old: &CallableParameterCallingV1,
