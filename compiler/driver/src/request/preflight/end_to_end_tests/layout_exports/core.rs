@@ -183,12 +183,6 @@ fn check_core_layout_exports(names: &[&str]) {
             &world,
         )
         .unwrap();
-        let source = scoop_hir_lower::produce_cross_cone_type_semantics(
-            &hir.hir,
-            &hir.cross_cone_section,
-            &mut meter(),
-        )
-        .unwrap();
         let mir = hir
             .machine_input()
             .lower_selected_mir(mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
@@ -211,6 +205,22 @@ fn check_core_layout_exports(names: &[&str]) {
         )
         .unwrap();
         let identities = identity_graph(&hir.hir, &mir.strong, Some(&lir));
+        let foundation = hir::OdrFreeHirFoundation::try_new(
+            hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
+        )
+        .unwrap();
+        let source = scoop_hir_lower::produce_cross_cone_type_semantics(
+            &hir.hir,
+            hir::SharedTypeMetadataV1 {
+                provider: hir.hir.output().export.cone,
+                identities: &identities,
+                foundation: &foundation,
+                public: &hir.cross_cone_section,
+            },
+            &[],
+            &mut meter(),
+        )
+        .unwrap();
         let mir_input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
             hir: &hir.hir,
             public: &hir.cross_cone_section,

@@ -18,6 +18,9 @@ pub enum SharedTypeMetadataError {
     MissingProvider(ConeIdentity),
     DuplicateProvider(ConeIdentity),
     CurrentProviderDependency(ConeIdentity),
+    TypeUseRelations(Box<crate::HirDependencyTypeRelationError>),
+    TypeUseInventory,
+    SourceOnlyNominal(PersistentTypeId),
     MissingNominal(PersistentTypeId),
     MissingFact(PersistentExactTypeId),
     ForeignFact(PersistentExactTypeId),
@@ -81,6 +84,12 @@ impl From<WireError> for SharedTypeMetadataError {
 impl From<IdentityReferenceError> for SharedTypeMetadataError {
     fn from(error: IdentityReferenceError) -> Self {
         Self::Identity(error)
+    }
+}
+
+impl From<NominalMaterializationClosureError> for SharedTypeMetadataError {
+    fn from(error: NominalMaterializationClosureError) -> Self {
+        Self::Materialization(error)
     }
 }
 

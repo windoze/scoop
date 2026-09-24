@@ -34,11 +34,18 @@ pub(super) struct ConcreteNominal<'a> {
 
 pub(super) fn produce(
     output: &DependencyHirOutput,
-    public: &CrossConeHirInterfaceSectionV1,
+    metadata: SharedTypeMetadataV1<'_>,
+    dependencies: &[SharedTypeMetadataV1<'_>],
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<CrossConeTypeSemanticsProductionV1, Error> {
     let export = output.output().export.module();
     let local = output.output().local.module();
+    let public = metadata.public;
+    if metadata.provider != export.cone {
+        return Err(Error::PublicInterface(
+            "shared metadata has a different provider".into(),
+        ));
+    }
     let source_foundation::Projection {
         concrete,
         root_exacts,
@@ -165,12 +172,9 @@ pub(super) fn produce(
         protected_sources,
         protected_defaults,
         definition_sources,
-        CanonicalSelectedExternalTypeUsesV1::try_new(Vec::new()).map_err(|error| {
-            Error::InvalidTable {
-                table: "selected-external-type-use",
-                reason: error.to_string(),
-            }
-        })?,
+        metadata
+            .materialized_type_uses(dependencies, meter)
+            .map_err(|error| Error::SharedTypeMetadata(Box::new(error)))?,
     );
     Ok(CrossConeTypeSemanticsProductionV1 {
         section,

@@ -124,12 +124,8 @@ fn produced_dispatch_is_deterministic_and_obeys_resource_limits() {
                 },
             ] {
                 assert!(
-                    crate::produce_cross_cone_type_semantics(
-                        output,
-                        &public,
-                        &mut BudgetMeter::new(limits)
-                    )
-                    .is_err()
+                    produce_type_semantics_metered(output, &public, &mut BudgetMeter::new(limits))
+                        .is_err()
                 );
             }
             let production = produce_cross_cone_type_semantics(output, &public).unwrap();

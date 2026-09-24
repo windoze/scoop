@@ -53,12 +53,6 @@ pub(super) fn with_inspection(
         &world,
     )
     .unwrap();
-    let source = scoop_hir_lower::produce_cross_cone_type_semantics(
-        &hir.hir,
-        &hir.cross_cone_section,
-        &mut meter(),
-    )
-    .unwrap();
     let selected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();
@@ -119,6 +113,28 @@ pub(super) fn with_inspection(
     )
     .unwrap();
     let (graph, core_lir, core_hir) = identities(&hir.hir, &mir.strong, Some(&lir), &front);
+    let foundation = hir::OdrFreeHirFoundation::try_new(
+        hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
+    )
+    .unwrap();
+    let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
+    let source = scoop_hir_lower::produce_cross_cone_type_semantics(
+        &hir.hir,
+        hir::SharedTypeMetadataV1 {
+            provider: mir.strong.module().cone,
+            identities: &graph,
+            foundation: &foundation,
+            public: &hir.cross_cone_section,
+        },
+        &[hir::SharedTypeMetadataV1 {
+            provider: core.identity(),
+            identities: &graph,
+            foundation: &core_hir,
+            public: core.production().hir_interface(),
+        }],
+        &mut meter(),
+    )
+    .unwrap();
     let types = dependencies::mir_types(&mir.strong, &graph);
     let input = scoop_mir_lower::MirTypeBridgeExportInputV1 {
         hir: &hir.hir,
@@ -196,11 +212,6 @@ pub(super) fn with_inspection(
         callables: &[],
     };
     source_contracts::check(input, dependencies);
-    let foundation = hir::OdrFreeHirFoundation::try_new(
-        hir::CanonicalHirFoundation::from_type_semantics_output(&hir.hir).unwrap(),
-    )
-    .unwrap();
-    let core = closure.direct_provider(ConeIdentity::CORE).unwrap();
     shared_ordinary::check_dependency_uses(
         hir::SharedTypeMetadataV1 {
             provider: input.mir.module().cone,

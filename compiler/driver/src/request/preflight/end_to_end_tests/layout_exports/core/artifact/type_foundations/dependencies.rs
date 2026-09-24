@@ -26,6 +26,8 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     );
     let provider = lower(directory.path(), &target, &provider_root, vec![], &[core]);
     let checked_provider = provider.check(&[core]).unwrap();
+    assert!(!checked_provider.section().selected().records().is_empty());
+    super::type_uses::check(checked_provider, &[core]);
 
     checked_provider
         .with_inheritance_graph(&[core], &mut meter(), |graph, _| {

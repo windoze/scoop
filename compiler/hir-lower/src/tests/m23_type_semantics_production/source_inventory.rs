@@ -240,7 +240,7 @@ fn producer_rejects_exhausted_source_inventory_budget() {
     let output = lower_public_nominals();
     let public = public_interface(&output);
     assert!(matches!(
-        crate::produce_cross_cone_type_semantics(
+        produce_type_semantics_metered(
             &output,
             &public,
             &mut BudgetMeter::new(DecodeLimits {

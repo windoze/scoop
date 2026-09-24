@@ -13,11 +13,13 @@ use scoop_identity::{
 
 pub(super) mod dependencies;
 mod inheritance;
+mod type_uses;
 
 pub(super) fn check(checked: CheckedSharedTypeFoundationV1<'_>) {
     facts(checked);
     representations(checked);
     inheritance::check(checked);
+    type_uses::check(checked, &[]);
     let mut exhausted = scoop_wire::BudgetMeter::new(DecodeLimits {
         validation_work_units: 0,
         ..DecodeLimits::default()

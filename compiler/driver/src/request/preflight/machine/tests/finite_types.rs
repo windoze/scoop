@@ -22,15 +22,11 @@ fn with_production<R>(
     let sources = sources::core_sources_with(&[("src/finite-types.scoop", source)]);
     let hir = super::super::super::TrustedCoreBootstrapHirOutput::lower(&sources).unwrap();
     let input = hir.machine_input();
-    let source = scoop_hir_lower::produce_cross_cone_type_semantics(
-        input.output,
-        input.public,
-        &mut BudgetMeter::new(DecodeLimits::default()),
+    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
+        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
     )
     .unwrap();
-    let hir_foundation: scoop_hir::DecodedHirFoundation = decoded(
-        &scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
-    );
+    let hir_foundation: scoop_hir::DecodedHirFoundation = decoded(source_foundation.as_canonical());
     let mir = input
         .lower_selected_mir(scoop_mir::SelectedExternalMirSet::empty(ConeIdentity::CORE))
         .unwrap();
@@ -43,6 +39,19 @@ fn with_production<R>(
     hir_foundation.resolve_identities(&mut pending).unwrap();
     mir_foundation.resolve_identities(&mut pending).unwrap();
     let mut graph = pending.finish().unwrap();
+    let input = hir.machine_input();
+    let source = scoop_hir_lower::produce_cross_cone_type_semantics(
+        input.output,
+        scoop_hir::SharedTypeMetadataV1 {
+            provider: input.output.output().export.cone,
+            identities: &graph,
+            foundation: &source_foundation,
+            public: input.public,
+        },
+        &[],
+        &mut BudgetMeter::new(DecodeLimits::default()),
+    )
+    .unwrap();
     let sources = scoop_mir_lower::lower_source_type_exports(
         &source,
         &mir.strong,

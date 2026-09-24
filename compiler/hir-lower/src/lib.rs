@@ -413,10 +413,16 @@ pub(crate) fn lower_core_bootstrap(
 /// the driver must retain for semantic sealing.
 pub fn produce_cross_cone_type_semantics(
     output: &hir::DependencyHirOutput,
-    public: &hir::CrossConeHirInterfaceSectionV1,
+    metadata: hir::SharedTypeMetadataV1<'_>,
+    dependencies: &[hir::SharedTypeMetadataV1<'_>],
     meter: &mut scoop_wire::BudgetMeter,
 ) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, public, meter)
+    hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(
+        output,
+        metadata,
+        dependencies,
+        meter,
+    )
 }
 
 fn finish_output(

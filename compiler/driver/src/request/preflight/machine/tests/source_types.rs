@@ -9,9 +9,31 @@ fn actual_core_type_surface_keeps_generic_inheritance_source_only() {
     let hir = super::super::super::TrustedCoreBootstrapHirOutput::lower(&sources).unwrap();
     let input = hir.machine_input();
     let mut meter = BudgetMeter::new(DecodeLimits::default());
+    let source_foundation = scoop_hir::OdrFreeHirFoundation::try_new(
+        scoop_hir::CanonicalHirFoundation::from_type_semantics_output(input.output).unwrap(),
+    )
+    .unwrap();
+    let decoded: scoop_hir::DecodedHirFoundation = scoop_wire::decode_canonical(
+        &scoop_wire::encode(source_foundation.as_canonical()).unwrap(),
+        DecodeLimits::default(),
+    )
+    .unwrap();
+    let mut pending = scoop_identity::PendingIdentityValidation::new();
+    pending
+        .register_authority(input.output.output().export.cone)
+        .unwrap();
+    decoded.register_identities(&mut pending).unwrap();
+    decoded.resolve_identities(&mut pending).unwrap();
+    let identities = pending.finish().unwrap();
     let production = scoop_hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(
         input.output,
-        input.public,
+        scoop_hir::SharedTypeMetadataV1 {
+            provider: input.output.output().export.cone,
+            identities: &identities,
+            foundation: &source_foundation,
+            public: input.public,
+        },
+        &[],
         &mut meter,
     )
     .unwrap();

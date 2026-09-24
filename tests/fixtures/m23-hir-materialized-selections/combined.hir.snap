@@ -1,0 +1,17 @@
+Representation Any provider=dependency
+Representation Boolean provider=dependency
+Representation Hash provider=dependency
+Representation Int provider=dependency
+Representation Int8 provider=dependency
+Representation Long provider=dependency
+Representation String provider=dependency
+Representation ToString provider=dependency
+Representation Unit provider=dependency
+Signature Any provider=dependency
+Signature Boolean provider=dependency
+Signature Int provider=dependency
+Signature Int8 provider=dependency
+Signature Long provider=dependency
+Signature String provider=dependency
+Signature Unit provider=dependency
+TypeTest String provider=dependency

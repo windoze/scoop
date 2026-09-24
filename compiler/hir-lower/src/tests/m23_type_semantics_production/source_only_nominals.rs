@@ -187,20 +187,14 @@ fn source_only_projection_keeps_one_resource_budget_across_calls() {
     with_hir_source(COMBINED, |output, _| {
         let public = public_interface(output);
         let mut first = meter();
-        hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, &public, &mut first)
-            .unwrap();
+        produce_type_semantics_metered(output, &public, &mut first).unwrap();
         let mut shared = BudgetMeter::new(DecodeLimits {
             validation_work_units: first.usage().validation_work_units,
             ..DecodeLimits::default()
         });
-        hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(output, &public, &mut shared)
-            .unwrap();
+        produce_type_semantics_metered(output, &public, &mut shared).unwrap();
         assert!(matches!(
-            hir::CrossConeTypeSemanticsProductionV1::from_dependency_hir(
-                output,
-                &public,
-                &mut shared
-            ),
+            produce_type_semantics_metered(output, &public, &mut shared),
             Err(hir::CrossConeTypeSemanticsProductionError::SourceInventory(
                 hir::SourceInventoryError::Resource(_)
             ))

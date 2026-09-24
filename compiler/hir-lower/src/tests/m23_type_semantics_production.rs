@@ -60,16 +60,9 @@ mod source_properties;
 mod source_protected_callables;
 mod source_shapes;
 
-fn produce_cross_cone_type_semantics(
-    output: &hir::DependencyHirOutput,
-    public: &hir::CrossConeHirInterfaceSectionV1,
-) -> Result<hir::CrossConeTypeSemanticsProductionV1, hir::CrossConeTypeSemanticsProductionError> {
-    crate::produce_cross_cone_type_semantics(
-        output,
-        public,
-        &mut BudgetMeter::new(DecodeLimits::default()),
-    )
-}
+mod materialized_selections;
+mod production;
+use production::{produce_cross_cone_type_semantics, produce_type_semantics_metered};
 
 struct FactShapes(BTreeMap<PersistentExactTypeId, hir::ExactTypeFactShapeV1>);
 
@@ -160,7 +153,7 @@ fn producer_uses_real_ordinary_hir_for_param_free_nominals() {
     assert_eq!(section.exact_facts().records().len(), 7);
     assert_eq!(production.dependency_facts().len(), 1);
     assert!(!section.definition_sources().is_empty());
-    assert!(section.selected().records().is_empty());
+    assert!(!section.selected().records().is_empty());
     assert!(section.protected_declarations().records().is_empty());
     assert_eq!(section.protected_source_interfaces().records().len(), 4);
     assert!(section.protected_defaults().records().is_empty());

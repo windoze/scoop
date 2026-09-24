@@ -18,6 +18,7 @@ mod keys;
 mod object_initialization;
 mod requirements;
 mod sources;
+mod type_uses;
 use SharedTypeMetadataError as Error;
 pub use errors::SharedTypeMetadataError;
 pub(crate) use sources::declaration_access;

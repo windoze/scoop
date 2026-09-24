@@ -24,12 +24,6 @@ impl DecodedTypes {
         coordinate: &ConeCoordinate,
         dependencies: &[CheckedSharedTypeFoundationV1<'_>],
     ) -> Self {
-        let source = scoop_hir_lower::produce_cross_cone_type_semantics(
-            &input.hir,
-            &input.cross_cone_section,
-            &mut meter(),
-        )
-        .unwrap();
         let provider = input.hir.output().export.module().cone;
         let mut foundation =
             hir::CanonicalHirFoundation::from_type_semantics_output(&input.hir).unwrap();
@@ -62,6 +56,21 @@ impl DecodedTypes {
         let public = public
             .resolve_metered(&mut identities, &mut meter())
             .unwrap();
+        let source = scoop_hir_lower::produce_cross_cone_type_semantics(
+            &input.hir,
+            hir::SharedTypeMetadataV1 {
+                provider,
+                identities: &identities,
+                foundation: &foundation,
+                public: &public,
+            },
+            &dependencies
+                .iter()
+                .map(|dependency| dependency.metadata())
+                .collect::<Vec<_>>(),
+            &mut meter(),
+        )
+        .unwrap();
         let types: hir::DecodedCrossConeTypeSemanticsSectionV1 =
             decoded(&source.section().index_for_wire(&mut meter()).unwrap());
         let types = types

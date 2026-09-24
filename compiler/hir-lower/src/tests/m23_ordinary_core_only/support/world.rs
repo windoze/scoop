@@ -4,6 +4,10 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticOriginFingerprint};
 use super::TrustedCoreFixture;
 
 impl TrustedCoreFixture {
+    pub(crate) fn general_interface(&self) -> &hir::CrossConeHirInterfaceSectionV1 {
+        &self.general_interface
+    }
+
     pub(crate) fn world(&self, current: ConeIdentity) -> hir::ImportedSemanticWorld<'_> {
         hir::ImportedSemanticWorld::from_validated_closure(
             current,

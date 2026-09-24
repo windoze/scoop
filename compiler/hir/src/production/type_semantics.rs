@@ -5,9 +5,8 @@ use std::fmt;
 use scoop_identity::PersistentExactTypeId;
 
 use crate::{
-    CanonicalPersistentIdsV1, CrossConeHirInterfaceSectionV1, CrossConeTypeSemanticsSectionV1,
-    DependencyHirOutput, ExactTypeFactShapeV1, NominalInheritanceEdgesV1, SourceNominalId,
-    TypeSectionDependencyFactV1,
+    CanonicalPersistentIdsV1, CrossConeTypeSemanticsSectionV1, DependencyHirOutput,
+    ExactTypeFactShapeV1, NominalInheritanceEdgesV1, SourceNominalId, TypeSectionDependencyFactV1,
 };
 
 mod authority;
@@ -51,14 +50,15 @@ impl CrossConeTypeSemanticsProductionV1 {
     /// Members, slots and default bodies share the resolved source projection.
     /// Declarations with generic machine dependencies remain source-only;
     /// closed nominal roots retain complete representation and inheritance.
-    /// Actual generic materialization still requires M23-7. Narrow selections
-    /// remain in their existing partition and do not populate field 8.
+    /// Actual generic materialization still requires M23-7. Type requirements
+    /// use the same shared declaration metadata as the Compile reader.
     pub fn from_dependency_hir(
         output: &DependencyHirOutput,
-        public: &CrossConeHirInterfaceSectionV1,
+        metadata: crate::SharedTypeMetadataV1<'_>,
+        dependencies: &[crate::SharedTypeMetadataV1<'_>],
         meter: &mut scoop_wire::BudgetMeter,
     ) -> Result<Self, CrossConeTypeSemanticsProductionError> {
-        nominals::produce(output, public, meter)
+        nominals::produce(output, metadata, dependencies, meter)
     }
 
     pub const fn section(&self) -> &CrossConeTypeSemanticsSectionV1 {
@@ -172,6 +172,7 @@ pub enum TypeSemanticsNominalKind {
 #[derive(Debug)]
 pub enum CrossConeTypeSemanticsProductionError {
     SourceInventory(crate::SourceInventoryError),
+    SharedTypeMetadata(Box<crate::SharedTypeMetadataError>),
     PublicInterface(String),
     MissingNominalIdentity {
         kind: TypeSemanticsNominalKind,
@@ -216,6 +217,7 @@ impl fmt::Display for CrossConeTypeSemanticsProductionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SourceInventory(error) => error.fmt(f),
+            Self::SharedTypeMetadata(error) => error.fmt(f),
             Self::PublicInterface(reason) => {
                 write!(f, "cannot project the public interface: {reason}")
             }

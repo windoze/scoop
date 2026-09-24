@@ -1,0 +1,20 @@
+public interface Reader {
+    public fun read(): String
+}
+public open class Base {
+    private val marker: Int8 = 1
+    protected open fun echo(value: Boolean): String = "base"
+}
+public class Item(val count: Int): Base(), Reader {
+    public override fun read(): String = "item"
+}
+public enum Message {
+    Empty,
+    Text(String),
+    Marker(Int8)
+}
+public var storage: String = "storage"
+public fun inspect(value: Any): Boolean = value is String
+public struct Generic<T>(val value: T)
+public struct Deferred(val value: Generic<Long>)
+public fun <T> dormant(value: T, fallback: ULong = 1u): T = value

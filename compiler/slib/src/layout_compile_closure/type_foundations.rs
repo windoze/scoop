@@ -60,6 +60,7 @@ fn validate_provider<'a>(
     providers.extend(reachable.iter().map(|position| checked[*position]));
     let checked = types.validate_shared_foundation(input, &providers, meter)?;
     checked.with_inheritance_graph(&providers, meter, |_, _| ())?;
+    checked.validate_materialized_type_uses(&providers, meter)?;
     Ok(checked)
 }
 
