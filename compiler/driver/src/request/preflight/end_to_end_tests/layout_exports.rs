@@ -13,6 +13,7 @@ mod rejections;
 mod shared_abis;
 mod shared_descriptors;
 mod shared_dispatch;
+mod shared_initialization;
 mod shared_layouts;
 mod shared_ordinary;
 mod shared_shapes;

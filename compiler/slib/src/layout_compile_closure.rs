@@ -24,6 +24,7 @@ mod lir_callable_layouts;
 mod lir_constituents;
 mod lir_descriptors;
 mod lir_dispatch;
+mod lir_initialization;
 mod lir_layouts;
 mod lir_ordinary;
 mod lir_shape_support;
@@ -50,6 +51,11 @@ pub use lir_dispatch::{
     CrossConeLayoutLirDispatchError, LirDispatchValidatedCrossConeLayoutClosure,
     LirDispatchValidatedCrossConeLayoutSections, SharedLirDispatchAbiInputsV1,
     SharedLirDispatchValidationError, replay_shared_mir_dispatch,
+};
+pub use lir_initialization::{
+    CrossConeLayoutLirInitializationAbiError, LirInitializationAbiValidatedCrossConeLayoutClosure,
+    LirInitializationAbiValidatedCrossConeLayoutSections,
+    SharedLirInitializationAbiValidationError, replay_shared_initialization_abi,
 };
 pub use lir_layouts::{
     CrossConeLayoutLirLayoutsError, LirLayoutsValidatedCrossConeLayoutClosure,

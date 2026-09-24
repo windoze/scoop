@@ -127,7 +127,9 @@ impl<'input> LirExportsValidatedCrossConeLayoutClosure<'input> {
     }
 }
 
-impl OrdinaryLirBridgeValidatedCrossConeLayoutSections<'_> {
+impl<L, S>
+    LirConstituentsValidatedCrossConeLayoutSections<'_, L, lir::CrossConeLirBridgeSectionV1, S>
+{
     pub const fn lir_cross_cone_bridge(&self) -> &lir::CrossConeLirBridgeSectionV1 {
         &self.ordinary
     }

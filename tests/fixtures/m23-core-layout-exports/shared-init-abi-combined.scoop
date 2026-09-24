@@ -1,0 +1,16 @@
+public struct SharedInitToken()
+public interface SharedInitReader {
+    public fun read(): String
+}
+public object SharedInitCombined: SharedInitReader {
+    public val token: SharedInitToken = SharedInitToken()
+    public var message: String = "ready"
+    public override fun read(): String = message
+}
+public class SharedInitOwner {
+    public companion object {
+        public val snapshot: String = SharedInitCombined.read()
+    }
+}
+public var sharedInitSnapshot: String = SharedInitOwner.snapshot
+public fun sharedInitCombine(token: SharedInitToken): String = sharedInitSnapshot

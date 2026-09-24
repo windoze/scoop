@@ -19,6 +19,7 @@ pub(in super::super) fn check_dependency_uses(
         &mut meter(),
     )
     .unwrap();
+    super::super::shared_initialization::check_absence(input, &layouts, dependencies.layouts);
     let replay = |callables: &[&lir::CrossConeLirBridgeSectionV1], meter: &mut BudgetMeter| {
         scoop_slib::replay_shared_ordinary_lir_bridge(
             input.lir.module().meta.target_profile,

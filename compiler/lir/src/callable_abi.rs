@@ -11,6 +11,8 @@ use scoop_wire::{Encoder, WireEncode};
 
 mod errors;
 pub use errors::*;
+mod replay;
+pub use replay::CallableAbiReplayError;
 mod validation;
 mod wire;
 pub use wire::DecodedCallableAbiRecordV1;

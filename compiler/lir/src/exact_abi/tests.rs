@@ -9,6 +9,7 @@ mod common;
 mod fixtures;
 mod physical;
 mod reader;
+mod shared_record;
 mod table;
 
 const TARGET: LirTargetProfile = LirTargetProfile::DARWIN_AARCH64;

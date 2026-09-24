@@ -11,6 +11,7 @@ use scoop_wire::{DecodeLimits, decode_canonical, encode};
 use super::*;
 
 mod complete_image;
+mod initialization;
 use crate::{DigestNodeV1, LirTargetProfile, StrongExternalLirBridgeSurfaceV1};
 pub(in crate::production) use complete_image::attach_image;
 

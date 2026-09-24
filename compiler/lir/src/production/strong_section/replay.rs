@@ -9,7 +9,9 @@ mod view;
 pub use layout_join::{StrongProductionLayoutJoinError, ValidatedStrongProductionSectionV2};
 pub use view::ReplayedStrongProductionSectionV2;
 
-impl DecodedStrongProductionSectionV2 {
+impl<I: WireEncode>
+    DecodedStrongProductionSection<crate::DecodedStrongRegistrationProductionSurfaceV2, I>
+{
     /// Replays the whole section using independently reconstructed digest and
     /// initialization ABI records. Their identities and foundation relations remain
     /// checked by the existing strong plan constructors. The result must be

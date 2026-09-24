@@ -30,6 +30,10 @@ pub(super) fn callable(
     )?;
     let definition = StrongShapeDefinitionV1::from_callable_definition(target, physical)?
         .ok_or(ExactCallableAbiError::DefinitionSubject)?;
+    meter.charge_owned_bytes(
+        std::mem::size_of::<CallableAbiBodyV1>() as u64,
+        &WirePath::root(),
+    )?;
     Ok(ExactCallableAbiExportV1(Arc::new(CallableAbiBodyV1 {
         target,
         target_profile,

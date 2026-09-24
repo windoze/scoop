@@ -6,9 +6,13 @@ pub type DecodedStrongProductionSectionV1 =
     DecodedStrongProductionSection<DecodedStrongRegistrationProductionSurfaceV1>;
 pub type DecodedStrongProductionSectionV2 =
     DecodedStrongProductionSection<crate::DecodedStrongRegistrationProductionSurfaceV2>;
+pub type InitializationAbiResolvedStrongProductionSectionV2 = DecodedStrongProductionSection<
+    crate::DecodedStrongRegistrationProductionSurfaceV2,
+    CallableAbiRecordV1,
+>;
 
 #[derive(Debug)]
-pub struct DecodedStrongProductionSection<R> {
+pub struct DecodedStrongProductionSection<R, I = DecodedCallableAbiRecordV1> {
     pub(super) external_bridges: DecodedStrongExternalLirBridgeSurfaceV1,
     pub(super) canonical_definitions: DecodedStrongObjectSymbolSurfaceV1,
     pub(super) object_definition_plans: DecodedStrongObjectDefinitionPlanSurfaceV1,
@@ -18,10 +22,10 @@ pub struct DecodedStrongProductionSection<R> {
     pub(super) entry_plan: DecodedEntryProductionPlanV1,
     pub(super) shape_support_plan: DecodedParamFreeShapeSupportPlanSetV1,
     pub(super) generated_bridge_plan: DecodedGeneratedBridgePlanSetV1,
-    pub(super) initialization_cycle_abi: Option<Box<DecodedCallableAbiRecordV1>>,
+    pub(super) initialization_cycle_abi: Option<Box<I>>,
 }
 
-impl<R> DecodedStrongProductionSection<R> {
+impl<R, I> DecodedStrongProductionSection<R, I> {
     pub fn reconstruct_external_bridges(
         &self,
         producer: scoop_identity::ConeIdentity,
@@ -31,7 +35,7 @@ impl<R> DecodedStrongProductionSection<R> {
     }
 }
 
-impl<R: WireEncode> WireEncode for DecodedStrongProductionSection<R> {
+impl<R: WireEncode, I: WireEncode> WireEncode for DecodedStrongProductionSection<R, I> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(10)?;
         encoder.field(2)?;

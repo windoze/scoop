@@ -245,6 +245,8 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
 
 mod decoded;
 pub use decoded::*;
+mod initialization;
+pub use initialization::StrongInitializationAbiValidationError;
 
 mod replay;
 pub use replay::{
