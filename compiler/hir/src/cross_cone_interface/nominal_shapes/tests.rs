@@ -9,13 +9,15 @@ use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canoni
 
 use super::*;
 
+mod interior_mutability;
 mod intrinsic;
 mod policy;
 
 #[test]
 fn source_shape_and_variant_style_tags_have_fixed_wire() {
     let empty_struct = NominalSourceShapeV1::Struct(
-        StructSourceShapeV1::try_new(Vec::new(), crate::NominalCLayoutPolicyV1::Ordinary).unwrap(),
+        StructSourceShapeV1::try_new(Vec::new(), crate::NominalCLayoutPolicyV1::Ordinary, false)
+            .unwrap(),
     );
     let empty_enum = NominalSourceShapeV1::Enum(EnumSourceShapeV1::try_new(Vec::new()).unwrap());
 
@@ -29,7 +31,9 @@ fn source_shape_and_variant_style_tags_have_fixed_wire() {
     );
     assert_eq!(
         encode(&empty_struct).unwrap(),
-        [0xa3, 0x00, 0x03, 0x01, 0x80, 0x02, 0xa1, 0x00, 0x01]
+        [
+            0xa4, 0x00, 0x03, 0x01, 0x80, 0x02, 0xa1, 0x00, 0x01, 0x03, 0x00
+        ]
     );
     assert_eq!(encode(&empty_enum).unwrap(), [0xa2, 0x00, 0x04, 0x01, 0x80]);
 
@@ -56,6 +60,7 @@ fn struct_shape_preserves_declaration_order_and_has_fixed_wire() {
         StructSourceShapeV1::try_new(
             vec![second.clone(), first.clone()],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -67,11 +72,11 @@ fn struct_shape_preserves_declaration_order_and_has_fixed_wire() {
     assert_eq!(
         encode(&shape).unwrap(),
         [
-            b"\xa3\x00\x03\x01\x82\xa2\x01\x58\x20".as_slice(),
+            b"\xa4\x00\x03\x01\x82\xa2\x01\x58\x20".as_slice(),
             fixture.struct_second.id().as_array(),
             b"\x02\xa3\x00\x07\x01\x00\x02\x01\xa2\x01\x58\x20".as_slice(),
             fixture.struct_first.id().as_array(),
-            b"\x02\xa3\x00\x07\x01\x00\x02\x00\x02\xa1\x00\x01".as_slice(),
+            b"\x02\xa3\x00\x07\x01\x00\x02\x00\x02\xa1\x00\x01\x03\x00".as_slice(),
         ]
         .concat()
     );
@@ -84,7 +89,8 @@ fn producer_rejects_duplicate_fields_variants_and_unit_payloads() {
     assert_eq!(
         StructSourceShapeV1::try_new(
             vec![struct_field.clone(), struct_field],
-            crate::NominalCLayoutPolicyV1::Ordinary
+            crate::NominalCLayoutPolicyV1::Ordinary,
+            false
         ),
         Err(NominalSourceShapeBuildError::DuplicateNominalField(
             fixture.struct_first.id()
@@ -138,6 +144,7 @@ fn every_source_shape_round_trips_through_typed_authority() {
                     struct_field(fixture.struct_second.id(), 1),
                 ],
                 crate::NominalCLayoutPolicyV1::Ordinary,
+                false,
             )
             .unwrap(),
         ),
@@ -228,6 +235,7 @@ fn reader_rejects_missing_typed_authority() {
         StructSourceShapeV1::try_new(
             vec![struct_field(fixture.struct_first.id(), 0)],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -387,13 +395,15 @@ struct InvalidStructShape(Vec<NominalSourceFieldV1>);
 
 impl WireEncode for InvalidStructShape {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(0)?;
         encoder.unsigned(3)?;
         encoder.field(1)?;
         encode_values(encoder, &self.0)?;
         encoder.field(2)?;
-        NominalCLayoutPolicyV1::Ordinary.encode(encoder)
+        NominalCLayoutPolicyV1::Ordinary.encode(encoder)?;
+        encoder.field(3)?;
+        encoder.unsigned(0)
     }
 }
 

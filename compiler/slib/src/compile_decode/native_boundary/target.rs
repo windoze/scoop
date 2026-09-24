@@ -35,8 +35,11 @@ use crate::ValidatedGraphArtifact;
 mod errors;
 mod layout;
 mod nominals;
+mod normalization;
+mod shared;
 pub use errors::NativeBoundaryTargetError;
 use nominals::AbiNominalDefinition;
+pub(super) use shared::validate_shared_target_normalization;
 mod physical;
 mod scoop_abi;
 use physical::*;
@@ -85,199 +88,12 @@ pub(super) fn validate_target_normalization(
     graph: &scoop_identity::ValidatedIdentityGraph,
     view: &NativeBoundaryFoundationView<'_>,
 ) -> Result<(), NativeBoundaryCompileError> {
-    let target = artifact.target_selection().target();
     let meter = artifact.envelope.meter_mut();
-    let exact_types = exact_type_records(graph, meter)?;
-    let callable_applications = records_by_id(
-        std::iter::once(
-            graph
-                .records::<PersistentCallableApplicationId, CallableApplicationKey>(
-                    IdentityLayer::Hir,
-                    meter,
-                    &WirePath::root().field(17),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(17),
-    )?;
-    let initialization_units = records_by_id(
-        std::iter::once(
-            graph
-                .records::<PersistentInitializationUnitId, InitializationUnitKey>(
-                    IdentityLayer::Hir,
-                    meter,
-                    &WirePath::root().field(21),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(21),
-    )?;
-    let callback_registrations = records_by_id(
-        std::iter::once(
-            graph
-                .records::<PersistentCallbackRegistrationId, CallbackRegistrationKey>(
-                    IdentityLayer::Hir,
-                    meter,
-                    &WirePath::root().field(25),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(25),
-    )?;
-    let callback_applications = records_by_id(
-        std::iter::once(
-            graph
-                .records::<PersistentCallbackApplicationId, CallbackApplicationKey>(
-                    IdentityLayer::Mir,
-                    meter,
-                    &WirePath::root().field(9),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(9),
-    )?;
-    let definitions = nominals::native_definitions(view.type_definitions, meter)?;
-
-    let actual_contracts = index_records(
-        view.native_contracts,
-        NativeExternalContractRecord::source,
-        meter,
-        &WirePath::root().field(14),
-    )?;
-    let application_records = index_records(
-        view.callback_applications,
-        scoop_mir::CallbackApplicationRecord::application,
-        meter,
-        &WirePath::root().field(10),
-    )?;
-    let actual_signatures = index_records(
-        view.c_abi_signatures,
-        CanonicalCAbiSignatureFingerprintRecord::fingerprint,
-        meter,
-        &WirePath::root().field(15),
-    )?;
-    let actual_layouts = index_records(
-        view.c_abi_layouts,
-        CanonicalCAbiLayoutFingerprintRecord::fingerprint,
-        meter,
-        &WirePath::root().field(16),
-    )?;
-    let actual_requirements = records_by_id(
-        std::iter::once(
-            graph
-                .records::<NativeLinkRequirementId, NativeLinkRequirementKey>(
-                    IdentityLayer::Lir,
-                    meter,
-                    &WirePath::root().field(20),
-                )
-                .map_err(NativeBoundaryCompileError::Identity)?,
-        ),
-        meter,
-        &WirePath::root().field(20),
-    )?;
-    let mut expected_contracts = HashMap::new();
-    meter
-        .try_reserve_map_slots(
-            &mut expected_contracts,
-            view.source_contracts.len(),
-            &WirePath::root().field(14),
-        )
-        .map_err(NativeBoundaryCompileError::Resource)?;
-    let mut normalizer = NativeBoundaryNormalizer::new(
-        target,
-        meter,
-        &exact_types,
-        &callable_applications,
-        &initialization_units,
-        &definitions,
-    );
-
-    for source in view.source_contracts {
-        let expected = normalizer.normalize_external(source)?;
-        expected_contracts.insert(expected.source(), expected);
-    }
-    require_equal_records(
-        &expected_contracts,
-        &actual_contracts,
-        normalizer.meter,
-        &WirePath::root().field(14),
-        NativeBoundaryTargetError::NativeContractMismatch,
-    )?;
-
-    for bridge in view.callback_bridges {
-        charge_relations(normalizer.meter, 1, &WirePath::root().field(13))?;
-        let application = callback_applications.get(&bridge.application()).ok_or(
-            NativeBoundaryTargetError::MissingCallbackApplication {
-                application: bridge.application(),
-            },
-        )?;
-        charge_relations(normalizer.meter, 1, &WirePath::root().field(25))?;
-        let registration = callback_registrations
-            .get(&application.registration())
-            .ok_or(NativeBoundaryTargetError::MissingCallbackRegistration {
-                registration: application.registration(),
-            })?;
-        let binders = normalizer.binders(application.context())?;
-        let expected = normalizer.c_signature(registration.source_signature(), &binders)?;
-        if expected.fingerprint() != bridge.signature() {
-            return Err(NativeBoundaryTargetError::CallbackSignatureMismatch {
-                application: bridge.application(),
-            }
-            .into());
-        }
-        insert_metered(
-            normalizer.meter,
-            &mut normalizer.expected_signatures,
-            expected.fingerprint(),
-            expected,
-            &WirePath::root().field(15),
-        )?;
-
-        let expected_managed =
-            normalizer.managed_signature(registration.managed_signature(), &binders)?;
-        charge_relations(normalizer.meter, 1, &WirePath::root().field(10))?;
-        let actual = application_records.get(&bridge.application()).ok_or(
-            NativeBoundaryTargetError::MissingCallbackApplication {
-                application: bridge.application(),
-            },
-        )?;
-        if actual.managed_signature() != &expected_managed {
-            return Err(
-                NativeBoundaryTargetError::ManagedCallbackSignatureMismatch {
-                    application: bridge.application(),
-                }
-                .into(),
-            );
-        }
-    }
-
-    require_equal_records(
-        &normalizer.expected_signatures,
-        &actual_signatures,
-        normalizer.meter,
-        &WirePath::root().field(15),
-        NativeBoundaryTargetError::CAbiSignatureSetMismatch,
-    )?;
-
-    require_equal_records(
-        &normalizer.expected_layouts,
-        &actual_layouts,
-        normalizer.meter,
-        &WirePath::root().field(16),
-        NativeBoundaryTargetError::CAbiLayoutSetMismatch,
-    )?;
-
-    require_equal_records(
-        &normalizer.expected_requirements,
-        &actual_requirements,
-        normalizer.meter,
-        &WirePath::root().field(20),
-        NativeBoundaryTargetError::NativeRequirementSetMismatch,
-    )
+    let types = scoop_abi::AbiReplayTypes {
+        exact: exact_type_records(graph, meter)?,
+        definitions: nominals::native_definitions(view.type_definitions, meter)?,
+    };
+    normalization::validate(artifact, graph, view, types, &[])
 }
 
 fn require_equal_records<K, V, A>(

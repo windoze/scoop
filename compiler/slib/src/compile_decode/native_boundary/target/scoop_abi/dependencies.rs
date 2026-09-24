@@ -13,7 +13,7 @@ pub(crate) struct AbiReplayDependency<'a> {
     pub nominals: &'a CanonicalNominalInterfacesV1,
 }
 
-pub(super) fn collect<'a>(
+pub(crate) fn collect<'a>(
     current: AbiReplayDependency<'a>,
     dependencies: &[AbiReplayDependency<'a>],
     meter: &mut BudgetMeter,
@@ -89,7 +89,7 @@ fn insert_definition<'a>(
     Ok(())
 }
 
-pub(super) struct AbiReplayTypes<'a> {
+pub(crate) struct AbiReplayTypes<'a> {
     pub exact: HashMap<PersistentExactTypeId, Arc<ExactTypeKey>>,
     pub definitions: HashMap<NativeBoundaryNominalOwner, AbiNominalDefinition<'a>>,
 }

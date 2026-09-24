@@ -23,7 +23,7 @@ use crate::{
     ValidatedCompileArtifact, ValidatedGraphArtifact,
     compile_decode::{
         NativeBoundaryFoundationView, charge_identity_import, replay_canonical_scoop_abi,
-        semantic_identity_import, validate_native_boundary_parts,
+        semantic_identity_import, validate_shared_native_boundary_parts,
     },
     strong_compile_decode::{
         OdrFreeStrongFoundationSet, StrongProfileLirProductionError, StrongProfileSemanticFront,
@@ -31,9 +31,12 @@ use crate::{
     },
 };
 
+mod native_boundary;
+
 /// One provider whose complete local strong production and compile-facing LIR
 /// dependency bridge were independently rebuilt from validated foundations.
-/// Cross-provider MIR/LIR equality remains a closure-level obligation.
+/// Native representation replay and cross-provider MIR/LIR equality remain
+/// closure-level obligations.
 pub struct LirBridgeValidatedCrossConeHirFrontSections<'input> {
     graph: ValidatedGraphArtifact<'input>,
     identities: ValidatedIdentityGraph,
@@ -262,16 +265,6 @@ impl<'input> MirBridgeValidatedCrossConeHirFrontSections<'input> {
             &shape_sources,
         )
         .map_err(CrossConeLirFrontValidationError::StrongProduction)?;
-        validate_native_boundary_parts(
-            &mut graph,
-            &identities,
-            &NativeBoundaryFoundationView::from_odr_free(
-                &foundations.hir,
-                &foundations.mir,
-                &foundations.lir,
-            ),
-        )
-        .map_err(CrossConeLirFrontValidationError::NativeBoundary)?;
         let lir_cross_cone_bridge = lir_cross_cone_bridge
             .validate(&mut identities, &foundations.lir)
             .map_err(CrossConeLirFrontValidationError::DependencyBridge)?;

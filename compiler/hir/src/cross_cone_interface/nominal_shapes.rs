@@ -37,12 +37,14 @@ pub use semantics::{
 pub struct StructSourceShapeV1 {
     fields: NominalSourceFieldsV1,
     c_layout_policy: NominalCLayoutPolicyV1,
+    interior_mutable: bool,
 }
 
 impl StructSourceShapeV1 {
     pub fn try_new(
         fields: Vec<NominalSourceFieldV1>,
         c_layout_policy: NominalCLayoutPolicyV1,
+        interior_mutable: bool,
     ) -> Result<Self, NominalSourceShapeBuildError> {
         if fields.is_empty() && matches!(c_layout_policy, NominalCLayoutPolicyV1::CLayout { .. }) {
             return Err(NominalSourceShapeBuildError::EmptyCLayout);
@@ -51,11 +53,16 @@ impl StructSourceShapeV1 {
         Ok(Self {
             fields,
             c_layout_policy,
+            interior_mutable,
         })
     }
 
     pub const fn c_layout_policy(&self) -> NominalCLayoutPolicyV1 {
         self.c_layout_policy
+    }
+
+    pub const fn interior_mutable(&self) -> bool {
+        self.interior_mutable
     }
 
     pub fn fields(&self) -> &[NominalSourceFieldV1] {
@@ -133,6 +140,7 @@ pub enum DecodedNominalSourceShapeV1 {
     Struct {
         fields: Vec<DecodedNominalSourceFieldV1>,
         c_layout_policy: NominalCLayoutPolicyV1,
+        interior_mutable: bool,
     },
     Enum(Vec<DecodedEnumSourceVariantV1>),
     Object {
@@ -159,7 +167,8 @@ impl DecodedNominalSourceShapeV1 {
             Self::Struct {
                 fields,
                 c_layout_policy,
-            } => resolve_struct_shape(fields, c_layout_policy, resolver)
+                interior_mutable,
+            } => resolve_struct_shape(fields, c_layout_policy, interior_mutable, resolver)
                 .map(NominalSourceShapeV1::Struct),
             Self::Enum(variants) => {
                 resolve_enum_shape(variants, resolver).map(NominalSourceShapeV1::Enum)
@@ -198,6 +207,7 @@ impl<R, E> NominalSourceShapeResolver<E> for R where
 fn resolve_struct_shape<R, E>(
     decoded: Vec<DecodedNominalSourceFieldV1>,
     c_layout_policy: NominalCLayoutPolicyV1,
+    interior_mutable: bool,
     resolver: &mut R,
 ) -> Result<StructSourceShapeV1, NominalSourceShapeResolutionError<E>>
 where
@@ -210,6 +220,7 @@ where
     Ok(StructSourceShapeV1 {
         fields,
         c_layout_policy,
+        interior_mutable,
     })
 }
 

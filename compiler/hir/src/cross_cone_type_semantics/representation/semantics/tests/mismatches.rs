@@ -185,6 +185,7 @@ fn independent_public_source_shape_is_required_to_agree_field_by_field() {
                     StructSourceShapeV1::try_new(
                         shape.fields().iter().rev().cloned().collect(),
                         crate::NominalCLayoutPolicyV1::Ordinary,
+                        false,
                     )
                     .unwrap(),
                 ))
@@ -197,8 +198,12 @@ fn independent_public_source_shape_is_required_to_agree_field_by_field() {
             }
             None => {
                 source.public = Some(NominalSourceShapeV1::Struct(
-                    StructSourceShapeV1::try_new(vec![], crate::NominalCLayoutPolicyV1::Ordinary)
-                        .unwrap(),
+                    StructSourceShapeV1::try_new(
+                        vec![],
+                        crate::NominalCLayoutPolicyV1::Ordinary,
+                        false,
+                    )
+                    .unwrap(),
                 ))
             }
             _ => unreachable!(),
@@ -222,6 +227,7 @@ fn independent_public_source_shape_is_required_to_agree_field_by_field() {
                 SignatureTypeKey::RawPointer(Box::new(unit())),
             )],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     ));
@@ -249,6 +255,7 @@ fn independent_public_source_policy_must_agree_in_the_metered_reader() {
                     packed: HirCLayoutValue::A1,
                 },
             },
+            false,
         )
         .unwrap(),
     ));

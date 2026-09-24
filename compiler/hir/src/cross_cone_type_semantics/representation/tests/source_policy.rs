@@ -26,7 +26,8 @@ fn intrinsic_representation_requires_its_exact_source_family_in_both_join_paths(
                 crate::IntrinsicTypeKind::Array,
             )),
             NominalSourceShapeV1::Struct(
-                StructSourceShapeV1::try_new(vec![], NominalCLayoutPolicyV1::Ordinary).unwrap(),
+                StructSourceShapeV1::try_new(vec![], NominalCLayoutPolicyV1::Ordinary, false)
+                    .unwrap(),
             ),
             NominalSourceShapeV1::Class(Default::default()),
         ] {
@@ -93,6 +94,7 @@ fn representation_requires_the_complete_public_c_layout_policy() {
                     field.value_type().clone(),
                 )],
                 actual,
+                false,
             )
             .unwrap(),
         );

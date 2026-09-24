@@ -122,7 +122,7 @@ pub(super) fn structure(
     fixture.foundation.set_fields(fields).unwrap();
     set_shape(
         &mut fixture,
-        NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(shape, policy).unwrap()),
+        NominalSourceShapeV1::Struct(StructSourceShapeV1::try_new(shape, policy, false).unwrap()),
     );
     fixture
 }

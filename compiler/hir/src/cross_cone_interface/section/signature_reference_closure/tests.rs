@@ -513,6 +513,7 @@ fn nominal_interfaces(
                     signature(struct_field_type),
                 )],
                 crate::NominalCLayoutPolicyV1::Ordinary,
+                false,
             )
             .unwrap(),
         ),

@@ -22,6 +22,7 @@ fn validates_owned_source_shapes_selectors_and_field_types() {
         StructSourceShapeV1::try_new(
             vec![NominalSourceFieldV1::new(fixture.struct_field, binder(0))],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -115,6 +116,7 @@ fn rejects_fields_variants_and_object_values_owned_by_other_nominals() {
                 binder(0),
             )],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -268,6 +270,7 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
         StructSourceShapeV1::try_new(
             vec![NominalSourceFieldV1::new(fixture.struct_field, binder(1))],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -302,6 +305,7 @@ fn rejects_out_of_scope_and_unresolved_field_types() {
                 SignatureTypeKey::Nominal(missing_id),
             )],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );
@@ -329,6 +333,7 @@ fn rejects_missing_kind_specific_identity_authority() {
         StructSourceShapeV1::try_new(
             vec![NominalSourceFieldV1::new(fixture.struct_field, binder(0))],
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );

@@ -170,6 +170,7 @@ impl Fixture {
                         SignatureTypeKey::Nominal(self.base_class),
                     )],
                     crate::NominalCLayoutPolicyV1::Ordinary,
+                    false,
                 )
                 .unwrap(),
             ),

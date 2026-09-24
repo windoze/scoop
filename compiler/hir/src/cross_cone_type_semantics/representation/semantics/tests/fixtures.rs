@@ -15,6 +15,7 @@ pub(super) fn structure(
                 .map(|field| NominalSourceFieldV1::new(field.field(), field.value_type().clone()))
                 .collect(),
             crate::NominalCLayoutPolicyV1::Ordinary,
+            false,
         )
         .unwrap(),
     );

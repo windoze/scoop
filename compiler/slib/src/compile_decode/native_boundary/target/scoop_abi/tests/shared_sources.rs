@@ -5,6 +5,8 @@ use scoop_hir::{
     NominalSourceFieldsV1, NominalSourceShapeV1, SourceNominalId, StructSourceShapeV1,
 };
 
+mod c_layouts;
+
 #[test]
 fn ordinary_shared_shapes_supply_abi_without_native_boundary_records() {
     let reference = shared_only(Fixture::nominal(ConeIdentity::CORE, true), true);
@@ -93,7 +95,8 @@ fn shared_only(mut fixture: Fixture, reference: bool) -> Fixture {
         NominalSourceShapeV1::Class(NominalSourceFieldsV1::try_new(Vec::new()).unwrap())
     } else {
         NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(Vec::new(), NominalCLayoutPolicyV1::Ordinary).unwrap(),
+            StructSourceShapeV1::try_new(Vec::new(), NominalCLayoutPolicyV1::Ordinary, false)
+                .unwrap(),
         )
     };
     fixture.nominals = CanonicalNominalInterfacesV1::try_new(vec![

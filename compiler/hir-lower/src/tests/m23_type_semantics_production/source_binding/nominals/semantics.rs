@@ -124,8 +124,12 @@ fn nominal_binding_limits_signature_depth_before_recursive_shape_replay() {
             pair.members().clone(),
             pair.children().clone(),
             hir::NominalSourceShapeV1::Struct(
-                hir::StructSourceShapeV1::try_new(fields, hir::NominalCLayoutPolicyV1::Ordinary)
-                    .unwrap(),
+                hir::StructSourceShapeV1::try_new(
+                    fields,
+                    hir::NominalCLayoutPolicyV1::Ordinary,
+                    false,
+                )
+                .unwrap(),
             ),
         );
         let limits = DecodeLimits {

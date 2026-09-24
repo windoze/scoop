@@ -160,6 +160,7 @@ pub(super) fn struct_shape(
     StructSourceShapeV1::try_new(
         fields,
         crate::NominalCLayoutPolicyV1::from_source_contract(declaration.attributes.c_layout),
+        declaration.attributes.interior_mutable,
     )
     .map(NominalSourceShapeV1::Struct)
     .map_err(|detail| source_error(owner, NominalSourceProjectionError::Shape(detail)))

@@ -107,6 +107,7 @@ impl Fixture {
                 StructSourceShapeV1::try_new(
                     vec![NominalSourceFieldV1::new(self.field.id(), binder(0))],
                     crate::NominalCLayoutPolicyV1::Ordinary,
+                    false,
                 )
                 .unwrap(),
             ),

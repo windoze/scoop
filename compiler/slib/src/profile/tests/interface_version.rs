@@ -1,14 +1,23 @@
 use super::*;
 
 #[test]
-fn source_interface_v11_requires_actual_call_sites_and_rejects_retired_majors() {
+fn source_interface_v12_requires_declared_mutability_and_rejects_retired_majors() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        11,
+        12,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,
         ],
+    );
+}
+
+#[test]
+fn type_semantics_v2_rejects_nested_source_shapes_without_declared_mutability() {
+    assert_retired_version(
+        hir_cross_cone_type_semantics_capability(),
+        2,
+        &[ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG],
     );
 }
 

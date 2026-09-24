@@ -208,6 +208,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
                     SignatureTypeKey::Nominal(nominal.id()),
                 )],
                 scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                false,
             )
             .unwrap(),
         ),

@@ -23,8 +23,12 @@ fn ordinary_reader_rejects_missing_source_fields_after_canonical_bytes_are_resto
         nominal.members().clone(),
         nominal.nested_bindings().clone(),
         NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(vec![], scoop_hir::NominalCLayoutPolicyV1::Ordinary)
-                .unwrap(),
+            StructSourceShapeV1::try_new(
+                vec![],
+                scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                false,
+            )
+            .unwrap(),
         ),
         nominal.declaration_details().clone(),
     )

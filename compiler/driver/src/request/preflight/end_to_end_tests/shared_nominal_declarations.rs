@@ -1,5 +1,7 @@
 use super::*;
 
+mod interior_mutability;
+
 #[test]
 fn formal_publication_preserves_private_storage_and_nested_declaration_support() {
     let Some(target) = resolved_target() else {

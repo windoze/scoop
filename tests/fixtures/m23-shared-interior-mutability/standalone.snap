@@ -1,0 +1,2 @@
+Cell: public=true generic=false interior_mutable=true mir=Some(true)
+Plain: public=true generic=false interior_mutable=false mir=Some(false)

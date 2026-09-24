@@ -12,6 +12,7 @@ mod dispatch;
 mod equality;
 mod exports;
 mod identities;
+mod interior_mutability;
 mod objects;
 mod shape_support;
 

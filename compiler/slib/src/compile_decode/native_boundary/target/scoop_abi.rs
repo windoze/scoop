@@ -19,6 +19,7 @@ use crate::{
 
 mod dependencies;
 pub(crate) use dependencies::AbiReplayDependency;
+pub(super) use dependencies::{AbiReplayTypes, collect as collect_abi_types};
 #[cfg(test)]
 mod tests;
 

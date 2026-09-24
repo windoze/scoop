@@ -300,6 +300,7 @@ impl ConstSurface {
                         StructSourceShapeV1::try_new(
                             Vec::new(),
                             scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                            false,
                         )
                         .unwrap(),
                     )

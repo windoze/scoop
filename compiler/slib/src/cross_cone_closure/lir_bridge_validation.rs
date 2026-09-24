@@ -110,12 +110,21 @@ impl<'input> MirBridgeValidatedCrossConeHirClosure<'input> {
         })?;
         for front in dependency_first {
             let identity = front.identity();
-            validated.push(front.validate_lir_bridge().map_err(|source| {
+            let mut artifact = front.validate_lir_bridge().map_err(|source| {
                 CrossConeClosureLirBridgeError::Artifact {
                     identity,
                     source: Box::new(source),
                 }
-            })?);
+            })?;
+            artifact
+                .validate_shared_native_boundary(&validated, &dependency_positions)
+                .map_err(|source| CrossConeClosureLirBridgeError::Artifact {
+                    identity,
+                    source: Box::new(crate::CrossConeLirFrontValidationError::NativeBoundary(
+                        source,
+                    )),
+                })?;
+            validated.push(artifact);
         }
 
         validate_lir_bridge_relations(&mut validated, &positions, &dependency_positions)?;

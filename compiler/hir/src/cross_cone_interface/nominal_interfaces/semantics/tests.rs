@@ -50,8 +50,12 @@ fn rejects_declaration_kind_and_binder_arity_mismatches() {
         empty_binders(),
         empty_supertypes(),
         NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(Vec::new(), crate::NominalCLayoutPolicyV1::Ordinary)
-                .unwrap(),
+            StructSourceShapeV1::try_new(
+                Vec::new(),
+                crate::NominalCLayoutPolicyV1::Ordinary,
+                false,
+            )
+            .unwrap(),
         ),
     );
     assert!(matches!(

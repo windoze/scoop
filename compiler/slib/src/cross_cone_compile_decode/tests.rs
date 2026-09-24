@@ -516,6 +516,7 @@ fn cross_cone_hir_front_rejects_a_foreign_nominal_claim() {
                 StructSourceShapeV1::try_new(
                     Vec::new(),
                     scoop_hir::NominalCLayoutPolicyV1::Ordinary,
+                    false,
                 )
                 .unwrap(),
             ),

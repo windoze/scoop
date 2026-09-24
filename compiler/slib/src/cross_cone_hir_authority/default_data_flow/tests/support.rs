@@ -73,6 +73,7 @@ pub(super) fn nominal(provider: ConeIdentity, arity: u32) -> Nominal {
             .map(|id| NominalSourceFieldV1::new(*id, value_type.clone()))
             .collect(),
         NominalCLayoutPolicyV1::Ordinary,
+        false,
     )
     .unwrap();
     let record = crate::nominal_interface_fixture::public_record(

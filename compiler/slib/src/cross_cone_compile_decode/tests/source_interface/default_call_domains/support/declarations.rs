@@ -20,7 +20,8 @@ impl Kind {
             Self::Class => NominalSourceShapeV1::Class(Default::default()),
             Self::Interface => NominalSourceShapeV1::Interface,
             Self::Struct => NominalSourceShapeV1::Struct(
-                StructSourceShapeV1::try_new(vec![], NominalCLayoutPolicyV1::Ordinary).unwrap(),
+                StructSourceShapeV1::try_new(vec![], NominalCLayoutPolicyV1::Ordinary, false)
+                    .unwrap(),
             ),
         }
     }

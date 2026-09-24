@@ -168,7 +168,7 @@ impl OdrFreeLirFoundation {
         &self.canonical.definition_atoms
     }
 
-    pub(crate) fn materialized_exact_types(&self) -> &[PersistentExactTypeId] {
+    pub fn materialized_exact_types(&self) -> &[PersistentExactTypeId] {
         &self.canonical.materialized_exact_types
     }
 

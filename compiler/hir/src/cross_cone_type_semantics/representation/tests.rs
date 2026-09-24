@@ -51,6 +51,7 @@ fn struct_support_preserves_declaration_order_and_matches_public_shape() {
                     })
                     .collect(),
                 crate::NominalCLayoutPolicyV1::Ordinary,
+                false,
             )
             .unwrap(),
         )

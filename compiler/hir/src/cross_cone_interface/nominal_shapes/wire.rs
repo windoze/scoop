@@ -11,12 +11,14 @@ impl WireEncode for NominalSourceShapeV1 {
             }
             Self::Interface => encode_empty_sum(encoder, 2),
             Self::Struct(shape) => {
-                encoder.map(3)?;
+                encoder.map(4)?;
                 encode_tag(encoder, 3)?;
                 encoder.field(1)?;
                 shape.fields.encode(encoder)?;
                 encoder.field(2)?;
-                shape.c_layout_policy.encode(encoder)
+                shape.c_layout_policy.encode(encoder)?;
+                encoder.field(3)?;
+                encoder.unsigned(u64::from(shape.interior_mutable))
             }
             Self::Enum(shape) => {
                 encoder.map(2)?;
@@ -50,13 +52,16 @@ impl WireEncode for DecodedNominalSourceShapeV1 {
             Self::Struct {
                 fields,
                 c_layout_policy,
+                interior_mutable,
             } => {
-                encoder.map(3)?;
+                encoder.map(4)?;
                 encode_tag(encoder, 3)?;
                 encoder.field(1)?;
                 encode_sequence(encoder, fields)?;
                 encoder.field(2)?;
-                c_layout_policy.encode(encoder)
+                c_layout_policy.encode(encoder)?;
+                encoder.field(3)?;
+                encoder.unsigned(u64::from(*interior_mutable))
             }
             Self::Enum(variants) => {
                 encoder.map(2)?;
@@ -96,14 +101,20 @@ impl WireDecode for DecodedNominalSourceShapeV1 {
                 Ok(Self::Interface)
             }
             3 => {
-                expect_sum_length(decoder, fields, 3)?;
+                expect_sum_length(decoder, fields, 4)?;
                 let fields = decoder.field(1, |decoder| {
                     decoder.decode_array(|decoder, _| DecodedNominalSourceFieldV1::decode(decoder))
                 })?;
                 let c_layout_policy = decoder.field(2, NominalCLayoutPolicyV1::decode)?;
+                let interior_mutable = decoder.field(3, |decoder| match decoder.unsigned()? {
+                    0 => Ok(false),
+                    1 => Ok(true),
+                    tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
+                })?;
                 Ok(Self::Struct {
                     fields,
                     c_layout_policy,
+                    interior_mutable,
                 })
             }
             4 => {

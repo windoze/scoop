@@ -98,6 +98,23 @@ pub(crate) fn validate_native_boundary_parts(
     target::validate_target_normalization(graph, identities, view)
 }
 
+pub(crate) fn validate_shared_native_boundary_parts(
+    graph: &mut ValidatedGraphArtifact<'_>,
+    current: AbiReplayDependency<'_>,
+    dependencies: &[AbiReplayDependency<'_>],
+    view: &NativeBoundaryFoundationView<'_>,
+    materialized_types: &[PersistentExactTypeId],
+) -> Result<(), NativeBoundaryCompileError> {
+    validate_source_closure(graph, current.identities, view)?;
+    target::validate_shared_target_normalization(
+        graph,
+        current,
+        dependencies,
+        view,
+        materialized_types,
+    )
+}
+
 fn validate_source_closure(
     artifact: &mut ValidatedGraphArtifact<'_>,
     graph: &ValidatedIdentityGraph,
