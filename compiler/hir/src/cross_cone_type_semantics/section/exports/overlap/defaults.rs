@@ -113,6 +113,17 @@ pub(super) fn equal(
     Ok(new.body() == old.body())
 }
 
+impl ProtectedDefaultTemplateV1 {
+    pub(in crate::cross_cone_type_semantics) fn matches_shared_template(
+        &self,
+        shared: &ExportDefaultTemplateV1,
+        meter: &mut BudgetMeter,
+        path: &WirePath,
+    ) -> Result<bool, WireError> {
+        equal(self, shared, meter, path)
+    }
+}
+
 fn structural_path(
     value: &StructuralDefinitionPath,
     meter: &mut BudgetMeter,

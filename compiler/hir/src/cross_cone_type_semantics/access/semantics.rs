@@ -13,6 +13,7 @@ mod implication;
 mod nominal;
 mod normalization;
 mod protected;
+mod shared;
 #[cfg(test)]
 mod tests;
 
@@ -89,7 +90,7 @@ impl<'a> CheckedNominalInheritanceGraphV1<'a> {
         self.replay_access(source.source(), meter)
     }
 
-    fn replay_access<'g>(
+    pub(in crate::cross_cone_type_semantics) fn replay_access<'g>(
         &'g self,
         source: &DeclarationAccessSourceV1,
         meter: &mut BudgetMeter,

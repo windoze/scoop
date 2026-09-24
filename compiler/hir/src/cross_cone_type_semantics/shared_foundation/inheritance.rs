@@ -17,6 +17,7 @@ use crate::{
 
 mod constructors;
 mod contracts;
+mod defaults;
 mod edges;
 mod members;
 mod protected;
@@ -86,6 +87,7 @@ impl CheckedSharedTypeFoundationV1<'_> {
                 .section
                 .protected_source_interfaces()
                 .validate_shared_declarations(provider.section, provider.metadata, meter)?;
+            defaults::validate(provider, dependencies, &context, &graph, meter)?;
         }
         Ok(use_graph(&graph, meter))
     }
