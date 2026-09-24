@@ -18,7 +18,10 @@ use crate::{
 mod materialization;
 mod shared;
 
-pub use materialization::{NominalMaterializationClosure, NominalMaterializationClosureError};
+pub use materialization::{
+    NominalMaterializationClosure, NominalMaterializationClosureError,
+    NominalMaterializationRequirementV1,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PublicNominalShapeRequirementV1 {

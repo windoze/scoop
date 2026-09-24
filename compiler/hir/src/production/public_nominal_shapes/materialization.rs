@@ -8,6 +8,8 @@ use scoop_wire::{BudgetMeter, WireError, WirePath};
 use crate::{CanonicalCallableInterfacesV1, CanonicalNominalInterfacesV1, SourceNominalId};
 
 mod declarations;
+mod requirements;
+pub use requirements::NominalMaterializationRequirementV1;
 
 /// This is a query result, not a serialized inventory or a machine-use permit.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -22,16 +24,18 @@ impl NominalMaterializationClosure {
         meter: &mut BudgetMeter,
     ) -> Result<Self, NominalMaterializationClosureError> {
         let mut graph = Graph::new(nominals, meter)?;
-        graph.declarations(nominals, callables)?;
-        graph.propagate()?;
+        nominals.visit_materialization_requirements(callables, meter, |requirement, meter| {
+            graph.requirement(requirement, meter)
+        })?;
+        graph.propagate(meter)?;
         let mut sources = Vec::new();
-        graph.meter.try_reserve_collection_slots(
+        meter.try_reserve_collection_slots(
             &mut sources,
             graph.positions.len(),
             &WirePath::root(),
         )?;
         for (source, position) in graph.positions {
-            graph.meter.charge_work(1, &WirePath::root())?;
+            meter.charge_work(1, &WirePath::root())?;
             if !graph.blocked[position] {
                 sources.push(source);
             }
@@ -48,18 +52,17 @@ impl NominalMaterializationClosure {
     }
 }
 
-struct Graph<'m> {
+struct Graph {
     positions: BTreeMap<PersistentTypeId, usize>,
     dependents: Vec<BTreeSet<usize>>,
     blocked: Vec<bool>,
     pending: Vec<usize>,
-    meter: &'m mut BudgetMeter,
 }
 
-impl<'m> Graph<'m> {
+impl Graph {
     fn new(
         nominals: &CanonicalNominalInterfacesV1,
-        meter: &'m mut BudgetMeter,
+        meter: &mut BudgetMeter,
     ) -> Result<Self, NominalMaterializationClosureError> {
         let path = WirePath::root();
         let count = nominals.declaration_count();
@@ -84,12 +87,15 @@ impl<'m> Graph<'m> {
             dependents,
             blocked,
             pending: Vec::new(),
-            meter,
         })
     }
 
-    fn position(&mut self, source: SourceNominalId) -> Result<Option<usize>, WireError> {
-        self.meter.charge_work(
+    fn position(
+        &self,
+        source: SourceNominalId,
+        meter: &mut BudgetMeter,
+    ) -> Result<Option<usize>, WireError> {
+        meter.charge_work(
             1 + u64::from(self.positions.len().max(1).ilog2()),
             &WirePath::root(),
         )?;
@@ -99,36 +105,38 @@ impl<'m> Graph<'m> {
         })
     }
 
-    fn edge(&mut self, dependency: usize, owner: usize) -> Result<(), WireError> {
+    fn edge(
+        &mut self,
+        dependency: usize,
+        owner: usize,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), WireError> {
         let path = WirePath::root();
         let dependents = &mut self.dependents[dependency];
-        self.meter
-            .charge_work(1 + u64::from(dependents.len().max(1).ilog2()), &path)?;
+        meter.charge_work(1 + u64::from(dependents.len().max(1).ilog2()), &path)?;
         if !dependents.contains(&owner) {
-            self.meter
-                .check_table_entries(dependents.len() as u64 + 1, &path)?;
-            self.meter.charge_edges(1, &path)?;
-            self.meter.charge_collection_slots(1, &path)?;
+            meter.check_table_entries(dependents.len() as u64 + 1, &path)?;
+            meter.charge_edges(1, &path)?;
+            meter.charge_collection_slots(1, &path)?;
             dependents.insert(owner);
         }
         Ok(())
     }
 
-    fn block(&mut self, owner: usize) -> Result<(), WireError> {
+    fn block(&mut self, owner: usize, meter: &mut BudgetMeter) -> Result<(), WireError> {
         if !self.blocked[owner] {
-            self.meter
-                .try_reserve_collection_slots(&mut self.pending, 1, &WirePath::root())?;
+            meter.try_reserve_collection_slots(&mut self.pending, 1, &WirePath::root())?;
             self.blocked[owner] = true;
             self.pending.push(owner);
         }
         Ok(())
     }
 
-    fn propagate(&mut self) -> Result<(), WireError> {
+    fn propagate(&mut self, meter: &mut BudgetMeter) -> Result<(), WireError> {
         while let Some(owner) = self.pending.pop() {
             for dependent in std::mem::take(&mut self.dependents[owner]) {
-                self.meter.charge_work(1, &WirePath::root())?;
-                self.block(dependent)?;
+                meter.charge_work(1, &WirePath::root())?;
+                self.block(dependent, meter)?;
             }
         }
         Ok(())

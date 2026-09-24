@@ -20,6 +20,7 @@ mod default_type_access;
 mod default_value_access;
 mod executable_type_sites;
 mod fact_providers;
+mod materialization_requirements;
 mod materialized_type_uses;
 mod setter_domains;
 mod shape_demands;

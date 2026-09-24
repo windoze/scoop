@@ -1,0 +1,29 @@
+Child constructor Public (String) -> Child Ordinary Scoop
+Child inherits Factory
+Child materializable=true
+DeferredRoot inherits DeferredGeneric<Int>
+DeferredRoot materializable=false
+DeferredStorage constructor Public (DeferredRoot) -> DeferredStorage Ordinary Scoop
+DeferredStorage field DeferredRoot
+DeferredStorage materializable=false
+Factory constructor Protected (Int) -> Factory Ordinary Scoop
+Factory constructor Public (String) -> Factory Ordinary Scoop
+Factory field Int
+Factory inherits Root
+Factory materializable=true
+Factory slot Protected () -> String Ordinary Scoop
+FinalReader constructor Public () -> FinalReader Ordinary Scoop
+FinalReader inherits Readable
+FinalReader materializable=true
+FinalReader slot Public () -> Int Ordinary Scoop
+Readable materializable=true
+Readable slot Public () -> Int Ordinary Scoop
+Root inherits Readable
+Root materializable=true
+Root slot Public () -> Int Ordinary Scoop
+Root slot Public (Int) -> Unit Ordinary Scoop
+Value constructor Public (Int) -> Value Ordinary Scoop
+Value field Int
+Value inherits Readable
+Value materializable=true
+Value slot Public () -> Int Ordinary Scoop

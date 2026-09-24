@@ -1,0 +1,13 @@
+Choice constructor Public () -> Choice Ordinary Scoop
+Choice constructor Public (Int) -> Choice Ordinary Scoop
+Choice constructor Public (String) -> Choice Ordinary Scoop
+Choice enum-field Int
+Choice enum-field String
+Choice materializable=true
+Pair constructor Public (Int, Int) -> Pair Ordinary Scoop
+Pair field Int
+Pair field Int
+Pair materializable=true
+Storage field Int
+Storage field Int
+Storage materializable=true
