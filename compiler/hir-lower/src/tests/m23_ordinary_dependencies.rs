@@ -10,6 +10,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 
 mod core;
 mod extensions;
+mod occurrences;
 pub(super) mod support;
 
 use support::*;

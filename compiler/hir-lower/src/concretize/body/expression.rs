@@ -418,15 +418,18 @@ impl Concretizer<'_> {
                     .collect(),
             },
 
-            export::ExprKind::ImportedDependencyCall { callee, args } => {
-                concrete::ExprKind::ImportedDependencyCall {
-                    callee: self.imported_dependency_callable_map[callee],
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+            export::ExprKind::ImportedDependencyCall {
+                callee,
+                binding,
+                args,
+            } => concrete::ExprKind::ImportedDependencyCall {
+                callee: self.imported_dependency_callable_map[callee],
+                binding: std::sync::Arc::clone(binding),
+                args: args
+                    .iter()
+                    .map(|argument| self.lower_expr(argument, substitution, locals))
+                    .collect(),
+            },
             export::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

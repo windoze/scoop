@@ -1,0 +1,4 @@
+selected=1 occurrences=3
+repeated #0: routes=[1] definition=repeated@64..69 evaluation=repeated@64..69
+repeated #1: routes=[1] definition=repeated@74..79 evaluation=repeated@74..79
+repeated #2: routes=[1] definition=repeated@91..96 evaluation=repeated@91..96

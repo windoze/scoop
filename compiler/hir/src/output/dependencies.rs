@@ -3,6 +3,11 @@ use std::fmt;
 
 use crate::concrete;
 
+mod occurrences;
+pub use occurrences::{
+    CommittedDependencyCallOccurrence, DependencyCallOccurrenceError, DependencyCallOrigin,
+};
+
 /// HIR product with the committed dependency selections and source
 /// binding routes needed by subsequent interface and machine-IR production.
 pub struct DependencyHirOutput {
@@ -27,6 +32,8 @@ impl DependencyHirOutput {
         let export = output.export.module();
         let local = output.local.module();
         validate_imported_dependency_projection(export, local, &imported_dependencies)?;
+        occurrences::validate(&output, &imported_dependencies)
+            .map_err(DependencyHirOutputError::CallOccurrence)?;
         let concrete_dependency_witness_uses =
             concrete_dependency_witness_uses(&imported_dependencies);
         binding_witness_uses.sort_unstable();
@@ -148,8 +155,9 @@ fn validate_imported_dependency_projection(
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DependencyHirOutputError {
+    CallOccurrence(DependencyCallOccurrenceError),
     DependencyConsumerMismatch {
         output: scoop_identity::ConeIdentity,
         selected: scoop_identity::ConeIdentity,

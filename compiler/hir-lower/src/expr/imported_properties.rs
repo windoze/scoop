@@ -165,8 +165,8 @@ impl Lowerer {
         if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(span, unsafe_operation);
         }
-        let callee = match self.select_imported_dependency_callable_use(candidate) {
-            Ok(callee) => callee,
+        let (callee, binding) = match self.select_imported_dependency_callable_use(candidate) {
+            Ok(selected) => selected,
             Err(error) => {
                 self.error(
                     span,
@@ -176,7 +176,11 @@ impl Lowerer {
             }
         };
         Some(hir::Expr {
-            kind: hir::ExprKind::ImportedDependencyCall { callee, args },
+            kind: hir::ExprKind::ImportedDependencyCall {
+                callee,
+                binding,
+                args,
+            },
             ty: result_type,
             span,
             origin: self.expression_origin(span),

@@ -195,7 +195,7 @@ impl ReferenceCollector<'_> {
                 self.expressions(args);
             }
 
-            hir::ExprKind::ImportedDependencyCall { callee, args } => {
+            hir::ExprKind::ImportedDependencyCall { callee, args, .. } => {
                 self.record_callable(
                     hir::ExportDefaultCallableTarget::ImportedDependency(*callee),
                     origin,

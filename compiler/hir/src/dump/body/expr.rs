@@ -569,7 +569,7 @@ pub(super) fn dump_expr(
             dump_expr(module, locals, operand, indent + 1, out);
         }
 
-        ExprKind::ImportedDependencyCall { callee, args } => {
+        ExprKind::ImportedDependencyCall { callee, args, .. } => {
             out.push_str(&format!(
                 "{pad}ImportedDependencyCall #{} : {ty}\n",
                 callee.into_raw().into_u32()

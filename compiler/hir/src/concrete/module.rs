@@ -27,15 +27,9 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
-    /// Imported core callable uses transposed one-to-one from Export HIR into
-    /// this stage's distinct arena-id domain.
     /// Ordinary dependency callable uses transposed one-to-one from Export
     /// HIR into their own LocalConcrete arena-id domain.
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
-    /// Imported core type uses transposed one-to-one from Export HIR into a
-    /// distinct LocalConcrete arena-id domain.
-    /// Imported core value uses transposed one-to-one from Export HIR into a
-    /// distinct LocalConcrete arena-id domain.
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,

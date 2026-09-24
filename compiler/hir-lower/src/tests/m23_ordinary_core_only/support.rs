@@ -58,6 +58,19 @@ impl TrustedCoreFixture {
         foundation: &scoop_hir::CanonicalHirFoundation,
         fingerprint: u8,
     ) -> scoop_hir::ImportedHirFoundation {
+        self.import_dependency_foundation_with_functions(coordinate, foundation, fingerprint, &[])
+    }
+
+    pub(crate) fn import_dependency_foundation_with_functions(
+        &mut self,
+        coordinate: &scoop_identity::ConeCoordinate,
+        foundation: &scoop_hir::CanonicalHirFoundation,
+        fingerprint: u8,
+        external: &[scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentFunctionId,
+            scoop_identity::SourceDeclarationKey,
+        >],
+    ) -> scoop_hir::ImportedHirFoundation {
         let decoded: scoop_hir::DecodedHirFoundation =
             decode_canonical(&encode(foundation).unwrap(), DecodeLimits::default()).unwrap();
         let mut pending = PendingIdentityValidation::new();
@@ -65,6 +78,11 @@ impl TrustedCoreFixture {
             .register_authority(coordinate.identity().unwrap())
             .unwrap();
         pending.register_authority(ConeIdentity::CORE).unwrap();
+        for record in external {
+            pending
+                .register_external_canonical_authority(record.clone())
+                .unwrap();
+        }
         decoded.register_identities(&mut pending).unwrap();
         decoded.resolve_identities(&mut pending).unwrap();
         let identities = pending.finish().unwrap();
@@ -299,7 +317,7 @@ fn parsed_sources(
     .unwrap()
 }
 
-pub(super) fn parsed_ordinary_text(source: &str) -> CurrentConeParsedSources {
+pub(crate) fn parsed_ordinary_text(source: &str) -> CurrentConeParsedSources {
     parsed_sources(
         test_source_identity("src/main.scoop"),
         scoop_parser::parse(source).unwrap(),

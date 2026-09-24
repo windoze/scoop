@@ -407,6 +407,9 @@ pub enum ExprKind {
     /// selection sidecar.
     ImportedDependencyCall {
         callee: ImportedDependencyCallableUseId,
+        /// The exact winning lookup routes for this occurrence. The shared
+        /// callable handle may also be reached through other bindings.
+        binding: std::sync::Arc<DirectImportedTargetBinding>,
         args: Vec<Expr>,
     },
     /// Direct call of a lifted local function. Hidden capture arguments are

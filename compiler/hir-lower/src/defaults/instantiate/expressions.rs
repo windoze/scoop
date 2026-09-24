@@ -254,12 +254,15 @@ impl Lowerer {
                 args: self.instantiate_default_exprs(args, context),
             },
 
-            hir::ExprKind::ImportedDependencyCall { callee, args } => {
-                hir::ExprKind::ImportedDependencyCall {
-                    callee: *callee,
-                    args: self.instantiate_default_exprs(args, context),
-                }
-            }
+            hir::ExprKind::ImportedDependencyCall {
+                callee,
+                binding,
+                args,
+            } => hir::ExprKind::ImportedDependencyCall {
+                callee: *callee,
+                binding: std::sync::Arc::clone(binding),
+                args: self.instantiate_default_exprs(args, context),
+            },
             hir::ExprKind::LocalFunctionCall {
                 local_function,
                 callee,

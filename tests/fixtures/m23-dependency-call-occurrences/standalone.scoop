@@ -1,0 +1,7 @@
+import dependency.api.run
+
+public fun repeated(): Boolean {
+    run()
+    run()
+    return run()
+}

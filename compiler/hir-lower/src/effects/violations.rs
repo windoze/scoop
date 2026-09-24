@@ -359,7 +359,7 @@ impl Lowerer {
                 }
             }
 
-            ExprKind::ImportedDependencyCall { callee, args } => {
+            ExprKind::ImportedDependencyCall { callee, args, .. } => {
                 let reference = self.imported_dependency_callables[*callee].reference();
                 let selected = self
                     .dependencies

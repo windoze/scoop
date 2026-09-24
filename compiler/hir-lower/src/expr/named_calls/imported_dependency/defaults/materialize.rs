@@ -258,12 +258,16 @@ impl Lowerer {
             context.prepared.callables.get(callee).ok_or_else(|| {
                 ImportedDefaultMaterializationError::MissingCallable(callee.clone())
             })?;
-        let callee = self
+        let (callee, binding) = self
             .select_imported_dependency_callable_use(candidate.clone())
             .map_err(|error| {
                 ImportedDefaultMaterializationError::DependencySelection(error.to_string())
             })?;
-        Ok(hir::ExprKind::ImportedDependencyCall { callee, args })
+        Ok(hir::ExprKind::ImportedDependencyCall {
+            callee,
+            binding,
+            args,
+        })
     }
 
     fn imported_default_definition_origin(

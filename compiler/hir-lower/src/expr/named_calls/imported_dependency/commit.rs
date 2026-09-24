@@ -168,8 +168,8 @@ impl Lowerer {
         args.extend(receiver);
         args.extend(parameter_values);
 
-        let callee = match self.select_imported_dependency_callable_use(*candidate) {
-            Ok(callee) => callee,
+        let (callee, binding) = match self.select_imported_dependency_callable_use(*candidate) {
+            Ok(selected) => selected,
             Err(error) => {
                 self.error(
                     call_span,
@@ -179,7 +179,11 @@ impl Lowerer {
             }
         };
         Some(hir::Expr {
-            kind: hir::ExprKind::ImportedDependencyCall { callee, args },
+            kind: hir::ExprKind::ImportedDependencyCall {
+                callee,
+                binding,
+                args,
+            },
             ty: result_type,
             span: call_span,
             origin: self.expression_origin(call_span),

@@ -90,16 +90,9 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
-    /// Imported core call targets selected for this ordinary HIR graph. Each
-    /// entry retains the brand of the selected-set world that admitted it;
-    /// expressions reference this arena instead of a core declaration id.
-    /// Ordinary-dependency callables committed by this HIR graph. These uses
-    /// have a separate id domain from trusted-core and local callables.
+    /// Dependency callables committed by this HIR graph. Handles retain the
+    /// selection brand; each expression also retains its own winning binding.
     pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
-    /// Imported core type targets selected for this ordinary HIR graph. The
-    /// arena is independent from callable and value uses, so their local ids
-    /// cannot be interchanged.
-    /// Imported core value targets selected for this ordinary HIR graph.
     /// Template-only calls through an interface upper bound. Each entry
     /// names the exact receiver parameter, bound application and declaring
     /// interface method; local-concrete HIR has no corresponding arena.

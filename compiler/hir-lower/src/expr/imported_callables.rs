@@ -13,7 +13,14 @@ impl Lowerer {
     pub(crate) fn select_imported_dependency_callable_use(
         &mut self,
         candidate: hir::ImportedDependencyCallableCandidate,
-    ) -> Result<hir::ImportedDependencyCallableUseId, hir::ImportedDependencySelectionError> {
+    ) -> Result<
+        (
+            hir::ImportedDependencyCallableUseId,
+            std::sync::Arc<hir::DirectImportedTargetBinding>,
+        ),
+        hir::ImportedDependencySelectionError,
+    > {
+        let binding = std::sync::Arc::new(candidate.binding().clone());
         let reference = self
             .dependencies
             .as_mut()
@@ -23,11 +30,12 @@ impl Lowerer {
             .imported_dependency_callables
             .iter()
             .find_map(|(id, use_)| (use_.reference() == reference).then_some(id));
-        Ok(match existing {
+        let callee = match existing {
             Some(existing) => existing,
             None => self
                 .imported_dependency_callables
                 .alloc(hir::ImportedDependencyCallableUse::new(reference)),
-        })
+        };
+        Ok((callee, binding))
     }
 }

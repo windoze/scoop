@@ -1,0 +1,34 @@
+import dependency.api.run
+
+public class Holder(val value: Boolean) {
+    constructor() : this(run()) { run() }
+    public fun read(): Boolean = run()
+}
+
+public struct Value(val value: Boolean) {
+    constructor() : this(run()) { run() }
+}
+
+private fun withDefault(value: Boolean = run()): Boolean = value
+private fun dormant(value: Boolean = run()): Boolean = value
+
+public fun combined(): Boolean {
+    val first = withDefault()
+    val second = withDefault()
+    fun nested(): Boolean = run()
+    val lambda = { run() }
+    var keep = run()
+    while (run()) {
+        if (run()) break
+        keep = run()
+    }
+    when ((run(), run())) {
+        (_, _) if (run()) -> { run() }
+        else -> { run() }
+    }
+    val holder = Holder()
+    val value = Value()
+    nested()
+    lambda()
+    return first
+}

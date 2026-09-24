@@ -265,10 +265,12 @@ impl BodyProjection<'_, '_, '_> {
                 arguments: self.expressions(args)?,
             },
 
-            ExprKind::ImportedDependencyCall { callee, args } => DefaultExpressionKindV1::Call {
-                callee: self.entities.imported_dependency_callable(*callee)?,
-                arguments: self.expressions(args)?,
-            },
+            ExprKind::ImportedDependencyCall { callee, args, .. } => {
+                DefaultExpressionKindV1::Call {
+                    callee: self.entities.imported_dependency_callable(*callee)?,
+                    arguments: self.expressions(args)?,
+                }
+            }
             ExprKind::LocalFunctionCall {
                 local_function,
                 callee,
