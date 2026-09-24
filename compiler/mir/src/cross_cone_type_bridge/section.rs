@@ -25,7 +25,9 @@ pub use model::*;
 pub use selection::{SelectedDependencyMirTypeRefV1, SelectedDependencyMirTypeSetV1};
 pub use source::*;
 pub use units::{MirInitializationUnitProofKindV1, MirTypeBridgeInitializationUnitV1};
-pub use wire::DecodedCrossConeMirTypeBridgeSectionV1;
+pub use wire::{
+    DecodedCrossConeMirTypeBridgeSectionV1, TypeResolvedCrossConeMirTypeBridgeSectionV1,
+};
 
 fn reserve<T>(count: usize, meter: &mut BudgetMeter) -> Result<Vec<T>, WireError> {
     meter.check_table_entries(count as u64, &WirePath::root())?;

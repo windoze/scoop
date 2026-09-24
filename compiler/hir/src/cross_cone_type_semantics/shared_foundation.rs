@@ -30,6 +30,22 @@ pub struct SharedTypeMetadataV1<'a> {
     pub public: &'a CrossConeHirInterfaceSectionV1,
 }
 
+impl SharedTypeMetadataV1<'_> {
+    /// Resolves a parameter-free source signature through this artifact's
+    /// canonical identity graph, including each structural component.
+    pub fn signature_exact_type(
+        self,
+        signature: &scoop_identity::SignatureTypeKey,
+        meter: &mut BudgetMeter,
+    ) -> Result<PersistentExactTypeId, SharedTypeMetadataError> {
+        MetadataTypes {
+            current: self,
+            dependencies: &[],
+        }
+        .exact(signature, 1, meter)
+    }
+}
+
 /// Complete fact and representation inventories agree with the shared
 /// declarations. Inheritance, protected/default and selected-use checks remain
 /// separate obligations before the complete type section is publishable.

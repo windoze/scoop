@@ -43,9 +43,18 @@ fn ordinary_library_omits_only_source_only_machine_signatures() {
 
 #[test]
 fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
+    check_core_layout_exports(&["base", "standalone", "combined"]);
+}
+
+#[test]
+fn shared_mir_types_replay_standalone_and_combined_source_policies() {
+    check_core_layout_exports(&["shared-mir-standalone", "shared-mir-combined"]);
+}
+
+fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
-    for name in ["base", "standalone", "combined"] {
+    for &name in names {
         let directory = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(directory.path());
         let root = directory.path().join("lib/scoop.core");
@@ -161,7 +170,7 @@ fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
         .unwrap_or_else(|error| panic!("{name} LIR exports: {error}"));
         let mut dump = contracts::check(&hir, &source, input, &result);
         assertions::contents(input, &result);
-        if name != "base" {
+        if matches!(name, "standalone" | "combined") {
             assertions::zero_sized_abi(&result);
         }
         dump.push_str(&assertions::dump(input, &result));

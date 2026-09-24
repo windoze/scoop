@@ -6,6 +6,8 @@ pub(super) fn check(
     hir: &hir::CrossConeTypeSemanticsSectionV1,
     mir: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     lir: &lir::CrossConeLayoutAbiSectionV1<'_>,
+    hir_core: &hir::CoreBootstrapInterfaceSectionV1,
+    mir_foundation: &mir::OdrFreeMirFoundation,
 ) {
     let hir_bytes = encode(&hir.index_for_wire(&mut meter()).unwrap()).unwrap();
     let open = || {
@@ -88,9 +90,23 @@ pub(super) fn check(
         hir.representation_support()
     );
     super::type_foundations::check(checked[0]);
+    super::mir_types::check(name, checked[0], hir_core, mir_foundation, mir);
     if name == "base" {
         super::type_foundations::dependencies::check(checked[0]);
     }
+    let types = declarations.validate_mir_types().unwrap();
+    assert_eq!(types.current(), ConeIdentity::CORE);
+    assert_eq!(types.target_selection(), artifact.target_selection());
+    assert!(types.direct_providers().is_empty());
+    assert_eq!(types.dependency_count(ConeIdentity::CORE), Some(0));
+    assert_eq!(types.dependency_first().count(), 1);
+    let current = types.artifact(ConeIdentity::CORE).unwrap();
+    assert_eq!(current.types(), mir.types());
+    assert_eq!(current.shape_support(), mir.shape_support());
+    assert_eq!(
+        encode(current.lir_layout_abi_wire()).unwrap(),
+        encode(lir).unwrap()
+    );
     let snapshot = crate::workspace_root().join(format!(
         "tests/fixtures/m23-core-layout-exports/{name}.artifact.snap"
     ));

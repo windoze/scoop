@@ -50,6 +50,10 @@ pub(super) struct CheckedInheritanceSourceV1<'a> {
 }
 
 impl CheckedNominalInheritanceGraphV1<'_> {
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
     pub fn get(&self, exact: PersistentExactTypeId) -> Option<CheckedInheritanceNodeV1<'_>> {
         self.nodes.get(&exact).copied()
     }

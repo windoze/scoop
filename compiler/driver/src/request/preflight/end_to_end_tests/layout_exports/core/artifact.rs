@@ -1,6 +1,7 @@
 use super::*;
 
 mod bytes;
+mod mir_types;
 mod type_foundations;
 
 #[allow(clippy::too_many_arguments)]
@@ -55,5 +56,13 @@ pub(super) fn check(
     )
     .assemble(objects, &generated, &[], &mut meter())
     .unwrap_or_else(|error| panic!("{name} layout artifact assembly: {error:?}"));
-    bytes::check(name, &artifact, input.source.section(), mir_section, layout);
+    bytes::check(
+        name,
+        &artifact,
+        input.source.section(),
+        mir_section,
+        layout,
+        &production,
+        input.mir.foundation(),
+    );
 }

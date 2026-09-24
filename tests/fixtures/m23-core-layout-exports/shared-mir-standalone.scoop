@@ -1,0 +1,2 @@
+@InteriorMutable
+public struct SharedMirCell(val value: Int)
