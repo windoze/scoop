@@ -6,6 +6,7 @@ use crate::{CanonicalExternalHirReferencesV1, ExternalHirReferenceSemanticAuthor
 
 mod accumulator;
 mod calls;
+mod declaration_types;
 mod defaults;
 mod dispatch;
 mod errors;
@@ -59,6 +60,7 @@ impl CanonicalExternalHirReferencesV1 {
             accumulator.add_implicit_dependency_witnesses(output.imported_dependencies());
             accumulator.add_call_sites(output, &mut meter)?;
             accumulator.add_type_sites(output, &mut meter)?;
+            accumulator.add_declaration_type_sites(output, &mut meter)?;
         }
 
         accumulator.finish(&mut meter)

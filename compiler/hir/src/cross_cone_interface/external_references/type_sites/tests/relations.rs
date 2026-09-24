@@ -68,6 +68,7 @@ impl Types {
         role: HirExpressionTypeRoleV1,
     ) -> HirDependencyTypeSiteV1 {
         let original = site(&self.fixture, 0, role);
+        let original = original.as_expression().unwrap();
         HirDependencyTypeSiteV1::new(original.position(), original.origin().clone(), role, exact)
     }
 

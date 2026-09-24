@@ -1,6 +1,9 @@
-//! Reconstruct the complete foreign nominal fanout at each actual expression.
+//! Reconstruct the complete foreign nominal fanout at each actual HIR site.
 
-use super::{HirDependencyTypeSiteV1, HirExpressionTypeRoleV1};
+use super::{
+    HirDependencyTypePositionV1, HirDependencyTypeSiteV1, HirExpressionTypeRoleV1,
+    HirExpressionTypeSiteV1,
+};
 use crate::concrete::ExecutableExpressionPosition;
 use scoop_identity::{ConeIdentity, NominalDeclarationOwner, ValidatedIdentityGraph};
 use scoop_wire::{BudgetMeter, WirePath};
@@ -12,7 +15,7 @@ mod errors;
 mod nominals;
 pub use errors::HirDependencyTypeRelationError;
 type Error = HirDependencyTypeRelationError;
-type Position = (ExecutableExpressionPosition, HirExpressionTypeRoleV1);
+type Position = HirDependencyTypePositionV1;
 type Nominal = (ConeIdentity, NominalDeclarationOwner);
 
 struct Site<'a> {
@@ -51,14 +54,14 @@ impl CanonicalExternalHirReferencesV1 {
             };
             for source in reference.type_sites().records() {
                 meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
-                if !sites.contains_key(&source.sort_key()) {
+                if !sites.contains_key(&source.position()) {
                     meter.charge_owned_bytes(
                         (std::mem::size_of::<(Position, Site<'_>)>() + 32) as u64,
                         &path,
                     )?;
                     meter.charge_collection_slots(1, &path)?;
                 }
-                let site = sites.entry(source.sort_key()).or_insert_with(|| Site {
+                let site = sites.entry(source.position()).or_insert_with(|| Site {
                     source,
                     nominals: Vec::new(),
                 });
@@ -69,23 +72,24 @@ impl CanonicalExternalHirReferencesV1 {
                     &path,
                 )?;
                 if site.source != source {
-                    return Err(Error::ConflictingPosition(source.sort_key()));
+                    return Err(Error::ConflictingPosition(source.position()));
                 }
                 meter.charge_owned_bytes(std::mem::size_of::<Nominal>() as u64, &path)?;
                 meter.try_reserve_collection_slots(&mut site.nominals, 1, &path)?;
                 site.nominals.push((reference.origin(), owner));
             }
         }
-        let mut last: Option<&HirDependencyTypeSiteV1> = None;
+        let mut last: Option<&HirExpressionTypeSiteV1> = None;
         for (position, site) in &mut sites {
             if let Some(previous) = last
-                && previous.position() == site.source.position()
-                && (previous.origin() != site.source.origin()
+                && let Some(current) = site.source.as_expression()
+                && previous.position() == current.position()
+                && (previous.origin() != current.origin()
                     || previous.role() != HirExpressionTypeRoleV1::Value)
             {
                 return Err(Error::ConflictingPosition(*position));
             }
-            last = Some(site.source);
+            last = site.source.as_expression();
             let expected = input.type_site_nominals(site.source.exact(), meter)?;
             let count = site.nominals.len() as u64;
             meter.charge_work(
@@ -100,14 +104,16 @@ impl CanonicalExternalHirReferencesV1 {
         for reference in self.records() {
             meter.charge_work(1, &path)?;
             for call in reference.call_sites().records() {
-                let key = (call.position(), HirExpressionTypeRoleV1::Value);
+                let key = Position::Expression(call.position(), HirExpressionTypeRoleV1::Value);
                 meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
                 if let Some(site) = sites.get(&key) {
                     meter.charge_work(
                         scoop_wire::encoded_length(call).map_err(|_| Error::Encoding)?,
                         &path,
                     )?;
-                    if site.source.exact() != call.result() || site.source.origin() != call.origin()
+                    if site.source.exact() != call.result()
+                        || site.source.as_expression().map(|source| source.origin())
+                            != Some(call.origin())
                     {
                         return Err(Error::CallResult(call.position()));
                     }

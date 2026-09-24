@@ -1,82 +1,101 @@
-//! Type occurrences retained by the ordinary external-reference metadata.
-
-use scoop_identity::{ConcreteExpressionOrigin, PersistentExactTypeId};
-use scoop_wire::{Encoder, WireEncode};
+//! Actual expression, signature and declaration types in shared HIR metadata.
 
 use crate::concrete::ExecutableExpressionPosition;
+use scoop_identity::{
+    CallableMaterialization, ConcreteExpressionOrigin, PersistentExactTypeId,
+    PersistentLocalValueId, PropertyOwner,
+};
 
 mod decode;
 mod errors;
+mod expression;
 mod nominals;
+mod position;
 mod relations;
 mod role;
 mod table;
 #[cfg(test)]
 mod tests;
+mod wire;
 
-pub use decode::DecodedHirDependencyTypeSiteV1;
+pub use decode::{DecodedHirDependencyTypeSiteV1, HirDependencyTypeSiteResolver};
 pub use errors::{HirDependencyTypeSiteBuildError, HirDependencyTypeSiteResolutionError};
+pub use expression::HirExpressionTypeSiteV1;
 pub use nominals::{HirTypeSiteExactError, collect_type_site_nominals};
+pub use position::{HirCallableTypePositionV1, HirDependencyTypePositionV1};
 pub use relations::HirDependencyTypeRelationError;
 pub use role::HirExpressionTypeRoleV1;
 pub use table::{CanonicalHirDependencyTypeSitesV1, DecodedCanonicalHirDependencyTypeSitesV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HirDependencyTypeSiteV1 {
-    position: ExecutableExpressionPosition,
-    origin: ConcreteExpressionOrigin,
-    role: HirExpressionTypeRoleV1,
-    exact: PersistentExactTypeId,
+pub enum HirDependencyTypeSiteV1 {
+    Expression(Box<HirExpressionTypeSiteV1>),
+    CallableSignature {
+        root: CallableMaterialization,
+        position: HirCallableTypePositionV1,
+        exact: PersistentExactTypeId,
+    },
+    LocalValue {
+        local: PersistentLocalValueId,
+        exact: PersistentExactTypeId,
+    },
+    BackingStorage {
+        property: PropertyOwner,
+        exact: PersistentExactTypeId,
+    },
+    DelegateStorage {
+        property: PropertyOwner,
+        exact: PersistentExactTypeId,
+    },
 }
 
 impl HirDependencyTypeSiteV1 {
-    pub const fn new(
+    pub fn new(
         position: ExecutableExpressionPosition,
         origin: ConcreteExpressionOrigin,
         role: HirExpressionTypeRoleV1,
         exact: PersistentExactTypeId,
     ) -> Self {
-        Self {
-            position,
-            origin,
-            role,
-            exact,
-        }
-    }
-
-    pub const fn position(&self) -> ExecutableExpressionPosition {
-        self.position
-    }
-
-    pub const fn origin(&self) -> &ConcreteExpressionOrigin {
-        &self.origin
-    }
-
-    pub const fn role(&self) -> HirExpressionTypeRoleV1 {
-        self.role
+        Self::Expression(Box::new(HirExpressionTypeSiteV1::new(
+            position, origin, role, exact,
+        )))
     }
 
     pub const fn exact(&self) -> PersistentExactTypeId {
-        self.exact
+        match self {
+            Self::Expression(site) => site.exact(),
+            Self::CallableSignature { exact, .. }
+            | Self::LocalValue { exact, .. }
+            | Self::BackingStorage { exact, .. }
+            | Self::DelegateStorage { exact, .. } => *exact,
+        }
     }
 
-    pub const fn sort_key(&self) -> (ExecutableExpressionPosition, HirExpressionTypeRoleV1) {
-        (self.position, self.role)
+    pub const fn as_expression(&self) -> Option<&HirExpressionTypeSiteV1> {
+        match self {
+            Self::Expression(site) => Some(site),
+            Self::CallableSignature { .. }
+            | Self::LocalValue { .. }
+            | Self::BackingStorage { .. }
+            | Self::DelegateStorage { .. } => None,
+        }
     }
-}
 
-impl WireEncode for HirDependencyTypeSiteV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(5)?;
-        encoder.field(1)?;
-        self.position.root.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.unsigned(u64::from(self.position.expression_index))?;
-        encoder.field(3)?;
-        self.origin.encode(encoder)?;
-        encoder.field(4)?;
-        self.role.encode(encoder)?;
-        encoder.field(5)?;
-        self.exact.encode(encoder)
+    pub const fn position(&self) -> HirDependencyTypePositionV1 {
+        match self {
+            Self::Expression(site) => {
+                HirDependencyTypePositionV1::Expression(site.position(), site.role())
+            }
+            Self::CallableSignature { root, position, .. } => {
+                HirDependencyTypePositionV1::CallableSignature(*root, *position)
+            }
+            Self::LocalValue { local, .. } => HirDependencyTypePositionV1::LocalValue(*local),
+            Self::BackingStorage { property, .. } => {
+                HirDependencyTypePositionV1::BackingStorage(*property)
+            }
+            Self::DelegateStorage { property, .. } => {
+                HirDependencyTypePositionV1::DelegateStorage(*property)
+            }
+        }
     }
 }

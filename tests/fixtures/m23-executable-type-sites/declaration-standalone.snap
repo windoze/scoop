@@ -1,0 +1,11 @@
+declaration=CallableSignature(CallableMaterialization { template: Function(PersistentFunctionId([29, 59, 22, 57, 160, 18, 45, 250, 172, 246, 65, 19, 252, 144, 155, 40, 35, 132, 119, 3, 21, 103, 41, 9, 79, 89, 149, 173, 232, 196, 149, 175])), context: NoSubstitution }, Parameter(0)) exact=a8ce88ffddeeedad891d4e6f4043806fb4bb7c122abf370a79ca2e7fd0e06b4a
+declaration=LocalValue(PersistentLocalValueId([174, 243, 228, 22, 165, 37, 147, 254, 121, 61, 211, 197, 26, 154, 12, 170, 166, 49, 243, 66, 68, 98, 176, 51, 110, 128, 121, 137, 135, 71, 9, 206])) exact=a8ce88ffddeeedad891d4e6f4043806fb4bb7c122abf370a79ca2e7fd0e06b4a
+declaration=CallableSignature(CallableMaterialization { template: Function(PersistentFunctionId([29, 59, 22, 57, 160, 18, 45, 250, 172, 246, 65, 19, 252, 144, 155, 40, 35, 132, 119, 3, 21, 103, 41, 9, 79, 89, 149, 173, 232, 196, 149, 175])), context: NoSubstitution }, Result) exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc
+signature_sites=2
+local_sites=1
+backing_sites=0
+delegate_sites=0
+type_sites=0
+foreign_definitions=0
+MIR selected=0
+LIR selected=0

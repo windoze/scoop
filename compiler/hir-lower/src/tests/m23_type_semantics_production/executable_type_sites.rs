@@ -27,7 +27,12 @@ fn shared_type_sites_preserve_type_test_operands_without_unexpanded_defaults() {
         let foundation = hir::OdrFreeHirFoundation::try_new(foundation).unwrap();
         let mut uses = Vec::new();
         for reference in interface.external_references().records() {
-            for site in reference.type_sites().records() {
+            for site in reference
+                .type_sites()
+                .records()
+                .iter()
+                .filter_map(|site| site.as_expression())
+            {
                 assert_eq!(reference.origin(), ConeIdentity::CORE);
                 foundation
                     .validate_definition_origin_location(
@@ -128,6 +133,7 @@ fn shared_constructor_type_sites_keep_their_actual_source_context() {
             .records()
             .iter()
             .flat_map(|reference| reference.type_sites().records())
+            .filter_map(|site| site.as_expression())
             .collect::<Vec<_>>();
         for site in &sites {
             foundation

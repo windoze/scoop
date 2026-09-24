@@ -38,8 +38,26 @@ impl HirInterfaceValidationInput<'_> {
                     .index(index as u64)
                     .field(6)
                     .index(site_index as u64);
-                self.executable_origin(site.position(), site.origin(), dependencies, meter, &path)
-                    .map_err(|error| CrossConeHirTypeSiteError::Origin(Box::new(error)))?;
+                match site {
+                    scoop_hir::HirDependencyTypeSiteV1::Expression(site) => self
+                        .executable_origin(
+                            site.position(),
+                            site.origin(),
+                            dependencies,
+                            meter,
+                            &path,
+                        )
+                        .map_err(|error| CrossConeHirTypeSiteError::Origin(Box::new(error)))?,
+                    _ => self
+                        .foundation
+                        .validate_declaration_type_position(
+                            self.current,
+                            site.position(),
+                            meter,
+                            &path,
+                        )
+                        .map_err(|error| CrossConeHirTypeSiteError::Declaration(Box::new(error)))?,
+                }
             }
         }
         Ok(())

@@ -13,7 +13,7 @@ use super::{
     DecodedExternalHirTargetV1, DependencyBindingWitnessSetValidationError,
     ExternalHirReferenceRoleSetValidationError, ExternalHirTargetResolutionError,
     ExternalHirTargetResolver, ExternalHirTargetV1, HirDependencyCallSiteResolutionError,
-    HirDependencyCallSiteResolver, HirDependencyTypeSiteResolutionError,
+    HirDependencyTypeSiteResolutionError, HirDependencyTypeSiteResolver,
 };
 
 mod call_sites;
@@ -200,7 +200,7 @@ pub trait ExternalHirReferenceResolver<E>:
     ExternalHirTargetResolver<E>
     + PersistentIdResolver<ConeIdentity, Error = E>
     + PersistentIdResolver<PersistentExportBindingId, Error = E>
-    + HirDependencyCallSiteResolver<E>
+    + HirDependencyTypeSiteResolver<E>
 {
 }
 
@@ -208,7 +208,7 @@ impl<R, E> ExternalHirReferenceResolver<E> for R where
     R: ExternalHirTargetResolver<E>
         + PersistentIdResolver<ConeIdentity, Error = E>
         + PersistentIdResolver<PersistentExportBindingId, Error = E>
-        + HirDependencyCallSiteResolver<E>
+        + HirDependencyTypeSiteResolver<E>
 {
 }
 

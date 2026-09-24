@@ -27,7 +27,12 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
     let dependency_bytes =
         [&core, &provider].map(|artifact| std::fs::read(artifact.artifact().path()).unwrap());
     std::fs::remove_dir_all(provider_root.join("src")).unwrap();
-    for name in ["standalone", "combined"] {
+    for name in [
+        "standalone",
+        "combined",
+        "declaration-standalone",
+        "declaration-combined",
+    ] {
         let root = sysroot.path().join(name);
         write_manifest_cone(&root, "dev.example", name, "library", &source(name));
         write_dependency_manifest(&root, name, &[&coordinate]);
@@ -66,6 +71,7 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
         let mut roles = std::collections::BTreeSet::new();
         let mut foreign_definitions = 0;
         let mut sites = 0;
+        let mut declarations = [0_usize; 4];
         for reference in references {
             assert_eq!(
                 reference
@@ -74,6 +80,46 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 !reference.type_sites().is_empty()
             );
             for site in reference.type_sites().records() {
+                use scoop_hir::HirDependencyTypeSiteV1 as Site;
+                let site = match site {
+                    Site::Expression(site) => site,
+                    Site::CallableSignature { .. } => {
+                        declarations[0] += 1;
+                        dump.push_str(&format!(
+                            "declaration={:?} exact={}\n",
+                            site.position(),
+                            site.exact()
+                        ));
+                        continue;
+                    }
+                    Site::LocalValue { .. } => {
+                        declarations[1] += 1;
+                        dump.push_str(&format!(
+                            "declaration={:?} exact={}\n",
+                            site.position(),
+                            site.exact()
+                        ));
+                        continue;
+                    }
+                    Site::BackingStorage { .. } => {
+                        declarations[2] += 1;
+                        dump.push_str(&format!(
+                            "declaration={:?} exact={}\n",
+                            site.position(),
+                            site.exact()
+                        ));
+                        continue;
+                    }
+                    Site::DelegateStorage { .. } => {
+                        declarations[3] += 1;
+                        dump.push_str(&format!(
+                            "declaration={:?} exact={}\n",
+                            site.position(),
+                            site.exact()
+                        ));
+                        continue;
+                    }
+                };
                 roles.insert(site.role());
                 sites += 1;
                 let foreign = site.origin().definition().source().cone() != current;
@@ -88,8 +134,14 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 ));
             }
         }
-        assert!(sites > 0);
-        if name == "standalone" {
+        if name == "declaration-standalone" {
+            assert_eq!(sites, 0);
+            assert_eq!(declarations, [2, 1, 0, 0]);
+        } else if name == "declaration-combined" {
+            assert!(sites > 0);
+            assert!(declarations[0] > 2 && declarations[1] > 1 && declarations[2] > 0);
+            assert!(declarations[3] > 0);
+        } else if name == "standalone" {
             assert_eq!(sites, 1);
             assert_eq!(
                 roles,
@@ -103,6 +155,10 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 std::collections::BTreeSet::from([HirExpressionTypeRoleV1::Value])
             );
         }
+        dump.push_str(&format!(
+            "signature_sites={}\nlocal_sites={}\nbacking_sites={}\ndelegate_sites={}\n",
+            declarations[0], declarations[1], declarations[2], declarations[3]
+        ));
         dump.push_str(&format!("type_sites={sites}\nforeign_definitions={foreign_definitions}\nMIR selected={}\nLIR selected={}\n",
             production.mir_cross_cone().selected().len(), production.lir_cross_cone().selected().len()));
         let path = fixtures.join(format!("{name}.snap"));

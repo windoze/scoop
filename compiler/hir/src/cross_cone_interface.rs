@@ -299,10 +299,12 @@ pub use external_references::{
     ExternalHirReferenceSetBuildError, ExternalHirReferenceSetSemanticValidationError,
     ExternalHirReferenceSetValidationError, ExternalHirReferenceV1,
     ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
-    HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutionError,
-    HirDependencyCallSiteResolver, HirDependencyCallSiteV1, HirDependencyTypeRelationError,
-    HirDependencyTypeSiteBuildError, HirDependencyTypeSiteResolutionError, HirDependencyTypeSiteV1,
-    HirExpressionTypeRoleV1, HirTypeSiteExactError, collect_type_site_nominals,
+    HirCallableTypePositionV1, HirDependencyCallSiteBuildError,
+    HirDependencyCallSiteResolutionError, HirDependencyCallSiteResolver, HirDependencyCallSiteV1,
+    HirDependencyTypePositionV1, HirDependencyTypeRelationError, HirDependencyTypeSiteBuildError,
+    HirDependencyTypeSiteResolutionError, HirDependencyTypeSiteResolver, HirDependencyTypeSiteV1,
+    HirExpressionTypeRoleV1, HirExpressionTypeSiteV1, HirTypeSiteExactError,
+    collect_type_site_nominals,
 };
 pub use nominal_callables::{
     NominalCallableClassificationError, NominalExactLeafClassifierBuildError,

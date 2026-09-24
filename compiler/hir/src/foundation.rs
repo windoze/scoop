@@ -28,6 +28,7 @@ pub use wire::{
     NativeBoundaryShapeCoverageError, ValidatedHirFoundation,
 };
 mod counts;
+mod declaration_type_sites;
 mod default_origins;
 mod definition_locations;
 mod evaluation_locations;
@@ -36,6 +37,7 @@ mod imported_protocols;
 mod projection;
 mod strong_profile;
 pub use counts::HirFoundationCounts;
+pub use declaration_type_sites::DeclarationTypeSiteValidationError;
 pub use default_origins::DefaultTemplateRootOriginValidationError;
 pub use definition_locations::DefinitionSourceLocationValidationError;
 pub use evaluation_locations::ExecutableEvaluationValidationError;

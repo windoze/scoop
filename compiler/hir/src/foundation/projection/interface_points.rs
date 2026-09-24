@@ -25,6 +25,7 @@ impl CanonicalHirFoundation {
                         .type_sites()
                         .records()
                         .iter()
+                        .filter_map(|site| site.as_expression())
                         .map(|site| site.origin()),
                 );
             for origin in origins {

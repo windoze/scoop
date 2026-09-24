@@ -6,6 +6,7 @@ pub enum CrossConeHirTypeSiteError {
     Resource(WireError),
     Relations(Box<scoop_hir::HirDependencyTypeRelationError>),
     Origin(Box<CrossConeHirCallSiteOriginError>),
+    Declaration(Box<scoop_hir::DeclarationTypeSiteValidationError>),
 }
 impl From<WireError> for CrossConeHirTypeSiteError {
     fn from(error: WireError) -> Self {
@@ -18,6 +19,7 @@ impl std::fmt::Display for CrossConeHirTypeSiteError {
             Self::Resource(error) => error.fmt(f),
             Self::Relations(error) => error.fmt(f),
             Self::Origin(error) => error.fmt(f),
+            Self::Declaration(error) => error.fmt(f),
         }
     }
 }

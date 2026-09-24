@@ -56,7 +56,9 @@ impl<A> ExternalReferenceAccumulator<'_, A> {
                         )?;
                         meter
                             .charge_owned_bytes(
-                                std::mem::size_of::<HirDependencyTypeSiteV1>() as u64,
+                                (std::mem::size_of::<HirDependencyTypeSiteV1>()
+                                    + std::mem::size_of::<crate::HirExpressionTypeSiteV1>())
+                                    as u64,
                                 &path,
                             )
                             .map_err(Error::Resource)?;

@@ -4,7 +4,7 @@ use scoop_wire::WireError;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirDependencyTypeSiteBuildError {
     Resource(WireError),
-    DuplicatePosition(ExecutableExpressionPosition, HirExpressionTypeRoleV1),
+    DuplicatePosition(HirDependencyTypePositionV1),
     PositionOrder { index: usize },
 }
 

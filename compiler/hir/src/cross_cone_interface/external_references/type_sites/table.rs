@@ -1,7 +1,7 @@
 use scoop_wire::{BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WirePath};
 
 use super::*;
-use crate::HirDependencyCallSiteResolver;
+use crate::HirDependencyTypeSiteResolver;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CanonicalHirDependencyTypeSitesV1 {
@@ -19,7 +19,7 @@ impl CanonicalHirDependencyTypeSitesV1 {
             count.saturating_mul(2 + u64::from(count.max(1).ilog2())),
             &WirePath::root(),
         )?;
-        records.sort_unstable_by_key(HirDependencyTypeSiteV1::sort_key);
+        records.sort_unstable_by_key(HirDependencyTypeSiteV1::position);
         Self::from_canonical(records)
     }
 
@@ -27,11 +27,10 @@ impl CanonicalHirDependencyTypeSitesV1 {
         records: Vec<HirDependencyTypeSiteV1>,
     ) -> Result<Self, HirDependencyTypeSiteBuildError> {
         for (index, pair) in records.windows(2).enumerate() {
-            match pair[0].sort_key().cmp(&pair[1].sort_key()) {
+            match pair[0].position().cmp(&pair[1].position()) {
                 std::cmp::Ordering::Equal => {
                     return Err(HirDependencyTypeSiteBuildError::DuplicatePosition(
                         pair[1].position(),
-                        pair[1].role(),
                     ));
                 }
                 std::cmp::Ordering::Greater => {
@@ -69,7 +68,7 @@ pub struct DecodedCanonicalHirDependencyTypeSitesV1 {
 }
 
 impl DecodedCanonicalHirDependencyTypeSitesV1 {
-    pub fn resolve<R: HirDependencyCallSiteResolver<E>, E>(
+    pub fn resolve<R: HirDependencyTypeSiteResolver<E>, E>(
         self,
         resolver: &mut R,
         meter: &mut BudgetMeter,

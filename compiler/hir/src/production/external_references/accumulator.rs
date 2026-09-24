@@ -14,6 +14,7 @@ use crate::{
     cross_cone_interface::SignatureNominalWalker,
 };
 
+mod declaration_types;
 mod finish;
 mod type_sites;
 

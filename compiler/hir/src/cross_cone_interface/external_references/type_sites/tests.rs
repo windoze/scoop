@@ -8,6 +8,7 @@ use crate::{
     ExternalHirTargetV1,
 };
 
+mod declarations;
 mod nominals;
 mod relations;
 
@@ -21,7 +22,7 @@ fn site(fixture: &Fixture, index: u32, role: HirExpressionTypeRoleV1) -> HirDepe
 }
 
 #[test]
-fn five_field_type_occurrences_preserve_typed_roots_origins_and_roles() {
+fn expression_type_occurrences_preserve_typed_roots_origins_and_roles() {
     let fixture = Fixture::new();
     for (index, role) in [
         HirExpressionTypeRoleV1::Value,
@@ -36,7 +37,13 @@ fn five_field_type_occurrences_preserve_typed_roots_origins_and_roles() {
         assert_eq!(encode(&role).unwrap(), vec![index as u8 + 1]);
         let original = site(&fixture, 7, role);
         let bytes = encode(&original).unwrap();
-        assert_eq!(bytes[0], 0xa5);
+        assert_eq!(&bytes[..3], &[0xa6, 0, 1]);
+        let mut retired = vec![0xa5];
+        retired.extend_from_slice(&bytes[3..]);
+        assert!(
+            decode_canonical::<DecodedHirDependencyTypeSiteV1>(&retired, DecodeLimits::default())
+                .is_err()
+        );
         let decoded: DecodedHirDependencyTypeSiteV1 =
             decode_canonical(&bytes, DecodeLimits::default()).unwrap();
         assert_eq!(

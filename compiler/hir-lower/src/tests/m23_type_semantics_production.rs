@@ -13,6 +13,7 @@ use public_projection::public_interface;
 
 mod automatic_materialization;
 mod declaration_dump;
+mod declaration_type_sites;
 mod default_call_domains;
 mod default_callable_access;
 mod default_type_access;

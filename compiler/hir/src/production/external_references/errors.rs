@@ -17,6 +17,9 @@ pub enum ExternalHirReferenceProductionError<E> {
     TypeSite(Box<crate::HirDependencyTypeSiteBuildError>),
     TypeOccurrences(crate::concrete::ExecutableExpressionStructureError),
     MissingExactType(scoop_identity::PersistentExactTypeId),
+    DeclarationType(crate::concrete::TypeId),
+    ConflictingDeclarationType(crate::HirDependencyTypePositionV1),
+    MissingLocalValue,
     ExpressionType {
         position: crate::concrete::ExecutableExpressionPosition,
         ty: crate::concrete::TypeId,
@@ -64,6 +67,16 @@ impl<E: fmt::Display> fmt::Display for ExternalHirReferenceProductionError<E> {
             Self::TypeOccurrences(error) => error.fmt(formatter),
             Self::MissingExactType(exact) => {
                 write!(formatter, "missing actual HIR exact type {exact}")
+            }
+            Self::DeclarationType(ty) => {
+                write!(formatter, "declaration type {ty:?} has no exact identity")
+            }
+            Self::ConflictingDeclarationType(position) => write!(
+                formatter,
+                "declaration {position:?} has conflicting exact types"
+            ),
+            Self::MissingLocalValue => {
+                formatter.write_str("actual constructor local has no persistent identity")
             }
             Self::ExpressionType { position, ty } => write!(
                 formatter,
