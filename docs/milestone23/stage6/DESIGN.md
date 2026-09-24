@@ -846,6 +846,8 @@ owner严格由 `ExactOwnerRoot(subject)`决定：source nominal回定义Cone，a
 
 ### 8.1 canonical contract
 
+codegen 的 Scoop ABI 防御校验按共有存储规则重放普通 struct/tuple：零尺寸字段保留逻辑字段身份与对齐，canonical 字段偏移固定为 0，不对当前非零存储 cursor 插入 padding，也不贡献 GC scan；非零字段仍按实际 cursor 对齐并逐项核对偏移、access alignment 与引用位置，aggregate 最终大小继续按最大字段对齐取整。CLayout 字段仍遵守自身合同的物理布局规则。不得将引用或非零字段后的 ZST 当作具有后继物理偏移的字段，也不得通过跳过整个 aggregate 的布局/scan 校验来接受该情况；错误的 ZST 偏移或对齐、非零字段偏移、总大小与 scan 均拒绝。此修正不改变既有布局、wire、身份或 runtime ABI，只使后端校验与已定义的 ElidedZst 规则一致。
+
 M23-6 的共有 Compile reader 从已完成 HIR 来源关联的 MIR callable binding 集合及已重放的本地/可达依赖 layout 独立重算完整 callable ABI 表。每项按实际 implementation 与 lowered exact signature 保留 receiver、声明序和重复参数、Unit result 的 layout 引用、GC effect，并复用 canonical Scoop ABI 算法决定 ZST、direct/indirect 参数和返回方式；公开源码函数、构造器、accessor、trap 与有限 generated callable 使用相同机制。每个位置只接受该 exact 的唯一同 target ManagedValue layout，缺失、重复 provider、错 target 或 layout 角色均拒绝，不按 CORE 来源跳过。body、definition、primary atom 与 symbol 从同一 LIR foundation 的 typed target 取得，wire 的完整六字段及整个有序集合须与重放结果逐项相等，不能以候选 callable 或 Strong registration 补充来源根。布局与 ABI 的中间状态按所有权保留其余原 wire，后续验证必须继续使用相同的已检查表，不能换入另一份预期记录。此状态只证明布局及 ABI 组成，TD/dispatch、实际 selected-use、Strong V2 registration、机器对象和最终双 view 仍须完整关联；读取全过程沿用原 artifact 的累计预算，wire、capability 版本、persistent identity 与 runtime ABI 均不改变。
 
 layout profile 的 LIR 在封存前使用已验证 HIR/MIR identity graph 与 Cone coordinates，为全部实际 descriptor 生成 canonical diagnostic name；registration、导出表与 object bytes 消费同一实际名称。导出重放只能比较，不能在 producer 已封存后改名或接受 arena 显示名。查询与名称分配使用同一预算，关系或 coordinate 缺失即失败。
