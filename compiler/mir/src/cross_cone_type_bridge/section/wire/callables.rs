@@ -1,12 +1,12 @@
 use super::*;
 
-/// Canonical owned type/callable transport. Source and dispatch/selection
+/// Canonical owned type/callable/object transport. Source and dispatch/selection
 /// agreement remain required before this can become a complete section.
 pub struct CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
     types: CanonicalParamFreeMirTypeExportsV1,
     callables: CanonicalMirCallableBindingsV1,
     dispatch: DecodedCanonicalMirDispatchSchemasV1,
-    object_values: DecodedCanonicalMirObjectValuesV1,
+    object_values: CanonicalMirObjectValuesV1,
     shape_support: CanonicalMirShapeSupportsV1,
     initialization_uses: DecodedCanonicalMirExternalInitializationUsesV1,
     selected: Vec<DecodedMirTypeBridgeDependencyV1>,
@@ -32,11 +32,14 @@ impl TypeResolvedCrossConeMirTypeBridgeSectionV1 {
         }
         let index = MirTypeBridgeTypeIndexV1::try_new(&tables, meter)?;
         let callables = self.callables.validate(graph, foundation, &index, meter)?;
+        let object_values = self
+            .object_values
+            .validate(graph, &index, &callables, meter)?;
         Ok(CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             types: self.types,
             callables,
             dispatch: self.dispatch,
-            object_values: self.object_values,
+            object_values,
             shape_support: self.shape_support,
             initialization_uses: self.initialization_uses,
             selected: self.selected,
@@ -53,6 +56,9 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
     }
     pub const fn shape_support(&self) -> &CanonicalMirShapeSupportsV1 {
         &self.shape_support
+    }
+    pub const fn object_values(&self) -> &CanonicalMirObjectValuesV1 {
+        &self.object_values
     }
 
     pub fn validate<'a, E>(
@@ -93,9 +99,6 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             &schemas,
             meter,
         )?;
-        let object_values = self
-            .object_values
-            .validate(graph, &type_index, &callables, meter)?;
         let initialization_uses =
             self.initialization_uses
                 .validate(authority.provider(), graph, meter)?;
@@ -107,7 +110,7 @@ impl CallablesResolvedCrossConeMirTypeBridgeSectionV1 {
             self.types,
             self.callables,
             dispatch,
-            object_values,
+            self.object_values,
             self.shape_support,
             initialization_uses,
         );

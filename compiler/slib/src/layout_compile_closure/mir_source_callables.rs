@@ -7,7 +7,7 @@ use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_lir::ValidatedLirTargetSelection;
 use scoop_mir::{
     CallablesResolvedCrossConeMirTypeBridgeSectionV1, CanonicalMirCallableBindingsV1,
-    CanonicalMirShapeSupportsV1, CanonicalParamFreeMirTypeExportsV1,
+    CanonicalMirObjectValuesV1, CanonicalMirShapeSupportsV1, CanonicalParamFreeMirTypeExportsV1,
 };
 use scoop_wire::WirePath;
 
@@ -21,6 +21,7 @@ use crate::{
 
 mod constructors;
 mod errors;
+mod objects;
 mod validation;
 use SharedMirSourceCallableValidationError as Error;
 pub use constructors::{
@@ -31,10 +32,14 @@ pub use errors::{
     CrossConeLayoutMirSourceCallablesError, SharedMirSourceCallableComponent,
     SharedMirSourceCallablePartition, SharedMirSourceCallableValidationError,
 };
+pub use objects::{
+    SharedMirObjectComponent, SharedMirObjectValidationError, validate_shared_mir_objects,
+};
 pub use validation::validate_shared_mir_source_callables;
 
-/// Source functions/accessors and constructors agree with shared HIR. Generated
-/// callables, dispatch, initialization, selected uses and LIR remain unvalidated.
+/// Source functions/accessors, constructors and object initialization entries
+/// agree with shared HIR. Other generated callables, dispatch, initialization
+/// uses, selected uses and LIR remain unvalidated.
 pub struct MirSourceCallablesValidatedCrossConeLayoutSections<'input> {
     prepared: PreparedCrossConeLayoutMirSections<'input>,
     mir: CallablesResolvedCrossConeMirTypeBridgeSectionV1,
@@ -145,6 +150,13 @@ fn validate_sources(
             })??;
             validate_shared_mir_constructors(source, artifact.mir.callables(), parts.meter)
                 .map_err(|error| Error::Constructors(Box::new(error)))?;
+            validate_shared_mir_objects(
+                source,
+                artifact.mir.callables(),
+                artifact.mir.object_values(),
+                parts.meter,
+            )
+            .map_err(|error| Error::Objects(Box::new(error)))?;
             parts
                 .meter
                 .try_reserve_collection_slots(&mut checked, 1, &WirePath::root())?;
@@ -172,6 +184,9 @@ impl MirSourceCallablesValidatedCrossConeLayoutSections<'_> {
     }
     pub fn callables(&self) -> &CanonicalMirCallableBindingsV1 {
         self.mir.callables()
+    }
+    pub fn object_values(&self) -> &CanonicalMirObjectValuesV1 {
+        self.mir.object_values()
     }
     pub fn lir_strong_production_wire(&self) -> &scoop_lir::DecodedStrongProductionSectionV2 {
         &self.lir.strong

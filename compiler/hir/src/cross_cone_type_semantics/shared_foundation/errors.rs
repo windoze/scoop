@@ -42,6 +42,8 @@ pub enum SharedTypeMetadataError {
     CallableContract(CallableTemplateOrigin),
     CallableClassification(crate::NominalCallableClassificationError),
     ConstructorInventory(PersistentExactTypeId),
+    ObjectInitializationOwner(PersistentTypeId),
+    DuplicateObjectInitialization(PersistentTypeId),
     ProtectedMemberInventory(PersistentExactTypeId),
     ProtectedMember(ProtectedDeclarationRefV1),
     ProtectedInventory(ConeIdentity),

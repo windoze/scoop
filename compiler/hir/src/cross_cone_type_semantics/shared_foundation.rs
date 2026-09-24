@@ -14,6 +14,7 @@ mod errors;
 mod facts;
 mod inheritance;
 mod keys;
+mod object_initialization;
 mod requirements;
 mod sources;
 use SharedTypeMetadataError as Error;
