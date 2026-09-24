@@ -784,6 +784,8 @@ layout profile 的 HIR 类型基础读取从共有 nominal/callable 声明重算
 
 layout profile 的继承图与 nominal 访问域从同一共有声明重放：所有源码 nominal（含 source-only 泛型）保留词法 owner 与来源；只有已闭合表示的 nominal 进入 exact 继承图。reader 逐项核对继承表的完整 owner 集合、modality、直接 base 和 interface，再复用共有算法拒绝缺失父节点、final base、错误 kind 与继承环，并核对声明 lookup/inheritance 域和 object/backing 关系。依赖按实际 provider 及其已登记身份解析，临时图与来源记录计入当前累计预算；图仅在读取作用域内借用，不增加 wire、来源凭证或发布资格，也不替代 slot、protected/default 和 selected use 的后续闭合。
 
+共有 inheritance 声明校验从 nominal 的完整 constructor/member/child 关系及 callable/property 的真实 visibility 确定必需集合。Public/Protected constructor 按 typed id 与同一共有 callable 的 owner、参数名和顺序、binder、result、effects、modality、slot 及 definition origin 逐项关联；Protected constructor 同时闭合 protected declaration 中的同 id 记录。protected member 集合包含真实 Protected function/property/accessor/nested nominal，setter 按自身 visibility 判定，不把 declared-public 的受限 owner 成员改标为 Protected。缺失、额外、错 owner、签名或访问来源不一致均拒绝；所有查询、比较与集合分配继续消费原 artifact 的累计预算。这些关联检查与继承图重放一同在 layout reader 中执行，仍不代替完整 slot/default/selected 与机器产物验证。
+
 ## 3. 待明确事项
 
 1. **异常穿越 FFI frame 的最终规则**（runtime spec 第 5/9 章的 TBD）。

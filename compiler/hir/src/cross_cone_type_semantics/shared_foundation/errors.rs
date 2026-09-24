@@ -1,11 +1,12 @@
 use scoop_identity::{
-    ConeIdentity, IdentityReferenceError, PersistentExactTypeId, PersistentTypeId,
+    CallableTemplateOrigin, ConeIdentity, DefinitionOriginSubject, IdentityReferenceError,
+    PersistentExactTypeId, PersistentTypeId,
 };
 use scoop_wire::WireError;
 
 use crate::{
     AccessDomainSemanticError, ExactTypeFactsSemanticError, InheritanceGraphError,
-    NominalMaterializationClosureError, SourceNominalId,
+    NominalMaterializationClosureError, ProtectedDeclarationRefV1, SourceNominalId,
 };
 
 #[derive(Debug)]
@@ -37,6 +38,11 @@ pub enum SharedTypeMetadataError {
     InheritanceEdges(PersistentExactTypeId),
     InheritanceGraph(Box<InheritanceGraphError<SharedTypeMetadataError>>),
     InheritanceDomains(AccessDomainSemanticError),
+    DeclarationMetadata(DefinitionOriginSubject),
+    CallableContract(CallableTemplateOrigin),
+    ConstructorInventory(PersistentExactTypeId),
+    ProtectedMemberInventory(PersistentExactTypeId),
+    ProtectedMember(ProtectedDeclarationRefV1),
 }
 
 impl From<WireError> for SharedTypeMetadataError {

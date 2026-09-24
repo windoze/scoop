@@ -1,0 +1,28 @@
+package dependency.members
+
+public interface Contract {
+    public fun read(): Int
+}
+public open class Surface protected constructor(seed: Int = 1) : Contract {
+    protected open fun execute(value: Int = 2): Int = value
+    protected fun <T> identity(value: T): T = value
+    public override fun read(): Int = 9
+    protected var state: Int
+        get() = 0
+        private set(value) {}
+    public var visible: Int
+        get() = 1
+        protected set(value) {}
+    protected open class Nested protected constructor(value: Int = 3) {
+        protected fun call(value: Int = 4): Int = value
+        protected class Child {}
+    }
+    protected class Generic<T> protected constructor(value: T) {}
+    protected enum Choice<T> { Empty, Some(val value: T) }
+    public object Constants {
+        public const val seed: Int = 7
+    }
+}
+public class Derived public constructor() : Surface(4) {
+    protected override fun execute(value: Int): Int = value + 1
+}

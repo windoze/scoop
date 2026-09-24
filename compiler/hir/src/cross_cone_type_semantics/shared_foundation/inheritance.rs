@@ -15,7 +15,10 @@ use crate::{
     SourceNominalId,
 };
 
+mod constructors;
+mod contracts;
 mod edges;
+mod members;
 mod source;
 
 impl CheckedSharedTypeFoundationV1<'_> {
@@ -52,6 +55,26 @@ impl CheckedSharedTypeFoundationV1<'_> {
                 graph
                     .validate_nominal_domains(record.owner(), record.domains(), meter)
                     .map_err(Error::InheritanceDomains)?;
+                let owner = graph
+                    .get(record.owner())
+                    .ok_or(Error::InheritanceEdges(record.owner()))?
+                    .source();
+                contracts::lookup(
+                    provider
+                        .metadata
+                        .public
+                        .nominal_interfaces()
+                        .declaration_count(),
+                    meter,
+                )?;
+                let declaration = provider
+                    .metadata
+                    .public
+                    .nominal_interfaces()
+                    .declaration(owner)
+                    .ok_or(Error::InheritanceSource(owner))?;
+                constructors::validate(provider, declaration, record, meter)?;
+                members::validate(provider, declaration, record, &context, meter)?;
             }
         }
         Ok(use_graph(&graph, meter))

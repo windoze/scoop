@@ -2,6 +2,7 @@
 
 use super::*;
 
+mod constructors;
 mod decoded;
 use decoded::DecodedTypes;
 
@@ -73,6 +74,7 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
         std::fs::write(&snapshot, &dump).unwrap();
     }
     assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
+    constructors::check(core, directory.path(), &target, &fixtures);
 }
 
 fn lower(
