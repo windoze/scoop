@@ -11,7 +11,10 @@ pub(super) fn validate_call_sites(
         && matches!(
             target,
             ExternalHirTargetV1::Callable(
-                CallableTemplateOrigin::Function(_) | CallableTemplateOrigin::Accessor(_)
+                CallableTemplateOrigin::Function(_)
+                    | CallableTemplateOrigin::Accessor(_)
+                    | CallableTemplateOrigin::Constructor(_)
+                    | CallableTemplateOrigin::VariantConstructor(_)
             )
         );
     let runtime = roles.contains(crate::ExternalHirReferenceRoleV1::RuntimeOperationDependency);
@@ -29,13 +32,17 @@ pub(super) fn validate_call_sites(
         (false, false) => return Err(ExternalHirReferenceBuildError::UnexpectedCallSites),
         _ => {}
     }
+    let mut has_source_call = false;
+    let mut has_runtime_call = false;
     for (site, record) in sites.records().iter().enumerate() {
-        if matches!(
-            record.reason(),
-            crate::HirDependencyCallReasonV1::CastFailure { .. }
-        ) != runtime
-        {
-            return Err(ExternalHirReferenceBuildError::CallReason { site });
+        match record.reason() {
+            crate::HirDependencyCallReasonV1::SourceBinding(_) if selected => {
+                has_source_call = true
+            }
+            crate::HirDependencyCallReasonV1::CastFailure { .. } if runtime => {
+                has_runtime_call = true
+            }
+            _ => return Err(ExternalHirReferenceBuildError::CallReason { site }),
         }
         for index in record.witness_indices() {
             if *index as usize >= witnesses.witnesses().len() {
@@ -45,6 +52,9 @@ pub(super) fn validate_call_sites(
                 });
             }
         }
+    }
+    if (selected && !has_source_call) || (runtime && !has_runtime_call) {
+        return Err(ExternalHirReferenceBuildError::MissingCallSites);
     }
     Ok(())
 }

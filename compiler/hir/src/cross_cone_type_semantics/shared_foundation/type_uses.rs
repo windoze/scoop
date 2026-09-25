@@ -25,6 +25,7 @@ enum Kind {
     TypeTest,
     ShapeSupport,
     Construct(scoop_identity::PersistentConstructorId),
+    VariantConstruct(scoop_identity::PersistentEnumVariantId),
     ClassBase(PersistentExactTypeId),
     Interface(PersistentExactTypeId),
 }
@@ -39,6 +40,10 @@ impl Kind {
             Self::Construct(declaration) => SelectedTypeUseV1::Construct {
                 exact,
                 declaration: crate::SelectedTypeConstructionV1::Constructor(declaration),
+            },
+            Self::VariantConstruct(declaration) => SelectedTypeUseV1::Construct {
+                exact,
+                declaration: crate::SelectedTypeConstructionV1::EnumVariant(declaration),
             },
             Self::ClassBase(derived) => SelectedTypeUseV1::Inheritance {
                 derived,
@@ -81,9 +86,9 @@ struct Graph<'a> {
 impl<'a> SharedTypeMetadataV1<'a> {
     /// Uses actual shared occurrences and declaration dependencies, never the
     /// candidate selected table. This is the type-requirement partition only;
-    /// Actual call signatures, inheritance, shape operations, and runtime
-    /// construction are included. Explicit construction and other source operations still
-    /// require their own actual uses and access relations.
+    /// actual call signatures, explicit and runtime construction, inheritance,
+    /// and shape operations are included. Other source operations and access
+    /// relations remain independent checks.
     pub fn materialized_type_uses(
         self,
         dependencies: &[SharedTypeMetadataV1<'a>],

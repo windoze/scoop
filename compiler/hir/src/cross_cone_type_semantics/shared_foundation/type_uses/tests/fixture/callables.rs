@@ -99,8 +99,20 @@ impl Loaded {
             }
         };
         self.identities = pending.finish().unwrap();
+        self.publish_callable(origin(member), owner, receiver, parameters, result);
+        member
+    }
+
+    pub(super) fn publish_callable(
+        &mut self,
+        target: CallableTemplateOrigin,
+        owner: PublicDeclarationOwnerV1,
+        receiver: Option<SignatureTypeKey>,
+        parameters: Vec<SignatureTypeKey>,
+        result: SignatureTypeKey,
+    ) {
         let declaration = CallableDeclarationRecordV1::try_new(
-            origin(member),
+            target,
             owner,
             CanonicalBinderListV1::try_new(Vec::new()).unwrap(),
             receiver,
@@ -144,11 +156,10 @@ impl Loaded {
             CanonicalCallableInterfacesV1::with_support(Vec::new(), declarations).unwrap(),
             self.public.external_references().clone(),
         );
-        member
     }
 }
 
-pub(super) fn origin(member: InheritanceCallableDeclarationV1) -> CallableTemplateOrigin {
+pub(in super::super) fn origin(member: InheritanceCallableDeclarationV1) -> CallableTemplateOrigin {
     match member {
         InheritanceCallableDeclarationV1::Function(id) => CallableTemplateOrigin::Function(id),
         InheritanceCallableDeclarationV1::Getter(id)

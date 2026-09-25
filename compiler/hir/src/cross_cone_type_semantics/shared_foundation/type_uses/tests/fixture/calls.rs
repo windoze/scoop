@@ -1,44 +1,20 @@
 use super::*;
 use callables::{origin, with_tables};
-use scoop_identity::{ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin, PropertyOwner};
+use scoop_identity::{ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin};
+
+mod bindings;
+mod changes;
 
 impl Loaded {
-    pub fn change_last_argument(&mut self, exact: PersistentExactTypeId) {
-        let mut references = self.public.external_references().records().to_vec();
-        let reference = references
-            .iter_mut()
-            .find(|reference| reference.call_sites().records().len() > 1)
-            .unwrap();
-        let mut calls = reference.call_sites().records().to_vec();
-        let site = calls.last_mut().unwrap();
-        let mut arguments = site.arguments().to_vec();
-        arguments[0] = exact;
-        *site = HirDependencyCallSiteV1::try_new(
-            site.position(),
-            site.origin().clone(),
-            arguments,
-            site.result(),
-            site.witness_indices().to_vec(),
-        )
-        .unwrap();
-        *reference = ExternalHirReferenceV1::try_new(
-            reference.origin(),
-            reference.target(),
-            reference.roles().clone(),
-            reference.witnesses().clone(),
-            CanonicalHirDependencyCallSitesV1::try_new(calls).unwrap(),
-            reference.type_sites().clone(),
-        )
-        .unwrap();
-        self.public = with_tables(
-            &self.public,
-            self.public.callable_interfaces().clone(),
-            CanonicalExternalHirReferencesV1::try_new(references).unwrap(),
+    /// Produces actual, positioned call records independently of selected uses.
+    pub fn calls(&mut self, provider: &Loaded, members: &[InheritanceCallableDeclarationV1]) {
+        self.declaration_calls(
+            provider,
+            &members.iter().copied().map(origin).collect::<Vec<_>>(),
         );
     }
 
-    /// Produces actual, positioned call records independently of selected uses.
-    pub fn calls(&mut self, provider: &Loaded, members: &[InheritanceCallableDeclarationV1]) {
+    pub fn declaration_calls(&mut self, provider: &Loaded, targets: &[CallableTemplateOrigin]) {
         let mut pending = PendingIdentityValidation::new();
         pending
             .register_external_graph_authorities(&self.identities)
@@ -84,16 +60,24 @@ impl Loaded {
             .unwrap();
         let mut by_target: BTreeMap<CallableTemplateOrigin, Vec<HirDependencyCallSiteV1>> =
             BTreeMap::new();
-        let mut type_sites = Vec::new();
-        for (index, member) in members.iter().enumerate() {
-            let target = origin(*member);
+        let mut type_sites: BTreeMap<
+            (ConeIdentity, SourceNominalId),
+            Vec<HirDependencyTypeSiteV1>,
+        > = BTreeMap::new();
+        for (index, target) in targets.iter().copied().enumerate() {
             let declaration = provider
                 .public
                 .callable_interfaces()
                 .declaration(target)
                 .unwrap();
             let mut arguments = Vec::new();
-            if let Some(SourceNominalId::Concrete(owner)) = declaration.owner().nominal_owner() {
+            if let Some(SourceNominalId::Concrete(owner)) = declaration.owner().nominal_owner()
+                && !matches!(
+                    target,
+                    CallableTemplateOrigin::Constructor(_)
+                        | CallableTemplateOrigin::VariantConstructor(_)
+                )
+            {
                 arguments.push(exact(owner));
             } else if let Some(receiver) = declaration.receiver() {
                 arguments.push(
@@ -132,14 +116,36 @@ impl Loaded {
             )
             .unwrap();
             by_target.entry(target).or_default().push(call);
-            type_sites.push(HirDependencyTypeSiteV1::Expression(Box::new(
-                HirExpressionTypeSiteV1::new(
+            let type_site =
+                HirDependencyTypeSiteV1::Expression(Box::new(HirExpressionTypeSiteV1::new(
                     position,
                     origin,
                     HirExpressionTypeRoleV1::Value,
                     result,
-                ),
-            )));
+                )));
+            for owner in collect_type_site_nominals(
+                result,
+                |exact| provider.identities.canonical_key::<_, ExactTypeKey>(exact),
+                &mut meter(),
+            )
+            .unwrap()
+            {
+                let key = match owner {
+                    SourceNominalId::Concrete(owner) => provider
+                        .identities
+                        .canonical_key::<_, SourceDeclarationKey>(owner),
+                    SourceNominalId::GenericTemplate(owner) => {
+                        provider
+                            .identities
+                            .canonical_key::<_, SourceDeclarationKey>(owner)
+                    }
+                }
+                .unwrap();
+                type_sites
+                    .entry((key.origin(), owner))
+                    .or_default()
+                    .push(type_site.clone());
+            }
         }
         let mut references = Vec::new();
         let mut bindings = BTreeSet::new();
@@ -148,44 +154,7 @@ impl Loaded {
                 provider.provider,
                 PackagePath::root(),
                 CanonicalIdentifier::new("fixtureBinding").unwrap(),
-                match target {
-                    CallableTemplateOrigin::Function(id) => {
-                        let key = provider
-                            .identities
-                            .canonical_key::<_, SourceDeclarationKey>(id)
-                            .unwrap();
-                        if provider
-                            .public
-                            .callable_interfaces()
-                            .declaration(target)
-                            .unwrap()
-                            .receiver()
-                            .is_some()
-                        {
-                            BindingTarget::extension_function(&key).unwrap()
-                        } else {
-                            BindingTarget::function(&key).unwrap()
-                        }
-                    }
-                    CallableTemplateOrigin::Accessor(id) => {
-                        let key = provider
-                            .identities
-                            .canonical_key::<_, PropertyAccessorKey>(id)
-                            .unwrap();
-                        let PropertyOwner::Property(property) = key.owner() else {
-                            panic!("fixture accessors use ordinary properties");
-                        };
-                        BindingTarget::property(
-                            provider
-                                .identities
-                                .canonical_key::<_, SourceDeclarationKey>(property)
-                                .unwrap()
-                                .as_ref(),
-                        )
-                        .unwrap()
-                    }
-                    _ => panic!("fixture source calls use functions and accessors"),
-                },
+                bindings::target(provider, target),
             );
             let binding =
                 CborIdentityRecord::<PersistentExportBindingId, _>::from_key(key).unwrap();
@@ -219,13 +188,11 @@ impl Loaded {
                 .unwrap(),
             );
         }
-        if !type_sites.is_empty() {
+        for ((provider, owner), type_sites) in type_sites {
             references.push(
                 ExternalHirReferenceV1::try_new(
-                    ConeIdentity::CORE,
-                    ExternalHirTargetV1::Nominal(SourceNominalId::Concrete(
-                        CoreBuiltinNominal::Unit.identity_record().id(),
-                    )),
+                    provider,
+                    ExternalHirTargetV1::Nominal(owner),
                     CanonicalExternalHirReferenceRolesV1::try_new(vec![
                         ExternalHirReferenceRoleV1::ExecutableTypeDependency,
                     ])

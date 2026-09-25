@@ -1,3 +1,5 @@
+mod constructors;
+
 use super::*;
 use crate::PublicDeclarationOwnerV1;
 use scoop_identity::{ExactTypeKey, NonEmptyVec};

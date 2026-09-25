@@ -34,6 +34,7 @@ impl Graph<'_> {
                                 source: Box::new(source),
                             })?;
                         self.call_signature(source, meter, &path)?;
+                        self.source_construction(source, meter)?;
                     }
                     crate::HirDependencyCallReasonV1::CastFailure { .. } => {
                         let (constructor, owner) = call

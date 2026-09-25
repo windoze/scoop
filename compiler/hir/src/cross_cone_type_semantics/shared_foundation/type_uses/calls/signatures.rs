@@ -1,6 +1,23 @@
 use super::*;
 
 impl Graph<'_> {
+    pub(super) fn source_construction(
+        &mut self,
+        source: &crate::CallableDeclarationRecordV1,
+        meter: &mut BudgetMeter,
+    ) -> Result<(), Error> {
+        use scoop_identity::CallableTemplateOrigin;
+        let kind = match source.declaration() {
+            CallableTemplateOrigin::Constructor(id) => Kind::Construct(id),
+            CallableTemplateOrigin::VariantConstructor(id) => Kind::VariantConstruct(id),
+            _ => return Ok(()),
+        };
+        let Some(SourceNominalId::Concrete(owner)) = source.owner().nominal_owner() else {
+            return Err(Error::NonConcreteSignature);
+        };
+        self.select(owner, kind, meter)
+    }
+
     pub(super) fn call_signature(
         &mut self,
         source: &crate::CallableDeclarationRecordV1,

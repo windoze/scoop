@@ -1,6 +1,7 @@
 use super::*;
 use fixture::CallForm;
 
+mod constructors;
 mod negative;
 mod resources;
 mod signatures;
@@ -157,7 +158,15 @@ fn snapshot(name: &str, selected: &CanonicalSelectedExternalTypeUsesV1) {
             let usage = match record.usage() {
                 SelectedTypeUseV1::Representation { exact } => format!("Representation {exact}"),
                 SelectedTypeUseV1::Signature { exact } => format!("Signature {exact}"),
-                _ => panic!("the fixture selects signatures and their representations"),
+                SelectedTypeUseV1::Construct { exact, declaration } => match declaration {
+                    SelectedTypeConstructionV1::Constructor(id) => {
+                        format!("Construct {exact} Constructor {id}")
+                    }
+                    SelectedTypeConstructionV1::EnumVariant(id) => {
+                        format!("Construct {exact} EnumVariant {id}")
+                    }
+                },
+                _ => panic!("the fixture selects signatures, representations and construction"),
             };
             format!("{} {usage}\n", record.provider())
         })
