@@ -47,7 +47,7 @@ pub struct DecodedHirDependencyCallSiteV1 {
     origin: DecodedConcreteExpressionOrigin,
     arguments: Vec<DecodedPersistentId<PersistentExactTypeId>>,
     result: DecodedPersistentId<PersistentExactTypeId>,
-    witness_indices: Vec<u32>,
+    reason: DecodedHirDependencyCallReasonV1,
 }
 
 impl DecodedHirDependencyCallSiteV1 {
@@ -72,7 +72,6 @@ impl DecodedHirDependencyCallSiteV1 {
         meter
             .charge_nodes(1 + self.arguments.len() as u64, path)
             .map_err(Error::Resource)?;
-        validate_witness_indices(&self.witness_indices).map_err(Error::Shape)?;
         let position = ExecutableExpressionPosition {
             root: self.root.resolve(resolver).map_err(Error::Identity)?,
             expression_index: self.expression_index,
@@ -86,7 +85,8 @@ impl DecodedHirDependencyCallSiteV1 {
             arguments.push(resolver.resolve(argument).map_err(Error::Identity)?);
         }
         let result = resolver.resolve(self.result).map_err(Error::Identity)?;
-        HirDependencyCallSiteV1::try_new(position, origin, arguments, result, self.witness_indices)
+        let reason = self.reason.resolve(resolver).map_err(Error::Identity)?;
+        HirDependencyCallSiteV1::try_new_with_reason(position, origin, arguments, result, reason)
             .map_err(Error::Shape)
     }
 }
@@ -108,7 +108,7 @@ impl WireEncode for DecodedHirDependencyCallSiteV1 {
         encoder.field(5)?;
         self.result.encode(encoder)?;
         encoder.field(6)?;
-        encode_indices(&self.witness_indices, encoder)
+        self.reason.encode(encoder)
     }
 }
 
@@ -122,7 +122,7 @@ impl WireDecode for DecodedHirDependencyCallSiteV1 {
             arguments: decoder
                 .field(4, |d| d.decode_array(|d, _| DecodedPersistentId::decode(d)))?,
             result: decoder.field(5, DecodedPersistentId::decode)?,
-            witness_indices: decoder.field(6, |d| d.decode_array(|d, _| d.u32()))?,
+            reason: decoder.field(6, DecodedHirDependencyCallReasonV1::decode)?,
         })
     }
 }

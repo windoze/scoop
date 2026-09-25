@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v17_requires_explicit_cast_targets_and_boxed_value_type_occurrences() {
+fn source_interface_v18_requires_typed_call_reasons_for_runtime_construction() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        17,
+        18,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
             ArtifactCapabilityProfile::CROSS_CONE_LAYOUT_STRONG,

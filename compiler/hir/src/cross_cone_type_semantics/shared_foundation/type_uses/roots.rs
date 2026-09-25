@@ -21,6 +21,7 @@ impl Graph<'_> {
                 meter,
             )
             .map_err(|error| Error::TypeUseRelations(Box::new(error)))?;
+        self.runtime_calls(meter)?;
         for reference in self.current.public.external_references().records() {
             meter.charge_work(1, &path)?;
             if reference.type_sites().is_empty() {

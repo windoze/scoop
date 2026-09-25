@@ -59,6 +59,7 @@ impl CanonicalExternalHirReferencesV1 {
         if let Some(output) = dependency_output {
             accumulator.add_implicit_dependency_witnesses(output.imported_dependencies());
             accumulator.add_call_sites(output, &mut meter)?;
+            accumulator.add_runtime_call_sites(output, &mut meter)?;
             accumulator.add_type_sites(output, &mut meter)?;
             accumulator.add_declaration_type_sites(output, &mut meter)?;
         }

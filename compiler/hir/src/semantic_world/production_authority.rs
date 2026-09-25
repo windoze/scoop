@@ -224,6 +224,9 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
             let parent = match key {
                 GeneratedCallableKey::Lexical { parent, .. }
                 | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => parent.template(),
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
+                    return self.constructor_resolution(*constructor, target);
+                }
                 _ => {
                     return Err(CrossConeHirProductionAuthorityError::NoPublicBindingRoot {
                         target,

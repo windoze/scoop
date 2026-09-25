@@ -9,7 +9,7 @@ pub(super) fn check(
     target: &scoop_toolchain::ResolvedTargetProfile,
 ) {
     let fixtures = crate::workspace_root().join("tests/fixtures/m23-executable-type-sites");
-    for case in ["shape-standalone", "shape-combined"] {
+    for case in ["shape-selection-standalone", "shape-selection-combined"] {
         let root = sysroot.join(case);
         write_manifest_cone(
             &root,
@@ -28,7 +28,7 @@ pub(super) fn check(
                 _ => None,
             })
             .collect::<Vec<_>>();
-        let names: &[&str] = if case == "shape-standalone" {
+        let names: &[&str] = if case == "shape-selection-standalone" {
             &["Int"]
         } else {
             &["Int", "String", "Unit"]
@@ -62,7 +62,7 @@ pub(super) fn check(
             },
         ));
         reject(current, core, extra);
-        if case == "shape-combined" {
+        if case == "shape-selection-combined" {
             let mut local = original.to_vec();
             local.push(SelectedExternalTypeUseV1::new(
                 current.provider(),

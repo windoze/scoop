@@ -2,7 +2,7 @@ use scoop_wire::{DecodeLimits, Encoder, WireEncode, WireErrorKind, decode_canoni
 
 use super::*;
 
-const ALL_ROLES: [ExternalHirReferenceRoleV1; 8] = [
+const ALL_ROLES: [ExternalHirReferenceRoleV1; 9] = [
     ExternalHirReferenceRoleV1::ReexportTarget,
     ExternalHirReferenceRoleV1::SignatureDependency,
     ExternalHirReferenceRoleV1::AliasTarget,
@@ -11,15 +11,16 @@ const ALL_ROLES: [ExternalHirReferenceRoleV1; 8] = [
     ExternalHirReferenceRoleV1::ConcreteSelectedUse,
     ExternalHirReferenceRoleV1::InheritanceDependency,
     ExternalHirReferenceRoleV1::ExecutableTypeDependency,
+    ExternalHirReferenceRoleV1::RuntimeOperationDependency,
 ];
 
 #[test]
 fn roles_have_frozen_unsigned_tags() {
-    for (role, tag) in ALL_ROLES.into_iter().zip(1_u8..=8) {
+    for (role, tag) in ALL_ROLES.into_iter().zip(1_u8..=9) {
         assert_eq!(encode(&role).unwrap(), vec![tag]);
     }
 
-    for tag in [0_u64, 9] {
+    for tag in [0_u64, 10] {
         let error = decode_canonical::<ExternalHirReferenceRoleV1>(
             &encode(&Unsigned(tag)).unwrap(),
             DecodeLimits::default(),
@@ -71,7 +72,7 @@ fn all_roles_have_a_stable_canonical_wire() {
 
     assert_eq!(
         encode(&roles).unwrap(),
-        b"\x88\x01\x02\x03\x04\x05\x06\x07\x08"
+        b"\x89\x01\x02\x03\x04\x05\x06\x07\x08\x09"
     );
     assert_eq!(decode_roles(&roles).validate().unwrap(), roles);
 }

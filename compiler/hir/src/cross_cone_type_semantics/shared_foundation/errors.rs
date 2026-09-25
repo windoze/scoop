@@ -19,6 +19,7 @@ pub enum SharedTypeMetadataError {
     DuplicateProvider(ConeIdentity),
     CurrentProviderDependency(ConeIdentity),
     TypeUseRelations(Box<crate::HirDependencyTypeRelationError>),
+    RuntimeConstructor(Box<crate::HirRuntimeConstructorError>),
     TypeUseInventory,
     SourceOnlyNominal(PersistentTypeId),
     MissingNominal(PersistentTypeId),

@@ -123,7 +123,7 @@ pub(super) fn trusted_core_with_answer() -> TrustedCoreFixture {
     trusted_core_from_source(source, "", Some("coreAnswer"))
 }
 
-pub(super) fn trusted_core_from_source(
+pub(crate) fn trusted_core_from_source(
     source: scoop_ast::SourceFile,
     source_text: &str,
     strong_callable: Option<&str>,

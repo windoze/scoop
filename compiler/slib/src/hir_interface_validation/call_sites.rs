@@ -6,6 +6,9 @@ use scoop_wire::{WireError, WirePath};
 
 use super::*;
 
+mod runtime;
+pub use runtime::CrossConeHirRuntimeCallError;
+
 impl HirInterfaceValidationInput<'_> {
     pub(crate) fn call_sites(
         self,
@@ -28,6 +31,11 @@ impl HirInterfaceValidationInput<'_> {
                     .field(5)
                     .index(site_index as u64);
                 self.executable_origin(site.position(), site.origin(), dependencies, meter, &path)?;
+                self.runtime_call(reference, site, dependencies, meter, &path)
+                    .map_err(|source| CrossConeHirCallSiteOriginError::Runtime {
+                        position: site.position(),
+                        source: Box::new(source),
+                    })?;
             }
         }
         Ok(())
@@ -81,6 +89,10 @@ impl HirInterfaceValidationInput<'_> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeHirCallSiteOriginError {
     Resource(WireError),
+    Runtime {
+        position: ExecutableExpressionPosition,
+        source: Box<CrossConeHirRuntimeCallError>,
+    },
     UnreachableDefinition {
         position: ExecutableExpressionPosition,
         provider: ConeIdentity,
@@ -105,6 +117,9 @@ impl std::fmt::Display for CrossConeHirCallSiteOriginError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Resource(source) => source.fmt(f),
+            Self::Runtime { position, source } => {
+                write!(f, "invalid runtime call at {position:?}: {source}")
+            }
             Self::UnreachableDefinition { position, provider } => write!(
                 f,
                 "expression {position:?} has an unreachable definition provider {provider}"

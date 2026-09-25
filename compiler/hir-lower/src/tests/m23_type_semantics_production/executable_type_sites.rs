@@ -2,6 +2,7 @@ use super::*;
 use hir::HirExpressionTypeRoleV1;
 use source_dispatch::with_hir_source;
 
+mod runtime_calls;
 mod shape_operations;
 
 fn fixture() -> String {

@@ -236,6 +236,8 @@ pub enum ExternalHirReferenceBuildError {
     UnexpectedCallSites,
     MissingTypeSites,
     UnexpectedTypeSites,
+    RuntimeTarget,
+    CallReason { site: usize },
     CallWitnessIndex { site: usize, index: u32 },
 }
 
@@ -257,6 +259,12 @@ impl fmt::Display for ExternalHirReferenceBuildError {
             }
             Self::UnexpectedTypeSites => {
                 formatter.write_str("type sites require an executable nominal type dependency")
+            }
+            Self::RuntimeTarget => {
+                formatter.write_str("runtime cast failures require a constructor target")
+            }
+            Self::CallReason { site } => {
+                write!(formatter, "call site {site} has the wrong source reason")
             }
             Self::CallWitnessIndex { site, index } => write!(
                 formatter,

@@ -7,6 +7,7 @@ use crate::{
     ExternalHirReferenceSetBuildError, ExternalHirReferenceV1,
 };
 
+mod runtime;
 pub(super) mod support;
 use support::Fixture;
 

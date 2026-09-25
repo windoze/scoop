@@ -173,15 +173,29 @@ impl ExternalTargetFixture {
             },
         )
         .unwrap();
+        let constructor_adapter = CborIdentityRecord::<PersistentGeneratedCallableId, _>::from_key(
+            GeneratedCallableKey::ZeroArgumentConstructorAdapter {
+                constructor: constructor.id(),
+            },
+        )
+        .unwrap();
+        let exact = CborIdentityRecord::<scoop_identity::PersistentExactTypeId, _>::from_key(
+            scoop_identity::ExactTypeKey::Nominal(struct_type.id()),
+        )
+        .unwrap();
         let nonlexical_generated =
             CborIdentityRecord::<PersistentGeneratedCallableId, _>::from_key(
-                GeneratedCallableKey::ZeroArgumentConstructorAdapter {
-                    constructor: constructor.id(),
+                GeneratedCallableKey::DerivedEquality {
+                    exact_owner: exact.id(),
                 },
             )
             .unwrap();
 
         let expected = vec![
+            (
+                ExternalHirTargetV1::GeneratedCallable(constructor_adapter.id()),
+                BindingTarget::type_name(struct_type.key()).unwrap(),
+            ),
             (
                 ExternalHirTargetV1::Nominal(NominalDeclarationOwner::Concrete(struct_type.id())),
                 BindingTarget::type_name(struct_type.key()).unwrap(),
@@ -269,6 +283,8 @@ impl ExternalTargetFixture {
         register(&mut pending, variant_field);
         register(&mut pending, lexical_parent);
         register(&mut pending, lexical_child);
+        register(&mut pending, exact);
+        register(&mut pending, constructor_adapter);
         register(&mut pending, nonlexical_generated);
 
         Self {

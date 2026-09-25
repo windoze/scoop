@@ -104,21 +104,35 @@ impl CanonicalExternalHirReferencesV1 {
         for reference in self.records() {
             meter.charge_work(1, &path)?;
             for call in reference.call_sites().records() {
-                let key = Position::Expression(call.position(), HirExpressionTypeRoleV1::Value);
-                meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
-                if let Some(site) = sites.get(&key) {
-                    meter.charge_work(
-                        scoop_wire::encoded_length(call).map_err(|_| Error::Encoding)?,
-                        &path,
-                    )?;
-                    if site.source.exact() != call.result()
-                        || site.source.as_expression().map(|source| source.origin())
-                            != Some(call.origin())
-                    {
+                let (roles, exact): (&[_], _) = match call.reason() {
+                    crate::HirDependencyCallReasonV1::SourceBinding(_) => {
+                        (&[HirExpressionTypeRoleV1::Value], call.result())
+                    }
+                    crate::HirDependencyCallReasonV1::CastFailure { checked_type } => (
+                        &[
+                            HirExpressionTypeRoleV1::Value,
+                            HirExpressionTypeRoleV1::TypeTest,
+                        ],
+                        *checked_type,
+                    ),
+                };
+                for role in roles {
+                    let key = Position::Expression(call.position(), *role);
+                    meter.charge_work(1 + u64::from(sites.len().max(1).ilog2()), &path)?;
+                    if let Some(site) = sites.get(&key) {
+                        meter.charge_work(
+                            scoop_wire::encoded_length(call).map_err(|_| Error::Encoding)?,
+                            &path,
+                        )?;
+                        if site.source.exact() != exact
+                            || site.source.as_expression().map(|source| source.origin())
+                                != Some(call.origin())
+                        {
+                            return Err(Error::CallResult(call.position()));
+                        }
+                    } else if !input.type_site_nominals(exact, meter)?.is_empty() {
                         return Err(Error::CallResult(call.position()));
                     }
-                } else if !input.type_site_nominals(call.result(), meter)?.is_empty() {
-                    return Err(Error::CallResult(call.position()));
                 }
             }
         }

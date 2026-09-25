@@ -330,6 +330,15 @@ impl CoreCompilerProtocolSurfaceV1 {
         callable_entry_ref(self.exception_protocol.entries(), 12)
     }
 
+    /// The actual declaration selected for a failed runtime cast.
+    pub fn class_cast_exception_constructor(&self) -> &CoreProtocolCallableV1 {
+        callable_entry_ref(self.exception_protocol.entries(), 5)
+    }
+
+    pub fn class_cast_exception_type(&self) -> PersistentTypeId {
+        concrete_entry(self.exception_protocol.entries(), 4)
+    }
+
     pub(crate) fn string_source_type(&self) -> PersistentTypeId {
         concrete_entry(self.fundamental_types.entries(), 10)
     }

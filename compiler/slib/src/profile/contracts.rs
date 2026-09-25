@@ -153,7 +153,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 17) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 18) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,

@@ -7,12 +7,15 @@ use crate::{
     DirectImportedTargetBinding, HirDependencyCallSiteV1,
 };
 
-pub(super) struct PendingCallSite<'a> {
-    position: crate::concrete::ExecutableExpressionPosition,
-    origin: ConcreteExpressionOrigin,
-    arguments: Vec<PersistentExactTypeId>,
-    result: PersistentExactTypeId,
-    binding: &'a DirectImportedTargetBinding,
+pub(super) enum PendingCallSite<'a> {
+    Bound {
+        position: crate::concrete::ExecutableExpressionPosition,
+        origin: ConcreteExpressionOrigin,
+        arguments: Vec<PersistentExactTypeId>,
+        result: PersistentExactTypeId,
+        binding: &'a DirectImportedTargetBinding,
+    },
+    Runtime(HirDependencyCallSiteV1),
 }
 
 pub(super) fn project<'a, E>(
@@ -56,7 +59,7 @@ pub(super) fn project<'a, E>(
         })?
         .id();
     let origin = super::origins::project(output, call.origin(), meter)?;
-    Ok(PendingCallSite {
+    Ok(PendingCallSite::Bound {
         position,
         origin,
         arguments,
@@ -72,37 +75,40 @@ impl PendingCallSite<'_> {
         meter: &mut BudgetMeter,
     ) -> Result<HirDependencyCallSiteV1, ExternalHirReferenceProductionError<E>> {
         use ExternalHirReferenceProductionError as Error;
+        let (position, origin, arguments, result, binding) = match self {
+            Self::Bound {
+                position,
+                origin,
+                arguments,
+                result,
+                binding,
+            } => (position, origin, arguments, result, binding),
+            Self::Runtime(site) => return Ok(site),
+        };
         let path = WirePath::root();
         let mut indices = Vec::new();
         meter
             .charge_owned_bytes(
-                (self.binding.source_count() * std::mem::size_of::<u32>()) as u64,
+                (binding.source_count() * std::mem::size_of::<u32>()) as u64,
                 &path,
             )
             .map_err(Error::Resource)?;
         meter
-            .try_reserve_collection_slots(&mut indices, self.binding.source_count(), &path)
+            .try_reserve_collection_slots(&mut indices, binding.source_count(), &path)
             .map_err(Error::Resource)?;
-        for source in self.binding.sources() {
+        for source in binding.sources() {
             let work = (source.witness().route().hops().len() as u64 + 1)
                 .saturating_mul(u64::from(witnesses.witnesses().len().max(1).ilog2()) + 1);
             meter.charge_work(work, &path).map_err(Error::Resource)?;
             let index = witnesses
                 .witnesses()
                 .binary_search(source.witness().dependency())
-                .map_err(|_| Error::MissingCallWitness(self.position))?;
-            indices
-                .push(u32::try_from(index).map_err(|_| Error::MissingCallWitness(self.position))?);
+                .map_err(|_| Error::MissingCallWitness(position))?;
+            indices.push(u32::try_from(index).map_err(|_| Error::MissingCallWitness(position))?);
         }
         indices.sort_unstable();
         indices.dedup();
-        HirDependencyCallSiteV1::try_new(
-            self.position,
-            self.origin,
-            self.arguments,
-            self.result,
-            indices,
-        )
-        .map_err(Error::CallSite)
+        HirDependencyCallSiteV1::try_new(position, origin, arguments, result, indices)
+            .map_err(Error::CallSite)
     }
 }

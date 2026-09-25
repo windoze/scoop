@@ -216,6 +216,9 @@ impl CanonicalCrossConeRouteAuthority<'_> {
             let parent = match key.as_ref() {
                 GeneratedCallableKey::Lexical { parent, .. }
                 | GeneratedCallableKey::CallableReferenceInvoke { parent, .. } => parent.template(),
+                GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor } => {
+                    return self.constructor_resolution(*constructor, target);
+                }
                 _ => {
                     return Err(CrossConeHirReferenceAuthorityError::NoPublicBindingRoot {
                         target,

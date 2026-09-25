@@ -3,6 +3,7 @@ use crate::concrete::ExecutableExpressionPosition;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirDependencyCallSiteBuildError {
     EmptyWitnessIndices,
+    RuntimeArguments,
     WitnessIndexOrder { index: usize },
     DuplicatePosition(ExecutableExpressionPosition),
     PositionOrder { index: usize },

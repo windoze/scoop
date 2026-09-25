@@ -7,11 +7,16 @@ use crate::concrete::ExecutableExpressionPosition;
 
 mod decode;
 mod errors;
+mod reason;
+mod runtime;
 mod table;
 #[cfg(test)]
 mod tests;
 pub use decode::{DecodedHirDependencyCallSiteV1, HirDependencyCallSiteResolver};
 pub use errors::{HirDependencyCallSiteBuildError, HirDependencyCallSiteResolutionError};
+use reason::DecodedHirDependencyCallReasonV1;
+pub use reason::HirDependencyCallReasonV1;
+pub use runtime::HirRuntimeConstructorError;
 pub use table::{CanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyCallSitesV1};
 #[cfg(test)]
 pub(super) use tests::support::Fixture;
@@ -22,7 +27,7 @@ pub struct HirDependencyCallSiteV1 {
     origin: ConcreteExpressionOrigin,
     arguments: Vec<PersistentExactTypeId>,
     result: PersistentExactTypeId,
-    witness_indices: Vec<u32>,
+    reason: HirDependencyCallReasonV1,
 }
 
 impl HirDependencyCallSiteV1 {
@@ -33,13 +38,35 @@ impl HirDependencyCallSiteV1 {
         result: PersistentExactTypeId,
         witness_indices: Vec<u32>,
     ) -> Result<Self, HirDependencyCallSiteBuildError> {
-        validate_witness_indices(&witness_indices)?;
+        Self::try_new_with_reason(
+            position,
+            origin,
+            arguments,
+            result,
+            HirDependencyCallReasonV1::SourceBinding(witness_indices),
+        )
+    }
+
+    pub fn try_new_with_reason(
+        position: ExecutableExpressionPosition,
+        origin: ConcreteExpressionOrigin,
+        arguments: Vec<PersistentExactTypeId>,
+        result: PersistentExactTypeId,
+        reason: HirDependencyCallReasonV1,
+    ) -> Result<Self, HirDependencyCallSiteBuildError> {
+        match &reason {
+            HirDependencyCallReasonV1::SourceBinding(indices) => validate_witness_indices(indices),
+            HirDependencyCallReasonV1::CastFailure { .. } if !arguments.is_empty() => {
+                Err(HirDependencyCallSiteBuildError::RuntimeArguments)
+            }
+            HirDependencyCallReasonV1::CastFailure { .. } => Ok(()),
+        }?;
         Ok(Self {
             position,
             origin,
             arguments,
             result,
-            witness_indices,
+            reason,
         })
     }
 
@@ -60,7 +87,14 @@ impl HirDependencyCallSiteV1 {
     }
 
     pub fn witness_indices(&self) -> &[u32] {
-        &self.witness_indices
+        match &self.reason {
+            HirDependencyCallReasonV1::SourceBinding(indices) => indices,
+            HirDependencyCallReasonV1::CastFailure { .. } => &[],
+        }
+    }
+
+    pub const fn reason(&self) -> &HirDependencyCallReasonV1 {
+        &self.reason
     }
 }
 
@@ -81,7 +115,7 @@ impl WireEncode for HirDependencyCallSiteV1 {
         encoder.field(5)?;
         self.result.encode(encoder)?;
         encoder.field(6)?;
-        encode_indices(&self.witness_indices, encoder)
+        self.reason.encode(encoder)
     }
 }
 
