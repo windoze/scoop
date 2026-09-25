@@ -10,16 +10,11 @@ pub(super) struct DiscoveryBuilder {
     explicit: Vec<PendingExplicitDependency>,
     unlocated: Vec<PendingUnlocatedDependency>,
     context: BuildContext,
-    meter: SlibClosureDecodeMeterV1,
 }
 
 impl DiscoveryBuilder {
     pub(super) fn new(loaded: LoadedBuildRoot) -> Result<Self, BuildGraphDiscoveryError> {
-        let LoadedBuildRoot {
-            root,
-            context,
-            meter,
-        } = loaded;
+        let LoadedBuildRoot { root, context } = loaded;
         let root_identity = match &root {
             LoadedRootInput::Manifest(manifest) => manifest.identity(),
             LoadedRootInput::SingleFile(_) => ConeIdentity::SINGLE_FILE,
@@ -31,7 +26,6 @@ impl DiscoveryBuilder {
             explicit: Vec::new(),
             unlocated: Vec::new(),
             context,
-            meter,
         };
         match root {
             LoadedRootInput::Manifest(manifest) => {
@@ -76,14 +70,13 @@ impl DiscoveryBuilder {
             nodes: self.nodes,
             edges: self.edges,
             context: self.context,
-            meter: self.meter,
         })
     }
 
     fn discover_declared_dependencies(&mut self) -> Result<(), BuildGraphDiscoveryError> {
         while let Some(pending) = pop_explicit(&mut self.explicit) {
             let claim = {
-                let (nodes, meter) = (&self.nodes, &mut self.meter);
+                let nodes = &self.nodes;
                 let Some(GraphNode::ManifestSource(parent)) = nodes.get(&pending.dependent) else {
                     return Err(BuildGraphDiscoveryError::InternalSourceClaim(
                         pending.dependent,
@@ -95,7 +88,6 @@ impl DiscoveryBuilder {
                     &self.context.artifact_search_roots,
                     self.context.target.lir_target_selection(),
                     self.context.limits.artifact_decode(),
-                    meter,
                 )
                 .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?
             };
@@ -122,7 +114,6 @@ impl DiscoveryBuilder {
                 &self.context.artifact_search_roots,
                 self.context.target.lir_target_selection(),
                 self.context.limits.artifact_decode(),
-                &mut self.meter,
             )
             .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
             self.intern_claim(LocatedDependencyClaim::Prebuilt(Box::new(claim)))?;
@@ -206,9 +197,6 @@ impl DiscoveryBuilder {
             .map_err(BuildGraphDiscoveryError::Identity)?;
         match self.nodes.get_mut(&identity) {
             None => {
-                self.meter
-                    .charge_graph(1, 0, 0)
-                    .map_err(BuildGraphDiscoveryError::Resource)?;
                 self.nodes
                     .insert(identity, GraphNode::Prebuilt(Box::new(prebuilt)));
                 Ok(true)
@@ -247,9 +235,6 @@ impl DiscoveryBuilder {
         identity: ConeIdentity,
         node: GraphNode,
     ) -> Result<(), BuildGraphDiscoveryError> {
-        self.meter
-            .charge_graph(1, 0, 0)
-            .map_err(BuildGraphDiscoveryError::Resource)?;
         self.nodes.insert(identity, node);
         Ok(())
     }
@@ -276,9 +261,7 @@ impl DiscoveryBuilder {
             existing.origins.sort();
             return Ok(());
         }
-        self.meter
-            .charge_graph(0, 1, 0)
-            .map_err(BuildGraphDiscoveryError::Resource)?;
+
         self.edges.insert(key, edge);
         Ok(())
     }

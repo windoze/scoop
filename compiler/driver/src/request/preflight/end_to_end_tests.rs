@@ -243,53 +243,6 @@ fun main() {
 }
 
 #[test]
-fn production_entry_uses_the_shared_closure_profile_for_current_sources() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
-    let sysroot = tempfile::tempdir().unwrap();
-    bootstrap_core(sysroot.path(), &target);
-    let source = sysroot.path().join("bounded.scoop");
-    std::fs::write(&source, "fun main() {}\n").unwrap();
-    let output = sysroot.path().join("output/bounded.slib");
-    std::fs::create_dir_all(output.parent().unwrap()).unwrap();
-    let core_slot = crate::trusted_core::resolve_trusted_core_slot_at(
-        sysroot.path(),
-        target.lir_target_selection(),
-    )
-    .unwrap();
-    let request = SingleConeBuildRequest::new(
-        CurrentConeInput::SingleFile {
-            source: SingleFileLocator::from_path(&source).unwrap(),
-        },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()).unwrap(),
-        TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
-        target,
-        SlibOutputDestination::new(&output).unwrap(),
-        DiagnosticOutputPolicy::Human,
-        StageDumpPolicy::None,
-    )
-    .unwrap();
-    let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
-    values.source_bytes = 3;
-    let closure_limits = SlibClosureDecodeLimitsV1::new(values).unwrap();
-
-    assert!(matches!(
-        request.build_and_publish_with_closure_limits(DecodeLimits::default(), closure_limits),
-        Err(SingleConeProductionError::Sources(
-            CurrentConeSourceStageError::SingleFile(source)
-        )) if matches!(
-            source.kind(),
-            SingleFileInputErrorKind::ByteLimitExceeded {
-                limit: 3,
-                observed: 14,
-            }
-        )
-    ));
-    assert!(!output.exists());
-}
-
-#[test]
 fn formal_pipeline_preserves_combined_stage3_language_features() {
     let Some(target) = resolved_target() else {
         return;

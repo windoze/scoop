@@ -1,14 +1,13 @@
 //! Complete validated request with independent source and protocol inputs.
 
 use super::*;
-use scoop_slib::SlibClosureDecodeMeterV1;
 
 impl LoadedSingleConeBuildRequest {
     /// Validates the complete dependency closure before current-source loading.
     pub fn validate(
         &self,
     ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {
-        self.validate_inner(None)
+        self.validate_inner()
     }
 }
 
@@ -102,7 +101,6 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
 impl LoadedSingleConeBuildRequest {
     pub(super) fn validate_inner(
         &self,
-        meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {
         let (manifest, current_identity) = match &self.current {
             LoadedCurrentConeInput::Manifest { manifest } => {
@@ -112,7 +110,7 @@ impl LoadedSingleConeBuildRequest {
         };
         let dependencies = self
             .dependencies
-            .validate_inner(manifest, current_identity, &self.target, meter)
+            .validate_inner(manifest, current_identity, &self.target)
             .map_err(SingleConeDependencyValidationError::ExplicitDependencies)?;
         let protocols = if current_identity == ConeIdentity::CORE {
             ValidatedCompilerProtocols::CurrentDeclarations

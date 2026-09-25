@@ -31,7 +31,7 @@ M23-4 第一次建立多 Cone 的**构建图**，但不建立多 Cone 的**语�
 9. M23-4串行执行canonical order。child失败立即停止，不启动任何dependent，也不进入program-link；已成功、已双视图验证并原子发布的content-addressed cache entry可以保留；
 10. library root成功结果是已验证root `.slib`及Compile/Link两份closure authority；executable root也只返回同类root artifact和closure。本阶段不构建runtime、program descriptor、native provider或binary，不执行程序，也不宣称正式`scoop build/run/link` CLI已经完成；
 11. `compiler/scoop`以recording runner、fake artifact gate和真实M23-3 core-only节点分别验证graph算法与进程边界。含普通dependency的真实source图可以完整规划和调度上游，但当前node最终仍由`SCOOPC_CAPABILITY_NON_CORE_DEPENDENCY_UNAVAILABLE`结束，不生成残缺artifact；
-12. cache、prebuilt与child output都不是信任边界。每次使用都受同一个`SlibClosureDecodeLimitsV1`、双视图reader、依赖闭包核对及target/toolchain核对约束；本地cache receipt只用于把key与已验证artifact/warning绑定，不替代artifact proof或发行者签名。
+12. cache、prebuilt 与 child output 在实际读取边界检查格式、依赖、target/toolchain 与符号信息，同一不可变结果供后续消费复用；本地 cache receipt 只记录缓存 key、产物内容及 warning，不承担授权或防伪职责。
 
 M23-4 的关键不变量是：
 
@@ -59,7 +59,6 @@ completed node = immutable artifact snapshot
 - bounded `.slib` manifest summary probe；
 - identity/content claim合并、reserved identity、kind、single-version、cycle与canonical topological order验证；
 - graph-wide source snapshot、artifact snapshot及TOCTOU检查；
-- `SlibClosureDecodeLimitsV1`及build-wide monotonic budget；
 - per-artifact Compile/Link双视图handle，以及purpose保持不擦除的`ValidatedArtifactClosure<Compile>` / `<Link>`；
 - direct/support closure投影与canonical child argument顺序；
 - `ConeCompileCacheKeyV1`、cache receipt、per-key lock、atomic entry publication与warning replay；
@@ -205,7 +204,6 @@ ResolvedTargetProfile {
 
 - `PrebuiltManifestSummaryV1`的bounded probe；
 - immutable artifact snapshot上的双视图验证入口；
-- `SlibClosureDecodeLimitsV1`与共享closure meter；
 - purpose保持的artifact certificate/closure组合API。
 
 `.slib` container、member、IR capability与strong profile schema不变。summary probe不是新的ArtifactPurpose，也不能调用Compile/Link API。
@@ -548,7 +546,7 @@ resolver在完整node/edge集合上先运行SCC，再运行canonical Kahn：
 - 输出该node后，更新依赖它的dependent；
 - core通常较早ready，但不通过特殊case强行排第一；其无依赖和coordinate自然决定位置；
 - 最终sequence必须恰含每个node一次，并且每条`dependent -> dependency`中dependency index更小；
-- Kahn cost按M23-2的确定性公式向graph meter预扣，不能按实际heap比较次数计费。
+- Kahn 排序只负责依赖优先的确定性顺序，不估算或累计处理成本。
 
 该order同时成为：
 
@@ -581,7 +579,7 @@ support(N) = reachable(N) - direct(N) - {core, N}
 
 closure投影在图验证后计算，不从命令行argument反推；其结果随后由`scoopc` M23-3已有preflight再次独立验证。
 
-## 6. graph preflight、snapshot与资源预算
+## 6. graph preflight 与 snapshot
 
 ### 6.1 `PreparedBuildGraph`的原子门
 
@@ -628,7 +626,7 @@ SourceSnapshot {
 - source text必须是UTF-8；content digest来自实际固定bytes；
 - manifest bytes同样在读取后重验目标；
 - snapshot不记录mtime/inode为语义，只可把它们用作变化检测的附加证据；
-- source总数/总bytes向build-wide meter单调计费。
+- source 读取保留实际长度和稳定文件快照检查。
 
 ordinary child不直接读取用户source tree。orchestrator在private、权限受限、create-new的snapshot root中物化：
 
@@ -677,102 +675,42 @@ artifact `sha256`只是snapshot完整性值，不是`ArtifactFingerprint`。后�
 
 1. 从snapshot重跑summary，必须与discovery summary逐字段相同；
 2. 使用当前target、profile、已完成trusted core owner proof和C bridge profile分别运行M23-3 self-describing Compile与Link验证；后续profile若要求完整dependency closure，则从已完成dependency的purpose handle构造对应reader输入；
-3. 构造第7章dual-view handle；
+3. 使用第 7 章的完整产物读取结果；
 4. 对同coordinate的全部候选比较实际`ArtifactFingerprint`和semantic/code/runtime-image summary；
 5. 即使fingerprint相同，每个candidate自身也必须通过；一个损坏副本不会因另一个副本有效而被忽略；
 6. 成功后按host locator的canonical诊断顺序选一个snapshot作为实际child input，semantic结果与选择无关。
 
 prebuilt artifact是不可重建node。其任一dependency expectation与最终selected dependency不符时报告`StalePrebuiltDependency`，不能退回同coordinate的另一个版本、从相邻source重编译或把错误降级为cache miss。
 
-### 6.6 `SlibClosureDecodeLimitsV1`
+### 6.6 输入边界与失败原子性
 
-M23-2单artifact limit之上增加build/closure总量：
+旧版 build-wide meter、累计资源配额、费用公式、limits profile、usage/certificate 字段及专用测试全部退役。依赖发现、source snapshot、cache、child request 和产物读取不再累计逻辑 CPU、内存、节点、边、复制字节或 work units，也不为计费重新编解码请求和响应。
 
-| resource | 默认上限 |
-| --- | ---: |
-| Cone node数 | 4,096 |
-| dependency edge数 | 65,536 |
-| graph深度 | 1,024 |
-| artifact search root数 | 256 |
-| locator candidate总数 | 65,536 |
-| source file总数 | 1,048,576 |
-| source bytes总量 | 4,294,967,296 |
-| unique artifact snapshot bytes总量 | 17,179,869,184 |
-| archive nonmanifest member总数 | 1,048,576 |
-| manifest/member directory carrier bytes总量 | 536,870,912 |
-| decoded logical heap累计 | 8,589,934,592 |
-| decoded node累计 | 67,108,864 |
-| decoded edge累计 | 268,435,456 |
-| owned/copied decode bytes累计 | 4,294,967,296 |
-| validation work units累计 | 1,073,741,824 |
-| child request数 | 4,096 |
+source 和 artifact 按真实文件长度读取；保留文件类型、稳定快照、长度转换/溢出、分配失败和 I/O 错误检查。图使用 typed Cone identity 建边，保留引用存在性、依赖环、版本冲突、kind 和可达性检查。共享 DAG 复用已经访问的节点，不重复发现相同依赖；合法图的大小不受任意成本模型决定。
 
-规则：
+失败不发布不完整 graph、cache entry 或产物。缓存内容 fingerprint、实际版本和依赖记录继续决定失效；计费策略不进入兼容性或缓存 key。
 
-- 单artifact仍同时受M23-2较小的各项上限；closure limit不能放宽单项；
-- graph summary、source snapshot、Compile view、Link view、cache receipt和protocol framing共享build meter中的对应维度；
-- 相同`ArtifactFingerprint`的相同snapshot bytes在同一purpose中只计一次；Compile和Link是两次独立验证，各计一次decode/work，但physical snapshot bytes只计一次；
-- diamond/repeated path不得重复获得预算；不同fingerprint冲突candidate在报告冲突前仍受candidate/summary上限，不能用大量冲突绕过资源门；
-- 所有加法/乘法使用checked `u64`，分配前预扣，失败不返还；
-- production默认值由`scoop-toolchain`集中提供并以`SlibClosureLimitProfileIdV1`标识。profile id属于consumer compatibility/诊断，不进入Cone identity；cache hit仍用当前limits重新验证，因此无需仅因limit放宽使compile cache miss；
-- 同一profile和meter算法同时接入`compiler/scoop`、直接`scoopc build`的显式dependency closure以及未来program-link；三者可以因实际purpose不同消费不同work，但不能各自定义同名、不同默认值的closure limit；
-- test可以整体注入更小limits，不能为单node/handler重置meter。
+## 7. 产物消费与依赖闭包
 
-超过上限返回`SCOOP_GRAPH_RESOURCE_LIMIT`或更精确的artifact reader错误，包含resource kind、configured limit、checked observed value和canonical graph/artifact origin；不得panic、OOM或产生partial graph。
+### 7.1 不可变快照与共用读取结果
 
-## 7. 双视图artifact authority与closure
+一个产物快照保留实际字节、正常内容 fingerprint 及完整的语义读取结果。外部字节在 reader 边界完成格式、typed 引用、签名和布局检查；Link 在这份结果上追加对象、符号、relocation、registration 及 Code/runtime fingerprint 检查。发布和后续 accessor 直接使用检查后的完整数据。
 
-### 7.1 immutable dual-view handle
+删除独立 Compile/Link certificate、额外凭证外层，以及每次 accessor 都重开产物再比较 certificate 的通道。不得用 unsafe self-reference、泄漏内存或另一套工厂替代这些机制；生命周期和所有权按实际数据访问表达。磁盘上的新快照仍经过读取边界，已有且未变化的内存结果复用检查结论。
 
-M23-3的validated view借用artifact bytes；M23-4不能用unsafe self-reference或泄漏内存把它伪装成长期owner。新增逻辑类型：
+### 7.2 Compile 与 Link 的实际数据需求
 
-```text
-DualValidatedArtifactHandle {
-    snapshot: Arc<ArtifactSnapshot>,
-    publication: PublishableSingleConeArtifact,
-    compile_certificate: CompileViewCertificateV1,
-    link_certificate: LinkViewCertificateV1,
-}
-```
+Compile 使用导出声明、类型、成员、默认参数正文及实例化所需信息。Link 同时需要真实对象、定义、undefined requirement、ABI 与 relocation。Graph summary 只用于依赖发现，不能替代这些完整输入。
 
-唯一构造器对同一immutable snapshot分别打开两次reader，运行正式Compile/Link入口，再比较M23-3 publish gate的全部共同字段。certificate只保存由成功proof投影出的immutable canonical summary、decode usage、profile和snapshot digest；它没有从raw summary构造的公开入口。
-
-需要实际metadata/object accessor时使用scoped API：
-
-```text
-handle.with_compile_view(|ValidatedCompileArtifact| -> R)
-handle.with_link_view(|ValidatedLinkArtifact| -> R)
-```
-
-API在同一snapshot上重建相应view并核对certificate后调用closure；不能把borrowed view移出scope。M23-4 orchestration主要使用certificate；M23-5与program-link可通过purpose closure的scoped批量入口消费完整view。任何重开失败都使handle失效并终止build，不降级为summary。
-
-### 7.2 purpose不能擦除
-
-```text
-ValidatedArtifactClosure<P> {
-    root: ConeIdentity,
-    order: NonEmptyCanonicalVec<ConeIdentity>,
-    artifacts: CanonicalMap<ConeIdentity, PurposeArtifactHandle<P>>,
-    edges: CanonicalSet<ValidatedDependencyEdge>,
-}
-
-P = Compile | Link
-```
-
-- `<Compile>`只能从每个dual handle的Compile certificate投影；
-- `<Link>`只能从每个dual handle的Link certificate投影；
-- 无`AnyPurpose`、无无参`ValidatedArtifactClosure`、无Compile→Link cast；
-- Graph summary/`ValidatedGraphArtifact`都不能调用构造器；
-- 两份closure共享Arc snapshot可以避免复制，但proof/certificate类型独立；
-- root/order/edge相同不允许把一个purpose token重解释成另一个。
+两种消费用途可引用同一快照和语义结果。数据结构保证消费所需内容完整，不以独立凭证、来源资格或重复投影来区分用途；增加实际 Link 数据时只检查新增边界。
 
 ### 7.3 closure构造
 
 对completed root `R`：
 
 1. 从resolved graph计算R可达子图；
-2. 要求每个node都有dual handle；
-3. 对每个artifact重新核对coordinate/id/kind/source form/target/profile；
+2. 要求每个 node 都有消费所需的完整产物结果；
+3. 对新读取的 artifact 核对 coordinate/id/kind/source form/target/profile，已有结果直接复用；
 4. artifact direct dependency record集合必须等于resolved direct edge集合（core包含在artifact记录中）；
 5. 每条record的HIR/MIR/LIR fingerprint必须等于dependency handle；
 6. 同identity只能有一个artifact fingerprint；同`group:name`只能一个version；
@@ -1304,7 +1242,7 @@ graph phase尽量收集互不依赖的多个错误后一次排序返回；execut
 至少新增：
 
 - locator：`SCOOP_LOCATOR_NOT_FOUND`、`SCOOP_LOCATOR_WRONG_TYPE`、`SCOOP_LOCATOR_COORDINATE_MISMATCH`、`SCOOP_LOCATOR_CONFLICTING_SOURCE`、`SCOOP_LOCATOR_CONFLICTING_REPRESENTATION`、`SCOOP_LOCATOR_AMBIGUOUS_ARTIFACT`；
-- graph：`SCOOP_GRAPH_RESERVED_IDENTITY`、`SCOOP_GRAPH_MULTIPLE_VERSIONS`、`SCOOP_GRAPH_EXECUTABLE_DEPENDENCY`、`SCOOP_GRAPH_SINGLE_FILE_DEPENDENCY`、`SCOOP_GRAPH_MISSING_CORE`、`SCOOP_GRAPH_CYCLE`、`SCOOP_GRAPH_UNREACHABLE_NODE`、`SCOOP_GRAPH_RESOURCE_LIMIT`；
+- graph：`SCOOP_GRAPH_RESERVED_IDENTITY`、`SCOOP_GRAPH_MULTIPLE_VERSIONS`、`SCOOP_GRAPH_EXECUTABLE_DEPENDENCY`、`SCOOP_GRAPH_SINGLE_FILE_DEPENDENCY`、`SCOOP_GRAPH_MISSING_CORE`、`SCOOP_GRAPH_CYCLE`、`SCOOP_GRAPH_UNREACHABLE_NODE`；
 - prebuilt：`SCOOP_PREBUILT_SUMMARY_MISMATCH`、`SCOOP_PREBUILT_VIEW_INVALID`、`SCOOP_PREBUILT_STALE_DEPENDENCY`、`SCOOP_PREBUILT_CHANGED`；
 - cache：`SCOOP_CACHE_IO`、`SCOOP_CACHE_ENTRY_CORRUPT`、`SCOOP_CACHE_LOCK`、`SCOOP_CACHE_NONDETERMINISTIC_PRODUCTION`、`SCOOP_CACHE_PUBLISH`；
 - 默认core位置通过普通dependency locator加载，coordinate/kind及文件错误使用通用locator诊断；core源码编译、缓存及产物失败使用普通Cone对应phase与code，不另设slot/bootstrap/source-change错误族；
@@ -1462,7 +1400,7 @@ sealed recording runner记录`ScoopcInvocation`并返回test-only completed arti
 ## 14. 实现顺序
 
 1. 抽出`compiler/toolchain`，迁移唯一target registry与paired compiler identity，不改变现有`scoopc`行为；
-2. 在`scoop-slib`实现bounded summary probe、closure limits/meter和immutable snapshot上的dual-view certificate；
+2. 在 `scoop-slib` 实现 summary probe、不可变快照和共用的完整语义/对象读取结果；
 3. 新增`compiler/scoop` request/root/toolchain normalization与crate dependency boundary test；
 4. 实现manifest/artifact/search-root locator、claim收敛及negative矩阵；
 5. 实现resolved graph、reserved/kind/version/cycle验证、canonical Kahn和direct/support projection；
@@ -1488,9 +1426,9 @@ M23-4只有同时满足以下条件才完成：
 - `ResolvedBuildGraph`与artifact Graph/Compile/Link proof类型上分离，summary/Graph-only无法成为completed node；
 - canonical dependency-first order、direct/support closure和diagnostic order不受manifest枚举、hash seed、path spelling或future concurrency影响；
 - 全部source在child前形成immutable snapshot，普通child只读取private snapshot；artifact child input也来自immutable private backing；
-- `SlibClosureDecodeLimitsV1`覆盖全图physical bytes、decode/work和protocol资源，diamond/重复path不能重复获得预算；
-- prebuilt、cache和child output都分别通过Compile/Link完整验证，dependency/target/profile/response/plan逐项相等后才completed；
-- purpose-specific closure无擦除/cast，library或executable root成功时同时保留Compile与Link closure；
+- 构建、reader 和 protocol 不依赖累计配额或计费，重复依赖复用实际结果；
+- prebuilt、cache 和 child output 的实际读取边界检查完整语义与 Link 数据，复用未变化结果，满足依赖、target、profile 和输出请求后才 completed；
+- library 或 executable root 成功时保留 Compile 与 Link 实际消费所需的完整数据；
 - cache key由normalized semantic/source/dependency/compiler/ABI/profile/实际消费toolchain字段唯一计算，locator/path/mtime/diagnostic不污染；single-file包含core code fingerprint；
 - cache exact-key corruption稳定失败，entry以per-key lock和atomic directory rename发布，竞争不同结果报告nondeterminism且不覆盖；
 - core可从普通manifest根独立构建，且不需要默认sysroot存在；其source变化、cache命中与失败原子性复用所有source Cone的实现；

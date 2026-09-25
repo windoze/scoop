@@ -21,7 +21,7 @@ M23-2 建立的是所有后续多 Cone 能力共同依赖的可信 wire 地基�
 
 1. Cone、source/context、declaration/local binding/value、exact type、callable application、initialization unit、machine callable body、callback registration/application、native contract与safepoint site都有不依赖arena、枚举顺序、FQN、symbol或host path的canonical identity；不同语义kind在Rust API和wire table中都不可混用；
 2. 当前 pipeline 中全部 Scoop-owned linker-visible definition 原子切换到 `PersistentV1` mangler；`@Extern` native symbol 与固定 runtime C ABI symbol仍是明确例外；
-3. `.slib` v1 的 canonical CBOR、bootstrap manifest、typed member directory、normal self-contained deterministic `ar`、member/artifact fingerprint 与资源预算完成并由固定向量锁定；
+3. `.slib` v1 的 canonical CBOR、bootstrap manifest、typed member directory、normal self-contained deterministic `ar`、member/artifact fingerprint 完成并由固定向量锁定；
 4. HIR/MIR/LIR metadata 使用共同的 versioned outer envelope，但各层 payload 和 imported type 仍由各自 IR/meta crate 所有；后续阶段只能增加 versioned section/capability，不能回改本阶段 tag；
 5. reader 形成以 `DecodedSlibEnvelope → ValidatedGraphArtifact` 为共享主干、Compile与未来Link从Graph分叉的 typed proof DAG；Compile分支按“wire decode → structural validation → typed remap → atomic commit”工作；
 6. member envelope 从第一天起允许零个、一个或任意多个 `LinkObject`，以及任意 diagnostic attachment、optional blob 与 Link-required blob；Graph/Compile 只验证未识别 Link payload 的 envelope/hash并保持 opaque；
@@ -126,7 +126,7 @@ HIR / MIR / LIR -> scoop-identity + scoop-wire
 scoop-slib -> scoop-wire + scoop-identity + HIR + MIR + LIR
 ```
 
-`scoop-wire`不认识Cone、entity或IR；它只实现本文第3章的codec、digest、checked scalar和累计预算。`scoop-identity`只依赖`scoop-wire`，不依赖AST/HIR/MIR/LIR、任一lowerer、codegen、driver或filesystem。它也不提供“所有实体共用”的public `PersistentEntityId`。允许内部用macro生成布局相同的newtype，public API仍是互不转换的具体类型。
+`scoop-wire`不认识Cone、entity或IR；它只实现本文第3章的codec、digest和checked scalar。`scoop-identity`只依赖`scoop-wire`，不依赖AST/HIR/MIR/LIR、任一lowerer、codegen、driver或filesystem。它也不提供“所有实体共用”的public `PersistentEntityId`。允许内部用macro生成布局相同的newtype，public API仍是互不转换的具体类型。
 
 workspace新增`compiler/wire`（`scoop-wire`）与`compiler/identity`（`scoop-identity`）两个member。HIR/MIR/LIR各自在IR crate中拥有`persistent.rs`、`wire_v1/`与`imported.rs`；它们为实现自己拥有的wire DTO而直接依赖`scoop-wire`，并为typed identity直接依赖`scoop-identity`。不另建一个依赖lowerer的serializer crate，也不让`scoop-slib`扫描arena来重建语义。`compiler/slib`是唯一打开、写入`.slib`容器的crate；它直接依赖这两个基础crate和HIR/MIR/LIR，但不得依赖parser、任一lowerer、codegen或driver，只编排各IR crate的typed encoder/decoder/validator入口。
 
@@ -1874,50 +1874,19 @@ Compile proof至少检查：
 
 本阶段不用“后续会补”跳过foundation中声明的relation；另一方面，本阶段没有声明的public lookup/layout/object/image relation也不伪造空record来让validator通过。
 
-## 12. resource budget与错误模型
+## 12. 输入范围与错误模型
 
-### 12.1 `SlibDecodeLimitsV1`
+### 12.1 真实输入范围与局部检查
 
-M23-2固定的单artifact默认上限全部是**inclusive**（`observed <= limit`）：
+旧版的单产物和跨产物累计预算、逻辑成本公式、handler 固定费用及 cost-model profile 字段已退役，不再决定程序或产物是否合法。不得以提高额度、unlimited、改名或空计量接口保留它们。
 
-| resource | limit |
-| --- | ---: |
-| archive总长（含global magic、全部header与pad） | 2,147,483,648 bytes |
-| `manifest.cbor` | 67,108,864 bytes |
-| 非manifest member数 | 65,536 |
-| 单个metadata section的inner payload | 268,435,456 bytes |
-| 单LinkObject/ExtensionBlob payload | 1,073,741,824 bytes |
-| 单DiagnosticAttachment payload | 536,870,912 bytes |
-| CBOR nesting | 128 |
-| 任一semantic table entry数 | 16,777,216 |
-| 单text/bytes语义leaf | 16,777,216 bytes |
-| type/body/owner/path递归深度 | 1,024 |
-| decoded logical heap累计 | 2,147,483,648 bytes |
-| decoded node累计 | 16,777,216 |
-| decoded edge累计 | 67,108,864 |
-| owned/copied bytes累计 | 1,073,741,824 bytes |
-| validation work units累计 | 268,435,456 |
+容器、manifest、section 和内层 CBOR 都按实际输入长度检查范围；长度、偏移、元素数量及其乘积使用 checked 运算，通过表示范围和剩余输入检查后才转换为 `usize` 或分配。直接来源于输入的集合容量使用 fallible reserve，分配失败报告真实请求的容量。正常的格式位宽和索引范围仍须满足，不引入额外逻辑字节、节点、边或 work units 配额。
 
-`MetadataSectionV1.payload`、`ManifestSectionV1.payload`、`CanonicalSemanticContributionV1.projection`与member backing range是carrier bytes，不受16 MiB semantic-leaf上限重复限制；它们分别受section/member/manifest/archive上限。前三条foundation projection必须借用同一immutable inner-payload range或直接stream进hash，不能复制整份payload；其他handler也必须在registry声明borrowed/streaming projection策略。known handler进入inner schema后，其中每个实际语义text/bytes leaf仍受16 MiB限制。把大leaf再包一层bstr、分块成相邻字段或先复制到handler私有buffer都不能绕过累计预算。
+canonical CBOR 的字段顺序、唯一性、tag、类型、最短表示和完整消费规则保持；reader 不通过排序修复非 canonical 输入。foundation 的来源、owner、typed 引用和依赖关系在所属边界检查。循环引用由相应图的局部 visited/active 集合识别，遍历使用显式栈或按实际递归结构处理，不靠累计计费提供终止性。
 
-CBOR nesting的top-level item计depth 1，每进入一个array/map/tagged-sum payload中的子item加1；scalar/text/bytes本身不再增加第二层。bootstrap manifest、每个metadata outer envelope分别以depth 1开始。section `payload`在outer中只是一个byte string leaf；known handler随后把其inner bytes作为一棵新的CBOR document、再次从depth 1开始，但使用同一个累计node/heap/work meter，不重置任何非depth预算。type/body/owner/path递归深度也以被验证的root为1，每沿一条对应semantic edge加1；两种depth limit彼此独立。
+不可变 payload 可借用其 backing range 或流式计算 fingerprint；不要求为了收费额外复制或遍历数据。Compile/Link 共用已经检查的语义结果，Link 追加实际对象、ABI、符号和 relocation 检查；同一结果不因进入另一 accessor、发布入口或缓存路径而完整重放。
 
-计数单位精确定义如下：
-
-- node：每个record、sum occurrence与collection element各1；collection容器本身另计1。decoder读取count后先checked预扣全部slot/node预算，再遍历内容；
-- edge：每个persistent/index/owner/graph relation occurrence每次规定的validator pass各1。identity全图建边、cross-layer bridge等各是独立明确pass，不能把同一输入反复扫描而不计费；Kahn pass使用下一项的整式计费，替代而不是叠加这一逐edge费用；
-- SHA-256：对一次长度为`L`的完整hash stream预扣`floor((L + 72) / 64)`个work unit，即包含padding的block数；`L + 72`先checked。分段feed不能重置或少计；
-- canonical sequence只做相邻严格递增/去重检查，长度`n`预扣`max(n-1, 0)`；不按实际比较器提前退出次数计费。untrusted table禁止“先sort再接受”；
-- stable Kahn的ready set对`n`个node固定预扣`n * ceil_log2(max(n, 2)) + edge_count`，无论实际heap比较次数；这已经完整覆盖该pass的ready-set与逐edge消费；
-- 每个CBOR item occurrence、archive header/member和session interner probe各扣1；每次capability dispatch固定扣32，不读取当前registry长度或实际lookup比较次数。known capability handler另加固定`base_work`，当前HIR/MIR/LIR foundation handler各为64，再按inner node/edge/hash-block使用本表通用公式；同一payload换handler不能获得新总预算。
-
-验收/拒绝不得取决于标准库sort/hash table的实际comparison/probe次数、hash seed、allocator rounding、registry增长或并行调度。需要canonical排序的producer输入属于trusted in-memory数据；reader面对wire只验证已排序。`SlibDecodeCostModelV1::DeterministicLogicalCostV1`冻结logical heap cost：record/sum/collection node每项64 bytes，collection element slot 32 bytes，graph adjacency edge slot16 bytes，ready-set element40 bytes，pending remap entry96 bytes，owned text/byte/canonical-temporary按请求的logical byte数1:1另计；一个对象同时具有多个角色时逐项相加，不以Rust `size_of`或allocator结果替代。默认limit、work公式、这些cost与handler `base_work`在`scoop-slib::limits`/capability registry各有唯一V1定义并用golden锁定；它们是profile已哈希的consumer cost-model policy，不是producer可选字段。test只能整体注入更小的limits，production不为section、member或handler重置meter。
-
-decoded logical heap按meter批准的**logical requested slots/bytes**记账，而不是按allocator返回的实际capacity记账：byte/string copy按请求byte数同时计入heap与owned/copied；typed Vec/table、graph adjacency、ready set、temporary canonical buffer、pending remap world和handler state按`requested logical slots × V1 slot cost`计入heap。输入backing及其zero-copy slice不计heap，但一旦复制即计费。replace/shrink不返还额度，避免处理顺序改变可用预算；所有输入规模驱动的分配先扣逻辑额度，再调用fallible `try_reserve_exact`或等价精确请求API，分配失败返回结构化`ResourceAllocation`且不提交world。allocator即使内部round up也不改变meter或验收结果；handler不能使用meter外的unbounded allocation。
-
-所有长度/偏移先在u64做checked add/multiply/range，通过limit后才checked转`usize`。decoder先核对剩余bytes与累计budget，再执行fallible `try_reserve_exact`；不根据不受信任count直接`Vec::with_capacity`或调用可能abort的infallible reserve。identity graph、diagnostic printer与remap使用显式stack或在递归前扣减depth，不让输入触发进程stack overflow。
-
-M23-4会在多artifact层叠加`SlibClosureDecodeLimits`。M23-2的type/API预留可共享meter，但不把“读完一个artifact”称为已满足closure budget。
+删除 wire/profile 字段时遵循第 13 章的正常格式版本规则，退役 tag 不复用，旧产物需要时明确重建。
 
 ### 12.2 结构化错误
 
@@ -1927,7 +1896,7 @@ public error是封闭大类加typed detail，不传出第三方库错误文本�
 | --- | --- |
 | `Container` | bad magic/header/name/order/pad, thin/special/trailing member |
 | `CanonicalWire` | non-minimal CBOR, wrong major type, duplicate/extra/missing field, unknown tag |
-| `ResourceLimit` | `LimitExceeded { resource kind, configured limit, observed checked value }`或`ResourceAllocation { requested logical bytes/slots }`；后者只表示fallible allocation失败，不把它误报为输入超过已配置limit |
+| `Allocation` | fallible allocation 失败及实际请求容量；不包含逻辑预算或计费错误 |
 | `Fingerprint` | member/artifact/layer fingerprint mismatch |
 | `Compatibility` | schema/ABI/mangler/identity/target/backend mismatch |
 | `Directory` | duplicate/missing member, id/stable-key/role/purpose mismatch |
@@ -1937,9 +1906,9 @@ public error是封闭大类加typed detail，不传出第三方库错误文本�
 | `Bridge` | HIR/MIR/LIR origin/coverage/derived-id/symbol mismatch |
 | `SessionConflict` | same origin with different key or semantic fingerprint |
 
-每个error携带`artifact Cone coordinate/id`、`manifest/member id`、`section capability`与结构化path（`Field(u32)`/`Index(u64)`/`Key(typed id)`）中可获取的部分。诊断renderer可加display locator，但排序先按Cone id、member id、section、path和error code；不受信任text只作escaped argument，不作format string。validator可以并行收集错误，但公开返回的primary error必须在所有已启动且预算允许完成的独立检查结果中按同一排序键取最小；若某个更早的顺序化前置门（container → bootstrap canonical wire → directory/range/hash → compatibility/profile → section structural → cross-reference → session conflict）失败，则不启动依赖其输出的后续门。预算扣费顺序也按此门序与canonical record顺序，不能用“哪个worker先返回”仲裁。
+每个error携带`artifact Cone coordinate/id`、`manifest/member id`、`section capability`与结构化path（`Field(u32)`/`Index(u64)`/`Key(typed id)`）中可获取的部分。诊断renderer可加display locator，但排序先按Cone id、member id、section、path和error code；不受信任text只作escaped argument，不作format string。validator可以并行收集错误，但公开返回的primary error必须在已执行的独立检查结果中按同一排序键取最小；若某个更早的顺序化前置门（container → bootstrap canonical wire → directory/range/hash → compatibility/profile → section structural → cross-reference → session conflict）失败，则不启动依赖其输出的后续门。错误顺序按依赖关系与 canonical record 顺序确定。
 
-reader对任意bytes只能返回typed error，不允许panic、OOM-before-budget、无界递归、整数wrap或部分world commit。
+reader对任意bytes只能返回typed error，不允许panic、越界读写、无限循环、整数wrap或部分world commit。
 
 ## 13. semantic fingerprint与schema evolution
 

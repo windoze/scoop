@@ -9,7 +9,6 @@ use scoop_lir::ValidatedLirTargetSelection;
 use scoop_manifest::{ConeManifestSemantic, DiscoveredSource, SourceDisplayLocator};
 use scoop_slib::{
     ArtifactFingerprint, ArtifactSnapshot, ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1,
-    SlibClosureDecodeMeterV1, SlibClosureDecodeUsageV1,
 };
 use scoop_wire::Digest256;
 
@@ -225,7 +224,7 @@ pub struct PreparedBuildGraph {
     pub(super) root_kind: RequestedConeKind,
     pub(super) target_selection: ValidatedLirTargetSelection,
     pub(super) context: BuildContext,
-    pub(super) meter: SlibClosureDecodeMeterV1,
+
     pub(super) staging: PreparedStaging,
     pub(super) compiler: ResolvedPairedScoopc,
 }
@@ -343,10 +342,6 @@ impl PreparedBuildGraph {
         self.staging.output_root()
     }
 
-    pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
-        self.meter.usage()
-    }
-
     pub const fn diagnostics(&self) -> crate::DiagnosticsPolicy {
         self.context.diagnostics
     }
@@ -421,7 +416,6 @@ impl PreparedBuildGraph {
             completed,
             limits,
             &c_bridge_profile,
-            &mut self.meter,
         )
     }
 }

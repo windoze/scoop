@@ -87,7 +87,6 @@ impl DiscoveredSource {
 pub struct DiscoveredManifestSources {
     first: DiscoveredSource,
     rest: Vec<DiscoveredSource>,
-    usage: SourceDiscoveryUsage,
 }
 
 impl DiscoveredManifestSources {
@@ -99,59 +98,8 @@ impl DiscoveredManifestSources {
         std::iter::once(&self.first).chain(&self.rest)
     }
 
-    pub const fn usage(&self) -> SourceDiscoveryUsage {
-        self.usage
-    }
-
-    pub fn into_parts(
-        self,
-    ) -> (
-        DiscoveredSource,
-        Vec<DiscoveredSource>,
-        SourceDiscoveryUsage,
-    ) {
-        (self.first, self.rest, self.usage)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SourceDiscoveryLimits {
-    files: u64,
-    bytes: u64,
-}
-
-impl SourceDiscoveryLimits {
-    pub const UNBOUNDED: Self = Self {
-        files: u64::MAX,
-        bytes: u64::MAX,
-    };
-
-    pub const fn new(files: u64, bytes: u64) -> Self {
-        Self { files, bytes }
-    }
-
-    pub const fn files(self) -> u64 {
-        self.files
-    }
-
-    pub const fn bytes(self) -> u64 {
-        self.bytes
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct SourceDiscoveryUsage {
-    files: u64,
-    bytes: u64,
-}
-
-impl SourceDiscoveryUsage {
-    pub const fn files(self) -> u64 {
-        self.files
-    }
-
-    pub const fn bytes(self) -> u64 {
-        self.bytes
+    pub fn into_parts(self) -> (DiscoveredSource, Vec<DiscoveredSource>) {
+        (self.first, self.rest)
     }
 }
 
@@ -216,14 +164,7 @@ pub enum SourceDiscoveryErrorKind {
     InvalidUtf8Source,
     SourceChangedDuringDiscovery,
     EmptySourceSet,
-    FileLimitExceeded {
-        limit: u64,
-        observed: u64,
-    },
-    ByteLimitExceeded {
-        limit: u64,
-        observed: u64,
-    },
+
     LengthOverflow,
     Allocation {
         requested_bytes: u64,
@@ -272,14 +213,7 @@ impl fmt::Display for SourceDiscoveryError {
             SourceDiscoveryErrorKind::EmptySourceSet => {
                 formatter.write_str("manifest Cone must contain at least one .scoop source")
             }
-            SourceDiscoveryErrorKind::FileLimitExceeded { limit, observed } => write!(
-                formatter,
-                "source file count exceeds limit {limit}: observed {observed}"
-            ),
-            SourceDiscoveryErrorKind::ByteLimitExceeded { limit, observed } => write!(
-                formatter,
-                "source bytes exceed limit {limit}: observed {observed}"
-            ),
+
             SourceDiscoveryErrorKind::LengthOverflow => {
                 formatter.write_str("source length does not fit the bounded reader")
             }
@@ -325,14 +259,6 @@ struct ResolvedEntry {
 pub fn discover_manifest_sources(
     manifest: &LoadedConeManifest,
 ) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
-    discover_manifest_sources_with_limits(manifest, SourceDiscoveryLimits::UNBOUNDED)
-}
-
-pub fn discover_manifest_sources_with_limits(
-    manifest: &LoadedConeManifest,
-    limits: SourceDiscoveryLimits,
-) -> Result<DiscoveredManifestSources, SourceDiscoveryError> {
-    let mut budget = SourceDiscoveryBudget::new(limits);
     let src_locator = manifest.real_root().join("src");
     let real_src = std::fs::canonicalize(&src_locator).map_err(|error| {
         SourceDiscoveryError::io(
@@ -360,7 +286,6 @@ pub fn discover_manifest_sources_with_limits(
         0,
         &mut active_directories,
         &mut candidates,
-        &mut budget,
     )?;
 
     candidates.sort_by(|left, right| left.logical_path.cmp(&right.logical_path));
@@ -387,22 +312,17 @@ pub fn discover_manifest_sources_with_limits(
     let first_candidate = candidates.next().ok_or_else(|| {
         SourceDiscoveryError::new(src_locator, SourceDiscoveryErrorKind::EmptySourceSet)
     })?;
-    let first = read_discovered_source(first_candidate, cone, &mut budget)?;
+    let first = read_discovered_source(first_candidate, cone)?;
     let rest = candidates
-        .map(|candidate| read_discovered_source(candidate, cone, &mut budget))
+        .map(|candidate| read_discovered_source(candidate, cone))
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(DiscoveredManifestSources {
-        first,
-        rest,
-        usage: budget.usage,
-    })
+    Ok(DiscoveredManifestSources { first, rest })
 }
 
 fn read_discovered_source(
     candidate: SourceCandidate,
     cone: scoop_identity::ConeIdentity,
-    budget: &mut SourceDiscoveryBudget,
 ) -> Result<DiscoveredSource, SourceDiscoveryError> {
     let mut file = File::open(&candidate.physical_path).map_err(|error| {
         SourceDiscoveryError::io(
@@ -426,7 +346,7 @@ fn read_discovered_source(
     }
     let before = StableFileObservation::new(&before);
     let expected_length = before.length();
-    budget.charge_bytes(expected_length, &candidate.display_path)?;
+
     let capacity = usize::try_from(expected_length).map_err(|_| {
         SourceDiscoveryError::new(
             candidate.display_path.clone(),
@@ -517,7 +437,6 @@ fn walk_directory(
     symlink_depth: usize,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
-    budget: &mut SourceDiscoveryBudget,
 ) -> Result<(), SourceDiscoveryError> {
     if !active_directories.insert(real_directory.to_path_buf()) {
         return Err(SourceDiscoveryError::new(
@@ -533,7 +452,6 @@ fn walk_directory(
         symlink_depth,
         active_directories,
         candidates,
-        budget,
     );
     active_directories.remove(real_directory);
     result
@@ -546,7 +464,6 @@ fn walk_active_directory(
     symlink_depth: usize,
     active_directories: &mut BTreeSet<PathBuf>,
     candidates: &mut Vec<SourceCandidate>,
-    budget: &mut SourceDiscoveryBudget,
 ) -> Result<(), SourceDiscoveryError> {
     let entries = std::fs::read_dir(real_directory).map_err(|error| {
         SourceDiscoveryError::io(
@@ -608,7 +525,6 @@ fn walk_active_directory(
                 resolved.symlink_depth,
                 active_directories,
                 candidates,
-                budget,
             )?;
         } else if resolved.metadata.is_file()
             && logical_path.extension() == Some(OsStr::new("scoop"))
@@ -620,7 +536,7 @@ fn walk_active_directory(
                         SourceDiscoveryErrorKind::InvalidLogicalPath(error),
                     )
                 })?;
-            budget.charge_file(&entry.path())?;
+
             candidates.try_reserve(1).map_err(|_| {
                 SourceDiscoveryError::new(
                     entry.path(),
@@ -638,54 +554,6 @@ fn walk_active_directory(
         }
     }
     Ok(())
-}
-
-struct SourceDiscoveryBudget {
-    limits: SourceDiscoveryLimits,
-    usage: SourceDiscoveryUsage,
-}
-
-impl SourceDiscoveryBudget {
-    const fn new(limits: SourceDiscoveryLimits) -> Self {
-        Self {
-            limits,
-            usage: SourceDiscoveryUsage { files: 0, bytes: 0 },
-        }
-    }
-
-    fn charge_file(&mut self, path: &Path) -> Result<(), SourceDiscoveryError> {
-        let observed = self.usage.files.checked_add(1).ok_or_else(|| {
-            SourceDiscoveryError::new(path.to_path_buf(), SourceDiscoveryErrorKind::LengthOverflow)
-        })?;
-        if observed > self.limits.files {
-            return Err(SourceDiscoveryError::new(
-                path.to_path_buf(),
-                SourceDiscoveryErrorKind::FileLimitExceeded {
-                    limit: self.limits.files,
-                    observed,
-                },
-            ));
-        }
-        self.usage.files = observed;
-        Ok(())
-    }
-
-    fn charge_bytes(&mut self, bytes: u64, path: &Path) -> Result<(), SourceDiscoveryError> {
-        let observed = self.usage.bytes.checked_add(bytes).ok_or_else(|| {
-            SourceDiscoveryError::new(path.to_path_buf(), SourceDiscoveryErrorKind::LengthOverflow)
-        })?;
-        if observed > self.limits.bytes {
-            return Err(SourceDiscoveryError::new(
-                path.to_path_buf(),
-                SourceDiscoveryErrorKind::ByteLimitExceeded {
-                    limit: self.limits.bytes,
-                    observed,
-                },
-            ));
-        }
-        self.usage.bytes = observed;
-        Ok(())
-    }
 }
 
 fn validated_entry_name(name: &OsStr) -> Option<&str> {
@@ -798,38 +666,6 @@ mod tests {
             sources.first().content_digest(),
             SourceContentDigest::from_utf8("package a\n")
         );
-        assert_eq!(sources.usage().files(), 2);
-        assert_eq!(sources.usage().bytes(), 20);
-    }
-
-    #[test]
-    fn bounded_discovery_checks_file_and_byte_limits_before_growth() {
-        let cone = TempCone::new();
-        std::fs::write(cone.0.join("src/a.scoop"), "aa").unwrap();
-        std::fs::write(cone.0.join("src/b.scoop"), "bbb").unwrap();
-
-        let sources =
-            discover_manifest_sources_with_limits(&cone.load(), SourceDiscoveryLimits::new(2, 5))
-                .unwrap();
-        assert_eq!(sources.usage(), SourceDiscoveryUsage { files: 2, bytes: 5 });
-        assert!(matches!(
-            discover_manifest_sources_with_limits(&cone.load(), SourceDiscoveryLimits::new(1, 5))
-                .unwrap_err()
-                .kind(),
-            SourceDiscoveryErrorKind::FileLimitExceeded {
-                limit: 1,
-                observed: 2
-            }
-        ));
-        assert!(matches!(
-            discover_manifest_sources_with_limits(&cone.load(), SourceDiscoveryLimits::new(2, 4))
-                .unwrap_err()
-                .kind(),
-            SourceDiscoveryErrorKind::ByteLimitExceeded {
-                limit: 4,
-                observed: 5
-            }
-        ));
     }
 
     #[test]

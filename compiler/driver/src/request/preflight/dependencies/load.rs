@@ -1,8 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use scoop_slib::SlibClosureDecodeMeterV1;
-use scoop_wire::{DecodeLimits, sha256};
+use scoop_wire::DecodeLimits;
 
 use super::{
     ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
@@ -16,24 +15,6 @@ impl LoadedExplicitDependencyInputs {
         support: &[HostArtifactLocator],
         limits: DecodeLimits,
     ) -> Result<Self, ExplicitDependencyLoadError> {
-        Self::load_inner(direct, support, limits, None)
-    }
-
-    pub(crate) fn load_metered(
-        direct: &[HostArtifactLocator],
-        support: &[HostArtifactLocator],
-        limits: DecodeLimits,
-        meter: &mut SlibClosureDecodeMeterV1,
-    ) -> Result<Self, ExplicitDependencyLoadError> {
-        Self::load_inner(direct, support, limits, Some(meter))
-    }
-
-    fn load_inner(
-        direct: &[HostArtifactLocator],
-        support: &[HostArtifactLocator],
-        limits: DecodeLimits,
-        mut meter: Option<&mut SlibClosureDecodeMeterV1>,
-    ) -> Result<Self, ExplicitDependencyLoadError> {
         let mut artifacts = Vec::with_capacity(direct.len() + support.len());
         for (role, locators) in [
             (ExplicitDependencyRole::Direct, direct),
@@ -45,11 +26,7 @@ impl LoadedExplicitDependencyInputs {
                     index,
                     path: locator.as_path().to_path_buf(),
                 };
-                artifacts.push(LoadedExplicitDependencyArtifact::load(
-                    input,
-                    limits,
-                    meter.as_deref_mut(),
-                )?);
+                artifacts.push(LoadedExplicitDependencyArtifact::load(input, limits)?);
             }
         }
         Ok(Self { artifacts, limits })
@@ -58,7 +35,6 @@ impl LoadedExplicitDependencyInputs {
     pub(in crate::request::preflight) fn append_direct(
         &mut self,
         locator: &HostArtifactLocator,
-        meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<(), ExplicitDependencyLoadError> {
         let index = self
             .artifacts
@@ -70,7 +46,7 @@ impl LoadedExplicitDependencyInputs {
             index,
             path: locator.as_path().to_path_buf(),
         };
-        let artifact = LoadedExplicitDependencyArtifact::load(input, self.limits, meter)?;
+        let artifact = LoadedExplicitDependencyArtifact::load(input, self.limits)?;
         self.artifacts.insert(index, artifact);
         Ok(())
     }
@@ -80,15 +56,9 @@ impl LoadedExplicitDependencyArtifact {
     fn load(
         input: ExplicitDependencyArtifactInput,
         limits: DecodeLimits,
-        meter: Option<&mut SlibClosureDecodeMeterV1>,
     ) -> Result<Self, ExplicitDependencyLoadError> {
         let bytes = load_artifact_bytes(&input, limits)?;
-        if let Some(meter) = meter {
-            let byte_length = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
-            meter
-                .observe_raw_artifact_snapshot(sha256(&bytes), byte_length)
-                .map_err(ExplicitDependencyLoadError::Resource)?;
-        }
+
         Ok(Self {
             input,
             bytes,

@@ -8,7 +8,7 @@ use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_protocol::StructuredDiagnosticV1;
 use scoop_slib::{
     ArtifactFingerprint, CompileArtifactPurpose, DependencyRecord, LinkArtifactPurpose,
-    SemanticFingerprintRecord, SlibClosureDecodeMeterV1,
+    SemanticFingerprintRecord,
 };
 use scoop_wire::DecodeLimits;
 
@@ -187,7 +187,6 @@ pub(crate) fn complete_compiled_candidate(
     warnings: Vec<StructuredDiagnosticV1>,
     limits: DecodeLimits,
     c_bridge_profile: &CBridgeToolchainProfileV1,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<CompletedNode, CompiledCompletionError> {
     let mut artifacts = BTreeMap::new();
     for node in completed {
@@ -204,14 +203,7 @@ pub(crate) fn complete_compiled_candidate(
         }
     }
     let artifact = plan
-        .validate_completed_artifact(
-            identity,
-            snapshot,
-            &artifacts,
-            limits,
-            c_bridge_profile,
-            meter,
-        )
+        .validate_completed_artifact(identity, snapshot, &artifacts, limits, c_bridge_profile)
         .map_err(|source| CompiledCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
     let closures = plan
@@ -337,7 +329,6 @@ pub(crate) fn complete_prebuilt_candidates(
     completed: &[&CompletedNode],
     limits: DecodeLimits,
     c_bridge_profile: &CBridgeToolchainProfileV1,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<CompletedNode, PrebuiltCompletionError> {
     let mut artifacts = BTreeMap::new();
     for node in completed {
@@ -363,7 +354,6 @@ pub(crate) fn complete_prebuilt_candidates(
                 &artifacts,
                 limits,
                 c_bridge_profile,
-                meter,
             )
             .map_err(|source| PrebuiltCompletionError::CandidateArtifact {
                 path: candidate.source_locator().to_path_buf(),

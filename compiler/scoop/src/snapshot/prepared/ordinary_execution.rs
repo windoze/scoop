@@ -10,10 +10,9 @@ use super::model::{PreparedBuildGraph, PreparedGraphNode};
 use crate::artifact::{CompiledCompletionError, CompletedNode, complete_compiled_candidate};
 use crate::{
     CacheCompletionError, CacheReceiptBodyV1, CacheReceiptV1, CacheReceiptValidationError,
-    ChildProtocolAccountingError, ChildRequestPlanError, ChildSuccessArtifactMismatch,
-    ChildTransportError, CompileCacheKeyError, CompileCacheLookupV1, CompileCacheStoreError,
-    CompileCacheStoreV1, ImmutableInputSnapshot, SingleConeCompilerRunner, SnapshotFileError,
-    measure_child_request_decode, measure_child_response_decode, validate_child_success_artifact,
+    ChildRequestPlanError, ChildSuccessArtifactMismatch, ChildTransportError, CompileCacheKeyError,
+    CompileCacheLookupV1, CompileCacheStoreError, CompileCacheStoreV1, ImmutableInputSnapshot,
+    SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
 };
 
 impl PreparedBuildGraph {
@@ -69,22 +68,11 @@ impl PreparedBuildGraph {
         self.staging
             .require_empty_output(invocation.output_path())
             .map_err(OrdinarySourceExecutionError::OutputLayout)?;
-        let request_usage = measure_child_request_decode(invocation.request())
-            .map_err(OrdinarySourceExecutionError::ChildProtocol)?;
-        self.meter
-            .charge_decode_usage(request_usage)
-            .map_err(OrdinarySourceExecutionError::Resource)?;
-        self.meter
-            .charge_child_request()
-            .map_err(OrdinarySourceExecutionError::Resource)?;
+
         let response = runner
             .invoke(&self.compiler, invocation.request(), invocation.io())
             .map_err(OrdinarySourceExecutionError::ChildTransport)?;
-        let response_usage = measure_child_response_decode(&response)
-            .map_err(OrdinarySourceExecutionError::ChildProtocol)?;
-        self.meter
-            .charge_decode_usage(response_usage)
-            .map_err(OrdinarySourceExecutionError::Resource)?;
+
         let success = match response {
             ScoopcResponseEnvelopeV1::Success { result, .. } => result,
             ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
@@ -111,7 +99,6 @@ impl PreparedBuildGraph {
             success.warnings().to_vec(),
             self.context.limits.artifact_decode(),
             &c_bridge_profile,
-            &mut self.meter,
         )
         .map_err(OrdinarySourceExecutionError::Completion)?;
         validate_child_success_artifact(&success, completed_node.artifact())
@@ -139,7 +126,7 @@ impl PreparedBuildGraph {
         )
         .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
         completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
-        let cache_publication = store
+        store
             .publish(
                 &lock,
                 &output,
@@ -147,11 +134,7 @@ impl PreparedBuildGraph {
                 self.context.limits.artifact_decode(),
             )
             .map_err(OrdinarySourceExecutionError::CacheStore)?;
-        for usage in cache_publication.receipt_decode_usages() {
-            self.meter
-                .charge_decode_usage(*usage)
-                .map_err(OrdinarySourceExecutionError::Resource)?;
-        }
+
         Ok(completed_node)
     }
 }
@@ -163,8 +146,7 @@ pub enum OrdinarySourceExecutionError {
     CacheStore(CompileCacheStoreError),
     CacheCompletion(CacheCompletionError),
     RequestPlan(ChildRequestPlanError),
-    Resource(scoop_slib::SlibClosureResourceErrorV1),
-    ChildProtocol(ChildProtocolAccountingError),
+
     ChildTransport(ChildTransportError),
     ChildFailure(Vec<StructuredDiagnosticV1>),
     OutputLayout(crate::StagingError),
@@ -186,13 +168,7 @@ impl fmt::Display for OrdinarySourceExecutionError {
             Self::CacheStore(source) => source.fmt(formatter),
             Self::CacheCompletion(source) => source.fmt(formatter),
             Self::RequestPlan(source) => write!(formatter, "cannot plan compiler child: {source}"),
-            Self::Resource(source) => source.fmt(formatter),
-            Self::ChildProtocol(source) => {
-                write!(
-                    formatter,
-                    "cannot account for child protocol frame: {source}"
-                )
-            }
+
             Self::ChildTransport(source) => write!(formatter, "child transport failed: {source}"),
             Self::ChildFailure(diagnostics) => write!(
                 formatter,
@@ -225,8 +201,7 @@ impl std::error::Error for OrdinarySourceExecutionError {
             Self::CacheStore(source) => Some(source),
             Self::CacheCompletion(source) => Some(source),
             Self::RequestPlan(source) => Some(source),
-            Self::Resource(source) => Some(source),
-            Self::ChildProtocol(source) => Some(source),
+
             Self::ChildTransport(source) => Some(source),
             Self::OutputLayout(source) => Some(source),
             Self::OutputSnapshot(source) => Some(source),

@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_slib::{
-    ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError,
-    PrebuiltManifestSummaryError, SlibClosureResourceErrorV1,
+    ConeKind, ConeSourceForm, CrossConeArtifactClosureValidationError, PrebuiltManifestSummaryError,
 };
 use scoop_wire::{DecodeLimits, HashError};
 
@@ -91,7 +90,6 @@ pub enum ExplicitDependencyLoadError {
         actual: u64,
         limit: u64,
     },
-    Resource(SlibClosureResourceErrorV1),
 }
 
 impl fmt::Display for ExplicitDependencyLoadError {
@@ -113,7 +111,6 @@ impl fmt::Display for ExplicitDependencyLoadError {
                 formatter,
                 "dependency {input} has {actual} bytes, exceeding the {limit}-byte input limit"
             ),
-            Self::Resource(source) => source.fmt(formatter),
         }
     }
 }
@@ -122,7 +119,7 @@ impl std::error::Error for ExplicitDependencyLoadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io { source, .. } => Some(source),
-            Self::Resource(source) => Some(source),
+
             Self::NotRegularFile(_) | Self::ArtifactTooLarge { .. } => None,
         }
     }
@@ -145,7 +142,6 @@ type DependencyValidationResult<T> = Result<T, Box<ExplicitDependencyValidationE
 
 #[derive(Debug)]
 pub enum ExplicitDependencyValidationError {
-    Resource(SlibClosureResourceErrorV1),
     Summary {
         input: ExplicitDependencyArtifactInput,
         source: Box<PrebuiltManifestSummaryError>,
@@ -217,7 +213,6 @@ pub enum ExplicitDependencyValidationError {
 impl fmt::Display for ExplicitDependencyValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(source) => source.fmt(formatter),
             Self::Summary { input, source } => {
                 write!(formatter, "cannot summarize dependency {input}: {source}")
             }
@@ -318,7 +313,6 @@ impl fmt::Display for ExplicitDependencyValidationError {
 impl std::error::Error for ExplicitDependencyValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Resource(source) => Some(source),
             Self::Summary { source, .. } => Some(source.as_ref()),
             Self::Closure(source) => Some(source.as_ref()),
             Self::CompilerProtocols(source) => Some(source),

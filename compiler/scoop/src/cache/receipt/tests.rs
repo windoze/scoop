@@ -84,14 +84,14 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
         warning("SCOOPC_A_WARNING", "a warning"),
     ]);
     let bytes = encode(&receipt).unwrap();
-    let (decoded, usage) = decode_cache_receipt_v1(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
+    let decoded = decode_cache_receipt_v1(&bytes, DecodeLimits::M23_DEFAULT).unwrap();
 
     assert_eq!(decoded, receipt);
     assert_eq!(
         decoded.body().structured_warnings()[0].code(),
         "SCOOPC_A_WARNING"
     );
-    assert!(usage.owned_bytes > 0);
+
     assert_eq!(
         receipt.fingerprint().to_string(),
         "ea4e639a635125aa4f5ade5dacb5ea506f075607d3bb68be42311a0dbcdfc156"

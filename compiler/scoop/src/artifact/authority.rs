@@ -7,8 +7,8 @@ use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_lir::CBridgeToolchainProfileV1;
 use scoop_slib::{
     ArtifactSnapshot, CrossConeArtifactClosureInput, CrossConeArtifactClosureValidationError,
-    PrebuiltManifestSummaryError, PublishableCrossConeArtifact, SlibClosureDecodeMeterV1,
-    SlibClosureDecodePurposeV1, SlibClosureResourceErrorV1, validate_cross_cone_artifact_closure,
+    PrebuiltManifestSummaryError, PublishableCrossConeArtifact,
+    validate_cross_cone_artifact_closure,
 };
 use scoop_wire::DecodeLimits;
 
@@ -109,7 +109,6 @@ impl ArtifactClosurePlan {
         completed: &BTreeMap<ConeIdentity, Arc<ValidatedCrossConeArtifactHandle>>,
         limits: DecodeLimits,
         c_bridge_profile: &CBridgeToolchainProfileV1,
-        meter: &mut SlibClosureDecodeMeterV1,
     ) -> Result<Arc<ValidatedCrossConeArtifactHandle>, CrossConeArtifactValidationError> {
         if !self.nodes.contains_key(&current) {
             return Err(CrossConeArtifactValidationError::Plan(Box::new(
@@ -150,20 +149,12 @@ impl ArtifactClosurePlan {
             let artifact = &completed[identity];
             summaries.push((
                 *identity,
-                artifact.snapshot().digest(),
-                probe_and_charge_summary(
-                    *identity,
-                    artifact.snapshot(),
-                    self.target,
-                    limits,
-                    meter,
-                )?,
+                probe_summary(*identity, artifact.snapshot(), self.target, limits)?,
             ));
         }
         summaries.push((
             current,
-            snapshot.digest(),
-            probe_and_charge_summary(current, &snapshot, self.target, limits, meter)?,
+            probe_summary(current, &snapshot, self.target, limits)?,
         ));
 
         let mut session = SemanticIdentitySession::new();
@@ -181,7 +172,7 @@ impl ArtifactClosurePlan {
         )
         .map_err(|source| CrossConeArtifactValidationError::Closure(Box::new(source)))?;
 
-        for (identity, snapshot_digest, summary) in summaries {
+        for (identity, summary) in summaries {
             let publication = closure.publication(identity).ok_or(
                 CrossConeArtifactValidationError::MissingValidatedArtifact(identity),
             )?;
@@ -190,22 +181,6 @@ impl ArtifactClosurePlan {
                     identity,
                 ));
             }
-            meter
-                .charge_artifact_decode(
-                    SlibClosureDecodePurposeV1::Compile,
-                    publication.artifact_fingerprint(),
-                    snapshot_digest,
-                    publication.compile_summary().decode_usage(),
-                )
-                .map_err(CrossConeArtifactValidationError::Resource)?;
-            meter
-                .charge_artifact_decode(
-                    SlibClosureDecodePurposeV1::Link,
-                    publication.artifact_fingerprint(),
-                    snapshot_digest,
-                    publication.link_summary().decode_usage(),
-                )
-                .map_err(CrossConeArtifactValidationError::Resource)?;
         }
 
         let publication = closure.into_current_publication().ok_or(
@@ -220,12 +195,11 @@ impl ArtifactClosurePlan {
     }
 }
 
-fn probe_and_charge_summary(
+fn probe_summary(
     identity: ConeIdentity,
     snapshot: &ArtifactSnapshot,
     target: scoop_lir::ValidatedLirTargetSelection,
     limits: DecodeLimits,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<scoop_slib::PrebuiltManifestSummaryV1, CrossConeArtifactValidationError> {
     let summary = snapshot
         .probe_prebuilt_summary(limits, target)
@@ -233,17 +207,7 @@ fn probe_and_charge_summary(
             identity,
             source: Box::new(source),
         })?;
-    meter
-        .observe_artifact_snapshot(&summary, snapshot.digest())
-        .map_err(CrossConeArtifactValidationError::Resource)?;
-    meter
-        .charge_artifact_decode(
-            SlibClosureDecodePurposeV1::GraphSummary,
-            summary.artifact_fingerprint(),
-            snapshot.digest(),
-            summary.decode_usage(),
-        )
-        .map_err(CrossConeArtifactValidationError::Resource)?;
+
     Ok(summary)
 }
 
@@ -269,7 +233,7 @@ pub enum CrossConeArtifactValidationError {
         identity: ConeIdentity,
         source: Box<PrebuiltManifestSummaryError>,
     },
-    Resource(SlibClosureResourceErrorV1),
+
     Closure(Box<CrossConeArtifactClosureValidationError>),
     MissingValidatedArtifact(ConeIdentity),
     SummaryViewMismatch(ConeIdentity),
@@ -282,7 +246,7 @@ impl fmt::Display for CrossConeArtifactValidationError {
             Self::Summary { identity, source } => {
                 write!(formatter, "cannot summarize artifact {identity}: {source}")
             }
-            Self::Resource(source) => source.fmt(formatter),
+
             Self::Closure(source) => source.fmt(formatter),
             Self::MissingValidatedArtifact(identity) => write!(
                 formatter,
@@ -301,7 +265,7 @@ impl std::error::Error for CrossConeArtifactValidationError {
         match self {
             Self::Plan(source) => Some(source),
             Self::Summary { source, .. } => Some(source),
-            Self::Resource(source) => Some(source),
+
             Self::Closure(source) => Some(source),
             Self::MissingValidatedArtifact(_) | Self::SummaryViewMismatch(_) => None,
         }

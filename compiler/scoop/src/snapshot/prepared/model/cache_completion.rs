@@ -18,11 +18,7 @@ impl PreparedBuildGraph {
         ) {
             return Err(CacheCompletionError::NotOrdinarySource(identity));
         }
-        for usage in entry.receipt_decode_usages() {
-            self.meter
-                .charge_decode_usage(*usage)
-                .map_err(CacheCompletionError::Resource)?;
-        }
+
         let expected_key = self
             .compile_cache_key(identity, completed)
             .map_err(|source| CacheCompletionError::CacheKey(Box::new(source)))?;
@@ -39,7 +35,6 @@ impl PreparedBuildGraph {
             limits,
             self.target_selection,
             &c_bridge_profile,
-            &mut self.meter,
         )?;
         let snapshot = validated.artifact().snapshot();
         let materialized = self

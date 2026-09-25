@@ -93,14 +93,13 @@ mod tests {
     use scoop_wire::DecodeLimits;
 
     use super::*;
-    use crate::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
 
     #[test]
     fn purpose_handles_retain_independent_typed_authority() {
         let snapshot = Arc::new(ArtifactSnapshot::from_bytes(
             crate::link_decode::complete_strong_artifact_for_test(false),
         ));
-        let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
+
         let dual = Arc::new(
             DualValidatedArtifactHandle::validate(
                 snapshot,
@@ -108,7 +107,6 @@ mod tests {
                 ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
                 &Vec::new(),
                 &crate::link_decode::c_bridge_profile_for_test(),
-                &mut meter,
             )
             .unwrap(),
         );

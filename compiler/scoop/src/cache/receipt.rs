@@ -9,8 +9,8 @@ use scoop_slib::{
     DecodedDependencyRecord, DependencyRecord, DependencyRecordValidationError,
 };
 use scoop_wire::{
-    BudgetMeter, DecodeLimits, DecodeUsage, Decoder, Digest256, Encoder, HashError, WireDecode,
-    WireEncode, WireError, WirePath, decode_canonical_with_meter, domain_separated_cbor_hash,
+    BudgetMeter, DecodeLimits, Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode,
+    WireError, WirePath, decode_canonical_with_meter, domain_separated_cbor_hash,
     domain_separated_cbor_hash_stream_length, encode,
 };
 
@@ -227,12 +227,12 @@ impl WireEncode for CacheReceiptV1 {
 pub fn decode_cache_receipt_v1(
     bytes: &[u8],
     limits: DecodeLimits,
-) -> Result<(CacheReceiptV1, DecodeUsage), CacheReceiptDecodeError> {
+) -> Result<CacheReceiptV1, CacheReceiptDecodeError> {
     let mut meter = BudgetMeter::new(limits);
     let decoded: DecodedCacheReceiptV1 =
         decode_canonical_with_meter(bytes, &mut meter).map_err(CacheReceiptDecodeError::Wire)?;
     let receipt = decoded.validate(&mut meter)?;
-    Ok((receipt, meter.usage()))
+    Ok(receipt)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

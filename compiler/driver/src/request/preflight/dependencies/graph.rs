@@ -3,10 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
 use scoop_manifest::LoadedConeManifest;
-use scoop_slib::{
-    ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1, SlibClosureDecodeMeterV1,
-    SlibClosureResourceErrorV1, SlibClosureResourceKindV1,
-};
+use scoop_slib::{ConeKind, ConeSourceForm, PrebuiltManifestSummaryV1};
 
 use super::{
     DependencyValidationResult, ExplicitDependencyArtifactInput, ExplicitDependencyRole,
@@ -141,16 +138,14 @@ fn dependency_matches_summary(
 
 pub(super) fn validate_acyclic(
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
-) -> DependencyValidationResult<u64> {
+) -> DependencyValidationResult<()> {
     let mut complete = BTreeSet::new();
-    let mut maximum_depth = 0_u64;
     for start in nodes.keys().copied() {
         if complete.contains(&start) {
             continue;
         }
         let mut visiting = BTreeMap::<ConeIdentity, usize>::new();
         let mut stack = vec![(start, 0_usize)];
-        maximum_depth = maximum_depth.max(1);
         visiting.insert(start, 0);
         while let Some((identity, next_index)) = stack.last_mut() {
             let dependencies = nodes[identity].summary.direct_dependencies();
@@ -180,11 +175,10 @@ pub(super) fn validate_acyclic(
             if !complete.contains(&next) {
                 visiting.insert(next, stack.len());
                 stack.push((next, 0));
-                maximum_depth = maximum_depth.max(u64::try_from(stack.len()).unwrap_or(u64::MAX));
             }
         }
     }
-    Ok(maximum_depth)
+    Ok(())
 }
 
 pub(super) fn validate_support_closure(
@@ -337,55 +331,4 @@ fn node_order<'nodes>(
         version: coordinate.version(),
         identity,
     }
-}
-
-pub(super) fn charge_graph_edges_and_depth(
-    meter: &mut SlibClosureDecodeMeterV1,
-    nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
-    dependency_depth: u64,
-) -> DependencyValidationResult<()> {
-    let artifact_edges = nodes.values().try_fold(0_u64, |total, node| {
-        let count = u64::try_from(node.summary.direct_dependencies().len()).map_err(|_| {
-            Box::new(ExplicitDependencyValidationError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: SlibClosureResourceKindV1::DependencyEdges,
-                },
-            ))
-        })?;
-        total.checked_add(count).ok_or_else(|| {
-            Box::new(ExplicitDependencyValidationError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: SlibClosureResourceKindV1::DependencyEdges,
-                },
-            ))
-        })
-    })?;
-    let direct_count = nodes
-        .values()
-        .filter(|node| node.input.role == ExplicitDependencyRole::Direct)
-        .count();
-    let current_edges = u64::try_from(direct_count).map_err(|_| {
-        Box::new(ExplicitDependencyValidationError::Resource(
-            SlibClosureResourceErrorV1::Overflow {
-                resource: SlibClosureResourceKindV1::DependencyEdges,
-            },
-        ))
-    })?;
-    let edges = artifact_edges.checked_add(current_edges).ok_or_else(|| {
-        Box::new(ExplicitDependencyValidationError::Resource(
-            SlibClosureResourceErrorV1::Overflow {
-                resource: SlibClosureResourceKindV1::DependencyEdges,
-            },
-        ))
-    })?;
-    let depth = dependency_depth.checked_add(1).ok_or_else(|| {
-        Box::new(ExplicitDependencyValidationError::Resource(
-            SlibClosureResourceErrorV1::Overflow {
-                resource: SlibClosureResourceKindV1::GraphDepth,
-            },
-        ))
-    })?;
-    meter
-        .charge_graph(0, edges, depth)
-        .map_err(|source| Box::new(ExplicitDependencyValidationError::Resource(source)))
 }

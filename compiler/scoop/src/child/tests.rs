@@ -194,18 +194,6 @@ fn production_runner_accepts_only_matching_response_and_exit_pairs() {
 }
 
 #[test]
-fn protocol_accounting_round_trips_request_and_both_response_kinds() {
-    let request_usage = measure_child_request_decode(&request([8; 16])).unwrap();
-    let success_usage = measure_child_response_decode(&success([8; 16])).unwrap();
-    let failure_usage = measure_child_response_decode(&failure([8; 16])).unwrap();
-
-    assert!(request_usage.decoded_nodes > 0);
-    assert!(success_usage.decoded_nodes > 0);
-    assert!(failure_usage.decoded_nodes > 0);
-    assert!(failure_usage.owned_bytes > 0);
-}
-
-#[test]
 fn child_success_artifact_validation_rejects_every_mismatched_field() {
     let expected = expected_success_artifact();
     for field in [

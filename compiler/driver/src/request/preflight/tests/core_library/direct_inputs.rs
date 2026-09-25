@@ -2,7 +2,6 @@ use super::*;
 
 mod process;
 mod rejection;
-mod resources;
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
@@ -82,6 +81,5 @@ pub(super) fn check(
     );
     assert!(!sysroot.join("lib/scoop.core/src").exists());
     rejection::check(target, &root, workspace, &sysroot, core, slot.artifact());
-    resources::check(target, &root, workspace, core);
     process::check(target, &root, workspace, &sysroot, core, &explicit);
 }

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity};
-use scoop_slib::SlibClosureResourceErrorV1;
+
 use scoop_wire::HashError;
 
 use crate::discovery::EdgeOrigin;
@@ -120,7 +120,6 @@ impl EdgeKeyMismatch {
 
 #[derive(Debug)]
 pub enum ResolveBuildGraphError {
-    Resource(SlibClosureResourceErrorV1),
     Identity(HashError),
     MissingRoot(ConeIdentity),
     MissingTrustedCore,
@@ -186,7 +185,6 @@ pub enum ResolveBuildGraphError {
 impl fmt::Display for ResolveBuildGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(error) => error.fmt(formatter),
             Self::Identity(error) => error.fmt(formatter),
             Self::MissingRoot(identity) => {
                 write!(formatter, "resolved graph has no root {identity}")
@@ -318,7 +316,6 @@ impl fmt::Display for ResolveBuildGraphError {
 impl std::error::Error for ResolveBuildGraphError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Resource(error) => Some(error),
             Self::Identity(error) => Some(error),
             _ => None,
         }

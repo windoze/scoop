@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use scoop_manifest::{ManifestRootLocator, SingleFileLocator};
 use scoop_protocol::TargetSelectionRequestV1;
-use scoop_slib::SlibClosureDecodeLimitsV1;
-use scoop_toolchain::{ResolvedSlibClosureLimitsV1, ResolvedTargetProfile, ToolchainError};
+
+use scoop_toolchain::{ResolvedTargetProfile, ToolchainError};
 use scoop_wire::DecodeLimits;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -180,40 +180,16 @@ pub enum DiagnosticsPolicy {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BuildLimitsProfileV1 {
-    slib_closure: ResolvedSlibClosureLimitsV1,
-    slib_closure_limits: SlibClosureDecodeLimitsV1,
     artifact_decode: DecodeLimits,
 }
 
 impl BuildLimitsProfileV1 {
     pub const M23_DEFAULT: Self = Self {
-        slib_closure: ResolvedSlibClosureLimitsV1::M23_DEFAULT,
-        slib_closure_limits: ResolvedSlibClosureLimitsV1::M23_DEFAULT.limits(),
         artifact_decode: DecodeLimits::M23_DEFAULT,
     };
 
-    pub const fn slib_closure(self) -> ResolvedSlibClosureLimitsV1 {
-        self.slib_closure
-    }
-
-    pub(crate) const fn slib_closure_limits(self) -> SlibClosureDecodeLimitsV1 {
-        self.slib_closure_limits
-    }
-
     pub const fn artifact_decode(self) -> DecodeLimits {
         self.artifact_decode
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn for_test(
-        slib_closure_limits: SlibClosureDecodeLimitsV1,
-        artifact_decode: DecodeLimits,
-    ) -> Self {
-        Self {
-            slib_closure: ResolvedSlibClosureLimitsV1::M23_DEFAULT,
-            slib_closure_limits,
-            artifact_decode,
-        }
     }
 }
 
@@ -252,20 +228,6 @@ impl BuildGraphRequest {
         diagnostics: DiagnosticsPolicy,
         limits: BuildLimitsProfileV1,
     ) -> Result<Self, BuildGraphRequestError> {
-        let search_root_limit = limits.slib_closure_limits().values().artifact_search_roots;
-        let actual_search_roots = u64::try_from(artifact_search_roots.len()).map_err(|_| {
-            BuildGraphRequestError::TooManyArtifactSearchRoots {
-                limit: search_root_limit,
-                actual: u64::MAX,
-            }
-        })?;
-        if actual_search_roots > search_root_limit {
-            return Err(BuildGraphRequestError::TooManyArtifactSearchRoots {
-                limit: search_root_limit,
-                actual: actual_search_roots,
-            });
-        }
-
         artifact_search_roots.sort_by(|left, right| left.as_path().cmp(right.as_path()));
         artifact_search_roots.dedup();
         let target = ResolvedTargetProfile::resolve(target.canonical_triple())
@@ -331,17 +293,12 @@ impl BuildGraphRequest {
 
 #[derive(Debug)]
 pub enum BuildGraphRequestError {
-    TooManyArtifactSearchRoots { limit: u64, actual: u64 },
     Toolchain(ToolchainError),
 }
 
 impl fmt::Display for BuildGraphRequestError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TooManyArtifactSearchRoots { limit, actual } => write!(
-                formatter,
-                "too many artifact search roots: limit {limit}, found {actual}"
-            ),
             Self::Toolchain(error) => error.fmt(formatter),
         }
     }
@@ -350,7 +307,6 @@ impl fmt::Display for BuildGraphRequestError {
 impl std::error::Error for BuildGraphRequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TooManyArtifactSearchRoots { .. } => None,
             Self::Toolchain(error) => Some(error),
         }
     }
@@ -398,32 +354,6 @@ mod tests {
         let mut path = absolute("non-utf8");
         path.push(std::ffi::OsString::from_vec(vec![0x66, 0x80]));
         assert_eq!(ArtifactSearchRoot::new(&path).unwrap().as_path(), path);
-    }
-
-    #[test]
-    fn search_root_limit_is_checked_before_target_resolution() {
-        let roots = (0..257)
-            .map(|index| ArtifactSearchRoot::new(absolute(&format!("root-{index}"))).unwrap())
-            .collect();
-        let request = BuildGraphRequest::new(
-            BuildRootInput::manifest(ManifestRootLocator::cone_directory(absolute("root")))
-                .unwrap(),
-            roots,
-            ArtifactCacheRoot::new(absolute("cache")).unwrap(),
-            TrustedSysrootRoot::new(absolute("sysroot")).unwrap(),
-            TargetSelectionRequestV1::new("unsupported-unknown-target".into()).unwrap(),
-            PairedScoopcLocator::new(absolute("bin/scoopc")).unwrap(),
-            DiagnosticsPolicy::Structured,
-            BuildLimitsProfileV1::M23_DEFAULT,
-        )
-        .unwrap_err();
-        assert!(matches!(
-            request,
-            BuildGraphRequestError::TooManyArtifactSearchRoots {
-                limit: 256,
-                actual: 257
-            }
-        ));
     }
 
     #[test]

@@ -283,7 +283,7 @@ fn prepare_materializes_only_immutable_private_source_inputs() {
         prepared.node_representation(ConeIdentity::CORE),
         Some(PreparedNodeRepresentation::ManifestSource)
     );
-    assert_eq!(prepared.decode_usage().source_files, 2);
+
     let private_root = prepared.source_input_path(root_identity).unwrap();
     assert!(private_root.starts_with(prepared.staging_root()));
     assert_eq!(
@@ -351,10 +351,6 @@ fn prepare_reprobes_and_materializes_every_prebuilt_candidate() {
     assert_eq!(
         prepared.prebuilt_artifact_fingerprint(identity),
         Some(candidate.summary().artifact_fingerprint())
-    );
-    assert_eq!(
-        prepared.decode_usage().artifact_snapshot_bytes,
-        artifact.len() as u64
     );
 }
 

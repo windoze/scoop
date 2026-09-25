@@ -6,8 +6,7 @@ use scoop_mir::CanonicalMirFoundation;
 use scoop_protocol::TargetSelectionRequestV1;
 use scoop_slib::{
     ConeKind, ConeRecord, ConeSourceForm, IdentityFoundationArtifact,
-    IdentityFoundationArtifactInput, ProducerRecord, SlibClosureDecodeLimitsV1,
-    SlibClosureResourceErrorV1, SlibClosureResourceKindV1,
+    IdentityFoundationArtifactInput, ProducerRecord,
 };
 
 fn write_manifest(root: &std::path::Path, name: &str, dependencies: &str) {
@@ -63,15 +62,6 @@ fn request_with_limits(
     .unwrap()
 }
 
-fn candidate_limits(limit: u64) -> BuildLimitsProfileV1 {
-    let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
-    values.locator_candidates = limit;
-    BuildLimitsProfileV1::for_test(
-        SlibClosureDecodeLimitsV1::new(values).unwrap(),
-        scoop_wire::DecodeLimits::M23_DEFAULT,
-    )
-}
-
 fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
     let hir = CanonicalHirFoundation::empty();
     let mir = CanonicalMirFoundation::empty();
@@ -88,42 +78,6 @@ fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
     .unwrap()
     .as_bytes()
     .to_vec()
-}
-
-#[test]
-fn locator_candidate_limit_is_charged_before_candidate_io() {
-    let temp = tempfile::tempdir().unwrap();
-    let sysroot = temp.path().join("sysroot");
-    let root = temp.path().join("root");
-    write_core(&sysroot);
-    write_manifest(
-        &root,
-        "root",
-        "[dependencies]\n\"test:missing\" = \"1.0.0\"\n",
-    );
-    let search_roots = [temp.path().join("first"), temp.path().join("second")]
-        .map(|path| ArtifactSearchRoot::new(path).unwrap())
-        .to_vec();
-
-    let error = request_with_limits(&root, &sysroot, search_roots, candidate_limits(1))
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap_err();
-    assert!(matches!(
-        error,
-        BuildGraphDiscoveryError::Locator(source)
-            if matches!(
-                source.as_ref(),
-                DependencyLocatorError::Resource(
-                    SlibClosureResourceErrorV1::LimitExceeded {
-                        resource: SlibClosureResourceKindV1::LocatorCandidates,
-                        limit: 1,
-                        observed: 2,
-                    }
-                )
-            )
-    ));
 }
 
 #[test]
@@ -162,7 +116,6 @@ fn source_chain_is_discovered_before_any_source_tree_read() {
         ),
         Some(DiscoveredNodeRepresentation::ManifestSource)
     );
-    assert_eq!(graph.decode_usage().source_files, 0);
 }
 
 #[test]

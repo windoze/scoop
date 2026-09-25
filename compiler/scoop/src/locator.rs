@@ -10,10 +10,9 @@ use scoop_manifest::{
 };
 use scoop_slib::{
     ArtifactFingerprint, ConeKind, ConeSourceForm, PrebuiltManifestSummaryError,
-    PrebuiltManifestSummaryV1, SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1,
-    SlibClosureResourceErrorV1, probe_prebuilt_manifest_summary,
+    PrebuiltManifestSummaryV1, probe_prebuilt_manifest_summary,
 };
-use scoop_wire::{DecodeLimits, sha256};
+use scoop_wire::DecodeLimits;
 
 use crate::ArtifactSearchRoot;
 
@@ -129,7 +128,6 @@ pub(crate) fn locate_manifest_dependency(
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
     limits: DecodeLimits,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
     let coordinate = parent
         .parsed()
@@ -146,22 +144,15 @@ pub(crate) fn locate_manifest_dependency(
 
     match locator {
         DependencyLocator::SourcePath(path) => locate_source_dependency(parent, coordinate, {
-            meter
-                .charge_locator_candidates(1)
-                .map_err(DependencyLocatorError::Resource)?;
             resolve_from_manifest(parent, path.as_path())
         })
         .map(|source| LocatedDependencyClaim::Source(Box::new(source))),
         DependencyLocator::ArtifactPath(path) => {
-            meter
-                .charge_locator_candidates(1)
-                .map_err(DependencyLocatorError::Resource)?;
             let candidate = probe_artifact_candidate(
                 resolve_from_manifest(parent, path.as_path()),
                 coordinate,
                 target,
                 limits,
-                meter,
             )?;
             Ok(LocatedDependencyClaim::Prebuilt(Box::new(
                 PrebuiltArtifactProjection {
@@ -175,7 +166,7 @@ pub(crate) fn locate_manifest_dependency(
             )))
         }
         DependencyLocator::SearchRoots => {
-            locate_from_search_roots(coordinate, search_roots, target, limits, meter)
+            locate_from_search_roots(coordinate, search_roots, target, limits)
                 .map(|prebuilt| LocatedDependencyClaim::Prebuilt(Box::new(prebuilt)))
         }
     }
@@ -231,7 +222,6 @@ pub(crate) fn locate_from_search_roots(
     search_roots: &[ArtifactSearchRoot],
     target: scoop_lir::ValidatedLirTargetSelection,
     limits: DecodeLimits,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<PrebuiltArtifactProjection, DependencyLocatorError> {
     let mut checked = Vec::new();
     let mut resolved = Vec::new();
@@ -242,9 +232,7 @@ pub(crate) fn locate_from_search_roots(
             .join(coordinate.name())
             .join(coordinate.version())
             .join("cone.slib");
-        meter
-            .charge_locator_candidates(1)
-            .map_err(DependencyLocatorError::Resource)?;
+
         checked.push(candidate.clone());
         match std::fs::symlink_metadata(&candidate) {
             Ok(_) => {
@@ -278,13 +266,11 @@ pub(crate) fn locate_from_search_roots(
             checked,
         });
     };
-    let first = probe_artifact_candidate(first_path, coordinate, target, limits, meter)?;
+    let first = probe_artifact_candidate(first_path, coordinate, target, limits)?;
     let expected_fingerprint = first.summary.artifact_fingerprint();
     let mut rest = Vec::new();
     for path in paths {
-        rest.push(probe_artifact_candidate(
-            path, coordinate, target, limits, meter,
-        )?);
+        rest.push(probe_artifact_candidate(path, coordinate, target, limits)?);
     }
     if rest
         .iter()
@@ -316,7 +302,6 @@ fn probe_artifact_candidate(
     expected: &ConeCoordinate,
     target: scoop_lir::ValidatedLirTargetSelection,
     limits: DecodeLimits,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<PrebuiltArtifactCandidate, DependencyLocatorError> {
     let resolved_path = canonicalize(&path)?;
     let file = File::open(&resolved_path).map_err(|source| DependencyLocatorError::Io {
@@ -380,14 +365,7 @@ fn probe_artifact_candidate(
         }
     })?;
     validate_artifact_shape(expected, &resolved_path, &summary)?;
-    meter
-        .charge_artifact_decode(
-            SlibClosureDecodePurposeV1::GraphSummary,
-            summary.artifact_fingerprint(),
-            sha256(&bytes),
-            summary.decode_usage(),
-        )
-        .map_err(DependencyLocatorError::Resource)?;
+
     Ok(PrebuiltArtifactCandidate {
         resolved_path,
         summary: Box::new(summary),
@@ -477,7 +455,7 @@ pub enum DependencyLocatorError {
         path: PathBuf,
         source: PrebuiltManifestSummaryError,
     },
-    Resource(SlibClosureResourceErrorV1),
+
     CoordinateMismatch {
         expected: Box<ConeCoordinate>,
         actual: Box<ConeCoordinate>,
@@ -565,7 +543,7 @@ impl fmt::Display for DependencyLocatorError {
                     path.display()
                 )
             }
-            Self::Resource(error) => error.fmt(formatter),
+
             Self::CoordinateMismatch {
                 expected,
                 actual,
@@ -625,7 +603,7 @@ impl std::error::Error for DependencyLocatorError {
             Self::Manifest(error) => Some(error),
             Self::Io { source, .. } => Some(source),
             Self::Summary { source, .. } => Some(source),
-            Self::Resource(error) => Some(error),
+
             _ => None,
         }
     }
@@ -672,10 +650,6 @@ mod tests {
             .clone()
     }
 
-    fn meter() -> SlibClosureDecodeMeterV1 {
-        SlibClosureDecodeMeterV1::new(scoop_slib::SlibClosureDecodeLimitsV1::M23_DEFAULT)
-    }
-
     fn foundation_artifact(coordinate: ConeCoordinate, producer: &str) -> Vec<u8> {
         let hir = CanonicalHirFoundation::empty();
         let mir = CanonicalMirFoundation::empty();
@@ -712,7 +686,6 @@ mod tests {
             &[],
             TARGET,
             DecodeLimits::M23_DEFAULT,
-            &mut meter(),
         )
         .unwrap();
         let LocatedDependencyClaim::Source(source) = claim else {
@@ -742,7 +715,6 @@ mod tests {
                 &[],
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::CoordinateMismatch { .. })
         ));
@@ -755,7 +727,6 @@ mod tests {
                 &[],
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::ExecutableDependency { .. })
         ));
@@ -780,7 +751,6 @@ mod tests {
             &[],
             TARGET,
             DecodeLimits::M23_DEFAULT,
-            &mut meter(),
         )
         .unwrap();
         let LocatedDependencyClaim::Prebuilt(prebuilt) = claim else {
@@ -808,7 +778,6 @@ mod tests {
                 &[],
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::CoordinateMismatch { .. })
         ));
@@ -819,14 +788,7 @@ mod tests {
             ..DecodeLimits::M23_DEFAULT
         };
         assert!(matches!(
-            locate_manifest_dependency(
-                &parent,
-                &first_key(&parent),
-                &[],
-                TARGET,
-                small_limits,
-                &mut meter(),
-            ),
+            locate_manifest_dependency(&parent, &first_key(&parent), &[], TARGET, small_limits,),
             Err(DependencyLocatorError::ArtifactTooLarge { .. })
         ));
     }
@@ -856,7 +818,6 @@ mod tests {
             &roots,
             TARGET,
             DecodeLimits::M23_DEFAULT,
-            &mut meter(),
         )
         .unwrap();
         let LocatedDependencyClaim::Prebuilt(prebuilt) = claim else {
@@ -883,7 +844,6 @@ mod tests {
                 &roots,
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::ArtifactNotFound { .. })
         ));
@@ -902,7 +862,6 @@ mod tests {
                 &roots,
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::ArtifactNotRegularFile(_))
         ));
@@ -927,7 +886,6 @@ mod tests {
                     &dangling_roots,
                     TARGET,
                     DecodeLimits::M23_DEFAULT,
-                    &mut meter(),
                 ),
                 Err(DependencyLocatorError::Io {
                     operation: LocatorIoOperation::Canonicalize,
@@ -963,7 +921,6 @@ mod tests {
             &search_roots,
             TARGET,
             DecodeLimits::M23_DEFAULT,
-            &mut meter(),
         )
         .unwrap() else {
             panic!("search root must produce a prebuilt claim")
@@ -978,7 +935,6 @@ mod tests {
                 &search_roots,
                 TARGET,
                 DecodeLimits::M23_DEFAULT,
-                &mut meter(),
             ),
             Err(DependencyLocatorError::AmbiguousArtifact { .. })
         ));

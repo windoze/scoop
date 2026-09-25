@@ -3,7 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use fs4::FileExt;
-use scoop_wire::{DecodeLimits, DecodeUsage, encode};
+use scoop_wire::{DecodeLimits, encode};
 
 use super::{
     COMPILE_CACHE_NAMESPACE, CacheReceiptV1, ConeCompileCacheKeyV1, decode_cache_receipt_v1,
@@ -120,17 +120,14 @@ impl CompileCacheStoreV1 {
                 let _kept_path = candidate.keep();
                 sync_directory(&self.namespace)?;
                 match lookup_entry(&destination, lock.key, limits)? {
-                    CompileCacheLookupV1::Hit(mut entry) => {
-                        entry.prepend_receipt_decode_usages(verified.receipt_decode_usages());
-                        Ok(CompileCachePublishV1::Published(entry))
-                    }
+                    CompileCacheLookupV1::Hit(entry) => Ok(CompileCachePublishV1::Published(entry)),
                     CompileCacheLookupV1::Miss => Err(
                         CompileCacheStoreError::PublishedEntryDisappeared(destination),
                     ),
                 }
             }
             AtomicRenameOutcome::AlreadyExists => {
-                let mut winner = match lookup_entry(&destination, lock.key, limits)? {
+                let winner = match lookup_entry(&destination, lock.key, limits)? {
                     CompileCacheLookupV1::Hit(entry) => entry,
                     CompileCacheLookupV1::Miss => {
                         return Err(CompileCacheStoreError::PublishedEntryDisappeared(
@@ -142,7 +139,6 @@ impl CompileCacheStoreV1 {
                     && winner.artifact().as_bytes() == artifact.as_bytes()
                     && winner.receipt() == receipt
                 {
-                    winner.prepend_receipt_decode_usages(verified.receipt_decode_usages());
                     Ok(CompileCachePublishV1::ExistingEquivalent(winner))
                 } else {
                     Err(CompileCacheStoreError::NondeterministicProduction(
@@ -270,7 +266,6 @@ pub struct RawCompileCacheEntryV1 {
     entry_path: PathBuf,
     artifact: ImmutableInputSnapshot,
     receipt: CacheReceiptV1,
-    receipt_decode_usages: Vec<DecodeUsage>,
 }
 
 impl RawCompileCacheEntryV1 {
@@ -289,33 +284,12 @@ impl RawCompileCacheEntryV1 {
     pub const fn receipt(&self) -> &CacheReceiptV1 {
         &self.receipt
     }
-
-    pub fn receipt_decode_usages(&self) -> &[DecodeUsage] {
-        &self.receipt_decode_usages
-    }
-
-    fn prepend_receipt_decode_usages(&mut self, usages: &[DecodeUsage]) {
-        let mut combined = Vec::with_capacity(usages.len() + self.receipt_decode_usages.len());
-        combined.extend_from_slice(usages);
-        combined.append(&mut self.receipt_decode_usages);
-        self.receipt_decode_usages = combined;
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CompileCachePublishV1 {
     Published(Box<RawCompileCacheEntryV1>),
     ExistingEquivalent(Box<RawCompileCacheEntryV1>),
-}
-
-impl CompileCachePublishV1 {
-    pub fn receipt_decode_usages(&self) -> &[DecodeUsage] {
-        match self {
-            Self::Published(entry) | Self::ExistingEquivalent(entry) => {
-                entry.receipt_decode_usages()
-            }
-        }
-    }
 }
 
 fn lookup_entry(
@@ -348,9 +322,8 @@ fn lookup_entry(
                 source,
             },
         )?;
-    let (receipt, receipt_decode_usage) =
-        decode_cache_receipt_v1(receipt_snapshot.as_bytes(), limits)
-            .map_err(|source| CompileCacheStoreError::ReceiptDecode(Box::new(source)))?;
+    let receipt = decode_cache_receipt_v1(receipt_snapshot.as_bytes(), limits)
+        .map_err(|source| CompileCacheStoreError::ReceiptDecode(Box::new(source)))?;
     if receipt.body().cache_key() != key {
         return Err(CompileCacheStoreError::ReceiptKeyMismatch {
             expected: key,
@@ -368,7 +341,6 @@ fn lookup_entry(
             entry_path: entry_path.to_path_buf(),
             artifact,
             receipt,
-            receipt_decode_usages: vec![receipt_decode_usage],
         },
     )))
 }

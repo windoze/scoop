@@ -8,7 +8,6 @@ use scoop_lir::{CBridgeToolchainProfileV1, ValidatedLirTargetSelection};
 use scoop_protocol::{DiagnosticOriginV1, ProtocolConeIdentity, StructuredDiagnosticV1};
 use scoop_slib::{
     ArtifactFingerprint, ArtifactSnapshot, ConeRecord, ConeRecordError, DependencyRecord,
-    SlibClosureDecodeMeterV1, SlibClosureResourceErrorV1,
 };
 use scoop_wire::DecodeLimits;
 
@@ -64,7 +63,6 @@ pub(crate) fn validate_cache_entry(
     limits: DecodeLimits,
     target: ValidatedLirTargetSelection,
     c_bridge_profile: &CBridgeToolchainProfileV1,
-    meter: &mut SlibClosureDecodeMeterV1,
 ) -> Result<ValidatedCacheHitV1, CacheCompletionError> {
     if entry.key() != expected_key {
         return Err(CacheCompletionError::EntryKeyMismatch {
@@ -110,7 +108,6 @@ pub(crate) fn validate_cache_entry(
             &artifacts,
             limits,
             c_bridge_profile,
-            meter,
         )
         .map_err(|source| CacheCompletionError::Artifact(Box::new(source)))?;
     artifacts.insert(identity, Arc::clone(&artifact));
@@ -252,7 +249,7 @@ impl std::error::Error for CacheReceiptBindingError {}
 pub enum CacheCompletionError {
     NotOrdinarySource(ConeIdentity),
     CacheKey(Box<CompileCacheKeyError>),
-    Resource(SlibClosureResourceErrorV1),
+
     EntryKeyMismatch {
         expected: ConeCompileCacheKeyV1,
         actual: ConeCompileCacheKeyV1,
@@ -283,7 +280,7 @@ impl fmt::Display for CacheCompletionError {
             Self::CacheKey(source) => {
                 write!(formatter, "cannot derive compile cache key: {source}")
             }
-            Self::Resource(source) => source.fmt(formatter),
+
             Self::EntryKeyMismatch { expected, actual } => write!(
                 formatter,
                 "cache entry key mismatch: expected {expected}, found {actual}"
@@ -340,7 +337,7 @@ impl std::error::Error for CacheCompletionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CacheKey(source) => Some(source),
-            Self::Resource(source) => Some(source),
+
             Self::Artifact(source) => Some(source),
             Self::Plan(source) => Some(source),
             Self::ConeRecord(source) => Some(source),

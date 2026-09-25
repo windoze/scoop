@@ -178,8 +178,8 @@ fn assert_core_views_share_the_dependency_closure(
     .unwrap()
     .load_preflight(DecodeLimits::default())
     .unwrap();
-    let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
-    let validated = loaded.validate_inner(Some(&mut meter)).unwrap();
+
+    let validated = loaded.validate_inner().unwrap();
     assert!(matches!(
         validated.current(),
         ValidatedCurrentConeInput::SingleFile { .. }

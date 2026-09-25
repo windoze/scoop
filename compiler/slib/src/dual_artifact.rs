@@ -12,7 +12,6 @@ use crate::{
     ArtifactFingerprint, CanonicalDefinedLinkSymbolOwnerSetV1, CompileViewSummaryV1,
     DecodedSlibEnvelope, GraphValidationError, LinkViewSummaryV1, PrebuiltManifestSummaryError,
     PublishableArtifactValidationError, PublishableSingleConeArtifact, SingleConeStrongProfile,
-    SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1, SlibClosureResourceErrorV1,
     SlibReadError, StrongCompileArtifactValidationError, StrongLinkArtifactValidationError,
     ValidatedCompileArtifact, ValidatedSingleConeStrongLinkArtifact,
     probe_prebuilt_manifest_summary, validate_self_describing_single_cone_strong_compile_artifact,
@@ -151,21 +150,9 @@ impl DualValidatedArtifactHandle {
         target: ValidatedLirTargetSelection,
         dependency_owners: &[CanonicalDefinedLinkSymbolOwnerSetV1],
         c_bridge_profile: &CBridgeToolchainProfileV1,
-        closure_meter: &mut SlibClosureDecodeMeterV1,
     ) -> Result<Self, DualValidatedArtifactError> {
         let summary = probe_prebuilt_manifest_summary(snapshot.bytes(), limits, target)
             .map_err(DualValidatedArtifactError::Summary)?;
-        closure_meter
-            .observe_artifact_snapshot(&summary, snapshot.digest())
-            .map_err(DualValidatedArtifactError::Resource)?;
-        closure_meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::GraphSummary,
-                summary.artifact_fingerprint(),
-                snapshot.digest(),
-                summary.decode_usage(),
-            )
-            .map_err(DualValidatedArtifactError::Resource)?;
 
         let (compile, link) = validate_self_describing_single_cone_strong_views(
             snapshot.bytes(),
@@ -182,23 +169,6 @@ impl DualValidatedArtifactHandle {
                 ))
             })?;
         verify_summary(&summary, &publication)?;
-
-        closure_meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::Compile,
-                publication.artifact_fingerprint(),
-                snapshot.digest(),
-                compile.decode_usage(),
-            )
-            .map_err(DualValidatedArtifactError::Resource)?;
-        closure_meter
-            .charge_artifact_decode(
-                SlibClosureDecodePurposeV1::Link,
-                publication.artifact_fingerprint(),
-                snapshot.digest(),
-                link.decode_usage(),
-            )
-            .map_err(DualValidatedArtifactError::Resource)?;
 
         let compile_certificate = CompileViewCertificateV1 {
             artifact: publication.artifact_fingerprint(),
@@ -387,7 +357,7 @@ pub enum ArtifactViewPurposeV1 {
 #[derive(Debug)]
 pub enum DualValidatedArtifactError {
     Summary(PrebuiltManifestSummaryError),
-    Resource(SlibClosureResourceErrorV1),
+
     Views(PublishableArtifactValidationError),
     SummaryViewMismatch,
 }
@@ -396,7 +366,7 @@ impl fmt::Display for DualValidatedArtifactError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Summary(error) => error.fmt(formatter),
-            Self::Resource(error) => error.fmt(formatter),
+
             Self::Views(error) => error.fmt(formatter),
             Self::SummaryViewMismatch => {
                 formatter.write_str("prebuilt summary and full artifact views disagree")
@@ -462,15 +432,13 @@ mod tests {
     fn immutable_snapshot_retains_independent_compile_and_link_certificates() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(false);
         let snapshot = Arc::new(ArtifactSnapshot::from_bytes(bytes.clone()));
-        let mut meter =
-            SlibClosureDecodeMeterV1::new(crate::SlibClosureDecodeLimitsV1::M23_DEFAULT);
+
         let handle = DualValidatedArtifactHandle::validate(
             Arc::clone(&snapshot),
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),
-            &mut meter,
         )
         .unwrap();
 
@@ -487,23 +455,19 @@ mod tests {
         let link_identity = handle.with_link_view(|view| view.identity()).unwrap();
         assert_eq!(compile_identity, link_identity);
         assert_eq!(compile_identity, handle.publication().identity());
-        assert!(meter.usage().artifact_snapshot_bytes > 0);
-        assert!(meter.usage().validation_work_units > 0);
     }
 
     #[test]
     fn link_semantic_corruption_cannot_construct_a_dual_handle() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test(true);
         let snapshot = Arc::new(ArtifactSnapshot::from_bytes(bytes));
-        let mut meter =
-            SlibClosureDecodeMeterV1::new(crate::SlibClosureDecodeLimitsV1::M23_DEFAULT);
+
         let error = DualValidatedArtifactHandle::validate(
             snapshot,
             DecodeLimits::default(),
             ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
             &Vec::new(),
             &crate::link_decode::c_bridge_profile_for_test(),
-            &mut meter,
         )
         .unwrap_err();
         assert!(matches!(error, DualValidatedArtifactError::Views(_)));

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use scoop_identity::ConeCoordinate;
 use scoop_manifest::{SingleFileInputError, SourceDiscoveryError};
-use scoop_slib::{PrebuiltManifestSummaryError, SlibClosureResourceErrorV1};
+use scoop_slib::PrebuiltManifestSummaryError;
 
 use super::super::staging::StagingError;
 use crate::{PairedCompilerError, SnapshotFileError};
@@ -16,19 +16,18 @@ pub enum PrepareBuildGraphError {
     ManifestChanged(PathBuf),
     SourceDiscovery(SourceDiscoveryError),
     SingleFile(SingleFileInputError),
-    SourceLengthOverflow,
+
     ArtifactSnapshot {
         path: PathBuf,
         source: SnapshotFileError,
     },
-    ArtifactLengthOverflow(PathBuf),
+
     ArtifactSummary {
         path: PathBuf,
         source: PrebuiltManifestSummaryError,
     },
     ArtifactSummaryChanged(PathBuf),
     PrebuiltProjectionChanged(ConeCoordinate),
-    Resource(SlibClosureResourceErrorV1),
 }
 
 impl fmt::Display for PrepareBuildGraphError {
@@ -50,19 +49,13 @@ impl fmt::Display for PrepareBuildGraphError {
             Self::SingleFile(error) => {
                 write!(formatter, "cannot snapshot single-file root: {error}")
             }
-            Self::SourceLengthOverflow => {
-                formatter.write_str("source snapshot length does not fit u64")
-            }
+
             Self::ArtifactSnapshot { path, source } => write!(
                 formatter,
                 "cannot snapshot prebuilt artifact {}: {source}",
                 path.display()
             ),
-            Self::ArtifactLengthOverflow(path) => write!(
-                formatter,
-                "artifact snapshot length does not fit u64: {}",
-                path.display()
-            ),
+
             Self::ArtifactSummary { path, source } => write!(
                 formatter,
                 "cannot re-probe artifact snapshot {}: {source}",
@@ -77,7 +70,6 @@ impl fmt::Display for PrepareBuildGraphError {
                 formatter,
                 "prebuilt projection for {coordinate} changed during graph preparation"
             ),
-            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
@@ -92,7 +84,7 @@ impl std::error::Error for PrepareBuildGraphError {
             Self::SingleFile(error) => Some(error),
             Self::ArtifactSnapshot { source, .. } => Some(source),
             Self::ArtifactSummary { source, .. } => Some(source),
-            Self::Resource(error) => Some(error),
+
             _ => None,
         }
     }

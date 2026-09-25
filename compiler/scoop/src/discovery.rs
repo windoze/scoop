@@ -9,10 +9,7 @@ use scoop_manifest::{
     DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootError,
     SingleFileLocator, load_cone_manifest,
 };
-use scoop_slib::{
-    DependencyRecord, SlibClosureDecodeMeterV1, SlibClosureDecodeUsageV1,
-    SlibClosureResourceErrorV1,
-};
+use scoop_slib::DependencyRecord;
 use scoop_wire::HashError;
 
 use crate::locator::{
@@ -49,7 +46,6 @@ pub struct DiscoveredBuildGraph {
     nodes: BTreeMap<ConeIdentity, GraphNode>,
     edges: BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
     context: BuildContext,
-    meter: SlibClosureDecodeMeterV1,
 }
 
 impl DiscoveredBuildGraph {
@@ -123,17 +119,12 @@ impl DiscoveredBuildGraph {
         self.context.limits
     }
 
-    pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
-        self.meter.usage()
-    }
-
     pub(crate) fn into_parts(self) -> DiscoveredGraphParts {
         DiscoveredGraphParts {
             root: self.root,
             nodes: self.nodes,
             edges: self.edges,
             context: self.context,
-            meter: self.meter,
         }
     }
 }
@@ -143,7 +134,6 @@ pub(crate) struct DiscoveredGraphParts {
     pub(crate) nodes: BTreeMap<ConeIdentity, GraphNode>,
     pub(crate) edges: BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
     pub(crate) context: BuildContext,
-    pub(crate) meter: SlibClosureDecodeMeterV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -330,14 +320,12 @@ pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate)
 #[derive(Debug)]
 pub enum LoadBuildRootError {
     RootManifest(ManifestRootError),
-    Resource(SlibClosureResourceErrorV1),
 }
 
 impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
-            Self::Resource(error) => error.fmt(formatter),
         }
     }
 }
@@ -346,7 +334,6 @@ impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RootManifest(error) => Some(error),
-            Self::Resource(error) => Some(error),
         }
     }
 }
@@ -354,7 +341,7 @@ impl std::error::Error for LoadBuildRootError {
 #[derive(Debug)]
 pub enum BuildGraphDiscoveryError {
     Locator(Box<DependencyLocatorError>),
-    Resource(SlibClosureResourceErrorV1),
+
     Identity(HashError),
     MissingLocatorProjection(DependencyCoordinateKey),
     MissingDependencySpan(DependencyCoordinateKey),
@@ -389,7 +376,7 @@ impl fmt::Display for BuildGraphDiscoveryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Locator(error) => error.fmt(formatter),
-            Self::Resource(error) => error.fmt(formatter),
+
             Self::Identity(error) => error.fmt(formatter),
             Self::MissingLocatorProjection(key) => {
                 write!(
@@ -462,7 +449,7 @@ impl std::error::Error for BuildGraphDiscoveryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Locator(error) => Some(error),
-            Self::Resource(error) => Some(error),
+
             Self::Identity(error) => Some(error),
             _ => None,
         }

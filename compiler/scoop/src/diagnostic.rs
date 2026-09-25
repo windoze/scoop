@@ -5,10 +5,10 @@ use std::fmt;
 use scoop_protocol::StructuredDiagnosticV1;
 
 use crate::{
-    BuildGraphDiscoveryError, BuildGraphExecutionError, BuildGraphRequestError,
-    CacheCompletionError, CacheIoOperation, ChildTransportError, CompileCacheStoreError,
-    DependencyLocatorError, LoadBuildRootError, OrdinarySourceExecutionError,
-    PrebuiltCompletionError, PrepareBuildGraphError, ResolveBuildGraphError,
+    BuildGraphDiscoveryError, BuildGraphExecutionError, BuildGraphRequestError, CacheIoOperation,
+    ChildTransportError, CompileCacheStoreError, DependencyLocatorError, LoadBuildRootError,
+    OrdinarySourceExecutionError, PrebuiltCompletionError, PrepareBuildGraphError,
+    ResolveBuildGraphError,
 };
 
 /// Canonical order in which build orchestration failures are reported.
@@ -156,10 +156,6 @@ const fn phase_only(phase: BuildFailurePhase) -> BuildFailureClassification {
 impl ClassifyBuildFailure for BuildGraphRequestError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::TooManyArtifactSearchRoots { .. } => classified(
-                BuildFailurePhase::Request,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
-            ),
             Self::Toolchain(_) => classified(
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
@@ -172,10 +168,6 @@ impl ClassifyBuildFailure for LoadBuildRootError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::RootManifest(_) => phase_only(BuildFailurePhase::Root),
-            Self::Resource(_) => classified(
-                BuildFailurePhase::Root,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
-            ),
         }
     }
 }
@@ -184,10 +176,7 @@ impl ClassifyBuildFailure for BuildGraphDiscoveryError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::Locator(source) => source.classification(),
-            Self::Resource(_) => classified(
-                BuildFailurePhase::Locator,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
-            ),
+
             Self::Identity(_)
             | Self::IdentityCoordinateConflict { .. }
             | Self::ConflictingDependencyEdge { .. }
@@ -247,7 +236,7 @@ impl ClassifyBuildFailure for DependencyLocatorError {
                 BuildFailurePhase::Summary,
                 BuildDiagnosticCode::PREBUILT_CHANGED,
             ),
-            Self::ArtifactTooLarge { .. } | Self::Allocation(_) | Self::Resource(_) => classified(
+            Self::ArtifactTooLarge { .. } | Self::Allocation(_) => classified(
                 BuildFailurePhase::Summary,
                 BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
             ),
@@ -267,7 +256,7 @@ impl ClassifyBuildFailure for DependencyLocatorError {
 impl ClassifyBuildFailure for ResolveBuildGraphError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::Resource(_) | Self::Allocation { .. } => classified(
+            Self::Allocation { .. } => classified(
                 BuildFailurePhase::GraphCycleOrder,
                 BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
             ),
@@ -333,19 +322,13 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
                 BuildFailurePhase::PrebuiltArtifact,
                 BuildDiagnosticCode::PREBUILT_VIEW_INVALID,
             ),
-            Self::ArtifactSnapshot { .. } | Self::ArtifactLengthOverflow(_) => {
-                phase_only(BuildFailurePhase::PrebuiltArtifact)
-            }
-            Self::Resource(_) => classified(
-                BuildFailurePhase::SourceSnapshot,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
-            ),
+            Self::ArtifactSnapshot { .. } => phase_only(BuildFailurePhase::PrebuiltArtifact),
+
             Self::Staging(_)
             | Self::ManifestSnapshot(_)
             | Self::ManifestChanged(_)
             | Self::SourceDiscovery(_)
-            | Self::SingleFile(_)
-            | Self::SourceLengthOverflow => phase_only(BuildFailurePhase::SourceSnapshot),
+            | Self::SingleFile(_) => phase_only(BuildFailurePhase::SourceSnapshot),
         }
     }
 }
@@ -380,18 +363,12 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
             Self::CacheStore(source) => source.classification(),
-            Self::CacheCompletion(CacheCompletionError::Resource(_)) => classified(
-                BuildFailurePhase::Cache,
-                BuildDiagnosticCode::GRAPH_RESOURCE_LIMIT,
-            ),
+
             Self::CacheCompletion(_) => classified(
                 BuildFailurePhase::Cache,
                 BuildDiagnosticCode::CACHE_ENTRY_CORRUPT,
             ),
-            Self::ChildProtocol(_) => classified(
-                BuildFailurePhase::ChildTransport,
-                BuildDiagnosticCode::CHILD_PROTOCOL,
-            ),
+
             Self::ChildTransport(source) => source.classification(),
             Self::ChildFailure(_) => phase_only(BuildFailurePhase::ChildDiagnostic),
             Self::OutputLayout(_) | Self::OutputSnapshot(_) => classified(
@@ -409,7 +386,7 @@ impl ClassifyBuildFailure for OrdinarySourceExecutionError {
                 BuildFailurePhase::ChildOutput,
                 BuildDiagnosticCode::CHILD_OUTPUT_PLAN_MISMATCH,
             ),
-            Self::NotOrdinarySource(_) | Self::RequestPlan(_) | Self::Resource(_) => {
+            Self::NotOrdinarySource(_) | Self::RequestPlan(_) => {
                 phase_only(BuildFailurePhase::ChildTransport)
             }
             Self::CacheKey(_) => phase_only(BuildFailurePhase::Cache),

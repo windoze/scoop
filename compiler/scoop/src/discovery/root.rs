@@ -4,7 +4,6 @@ use super::*;
 pub struct LoadedBuildRoot {
     pub(super) root: LoadedRootInput,
     pub(super) context: BuildContext,
-    pub(super) meter: SlibClosureDecodeMeterV1,
 }
 
 #[derive(Debug)]
@@ -27,15 +26,6 @@ impl BuildGraphRequest {
             diagnostics,
             limits,
         } = self.into_parts();
-        let mut meter = SlibClosureDecodeMeterV1::new(limits.slib_closure_limits());
-        let search_root_count = u64::try_from(artifact_search_roots.len()).map_err(|_| {
-            LoadBuildRootError::Resource(SlibClosureResourceErrorV1::Overflow {
-                resource: scoop_slib::SlibClosureResourceKindV1::ArtifactSearchRoots,
-            })
-        })?;
-        meter
-            .charge_search_roots(search_root_count)
-            .map_err(LoadBuildRootError::Resource)?;
 
         let root = match root.into_kind() {
             BuildRootInputKind::ManifestCone(locator) => LoadedRootInput::Manifest(Box::new(
@@ -54,7 +44,6 @@ impl BuildGraphRequest {
                 diagnostics,
                 limits,
             },
-            meter,
         })
     }
 }

@@ -106,10 +106,7 @@ pub enum SingleFileInputErrorKind {
     NotRegularFile,
     InvalidUtf8,
     SourceChangedDuringRead,
-    ByteLimitExceeded {
-        limit: u64,
-        observed: u64,
-    },
+
     LengthOverflow,
     Allocation {
         requested_bytes: u64,
@@ -140,10 +137,7 @@ impl fmt::Display for SingleFileInputError {
             SingleFileInputErrorKind::SourceChangedDuringRead => {
                 formatter.write_str("source target changed while it was read")
             }
-            SingleFileInputErrorKind::ByteLimitExceeded { limit, observed } => write!(
-                formatter,
-                "source bytes exceed limit {limit}: observed {observed}"
-            ),
+
             SingleFileInputErrorKind::LengthOverflow => {
                 formatter.write_str("source length does not fit the bounded reader")
             }
@@ -170,13 +164,6 @@ impl std::error::Error for SingleFileInputError {
 pub fn load_single_file_source(
     locator: &SingleFileLocator,
 ) -> Result<DiscoveredSource, SingleFileInputError> {
-    load_single_file_source_with_limit(locator, u64::MAX)
-}
-
-pub fn load_single_file_source_with_limit(
-    locator: &SingleFileLocator,
-    byte_limit: u64,
-) -> Result<DiscoveredSource, SingleFileInputError> {
     let mut file = File::open(locator.resolved_path()).map_err(|error| {
         SingleFileInputError::io(
             SingleFileInputIoOperation::Read,
@@ -199,15 +186,7 @@ pub fn load_single_file_source_with_limit(
     }
     let before = StableFileObservation::new(&before);
     let expected_length = before.length();
-    if expected_length > byte_limit {
-        return Err(SingleFileInputError::new(
-            locator.display_path.clone(),
-            SingleFileInputErrorKind::ByteLimitExceeded {
-                limit: byte_limit,
-                observed: expected_length,
-            },
-        ));
-    }
+
     let capacity = usize::try_from(expected_length).map_err(|_| {
         SingleFileInputError::new(
             locator.display_path.clone(),
@@ -336,30 +315,6 @@ mod tests {
         assert!(matches!(
             SingleFileLocator::from_path(&path).unwrap_err().kind(),
             SingleFileInputErrorKind::InvalidExtension
-        ));
-    }
-
-    #[test]
-    fn bounded_single_file_read_has_inclusive_byte_limit() {
-        let directory = TempDirectory::new();
-        let path = directory.0.join("main.scoop");
-        std::fs::write(&path, "abc").unwrap();
-        let locator = SingleFileLocator::from_path(&path).unwrap();
-
-        assert_eq!(
-            load_single_file_source_with_limit(&locator, 3)
-                .unwrap()
-                .source_text(),
-            "abc"
-        );
-        assert!(matches!(
-            load_single_file_source_with_limit(&locator, 2)
-                .unwrap_err()
-                .kind(),
-            SingleFileInputErrorKind::ByteLimitExceeded {
-                limit: 2,
-                observed: 3
-            }
         ));
     }
 }

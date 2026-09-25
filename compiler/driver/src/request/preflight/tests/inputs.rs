@@ -60,7 +60,7 @@ fn explicit_artifact_is_read_during_preflight() {
 }
 
 #[test]
-fn empty_core_dependencies_run_the_shared_closure_and_metering() {
+fn empty_core_dependencies_run_the_shared_closure() {
     let Ok(target) = scoop_toolchain::ResolvedTargetProfile::resolve_host() else {
         return;
     };
@@ -72,9 +72,8 @@ fn empty_core_dependencies_run_the_shared_closure_and_metering() {
     )
     .unwrap();
 
-    let mut meter = SlibClosureDecodeMeterV1::new(SlibClosureDecodeLimitsV1::M23_DEFAULT);
     let validated = loaded
-        .validate_inner(None, ConeIdentity::CORE, &target, Some(&mut meter))
+        .validate_inner(None, ConeIdentity::CORE, &target)
         .unwrap();
     assert!(validated.is_empty());
     assert!(validated.dependency_first().is_empty());
@@ -83,11 +82,9 @@ fn empty_core_dependencies_run_the_shared_closure_and_metering() {
     let world = validated.semantic().imported_semantic_world().unwrap();
     assert_eq!(world.current(), ConeIdentity::CORE);
     assert_eq!(world.provider_count(), 0);
-    assert_eq!(meter.usage().cone_nodes, 1);
-    assert_eq!(meter.usage().dependency_edges, 0);
-    assert_eq!(meter.usage().graph_depth, 1);
+
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target, None),
+        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
             if declared == &[ConeCoordinate::reserved_core()] && actual.is_empty()),
     ));
@@ -108,7 +105,7 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
     )
     .unwrap();
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::CORE, &target, None),
+        loaded.validate_inner(None, ConeIdentity::CORE, &target),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }
             if input.path() == path),
     ));
@@ -181,32 +178,6 @@ fn single_file_parse_uses_the_reserved_source_identity() {
         warnings.render_human(),
         format!("{}:1:5: warning: entry warning", path.display())
     );
-}
-
-#[test]
-fn metered_single_file_parse_enforces_the_shared_source_budget() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("bounded.scoop");
-    std::fs::write(&path, "fun main() {}\n").unwrap();
-    let locator = SingleFileLocator::from_path(&path).unwrap();
-    let mut values = SlibClosureDecodeLimitsV1::M23_DEFAULT.values();
-    values.source_bytes = 3;
-    let limits = SlibClosureDecodeLimitsV1::new(values).unwrap();
-    let mut meter = SlibClosureDecodeMeterV1::new(limits);
-
-    assert!(matches!(
-        metering::parse_single_file_current_metered(&locator, &mut meter),
-        Err(CurrentConeSourceStageError::SingleFile(source))
-            if matches!(
-                source.kind(),
-                SingleFileInputErrorKind::ByteLimitExceeded {
-                    limit: 3,
-                    observed: 14,
-                }
-            )
-    ));
-    assert_eq!(meter.usage().source_files, 1);
-    assert_eq!(meter.usage().source_bytes, 0);
 }
 
 #[test]

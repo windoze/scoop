@@ -6,14 +6,11 @@ use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
 use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
-    SingleFileInputError, SingleFileInputErrorKind, SingleFileLocator, SourceDiscoveryError,
-    SourceDiscoveryErrorKind, discover_manifest_sources, load_cone_manifest,
-    load_single_file_source,
+    SingleFileInputError, SingleFileLocator, SourceDiscoveryError, discover_manifest_sources,
+    load_cone_manifest, load_single_file_source,
 };
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
-use scoop_slib::SlibClosureResourceErrorV1;
-#[cfg(test)]
-use scoop_slib::{SlibClosureDecodeLimitsV1, SlibClosureDecodeMeterV1};
+
 use scoop_wire::DecodeLimits;
 
 use super::{
@@ -32,7 +29,6 @@ mod dependencies;
 mod end_to_end_tests;
 mod loading;
 mod machine;
-mod metering;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod production;
 mod validated;
@@ -113,7 +109,27 @@ impl SingleConeBuildRequest {
         self,
         limits: DecodeLimits,
     ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
-        self.build_and_publish_with_closure_limits(limits, metering::production_closure_limits())
+        let temporary_parent = self
+            .output
+            .as_path()
+            .parent()
+            .expect("an absolute output path always has a parent");
+        let temporary = tempfile::Builder::new()
+            .prefix(".scoopc-")
+            .tempdir_in(temporary_parent)
+            .map_err(SingleConeProductionError::TemporaryWorkspace)?;
+        let loaded = self
+            .load_preflight(limits)
+            .map_err(SingleConeProductionError::Preflight)?;
+        let validated = loaded
+            .validate()
+            .map_err(SingleConeProductionError::Validation)?;
+        let parsed = validated
+            .parse_current_sources()
+            .map_err(SingleConeProductionError::Sources)?;
+        parsed
+            .build_and_publish(temporary.path(), limits)
+            .map_err(|source| SingleConeProductionError::Production(Box::new(source)))
     }
 
     /// Loads the current manifest, every explicit dependency artifact, and
@@ -123,7 +139,7 @@ impl SingleConeBuildRequest {
         self,
         limits: DecodeLimits,
     ) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
-        self.load_preflight_inner(limits, None)
+        self.load_preflight_inner(limits)
     }
 }
 
@@ -260,40 +276,18 @@ fn parser_source_input(source: &DiscoveredSource) -> CurrentConeSourceInput<'_> 
 
 #[derive(Debug)]
 pub enum CurrentConeSourceStageError {
-    Resource(SlibClosureResourceErrorV1),
     Discovery(Box<SourceDiscoveryError>),
     SingleFile(Box<SingleFileInputError>),
-    SourceLengthOverflow,
-    Parser(Box<ParseCurrentConeError>),
-}
 
-impl CurrentConeSourceStageError {
-    pub fn is_resource_limit(&self) -> bool {
-        match self {
-            Self::Resource(_) => true,
-            Self::Discovery(source) => matches!(
-                source.kind(),
-                SourceDiscoveryErrorKind::FileLimitExceeded { .. }
-                    | SourceDiscoveryErrorKind::ByteLimitExceeded { .. }
-            ),
-            Self::SingleFile(source) => matches!(
-                source.kind(),
-                SingleFileInputErrorKind::ByteLimitExceeded { .. }
-            ),
-            Self::SourceLengthOverflow | Self::Parser(_) => false,
-        }
-    }
+    Parser(Box<ParseCurrentConeError>),
 }
 
 impl fmt::Display for CurrentConeSourceStageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resource(source) => source.fmt(formatter),
             Self::Discovery(source) => source.fmt(formatter),
             Self::SingleFile(source) => source.fmt(formatter),
-            Self::SourceLengthOverflow => {
-                formatter.write_str("current source length does not fit u64")
-            }
+
             Self::Parser(source) => source.fmt(formatter),
         }
     }
@@ -302,11 +296,9 @@ impl fmt::Display for CurrentConeSourceStageError {
 impl std::error::Error for CurrentConeSourceStageError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Resource(source) => Some(source),
             Self::Discovery(source) => Some(source.as_ref()),
             Self::SingleFile(source) => Some(source.as_ref()),
             Self::Parser(source) => Some(source.as_ref()),
-            Self::SourceLengthOverflow => None,
         }
     }
 }

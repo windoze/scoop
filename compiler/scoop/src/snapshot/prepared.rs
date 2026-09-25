@@ -3,14 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use scoop_identity::{ConeIdentity, SourceContentDigest};
-use scoop_manifest::{
-    LoadedConeManifest, SourceDiscoveryLimits, discover_manifest_sources_with_limits,
-    load_single_file_source_with_limit,
-};
-use scoop_slib::{
-    ArtifactSnapshot, SlibClosureDecodeMeterV1, SlibClosureDecodePurposeV1,
-    SlibClosureResourceErrorV1,
-};
+use scoop_manifest::{LoadedConeManifest, discover_manifest_sources, load_single_file_source};
+use scoop_slib::ArtifactSnapshot;
 use scoop_wire::Digest256;
 
 use super::staging::PreparedStaging;
@@ -79,7 +73,6 @@ impl Preparer {
                 GraphNode::ManifestSource(manifest) => {
                     let snapshot = capture_manifest_source(
                         *manifest,
-                        &mut self.parts.meter,
                         self.parts
                             .context
                             .limits
@@ -105,39 +98,14 @@ impl Preparer {
                         candidates: prepare_prebuilt_candidates(
                             identity,
                             *prebuilt,
-                            &mut self.parts.meter,
                             &self.parts.context,
                             &self.staging,
                         )?,
                     }))
                 }
                 GraphNode::SingleFile(locator) => {
-                    let remaining = remaining_source_budget(&self.parts.meter)?;
-                    if remaining.files() == 0 {
-                        let observed = self.parts.meter.usage().source_files.checked_add(1).ok_or(
-                            PrepareBuildGraphError::Resource(
-                                SlibClosureResourceErrorV1::Overflow {
-                                    resource: scoop_slib::SlibClosureResourceKindV1::SourceFiles,
-                                },
-                            ),
-                        )?;
-                        return Err(PrepareBuildGraphError::Resource(
-                            SlibClosureResourceErrorV1::LimitExceeded {
-                                resource: scoop_slib::SlibClosureResourceKindV1::SourceFiles,
-                                limit: self.parts.meter.limits().values().source_files,
-                                observed,
-                            },
-                        ));
-                    }
-                    let discovered =
-                        load_single_file_source_with_limit(&locator, remaining.bytes())
-                            .map_err(PrepareBuildGraphError::SingleFile)?;
-                    let byte_length = u64::try_from(discovered.source_text().len())
-                        .map_err(|_| PrepareBuildGraphError::SourceLengthOverflow)?;
-                    self.parts
-                        .meter
-                        .charge_sources(1, byte_length)
-                        .map_err(PrepareBuildGraphError::Resource)?;
+                    let discovered = load_single_file_source(&locator)
+                        .map_err(PrepareBuildGraphError::SingleFile)?;
                     let snapshot = SingleFileSourceSnapshot {
                         source: SourceSnapshot::from_discovered(discovered),
                     };
@@ -174,7 +142,7 @@ impl Preparer {
             root_kind: self.parts.root_kind,
             target_selection: self.parts.target_selection,
             context: self.parts.context,
-            meter: self.parts.meter,
+
             staging: self.staging,
             compiler: self.compiler,
         })
@@ -183,7 +151,7 @@ impl Preparer {
 
 fn capture_manifest_source(
     manifest: LoadedConeManifest,
-    meter: &mut SlibClosureDecodeMeterV1,
+
     manifest_byte_limit: u64,
 ) -> Result<ManifestSourceSnapshot, PrepareBuildGraphError> {
     let manifest_input =
@@ -194,13 +162,10 @@ fn capture_manifest_source(
             manifest.manifest_path().to_path_buf(),
         ));
     }
-    let remaining = remaining_source_budget(meter)?;
-    let discovered = discover_manifest_sources_with_limits(&manifest, remaining)
-        .map_err(PrepareBuildGraphError::SourceDiscovery)?;
-    let (first, rest, usage) = discovered.into_parts();
-    meter
-        .charge_sources(usage.files(), usage.bytes())
-        .map_err(PrepareBuildGraphError::Resource)?;
+    let discovered =
+        discover_manifest_sources(&manifest).map_err(PrepareBuildGraphError::SourceDiscovery)?;
+    let (first, rest) = discovered.into_parts();
+
     let coordinate = manifest.coordinate().clone();
     let identity = manifest.identity();
     let requested_kind = manifest.parsed().semantic().requested_kind();
@@ -221,24 +186,6 @@ fn capture_manifest_source(
                 .collect(),
         },
     })
-}
-
-fn remaining_source_budget(
-    meter: &SlibClosureDecodeMeterV1,
-) -> Result<SourceDiscoveryLimits, PrepareBuildGraphError> {
-    let limits = meter.limits().values();
-    let usage = meter.usage();
-    let files = limits.source_files.checked_sub(usage.source_files).ok_or(
-        PrepareBuildGraphError::Resource(SlibClosureResourceErrorV1::Overflow {
-            resource: scoop_slib::SlibClosureResourceKindV1::SourceFiles,
-        }),
-    )?;
-    let bytes = limits.source_bytes.checked_sub(usage.source_bytes).ok_or(
-        PrepareBuildGraphError::Resource(SlibClosureResourceErrorV1::Overflow {
-            resource: scoop_slib::SlibClosureResourceKindV1::SourceBytes,
-        }),
-    )?;
-    Ok(SourceDiscoveryLimits::new(files, bytes))
 }
 
 fn materialize_manifest_snapshot(
@@ -270,17 +217,17 @@ fn materialize_manifest_snapshot(
 fn prepare_prebuilt_candidates(
     identity: ConeIdentity,
     prebuilt: PrebuiltArtifactProjection,
-    meter: &mut SlibClosureDecodeMeterV1,
+
     context: &BuildContext,
     staging: &PreparedStaging,
 ) -> Result<NonEmptyPreparedArtifactCandidates, PrepareBuildGraphError> {
     let (coordinate, artifact_fingerprint, first, rest) = prebuilt.into_parts();
-    let first = prepare_artifact_candidate(identity, 0, first, meter, context, staging)?;
+    let first = prepare_artifact_candidate(identity, 0, first, context, staging)?;
     let rest = rest
         .into_iter()
         .enumerate()
         .map(|(index, candidate)| {
-            prepare_artifact_candidate(identity, index + 1, candidate, meter, context, staging)
+            prepare_artifact_candidate(identity, index + 1, candidate, context, staging)
         })
         .collect::<Result<Vec<_>, _>>()?;
     if first.summary.cone().coordinate() != &coordinate
@@ -301,7 +248,7 @@ fn prepare_artifact_candidate(
     identity: ConeIdentity,
     index: usize,
     candidate: PrebuiltArtifactCandidate,
-    meter: &mut SlibClosureDecodeMeterV1,
+
     context: &BuildContext,
     staging: &PreparedStaging,
 ) -> Result<PreparedArtifactCandidate, PrepareBuildGraphError> {
@@ -314,11 +261,7 @@ fn prepare_artifact_candidate(
         path: source_locator.clone(),
         source,
     })?;
-    let byte_length = u64::try_from(input.byte_length())
-        .map_err(|_| PrepareBuildGraphError::ArtifactLengthOverflow(source_locator.clone()))?;
-    meter
-        .observe_raw_artifact_snapshot(input.digest(), byte_length)
-        .map_err(PrepareBuildGraphError::Resource)?;
+
     let snapshot = Arc::new(ArtifactSnapshot::from_shared(input.shared_bytes()));
     let summary = snapshot
         .probe_prebuilt_summary(
@@ -334,17 +277,7 @@ fn prepare_artifact_candidate(
             source_locator,
         ));
     }
-    meter
-        .observe_artifact_snapshot(&summary, snapshot.digest())
-        .map_err(PrepareBuildGraphError::Resource)?;
-    meter
-        .charge_artifact_decode(
-            SlibClosureDecodePurposeV1::GraphSummary,
-            summary.artifact_fingerprint(),
-            snapshot.digest(),
-            summary.decode_usage(),
-        )
-        .map_err(PrepareBuildGraphError::Resource)?;
+
     let materialized_path = staging
         .materialize_artifact(
             &identity.to_string(),

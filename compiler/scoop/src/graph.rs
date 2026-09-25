@@ -3,10 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
 use scoop_lir::ValidatedLirTargetSelection;
-use scoop_slib::{
-    ConeKind, ConeSourceForm, DependencyRecord, SlibClosureDecodeMeterV1, SlibClosureDecodeUsageV1,
-    SlibClosureResourceErrorV1,
-};
+use scoop_slib::{ConeKind, ConeSourceForm, DependencyRecord};
 
 use crate::discovery::{
     BuildContext, DiscoveredBuildGraph, DiscoveredDependencyEdge, DiscoveredGraphParts, EdgeOrigin,
@@ -31,7 +28,6 @@ pub struct ResolvedBuildGraph {
     root_kind: RequestedConeKind,
     target_selection: ValidatedLirTargetSelection,
     context: BuildContext,
-    meter: SlibClosureDecodeMeterV1,
 }
 
 impl DiscoveredBuildGraph {
@@ -125,10 +121,6 @@ impl ResolvedBuildGraph {
         self.context.limits
     }
 
-    pub const fn decode_usage(&self) -> SlibClosureDecodeUsageV1 {
-        self.meter.usage()
-    }
-
     pub(crate) fn into_parts(self) -> ResolvedGraphParts {
         ResolvedGraphParts {
             root: self.root,
@@ -139,7 +131,6 @@ impl ResolvedBuildGraph {
             root_kind: self.root_kind,
             target_selection: self.target_selection,
             context: self.context,
-            meter: self.meter,
         }
     }
 }
@@ -153,7 +144,6 @@ pub(crate) struct ResolvedGraphParts {
     pub(crate) root_kind: RequestedConeKind,
     pub(crate) target_selection: ValidatedLirTargetSelection,
     pub(crate) context: BuildContext,
-    pub(crate) meter: SlibClosureDecodeMeterV1,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -211,7 +201,6 @@ struct GraphResolver {
     nodes: BTreeMap<ConeIdentity, GraphNode>,
     edges: BTreeMap<(ConeIdentity, ConeIdentity), DiscoveredDependencyEdge>,
     context: BuildContext,
-    meter: SlibClosureDecodeMeterV1,
 }
 
 impl GraphResolver {
@@ -221,11 +210,10 @@ impl GraphResolver {
             nodes: parts.nodes,
             edges: parts.edges,
             context: parts.context,
-            meter: parts.meter,
         }
     }
 
-    fn resolve(mut self) -> Result<ResolvedBuildGraph, ResolveBuildGraphError> {
+    fn resolve(self) -> Result<ResolvedBuildGraph, ResolveBuildGraphError> {
         let root_kind = validate_nodes(self.root, &self.nodes, &self.edges)?;
         validate_edges(&self.nodes, &self.edges)?;
         validate_reachability(self.root, &self.nodes, &self.edges)?;
@@ -235,38 +223,7 @@ impl GraphResolver {
             return Err(ResolveBuildGraphError::Cycles(cycles));
         }
 
-        let node_count = u64::try_from(self.nodes.len()).map_err(|_| {
-            ResolveBuildGraphError::Resource(SlibClosureResourceErrorV1::Overflow {
-                resource: scoop_slib::SlibClosureResourceKindV1::ConeNodes,
-            })
-        })?;
-        let edge_count = u64::try_from(self.edges.len()).map_err(|_| {
-            ResolveBuildGraphError::Resource(SlibClosureResourceErrorV1::Overflow {
-                resource: scoop_slib::SlibClosureResourceKindV1::DependencyEdges,
-            })
-        })?;
-        self.meter
-            .charge_stable_kahn(node_count, edge_count)
-            .map_err(ResolveBuildGraphError::Resource)?;
         let dependency_first = stable_kahn(&self.nodes, &adjacency)?;
-        let graph_depth = graph_depth(&adjacency, &dependency_first)?;
-        self.meter
-            .charge_graph(0, 0, graph_depth)
-            .map_err(ResolveBuildGraphError::Resource)?;
-        let source_count = u64::try_from(
-            self.nodes
-                .values()
-                .filter(|node| !matches!(node, GraphNode::Prebuilt(_)))
-                .count(),
-        )
-        .map_err(|_| {
-            ResolveBuildGraphError::Resource(SlibClosureResourceErrorV1::Overflow {
-                resource: scoop_slib::SlibClosureResourceKindV1::ConeNodes,
-            })
-        })?;
-        self.meter
-            .charge_graph_projections(source_count, node_count, edge_count)
-            .map_err(ResolveBuildGraphError::Resource)?;
         let source_inputs = source_dependency_projections(&self.nodes, &adjacency);
         let target_selection = self.context.target.lir_target_selection();
         let edges = self
@@ -284,7 +241,6 @@ impl GraphResolver {
             root_kind,
             target_selection,
             context: self.context,
-            meter: self.meter,
         })
     }
 }
@@ -807,32 +763,6 @@ fn stable_kahn(
         });
     }
     Ok(output)
-}
-
-fn graph_depth(
-    adjacency: &BTreeMap<ConeIdentity, Vec<ConeIdentity>>,
-    dependency_first: &[ConeIdentity],
-) -> Result<u64, ResolveBuildGraphError> {
-    let mut depths = BTreeMap::new();
-    let mut maximum = 0_u64;
-    for identity in dependency_first {
-        let dependency_depth = adjacency[identity]
-            .iter()
-            .filter_map(|dependency| depths.get(dependency))
-            .copied()
-            .max()
-            .unwrap_or(0_u64);
-        let depth = dependency_depth
-            .checked_add(1)
-            .ok_or(ResolveBuildGraphError::Resource(
-                SlibClosureResourceErrorV1::Overflow {
-                    resource: scoop_slib::SlibClosureResourceKindV1::GraphDepth,
-                },
-            ))?;
-        depths.insert(*identity, depth);
-        maximum = maximum.max(depth);
-    }
-    Ok(maximum)
 }
 
 fn source_dependency_projections(
