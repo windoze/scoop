@@ -124,12 +124,8 @@ static void *allocate_large_stress(size_t size, uint32_t *block_index) {
     return (char *)block_base(index) + GC_LINE_SIZE;
 }
 
-void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td,
-                                     size_t size) {
-    if (scoop_gc_stress_move_enabled()) {
-        heap_fatal("inline TLAB allocation remained enabled in stress mode");
-    }
-    size = scoop_shape_normalize_allocation(td, size);
+static void finish_small_allocation(void *object, const ScoopTypeDescriptor *td,
+                                    size_t size) {
     uint32_t block_index;
     if (object == NULL || td == NULL || size > GC_SMALL_MAX ||
         (uintptr_t)object % td->instance_shape.instance_alignment != 0 ||
@@ -142,6 +138,14 @@ void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td
     header->gc_word = 0;
     record_small_object(block_index, object, size, false);
     atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
+}
+
+void scoop_runtime_finish_tlab_alloc(void *object, const ScoopTypeDescriptor *td,
+                                     size_t size) {
+    if (scoop_gc_stress_move_enabled()) {
+        heap_fatal("inline TLAB allocation remained enabled in stress mode");
+    }
+    finish_small_allocation(object, td, scoop_shape_normalize_allocation(td, size));
 }
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
@@ -164,20 +168,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
             stress ? allocate_small_stress(size)
                    : allocate_small(thread, size,
                                     (size_t)td->instance_shape.instance_alignment);
-        if (stress) {
-            memset(object, 0, size);
-            ScoopObjectHeader *header = object;
-            header->td = td;
-            header->gc_word = 0;
-            uint32_t block_index;
-            if (!pointer_block_index(object, &block_index)) {
-                heap_fatal("stress allocation lies outside the arena");
-            }
-            record_small_object(block_index, object, size, false);
-            atomic_fetch_add_explicit(&live_objects, 1, memory_order_relaxed);
-        } else {
-            scoop_runtime_finish_tlab_alloc(object, td, size);
-        }
+        finish_small_allocation(object, td, size);
         return object;
     }
     uint32_t block_index;

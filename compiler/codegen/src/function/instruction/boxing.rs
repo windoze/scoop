@@ -28,8 +28,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         let source = self.local_pointer(place.local())?;
                         let frame = match place.rooting() {
                             BoxPayloadRooting::GcFree => None,
-                            BoxPayloadRooting::RecursiveRegion(scan) => {
-                                Some(self.push_box_region(source, scan)?)
+                            BoxPayloadRooting::RecursiveRegion(_) => {
+                                Some(self.push_box_region(source, descriptor)?)
                             }
                         };
                         (
@@ -103,7 +103,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     fn push_box_region(
         &mut self,
         source: PointerValue<'ctx>,
-        scan: &scoop_lir::NonEmptyRefScan,
+        descriptor: PointerValue<'ctx>,
     ) -> Result<BoxRegionFrame<'ctx>, CodegenError> {
         let pointer = ptr_ty(self.context);
         let entry_type = self
@@ -119,10 +119,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         );
         let entry = self.entry_alloca(entry_type.into(), "box.region.entry")?;
         let frame = self.entry_alloca(frame_type.into(), "box.region.frame")?;
+        let metadata = crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(self.context);
+        let shape = self
+            .builder
+            .build_struct_gep(metadata.type_descriptor(), descriptor, 1, "box.shape")
+            .map_err(box_error)?;
+        let scan_slot = self
+            .builder
+            .build_struct_gep(
+                metadata.type_instance_shape(),
+                shape,
+                8,
+                "box.inline_scan_ptr",
+            )
+            .map_err(box_error)?;
         let scan = self
-            .runtime_scans
-            .emit(scan.as_ref_scan())?
-            .ok_or_else(|| CodegenError("box region requires a nonempty planned scan".into()))?;
+            .builder
+            .build_load(pointer, scan_slot, "box.inline_scan")
+            .map_err(box_error)?
+            .into_pointer_value();
         for (index, value) in [source, scan].into_iter().enumerate() {
             let field = self
                 .builder

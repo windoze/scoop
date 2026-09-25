@@ -214,6 +214,8 @@ fn reference_payload_roots_the_same_storage_before_the_managed_box() {
         .find("call void @scoop_rt_pop_native_region_roots")
         .unwrap();
     assert!(push < boxed && boxed < pop, "{ir}");
+    assert!(ir[..push].contains("%box.inline_scan = load ptr"), "{ir}");
+    assert!(ir[..push].contains("store ptr %box.inline_scan"), "{ir}");
     assert!(
         ir[..push].contains("store ptr %source, ptr %box.region.field"),
         "{ir}"

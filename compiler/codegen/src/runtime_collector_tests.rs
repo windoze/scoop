@@ -9,9 +9,17 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Output {
+fn compile_and_run(
+    workspace: &Path,
+    test_name: &str,
+    test_source: &str,
+    verify_metadata: bool,
+) -> Output {
     let binary = std::env::temp_dir().join(format!("scoop_{test_name}_{}", std::process::id()));
     let mut compile = Command::new("cc");
+    if verify_metadata {
+        compile.arg("-DSCOOP_VERIFY_METADATA=1");
+    }
     compile
         .args([
             "-std=c11",
@@ -78,6 +86,7 @@ fn fake_platform_drives_the_real_moving_collector() {
         &workspace,
         "moving_gc_test",
         "runtime/tests/moving_collector_test.c",
+        false,
     );
     assert!(
         output.status.success(),
@@ -98,6 +107,7 @@ fn moving_collector_updates_all_thread_protocol_roots() {
         &workspace,
         "moving_thread_protocol_test",
         "runtime/tests/moving_thread_protocol_test.c",
+        false,
     );
     assert!(
         output.status.success(),
@@ -202,21 +212,24 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
 
 #[test]
 fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
-    let output = compile_and_run(
-        &workspace_root(),
-        "value_representation_test",
-        "runtime/tests/value_representation_test.c",
-    );
-    assert!(
-        output.status.success(),
-        "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-    );
-    assert_eq!(
-        output.stdout,
-        b"descriptor-driven representation tests passed\n"
-    );
+    for verify_metadata in [false, true] {
+        let output = compile_and_run(
+            &workspace_root(),
+            "value_representation_test",
+            "runtime/tests/value_representation_test.c",
+            verify_metadata,
+        );
+        assert!(
+            output.status.success(),
+            "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert_eq!(
+            output.stdout,
+            b"descriptor-driven representation tests passed\n"
+        );
+    }
 }
 
 #[test]
@@ -225,6 +238,7 @@ fn runtime_scan_graphs_reuse_shared_children_and_reject_cycles() {
         &workspace_root(),
         "value_scan_test",
         "runtime/tests/value_scan_test.c",
+        false,
     );
     assert!(
         output.status.success(),

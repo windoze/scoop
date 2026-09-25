@@ -45,3 +45,11 @@ explicit `libunwind`.
 `SCOOP_GC_STRESS_MOVE=1` enables the M15 runtime-only relocation test mode:
 every mutator-visible allocation first performs a full moving collection,
 old copies are poisoned, and empty source blocks are permanently protected.
+
+Static TypeDescriptor layouts and scan graphs are checked by the compiler or
+artifact reader. Normal runtime operations retain dynamic bounds, count,
+exact-type and GC-root checks without repeating full static graph validation.
+Build with `-DSCOOP_VERIFY_METADATA=1` to enable that additional validation at
+runtime operation boundaries. `scoop_shape_validate` is also available to
+explicit metadata checks and tests. Boxing roots use the descriptor's inline
+scan pointer directly, including before the managed-entry handshake.

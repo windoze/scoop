@@ -138,6 +138,19 @@ static void unrooted_box(void *unused) {
     _Alignas(16) TestPayload payload = {NULL, 42};
     (void)box(&ref_box_td, &payload);
 }
+static void wrong_scan_box(void *unused) {
+    (void)unused;
+    _Alignas(16) TestPayload payload = {NULL, 42};
+    static const uint64_t other_scan[] = {1, 8};
+    ScoopNativeRegionRootEntry entry = {&payload, other_scan};
+    ScoopNativeRegionRootFrame region;
+    scoop_rt_push_native_region_roots(&region, &entry, 1);
+    (void)box(&ref_box_td, &payload);
+    scoop_rt_pop_native_region_roots(&region);
+}
+static void interior_unbox(void *object) {
+    scoop_rt_unbox_zst((char *)object + 8, &zst_box_td);
+}
 static void wrong_exact_unbox(void *object) {
     ScoopTypeDescriptor other = zst_box_td;
     scoop_rt_unbox_zst(object, &other);
@@ -162,6 +175,8 @@ static void test_boxing(bool stress) {
     expect_abort(wrong_exact_unbox, first);
     expect_abort(wrong_unbox_entry, first);
     expect_abort(unrooted_box, NULL);
+    expect_abort(wrong_scan_box, NULL);
+    expect_abort(interior_unbox, first);
 
     _Alignas(16) TestPayload payload = {allocate(&leaf_td, 24), 42};
     uintptr_t old_reference = (uintptr_t)payload.reference;
@@ -235,9 +250,7 @@ static void test_arrays(void) {
     scoop_rt_pop_native_roots(&roots);
 }
 
-static void validate_bad_shape(void *td) {
-    scoop_shape_validate(td);
-}
+static void validate_bad_shape(void *td) { scoop_shape_validate(td); }
 static void overflow_string(void *unused) {
     (void)unused;
     (void)scoop_shape_allocation_size(&bytes_td, INT64_MAX);

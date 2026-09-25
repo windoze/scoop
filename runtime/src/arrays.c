@@ -14,19 +14,23 @@ const void *scoop_rt_array_clone_impl(const void *object,
         scoop_shape_require(source_td, SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1);
     const ScoopTypeInstanceShapeV1 *target_shape =
         scoop_shape_require(target_td, SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1);
-    if (object == NULL || ((const ScoopObjectHeader *)object)->td != source_td) {
-        scoop_shape_fatal("array clone exact source TypeDescriptor mismatch");
-    }
     if (source_shape->inline_storage_kind != target_shape->inline_storage_kind ||
         source_shape->inline_size != target_shape->inline_size ||
-        source_shape->inline_alignment != target_shape->inline_alignment ||
-        !scoop_shape_scan_equal(source_shape->inline_scan, target_shape->inline_scan,
-                                0)) {
+        source_shape->inline_alignment != target_shape->inline_alignment) {
         scoop_shape_fatal("array clone element storage mismatch");
     }
+#if defined(SCOOP_VERIFY_METADATA) && SCOOP_VERIFY_METADATA
+    if (!scoop_shape_scan_equal(source_shape->inline_scan, target_shape->inline_scan,
+                                0)) {
+        scoop_shape_fatal("array clone element scan mismatch");
+    }
+#endif
     scoop_gc_heap_lock();
     if (!scoop_gc_is_object_start_locked(object)) {
         scoop_shape_fatal("array clone requires a managed object start");
+    }
+    if (((const ScoopObjectHeader *)object)->td != source_td) {
+        scoop_shape_fatal("array clone exact source TypeDescriptor mismatch");
     }
     scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));
     scoop_gc_heap_unlock();

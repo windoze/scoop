@@ -827,7 +827,7 @@ scoop_rt_unbox_value(object, expected_td, destination_place)
 
 接口严格按runtime spec 2.3：size/alignment/inline_offset/scan只从TD读取，删除旧 `box(td, payload, size, scan)` 和固定`+16`路径。ZST入口没有payload/result pointer；box仍分配TD规定的非零managed object并取得fresh ref identity，unbox先检查exact TD再产生logical value。
 
-nonzero source place须地址稳定、对齐且在call前已写入完整值。inline scan非空时caller先经compiler-private NoGc leaf `PushRecursiveRegion`登记该temp，再进入box runtime和可能park的managed-entry handshake；root保持到分配、从collector更新后的同一temp复制及返回完成后才LIFO pop。所有非fatal出口配对；runtime只验证root已活跃，不在入口后补登记。空scan可以省略frame。
+nonzero source place须地址稳定、对齐且在call前已写入完整值。inline scan非空时caller先经compiler-private NoGc leaf `PushRecursiveRegion`登记该temp，再进入box runtime和可能park的managed-entry handshake；root保持到分配、从collector更新后的同一temp复制及返回完成后才LIFO pop。所有非fatal出口配对；root entry 的 scan 直接加载实际 TD 的 inline scan，runtime 检查活动 root 的 place 和 scan 指针，不重新发射 callable 专用副本或展开比较静态 scan。空scan可以省略frame。完整静态 shape/scan 交叉检查由编译器和外部 reader 负责，runtime 的 `SCOOP_VERIFY_METADATA=1` 可显式重验；动态对象范围、长度溢出、TD 和 GC 契约始终检查。
 
 box payload不能作为可观察的value `this`存储暴露；adjust thunk初始化独立方法局部值，ZST需要地址时另建token。moving GC依靠完整object scan与精确side-metadata size，不依赖payload非零。
 

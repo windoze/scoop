@@ -40,7 +40,7 @@ runtime scan 比较删除任意展开次数、逻辑字节配额及超额 abort�
 
 发布复用同次编译结果及已检查依赖，不对当前产物和全依赖分别重开 Compile/Link 并完整重演。临时文件写入、同步与回读只用于确认实际写入内容，成功才原子替换。
 
-runtime 在静态类型、布局和 scan 登记时完整检查，分配、装箱、数组及 GC 热点复用结果；动态对象范围、length/size、TD 归属、对齐和具体 GC 契约仍检查。有价值的重型交叉验证进入测试或显式验证模式。
+M23-6 的 runtime 复用编译器或 artifact reader 已验证的静态类型、布局与 scan，分配、装箱、数组及 GC 不反复完整校验。动态对象范围、length/size、TD 归属、对齐和 GC 根仍检查；装箱根直接引用 TD 的 inline scan，不重发射和逐项比较第二份 scan。完整静态检查保留为 `scoop_shape_validate`，`SCOOP_VERIFY_METADATA=1` 可在 runtime 操作入口显式启用。M23-8 才引入多 image 登记边界，本阶段不为此新建 registry 或不可变指针缓存。
 
 ### 2.7 无生产用途的框架和重复实现
 
@@ -65,7 +65,7 @@ producer、reader、linker、wire/profile、版本、fingerprint、fixture、gol
 | 成员与 dispatch | constructor、继承、interface/default、getter/setter、protected、真实 body/slot |
 | String 与初始化 | 字面量、类型测试、属性/object 初始化、循环失败、真实 descriptor/callable/registration |
 | 产物与 Link | 真实源码生成完整产物，consumer 只读产物；对象、符号、relocation、版本与内容检查 |
-| runtime | 登记后的分配、boxing、array、GC 不重复展开静态 scan；动态范围错误仍拒绝 |
+| runtime | 分配、boxing、array、GC 不重复展开已验证静态 scan；动态范围错误仍拒绝 |
 | 清理结果 | 无生产调用依赖旧授权、通用计量、重复证明或测试专用工厂；不以改名或 unlimited 通过 |
 
 语言错误 fixture 断言位置与信息，格式损坏和正常功能回归保留，删除仅服务旧机制的测试。手工 metadata、测试来源工厂和大量证明反例不能替代真实编译、跨 Cone 消费、适用链接运行。只有主设计第 15 节的原有功能、本文件七组清理及验收均完成、文档一致并按功能提交后，才能完成目标。
