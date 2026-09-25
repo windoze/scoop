@@ -2,6 +2,7 @@ use super::*;
 
 mod bytes;
 mod external_boxing;
+mod link_materializations;
 mod lir_dependencies;
 mod machine_selection;
 mod mir_constructors;

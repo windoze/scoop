@@ -54,20 +54,23 @@ impl<'input> ProductionValidatedSingleConeLinkSections<'input> {
     ) -> Result<MaterializationCheckedSingleConeLinkSections<'input>, StrongLinkMaterializationError>
     {
         let Self {
-            graph,
+            mut graph,
             identities,
             foundations,
             production,
             link_identity_closure,
             production_manifest,
         } = self;
-        let partition = StrongProducerUnitPartitionV1::from_odr_free_foundation(&foundations.lir)
-            .map_err(StrongLinkMaterializationError::ProducerUnits)?;
+        let partition = materializations::producer_units(
+            &foundations.lir,
+            production.lir().generated_bridge_plan(),
+            graph.envelope.meter_mut(),
+        )?;
         let link_identity_closure = link_identity_closure
-            .validate_materializations(&partition)
+            .validate_materializations(&partition, graph.envelope.meter_mut())
             .map_err(StrongLinkMaterializationError::Closure)?;
         let (scoop_objects, generated_bridge_objects) =
-            validate_object_directory(&graph, link_identity_closure.member_plan())?;
+            object_directory::validate(&mut graph, link_identity_closure.member_plan())?;
         Ok(MaterializationCheckedSingleConeLinkSections {
             graph,
             identities,

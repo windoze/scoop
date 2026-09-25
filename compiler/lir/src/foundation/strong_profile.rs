@@ -156,6 +156,10 @@ impl OdrFreeLirFoundation {
         Ok(target)
     }
 
+    pub fn definition_plan_count(&self) -> usize {
+        self.definition_plans().len()
+    }
+
     pub(crate) fn definition_plans(&self) -> &[super::DefinitionPlanRecord] {
         &self.canonical.definition_plans
     }

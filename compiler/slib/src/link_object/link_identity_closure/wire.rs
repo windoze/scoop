@@ -8,7 +8,11 @@ use scoop_identity::{
     ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentId,
 };
 use scoop_lir::{StrongDigestFinalizationPlanV1, StrongProducerUnitPartitionV1};
-use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode};
+use scoop_wire::{
+    BudgetMeter, Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind, encode,
+};
+
+mod materializations;
 
 use super::{LinkIdentityClosureBuildError, LinkIdentityClosureSectionV1};
 use crate::SlibMemberId;
@@ -548,69 +552,12 @@ impl DecodedLinkIdentityClosureSectionV1 {
     pub fn validate_materializations(
         self,
         partition: &StrongProducerUnitPartitionV1,
+        meter: &mut BudgetMeter,
     ) -> Result<
         MaterializationCheckedLinkIdentityClosureSectionV1,
         LinkObjectMaterializationValidationError,
     > {
-        let scoop_ids = partition
-            .scoop_lir_definition_plans()
-            .iter()
-            .map(|id| (*id.as_array(), *id))
-            .collect::<BTreeMap<_, _>>();
-        let bridge_ids = partition
-            .generated_bridge_units()
-            .iter()
-            .map(|unit| (*unit.unit().as_array(), unit.unit()))
-            .collect::<BTreeMap<_, _>>();
-        let mut scoop_unit_sets = Vec::new();
-        let mut bridge_unit_sets = Vec::new();
-        for materialization in &self.materializations {
-            match materialization {
-                DecodedLinkObjectMaterializationV1::ScoopLir { units, .. } => {
-                    let units = units
-                        .iter()
-                        .map(|unit| {
-                            scoop_ids.get(unit.as_array()).copied().ok_or(
-                                LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(
-                                    *unit.as_array(),
-                                ),
-                            )
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    scoop_unit_sets.push(
-                        CanonicalScoopLirObjectUnitSetV1::new(units)
-                            .map_err(LinkObjectMaterializationValidationError::ScoopUnitSet)?,
-                    );
-                }
-                DecodedLinkObjectMaterializationV1::GeneratedCBridge { units, .. } => {
-                    let units = units
-                        .iter()
-                        .map(|unit| {
-                            bridge_ids.get(unit.as_array()).copied().ok_or(
-                                LinkObjectMaterializationValidationError::UnknownGeneratedBridgeUnit(
-                                    *unit.as_array(),
-                                ),
-                            )
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    bridge_unit_sets.push(
-                        CanonicalGeneratedBridgeObjectUnitSetV1::new(units)
-                            .map_err(LinkObjectMaterializationValidationError::BridgeUnitSet)?,
-                    );
-                }
-            }
-        }
-        let member_plan =
-            PlannedLinkObjectMemberSetV1::new(partition, scoop_unit_sets, bridge_unit_sets)
-                .map_err(LinkObjectMaterializationValidationError::MemberPlan)?;
-        let expected = super::materializations(&member_plan);
-        let actual_bytes = encode(&WireArray(&self.materializations))
-            .map_err(LinkObjectMaterializationValidationError::Encode)?;
-        let expected_bytes = encode(&WireArray(&expected))
-            .map_err(LinkObjectMaterializationValidationError::Encode)?;
-        if actual_bytes != expected_bytes {
-            return Err(LinkObjectMaterializationValidationError::ProjectionMismatch);
-        }
+        let member_plan = self.replay_materializations(partition, meter)?;
         Ok(MaterializationCheckedLinkIdentityClosureSectionV1 {
             decoded: self,
             member_plan,
@@ -642,13 +589,13 @@ impl DecodedLinkIdentityClosureSectionV1 {
 
 #[derive(Debug)]
 pub enum LinkObjectMaterializationValidationError {
+    Resource(WireError),
     UnknownScoopLirDefinition([u8; 32]),
     UnknownGeneratedBridgeUnit([u8; 32]),
     ScoopUnitSet(ObjectUnitSetError),
     BridgeUnitSet(ObjectUnitSetError),
     MemberPlan(LinkObjectMemberSetPlanError),
     ProjectionMismatch,
-    Encode(scoop_wire::cbor::EncodeError),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -734,9 +681,9 @@ impl fmt::Display for LinkObjectMaterializationValidationError {
 impl std::error::Error for LinkObjectMaterializationValidationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(error) => Some(error),
             Self::ScoopUnitSet(error) | Self::BridgeUnitSet(error) => Some(error),
             Self::MemberPlan(error) => Some(error),
-            Self::Encode(error) => Some(error),
             Self::UnknownScoopLirDefinition(_)
             | Self::UnknownGeneratedBridgeUnit(_)
             | Self::ProjectionMismatch => None,

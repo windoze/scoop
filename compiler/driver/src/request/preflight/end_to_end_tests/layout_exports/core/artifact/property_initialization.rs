@@ -164,6 +164,7 @@ pub(super) fn check(
                     production,
                 );
                 super::source_calls::check(input, core_input, core_artifact, &artifact);
+                super::link_materializations::check(core_artifact, &artifact);
                 let mut dump = format!("mir-uses={count}\n");
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),

@@ -600,6 +600,8 @@ reader先执行所有view共享的“受限canonical normal-archive读取 → ma
 
 共有 HIR 的每个实际 `SourceBinding` 调用在完整源码签名校验通过后，还必须从同一份 callable declaration 的逻辑 receiver、声明序参数及结果推导 `Signature` 类型用途；nominal member 的逻辑 receiver 使用声明 owner，extension 使用原声明 receiver，复合签名递归保留所有 nominal 构成及其共有表示闭包。Unit/ZST 逻辑位置继续参与逐次校验，重复类型仅在最终 selected 集合去重；仅有可见声明或候选 selected 项不会产生调用签名用途。producer 与 layout reader 复用 ordinary/layout 的共有 HIR 元数据执行同一推导，精确拒绝缺失、额外及错误 provider/exact 的签名用途，查询和递归沿用当前 artifact 的累计预算。本项处理传参后的逻辑签名，不把声明 owner 冒充 `MemberCall` 所需的转换前静态 receiver；source access、member/slot 操作、singleton 及完整 selected-use 闭包继续独立校验。不增加 wire 字段或版本。
 
+layout profile 的 Link reader 在同一共有语义重放之后，必须从当前 artifact 已验证的 LIR definition plans 与 generated bridge plan 重建完整 producer unit 分区，再逐项核对 Link identity closure 的实际对象物化表。普通 Strong 与 generated C bridge 使用各自 typed unit id，不以候选 member id 或名称补出所属关系；每个 unit 恰好物化一次，完整 member id、顺序和分组都须与重建结果相等。物化表与原 archive 的 LinkObject directory 精确对应，稳定键、role 和实际 payload 均须存在且一致，额外对象、漏项、错 provider 或 foreign unit 均拒绝。该查询与 ordinary Link reader 共用检查，沿用原 artifact 的累计预算并在分配、查询、排序及比较前计量；不重开或复制整个产物，不新增 wire 字段、CORE 例外或机器资格。本项只关闭物化与目录关系，对象内容、重定位、registration、Code/runtime 指纹和完整 Compile/Link 一致性仍须继续验证。
+
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
 
 本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。

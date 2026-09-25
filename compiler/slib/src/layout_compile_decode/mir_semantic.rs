@@ -14,6 +14,8 @@ use scoop_mir::{
 };
 use scoop_wire::BudgetMeter;
 
+mod materializations;
+
 use super::HirProductionValidatedCrossConeLayoutSections;
 use crate::{
     ValidatedGraphArtifact,

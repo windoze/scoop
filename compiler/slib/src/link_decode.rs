@@ -1,6 +1,5 @@
 //! Link-view section inventory and atomic payload decoding.
 
-use std::collections::BTreeSet;
 use std::fmt;
 
 use scoop_hir::{
@@ -102,6 +101,8 @@ pub use cross_cone::*;
 mod layout;
 pub use layout::*;
 mod fingerprinting;
+pub(crate) mod materializations;
+pub(crate) mod object_directory;
 mod object_validation;
 
 pub fn validate_single_cone_strong_link_artifact<'input>(
@@ -188,72 +189,6 @@ pub fn validate_self_describing_single_cone_strong_link_artifact<'input>(
         .map_err(|error| StrongLinkArtifactValidationError::FinalProof(Box::new(error)))
 }
 
-fn validate_object_directory<'input>(
-    graph: &ValidatedGraphArtifact<'input>,
-    plan: &crate::PlannedLinkObjectMemberSetV1,
-) -> Result<
-    (
-        Vec<ScoopLirObjectCandidateV1<'input>>,
-        Vec<GeneratedCBridgeObjectCandidateV1<'input>>,
-    ),
-    StrongLinkMaterializationError,
-> {
-    let expected = plan
-        .scoop_lir_members()
-        .iter()
-        .map(|member| member.member_id())
-        .chain(
-            plan.generated_bridge_members()
-                .iter()
-                .map(|member| member.member_id()),
-        )
-        .collect::<BTreeSet<_>>();
-    let actual = graph
-        .envelope
-        .manifest()
-        .members()
-        .iter()
-        .filter(|member| matches!(member.role(), SlibMemberRole::LinkObject { .. }))
-        .map(SlibMemberRecord::id)
-        .collect::<BTreeSet<_>>();
-    if let Some(member) = actual.difference(&expected).next() {
-        return Err(StrongLinkMaterializationError::UnexpectedObjectMember(
-            *member,
-        ));
-    }
-    if let Some(member) = expected.difference(&actual).next() {
-        return Err(StrongLinkMaterializationError::MissingObjectMember(*member));
-    }
-
-    let scoop_objects = plan
-        .scoop_lir_members()
-        .iter()
-        .map(|member| {
-            required_object_payload(
-                graph,
-                member.member_id(),
-                member.stable_key(),
-                member.role(),
-            )
-            .map(|bytes| ScoopLirObjectCandidateV1::new(member.member_id(), bytes))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let generated_bridge_objects = plan
-        .generated_bridge_members()
-        .iter()
-        .map(|member| {
-            required_object_payload(
-                graph,
-                member.member_id(),
-                member.stable_key(),
-                member.role(),
-            )
-            .map(|bytes| GeneratedCBridgeObjectCandidateV1::new(member.member_id(), bytes))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok((scoop_objects, generated_bridge_objects))
-}
-
 fn verify_reconstructed_scoop_objects(
     normalized: &VerifiedNormalizedProvisionalScoopLirObjectSetV1,
     reconstructed: &VerifiedEntryPatchSetV1,
@@ -278,29 +213,6 @@ fn verify_reconstructed_scoop_objects(
         }
     }
     Ok(())
-}
-
-fn required_object_payload<'input>(
-    graph: &ValidatedGraphArtifact<'input>,
-    member: SlibMemberId,
-    stable_key: &crate::MemberStableKey,
-    role: &SlibMemberRole,
-) -> Result<&'input [u8], StrongLinkMaterializationError> {
-    let record = graph
-        .envelope
-        .manifest()
-        .members()
-        .binary_search_by_key(&member, SlibMemberRecord::id)
-        .ok()
-        .map(|index| &graph.envelope.manifest().members()[index])
-        .ok_or(StrongLinkMaterializationError::MissingObjectMember(member))?;
-    if record.stable_key() != stable_key || record.role() != role {
-        return Err(StrongLinkMaterializationError::ObjectRecordMismatch(member));
-    }
-    graph
-        .envelope
-        .member(member)
-        .ok_or(StrongLinkMaterializationError::MissingObjectPayload(member))
 }
 
 fn require_strong_profile(
@@ -487,6 +399,7 @@ fn require_fingerprint(
 
 #[derive(Debug)]
 pub enum StrongLinkMaterializationError {
+    Resource(WireError),
     ProducerUnits(StrongProducerUnitPartitionError),
     Closure(LinkObjectMaterializationValidationError),
     UnexpectedObjectMember(SlibMemberId),
@@ -504,6 +417,7 @@ impl fmt::Display for StrongLinkMaterializationError {
 impl std::error::Error for StrongLinkMaterializationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Resource(error) => Some(error),
             Self::ProducerUnits(error) => Some(error),
             Self::Closure(error) => Some(error),
             Self::UnexpectedObjectMember(_)

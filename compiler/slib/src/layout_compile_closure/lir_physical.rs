@@ -58,6 +58,7 @@ impl<'input> LirDependencyGraphReplayedCrossConeLayoutClosure<'input> {
                     ordinary,
                     layout,
                 } = artifact;
+                prepared.validate_link_materializations(&strong)?;
                 let parts = prepared.semantic_parts();
                 let reachable =
                     transitive_positions(position, &self.dependency_positions, parts.meter)?;

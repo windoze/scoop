@@ -2,6 +2,8 @@ use scoop_identity::{DigestPatchIntentKey, DigestSemanticFieldRole};
 use scoop_wire::{DecodeLimits, decode_canonical, encode};
 
 use super::*;
+
+mod materializations;
 use crate::link_object::strong_relocation_closure::tests::verified_member_without_relocations;
 use crate::link_object::symbol_verification::tests::fixture_named;
 use crate::link_object::undefined_requirements::tests::empty_final_requirements_for_strong;
@@ -70,7 +72,9 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     let decoded =
         decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
             .unwrap();
-    let checked = decoded.validate_materializations(&partition).unwrap();
+    let checked = decoded
+        .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
+        .unwrap();
     assert_eq!(checked.member_plan(), &plan);
 
     let decoded = decode_canonical::<DecodedLinkIdentityClosureSectionV1>(
@@ -79,7 +83,8 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     )
     .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(&partition),
+        decoded
+            .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default())),
         Err(LinkObjectMaterializationValidationError::UnknownScoopLirDefinition(_))
     ));
 
@@ -95,7 +100,8 @@ fn materialization_reader_rebuilds_the_member_plan_from_the_typed_partition() {
     )
     .unwrap();
     assert!(matches!(
-        decoded.validate_materializations(&partition),
+        decoded
+            .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default())),
         Err(LinkObjectMaterializationValidationError::ProjectionMismatch)
     ));
 }
@@ -127,7 +133,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         decode_canonical::<DecodedLinkIdentityClosureSectionV1>(&bytes, DecodeLimits::default())
             .unwrap();
     let checked = decoded
-        .validate_materializations(&partition)
+        .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
         .unwrap()
         .validate_digest_patch_inputs(digest_plan)
         .unwrap();
@@ -143,7 +149,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         DecodeLimits::default(),
     )
     .unwrap()
-    .validate_materializations(&partition)
+    .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
     .unwrap();
     assert_eq!(
         missing.validate_digest_patch_inputs(digest_plan),
@@ -166,7 +172,7 @@ fn patch_input_reader_matches_only_the_validated_digest_and_member_plans() {
         DecodeLimits::default(),
     )
     .unwrap()
-    .validate_materializations(&partition)
+    .validate_materializations(&partition, &mut BudgetMeter::new(DecodeLimits::default()))
     .unwrap();
     assert_eq!(
         unknown.validate_digest_patch_inputs(digest_plan),
