@@ -17,6 +17,7 @@ fn validate(
         &mut meter(),
         &WirePath::root(),
     )
+    .map(|_| ())
 }
 
 fn meter() -> BudgetMeter {

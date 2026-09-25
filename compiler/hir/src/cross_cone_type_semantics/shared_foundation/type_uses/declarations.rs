@@ -65,7 +65,7 @@ impl Graph<'_> {
         )
     }
 
-    fn signature(
+    pub(super) fn signature(
         &mut self,
         signature: &SignatureTypeKey,
         kind: Kind,

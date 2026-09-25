@@ -5,6 +5,7 @@ use crate::*;
 use scoop_identity::*;
 use scoop_wire::{DecodeLimits, ResourceKind, WireErrorKind};
 
+mod calls;
 mod fixture;
 mod negative;
 mod resources;

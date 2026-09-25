@@ -81,8 +81,8 @@ struct Graph<'a> {
 impl<'a> SharedTypeMetadataV1<'a> {
     /// Uses actual shared occurrences and declaration dependencies, never the
     /// candidate selected table. This is the type-requirement partition only;
-    /// Direct inheritance, actual shape operations, and runtime construction
-    /// are included. Explicit construction and other source operations still
+    /// Actual call signatures, inheritance, shape operations, and runtime
+    /// construction are included. Explicit construction and other source operations still
     /// require their own actual uses and access relations.
     pub fn materialized_type_uses(
         self,

@@ -1,5 +1,7 @@
 use super::*;
 
+mod signatures;
+
 impl Graph<'_> {
     pub(super) fn calls(&mut self, meter: &mut BudgetMeter) -> Result<(), Error> {
         let path = WirePath::root().field(10);
@@ -24,16 +26,14 @@ impl Graph<'_> {
                     .ok_or(Error::MissingProvider(reference.origin()))?;
                 match call.reason() {
                     crate::HirDependencyCallReasonV1::SourceBinding(_) => {
-                        call.validate_source_signature(
-                            reference.target(),
-                            provider.metadata,
-                            meter,
-                            &path,
-                        )
-                        .map_err(|source| Error::CallSignature {
-                            position: call.position(),
-                            source: Box::new(source),
-                        })?;
+                        let metadata = provider.metadata;
+                        let source = call
+                            .validate_source_signature(reference.target(), metadata, meter, &path)
+                            .map_err(|source| Error::CallSignature {
+                                position: call.position(),
+                                source: Box::new(source),
+                            })?;
+                        self.call_signature(source, meter, &path)?;
                     }
                     crate::HirDependencyCallReasonV1::CastFailure { .. } => {
                         let (constructor, owner) = call

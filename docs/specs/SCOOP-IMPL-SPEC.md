@@ -598,6 +598,8 @@ reader先执行所有view共享的“受限canonical normal-archive读取 → ma
 
 共有 HIR 的实际 `SourceBinding` 调用在进入 MIR 前，必须按外部引用的 typed target 和真实 provider 查询同份已验证 callable declaration，逐项核对逻辑 receiver、声明序参数及结果的完整 exact type。成员的隐式 receiver 来自声明的 nominal owner，extension receiver 来自原声明；Unit/ZST 参数仍占逻辑参数位置，不能按物理参数数目比较。每个调用位置独立核对，后续调用不能借用同一 target 的首个调用结果；泛型 binder 或未代入的 owner 不得按无参数签名通过。本项直接复用共有声明到 exact type 的 canonical 查询，查询和比较沿用当前 artifact 的累计预算。HIR producer 与 ordinary/layout 的共有 reader 使用相同检查，MIR 阶段继续核对实际 Strong 正文和被选机器签名；源码访问、dispatch、运行时角色及完整 selected-use 闭包仍分别校验，不由本项推导新资格。不增加 wire 字段、版本或 CORE 特例。
 
+共有 HIR 的每个实际 `SourceBinding` 调用在完整源码签名校验通过后，还必须从同一份 callable declaration 的逻辑 receiver、声明序参数及结果推导 `Signature` 类型用途；nominal member 的逻辑 receiver 使用声明 owner，extension 使用原声明 receiver，复合签名递归保留所有 nominal 构成及其共有表示闭包。Unit/ZST 逻辑位置继续参与逐次校验，重复类型仅在最终 selected 集合去重；仅有可见声明或候选 selected 项不会产生调用签名用途。producer 与 layout reader 复用 ordinary/layout 的共有 HIR 元数据执行同一推导，精确拒绝缺失、额外及错误 provider/exact 的签名用途，查询和递归沿用当前 artifact 的累计预算。本项处理传参后的逻辑签名，不把声明 owner 冒充 `MemberCall` 所需的转换前静态 receiver；source access、member/slot 操作、singleton 及完整 selected-use 闭包继续独立校验。不增加 wire 字段或版本。
+
 ### 2.7 `scoop` umbrella 与 single-Cone `scoopc`
 
 本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。

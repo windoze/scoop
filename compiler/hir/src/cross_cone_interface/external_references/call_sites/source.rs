@@ -2,19 +2,23 @@ use scoop_identity::{CallableTemplateOrigin, PersistentExactTypeId, SignatureTyp
 use scoop_wire::{BudgetMeter, WireError, WirePath};
 
 use super::{HirDependencyCallReasonV1, HirDependencyCallSiteV1};
-use crate::{ExternalHirTargetV1, SharedTypeMetadataError, SharedTypeMetadataV1, SourceNominalId};
+use crate::{
+    CallableDeclarationRecordV1, ExternalHirTargetV1, SharedTypeMetadataError,
+    SharedTypeMetadataV1, SourceNominalId,
+};
 
 impl HirDependencyCallSiteV1 {
     /// Joins this actual call with the provider's already checked declaration.
     /// Source access, execution roles and MIR implementation selection remain
-    /// independent checks; this method establishes the full logical signature.
-    pub fn validate_source_signature(
+    /// independent checks. The returned declaration has this call's complete
+    /// logical signature, including every zero-sized argument.
+    pub fn validate_source_signature<'a>(
         &self,
         target: ExternalHirTargetV1,
-        metadata: SharedTypeMetadataV1<'_>,
+        metadata: SharedTypeMetadataV1<'a>,
         meter: &mut BudgetMeter,
         path: &WirePath,
-    ) -> Result<(), HirDependencyCallSignatureError> {
+    ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
         meter.charge_nodes(1, path)?;
         meter.charge_work(1, path)?;
@@ -84,7 +88,7 @@ impl HirDependencyCallSiteV1 {
                 actual: self.result(),
             });
         }
-        Ok(())
+        Ok(source)
     }
 }
 

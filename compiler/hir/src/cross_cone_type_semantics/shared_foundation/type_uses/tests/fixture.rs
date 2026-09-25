@@ -1,5 +1,9 @@
 use super::*;
 
+mod callables;
+mod calls;
+pub(super) use callables::CallForm;
+
 pub(super) struct Artifact {
     coordinate: ConeCoordinate,
     nominals: Vec<(
@@ -137,6 +141,16 @@ impl Artifact {
                     .map(|(identity, _)| {
                         CborIdentityRecord::from_key(ExactTypeKey::Nominal(identity.id())).unwrap()
                     })
+                    .chain(
+                        [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
+                            .into_iter()
+                            .map(|builtin| {
+                                CborIdentityRecord::from_key(ExactTypeKey::Nominal(
+                                    builtin.identity_record().id(),
+                                ))
+                                .unwrap()
+                            }),
+                    )
                     .collect(),
             )
             .unwrap();
